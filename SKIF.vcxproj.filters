@@ -1,0 +1,464 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\ImGui">
+      <UniqueIdentifier>{63076e31-4f80-4ca1-b4af-bfe9a9c359b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ImGui\D3D11">
+      <UniqueIdentifier>{c1e4600b-6cfe-4460-8df5-01dd30f01d5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ImGui">
+      <UniqueIdentifier>{7e60a39e-3f7a-46ab-abac-6d25a90a2549}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ImGui\Win32">
+      <UniqueIdentifier>{840abb22-849f-4480-95e4-02dd28955bd3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\DXTex">
+      <UniqueIdentifier>{fcae95b5-4150-4db2-ad68-0316bfc404ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\DXTex">
+      <UniqueIdentifier>{c49090e8-805d-4d4c-bac0-497258bf48b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores">
+      <UniqueIdentifier>{489abe81-33aa-408e-b6c8-743add85f42d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\Steam">
+      <UniqueIdentifier>{bbe0dc2c-ea77-47f5-9371-b2d1706474f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\Steam\API">
+      <UniqueIdentifier>{9953f094-bf48-48b5-8194-6b18e32c3e14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores">
+      <UniqueIdentifier>{945b4149-3a70-4cbe-9278-1635e8d95cc5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\Steam">
+      <UniqueIdentifier>{89d533fc-6293-4896-9a8a-ea8cd8d09e9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ImGui\Backends">
+      <UniqueIdentifier>{50a540e9-c9d2-4223-8bd0-d839f1ae1197}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ImGui\Backends\D3D11">
+      <UniqueIdentifier>{444c152e-6991-45d2-acb5-69bb839615ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ImGui\Backends\D3D12">
+      <UniqueIdentifier>{98d00adb-6822-42d4-a269-d37dd46007f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Config">
+      <UniqueIdentifier>{640440ea-60dc-4dc4-ac3b-e429b4279aa1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Config">
+      <UniqueIdentifier>{c9aa956c-fbfe-4e16-89f4-a0dd29f791f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Utility">
+      <UniqueIdentifier>{e5817b47-00d5-484e-9bc2-e710e2866fb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UI Tasks">
+      <UniqueIdentifier>{ea818bb6-75af-4e0b-905a-f046d248f0b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\UI Tasks">
+      <UniqueIdentifier>{e58a2ba6-a4c1-493c-b8f1-cfd30cdb9f2d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Utility">
+      <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SKIF.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\BC.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\BCDirectCompute.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\d3dx12.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DDS.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTex.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTexP.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\filters.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\scoped.h">
+      <Filter>Header Files\DXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamapplist.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamapps.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamappticket.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamclient.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamcontroller.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamfriends.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamgamecoordinator.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamgameserver.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamgameserverstats.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamhtmlsurface.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamhttp.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteaminput.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteaminventory.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteammasterserverupdater.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteammatchmaking.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteammusic.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteammusicremote.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamnetworking.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamnetworkingsockets.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamnetworkingutils.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamparentalsettings.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamps3overlayrenderer.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamremoteplay.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamremotestorage.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamscreenshots.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamugc.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamuser.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamuserstats.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamutils.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\isteamvideo.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\matchmakingtypes.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steam_api.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steam_api_common.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steam_api_flat.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steam_api_internal.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steam_gameserver.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamclientpublic.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamdatagram_tickets.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamencryptedappticket.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamhttpenums.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamnetworkingtypes.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamps3params.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamtypes.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="steam\steamuniverse.h">
+      <Filter>Header Files\Stores\Steam\API</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vfs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\achievements.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\ugc.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imconfig.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imgui.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imgui_impl_win32.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imgui_internal.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imstb_rectpack.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imstb_textedit.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\imstb_truetype.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
+      <Filter>Header Files\ImGui\Backends\D3D11</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h">
+      <Filter>Header Files\ImGui\Backends\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\library.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\generic_library.h">
+      <Filter>Header Files\Stores</Filter>
+    </ClInclude>
+    <ClInclude Include="include\version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sk_config\ini.h">
+      <Filter>Header Files\Config</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sk_utility\utility.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ui_tasks\manage_games.h">
+      <Filter>Header Files\UI Tasks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\vdf.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\app_record.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fsutil.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\apps_list.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Steam\asset_fetch.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="include\injection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\install_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DirectXTex\BC.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BC4BC5.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BC6HBC7.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BCDirectCompute.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexD3D12.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexImage.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexResize.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
+      <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
+      <Filter>Source Files\ImGui\D3D11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_impl_win32.cpp">
+      <Filter>Source Files\ImGui\Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_draw.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\ugc.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SKIF.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\library.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vfs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sk_config\ini.cpp">
+      <Filter>Source Files\Config</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui_tasks\manage_games.cpp">
+      <Filter>Source Files\UI Tasks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\vdf.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\app_record.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fsutil.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sk_utility\utility.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\apps_list.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Steam\asset_fetch.cpp">
+      <Filter>Source Files\Stores\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\injection.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\install_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="SKIF.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="SKIF.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DirectXTex\DirectXTex.inl">
+      <Filter>Header Files\DXTex</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\imgui_vtx_shader.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="src\imgui_pix_shader.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
