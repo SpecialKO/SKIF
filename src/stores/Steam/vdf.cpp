@@ -128,7 +128,7 @@ app_section_s::parse (section_desc_s& desc)
           break;
 
         default:
-          MessageBox (NULL, std::to_wstring (op).c_str (), L"Unknown VDF Token Operator", MB_OK);
+          MessageBox (nullptr, std::to_wstring (op).c_str (), L"Unknown VDF Token Operator", MB_OK);
           break;
       }
     }

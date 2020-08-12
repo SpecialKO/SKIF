@@ -62,6 +62,10 @@ bool SKIF_bDPIScaling = true;
 BOOL
 SKIF_IsWindows8Point1OrGreater (void)
 {
+  SK_RunOnce (
+    SetLastError (NO_ERROR)
+  );
+
   static BOOL
     bResult =
       GetProcAddress (
@@ -76,13 +80,17 @@ SKIF_IsWindows8Point1OrGreater (void)
 BOOL
 SKIF_IsWindows10OrGreater (void)
 {
+  SK_RunOnce (
+    SetLastError (NO_ERROR)
+  );
+
   static BOOL
-  bResult =
-    GetProcAddress (
-      GetModuleHandleW (L"kernel32.dll"),
-                         "SetThreadDescription"
-                   ) != nullptr &&
-    GetLastError  () == NO_ERROR;
+    bResult =
+      GetProcAddress (
+        GetModuleHandleW (L"kernel32.dll"),
+                           "SetThreadDescription"
+                     ) != nullptr &&
+      GetLastError  () == NO_ERROR;
 
   return bResult;
 }
@@ -279,9 +287,12 @@ auto SKIF_ImGui_LoadFont =
 
   else
   {
+    wchar_t     wszFontsDir [MAX_PATH] = { };
+    wcsncpy_s ( wszFontsDir, MAX_PATH,
+             SK_GetFontsDir ().c_str (), _TRUNCATE );
+
     PathCombineW ( wszFullPath,
-                     SK_GetFontsDir ().c_str (),
-                              filename.c_str () );
+                   wszFontsDir, filename.c_str () );
 
     if (GetFileAttributesW (wszFullPath) == INVALID_FILE_ATTRIBUTES)
       *wszFullPath = L'\0';
@@ -353,11 +364,11 @@ namespace SKIF
     class KeyValue
     {
       struct KeyDesc {
-        HKEY         hKey      = HKEY_CURRENT_USER;
-        std::wstring SubKey    =               L"";
-        std::wstring KeyValue  =               L"";
-        DWORD        dwType    =          REG_NONE;
-        DWORD        dwFlags   =        RRF_RT_ANY;
+        HKEY         hKey                 = HKEY_CURRENT_USER;
+        wchar_t    wszSubKey   [MAX_PATH] =               L"";
+        wchar_t    wszKeyValue [MAX_PATH] =               L"";
+        DWORD        dwType               =          REG_NONE;
+        DWORD        dwFlags              =        RRF_RT_ANY;
       };
 
     public:
@@ -370,8 +381,8 @@ namespace SKIF
         {
           LSTATUS lStat =
             RegGetValueW ( _desc.hKey,
-                             _desc.SubKey.c_str (),
-                               _desc.KeyValue.c_str (),
+                             _desc.wszSubKey,
+                               _desc.wszKeyValue,
                                _desc.dwFlags,
                                  &_desc.dwType,
                                    pVal, pLen );
@@ -450,7 +461,7 @@ namespace SKIF
           lStat =
             RegCreateKeyExW (
               _desc.hKey,
-                _desc.SubKey.c_str (),
+                _desc.wszSubKey,
                   0x00, nullptr,
                     REG_OPTION_NON_VOLATILE,
                     KEY_ALL_ACCESS, nullptr,
@@ -494,7 +505,7 @@ namespace SKIF
           lStat =
             RegSetKeyValueW ( hKeyToSet,
                                 nullptr,
-                                _desc.KeyValue.c_str (),
+                                _desc.wszKeyValue,
                                 _desc.dwType,
                                   pVal, dwDataSize );
 
@@ -520,12 +531,16 @@ namespace SKIF
       {
         KeyValue <_Tp> kv;
 
-        kv._desc.hKey     = hKey;
-        kv._desc.SubKey   = wszSubKey;
-        kv._desc.KeyValue = wszKeyValue;
-        kv._desc.dwType   = ( pdwType != nullptr ) ?
-                                          *pdwType : REG_NONE;
-        kv._desc.dwFlags  = dwFlags;
+        wcsncpy_s ( kv._desc.wszSubKey, MAX_PATH,
+                             wszSubKey, _TRUNCATE );
+
+        wcsncpy_s ( kv._desc.wszKeyValue, MAX_PATH,
+                             wszKeyValue, _TRUNCATE );
+
+        kv._desc.hKey    = hKey;
+        kv._desc.dwType  = ( pdwType != nullptr ) ?
+                                         *pdwType : REG_NONE;
+        kv._desc.dwFlags = dwFlags;
 
         return kv;
       }
@@ -542,6 +557,589 @@ namespace SKIF
 #define SKIF_MakeRegKeyWS SKIF::WindowsRegistry::KeyValue <std::wstring>::MakeKeyValue
 };
 
+std::string
+SKIF_GetPatrons (void)
+{
+  FILE *fPatrons =
+    _wfopen (L"patrons.txt", L"rb");
+
+  if (fPatrons != nullptr)
+  {
+    std::string out;
+
+    fseek (fPatrons, 0, SEEK_END);
+
+    size_t size =
+      ftell (fPatrons);
+    rewind  (fPatrons);
+
+    out.resize (size);
+
+    fread (out.data (), size, 1, fPatrons);
+           out += '\0';
+    return out;
+  }
+
+  return "";
+}
+
+
+#include <wtypes.h>
+#include <WinInet.h>
+
+#include <gsl/gsl>
+#include <comdef.h>
+
+struct skif_version_info_t {
+  wchar_t wszHostName  [INTERNET_MAX_HOST_NAME_LENGTH] = { };
+  wchar_t wszHostPath  [INTERNET_MAX_PATH_LENGTH]      = { };
+  std::wstring
+          product                                      = L"SKIF";
+  std::wstring
+          branch                                       = L"Default";
+  int     build                                        =   0;
+  bool    success                                      = false;
+};
+
+struct skif_patron_info_t {
+  wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
+  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH]      = { };
+  bool    success                                     = false;
+};
+
+struct SKIF_VersionControl {
+  DWORD WINAPI Runner            (skif_version_info_t *get);
+  void         SetCheckFrequency (const wchar_t       *wszProduct,
+                                        int            minutes);
+  uint32_t     GetCheckFrequency (const wchar_t       *wszProduct);
+  bool         CheckForUpdates   (const wchar_t       *wszProduct,
+                                        int            local_build  = 0,
+                                        int            remote_build = 0,
+                                        const wchar_t *wszBranch    = nullptr,
+                                        bool           force        = false);
+  DWORD WINAPI PatronRunner      (skif_patron_info_t *get);
+} SKIF_VersionCtl;
+
+DWORD
+WINAPI
+SKIF_VersionControl::Runner (skif_version_info_t* get)
+{
+  ULONG ulTimeout = 250UL;
+
+  PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
+  HINTERNET hInetHTTPGetReq  = nullptr,
+            hInetHost        = nullptr,
+  hInetRoot                  =
+    InternetOpen (
+      L"Special K - Version Check",
+        INTERNET_OPEN_TYPE_DIRECT,
+          nullptr, nullptr,
+            0x00
+    );
+
+  // (Cleanup On Error)
+  auto CLEANUP = [&](bool clean = false) ->
+  DWORD
+  {
+    if (! clean)
+    {
+      DWORD dwLastError =
+           GetLastError ();
+
+      OutputDebugStringW (
+        ( std::wstring (L"WinInet Failure (") +
+              std::to_wstring (dwLastError)   +
+          std::wstring (L"): ")               +
+                 _com_error   (dwLastError).ErrorMessage ()
+        ).c_str ()
+      );
+    }
+
+    if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
+    if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
+    if (hInetRoot       != nullptr) InternetCloseHandle (hInetRoot);
+
+    return 0;
+  };
+
+  if (hInetRoot == nullptr)
+    return CLEANUP ();
+
+  DWORD_PTR dwInetCtx = 0;
+
+  hInetHost =
+    InternetConnect ( hInetRoot,
+                        get->wszHostName,
+                          INTERNET_DEFAULT_HTTP_PORT,
+                            nullptr, nullptr,
+                              INTERNET_SERVICE_HTTP,
+                                0x00,
+                                  (DWORD_PTR)&dwInetCtx );
+
+  if (hInetHost == nullptr)
+  {
+    return CLEANUP ();
+  }
+
+  hInetHTTPGetReq =
+    HttpOpenRequest ( hInetHost,
+                        nullptr,
+                          get->wszHostPath,
+                            L"HTTP/1.1",
+                              nullptr,
+                                rgpszAcceptTypes,
+                                                                    INTERNET_FLAG_IGNORE_CERT_DATE_INVALID |
+                                  INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
+                                  INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
+                                    (DWORD_PTR)&dwInetCtx );
+
+
+  // Wait 2500 msecs for a dead connection, then give up
+  //
+  InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
+                         &ulTimeout,    sizeof (ULONG) );
+
+
+  if (hInetHTTPGetReq == nullptr)
+  {
+    return CLEANUP ();
+  }
+
+  if ( HttpSendRequestW ( hInetHTTPGetReq,
+                            nullptr,
+                              0,
+                                nullptr,
+                                  0 ) )
+  {
+    DWORD dwStatusCode        = 0;
+    DWORD dwStatusCode_Len    = sizeof (DWORD);
+
+    DWORD dwContentLength     = 0;
+    DWORD dwContentLength_Len = sizeof (DWORD);
+    DWORD dwSizeAvailable;
+
+    HttpQueryInfo ( hInetHTTPGetReq,
+                     HTTP_QUERY_STATUS_CODE |
+                     HTTP_QUERY_FLAG_NUMBER,
+                       &dwStatusCode,
+                         &dwStatusCode_Len,
+                           nullptr );
+
+    if (dwStatusCode == 200)
+    {
+      HttpQueryInfo ( hInetHTTPGetReq,
+                        HTTP_QUERY_CONTENT_LENGTH |
+                        HTTP_QUERY_FLAG_NUMBER,
+                          &dwContentLength,
+                            &dwContentLength_Len,
+                              nullptr );
+
+      std::vector <char> http_chunk;
+      std::vector <char> concat_buffer;
+
+      while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
+                                             &dwSizeAvailable,
+                                               0x00, NULL )
+        )
+      {
+        if (dwSizeAvailable > 0)
+        {
+          DWORD dwSizeRead = 0;
+
+          if (http_chunk.size () < dwSizeAvailable)
+              http_chunk.resize   (dwSizeAvailable);
+
+          if ( InternetReadFile ( hInetHTTPGetReq,
+                                    http_chunk.data (),
+                                      dwSizeAvailable,
+                                        &dwSizeRead )
+             )
+          {
+            if (dwSizeRead == 0)
+              break;
+
+            concat_buffer.insert ( concat_buffer.cend   (),
+                                    http_chunk.cbegin   (),
+                                      http_chunk.cbegin () + dwSizeRead );
+
+            if (dwSizeRead < dwSizeAvailable)
+              break;
+          }
+        }
+
+        else
+          break;
+      }
+
+      concat_buffer.push_back ('\0');
+
+      get->build =
+        std::atoi (concat_buffer.data ());
+    }
+  }
+
+  CLEANUP (true);
+
+  return 1;
+}
+
+DWORD
+WINAPI
+SKIF_VersionControl::PatronRunner (skif_patron_info_t* get)
+{
+  ULONG ulTimeout = 250UL;
+
+  PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
+  HINTERNET hInetHTTPGetReq  = nullptr,
+            hInetHost        = nullptr,
+  hInetRoot                  =
+    InternetOpen (
+      L"Special K - Version Check",
+        INTERNET_OPEN_TYPE_DIRECT,
+          nullptr, nullptr,
+            0x00
+    );
+
+  // (Cleanup On Error)
+  auto CLEANUP = [&](bool clean = false) ->
+  DWORD
+  {
+    if (! clean)
+    {
+      DWORD dwLastError =
+           GetLastError ();
+
+      OutputDebugStringW (
+        ( std::wstring (L"WinInet Failure (") +
+              std::to_wstring (dwLastError)   +
+          std::wstring (L"): ")               +
+                 _com_error   (dwLastError).ErrorMessage ()
+        ).c_str ()
+      );
+    }
+
+    if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
+    if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
+    if (hInetRoot       != nullptr) InternetCloseHandle (hInetRoot);
+
+    return 0;
+  };
+
+  if (hInetRoot == nullptr)
+    return CLEANUP ();
+
+  DWORD_PTR dwInetCtx = 0;
+
+  hInetHost =
+    InternetConnect ( hInetRoot,
+                        get->wszHostName,
+                          INTERNET_DEFAULT_HTTP_PORT,
+                            nullptr, nullptr,
+                              INTERNET_SERVICE_HTTP,
+                                0x00,
+                                  (DWORD_PTR)&dwInetCtx );
+
+  if (hInetHost == nullptr)
+  {
+    return CLEANUP ();
+  }
+
+  hInetHTTPGetReq =
+    HttpOpenRequest ( hInetHost,
+                        nullptr,
+                          get->wszHostPath,
+                            L"HTTP/1.1",
+                              nullptr,
+                                rgpszAcceptTypes,
+                                                                    INTERNET_FLAG_IGNORE_CERT_DATE_INVALID |
+                                  INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
+                                  INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
+                                    (DWORD_PTR)&dwInetCtx );
+
+
+  // Wait 250 msecs for a dead connection, then give up
+  //
+  InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
+                         &ulTimeout,    sizeof (ULONG) );
+
+
+  if (hInetHTTPGetReq == nullptr)
+  {
+    return CLEANUP ();
+  }
+
+  if ( HttpSendRequestW ( hInetHTTPGetReq,
+                            nullptr,
+                              0,
+                                nullptr,
+                                  0 ) )
+  {
+    DWORD dwStatusCode        = 0;
+    DWORD dwStatusCode_Len    = sizeof (DWORD);
+
+    DWORD dwContentLength     = 0;
+    DWORD dwContentLength_Len = sizeof (DWORD);
+    DWORD dwSizeAvailable     = 0;
+
+    HttpQueryInfo ( hInetHTTPGetReq,
+                     HTTP_QUERY_STATUS_CODE |
+                     HTTP_QUERY_FLAG_NUMBER,
+                       &dwStatusCode,
+                         &dwStatusCode_Len,
+                           nullptr );
+
+    if (dwStatusCode == 200)
+    {
+      HttpQueryInfo ( hInetHTTPGetReq,
+                        HTTP_QUERY_CONTENT_LENGTH |
+                        HTTP_QUERY_FLAG_NUMBER,
+                          &dwContentLength,
+                            &dwContentLength_Len,
+                              nullptr );
+
+      std::vector <char> http_chunk;
+      std::vector <char> concat_buffer;
+
+      while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
+                                             &dwSizeAvailable,
+                                               0x00, NULL )
+        )
+      {
+        if (dwSizeAvailable > 0)
+        {
+          DWORD dwSizeRead = 0;
+
+          if (http_chunk.size () < dwSizeAvailable)
+              http_chunk.resize   (dwSizeAvailable + 1);
+
+          if ( InternetReadFile ( hInetHTTPGetReq,
+                                    http_chunk.data (),
+                                      dwSizeAvailable,
+                                        &dwSizeRead )
+             )
+          {
+            if (dwSizeRead == 0)
+              break;
+
+            concat_buffer.insert ( concat_buffer.cend   (),
+                                    http_chunk.cbegin   (),
+                                      http_chunk.cbegin () + dwSizeRead );
+
+            if (dwSizeRead < dwSizeAvailable)
+              break;
+          }
+        }
+
+        else
+          break;
+
+        dwSizeAvailable = 0;
+      }
+
+      concat_buffer.push_back ('\0');
+
+      FILE *fPatrons =
+        _wfopen (L"patrons.txt", L"wb+");
+
+      if (fPatrons != nullptr)
+      {
+        fwrite ( concat_buffer.data (),
+                 concat_buffer.size (), 1, fPatrons );
+        fclose (                           fPatrons );
+      }
+    }
+  }
+
+  CLEANUP (true);
+
+  return 1;
+}
+
+void
+SKIF_VersionControl::SetCheckFrequency ( const wchar_t *wszProduct,
+                                               int      minutes )
+{
+  std::wstring path =
+    SK_FormatStringW (
+      LR"(SOFTWARE\Kaldaien\Special K\VersionControl\%ws\)",
+        wszProduct
+    );
+
+  auto update_freq_key =
+    SKIF_MakeRegKeyI ( path.c_str (),
+                       LR"(UpdateFrequency)" );
+
+  update_freq_key.putData (minutes);
+}
+
+uint32_t
+SKIF_VersionControl::GetCheckFrequency (const wchar_t *wszProduct)
+{
+  std::wstring path =
+    SK_FormatStringW (
+      LR"(SOFTWARE\Kaldaien\Special K\VersionControl\%ws\)",
+        wszProduct
+    );
+
+  auto update_freq_key =
+    SKIF_MakeRegKeyI ( path.c_str (),
+                       LR"(UpdateFrequency)" );
+
+  return
+    static_cast <uint32_t> (
+      update_freq_key.getData ()
+    );
+}
+
+bool
+SKIF_VersionControl::CheckForUpdates ( const wchar_t *wszProduct,
+                                             int      local_build,
+                                             int      remote_build,
+                                       const wchar_t *wszBranch,
+                                             bool     force )
+{
+  std::wstring base_key_str =
+    SK_FormatStringW (
+      LR"(SOFTWARE\Kaldaien\Special K\VersionControl\%ws\)",
+          wszProduct );
+
+  const time_t update_freq =
+    GetCheckFrequency (wszProduct);
+
+  auto last_check =
+    SKIF_MakeRegKeyI (
+      base_key_str.c_str (),
+        L"LastChecked"
+    );
+
+  auto installed_build =
+    SKIF_MakeRegKeyI (
+      base_key_str.c_str (),
+        L"InstalledBuild"
+    );
+
+  if (update_freq <= 0)
+      SetCheckFrequency (wszProduct, 60 * 12);
+
+  bool check_ver = true;
+
+  if (! force)
+  {
+    const time_t
+     scheduled_recheck =
+        update_freq    + static_cast <time_t> (
+          last_check.getData ()
+        );
+
+    if (time (nullptr) / 60 < scheduled_recheck)
+    {
+      check_ver = false;
+    }
+  }
+
+  auto get =
+    std::make_unique <skif_version_info_t> ();
+
+
+
+  if (check_ver || (! PathFileExistsW (L"patrons.txt")))
+  {
+    URL_COMPONENTSW urlcomps = { };
+
+    urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
+
+    urlcomps.lpszHostName     = get->wszHostName;
+    urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
+
+    urlcomps.lpszUrlPath      = get->wszHostPath;
+    urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
+
+    if (wszBranch != nullptr)
+      get->branch = wszBranch;
+
+    get->product = wszProduct;
+
+    const wchar_t *wszVersionControlRoot =
+      L"https://sk-data.special-k.info/VersionControl";
+
+    std::wstring url =
+      wszVersionControlRoot;
+
+    url += LR"(/)" + get->product;
+    url += LR"(/)" + get->branch;
+    url += LR"(/current_build)";
+
+    if ( InternetCrackUrl (          url.c_str  (),
+           gsl::narrow_cast <DWORD> (url.length ()),
+                              0x00,
+                                &urlcomps
+                          )
+       )
+    {
+      if (Runner (get.get ()))
+        get->success = true;
+    }
+
+    skif_patron_info_t
+        info = { };
+    urlcomps = { };
+
+    urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
+
+    urlcomps.lpszHostName     = info.wszHostName;
+    urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
+
+    urlcomps.lpszUrlPath      = info.wszHostPath;
+    urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
+
+    url = L"https://sk-data.special-k.info/patrons.txt";
+
+    if ( InternetCrackUrl (          url.c_str  (),
+           gsl::narrow_cast <DWORD> (url.length ()),
+                              0x00,
+                                &urlcomps
+                          )
+       )
+    {
+      PatronRunner (&info);
+    }
+
+    if (get->success)
+      remote_build = get->build;
+
+    if (installed_build.getData () == 0)
+        installed_build.putData (local_build);
+
+    if (local_build != remote_build &&
+                  0 != remote_build)
+    {
+      if ( IDYES ==
+        MessageBox ( 0,
+          L"A new version of SKIF is available for manual update, see details?",
+            L"New Version Available", MB_YESNO )
+         )
+      {
+        extern void
+        SKIF_Util_OpenURI (std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
+        SKIF_Util_OpenURI (
+          L"https://discourse.differentk.fyi/c/development/version-history/"
+        );
+      }
+    }
+
+    last_check.putData (
+      static_cast <uint32_t> (time (nullptr) / 60)
+    );
+  }
+
+  if (local_build != 0)
+  {
+    installed_build.putData (local_build);
+  }
+
+  return true;
+}
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
@@ -565,6 +1163,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bDPIScaling =
     regKVDPIScaling.getData ();
 
+  SKIF_VersionCtl.CheckForUpdates (L"SKIF", SKIF_DEPLOYED_BUILD);
+
   if (SKIF_bDPIScaling)
     ImGui_ImplWin32_EnableDpiAwareness ();
 
@@ -580,7 +1180,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   char      szAppID [16] = { };
-  snprintf (szAppID, 15, "%lu",          app_id);
+  snprintf (szAppID, 15, "%li",          app_id);
 
   HMODULE hModSelf =
     GetModuleHandleW (nullptr);
@@ -754,10 +1354,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (pSwapChain2)
     {
-      HANDLE hSwapChainWait =
-        pSwapChain2->GetFrameLatencyWaitableObject ();
+      CHandle hSwapChainWait (
+        pSwapChain2->GetFrameLatencyWaitableObject ()
+      );
 
-      WaitForSingleObjectEx (hSwapChainWait, INFINITE, FALSE);
+      if (hSwapChainWait.m_h != 0)
+        WaitForSingleObjectEx (hSwapChainWait.m_h, 100UL, FALSE);
     }
 
     // Start the Dear ImGui frame
@@ -1015,8 +1617,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetStyle      ().ItemSpacing.x     +
         ImGui::GetStyle      ().FramePadding.x    * 2.0f
       );
-
-      uint32 _appid = 0;
 
       auto _StatusPartSize = [&](std::string& part) -> float
       {

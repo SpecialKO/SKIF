@@ -58,6 +58,11 @@ SKIF_Util_OpenURI (std::wstring path, DWORD dwAction = SW_SHOWNORMAL)
                   nullptr, dwAction );
 }
 
+#include <patreon.png.h>
+
+CComPtr <ID3D11Texture2D>          pPatTex2D;
+CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
+
 void
 SKIF_GameManagement_ShowScreenshot (std::wstring filename)
 {
@@ -465,6 +470,66 @@ SKIF_GameManagement_DrawTab (void)
       CComPtr <ID3D11Texture2D>& pLocalTex2D =
                                  *pUserTex2D;
 
+      auto __LoadPatreonTexture =
+      [&]( uint32_t                            appid,
+           CComPtr <ID3D11ShaderResourceView>& pPatTexSRV,
+           const std::wstring&                 name
+         )
+      {
+        if (
+          SUCCEEDED (
+            DirectX::LoadFromWICMemory (
+              patreon_png, sizeof (patreon_png),
+                DirectX::WIC_FLAGS_NONE,
+                  &local_meta, local_img
+            )
+          )
+        )
+        {
+          DirectX::ScratchImage* pImg   =
+                                     &local_img;
+          DirectX::ScratchImage   converted_img;
+
+          if (
+            SUCCEEDED (
+              DirectX::CreateTexture (
+                (ID3D11Device *)g_pd3dDevice,
+                  pImg->GetImages (), pImg->GetImageCount (),
+                    local_meta, (ID3D11Resource **)&pPatTex2D.p
+              )
+            )
+          )
+          {
+            D3D11_SHADER_RESOURCE_VIEW_DESC
+            srv_desc                           = { };
+            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srv_desc.Texture2D.MipLevels       = UINT_MAX;
+            srv_desc.Texture2D.MostDetailedMip =  0;
+
+            if (
+              FAILED (
+                g_pd3dDevice->CreateShaderResourceView (
+                   pPatTex2D .p, &srv_desc,
+                  &pPatTexSRV.p
+                )
+              )
+            )
+            {
+              pPatTexSRV.p = nullptr;
+            }
+
+            // SRV is holding a reference, this is not needed anymore.
+            pPatTex2D.Release ();
+          }
+        }
+      };
+
+      SK_RunOnce (
+        __LoadPatreonTexture (0, pPatTexSRV, L"(patreon.png)")
+      );
+
+
       auto __LoadLibraryTexture =
       [&]( uint32_t                            appid,
            CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
@@ -655,8 +720,62 @@ SKIF_GameManagement_DrawTab (void)
     pTexSRV = nullptr;
   }
 
-  ImGui::Image    ((ImTextureID)pTexSRV.p, ImVec2 (600.0F, 900.0F));
-  ImGui::SameLine ();
+
+  ImGui::BeginGroup    (                                                  );
+  float fX =
+  ImGui::GetCursorPosX (                                                  );
+  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F, 900.0F));
+  if (appid == SKIF_STEAM_APPID) {
+  float fY =
+  ImGui::GetCursorPosY (                                                  );
+  ImGui::SetCursorPosX (                                   fX             );
+  ImGui::SetCursorPos  (                           ImVec2 (fX, fY - 200.f));
+  ImGui::BeginGroup    ();
+  static bool hovered = false;
+  bool        clicked =
+  ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F, 200.0F),
+                                                   ImVec2 (0.f,       0.f),
+                                                   ImVec2 (1.f,       1.f),     0,
+                                                   ImVec4 (.033f,.033f,.033f, 1.0f),
+                                         hovered ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
+                                                 : ImVec4 (  .8f,  .8f,  .8f, .66f));
+  hovered =
+  ImGui::IsItemHovered (                                                  );
+
+  void SKIF_ImGui_SetHoverText (const char *szText);
+  SKIF_ImGui_SetHoverText ("Click to help support the project");
+
+  if (clicked)
+    SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
+
+  ImGui::SameLine           ( );
+  ImGui::BeginGroup         ( );
+  ImGui::SetCursorPosY      (ImGui::GetCursorPosY () + 66.67f);
+  ImGui::PushStyleColor     (ImGuiCol_Text, ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
+  ImGui::TextUnformatted    ("SpecialK Thanks to our Patrons:");
+
+  ImGui::Spacing            ( );
+  ImGui::SameLine           ( );
+  ImGui::Spacing            ( );
+  ImGui::SameLine           ( );
+
+  ImGui::PushStyleColor     (ImGuiCol_FrameBg, ImVec4 (0.0f, 0.0f, 0.0f, 0.0f));
+  ImGui::PushStyleColor     (ImGuiCol_Text,    ImVec4 (0.6f, 0.6f, 0.6f, 1.0f));
+
+  extern std::string SKIF_GetPatrons (void);
+  static std::string patrons_ =
+    SKIF_GetPatrons () + '\0';
+
+  ImGui::InputTextMultiline ("###Patrons",patrons_.data (), patrons_.length (),
+                 ImVec2 (400.0f - ImGui::GetStyle ().ItemSpacing.x * 3,
+                         133.3f - ImGui::GetTextLineHeightWithSpacing () ),
+                                  ImGuiInputTextFlags_ReadOnly );
+  ImGui::PopStyleColor (                                                 3);
+  ImGui::EndGroup      (                                                  );
+  ImGui::EndGroup      (                                                  );
+  }
+  ImGui::EndGroup      (                                                  );
+  ImGui::SameLine      (                                                  );
 
   if (update)
   {
@@ -668,7 +787,6 @@ SKIF_GameManagement_DrawTab (void)
     {
       skValveDataFile::appinfo_s *pAppInfo =
         appinfo->getAppInfo ( appid, nullptr );
-
 
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
@@ -1027,7 +1145,7 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::Selectable ("###zero", &dontcare);
   float f1 = ImGui::GetCursorPosY (  );
     ImGui::SameLine (                );
-    ImGui::Image (0, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
+    ImGui::Image (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
   float f2 = ImGui::GetCursorPosY (  );
              ImGui::SetCursorPosY (f0);
 
@@ -1181,7 +1299,7 @@ SKIF_GameManagement_DrawTab (void)
     }
   }
 
-  if (update)
+  if (update && pApp != nullptr)
   {
     if (pApp->textures.logo.p == nullptr)
     {
@@ -1471,7 +1589,6 @@ SKIF_GameManagement_DrawTab (void)
   {
     bool clicked  = false;
     bool running  = pApp->_status.running;
-    bool updating = pApp->_status.updating;
 
     extern ImGuiStyle SKIF_ImGui_DefaultStyle;
            ImGuiStyle _style = ImGui::GetStyle ();
@@ -1721,3 +1838,58 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::EndChild     (                  );
   ImGui::EndGroup     (                  );
 }
+
+
+#if 0
+struct SKIF_Store {
+
+};
+
+struct SKIF_Anticheat {
+  bool has;
+};
+
+enum class DRM_Authority {
+  None,
+  Steam,
+  Origin,
+  uPlay,
+  MicrosoftStore,
+  EpicGameStore,
+  Bethesda_net,
+  Galaxy
+};
+
+enum class AntiTamper_Type {
+  None,
+  Denuvo
+};
+
+struct SKIF_DRM {
+  DRM_Authority   drm_auth;
+  AntiTamper_Type anti_tamper;
+};
+
+struct SKIF_GameFeatures {
+  bool vr;
+  bool hdr;
+  bool cloud;
+  bool achievements;
+  bool leaderboards;
+  bool rich_presence;
+//bool raytraced;
+};
+struct SKIF_Game {
+  SKIF_Store     parent;
+  std::wstring   name;
+  std::wstring   executable;
+  std::vector <
+    std::wstring
+  >              config_paths;
+  bool           enable_injection;
+  int            render_api;
+  int            input_api;
+  int            bitness;
+  SKIF_DRM       drm;
+};
+#endif

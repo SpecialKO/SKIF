@@ -103,6 +103,9 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
                                     int      depth,
                   SK_VirtualFS::vfsNode* pVFSImmutableRoot )
 {
+  if (pVFSRoot == nullptr)
+    return 0;
+
   if (pVFSImmutableRoot == nullptr)
       pVFSImmutableRoot = pVFSRoot;
 
@@ -439,7 +442,7 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         char*   data = nullptr;
 
         local_data =
-          std::make_unique <char []> (dwSize + 4);
+          std::make_unique <char []> (dwSize + 4u);
               data = local_data.get ();
 
         if (data == nullptr)

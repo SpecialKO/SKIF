@@ -104,34 +104,55 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     bool*           _inout = (bool *)lpUser;
     bool running = *_inout;
 
-    CoInitializeEx ( nullptr,
+    CoInitializeEx (nullptr,
       COINIT_APARTMENTTHREADED |
       COINIT_DISABLE_OLE1DDE
     );
 
+    ///const wchar_t *wszStartStopCommand =
+    ///  running ? LR"(Servlet\stop.bat)" :
+    ///            LR"(Servlet\start.bat)";
+
     const wchar_t *wszStartStopCommand =
-      running ? LR"(Servlet\stop.bat)" :
-                LR"(Servlet\start.bat)";
+      running ? LR"(rundll32.exe)" :
+                LR"(rundll32.exe)";
+
+    const wchar_t *wszStartStopParams32 =
+      running ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
+              : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
+
+    const wchar_t *wszStartStopParams64 =
+      running ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
+              : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
 
     HWND hWndForeground =
           GetForegroundWindow ();
 
     SHELLEXECUTEINFOW
-      sexi        = { };
-      sexi.cbSize = sizeof (SHELLEXECUTEINFOW);
-      sexi.lpVerb = L"open";
-      sexi.lpFile = wszStartStopCommand;
-      sexi.nShow  = SW_HIDE;
-      sexi.fMask  = SEE_MASK_FLAG_NO_UI | SEE_MASK_FLAG_DDEWAIT |
-                    SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+      sexi              = { };
+      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+      sexi.lpVerb       = L"OPEN";
+      sexi.lpFile       = wszStartStopCommand;
+      sexi.lpParameters = wszStartStopParams32;
+      sexi.lpDirectory  = L"Servlet";
+      sexi.nShow        = SW_HIDE;
+      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
     if ( ShellExecuteExW (&sexi) )
     {
-      *_inout= true;
+      sexi.lpParameters = wszStartStopParams64;
 
-      Sleep               (800UL);
-      SetForegroundWindow (hWndForeground);
-      SetFocus            (hWndForeground);
+      if ( ShellExecuteExW (&sexi) )
+      {
+        *_inout= true;
+
+        Sleep               (800UL);
+        SetForegroundWindow (hWndForeground);
+        SetFocus            (hWndForeground);
+      }
+
+      else *_inout = false;
     }
 
     else

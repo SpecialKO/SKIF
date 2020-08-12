@@ -25,8 +25,8 @@
 
 
 #define SKIF_MAJOR 0
-#define SKIF_MINOR 6
-#define SKIF_BUILD 9
+#define SKIF_MINOR 7
+#define SKIF_BUILD 0
 #define SKIF_REV_N 2
 #define SKIF_REV   2
 
@@ -54,4 +54,6 @@
 #define SKIF_WINDOW_TITLE_W _L(SKIF_WINDOW_TITLE_A)
 #define SKIF_WINDOW_TITLE      SKIF_WINDOW_TITLE_W
 #define SKIF_WINDOW_HASH     "###Special K Injection Frontend"
+
+#define SKIF_DEPLOYED_BUILD 2
 

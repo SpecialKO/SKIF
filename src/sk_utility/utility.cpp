@@ -302,7 +302,7 @@ SK_FormatString (char const* const _Format, ...)
   va_start (_ArgList, _Format);
   {
     len =
-      vsnprintf ( nullptr, 0, _Format, _ArgList ) + 1;
+      vsnprintf ( nullptr, 0, _Format, _ArgList ) + 1ui64;
   }
   va_end   (_ArgList);
 
@@ -336,7 +336,7 @@ SK_FormatStringW (wchar_t const* const _Format, ...)
   va_start (_ArgList, _Format);
   {
     len =
-      _vsnwprintf ( nullptr, 0, _Format, _ArgList ) + 1;
+      _vsnwprintf ( nullptr, 0, _Format, _ArgList ) + 1ui64;
   }
   va_end   (_ArgList);
 
