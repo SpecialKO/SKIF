@@ -215,58 +215,69 @@ SK_Steam_GetInstalledAppIDs (void)
 
   if (! bHasSpecialK)
   {
-    wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-    wsprintf ( wszManifestDir,
-                 LR"(%s\steamapps)",
-             (wchar_t *)steam_lib_paths [0] );
+    wchar_t wszManifestDir [MAX_PATH + 2] = { };
+
+    for (int i = 0; i < steam_libs; i++)
+    {
+      wsprintf ( wszManifestDir,
+                   LR"(%s\steamapps)",
+               (wchar_t *)steam_lib_paths [i] );
+
+      if (! PathIsDirectoryW (wszManifestDir))
+        continue;
+    }
 
     std::wstring wstr_path = wszManifestDir;
 
     FILE *fAppManifest =
-    _wfopen ((wstr_path + L"\\appmanifest_1157970.acf").c_str (), L"w+");
-    fputs ("AppState\n"
-           "{\n"
-           "	\"appid\"		                        \"1157970\"\n"
-           "	\"Universe\"		                    \"1\"\n"
-           "	\"name\"	       	                  \"Special K\"\n"
-           "	\"StateFlags\"		                  \"4\"\n"
-           "	\"installdir\"		                  \"Special K\"\n"
-           "	\"LastUpdated\"		                  \"1595505511\"\n"
-           "	\"UpdateResult\"		                \"0\"\n"
-           "	\"SizeOnDisk\"		                  \"36732902\"\n"
-           "	\"buildid\"		                      \"5321214\"\n"
-           "	\"LastOwner\"		                    \"76561198026681638\"\n"
-           "	\"BytesToDownload\"		              \"399904\"\n"
-           "	\"BytesDownloaded\"		              \"399904\"\n"
-           "	\"AutoUpdateBehavior\"		          \"0\"\n"
-           "	\"AllowOtherDownloadsWhileRunning\"	\"0\"\n"
-           "	\"ScheduledAutoUpdate\"		          \"0\"\n"
-           "	\"InstalledDepots\"\n"
-           "	{\n"
-           "		\"1157971\"\n"
-           "		{\n"
-           "			\"manifest\"		                \"4600382575410915787\"\n"
-           "		}\n"
-           "	}\n"
-           "	\"MountedDepots\"\n"
-           "	{\n"
-           "		\"1157971\"		                    \"4600382575410915787\"\n"
-           "	}\n"
-           "	\"SharedDepots\"\n"
-           "	{\n"
-           "		\"228988\"		                    \"228980\"\n"
-           "		\"228990\"		                    \"228980\"\n"
-           "	}\n"
-           "	\"UserConfig\"\n"
-           "	{\n"
-           "		\"language\"		                  \"english\"\n"
-           "		\"betakey\"		                    \"\"\n"
-           "		\"DisabledDLC\"		                \"1166340\"\n"
-           "		\"optionaldlc\"		                \"\"\n"
-           "	}\n"
-           "}\n",
-            fAppManifest);
-    fclose (fAppManifest);
+      _wfopen ((wstr_path + L"\\appmanifest_1157970.acf").c_str (), L"w+");
+
+    if (fAppManifest != nullptr)
+    {
+      fputs ("AppState\n"
+             "{\n"
+             "	\"appid\"		                        \"1157970\"\n"
+             "	\"Universe\"		                    \"1\"\n"
+             "	\"name\"	       	                  \"Special K\"\n"
+             "	\"StateFlags\"		                  \"4\"\n"
+             "	\"installdir\"		                  \"Special K\"\n"
+             "	\"LastUpdated\"		                  \"1595505511\"\n"
+             "	\"UpdateResult\"		                \"0\"\n"
+             "	\"SizeOnDisk\"		                  \"36732902\"\n"
+             "	\"buildid\"		                      \"5321214\"\n"
+             "	\"LastOwner\"		                    \"76561198026681638\"\n"
+             "	\"BytesToDownload\"		              \"399904\"\n"
+             "	\"BytesDownloaded\"		              \"399904\"\n"
+             "	\"AutoUpdateBehavior\"		          \"0\"\n"
+             "	\"AllowOtherDownloadsWhileRunning\"	\"0\"\n"
+             "	\"ScheduledAutoUpdate\"		          \"0\"\n"
+             "	\"InstalledDepots\"\n"
+             "	{\n"
+             "		\"1157971\"\n"
+             "		{\n"
+             "			\"manifest\"		                \"4600382575410915787\"\n"
+             "		}\n"
+             "	}\n"
+             "	\"MountedDepots\"\n"
+             "	{\n"
+             "		\"1157971\"		                    \"4600382575410915787\"\n"
+             "	}\n"
+             "	\"SharedDepots\"\n"
+             "	{\n"
+             "		\"228988\"		                    \"228980\"\n"
+             "		\"228990\"		                    \"228980\"\n"
+             "	}\n"
+             "	\"UserConfig\"\n"
+             "	{\n"
+             "		\"language\"		                  \"english\"\n"
+             "		\"betakey\"		                    \"\"\n"
+             "		\"DisabledDLC\"		                \"1166340\"\n"
+             "		\"optionaldlc\"		                \"\"\n"
+             "	}\n"
+             "}\n",
+              fAppManifest);
+      fclose (fAppManifest);
+    }
   }
 
   return apps;
