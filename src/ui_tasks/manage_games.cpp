@@ -471,11 +471,14 @@ SKIF_GameManagement_DrawTab (void)
                                  *pUserTex2D;
 
       auto __LoadPatreonTexture =
-      [&]( uint32_t                            appid,
-           CComPtr <ID3D11ShaderResourceView>& pPatTexSRV,
-           const std::wstring&                 name
+      [&]( uint32_t                             appid,
+           CComPtr <ID3D11ShaderResourceView>& kpPatTexSRV,
+           const std::wstring&                  name
          )
       {
+        UNREFERENCED_PARAMETER (name);
+        UNREFERENCED_PARAMETER (appid);
+
         if (
           SUCCEEDED (
             DirectX::LoadFromWICMemory (
@@ -510,8 +513,8 @@ SKIF_GameManagement_DrawTab (void)
             if (
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
-                   pPatTex2D .p, &srv_desc,
-                  &pPatTexSRV.p
+                   pPatTex2D  .p, &srv_desc,
+                  &kpPatTexSRV.p
                 )
               )
             )
@@ -949,13 +952,22 @@ SKIF_GameManagement_DrawTab (void)
 
   _HandleKeyboardInput ();
 
+  static std::string launch_description = "";
+
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
   float
   {
     if (pTargetApp != nullptr && pTargetApp->id != SKIF_STEAM_APPID)
     {
       struct summary_cache_s {
-        std::string injection_type;
+        struct {
+          std::string   type;
+          struct {
+            std::string text;
+            ImColor     color;
+          } status;
+          std::string   hover_text;
+        } injection;
         std::string config_repo;
         struct {
           std::string shorthand; // Converted to utf-8 from utf-16
@@ -967,35 +979,25 @@ SKIF_GameManagement_DrawTab (void)
           std::string version;   // Converted to utf-8 from utf-16
           std::string full_path; // Converted to utf-8 from utf-16
         } dll;
-        AppId_t     app_id = 0;
+        AppId_t     app_id  = 0;
+        DWORD       running = 0;
       } static cache;
 
-      if (pTargetApp->id != cache.app_id)
+      if (                              _inject.run_lvl_changed ||
+           cache.running != pTargetApp->_status.running )
       {
-        cache.app_id = pTargetApp->id;
+        cache.app_id = 0;
+      }
+
+      if (pTargetApp->id              != cache.app_id ||
+          pTargetApp->_status.running != cache.running )
+      {
+        cache.app_id  = pTargetApp->id;
+        cache.running = pTargetApp->_status.running;
 
         sk_install_state_s& sk_install =
           pTargetApp->specialk.injection;
 
-        switch (sk_install.injection.type)
-        {
-          case sk_install_state_s::Injection::Type::Global:
-            cache.injection_type = "Global";  break;
-          case sk_install_state_s::Injection::Type::Local:
-            cache.injection_type = "Local";   break;
-          default:
-            cache.injection_type = "UNKNOWN"; break;
-        }
-
-        switch (sk_install.config.type)
-        {
-          case ConfigType::Centralized:
-            cache.config_repo = "Centralized"; break;
-          case ConfigType::Localized:
-            cache.config_repo = "Localized";   break;
-          default:
-            cache.config_repo = "UNKNOWN";     break;
-        }
 
         wchar_t     wszDLLPath [MAX_PATH];
         wcsncpy_s ( wszDLLPath, MAX_PATH,
@@ -1022,6 +1024,57 @@ SKIF_GameManagement_DrawTab (void)
 
         if (! PathFileExistsW (sk_install.config.file.c_str ()))
           cfg.shorthand     = "";
+
+        if (! PathFileExistsA (cache.dll.full_path.c_str ()))
+          cache.dll.shorthand = "";
+
+
+        cache.injection.type         = "None";
+        cache.injection.status.text  =     "";
+        cache.injection.hover_text   =     "";
+
+        switch (sk_install.injection.type)
+        {
+          case sk_install_state_s::Injection::Type::Global:
+            launch_description = "Click to launch game :: (Without Special K)";
+
+            if (_inject.bHasServlet)
+            {
+              cache.injection.type         = "Global";
+              cache.injection.status.text  =
+                   _inject.running         ? "Service Running"
+                                           : "Service Stopped";
+              cache.injection.status.color =
+                   _inject.running         ? ImColor::HSV (0.3F,  0.99F, 1.F)
+                                           : ImColor::HSV (0.08F, 0.99F, 1.F);
+              cache.injection.hover_text   =
+                   _inject.running         ? "Click to Stop Injection Service"
+                                           : "Click to Start Injection Service";
+            }
+            if (! _inject.running)
+              cache.dll.shorthand = "";
+            else
+            {
+              launch_description = "Click to launch game :: (Global Injection)";
+            }
+            break;
+
+          case sk_install_state_s::Injection::Type::Local:
+            cache.injection.type = "Local";
+              launch_description = "Click to launch game :: (Local Injection)";
+            break;
+        }
+
+        switch (sk_install.config.type)
+        {
+          case ConfigType::Centralized:
+            cache.config_repo = "Centralized";  break;
+          case ConfigType::Localized:
+            cache.config_repo = "Localized";    break;
+          default:
+            cache.config_repo      = "UNKNOWN";
+            cache.config.shorthand = "";        break;
+        }
       }
 
       static constexpr float
@@ -1052,24 +1105,54 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::SameLine         ();
 
       ImGui::BeginGroup       ();
-      ImGui::TextUnformatted  (cache.injection_type.c_str   ());
-      ImGui::Text             ("%s  ( %s )",
-                               cache.dll.shorthand.c_str    (),
-                               cache.dll.version.c_str      ());
+      ImGui::TextUnformatted  (cache.injection.type.c_str   ());
 
-      SKIF_ImGui_SetHoverText (cache.dll.full_path.c_str    ());
+      if (! cache.dll.shorthand.empty ())
+      {
+        ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
+        SKIF_ImGui_SetHoverText (cache.dll.full_path.c_str  ());
+      }
 
-      ImGui::TextUnformatted  (cache.config_repo.c_str      ());
-      SKIF_ImGui_SetHoverText (cache.config.root_dir.c_str  ());
+      else
+        ImGui::TextUnformatted ("N/A");
 
-      if (ImGui::Selectable   (cache.config.shorthand.empty () ?
-                                                         "N/A" :
-                               cache.config.shorthand.c_str ()))
+      ImGui::TextUnformatted   (cache.config_repo.c_str      ());
+      SKIF_ImGui_SetHoverText  (cache.config.root_dir.c_str  ());
+
+      if (ImGui::Selectable    (cache.config.shorthand.empty () ?
+                                                          "N/A" :
+                                cache.config.shorthand.c_str ()))
       {
         SKIF_Util_OpenURI (
-          SK_UTF8ToWideChar ( cache.config.full_path.c_str  ())
+          SK_UTF8ToWideChar    (cache.config.full_path.c_str  ())
         );
       };
+      ImGui::EndGroup         ();
+
+      ImGui::SameLine         ();
+
+      ImGui::BeginGroup       ();
+      ImGui::TextColored      (cache.injection.status.color,
+                               cache.injection.status.text.empty () ? "      "
+                                                                    : "( %s )",
+                               cache.injection.status.text.c_str ());
+
+      if (ImGui::IsItemClicked ())
+      {
+        _inject._StartStopInject      (_inject.running);
+        _inject.running =
+          _inject.TestServletRunlevel (_inject.run_lvl_changed);
+        cache.app_id    = 0;
+      }
+
+      SKIF_ImGui_SetHoverText (cache.injection.hover_text.c_str ());
+
+      if (! cache.dll.shorthand.empty ())
+      {
+        ImGui::Text           (cache.dll.version.empty () ? "      "
+                                                          : "( %s )",
+                               cache.dll.version.c_str ());
+      }
       ImGui::EndGroup         ();
       ImGui::EndGroup         ();
 
@@ -1580,7 +1663,8 @@ SKIF_GameManagement_DrawTab (void)
 
   static bool launch_hovered = false;
 
-  if (pApp == nullptr || pApp->id == SKIF_STEAM_APPID)
+  if ( pApp     == nullptr       ||
+       pApp->id == SKIF_STEAM_APPID )
   {
     _inject._GlobalInjectionCtl ();
   }
@@ -1715,7 +1799,7 @@ SKIF_GameManagement_DrawTab (void)
     {
       SKIF_ImGui_SetHoverText (
         running ? "Game is already running"
-                : "Click to launch game"
+                : launch_description.c_str ()
       );
     }
 

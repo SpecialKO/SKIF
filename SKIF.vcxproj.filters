@@ -404,9 +404,6 @@
     <ClCompile Include="src\stores\Steam\library.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
-    <ClCompile Include="src\vfs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\sk_config\ini.cpp">
       <Filter>Source Files\Config</Filter>
     </ClCompile>
@@ -432,10 +429,13 @@
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
     <ClCompile Include="src\injection.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\install_utils.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vfs.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

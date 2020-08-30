@@ -1001,7 +1001,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
     bCanFlip ?
-           6 : 2;
+           4 : 2;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1203,10 +1203,15 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
+  CComQIPtr <IDXGISwapChain2> pSwap2 (data->SwapChain);
+
+  DXGI_PRESENT_PARAMETERS pparams = { };
+
   // Present without VSYNC
-  data->SwapChain->Present (
-    0, 0x0
-  );
+  if (pSwap2)
+    pSwap2->Present1         (0, DXGI_PRESENT_DO_NOT_WAIT, &pparams);
+  else
+    data->SwapChain->Present (0, DXGI_PRESENT_DO_NOT_WAIT);
 }
 
 static void

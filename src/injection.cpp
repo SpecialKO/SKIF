@@ -329,7 +329,8 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
   return ret;
 };
 
-bool SKIF_InjectionContext::_GlobalInjectionCtl (void)
+bool
+SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   ImGui::BeginGroup   (                  );
   if (bHasServlet)

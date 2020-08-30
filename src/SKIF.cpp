@@ -130,6 +130,7 @@ static HANDLE                       g_hSwapChainWaitableObject = NULL;
 static ID3D12Resource*              g_mainRenderTargetResource   [NUM_BACK_BUFFERS] = {};
 static D3D12_CPU_DESCRIPTOR_HANDLE  g_mainRenderTargetDescriptor [NUM_BACK_BUFFERS] = {};
 #else
+#define WM_DXGI_OCCLUSION WM_USER
 #include "imgui/d3d11/imgui_impl_dx11.h"
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
@@ -138,6 +139,8 @@ ID3D11Device*           g_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
 IDXGISwapChain*         g_pSwapChain           = nullptr;
 ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
+DWORD                   dwOcclusionCookie      =       0;
+BOOL                    bOccluded              =   FALSE;
 #endif
 
 
@@ -624,7 +627,7 @@ DWORD
 WINAPI
 SKIF_VersionControl::Runner (skif_version_info_t* get)
 {
-  ULONG ulTimeout = 250UL;
+  ULONG ulTimeout = 125UL;
 
   PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
   HINTERNET hInetHTTPGetReq  = nullptr,
@@ -694,7 +697,7 @@ SKIF_VersionControl::Runner (skif_version_info_t* get)
                                     (DWORD_PTR)&dwInetCtx );
 
 
-  // Wait 2500 msecs for a dead connection, then give up
+  // Wait 125 msecs for a dead connection, then give up
   //
   InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
                          &ulTimeout,    sizeof (ULONG) );
@@ -787,7 +790,7 @@ DWORD
 WINAPI
 SKIF_VersionControl::PatronRunner (skif_patron_info_t* get)
 {
-  ULONG ulTimeout = 250UL;
+  ULONG ulTimeout = 125UL;
 
   PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
   HINTERNET hInetHTTPGetReq  = nullptr,
@@ -857,7 +860,7 @@ SKIF_VersionControl::PatronRunner (skif_patron_info_t* get)
                                     (DWORD_PTR)&dwInetCtx );
 
 
-  // Wait 250 msecs for a dead connection, then give up
+  // Wait 125 msecs for a dead connection, then give up
   //
   InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
                          &ulTimeout,    sizeof (ULONG) );
@@ -1039,7 +1042,6 @@ SKIF_VersionControl::CheckForUpdates ( const wchar_t *wszProduct,
 
   auto get =
     std::make_unique <skif_version_info_t> ();
-
 
 
   if (check_ver || (! PathFileExistsW (L"patrons.txt")))
@@ -1321,19 +1323,48 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   while (msg.message != WM_QUIT)
   {
-    // Poll and handle messages (inputs, window resize, etc.)
-    // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-    // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-    // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-    // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-    if (PeekMessage (&msg, nullptr, 0U, 0U, PM_REMOVE))
+    auto _TranslateAndDispatch = [&](void)
     {
-      TranslateMessage (&msg);
-      DispatchMessage  (&msg);
+#define MAX_PUMP_TIME 10
 
-      continue;
+      DWORD dwStart = timeGetTime ();
+
+      while (PeekMessage (&msg, nullptr, 0U, 0U, PM_REMOVE))
+      {
+        TranslateMessage (&msg);
+        DispatchMessage  (&msg);
+
+        if (timeGetTime () - dwStart > MAX_PUMP_TIME)
+          break;
+      }
+    };
+
+    CComQIPtr <IDXGISwapChain2>
+        pSwapChain2 (g_pSwapChain);
+    if (pSwapChain2)
+    {
+      SK_RunOnce (
+        pSwapChain2->SetMaximumFrameLatency (1)
+      );
+
+      CHandle hSwapChainWait (
+        pSwapChain2->GetFrameLatencyWaitableObject ()
+      );
+
+      if (hSwapChainWait.m_h != 0)
+      {
+        DWORD dwWait =
+          MsgWaitForMultipleObjects (1, &hSwapChainWait.m_h, FALSE, /*INFINITE*/80, QS_ALLINPUT);
+
+        if (dwWait == WAIT_OBJECT_0 + 1)
+        {
+          _TranslateAndDispatch ();
+          continue;
+        }
+      }
     }
 
+    _TranslateAndDispatch ();
 
 #if 0
     bool ctrl  = (GetAsyncKeyState (VK_MENU)  & 0x8000) != 0;
@@ -1348,18 +1379,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 #endif
 
-
-    CComQIPtr <IDXGISwapChain2>
-               pSwapChain2 (g_pSwapChain);
-
-    if (pSwapChain2)
+    if (bOccluded || IsIconic (hWnd))
     {
-      CHandle hSwapChainWait (
-        pSwapChain2->GetFrameLatencyWaitableObject ()
-      );
-
-      if (hSwapChainWait.m_h != 0)
-        WaitForSingleObjectEx (hSwapChainWait.m_h, 100UL, FALSE);
+      MsgWaitForMultipleObjects (0, nullptr, FALSE, 250/*INFINITE*/, QS_ALLINPUT);
     }
 
     // Start the Dear ImGui frame
@@ -1603,7 +1625,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::Button ("Exit"))
       {
-        PostQuitMessage (0);
+        bKeepWindowAlive = false;
       }
 
       if (SKIF_ServiceRunning)
@@ -1714,11 +1736,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (SKIF_IsWindows8Point1OrGreater ())
     {
-      g_pSwapChain->Present (1, DXGI_PRESENT_RESTART);
+      g_pSwapChain->Present (1, DXGI_PRESENT_DO_NOT_WAIT);
     }
 
     else
-      g_pSwapChain->Present (1, 0x0);
+      g_pSwapChain->Present (1, DXGI_PRESENT_DO_NOT_WAIT);
 
 #ifdef __D3D12__
     UINT64 fenceValue =
@@ -2120,13 +2142,29 @@ bool CreateDeviceD3D (HWND hWnd)
                                                   &g_pd3dDeviceContext) != S_OK )
     return false;
 
+  CComPtr <IDXGIFactory2> pFactory2;
+
+  if (SUCCEEDED (g_pSwapChain->GetParent (IID_PPV_ARGS (&pFactory2.p))))
+  {
+    pFactory2->RegisterOcclusionStatusWindow (hWnd, WM_DXGI_OCCLUSION, &dwOcclusionCookie);
+  }
+
   CreateRenderTarget ();
   return true;
 }
 
 void CleanupDeviceD3D ()
 {
+  CComPtr <IDXGIFactory2> pFactory2;
+
+  if (           g_pSwapChain != nullptr &&
+      SUCCEEDED (g_pSwapChain->GetParent (IID_PPV_ARGS (&pFactory2.p))))
+  {
+    pFactory2->UnregisterOcclusionStatus (dwOcclusionCookie);
+  }
+
   CleanupRenderTarget ();
+
   if (g_pSwapChain)        { g_pSwapChain->Release        (); g_pSwapChain        = nullptr; }
   if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release (); g_pd3dDeviceContext = nullptr; }
   if (g_pd3dDevice)        { g_pd3dDevice->Release        (); g_pd3dDevice        = nullptr; }
@@ -2162,6 +2200,15 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+  case WM_DXGI_OCCLUSION:
+    if (g_pSwapChain != nullptr)
+    {
+      bOccluded = (
+        DXGI_STATUS_OCCLUDED == g_pSwapChain->Present (0, DXGI_PRESENT_TEST)
+      );
+    }
+    return 0;
+
   case WM_SIZE:
     if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
     {
