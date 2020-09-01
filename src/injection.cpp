@@ -104,7 +104,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     bool*           _inout = (bool *)lpUser;
     bool running = *_inout;
 
-    CoInitializeEx (nullptr,
+    CoInitializeEx ( nullptr,
       COINIT_APARTMENTTHREADED |
       COINIT_DISABLE_OLE1DDE
     );
@@ -128,19 +128,29 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     HWND hWndForeground =
           GetForegroundWindow ();
 
+    wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
+    wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
+
+    GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
+    PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
+
+    GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
+    PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
+
     SHELLEXECUTEINFOW
       sexi              = { };
       sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
       sexi.lpVerb       = L"OPEN";
-      sexi.lpFile       = wszStartStopCommand;
+      sexi.lpFile       = wszStartStopCommand32;
       sexi.lpParameters = wszStartStopParams32;
       sexi.lpDirectory  = L"Servlet";
       sexi.nShow        = SW_HIDE;
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                           SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
-    if ( ShellExecuteExW (&sexi) )
-    {
+    if ( ShellExecuteExW (&sexi) || running )
+    {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
+      sexi.lpFile       = wszStartStopCommand64;
       sexi.lpParameters = wszStartStopParams64;
 
       if ( ShellExecuteExW (&sexi) )
@@ -262,13 +272,15 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
       if (fPID != nullptr)
       {
-        int                         pid   = 0;
-        if (fwscanf (fPID, L"%li", &pid) == 1)
-        {
-          SK_TerminatePID (pid, 0x0);
-        }
-        fclose      (fPID);
+        int pid   = 0;
+        int count =
+          fwscanf (fPID, L"%li", &pid);
+        fclose    (fPID);
+
         DeleteFileW (file.wszPIDFile);
+
+        if (count == 1 &&  pid != 0)
+          SK_TerminatePID (pid, 0x0);
       }
 
       file.shuffleLockedFiles ();
@@ -313,7 +325,7 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
                        );
 
       // Nope, delete the PID file.
-      if (hProcess.m_h == nullptr)
+      if ((intptr_t)hProcess.m_h <= 0)
       {
         DeleteFileW (record.wszPidFilename);
                     *record.pPid = 0;
