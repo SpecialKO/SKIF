@@ -1354,7 +1354,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (hSwapChainWait.m_h != 0)
       {
         DWORD dwWait =
-          MsgWaitForMultipleObjects (1, &hSwapChainWait.m_h, FALSE, /*INFINITE*/80, QS_ALLINPUT);
+          MsgWaitForMultipleObjects (1, &hSwapChainWait.m_h, FALSE, 160, QS_ALLINPUT | QS_ALLPOSTMESSAGE);
 
         if (dwWait == WAIT_OBJECT_0 + 1)
         {
@@ -1381,7 +1381,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (bOccluded || IsIconic (hWnd))
     {
-      MsgWaitForMultipleObjects (0, nullptr, FALSE, 250/*INFINITE*/, QS_ALLINPUT);
+      MsgWaitForMultipleObjects (0, nullptr, FALSE, 250, QS_ALLINPUT | QS_ALLPOSTMESSAGE);
     }
 
     // Start the Dear ImGui frame
