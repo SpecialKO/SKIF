@@ -1325,7 +1325,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     auto _TranslateAndDispatch = [&](void)
     {
-#define MAX_PUMP_TIME 10
+#define MAX_PUMP_TIME 0
 
       DWORD dwStart = timeGetTime ();
 
@@ -1354,11 +1354,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (hSwapChainWait.m_h != 0)
       {
         DWORD dwWait =
-          MsgWaitForMultipleObjects (1, &hSwapChainWait.m_h, FALSE, 160, QS_ALLINPUT | QS_ALLPOSTMESSAGE);
+          MsgWaitForMultipleObjects (1, &hSwapChainWait.m_h, FALSE, 8, QS_ALLINPUT | QS_ALLPOSTMESSAGE);
 
-        if (dwWait == WAIT_OBJECT_0 + 1)
+        if (dwWait != WAIT_OBJECT_0 + 1 && dwWait != WAIT_TIMEOUT)
         {
           _TranslateAndDispatch ();
+
           continue;
         }
       }
@@ -1734,13 +1735,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::RenderPlatformWindowsDefault ();
     }
 
-    if (SKIF_IsWindows8Point1OrGreater ())
-    {
-      g_pSwapChain->Present (1, DXGI_PRESENT_DO_NOT_WAIT);
-    }
-
-    else
-      g_pSwapChain->Present (1, DXGI_PRESENT_DO_NOT_WAIT);
+    g_pSwapChain->Present (1, 0x0);
 
 #ifdef __D3D12__
     UINT64 fenceValue =

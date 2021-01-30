@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------
 // DirectXTexp.h
-//  
+//
 // DirectX Texture Library - Private header
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
@@ -227,7 +227,7 @@ namespace DirectX
         CONVF_FLOAT     = 0x1,
         CONVF_UNORM     = 0x2,
         CONVF_UINT      = 0x4,
-        CONVF_SNORM     = 0x8, 
+        CONVF_SNORM     = 0x8,
         CONVF_SINT      = 0x10,
         CONVF_DEPTH     = 0x20,
         CONVF_STENCIL   = 0x40,
@@ -261,7 +261,7 @@ namespace DirectX
         void* pDestination, _In_ size_t outSize,
         _In_reads_bytes_(inSize) const void* pSource, _In_ size_t inSize,
         _In_ DXGI_FORMAT format, _In_ DWORD flags) noexcept;
- 
+
     _Success_(return != false) bool __cdecl _ExpandScanline(
         _Out_writes_bytes_(outSize) void* pDestination, _In_ size_t outSize,
         _In_ DXGI_FORMAT outFormat,

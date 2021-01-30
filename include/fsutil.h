@@ -24,6 +24,7 @@
 
 #include <atlbase.h>
 #include <ShlObj.h>
+#include <string>
 
 bool
 SK_FileHasSpaces    (const wchar_t *wszLongFileName);

@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------
 // DirectXTexFlipRotate.cpp
-//  
+//
 // DirectX Texture Library - Image flip/rotate operations
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.

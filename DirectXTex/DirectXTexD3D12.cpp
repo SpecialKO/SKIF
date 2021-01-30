@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------
 // DirectXTexD3D12.cpp
-//  
+//
 // DirectX Texture Library - Direct3D 12 helpers
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
@@ -490,7 +490,7 @@ HRESULT DirectX::CreateTextureEx(
 
 
 //-------------------------------------------------------------------------------------
-// Prepares a texture resource for upload 
+// Prepares a texture resource for upload
 //-------------------------------------------------------------------------------------
 
 _Use_decl_annotations_

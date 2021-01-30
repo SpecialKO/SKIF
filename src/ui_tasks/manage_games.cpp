@@ -1119,6 +1119,13 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::TextUnformatted   (cache.config_repo.c_str      ());
       SKIF_ImGui_SetHoverText  (cache.config.root_dir.c_str  ());
 
+      if (ImGui::IsItemClicked ())
+      {
+        SKIF_Util_OpenURI (
+          SK_UTF8ToWideChar    (cache.config.root_dir.c_str  ())
+        );
+      }
+
       if (ImGui::Selectable    (cache.config.shorthand.empty () ?
                                                           "N/A" :
                                 cache.config.shorthand.c_str ()))

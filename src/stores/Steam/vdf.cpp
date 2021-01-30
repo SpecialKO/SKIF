@@ -215,15 +215,15 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
         bool populate_common =
           pAppRecord->common_config.appid == 0;
         bool populate_cloud_saves =
-          pAppRecord != nullptr   &&
+         //pAppRecord != nullptr &&
           pAppRecord->cloud_saves.empty ();
 
         bool populate_branches  =
-          pAppRecord != nullptr &&
+        //pAppRecord != nullptr &&
           pAppRecord->branches.empty ();
 
         bool populate_launch_configs =
-          pAppRecord != nullptr      &&
+        //pAppRecord != nullptr      &&
           pAppRecord->launch_configs.empty ();
 
         if (path_cache.my_documents.path [0] == 0)

@@ -31,7 +31,7 @@ std::wstring
 SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
 {
   if (! wszName)
-    return false;
+    return L"";
 
   UINT cbTranslatedBytes = 0,
        cbProductBytes    = 0,

@@ -114,7 +114,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     ///            LR"(Servlet\start.bat)";
 
     const wchar_t *wszStartStopCommand =
-      running ? LR"(rundll32.exe)" :
                 LR"(rundll32.exe)";
 
     const wchar_t *wszStartStopParams32 =

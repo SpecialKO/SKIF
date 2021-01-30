@@ -220,7 +220,7 @@ struct SKIF_RegistryWatch {
   {
     hKeyBase.Close ();
 
-    if (hEvent.m_h != 0)
+    if ((intptr_t)hEvent.m_h > 0)
       ResetEvent (hEvent.m_h);
 
     LSTATUS lStat =

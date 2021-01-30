@@ -40,7 +40,7 @@
 // COLOR                    0   xyzw        1     NONE   float   xyzw
 // TEXCOORD                 0   xy          2     NONE   float   xy  
 // TEXCOORD                 1     zw        2     NONE   float     zw
-// TEXCOORD                 2   xy          3     NONE   float   xy  
+// TEXCOORD                 2   xyz         3     NONE   float   xyz 
 //
 vs_5_0
 dcl_globalFlags refactoringAllowed
@@ -52,7 +52,7 @@ dcl_output_siv o0.xyzw, position
 dcl_output o1.xyzw
 dcl_output o2.xy
 dcl_output o2.zw
-dcl_output o3.xy
+dcl_output o3.xyz
 dcl_temps 1
 mul r0.xyzw, v0.yyyy, cb0[1].xyzw
 mad r0.xyzw, cb0[0].xyzw, v0.xxxx, r0.xyzw
@@ -60,17 +60,17 @@ add o0.xyzw, r0.xyzw, cb0[3].xyzw
 mov o1.xyzw, v1.xyzw
 mov_sat o2.xy, v2.xyxx
 mov o2.zw, l(0,0,0,0)
-mov o3.xy, cb0[4].xyxx
+mov o3.xyz, cb0[4].xyzx
 ret 
 // Approximately 8 instruction slots used
 #endif
 
 const BYTE imgui_vs_bytecode[] =
 {
-     68,  88,  66,  67, 143,  88, 
-    239, 187,   6,  56,  19, 221, 
-    130,  30,  37, 101,  88,  89, 
-     70, 172,   1,   0,   0,   0, 
+     68,  88,  66,  67, 173, 222, 
+     25, 198,  86, 237,  65,  48, 
+     45, 124, 116, 119,   9,   3, 
+    122,  95,   1,   0,   0,   0, 
     244,   4,   0,   0,   5,   0, 
       0,   0,  52,   0,   0,   0, 
     232,   1,   0,   0,  88,   2, 
@@ -189,7 +189,7 @@ const BYTE imgui_vs_bytecode[] =
       0,   0,   2,   0,   0,   0, 
       0,   0,   0,   0,   3,   0, 
       0,   0,   3,   0,   0,   0, 
-      3,  12,   0,   0,  83,  86, 
+      7,   8,   0,   0,  83,  86, 
      95,  80,  79,  83,  73,  84, 
      73,  79,  78,   0,  67,  79, 
      76,  79,  82,   0,  84,  69, 
@@ -215,7 +215,7 @@ const BYTE imgui_vs_bytecode[] =
      16,   0,   2,   0,   0,   0, 
     101,   0,   0,   3, 194,  32, 
      16,   0,   2,   0,   0,   0, 
-    101,   0,   0,   3,  50,  32, 
+    101,   0,   0,   3, 114,  32, 
      16,   0,   3,   0,   0,   0, 
     104,   0,   0,   2,   1,   0, 
       0,   0,  56,   0,   0,   8, 
@@ -248,8 +248,8 @@ const BYTE imgui_vs_bytecode[] =
       0,   0,   0,   0,   0,   0, 
       0,   0,   0,   0,   0,   0, 
       0,   0,   0,   0,  54,   0, 
-      0,   6,  50,  32,  16,   0, 
-      3,   0,   0,   0,  70, 128, 
+      0,   6, 114,  32,  16,   0, 
+      3,   0,   0,   0,  70, 130, 
      32,   0,   0,   0,   0,   0, 
       4,   0,   0,   0,  62,   0, 
       0,   1,  83,  84,  65,  84, 

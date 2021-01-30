@@ -114,7 +114,7 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
   int        found                  = 0;
   wchar_t    wszPath [MAX_PATH + 2] = { };
-  _swprintf (wszPath, LR"(%s\*)", wszDir);
+  swprintf (wszPath, LR"(%s\*)", wszDir);
 
   WIN32_FIND_DATA fd          = {   };
   HANDLE          hFind       =
@@ -132,8 +132,8 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
     if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
-      wchar_t    wszDescend [MAX_PATH + 2] = { };
-      _swprintf (wszDescend, LR"(%s\%s)", wszDir, fd.cFileName);
+      wchar_t   wszDescend [MAX_PATH + 2] = { };
+      swprintf (wszDescend, LR"(%s\%s)", wszDir, fd.cFileName);
 
       if (! pVFSImmutableRoot->containsDirectory (wszDescend))
       {

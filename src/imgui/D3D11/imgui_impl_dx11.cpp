@@ -36,6 +36,8 @@
 
 #include <SKIF.h>
 
+#define SKIF_scRGB
+
 #include <atlbase.h>
 #include <dxgi1_6.h>
 
@@ -347,9 +349,10 @@ struct SK_IMGUI_D3D11StateBlock {
 
 
 
-FLOAT             fHDRLuma   =  0.0f;
-BOOL              bHDR       = FALSE;
-DXGI_OUTPUT_DESC1 hdrOutDesc = {   };
+FLOAT             fHDRLuma    = 0.0f;
+FLOAT             fHDRMinLuma = 0.0f;
+BOOL              bHDR        = FALSE;
+DXGI_OUTPUT_DESC1 hdrOutDesc  = {   };
 
 BOOL SKIF_IsHDR                     (void)
 {
@@ -365,6 +368,15 @@ FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
   return
     bAllowLocalRange ? hdrOutDesc.MaxLuminance
                      : hdrOutDesc.MaxFullFrameLuminance;
+}
+
+FLOAT SKIF_GetMinHDRLuminance (void)
+{
+  if (! SKIF_IsHDR ())
+    return 0.0f;
+
+  return
+    hdrOutDesc.MinLuminance;
 }
 
 void  SKIF_SetHDRWhiteLuma (float fLuma)
@@ -575,7 +587,12 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     else
     {
-      constant_buffer->luminance_scale [0] = (SKIF_GetHDRWhiteLuma () / 80.0f);
+#ifdef SKIF_scRGB
+      constant_buffer->luminance_scale [0] = (SKIF_GetHDRWhiteLuma    () / 80.0f);
+      constant_buffer->luminance_scale [2] = (SKIF_GetMinHDRLuminance () / 80.0f);
+#else
+      constant_buffer->luminance_scale [0] = -SKIF_GetHDRWhiteLuma ();
+#endif
       constant_buffer->luminance_scale [1] = 2.2f;
     }
 
@@ -993,7 +1010,12 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.BufferDesc.Height  = (UINT)viewport->Size.y;
   swap_desc.BufferDesc.Format  =
     bCanHDR ?
-      DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM;
+#ifdef SKIF_scRGB
+        DXGI_FORMAT_R16G16B16A16_FLOAT :
+#else
+        DXGI_FORMAT_R10G10B10A2_UNORM  :
+#endif
+        DXGI_FORMAT_R8G8B8A8_UNORM;
 
   swap_desc.SampleDesc.Count   = 1;
   swap_desc.SampleDesc.Quality = 0;
@@ -1042,7 +1064,11 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       UINT uiHdrFlags = 0x0;
 
       pSwapChain3->CheckColorSpaceSupport (
-        DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
+#ifdef SKIF_scRGB
+          DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,// (FP16 only),
+#else
+          DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
+#endif
           &uiHdrFlags
       );
 
@@ -1060,7 +1086,11 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
           bHDR = TRUE;
 
           pSwapChain3->SetColorSpace1 (
-                    DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
+#ifdef SKIF_scRGB
+                      DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
+#else
+                      DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
+#endif
           );
 
           pOutput6->GetDesc1 (
@@ -1209,9 +1239,9 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   // Present without VSYNC
   if (pSwap2)
-    pSwap2->Present1         (0, DXGI_PRESENT_DO_NOT_WAIT, &pparams);
+    pSwap2->Present1         (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT, &pparams);
   else
-    data->SwapChain->Present (0, DXGI_PRESENT_DO_NOT_WAIT);
+    data->SwapChain->Present (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT);
 }
 
 static void
