@@ -17,6 +17,7 @@
 #include <Dbt.h>
 #include <XInput.h>
 #include <tchar.h>
+#include <limits>
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -50,6 +51,42 @@ static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 static bool                 g_HasGamepad = false;
 static bool                 g_WantUpdateHasGamepad = true;
 static bool                 g_WantUpdateMonitors = true;
+
+bool SKIF_ImGui_IsFocused (void)
+{
+  if (! g_Focused)
+    return false;
+
+  static INT64 lastTime  = std::numeric_limits <INT64>::max ();
+  static bool  lastFocus = false;
+
+  if (lastTime != g_Time)
+  {   lastTime  = g_Time;
+    if (HWND focused_hwnd = ::GetForegroundWindow ())
+    {
+      if (::IsChild (focused_hwnd,  g_hWnd))
+      {              focused_hwnd = g_hWnd; }
+        DWORD
+          dwWindowOwnerPid = 0;
+
+      GetWindowThreadProcessId (
+        focused_hwnd,
+          &dwWindowOwnerPid
+      );
+
+      static DWORD
+        dwPidOfMe = GetCurrentProcessId ();
+
+      // Don't poll the gamepad when we're not focused.
+      if (dwWindowOwnerPid != dwPidOfMe)
+        lastFocus = false;
+    }
+
+    lastFocus = true;
+  }
+
+  return lastFocus;
+}
 
 using XInputGetState_pfn =
 DWORD (WINAPI *)( DWORD, XINPUT_STATE * );

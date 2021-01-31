@@ -187,15 +187,14 @@ std::string SKIF_StatusBarText;
 std::string SKIF_StatusBarHelp;
 HWND        SKIF_hWnd;
 
+extern bool SKIF_ImGui_IsFocused (void);
+
 bool SKIF_ImGui_IsHoverable (void)
 {
-  if ( SKIF_hWnd == GetFocus            () ||
-       SKIF_hWnd == GetForegroundWindow () )
-  {
-    return true;
-  }
+  if (! SKIF_ImGui_IsFocused ())
+    return false;
 
-  return false;
+  return true;
 }
 
 void SKIF_ImGui_SetHoverTip  (const char* szText)
