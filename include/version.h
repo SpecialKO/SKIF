@@ -50,7 +50,7 @@
 #define SKIF_PRODUCT_VERSION  SKIF_MAJOR,SKIF_MINOR,SKIF_BUILD,SKIF_REV_N
 
 
-#define SKIF_WINDOW_TITLE_A "Special K Injection Frontend   -   v " SKIF_VERSION_STR_A "   -   (" __DATE__ ")"
+#define SKIF_WINDOW_TITLE_A "Special K Injection Frontend (SKIF)"
 #define SKIF_WINDOW_TITLE_W _L(SKIF_WINDOW_TITLE_A)
 #define SKIF_WINDOW_TITLE      SKIF_WINDOW_TITLE_W
 #define SKIF_WINDOW_HASH     "###Special K Injection Frontend"

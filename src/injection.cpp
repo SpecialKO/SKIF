@@ -340,6 +340,8 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
   return ret;
 };
 
+extern std::wstring SKIF_GetSpecialKDLLVersion(const wchar_t*);
+
 bool
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
@@ -348,6 +350,39 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   {
     running =
       TestServletRunlevel (run_lvl_changed);
+
+    ImGui::BeginGroup();
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::SameLine();
+
+    wchar_t                 wszPathToSelf64[MAX_PATH] = { };
+    wchar_t                 wszPathToSelf32[MAX_PATH] = { };
+    GetModuleFileNameW(0, wszPathToSelf64, MAX_PATH);
+    GetModuleFileNameW(0, wszPathToSelf32, MAX_PATH);
+    PathRemoveFileSpecW(wszPathToSelf64);
+    PathRemoveFileSpecW(wszPathToSelf32);
+    PathAppendW(wszPathToSelf64, L"SpecialK64.dll");
+    PathAppendW(wszPathToSelf32, L"SpecialK32.dll");
+
+    std::string SKVer32 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf32));
+    std::string SKVer64 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf64));
+
+    if (SKVer32 == SKVer64)
+    {
+        std::string SKVer3264Label = "Special K 32-bit/64-bit v " + SKVer32;
+        ImGui::Text(SKVer3264Label.c_str());
+    }
+    else {
+        std::string SKVer32Label = "Special K 32-bit v " + SKVer32;
+        std::string SKVer64Label = "Special K 64-bit v " + SKVer64;
+
+        ImGui::Text(SKVer32Label.c_str());
+        ImGui::Text(SKVer64Label.c_str());
+    }
+
+    ImGui::EndGroup();
 
     ImGui::BeginGroup ();
     ImGui::Spacing    ();
@@ -432,6 +467,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       }
     }
     ImGui::EndGroup    ();
+  } else {
+    ImGui::Text("Global injection could not be initialized due to SKIF being unable to locate files.");
   }
 
   ImGui::EndGroup      ();
