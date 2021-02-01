@@ -1118,33 +1118,33 @@ SKIF_GameManagement_DrawTab (void)
       else
         ImGui::TextUnformatted ("N/A");
 
-      ImGui::Selectable        (cache.config_repo.c_str      ());
-      SKIF_ImGui_SetHoverText  (cache.config.root_dir.c_str  ());
-
-      std::string configFile = (cache.config.shorthand.empty() ? "N/A" : cache.config.shorthand);
-
-      if (configFile != "N/A")
+      if (! cache.config.shorthand.empty() )
       {
+          // Config Root
+          if (ImGui::Selectable     (cache.config_repo.c_str     ()))
+          {
+              SKIF_Util_OpenURI(
+                  SK_UTF8ToWideChar (cache.config.root_dir.c_str ())
+              );
+          }
+          SKIF_ImGui_SetHoverText(cache.config.root_dir.c_str());
           SKIF_ImGui_SetHoverTip("Open the config root folder");
 
-          if (ImGui::IsItemClicked())
+          // Config File
+          if (ImGui::Selectable     (cache.config.shorthand.c_str()))
           {
               SKIF_Util_OpenURI(
-                  SK_UTF8ToWideChar(cache.config.root_dir.c_str())
+                  SK_UTF8ToWideChar (cache.config.full_path.c_str())
               );
           }
-
-          bool configButton = ImGui::Selectable(configFile.c_str());
-          SKIF_ImGui_SetHoverText(cache.config.full_path.c_str());
+          SKIF_ImGui_SetHoverText  (cache.config.full_path.c_str ());
           SKIF_ImGui_SetHoverTip("Open the config file");
+      }
 
-          if (configButton)
-          {
-              SKIF_Util_OpenURI(
-                  SK_UTF8ToWideChar(cache.config.full_path.c_str())
-              );
-          }
-      };
+      else {
+          ImGui::TextUnformatted   (cache.config_repo.c_str      ());
+          ImGui::TextUnformatted   ("N/A");
+      }
 
       ImGui::EndGroup         ();
 
