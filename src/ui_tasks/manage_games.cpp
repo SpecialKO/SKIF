@@ -748,8 +748,6 @@ SKIF_GameManagement_DrawTab (void)
   void SKIF_ImGui_SetHoverText (const char *szText);
        SKIF_ImGui_SetHoverText ("Click to help support the project");
 
-       SKIF_ImGui_SetHoverTip ("Test");
-
   if (clicked)
     SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
 
@@ -1118,24 +1116,34 @@ SKIF_GameManagement_DrawTab (void)
       else
         ImGui::TextUnformatted ("N/A");
 
-      ImGui::TextUnformatted   (cache.config_repo.c_str      ());
+      ImGui::Selectable        (cache.config_repo.c_str      ());
       SKIF_ImGui_SetHoverText  (cache.config.root_dir.c_str  ());
 
-      if (ImGui::IsItemClicked ())
-      {
-        SKIF_Util_OpenURI (
-          SK_UTF8ToWideChar    (cache.config.root_dir.c_str  ())
-        );
-      }
+      std::string configFile = (cache.config.shorthand.empty() ? "N/A" : cache.config.shorthand);
 
-      if (ImGui::Selectable    (cache.config.shorthand.empty () ?
-                                                          "N/A" :
-                                cache.config.shorthand.c_str ()))
+      if (configFile != "N/A")
       {
-        SKIF_Util_OpenURI (
-          SK_UTF8ToWideChar    (cache.config.full_path.c_str  ())
-        );
+          SKIF_ImGui_SetHoverTip("Open the config root folder");
+
+          if (ImGui::IsItemClicked())
+          {
+              SKIF_Util_OpenURI(
+                  SK_UTF8ToWideChar(cache.config.root_dir.c_str())
+              );
+          }
+
+          bool configButton = ImGui::Selectable(configFile.c_str());
+          SKIF_ImGui_SetHoverText(cache.config.full_path.c_str());
+          SKIF_ImGui_SetHoverTip("Open the config file");
+
+          if (configButton)
+          {
+              SKIF_Util_OpenURI(
+                  SK_UTF8ToWideChar(cache.config.full_path.c_str())
+              );
+          }
       };
+
       ImGui::EndGroup         ();
 
       ImGui::SameLine         ();
@@ -1468,7 +1476,7 @@ SKIF_GameManagement_DrawTab (void)
         bool bMenuOpen =
           ImGui::BeginMenu ("Game Saves and Config");
 
-        SKIF_ImGui_SetHoverTip ("Browse files cloud-sync'd by Steam");
+        SKIF_ImGui_SetHoverTip("Browse files cloud-sync'd by Steam");
 
         std::set <std::wstring> used_paths_;
 

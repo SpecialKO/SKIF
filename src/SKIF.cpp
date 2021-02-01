@@ -1481,113 +1481,180 @@ wWinMain ( _In_     HINSTANCE hInstance,
         tab_selected = Global;
 
         _inject._GlobalInjectionCtl ();
+
       ImGui::EndTabItem   (                 ); }
-  if (ImGui::BeginTabItem ("Steam Game Management", nullptr, flags))
+  if (ImGui::BeginTabItem ("Steam Management", nullptr, flags))
     { tab_selected = Management;
 
   extern void SKIF_GameManagement_DrawTab (void);
               SKIF_GameManagement_DrawTab ();
 
       ImGui::EndTabItem   (                  ); }
-  if (ImGui::BeginTabItem ("Injection Config"))
-    { tab_selected = InjectionConfig;
-      static std::wstring root_dir =
-        std::wstring (path_cache.specialk_userdata.path) + LR"(\Global\)";
+  if (ImGui::BeginTabItem ("Options"))
+    { 
+      tab_selected = InjectionConfig;
 
-      static char whitelist [MAX_PATH * 16 * 2] = { };
-      static char blacklist [MAX_PATH * 16 * 2] = { };
-      static bool white_edited = false,
-                  black_edited = false;
-
-      auto _StoreList = [](char* szOut, std::wstring fname)->void
+      // SKIF Options
+      if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
       {
-        std::wofstream list_file (
-          fname
-        );
-
-        if (list_file.is_open ())
-        {
-          std::wstring out_text =
-            SK_UTF8ToWideChar (szOut);
-
-          list_file.write (out_text.c_str (), out_text.length ());
-          list_file.close ();
-        }
-      };
-      auto _LoadList = [](char* szIn, std::wstring fname)->void
-      {
-        std::wifstream list_file (
-          fname
-        );
-
-        std::wstring full_text;
-
-        if (list_file.is_open ())
-        {
-          std::wstring line;
-
-          while (list_file.good ())
+          ImGui::BeginGroup();
+          if (ImGui::Checkbox("DPI Scaling###EnableDPI", &SKIF_bDPIScaling))
           {
-            std::getline (list_file, line);
+              ImGui_ImplWin32_EnableDpiAwareness();
 
-            full_text += line;
-            full_text += L'\n';
+              SKIF_ImGui_GlobalDPIScale =
+                  ImGui_ImplWin32_GetDpiScaleForHwnd(0);
+
+              io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleViewports;
+
+              if (SKIF_bDPIScaling)
+                  io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
+
+              regKVDPIScaling.putData(SKIF_bDPIScaling);
           }
-          full_text.resize (full_text.length () - 1);
 
-          list_file.close ();
-          strcpy (szIn, SK_WideCharToUTF8 (full_text).c_str ());
-        }
-      };
+          SKIF_ImGui_SetHoverTip("Experimental; UI may misbehave");
+          SKIF_ImGui_SetHoverText("Experimental; UI may misbehave");
 
-      SK_RunOnce (_LoadList (whitelist, root_dir + L"whitelist.ini"));
-      SK_RunOnce (_LoadList (blacklist, root_dir + L"blacklist.ini"));
-
-      ImGui::BeginGroup ();
-      ImGui::Text      ("Enter up to 16 patterns to manage injection for non-Steam games\n\n\t* Directory separators must be input as '\\\\', not '\\'.\n\nEx: \"Program Files\\\\Epic Games\\\\\" matches Epic Game Store games");
-      ImGui::Separator ();
-
-      white_edited |=
-        ImGui::InputTextMultiline ("Whitelist Patterns###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2 (0, 100));
-      black_edited |=
-        ImGui::InputTextMultiline ("Blacklist Patterns###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2 (0, 100));
-
-      if (white_edited || black_edited)
-      {
-        ImGui::Separator ();
-
-        if (ImGui::Button ("Save Changes"))
-        {
-          if (white_edited)
-          {
-            _StoreList (whitelist, root_dir + L"whitelist.ini");
-                        white_edited = false;
-          }
-          if (black_edited)
-          {
-            _StoreList (blacklist, root_dir + L"blacklist.ini");
-                        black_edited = false;
-          }
-        }
-        ImGui::SameLine ();
-        if (ImGui::Button ("Reset"))
-        {
-          if (white_edited)
-          {
-            _LoadList (whitelist, root_dir + L"whitelist.ini");
-                       white_edited = false;
-          }
-          if (black_edited)
-          {
-            _LoadList (blacklist, root_dir + L"blacklist.ini");
-                       black_edited = false;
-          }
-        }
+          _DrawHDRConfig();
+          ImGui::EndGroup();
       }
-      ImGui::EndGroup     (                  );
-      ImGui::EndTabItem   (                  ); }
+
+      // WinRing0
+      if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
+      {
+          ImGui::BeginGroup();
+          ImGui::Text("Special K can make use of the WinRing0 kernel driver to provide extended CPU monitoring metrics.\nThis driver is optional and only necessary for users who want the CPU widget to display core\nfrequency and power draw as well.\n\nUse the below button to install or uninstall the driver.");
+
+          ImGui::BeginGroup();
+          ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
+          ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Not Installed");
+          //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed");
+
+          ImGui::EndGroup();
+
+          bool button = ImGui::Button("Install", ImVec2(200, 25));
+
+          SKIF_ImGui_SetHoverTip("Currently not implemented");
+          SKIF_ImGui_SetHoverText("Currently not implemented");
+
+          if (button)
+          {
+              // Install/Uninstall driver.
+          }
+
+          ImGui::EndGroup();
+      }
+
+     // InjectionConfig
+      if (ImGui::CollapsingHeader("Injection", ImGuiTreeNodeFlags_DefaultOpen))
+      {
+          static std::wstring root_dir =
+              std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+
+          static char whitelist[MAX_PATH * 16 * 2] = { };
+          static char blacklist[MAX_PATH * 16 * 2] = { };
+          static bool white_edited = false,
+              black_edited = false;
+
+          auto _StoreList = [](char* szOut, std::wstring fname)->void
+          {
+              std::wofstream list_file(
+                  fname
+              );
+
+              if (list_file.is_open())
+              {
+                  std::wstring out_text =
+                      SK_UTF8ToWideChar(szOut);
+
+                  list_file.write(out_text.c_str(), out_text.length());
+                  list_file.close();
+              }
+          };
+          auto _LoadList = [](char* szIn, std::wstring fname)->void
+          {
+              std::wifstream list_file(
+                  fname
+              );
+
+              std::wstring full_text;
+
+              if (list_file.is_open())
+              {
+                  std::wstring line;
+
+                  while (list_file.good())
+                  {
+                      std::getline(list_file, line);
+
+                      full_text += line;
+                      full_text += L'\n';
+                  }
+                  full_text.resize(full_text.length() - 1);
+
+                  list_file.close();
+                  strcpy(szIn, SK_WideCharToUTF8(full_text).c_str());
+              }
+          };
+
+          SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
+          SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
+
+          ImGui::BeginGroup();
+          ImGui::Text("Enter up to 16 patterns to manage injection in non-Steam games\n\n\t> Directory separators must be input as '\\\\', not '\\'.\n\nEx: \"Program Files\\\\Epic Games\\\\\" matches Epic Games Store titles");
+          ImGui::Separator();
+
+          ImGui::Text("Whitelist Patterns:");
+          white_edited |=
+              ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+
+          ImGui::Separator();
+
+          ImGui::Text("Blacklist Patterns:");
+          black_edited |=
+              ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+
+          if (white_edited || black_edited)
+          {
+              ImGui::Separator();
+
+              if (ImGui::Button("Save Changes"))
+              {
+                  if (white_edited)
+                  {
+                      _StoreList(whitelist, root_dir + L"whitelist.ini");
+                      white_edited = false;
+                  }
+                  if (black_edited)
+                  {
+                      _StoreList(blacklist, root_dir + L"blacklist.ini");
+                      black_edited = false;
+                  }
+              }
+              ImGui::SameLine();
+              if (ImGui::Button("Reset"))
+              {
+                  if (white_edited)
+                  {
+                      _LoadList(whitelist, root_dir + L"whitelist.ini");
+                      white_edited = false;
+                  }
+                  if (black_edited)
+                  {
+                      _LoadList(blacklist, root_dir + L"blacklist.ini");
+                      black_edited = false;
+                  }
+              }
+          }
+          ImGui::EndGroup();
+      }
+      ImGui::EndTabItem   (                  ); 
+}
       ImGui::EndTabBar    (                  );
 
+      /*
       if (tab_selected == Management)
       {
         ImGui::SameLine     (                  );
@@ -1617,6 +1684,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
         ImGui::EndGroup   (                  );
       }
+      */
 
       ImGui::EndGroup     (                  );
 
