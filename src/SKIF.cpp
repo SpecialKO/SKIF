@@ -24,7 +24,8 @@ const int SKIF_STEAM_APPID = 1157970;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
-bool SKIF_bDPIScaling = true;
+bool SKIF_bDPIScaling = true,
+     SKIF_bDisableExitConfirmation = true;
 
 #include <SKIF.h>
 
@@ -1159,10 +1160,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   static auto regKVDPIScaling =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(SKIFF DPI Scaling)" );
+                         LR"(SKIF DPI Scaling)" );
+
+  static auto regKVDisableExitConfirmation =
+      SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+          LR"(Disable Exit Confirmation)");
 
   SKIF_bDPIScaling =
     regKVDPIScaling.getData ();
+
+  SKIF_bDisableExitConfirmation =
+      regKVDisableExitConfirmation.getData ();
 
   SKIF_VersionCtl.CheckForUpdates (L"SKIF", SKIF_DEPLOYED_BUILD);
 
@@ -1201,7 +1209,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
-  bool bKeepWindowAlive = true;
+  bool bKeepWindowAlive = true,
+       bKeepProcessAlive = true;
 
   DWORD dwStyle   = SK_BORDERLESS,
         dwStyleEx =
@@ -1516,6 +1525,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetHoverTip("Experimental; UI may misbehave");
           SKIF_ImGui_SetHoverText("Experimental; UI may misbehave");
 
+          if (ImGui::Checkbox("Do not prompt about stopping the global injector when closing SKIF", &SKIF_bDisableExitConfirmation))
+              regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
+
+          SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
+          SKIF_ImGui_SetHoverText("The global injector will remain active in the background");
+
           _DrawHDRConfig();
           ImGui::EndGroup();
       }
@@ -1691,13 +1706,48 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::Separator    (                  );
       ImGui::Columns      ( 2, nullptr, false);
 
-      if (ImGui::Button ("Exit"))
+      // Exit / Collapse
+      if (ImGui::Button("Exit") || ! bKeepWindowAlive)
       {
-        bKeepWindowAlive = false;
+          if (SKIF_ServiceRunning && ! SKIF_bDisableExitConfirmation)
+              ImGui::OpenPopup("Confirm Exit");
+          else
+              bKeepProcessAlive = false;
       }
 
-      if (SKIF_ServiceRunning)
-        SKIF_ImGui_SetHoverText ("Global Injection service will continue running after exit");
+      if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
+      {
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "    Exiting without stopping the service will leave the global\n               injection running in the background.");
+
+          ImGui::Spacing();
+          ImGui::Spacing();
+          ImGui::Spacing();
+
+          if (ImGui::Button("Stop Service And Exit", ImVec2(0, 25)))
+          {
+              _inject._StartStopInject(SKIF_ServiceRunning);
+              bKeepProcessAlive = false;
+          }
+
+          ImGui::SameLine();
+          ImGui::Spacing();
+          ImGui::SameLine();
+
+          if (ImGui::Button("Exit", ImVec2(100, 25)))
+              bKeepProcessAlive = false;
+
+          ImGui::SameLine();
+          ImGui::Spacing();
+          ImGui::SameLine();
+
+          if (ImGui::Button("Cancel", ImVec2(100, 25)))
+          {
+              bKeepWindowAlive = true;
+              ImGui::CloseCurrentPopup();
+          }
+
+          ImGui::EndPopup();
+      }
 
       ImGui::SameLine     (                  );
 
@@ -1814,7 +1864,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     frameCtxt->FenceValue    = fenceValue;
 #endif
 
-    if (! bKeepWindowAlive)
+    if (! bKeepProcessAlive)
       PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
   }
 
