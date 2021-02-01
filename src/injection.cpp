@@ -352,10 +352,9 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       TestServletRunlevel (run_lvl_changed);
 
     ImGui::BeginGroup();
+
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::SameLine();
 
     wchar_t                 wszPathToSelf64[MAX_PATH] = { };
     wchar_t                 wszPathToSelf32[MAX_PATH] = { };
@@ -372,13 +371,21 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (SKVer32 == SKVer64)
     {
         std::string SKVer3264Label = "Special K 32-bit/64-bit v " + SKVer32;
+
+        ImGui::Spacing();
+        ImGui::SameLine();
         ImGui::Text(SKVer3264Label.c_str());
     }
     else {
         std::string SKVer32Label = "Special K 32-bit v " + SKVer32;
         std::string SKVer64Label = "Special K 64-bit v " + SKVer64;
 
+        ImGui::Spacing();
+        ImGui::SameLine();
         ImGui::Text(SKVer32Label.c_str());
+
+        ImGui::Spacing();
+        ImGui::SameLine();
         ImGui::Text(SKVer64Label.c_str());
     }
 
