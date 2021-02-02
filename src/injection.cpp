@@ -341,6 +341,7 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
 };
 
 extern std::wstring SKIF_GetSpecialKDLLVersion(const wchar_t*);
+extern bool SKIF_bDisableExitConfirmation;
 
 bool
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
@@ -370,15 +371,15 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (SKVer32 == SKVer64)
     {
-        std::string SKVer3264Label = "Special K 32-bit/64-bit v " + SKVer32;
+        std::string SKVer3264Label = "Special K 32/64-bit v " + SKVer32;
 
         ImGui::Spacing();
         ImGui::SameLine();
         ImGui::Text(SKVer3264Label.c_str());
     }
     else {
-        std::string SKVer32Label = "Special K 32-bit v " + SKVer32;
-        std::string SKVer64Label = "Special K 64-bit v " + SKVer64;
+        std::string SKVer32Label = "Special K 32-Bit v " + SKVer32;
+        std::string SKVer64Label = "Special K 64-Bit v " + SKVer64;
 
         ImGui::Spacing();
         ImGui::SameLine();
@@ -414,10 +415,11 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       ImGui::Button (running ? "Stopping...###GlobalStartStop" :
                                "Starting...###GlobalStartStop");
 
-    SKIF_ImGui_SetHoverText ( running                  ?
-      ""                                               :
-      "Service continues running after SKIF is closed"
-    );
+    if (SKIF_bDisableExitConfirmation)
+        SKIF_ImGui_SetHoverText ( running                  ?
+          ""                                               :
+          "Service continues running after SKIF is closed"
+        );
 
     ImGui::EndGroup    ();
     ImGui::SameLine    ();
