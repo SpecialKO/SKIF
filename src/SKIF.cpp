@@ -21,11 +21,13 @@
 //
 
 const int SKIF_STEAM_APPID = 1157970;
+int WindowsCursorSize = 1;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
 bool SKIF_bDPIScaling = true,
-     SKIF_bDisableExitConfirmation = true;
+     SKIF_bDisableExitConfirmation = true,
+     SKIF_bDisableTooltips = true;
 
 #include <SKIF.h>
 
@@ -200,10 +202,20 @@ bool SKIF_ImGui_IsHoverable (void)
 
 void SKIF_ImGui_SetHoverTip  (const char* szText)
 {
-  if (SKIF_ImGui_IsHoverable ())
+  if (SKIF_ImGui_IsHoverable () && ! SKIF_bDisableTooltips)
   {
-    if (ImGui::IsItemHovered ())
-      ImGui::SetTooltip (szText);
+      if (ImGui::IsItemHovered())
+      {
+          auto& io    = ImGui::GetIO();
+          auto& style = ImGui::GetStyle();
+
+          ImVec2 cursorPos = io.MousePos;
+          int cursorScale = WindowsCursorSize;
+          ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 16 /* + 4 * (cursorScale - 1) */ );
+          ImGui::SetNextWindowPos(tooltip_pos);
+          
+          ImGui::SetTooltip(szText);
+      }
   }
 }
 
@@ -1158,19 +1170,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   CoInitializeEx (nullptr, 0x0);
 
+  WindowsCursorSize = SKIF_MakeRegKeyI(LR"(SOFTWARE\Microsoft\Accessibility\)",
+      LR"(CursorSize)").getData();
+
   static auto regKVDPIScaling =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(SKIF DPI Scaling)" );
 
   static auto regKVDisableExitConfirmation =
       SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
-          LR"(Disable Exit Confirmation)");
+          LR"(Disable Exit Confirmation)" );
+
+  static auto regKVDisableTooltips =
+      SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+          LR"(Disable Tooltips)" );
 
   SKIF_bDPIScaling =
     regKVDPIScaling.getData ();
 
   SKIF_bDisableExitConfirmation =
       regKVDisableExitConfirmation.getData ();
+
+  SKIF_bDisableTooltips =
+      regKVDisableTooltips.getData();
 
   SKIF_VersionCtl.CheckForUpdates (L"SKIF", SKIF_DEPLOYED_BUILD);
 
@@ -1507,7 +1529,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
       {
           ImGui::BeginGroup();
-          if (ImGui::Checkbox("DPI Scaling###EnableDPI", &SKIF_bDPIScaling))
+
+          if (ImGui::Checkbox("Disable tooltips                                                                                                                           ", &SKIF_bDisableTooltips))
+              regKVDisableTooltips.putData(SKIF_bDisableTooltips);
+          
+          ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
+          if (ImGui::Checkbox("DPI Scaling                                                                                                                                ###EnableDPI", &SKIF_bDPIScaling))
           {
               ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -1525,7 +1552,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetHoverTip("Experimental; UI may misbehave");
           SKIF_ImGui_SetHoverText("Experimental; UI may misbehave");
 
-          if (ImGui::Checkbox("Do not prompt about stopping the global injector when closing SKIF", &SKIF_bDisableExitConfirmation))
+          if (ImGui::Checkbox("Do not prompt about stopping the global injector when closing SKIF                                                ", &SKIF_bDisableExitConfirmation))
               regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
           SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
@@ -1748,6 +1775,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::EndPopup();
       }
+
+      if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation)
+          SKIF_ImGui_SetHoverText("Global Injection service will continue running after exit");
 
       ImGui::SameLine     (                  );
 
