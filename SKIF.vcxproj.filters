@@ -75,13 +75,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SKIF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
@@ -240,9 +234,6 @@
     <ClInclude Include="steam\steamuniverse.h">
       <Filter>Header Files\Stores\Steam\API</Filter>
     </ClInclude>
-    <ClInclude Include="include\vfs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\Steam\achievements.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
@@ -309,11 +300,20 @@
     <ClInclude Include="include\stores\Steam\asset_fetch.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
-    <ClInclude Include="include\injection.h">
+    <ClInclude Include="include\SKIF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\install_utils.h">
+    <ClInclude Include="include\targetver.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\injection.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vfs.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\install_utils.h">
+      <Filter>Header Files\Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

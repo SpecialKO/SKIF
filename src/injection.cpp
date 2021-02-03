@@ -35,6 +35,9 @@
 #include <cstdio>
 #include <array>
 #include <vector>
+#include "windows.h"
+#include <iostream>
+#include <comdef.h>
 
 float sk_global_ctl_x;
 bool  SKIF_ServiceRunning;
@@ -343,6 +346,132 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
 extern std::wstring SKIF_GetSpecialKDLLVersion(const wchar_t*);
 extern bool SKIF_bDisableExitConfirmation;
 
+void what(std::wstring call)
+{
+    DWORD dwLastError = GetLastError();
+
+    OutputDebugStringW(
+        (
+            call +
+            std::wstring(L" (") +
+            std::to_wstring(dwLastError) +
+            std::wstring(L"): ") +
+            _com_error(dwLastError).ErrorMessage() +
+            std::wstring(L"\n")).c_str()
+    );
+
+    SetLastError(NO_ERROR);
+}
+
+bool
+SKIF_InjectionContext::_InjectProcess (void)
+{
+    SK_RunOnce(
+        SetLastError(NO_ERROR)
+    );
+
+    bool injected = false;
+
+    DWORD PID = NULL;
+
+    HWND window = GetForegroundWindow();
+    if (!window)
+        what(L"GetForegroundWindow");
+
+    DWORD thread = GetWindowThreadProcessId(window, &PID);
+    if (!thread)
+        what(L"GetWindowThreadProcessId");
+
+    if (!PID)
+        what(L"PID");
+
+    HANDLE process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, PID);
+    if (!process)
+        what(L"OpenProcess");
+
+    BOOL bIsWow64 = false;
+
+    if (0 == IsWow64Process(process, &bIsWow64))
+        what(L"IsWow64Process");
+
+    if (bIsWow64)
+    {
+        // 32-bit application on 64-bit Windows
+
+        // doable? https://stackoverflow.com/questions/8776437/c-injecting-32-bit-targets-from-64-bit-process
+        // otherwise helper app needed?
+    }
+    else {
+        // 64-bit application
+        // or technically 32-bit application on 32-bit Windows, but then again SKIF doesn't have a 32-bit build
+
+        //const WCHAR dll_path[] = L"F:\\Aemony\\Documents\\GitHub\\SKIF\\x64\\Release\\SpecialK64.dll";
+        WCHAR dll_pathTest[MAX_PATH] = { };
+        GetModuleFileNameW(0, dll_pathTest, MAX_PATH);
+        PathRemoveFileSpecW(dll_pathTest);
+        PathAppendW(dll_pathTest, L"SpecialK64.dll");
+        const int dll_path_size = (wcslen(dll_pathTest) + 1) * sizeof(WCHAR); // or sizeof(dll_path); or sizeof(WCHAR);
+
+        FARPROC lib = GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
+        if (!lib)
+            what(L"GetProcAddress");
+
+        LPVOID base = VirtualAllocEx(process, 0, dll_path_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (!base)
+            what(L"VirtualAllocEx");
+
+        BOOL good = WriteProcessMemory(process, base, dll_pathTest, dll_path_size, 0);
+        if (!good)
+            what(L"WriteProcessMemory");
+
+        HANDLE thread = CreateRemoteThread(process, 0, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(lib), base, 0, 0);
+        if (!thread)
+            what(L"CreateRemoteThread");
+
+        OutputDebugStringW(
+            (
+                std::wstring(L"Remote thread successfully created in process ") +
+                std::to_wstring(PID) +
+                std::wstring(L".\n")).c_str()
+        );
+
+        WaitForSingleObject(thread, INFINITE);
+
+        DWORD exitCode = 0;
+        GetExitCodeThread(thread, &exitCode);
+
+        if (exitCode != 0)
+        {
+            injected = true;
+            OutputDebugStringW(
+                (
+                    std::wstring(L"DLL loaded successfully in process ") +
+                    std::to_wstring(PID) +
+                    std::wstring(L".\n")).c_str()
+            );
+        }
+        else
+        {
+            OutputDebugStringW(
+                (
+                    std::wstring(L"DLL load failed in process ") +
+                    std::to_wstring(PID) +
+                    std::wstring(L".\n")).c_str()
+            );
+        }
+
+#if 1
+        CloseHandle(thread);
+        CloseHandle(process);
+#endif
+
+        return injected;
+    }
+}
+
+extern void
+SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
 bool
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
@@ -357,14 +486,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::Spacing();
     ImGui::Spacing();
 
-    wchar_t                 wszPathToSelf64[MAX_PATH] = { };
-    wchar_t                 wszPathToSelf32[MAX_PATH] = { };
-    GetModuleFileNameW(0, wszPathToSelf64, MAX_PATH);
-    GetModuleFileNameW(0, wszPathToSelf32, MAX_PATH);
-    PathRemoveFileSpecW(wszPathToSelf64);
-    PathRemoveFileSpecW(wszPathToSelf32);
-    PathAppendW(wszPathToSelf64, L"SpecialK64.dll");
-    PathAppendW(wszPathToSelf32, L"SpecialK32.dll");
+    wchar_t                 wszPathToSelf64 [MAX_PATH]    = { };
+    wchar_t                 wszPathToSelf32 [MAX_PATH]    = { };
+    GetModuleFileNameW  (0, wszPathToSelf64, MAX_PATH         );
+    GetModuleFileNameW  (0, wszPathToSelf32, MAX_PATH         );
+    PathRemoveFileSpecW (   wszPathToSelf64                   );
+    PathRemoveFileSpecW (   wszPathToSelf32                   );
+    PathAppendW         (   wszPathToSelf64, L"SpecialK64.dll");
+    PathAppendW         (   wszPathToSelf32, L"SpecialK32.dll");
 
     std::string SKVer32 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf32));
     std::string SKVer64 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf64));
@@ -453,7 +582,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::SameLine   ();
     ImGui::Spacing    ();
-    ImGui::EndGroup   (); ImGui::SameLine ();
+    ImGui::EndGroup   (); /* ImGui::SameLine ();
     ImGui::BeginGroup ();
     ImGui::Spacing    (); ImGui::Spacing  ();
 
@@ -475,9 +604,55 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
           ! bLogonTaskEnabled;
       }
     }
-    ImGui::EndGroup    ();
+
+    ImGui::EndGroup    (); */
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    ImGui::BeginGroup();
+    ImGui::PushItemWidth(-ImGui::GetContentRegionAvail().x);
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
+    ImGui::EndGroup();
+
+    SKIF_ImGui_SetHoverTip("The service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.");
+
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
+    ImGui::EndGroup();
+
+    SKIF_ImGui_SetHoverTip("It is recommended to disable the global injection service before\nstarting a multiplayer game (regardless of platform) where\nanti-cheat protection might be present.");
+
+    if (ImGui::IsItemClicked())
+    {
+        SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    }
+
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Click to visit the official Special K wiki!");
+    ImGui::EndGroup();
+
+    SKIF_ImGui_SetHoverTip("Click to visit the official Special K wiki!");
+
+    if (ImGui::IsItemClicked())
+    {
+        SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+    }
+
+    ImGui::Spacing();
+
+#if 0
+
+    if (ImGui::Button("Inject SpecialK64.dll in SKIF!", ImVec2(0, 0)))
+        _InjectProcess();
+
+#endif // 1
+
   } else {
-    ImGui::Text("Global injection could not be initialized due to SKIF being unable to locate files.");
+    ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Global injection is unavailable as the required files are missing.");
   }
 
   ImGui::EndGroup      ();
@@ -487,3 +662,44 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   return running;
 };
+
+void
+SKIF_InjectionContext::_StartAtLogonCtrl (void)
+{
+    ImGui::BeginGroup();
+
+    if (bHasServlet)
+    {
+        ImGui::Spacing();
+        ImGui::Text("Global injection can be configured to start automatically with Windows.");
+        ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
+        ImGui::Spacing();
+
+        if (ImGui::Checkbox("Start At Logon", &bLogonTaskEnabled))
+        {
+            const wchar_t* wszLogonTaskCmd =
+                (bLogonTaskEnabled ?
+                    LR"(Servlet\enable_logon.bat)" :
+                    LR"(Servlet\disable_logon.bat)");
+
+            if (
+                ShellExecuteW(
+                    nullptr, L"runas",
+                    wszLogonTaskCmd,
+                    nullptr, nullptr,
+                    SW_HIDE) < (HINSTANCE)32)
+            {
+                bLogonTaskEnabled =
+                    !bLogonTaskEnabled;
+            }
+        }
+
+        SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
+    }
+    else
+    {
+        ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Settings are unavailable as the required files are missing.");
+    }
+
+    ImGui::EndGroup();
+}

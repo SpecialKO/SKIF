@@ -211,7 +211,7 @@ void SKIF_ImGui_SetHoverTip  (const char* szText)
 
           ImVec2 cursorPos = io.MousePos;
           int cursorScale = WindowsCursorSize;
-          ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 16 /* + 4 * (cursorScale - 1) */ );
+          ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ );
           ImGui::SetNextWindowPos(tooltip_pos);
           
           ImGui::SetTooltip(szText);
@@ -1530,11 +1530,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
           ImGui::BeginGroup();
 
-          if (ImGui::Checkbox("Disable tooltips                                                                                                                           ", &SKIF_bDisableTooltips))
+          if (ImGui::Checkbox("Disable UI tooltips                                                                                                                       ", &SKIF_bDisableTooltips))
               regKVDisableTooltips.putData(SKIF_bDisableTooltips);
+
+          SKIF_ImGui_SetHoverTip("Tooltips may sometime contain additional information");
           
           ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-          if (ImGui::Checkbox("DPI Scaling                                                                                                                                ###EnableDPI", &SKIF_bDPIScaling))
+          if (ImGui::Checkbox("Scale the UI based on the DPI                                                                                                       ###EnableDPI", &SKIF_bDPIScaling))
           {
               ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -1549,10 +1551,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               regKVDPIScaling.putData(SKIF_bDPIScaling);
           }
 
-          SKIF_ImGui_SetHoverTip("Experimental; UI may misbehave");
-          SKIF_ImGui_SetHoverText("Experimental; UI may misbehave");
+          SKIF_ImGui_SetHoverTip("This feature is still experimental");
+          SKIF_ImGui_SetHoverText("Experimental; UI may misbehave and per-monitor DPI scaling is unsupported");
 
-          if (ImGui::Checkbox("Do not prompt about stopping the global injector when closing SKIF                                                ", &SKIF_bDisableExitConfirmation))
+          if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF                                                                ", &SKIF_bDisableExitConfirmation))
               regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
           SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
@@ -1561,6 +1563,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _DrawHDRConfig();
           ImGui::EndGroup();
       }
+
+      ImGui::Spacing();
+      ImGui::Spacing();
 
       // WinRing0
       if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1571,12 +1576,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginGroup();
           ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
           ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Not Installed");
-          //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed");
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Unknown"); // Not Installed coloring
+          //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed"); // Installed coloring
 
           ImGui::EndGroup();
 
-          bool button = ImGui::Button("Install", ImVec2(200, 25));
+          bool button = ImGui::Button("**Not Implemented**", ImVec2(200, 25));
 
           SKIF_ImGui_SetHoverTip("Currently not implemented");
           SKIF_ImGui_SetHoverText("Currently not implemented");
@@ -1589,7 +1594,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndGroup();
       }
 
-     // InjectionConfig
+      ImGui::Spacing();
+      ImGui::Spacing();
+
+      // Global injection
+      if (ImGui::CollapsingHeader("Global injection", ImGuiTreeNodeFlags_DefaultOpen))
+      {
+          _inject._StartAtLogonCtrl();
+      }
+
+      ImGui::Spacing();
+      ImGui::Spacing();
+
+      // InjectionConfig
       if (ImGui::CollapsingHeader("Injection", ImGuiTreeNodeFlags_DefaultOpen))
       {
           static std::wstring root_dir =
