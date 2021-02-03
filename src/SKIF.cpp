@@ -207,7 +207,6 @@ void SKIF_ImGui_SetHoverTip  (const char* szText)
       if (ImGui::IsItemHovered())
       {
           auto& io    = ImGui::GetIO();
-          auto& style = ImGui::GetStyle();
 
           ImVec2 cursorPos = io.MousePos;
           int cursorScale = WindowsCursorSize;
@@ -1662,51 +1661,86 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
 
           ImGui::BeginGroup();
-          ImGui::Text("Enter up to 16 patterns to manage injection in non-Steam games\n\n\t> Directory separators must be input as '\\\\', not '\\'.\n\nEx: \"Program Files\\\\Epic Games\\\\\" matches Epic Games Store titles");
-          ImGui::Separator();
+          ImGui::Text("The following fields manage injection in games and can be used to enable Special K in non-Steam games.");
+
+          ImGui::Spacing();
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+          ImGui::EndGroup();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Directory separators must use two backslashes \"\\\\\" and not one \"\\\".");
+          ImGui::EndGroup();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
+          ImGui::EndGroup();
+
+          ImGui::Spacing();
+          ImGui::Spacing();
 
           ImGui::Text("Whitelist Patterns:");
           white_edited |=
               ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 200));
 
-          ImGui::Separator();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
           ImGui::Text("Blacklist Patterns:");
           black_edited |=
               ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
 
-          if (white_edited || black_edited)
-          {
-              ImGui::Separator();
+        ImGui::Separator();
 
-              if (ImGui::Button("Save Changes"))
-              {
-                  if (white_edited)
-                  {
-                      _StoreList(whitelist, root_dir + L"whitelist.ini");
-                      white_edited = false;
-                  }
-                  if (black_edited)
-                  {
-                      _StoreList(blacklist, root_dir + L"blacklist.ini");
-                      black_edited = false;
-                  }
-              }
-              ImGui::SameLine();
-              if (ImGui::Button("Reset"))
-              {
-                  if (white_edited)
-                  {
-                      _LoadList(whitelist, root_dir + L"whitelist.ini");
-                      white_edited = false;
-                  }
-                  if (black_edited)
-                  {
-                      _LoadList(blacklist, root_dir + L"blacklist.ini");
-                      black_edited = false;
-                  }
-              }
-          }
+        bool bDisabled = (white_edited || black_edited) ? false : true ;
+
+        if (bDisabled)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+
+        if (ImGui::Button("Save Changes"))
+        {
+            if (white_edited)
+            {
+                _StoreList(whitelist, root_dir + L"whitelist.ini");
+                white_edited = false;
+            }
+            if (black_edited)
+            {
+                _StoreList(blacklist, root_dir + L"blacklist.ini");
+                black_edited = false;
+            }
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Reset"))
+        {
+            if (white_edited)
+            {
+                _LoadList(whitelist, root_dir + L"whitelist.ini");
+                white_edited = false;
+            }
+            if (black_edited)
+            {
+                _LoadList(blacklist, root_dir + L"blacklist.ini");
+                black_edited = false;
+            }
+        }
+
+        if (bDisabled)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+
           ImGui::EndGroup();
       }
       ImGui::EndTabItem   (                  ); 

@@ -611,7 +611,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::Spacing();
 
     ImGui::BeginGroup();
-    ImGui::PushItemWidth(-ImGui::GetContentRegionAvail().x);
     ImGui::Spacing(); ImGui::SameLine();
     ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
     ImGui::EndGroup();
