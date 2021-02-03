@@ -68,7 +68,9 @@ struct SKIF_InjectionContext {
       LR"(Servlet\SpecialK32.pid)", nullptr, &pid32 };
 
   bool _StartStopInject (bool running_);
+  bool _InjectProcess   (void);
 
   bool TestServletRunlevel (bool& changed_state);
   bool _GlobalInjectionCtl (void);
+  void _StartAtLogonCtrl   (void);
 } extern _inject;

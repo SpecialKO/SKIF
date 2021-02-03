@@ -290,6 +290,7 @@
     <ClInclude Include="include\imgui\imstb_truetype.h" />
     <ClInclude Include="include\injection.h" />
     <ClInclude Include="include\install_utils.h" />
+    <ClInclude Include="include\SKIF.h" />
     <ClInclude Include="include\sk_config\ini.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
@@ -300,11 +301,11 @@
     <ClInclude Include="include\stores\Steam\library.h" />
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
+    <ClInclude Include="include\targetver.h" />
     <ClInclude Include="include\ui_tasks\manage_games.h" />
     <ClInclude Include="include\version.h" />
     <ClInclude Include="include\vfs.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="SKIF.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
     <ClInclude Include="steam\isteamappticket.h" />
@@ -349,7 +350,6 @@
     <ClInclude Include="steam\steam_api_flat.h" />
     <ClInclude Include="steam\steam_api_internal.h" />
     <ClInclude Include="steam\steam_gameserver.h" />
-    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">

@@ -1050,8 +1050,8 @@ SKIF_GameManagement_DrawTab (void)
                    _inject.running         ? ImColor::HSV (0.3F,  0.99F, 1.F)
                                            : ImColor::HSV (0.08F, 0.99F, 1.F);
               cache.injection.hover_text   =
-                   _inject.running         ? "Click to Stop Injection Service"
-                                           : "Click to Start Injection Service";
+                   _inject.running         ? "Click to stop injection service"
+                                           : "Click to start injection service";
             }
             if (! _inject.running)
               cache.dll.shorthand = "";
@@ -1169,6 +1169,7 @@ SKIF_GameManagement_DrawTab (void)
         _inject.TestServletRunlevel (_inject.run_lvl_changed);
 
       SKIF_ImGui_SetHoverText (cache.injection.hover_text.c_str ());
+      SKIF_ImGui_SetHoverTip  (cache.injection.hover_text.c_str());
 
       if (! cache.dll.shorthand.empty ())
       {
