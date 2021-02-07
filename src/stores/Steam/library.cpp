@@ -403,7 +403,7 @@ SK_GetSteamDir (void)
   if (status == ERROR_SUCCESS)
     return wszSteamPath;
   else
-    return nullptr;
+    return L"";
 }
 
 

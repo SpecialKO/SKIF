@@ -1479,188 +1479,202 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         _inject._GlobalInjectionCtl ();
 
-      ImGui::EndTabItem   (                 ); }
-  if (ImGui::BeginTabItem ("Steam Management", nullptr, flags))
-    { tab_selected = Management;
+      ImGui::EndTabItem   (                 );
+      }
 
-  extern void SKIF_GameManagement_DrawTab (void);
-              SKIF_GameManagement_DrawTab ();
+      extern const wchar_t* SK_GetSteamDir(void);
+      static
+          std::wstring steam_path(
+              SK_GetSteamDir()
+          );
 
-      ImGui::EndTabItem   (                  ); }
-  if (ImGui::BeginTabItem ("Options"))
-    { 
-      tab_selected = InjectionConfig;
-
-      // SKIF Options
-      if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
+      if ( ! steam_path.empty() )
       {
-          ImGui::BeginGroup();
-
-          if (ImGui::Checkbox("Disable UI tooltips                                                                                                                       ", &SKIF_bDisableTooltips))
-              regKVDisableTooltips.putData(SKIF_bDisableTooltips);
-
-          SKIF_ImGui_SetHoverTip("Tooltips may sometime contain additional information");
-          
-          ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-          if (ImGui::Checkbox("Scale the UI based on the DPI                                                                                                       ###EnableDPI", &SKIF_bDPIScaling))
+          if (ImGui::BeginTabItem("Steam Management", nullptr, flags))
           {
-              ImGui_ImplWin32_EnableDpiAwareness();
+              tab_selected = Management;
 
-              SKIF_ImGui_GlobalDPIScale =
-                  ImGui_ImplWin32_GetDpiScaleForHwnd(0);
+              extern void SKIF_GameManagement_DrawTab(void);
+              SKIF_GameManagement_DrawTab();
 
-              io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleViewports;
-
-              if (SKIF_bDPIScaling)
-                  io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
-
-              regKVDPIScaling.putData(SKIF_bDPIScaling);
+              ImGui::EndTabItem();
           }
-
-          SKIF_ImGui_SetHoverTip("This feature is still experimental");
-          SKIF_ImGui_SetHoverText("Experimental; UI may misbehave and per-monitor DPI scaling is unsupported");
-
-          if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF                                                                ", &SKIF_bDisableExitConfirmation))
-              regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
-
-          SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
-          SKIF_ImGui_SetHoverText("The global injector will remain active in the background");
-
-          _DrawHDRConfig();
-          ImGui::EndGroup();
       }
 
-      ImGui::Spacing();
-      ImGui::Spacing();
+      if (ImGui::BeginTabItem ("Options"))
+      { 
+        tab_selected = InjectionConfig;
 
-      // WinRing0
-      if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
-      {
-          ImGui::BeginGroup();
-          ImGui::Text("Special K can make use of the WinRing0 kernel driver to provide extended CPU monitoring metrics.\nThis driver is optional and only necessary for users who want the CPU widget to display core\nfrequency and power draw as well.\n\nUse the below button to install or uninstall the driver.");
+        // SKIF Options
+        if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::BeginGroup();
 
-          ImGui::BeginGroup();
-          ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
-          ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Unknown"); // Not Installed coloring
-          //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed"); // Installed coloring
+            if (ImGui::Checkbox("Disable UI tooltips                                                                                                                                                                                 ", &SKIF_bDisableTooltips))
+                regKVDisableTooltips.putData(SKIF_bDisableTooltips);
 
-          ImGui::EndGroup();
+            SKIF_ImGui_SetHoverTip("Tooltips may sometime contain additional information");
+              
+            ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
+            if (ImGui::Checkbox("Scale the UI based on the DPI                                                                                                                                                         ###EnableDPI", &SKIF_bDPIScaling))
+            {
+                ImGui_ImplWin32_EnableDpiAwareness();
 
-          bool button = ImGui::Button("**Not Implemented**", ImVec2(200, 25));
+                SKIF_ImGui_GlobalDPIScale =
+                        ImGui_ImplWin32_GetDpiScaleForHwnd(0);
 
-          SKIF_ImGui_SetHoverTip("Currently not implemented");
-          SKIF_ImGui_SetHoverText("Currently not implemented");
+                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleViewports;
 
-          if (button)
-          {
-              // Install/Uninstall driver.
-          }
+                if (SKIF_bDPIScaling)
+                        io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
 
-          ImGui::EndGroup();
-      }
+                regKVDPIScaling.putData(SKIF_bDPIScaling);
+            }
 
-      ImGui::Spacing();
-      ImGui::Spacing();
+            SKIF_ImGui_SetHoverTip("This feature is still experimental");
+            SKIF_ImGui_SetHoverText("Experimental; UI may misbehave and per-monitor DPI scaling is unsupported");
 
-      // Global injection
-      if (ImGui::CollapsingHeader("Global injection", ImGuiTreeNodeFlags_DefaultOpen))
-      {
-          _inject._StartAtLogonCtrl();
-      }
+            if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF                                                                                                ", &SKIF_bDisableExitConfirmation))
+                regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
-      ImGui::Spacing();
-      ImGui::Spacing();
+            SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
+            SKIF_ImGui_SetHoverText("The global injector will remain active in the background");
 
-      // InjectionConfig
-      if (ImGui::CollapsingHeader("Injection", ImGuiTreeNodeFlags_DefaultOpen))
-      {
-          static std::wstring root_dir =
-              std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+            _DrawHDRConfig();
+            ImGui::EndGroup();
+        }
 
-          static char whitelist[MAX_PATH * 16 * 2] = { };
-          static char blacklist[MAX_PATH * 16 * 2] = { };
-          static bool white_edited = false,
-              black_edited = false;
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-          auto _StoreList = [](char* szOut, std::wstring fname)->void
-          {
-              std::wofstream list_file(
-                  fname
-              );
+        // WinRing0
+        if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::BeginGroup();
+            ImGui::Text("Special K can make use of the WinRing0 kernel driver to provide extended CPU monitoring metrics.\nThis driver is optional and only necessary for users who want the CPU widget to display core\nfrequency and power draw as well.\n\nUse the below button to install or uninstall the driver.");
 
-              if (list_file.is_open())
-              {
-                  std::wstring out_text =
-                      SK_UTF8ToWideChar(szOut);
+            ImGui::BeginGroup();
+            ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
+            ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Unknown"); // Not Installed coloring
+            //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed"); // Installed coloring
 
-                  list_file.write(out_text.c_str(), out_text.length());
-                  list_file.close();
-              }
-          };
-          auto _LoadList = [](char* szIn, std::wstring fname)->void
-          {
-              std::wifstream list_file(
-                  fname
-              );
+            ImGui::EndGroup();
 
-              std::wstring full_text;
+            bool button = ImGui::Button("**Not Implemented**", ImVec2(200, 25));
 
-              if (list_file.is_open())
-              {
-                  std::wstring line;
+            SKIF_ImGui_SetHoverTip("Currently not implemented");
+            SKIF_ImGui_SetHoverText("Currently not implemented");
 
-                  while (list_file.good())
-                  {
-                      std::getline(list_file, line);
+            if (button)
+            {
+                // Install/Uninstall driver.
+            }
 
-                      full_text += line;
-                      full_text += L'\n';
-                  }
-                  full_text.resize(full_text.length() - 1);
+            ImGui::EndGroup();
+        }
 
-                  list_file.close();
-                  strcpy(szIn, SK_WideCharToUTF8(full_text).c_str());
-              }
-          };
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-          SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
-          SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
+        // Global injection
+        if (ImGui::CollapsingHeader("Global injection", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+                _inject._StartAtLogonCtrl();
+        }
 
-          ImGui::BeginGroup();
-          ImGui::Text("The following fields manage injection in games and can be used to enable Special K in non-Steam games.");
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-          ImGui::Spacing();
-          ImGui::Spacing();
+        // InjectionConfig
+        if (ImGui::CollapsingHeader("Injection", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            static std::wstring root_dir =
+                std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
 
-          ImGui::BeginGroup();
-          ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
-          ImGui::EndGroup();
+            static char whitelist[MAX_PATH * 16 * 2] = { };
+            static char blacklist[MAX_PATH * 16 * 2] = { };
+            static bool white_edited = false,
+                black_edited = false;
 
-          ImGui::BeginGroup();
-          ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Directory separators must use two backslashes \"\\\\\" and not one \"\\\".");
-          ImGui::EndGroup();
+            auto _StoreList = [](char* szOut, std::wstring fname)->void
+            {
+                std::wofstream list_file(
+                    fname
+                );
 
-          ImGui::BeginGroup();
-          ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
-          ImGui::EndGroup();
+                if (list_file.is_open())
+                {
+                    std::wstring out_text =
+                        SK_UTF8ToWideChar(szOut);
 
-          ImGui::Spacing();
-          ImGui::Spacing();
+                    list_file.write(out_text.c_str(), out_text.length());
+                    list_file.close();
+                }
+            };
+            auto _LoadList = [](char* szIn, std::wstring fname)->void
+            {
+                std::wifstream list_file(
+                     fname
+                );
 
-          ImGui::Text("Whitelist Patterns:");
-          white_edited |=
-              ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+                std::wstring full_text;
 
-          ImGui::Spacing();
-          ImGui::Spacing();
+                if (list_file.is_open())
+                {
+                    std::wstring line;
 
-          ImGui::Text("Blacklist Patterns:");
-          black_edited |=
-              ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+                    while (list_file.good())
+                    {
+                        std::getline(list_file, line);
+
+                        full_text += line;
+                        full_text += L'\n';
+                    }
+                    full_text.resize(full_text.length() - 1);
+
+                    list_file.close();
+                    strcpy(szIn, SK_WideCharToUTF8(full_text).c_str());
+                }
+            };
+
+            SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
+            SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
+
+            ImGui::BeginGroup();
+            ImGui::Text("The following fields manage injection in games and can be used to enable Special K in non-Steam games.");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+            ImGui::EndGroup();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folder separators must use two backslashes \"\\\\\" and not one \"\\\".");
+            ImGui::EndGroup();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
+            ImGui::EndGroup();
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::Text("Whitelist Patterns:");
+            white_edited |=
+                ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::Text("Blacklist Patterns:");
+            black_edited |=
+                ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
 
         ImGui::Separator();
 
@@ -1708,10 +1722,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::PopStyleVar();
         }
 
-          ImGui::EndGroup();
+            ImGui::EndGroup();
+        }
+        ImGui::EndTabItem   (                          ); 
       }
-      ImGui::EndTabItem   (                  ); 
-}
+        
       ImGui::EndTabBar    (                  );
 
       /*
@@ -1967,7 +1982,9 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.BufferCount                        = 2;
   sd.BufferDesc.Width                   = 2;
   sd.BufferDesc.Height                  = 2;
-  sd.BufferDesc.Format                  = DXGI_FORMAT_R10G10B10A2_UNORM;
+  sd.BufferDesc.Format                  =
+    SKIF_IsWindows10OrGreater      () ? DXGI_FORMAT_R10G10B10A2_UNORM
+                                      : DXGI_FORMAT_R8G8B8A8_UNORM;
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 0;
   sd.Flags                              =
