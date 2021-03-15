@@ -1497,7 +1497,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       enum _Selection {
         Global,
         Management,
-        InjectionConfig
+        InjectionConfig,
+        Help
       } static tab_selected = Management;
 
       ImGui::BeginGroup       (                  );
@@ -1543,13 +1544,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
             ImGui::BeginGroup();
 
-            if (ImGui::Checkbox("Disable UI tooltips                                                                                                                                                                                 ", &SKIF_bDisableTooltips))
+            if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
                 regKVDisableTooltips.putData(SKIF_bDisableTooltips);
 
             SKIF_ImGui_SetHoverTip("Tooltips may sometime contain additional information");
               
             ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-            if (ImGui::Checkbox("Scale the UI based on the DPI                                                                                                                                                         ###EnableDPI", &SKIF_bDPIScaling))
+            if (ImGui::Checkbox("Scale the UI based on the DPI###EnableDPI", &SKIF_bDPIScaling))
             {
                 ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -1567,7 +1568,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetHoverTip("This feature is still experimental");
             SKIF_ImGui_SetHoverText("Experimental; UI may misbehave and per-monitor DPI scaling is unsupported");
 
-            if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF                                                                                                ", &SKIF_bDisableExitConfirmation))
+            if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF", &SKIF_bDisableExitConfirmation))
                 regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
             SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
@@ -1716,7 +1717,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (bDisabled)
         {
             ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 
+                ImGui::GetStyle().Alpha *
+                    ((SKIF_IsHDR()) ? 0.1f
+                                    : 0.5f
+            ));
         }
 
         if (ImGui::Button("Save Changes"))
@@ -1758,6 +1763,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndGroup();
         }
         ImGui::EndTabItem   (                          ); 
+      }
+
+
+      if (ImGui::BeginTabItem("Help"))
+      {
+          tab_selected = Help;
+
+          ImGui::Text("Special K is an extensive game modifying framework allowing for various forms of in-depth tweaking of a game.");
+
+          ImGui::Spacing();
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::Selectable("Enter up to 16 patterns for each list."); //ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+          ImGui::EndGroup();
+
+          ImGui::EndTabItem();
       }
         
       ImGui::EndTabBar    (                  );
