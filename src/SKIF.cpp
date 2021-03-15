@@ -1783,7 +1783,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
-          if (ImGui::Selectable("Community Forum / Discourse"))
+          if (ImGui::Selectable("Community Forum"))
               SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
           ImGui::EndGroup();
 
@@ -1803,6 +1803,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
           if (ImGui::Selectable("Wiki"))
               SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+          ImGui::EndGroup();
+
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Patreon"))
+              SKIF_Util_OpenURI(L"https://www.patreon.com/bePatron?u=33423623");
           ImGui::EndGroup();
 
           ImGui::Spacing();
