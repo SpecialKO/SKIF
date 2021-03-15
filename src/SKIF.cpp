@@ -1737,15 +1737,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
           tab_selected = Help;
 
+          ImGui::Spacing();
+
           ImGui::Text("Special K is an extensive game modifying framework allowing for various forms of in-depth tweaking of a game.");
 
           ImGui::Spacing();
           ImGui::Spacing();
 
+          extern void
+              SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::Selectable("Enter up to 16 patterns for each list."); //ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Community Forum / Discourse"))
+              SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
           ImGui::EndGroup();
+
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Discord"))
+              SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
+          ImGui::EndGroup();
+
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Wiki"))
+              SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+          ImGui::EndGroup();
+
+          ImGui::Spacing();
+          ImGui::Spacing();
 
           ImGui::EndTabItem();
       }
