@@ -38,6 +38,7 @@
 #include "windows.h"
 #include <iostream>
 #include <comdef.h>
+#include <filesystem>
 
 float sk_global_ctl_x;
 bool  SKIF_ServiceRunning;
@@ -198,6 +199,10 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
                       wszPath,
     MAX_PATH                 );
   SK_Generate8Dot3   (wszPath);
+
+  // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
+  // Let's change that to the folder of the executable itself.
+  std::filesystem::current_path(std::filesystem::path(wszPath).remove_filename());
 
   bHasServlet  =
     PathFileExistsW (L"Servlet");
