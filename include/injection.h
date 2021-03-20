@@ -25,6 +25,7 @@
 #include <wtypes.h>
 #include <cstdio>
 #include <array>
+#include <string>
 
 // Move somewhere else please
 extern float sk_global_ctl_x;
@@ -67,10 +68,14 @@ struct SKIF_InjectionContext {
     { LR"(Servlet\SpecialK64.pid)", nullptr, &pid64,
       LR"(Servlet\SpecialK32.pid)", nullptr, &pid32 };
 
+  std::string SKVer32 = "";
+  std::string SKVer64 = "";
+
   bool _StartStopInject (bool running_);
   bool _InjectProcess   (void);
 
   bool TestServletRunlevel (bool& changed_state);
+  void _RefreshSKDLLVersions(void);
   bool _GlobalInjectionCtl (void);
   void _StartAtLogonCtrl   (void);
 } extern _inject;
