@@ -1516,6 +1516,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::BeginGroup();
+            ImGui::Spacing();
 
             if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
                 regKVDisableTooltips.putData(SKIF_bDisableTooltips);
@@ -1558,6 +1559,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::BeginGroup();
+            ImGui::Spacing();
             ImGui::Text("Special K can make use of the WinRing0 kernel driver to provide extended CPU monitoring metrics.\nThis driver is optional and only necessary for users who want the CPU widget to display core\nfrequency and power draw as well.\n\nUse the below button to install or uninstall the driver.");
 
             ImGui::BeginGroup();
@@ -1649,7 +1651,27 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
 
             ImGui::BeginGroup();
-            ImGui::Text("The following fields manage injection in games and can be used to enable Special K in non-Steam games.");
+            ImGui::Spacing();
+
+            ImGui::Text("The following lists manage initialization in processes using RegEx patterns.");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            extern void
+                SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
+            ImGui::EndGroup();
+
+            SKIF_ImGui_SetHoverTip("The service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (hook APIs etc)\nor remain idle/inert within the injected process.");
+
+            if (ImGui::IsItemClicked())
+            {
+                SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+            }
 
             ImGui::Spacing();
             ImGui::Spacing();
@@ -1661,12 +1683,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
+            ImGui::EndGroup();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
             ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folder separators must use two backslashes \"\\\\\" and not one \"\\\".");
             ImGui::EndGroup();
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
             ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
+            ImGui::EndGroup();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by | characters.");
             ImGui::EndGroup();
 
             ImGui::Spacing();
@@ -1748,19 +1780,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::Spacing();
 
-          ImGui::Text("Special K is an extensive game modifying framework allowing for various forms of in-depth tweaking of a game.");
+          ImGui::Text("Special K is an extensive game modifying framework allowing\nfor various forms of in-depth tweaking of a game.");
 
           ImGui::Spacing();
+          ImGui::Spacing();
+
+          ImGui::Text("Online resources:");
           ImGui::Spacing();
 
           extern void
               SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
 
+
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
-          if (ImGui::Selectable("Community Forum"))
-              SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
+          if (ImGui::Selectable("Discord"))
+              SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
           ImGui::EndGroup();
 
           ImGui::Spacing();
@@ -1768,8 +1804,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
-          if (ImGui::Selectable("Discord"))
-              SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
+          if (ImGui::Selectable("Forum"))
+              SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
           ImGui::EndGroup();
 
           ImGui::Spacing();
