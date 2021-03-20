@@ -636,18 +636,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
         SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
     }
 
-    ImGui::BeginGroup();
-    ImGui::Spacing(); ImGui::SameLine();
-    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Click to visit the official Special K wiki!");
-    ImGui::EndGroup();
-
-    SKIF_ImGui_SetHoverTip("Click to visit the official Special K wiki!");
-
-    if (ImGui::IsItemClicked())
-    {
-        SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
-    }
-
     ImGui::Spacing();
 
 #if 0
@@ -658,6 +646,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif // 1
 
   } else {
+    ImGui::Spacing();
     ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Global injection is unavailable as the required files are missing.");
   }
 
