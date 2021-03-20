@@ -1509,6 +1509,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Select the 2nd tab on first frame
         SK_RunOnce (flags = ImGuiTabItemFlags_SetSelected);
 
+        if (tab_selected != Global)
+            _inject._RefreshSKDLLVersions ();
+
         tab_selected = Global;
 
         _inject._GlobalInjectionCtl ();
@@ -1526,6 +1529,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
           if (ImGui::BeginTabItem("Steam Management", nullptr, flags))
           {
+              if (tab_selected != Management)
+                  _inject._RefreshSKDLLVersions();
+
               tab_selected = Management;
 
               extern void SKIF_GameManagement_DrawTab(void);
@@ -1710,59 +1716,62 @@ wWinMain ( _In_     HINSTANCE hInstance,
             black_edited |=
                 ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
 
-        ImGui::Separator();
+            ImGui::Separator();
 
-        bool bDisabled = (white_edited || black_edited) ? false : true ;
+            bool bDisabled = (white_edited || black_edited) ? false : true ;
 
-        if (bDisabled)
-        {
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 
-                ImGui::GetStyle().Alpha *
-                    ((SKIF_IsHDR()) ? 0.1f
-                                    : 0.5f
-            ));
-        }
-
-        if (ImGui::Button("Save Changes"))
-        {
-            if (white_edited)
+            if (bDisabled)
             {
-                _StoreList(whitelist, root_dir + L"whitelist.ini");
-                white_edited = false;
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 
+                    ImGui::GetStyle().Alpha *
+                        ((SKIF_IsHDR()) ? 0.1f
+                                        : 0.5f
+                ));
             }
-            if (black_edited)
+
+            if (ImGui::Button("Save Changes"))
             {
-                _StoreList(blacklist, root_dir + L"blacklist.ini");
-                black_edited = false;
+                // Create the folder if it does not already exist
+                CreateDirectoryW(root_dir.c_str(), NULL);
+
+                if (white_edited)
+                {
+                    _StoreList(whitelist, root_dir + L"whitelist.ini");
+                    white_edited = false;
+                }
+                if (black_edited)
+                {
+                    _StoreList(blacklist, root_dir + L"blacklist.ini");
+                    black_edited = false;
+                }
             }
-        }
 
-        ImGui::SameLine();
+            ImGui::SameLine();
 
-        if (ImGui::Button("Reset"))
-        {
-            if (white_edited)
+            if (ImGui::Button("Reset"))
             {
-                _LoadList(whitelist, root_dir + L"whitelist.ini");
-                white_edited = false;
+                if (white_edited)
+                {
+                    _LoadList(whitelist, root_dir + L"whitelist.ini");
+                    white_edited = false;
+                }
+                if (black_edited)
+                {
+                    _LoadList(blacklist, root_dir + L"blacklist.ini");
+                    black_edited = false;
+                }
             }
-            if (black_edited)
+
+            if (bDisabled)
             {
-                _LoadList(blacklist, root_dir + L"blacklist.ini");
-                black_edited = false;
+                ImGui::PopItemFlag();
+                ImGui::PopStyleVar();
             }
-        }
 
-        if (bDisabled)
-        {
-            ImGui::PopItemFlag();
-            ImGui::PopStyleVar();
-        }
-
-            ImGui::EndGroup();
-        }
-        ImGui::EndTabItem   (                          ); 
+                ImGui::EndGroup();
+            }
+            ImGui::EndTabItem   (                          ); 
       }
 
 

@@ -477,6 +477,20 @@ SKIF_InjectionContext::_InjectProcess (void)
 extern void
 SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
 
+void SKIF_InjectionContext::_RefreshSKDLLVersions(void)
+{
+    wchar_t                 wszPathToSelf64[MAX_PATH] = { };
+    wchar_t                 wszPathToSelf32[MAX_PATH] = { };
+    GetModuleFileNameW(0, wszPathToSelf64, MAX_PATH);
+    GetModuleFileNameW(0, wszPathToSelf32, MAX_PATH);
+    PathRemoveFileSpecW(wszPathToSelf64);
+    PathRemoveFileSpecW(wszPathToSelf32);
+    PathAppendW(wszPathToSelf64, L"SpecialK64.dll");
+    PathAppendW(wszPathToSelf32, L"SpecialK32.dll");
+    SKVer32 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf32));
+    SKVer64 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf64));
+}
+
 bool
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
@@ -490,18 +504,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::Spacing();
     ImGui::Spacing();
-
-    wchar_t                 wszPathToSelf64 [MAX_PATH]    = { };
-    wchar_t                 wszPathToSelf32 [MAX_PATH]    = { };
-    GetModuleFileNameW  (0, wszPathToSelf64, MAX_PATH         );
-    GetModuleFileNameW  (0, wszPathToSelf32, MAX_PATH         );
-    PathRemoveFileSpecW (   wszPathToSelf64                   );
-    PathRemoveFileSpecW (   wszPathToSelf32                   );
-    PathAppendW         (   wszPathToSelf64, L"SpecialK64.dll");
-    PathAppendW         (   wszPathToSelf32, L"SpecialK32.dll");
-
-    std::string SKVer32 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf32));
-    std::string SKVer64 = SK_WideCharToUTF8(SKIF_GetSpecialKDLLVersion(wszPathToSelf64));
 
     if (SKVer32 == SKVer64)
     {
