@@ -43,6 +43,7 @@ BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);
 
 bool SKIF_ImGui_IsHoverable  (void);
+void SKIF_ImGui_SetMouseCursorHand (void);
 void SKIF_ImGui_SetHoverTip  (const char* szText);
 void SKIF_ImGui_SetHoverText (const char* szText);
 

@@ -629,12 +629,10 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
     ImGui::EndGroup();
 
+    SKIF_ImGui_SetMouseCursorHand();
     SKIF_ImGui_SetHoverTip("It is recommended to disable the global injection service before\nstarting a multiplayer game (regardless of platform) where\nanti-cheat protection might be present.");
-
     if (ImGui::IsItemClicked())
-    {
         SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    }
 
     ImGui::Spacing();
 
