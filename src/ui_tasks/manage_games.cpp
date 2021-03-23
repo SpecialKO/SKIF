@@ -748,6 +748,8 @@ SKIF_GameManagement_DrawTab (void)
   void SKIF_ImGui_SetHoverText (const char *szText);
        SKIF_ImGui_SetHoverText ("Click to help support the project");
 
+  SKIF_ImGui_SetMouseCursorHand ();
+
   if (clicked)
     SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
 
@@ -1125,8 +1127,9 @@ SKIF_GameManagement_DrawTab (void)
                   SK_UTF8ToWideChar (cache.config.root_dir.c_str ())
               );
           }
-          SKIF_ImGui_SetHoverText(cache.config.root_dir.c_str());
-          SKIF_ImGui_SetHoverTip("Open the config root folder");
+          SKIF_ImGui_SetMouseCursorHand ();
+          SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str());
+          SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
           // Config File
           if (ImGui::Selectable     (cache.config.shorthand.c_str()))
@@ -1135,8 +1138,9 @@ SKIF_GameManagement_DrawTab (void)
                   SK_UTF8ToWideChar (cache.config.full_path.c_str())
               );
           }
-          SKIF_ImGui_SetHoverText  (cache.config.full_path.c_str ());
-          SKIF_ImGui_SetHoverTip("Open the config file");
+          SKIF_ImGui_SetMouseCursorHand ();
+          SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
+          SKIF_ImGui_SetHoverTip        ("Open the config file");
       }
 
       else {
@@ -1162,6 +1166,7 @@ SKIF_GameManagement_DrawTab (void)
         cache.app_id    = 0;
       }
 
+      SKIF_ImGui_SetMouseCursorHand();
       SKIF_ImGui_SetHoverText (cache.injection.hover_text.c_str ());
       SKIF_ImGui_SetHoverTip  (cache.injection.hover_text.c_str());
 
@@ -1243,7 +1248,7 @@ SKIF_GameManagement_DrawTab (void)
     std::min (1.0f, std::max (0.1f, fScale)) * __ICON_HEIGHT;
 
   float f0 = ImGui::GetCursorPosY (  );
-    ImGui::Selectable ("###zero", &dontcare);
+    ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled);
   float f1 = ImGui::GetCursorPosY (  );
     ImGui::SameLine (                );
     ImGui::Image (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
@@ -1518,6 +1523,7 @@ SKIF_GameManagement_DrawTab (void)
 
                   ImGui::CloseCurrentPopup ();
                 }
+                SKIF_ImGui_SetMouseCursorHand();
               }
             }
           }
@@ -1655,6 +1661,7 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
       ImGui::PopStyleColor ();
+      SKIF_ImGui_SetMouseCursorHand();
     }
 
     else if (! update)

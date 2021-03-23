@@ -200,6 +200,12 @@ bool SKIF_ImGui_IsHoverable (void)
   return true;
 }
 
+void SKIF_ImGui_SetMouseCursorHand (void)
+{
+    if (ImGui::IsItemHovered())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+}
+
 void SKIF_ImGui_SetHoverTip  (const char* szText)
 {
   if (SKIF_ImGui_IsHoverable () && ! SKIF_bDisableTooltips)
@@ -1603,7 +1609,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::EndGroup();
 
-            bool button = ImGui::Button("**Not Implemented**", ImVec2(200, 25));
+            // Disabled button
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+                ImGui::GetStyle().Alpha *
+                ((SKIF_IsHDR()) ? 0.1f
+                    : 0.5f
+                    ));
+
+            bool button = ImGui::ButtonEx("**Not Implemented**", ImVec2(200, 25), ImGuiButtonFlags_Disabled);
+
+            // Disabled button
+            ImGui::PopStyleVar();
+            ImGui::PopItemFlag();
 
             SKIF_ImGui_SetHoverTip("Currently not implemented");
             SKIF_ImGui_SetHoverText("Currently not implemented");
@@ -1699,12 +1717,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
             ImGui::EndGroup();
 
+            SKIF_ImGui_SetMouseCursorHand();
             SKIF_ImGui_SetHoverTip("The service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (hook APIs etc)\nor remain idle/inert within the injected process.");
-
             if (ImGui::IsItemClicked())
-            {
                 SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-            }
 
             ImGui::Spacing();
             ImGui::Spacing();
@@ -1830,6 +1846,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
           if (ImGui::Selectable("Discord"))
               SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
+          SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
           ImGui::Spacing();
@@ -1839,6 +1856,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
           if (ImGui::Selectable("Forum"))
               SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
+          SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
           ImGui::Spacing();
@@ -1848,6 +1866,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
           if (ImGui::Selectable("Wiki"))
               SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+          SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
           ImGui::Spacing();
@@ -1857,6 +1876,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
           if (ImGui::Selectable("Patreon"))
               SKIF_Util_OpenURI(L"https://www.patreon.com/bePatron?u=33423623");
+          SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
           ImGui::Spacing();
