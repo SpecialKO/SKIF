@@ -2073,6 +2073,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::RenderPlatformWindowsDefault ();
     }
 
+    CComQIPtr <IDXGISwapChain3> pSwap3(g_pSwapChain);
+
+    if (pSwap3 != nullptr)
+    {
+        pSwap3->SetMaximumFrameLatency(2);
+
+        CHandle hWait(
+            pSwap3->GetFrameLatencyWaitableObject()
+        );
+
+        if (hWait.m_h != INVALID_HANDLE_VALUE)
+            WaitForSingleObject(hWait, 100);
+    }
+
     g_pSwapChain->Present (1, 0x0);
 
 #ifdef __D3D12__

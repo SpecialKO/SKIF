@@ -184,6 +184,9 @@ struct SK_IMGUI_D3D11StateBlock {
   void Capture ( ID3D11DeviceContext* pDevCtx,
                  DWORD                iStateMask = _StateMask_All )
   {
+    if (iStateMask & ScissorState)        Scissor.RectCount   = D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS;
+    if (iStateMask & ViewportState)       Viewport.ArrayCount = D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS;
+
     if (iStateMask & ScissorState)
        pDevCtx->RSGetScissorRects      ( &Scissor.RectCount,
                                           Scissor.Rects    );
@@ -1023,7 +1026,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
     bCanFlip ?
-           4 : 2;
+           2 : 1;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1239,9 +1242,9 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   // Present without VSYNC
   if (pSwap2)
-    pSwap2->Present1         (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT, &pparams);
+    pSwap2->Present1         (0, 0x0, &pparams);
   else
-    data->SwapChain->Present (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT);
+    data->SwapChain->Present (0, 0x0);
 }
 
 static void
