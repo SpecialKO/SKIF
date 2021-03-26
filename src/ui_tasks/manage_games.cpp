@@ -36,6 +36,7 @@ extern ID3D11Device*           g_pd3dDevice;
 extern ID3D11DeviceContext*    g_pd3dDeviceContext;
 extern IDXGISwapChain*         g_pSwapChain;
 extern ID3D11RenderTargetView* g_mainRenderTargetView;
+extern bool                    SKIF_ServiceRunning;
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
@@ -1164,6 +1165,7 @@ SKIF_GameManagement_DrawTab (void)
         _inject.running =
           _inject.TestServletRunlevel (_inject.run_lvl_changed);
         cache.app_id    = 0;
+        SKIF_ServiceRunning = _inject.running;
       }
 
       SKIF_ImGui_SetMouseCursorHand();
