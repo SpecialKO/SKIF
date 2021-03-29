@@ -1897,7 +1897,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_ServiceRunning && ! SKIF_bDisableExitConfirmation)
               ImGui::OpenPopup("Confirm Exit");
           else
-              bKeepProcessAlive = false;
+              bKeepWindowAlive = false;
       }
 
       if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))

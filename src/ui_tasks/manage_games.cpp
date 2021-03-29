@@ -1739,6 +1739,7 @@ SKIF_GameManagement_DrawTab (void)
 
   ImGui::EndGroup   ();
 
+  /*
   if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
   {
       if (pApp != nullptr && pApp->id != SKIF_STEAM_APPID)
@@ -1751,7 +1752,7 @@ SKIF_GameManagement_DrawTab (void)
 
           pApp->_status.invalidate();
       }
-  }
+  }*/
 
   SKIF_ImGui_SetHoverText (
     "Right click for more details"
