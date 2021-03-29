@@ -1206,11 +1206,11 @@ SKIF_GameManagement_DrawTab (void)
 
   static app_record_s*      pApp = nullptr;
 
-  float header_ht =
-    _PrintInjectionSummary (pApp);
+  //float header_ht =
+    //_PrintInjectionSummary (pApp);
 
   ImGui::BeginChild ("###AppListInset",
-                     ImVec2 (_WIDTH2, 900 - _HEIGHT2 - header_ht), true,
+                     ImVec2 (_WIDTH2, 900 - _HEIGHT2 /* - header_ht */ ), true,
                      ImGuiWindowFlags_NavFlattened);
   ImGui::BeginGroup ();
 
@@ -1469,6 +1469,20 @@ SKIF_GameManagement_DrawTab (void)
   {
     if (pApp != nullptr)
     {
+        if (pApp->id != SKIF_STEAM_APPID)
+        {
+            if (ImGui::Selectable("Play Game", false, ( (pApp->_status.running) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
+            {
+                SKIF_Util_OpenURI(
+                    std::wstring(L"steam://run/") +
+                    std::to_wstring(pApp->id),
+                    SW_SHOWNA
+                );
+
+                pApp->_status.invalidate();
+            }
+        }
+
       if (! pApp->specialk.screenshots.empty ())
       {
         if (ImGui::BeginMenu ("Screenshots"))
@@ -1489,8 +1503,6 @@ SKIF_GameManagement_DrawTab (void)
       {
         bool bMenuOpen =
           ImGui::BeginMenu ("Game Saves and Config");
-
-        SKIF_ImGui_SetHoverTip("Browse files cloud-sync'd by Steam");
 
         std::set <std::wstring> used_paths_;
 
@@ -1537,6 +1549,8 @@ SKIF_GameManagement_DrawTab (void)
           }
 
           ImGui::EndMenu ();
+
+          SKIF_ImGui_SetHoverTip("Browse files cloud-sync'd by Steam");
         }
       }
 
@@ -1646,6 +1660,18 @@ SKIF_GameManagement_DrawTab (void)
       );
 
           ImGui::Separator  ();
+      
+      std::wstring installFolder = SK_UseManifestToGetInstallDir(pApp->id);
+
+      if (ImGui::Selectable("Browse Game Folder"))
+      {
+        SKIF_Util_ExplorePath(installFolder);
+      }
+      SKIF_ImGui_SetMouseCursorHand();
+      SKIF_ImGui_SetHoverText(
+          SK_FormatString(R"(%ws)", installFolder.c_str()).c_str()
+      );
+
       if (ImGui::Selectable ("Browse PCGamingWiki"))
       {
         static uint32_t
@@ -1668,8 +1694,39 @@ SKIF_GameManagement_DrawTab (void)
           SKIF_Util_OpenURI (wszURL);
         }
       }
-      ImGui::PopStyleColor ();
       SKIF_ImGui_SetMouseCursorHand();
+      SKIF_ImGui_SetHoverText(
+          SK_FormatString(R"(%ws%lu)", L"http://pcgamingwiki.com/api/appid.php?appid=", pApp->id).c_str()
+      );
+
+      if (ImGui::Selectable("Browse SteamDB"))
+      {
+          static uint32_t
+              last_app = 0;
+          static wchar_t
+              wszURL[INTERNET_MAX_URL_LENGTH] = { };
+
+          if (last_app != pApp->id)
+          {
+              *wszURL = L'\0';
+              last_app = pApp->id;
+
+              swprintf_s(wszURL, INTERNET_MAX_URL_LENGTH - 1,
+                  L"https://steamdb.info/app/%lu",
+                  pApp->id);
+          }
+
+          if (*wszURL != L'\0')
+          {
+              SKIF_Util_OpenURI(wszURL);
+          }
+      }
+      SKIF_ImGui_SetMouseCursorHand();
+      SKIF_ImGui_SetHoverText(
+          SK_FormatString(R"(%ws%lu)", L"https://steamdb.info/app/", pApp->id).c_str()
+      );
+
+      ImGui::PopStyleColor ();
     }
 
     else if (! update)
@@ -1681,6 +1738,20 @@ SKIF_GameManagement_DrawTab (void)
   }
 
   ImGui::EndGroup   ();
+
+  if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+  {
+      if (pApp != nullptr && pApp->id != SKIF_STEAM_APPID)
+      {
+          SKIF_Util_OpenURI(
+              std::wstring(L"steam://run/") +
+              std::to_wstring(pApp->id),
+              SW_SHOWNA
+          );
+
+          pApp->_status.invalidate();
+      }
+  }
 
   SKIF_ImGui_SetHoverText (
     "Right click for more details"
@@ -1703,6 +1774,8 @@ SKIF_GameManagement_DrawTab (void)
 
   else if (pApp != nullptr)
   {
+    _PrintInjectionSummary (pApp);
+
     bool clicked  = false;
     bool running  = pApp->_status.running;
 
@@ -1729,14 +1802,6 @@ SKIF_GameManagement_DrawTab (void)
 
     content_region.y -= checkbox_ht + item_spacing.y * 2;
     content_region.x -=               item_spacing.x;
-
-    fAspect =
-      pApp->textures.logo.p != nullptr      ?
-      pApp->textures.logo.getAspectRatio () :
-                                    ( 16.0f / 9.0f );
-
-    D3D11_TEXTURE2D_DESC  texDesc =
-      pApp->textures.logo.getDesc ();
 
     float height = content_region.y,
           width  = height * fAspect;
@@ -1777,10 +1842,11 @@ SKIF_GameManagement_DrawTab (void)
 
     if (pApp->extended_config.vac.enabled)
     {
-      draw_list->AddText ( ImGui::GetFont (), 20.0f,
+      /*draw_list->AddText ( ImGui::GetFont (), 20.0f,
                            cursor_pos_xy,
             ImColor::HSV ( 0.25f, 0.75f, 0.95f ),
                            "VAC Protected Game" );
+                           */
 
       extern std::string
         SKIF_StatusBarText;
@@ -1793,37 +1859,6 @@ SKIF_GameManagement_DrawTab (void)
 
     bool last_hover =
        launch_hovered;
-
-    if (pApp->textures.logo.p != nullptr)
-    {
-      ImVec4 color =        running ?
-        ImVec4 (.8f, .8f, .8f, 1.f) :
-          launch_hovered                ?
-            ImVec4 (1.f, 1.f, 1.f, 1.f) :
-            ImVec4 (1.f, 1.f, 1.f, 0.5f);
-
-      clicked =
-        ImGui::ImageButton (
-          pApp->textures.logo.p, ImVec2 (width, height),
-                                 ImVec2 (0, 0),
-                                 ImVec2 (1, 1), 0,
-          ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg),
-                                 color );
-
-      if (! last_hover)
-        clicked = false;
-
-      launch_hovered =
-        ImGui::IsItemHovered ();
-    }
-
-    else
-    {
-      clicked =
-        ImGui::Button ( running ? "< Running >"
-                                : "Launch Game",
-                          ImVec2 (width, height) );
-    }
 
     ImGui::EndGroup ();
 
