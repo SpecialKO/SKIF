@@ -184,6 +184,9 @@ struct SK_IMGUI_D3D11StateBlock {
   void Capture ( ID3D11DeviceContext* pDevCtx,
                  DWORD                iStateMask = _StateMask_All )
   {
+    if (iStateMask & ScissorState)        Scissor.RectCount   = D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS;
+    if (iStateMask & ViewportState)       Viewport.ArrayCount = D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS;
+
     if (iStateMask & ScissorState)
        pDevCtx->RSGetScissorRects      ( &Scissor.RectCount,
                                           Scissor.Rects    );
@@ -974,9 +977,11 @@ void ImGui_ImplDX11_NewFrame (void)
 struct ImGuiViewportDataDx11 {
   IDXGISwapChain         *SwapChain;
   ID3D11RenderTargetView *RTView;
+  UINT                    PresentCount;
+  HANDLE                  WaitHandle;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;  }
-  ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr); }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; }
+  ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                   }
 };
 
 static void
@@ -1023,7 +1028,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
     bCanFlip ?
-           4 : 2;
+           3 : 1;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1123,6 +1128,16 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
                            &data->RTView );
   }
+
+  CComQIPtr <IDXGISwapChain3>
+      pSwap3 (data->SwapChain);
+  if (pSwap3 != nullptr)
+  {
+    pSwap3->SetMaximumFrameLatency (1);
+
+    data->WaitHandle =
+      pSwap3->GetFrameLatencyWaitableObject ();
+  }
 }
 
 static void
@@ -1136,6 +1151,10 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport)
 
   if (data != nullptr)
   {
+    if (data->WaitHandle) CloseHandle (
+        data->WaitHandle
+    );  data->WaitHandle = 0;
+
     if (data->SwapChain)
         data->SwapChain->Release ();
         data->SwapChain = nullptr;
@@ -1233,15 +1252,26 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  CComQIPtr <IDXGISwapChain2> pSwap2 (data->SwapChain);
+  if (data->WaitHandle)
+  {
+    CComQIPtr <IDXGISwapChain3> 
+      pSwap3 (data->SwapChain);
 
-  DXGI_PRESENT_PARAMETERS pparams = { };
+    DWORD dwWaitState =
+      WaitForSingleObject (data->WaitHandle, INFINITE);
+    
+    if (dwWaitState == WAIT_OBJECT_0)
+    {
+      DXGI_PRESENT_PARAMETERS     pparams = { };
+      pSwap3->Present1 ( 1, 0x0, &pparams );
+      data->PresentCount++;
+    }
+  }
 
-  // Present without VSYNC
-  if (pSwap2)
-    pSwap2->Present1         (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT, &pparams);
-  else
-    data->SwapChain->Present (1, DXGI_PRESENT_RESTART | DXGI_PRESENT_DO_NOT_WAIT);
+  else {
+    data->SwapChain->Present ( 0, 0x0 );
+    data->PresentCount++;
+  }
 }
 
 static void

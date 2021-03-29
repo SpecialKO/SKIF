@@ -373,7 +373,7 @@ SKIF_GameManagement_DrawTab (void)
           srv_desc.Texture2D.MipLevels       = UINT_MAX;
           srv_desc.Texture2D.MostDetailedMip =  0;
 
-        if (
+        if (    pTex2D.p != nullptr &&
           FAILED (
             g_pd3dDevice->CreateShaderResourceView (
                 pTex2D.p, &srv_desc,
@@ -594,7 +594,7 @@ SKIF_GameManagement_DrawTab (void)
             srv_desc.Texture2D.MipLevels       = UINT_MAX;
             srv_desc.Texture2D.MostDetailedMip =  0;
 
-            if (
+            if (  pLocalTex2D.p != nullptr &&
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
                    pLocalTex2D.p, &srv_desc,
@@ -747,8 +747,6 @@ SKIF_GameManagement_DrawTab (void)
 
   void SKIF_ImGui_SetHoverText (const char *szText);
        SKIF_ImGui_SetHoverText ("Click to help support the project");
-
-       SKIF_ImGui_SetHoverTip ("Test");
 
   if (clicked)
     SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
@@ -1044,8 +1042,10 @@ SKIF_GameManagement_DrawTab (void)
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  =
-                   _inject.running         ? "Service Running"
-                                           : "Service Stopped";
+                   _inject.running         ? _inject.run_lvl_changed ? "Service Running"
+                                                                     : "Stopping..."
+                                           : _inject.run_lvl_changed ? "Service Stopped"
+                                                                     : "Starting...";
               cache.injection.status.color =
                    _inject.running         ? ImColor::HSV (0.3F,  0.99F, 1.F)
                                            : ImColor::HSV (0.08F, 0.99F, 1.F);
@@ -1148,11 +1148,15 @@ SKIF_GameManagement_DrawTab (void)
 
       if (ImGui::IsItemClicked ())
       {
-        _inject._StartStopInject      (_inject.running);
-        _inject.running =
-          _inject.TestServletRunlevel (_inject.run_lvl_changed);
+        _inject._StartStopInject (_inject.running);
+        _inject.run_lvl_changed = false;
+
         cache.app_id    = 0;
       }
+
+      // Uses a Directory Watch signal, so this is cheap; do it every frame
+      _inject.running =
+        _inject.TestServletRunlevel (_inject.run_lvl_changed);
 
       SKIF_ImGui_SetHoverText (cache.injection.hover_text.c_str ());
 

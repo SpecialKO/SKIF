@@ -12,7 +12,7 @@
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Special K\</LocalDebuggerWorkingDirectory>
-    <LocalDebuggerCommand>taskmgr.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>C:\Program Files (x86)\Steam\steamapps\common\Special K\SKIF.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerCommandArguments>
@@ -26,6 +26,6 @@
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Special K\</LocalDebuggerWorkingDirectory>
-    <LocalDebuggerCommand>taskmgr.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>C:\Program Files (x86)\Steam\steamapps\common\Special K\SKIF.exe</LocalDebuggerCommand>
   </PropertyGroup>
 </Project>

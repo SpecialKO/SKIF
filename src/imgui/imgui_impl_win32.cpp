@@ -367,8 +367,10 @@ memset_size (
     dest;
 }
 
+extern CONDITION_VARIABLE SKIF_IsFocused;
+
 // Gamepad navigation mapping
-static void ImGui_ImplWin32_UpdateGamepads ( )
+bool ImGui_ImplWin32_UpdateGamepads ( )
 {
   ImGuiIO &io =
     ImGui::GetIO ( );
@@ -388,10 +390,10 @@ static void ImGui_ImplWin32_UpdateGamepads ( )
     sizeof (_fZeros));
 
   if (! g_Focused)
-    return;
+    return false;
 
   if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
-    return;
+    return false;
 
   if (HWND focused_hwnd = ::GetForegroundWindow ())
   {
@@ -411,7 +413,7 @@ static void ImGui_ImplWin32_UpdateGamepads ( )
 
     // Don't poll the gamepad when we're not focused.
     if (dwWindowOwnerPid != dwPidOfMe)
-      return;
+      return false;
   }
 
  // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
@@ -461,6 +463,8 @@ static void ImGui_ImplWin32_UpdateGamepads ( )
 
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
+
+  return g_HasGamepad;
 }
 
 INT64 current_time;
@@ -553,17 +557,21 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   {
   case WM_SETFOCUS:
     g_Focused = true;
+
+    extern CONDITION_VARIABLE  SKIF_IsFocused;
+    WakeAllConditionVariable (&SKIF_IsFocused);
+
     return 0;
     break;
 
   case WM_KILLFOCUS:
-    if ((HWND)wParam != g_hWnd && (! IsChild (g_hWnd, (HWND)wParam)))
-    {
+    //if ((HWND)wParam != g_hWnd && (! IsChild (g_hWnd, (HWND)wParam)))
+    //{
       g_Focused = false;
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
-    }
+    //}
     return 0;
     break;
 
@@ -773,14 +781,14 @@ ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
     static HINSTANCE    shcore_dll =
       ::LoadLibraryW (L"shcore.dll"); // Reference counted per-process
 
-    if (PFN_GetDpiForMonitor GetDpiForMonitorFn =
-      ( PFN_GetDpiForMonitor )::GetProcAddress (shcore_dll,
-        "GetDpiForMonitor")
-      )
-    {
-      GetDpiForMonitorFn ((HMONITOR)monitor, MDT_EFFECTIVE_DPI, &xdpi,
-        &ydpi);
-    }
+    static PFN_GetDpiForMonitor
+               GetDpiForMonitorFn =
+          (PFN_GetDpiForMonitor)::GetProcAddress (shcore_dll,
+              "GetDpiForMonitor");
+
+    if (GetDpiForMonitorFn != nullptr)
+    {   GetDpiForMonitorFn ((HMONITOR)monitor, MDT_EFFECTIVE_DPI, &xdpi,
+                                                                  &ydpi); }
   }
 
   else
@@ -1095,8 +1103,9 @@ ImGui_ImplWin32_SetWindowSize ( ImGuiViewport *viewport,
                    0,                    0,
                    rect.right  - rect.left,
                    rect.bottom - rect.top,
-                     SWP_NOZORDER       | SWP_NOMOVE   |
-                     SWP_NOACTIVATE     | SWP_ASYNCWINDOWPOS );
+                     SWP_NOZORDER |
+                     SWP_NOMOVE   |
+                     SWP_NOACTIVATE );
 }
 
 static void
