@@ -1935,11 +1935,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
       {
-          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "    Exiting without stopping the service will leave the global\n               injection running in the background.");
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "            Exiting without stopping the service will leave the global\n                          injection running in the background.");
 
           ImGui::Spacing();
           ImGui::Spacing();
           ImGui::Spacing();
+
+          if (ImGui::Button("Minimize", ImVec2(100, 25)))
+          {
+              bKeepWindowAlive = true;
+              ImGui::CloseCurrentPopup();
+              ShowWindow(hWnd, SW_MINIMIZE);
+          }
+
+          ImGui::SameLine();
+          ImGui::Spacing();
+          ImGui::SameLine();
 
           if (ImGui::Button("Stop Service And Exit", ImVec2(0, 25)))
           {
