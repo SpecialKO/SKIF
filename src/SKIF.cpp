@@ -1563,7 +1563,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::Spacing();
 
         // WinRing0
-        if (ImGui::CollapsingHeader("Extended CPU monitoring metrics", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Extended CPU monitoring metrics"))
         {
             ImGui::BeginGroup();
             ImGui::Spacing();
@@ -1723,14 +1723,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::Text("Whitelist Patterns:");
             white_edited |=
-                ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+                ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150));
 
             ImGui::Spacing();
             ImGui::Spacing();
 
             ImGui::Text("Blacklist Patterns:");
             black_edited |=
-                ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 200));
+                ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100));
 
             ImGui::Separator();
 
