@@ -25,9 +25,9 @@ int WindowsCursorSize = 1;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
-bool SKIF_bDPIScaling = true,
-     SKIF_bDisableExitConfirmation = true,
-     SKIF_bDisableTooltips = true;
+bool SKIF_bDPIScaling = false,
+     SKIF_bDisableExitConfirmation = false,
+     SKIF_bDisableTooltips = false;
 
 #include <SKIF.h>
 
@@ -1456,7 +1456,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (fMaxLuma != 0.0f)
         {
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, u8"HDR White:\t%04.1f cd/m�"))
+          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, u8"HDR White:\t%04.1f cd/m²"))
           {
             SKIF_SetHDRWhiteLuma (fLuma);
             regKVLuma.putData    (fLuma);
@@ -1555,6 +1555,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetHoverText("The global injector will remain active in the background");
 
             _DrawHDRConfig();
+
             ImGui::EndGroup();
         }
 
@@ -1897,7 +1898,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_ServiceRunning && ! SKIF_bDisableExitConfirmation)
               ImGui::OpenPopup("Confirm Exit");
           else
-              bKeepWindowAlive = false;
+              bKeepProcessAlive = false;
       }
 
       if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
@@ -1921,7 +1922,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (ImGui::Button("Stop Service And Exit", ImVec2(0, 25)))
           {
-              _inject._StartStopInject(SKIF_ServiceRunning);
+              _inject._StartStopInject(true);
               bKeepProcessAlive = false;
           }
 
@@ -1930,7 +1931,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine();
 
           if (ImGui::Button("Exit", ImVec2(100, 25)))
+          {
               bKeepProcessAlive = false;
+          }
 
           ImGui::SameLine();
           ImGui::Spacing();
@@ -2031,7 +2034,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     else
       bOccluded = FALSE;
 
-    if ((! bKeepWindowAlive) && hWnd != 0)
+    if ((! bKeepProcessAlive) && hWnd != 0)
       PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
     else if (bOccluded || IsIconic (hWnd))
