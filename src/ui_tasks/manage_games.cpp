@@ -37,6 +37,7 @@ extern ID3D11DeviceContext*    g_pd3dDeviceContext;
 extern IDXGISwapChain*         g_pSwapChain;
 extern ID3D11RenderTargetView* g_mainRenderTargetView;
 extern bool                    SKIF_ServiceRunning;
+extern float                   SKIF_ImGui_GlobalDPIScale;
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
@@ -1193,6 +1194,53 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::EndChildFrame    ();
 
+      ImGui::Separator();
+
+      auto frame_id2 =
+          ImGui::GetID("###Injection_Play_Button_Frame");
+
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(140, 45));
+
+      ImGui::BeginChildFrame(frame_id2, ImVec2(_WIDTH - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht),
+          ImGuiWindowFlags_NavFlattened |
+          ImGuiWindowFlags_NoScrollbar |
+          ImGuiWindowFlags_NoScrollWithMouse |
+          ImGuiWindowFlags_AlwaysAutoResize |
+          ImGuiWindowFlags_NoBackground);
+
+      ImGui::PopStyleVar();
+
+      std::string buttonLabel = "Play Game";
+      ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
+
+      if (pTargetApp->_status.running)
+      {
+          buttonLabel = "Already running";
+          buttonFlags = ImGuiButtonFlags_Disabled;
+          ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+              ImGui::GetStyle().Alpha *
+              ((SKIF_IsHDR()) ? 0.1f
+                  : 0.5f
+                  ));
+      }
+
+      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags))
+      {
+        SKIF_Util_OpenURI(
+            std::wstring(L"steam://run/") +
+            std::to_wstring(pTargetApp->id),
+            SW_SHOWNA
+        );
+
+        pTargetApp->_status.invalidate();
+      }
+
+      if (pTargetApp->_status.running)
+          ImGui::PopStyleVar();
+
+      ImGui::EndChildFrame();
+
+
       float panel_ht =
                                    line_ht * num_lines +
         ImGui::GetStyle ().FrameBorderSize * 2.0f      +
@@ -1206,11 +1254,8 @@ SKIF_GameManagement_DrawTab (void)
 
   static app_record_s*      pApp = nullptr;
 
-  //float header_ht =
-    //_PrintInjectionSummary (pApp);
-
   ImGui::BeginChild ("###AppListInset",
-                     ImVec2 (_WIDTH2, 900 - _HEIGHT2 /* - header_ht */ ), true,
+                     ImVec2 (_WIDTH2, 900 - _HEIGHT2), true,
                      ImGuiWindowFlags_NavFlattened);
   ImGui::BeginGroup ();
 
@@ -1674,25 +1719,10 @@ SKIF_GameManagement_DrawTab (void)
 
       if (ImGui::Selectable ("Browse PCGamingWiki"))
       {
-        static uint32_t
-          last_app                         =   0;
-        static wchar_t
-          wszURL [INTERNET_MAX_URL_LENGTH] = { };
-
-        if (last_app != pApp->id)
-        {
-          *wszURL  = L'\0';
-          last_app = pApp->id;
-
-          swprintf_s    ( wszURL, INTERNET_MAX_URL_LENGTH - 1,
-                          L"http://pcgamingwiki.com/api/appid.php?appid=%lu",
-                            pApp->id );
-        }
-
-        if (*wszURL != L'\0')
-        {
-          SKIF_Util_OpenURI (wszURL);
-        }
+        SKIF_Util_OpenURI(
+            std::wstring(L"http://pcgamingwiki.com/api/appid.php?appid=") +
+            std::to_wstring(pApp->id)
+        );
       }
       SKIF_ImGui_SetMouseCursorHand();
       SKIF_ImGui_SetHoverText(
@@ -1701,25 +1731,10 @@ SKIF_GameManagement_DrawTab (void)
 
       if (ImGui::Selectable("Browse SteamDB"))
       {
-          static uint32_t
-              last_app = 0;
-          static wchar_t
-              wszURL[INTERNET_MAX_URL_LENGTH] = { };
-
-          if (last_app != pApp->id)
-          {
-              *wszURL = L'\0';
-              last_app = pApp->id;
-
-              swprintf_s(wszURL, INTERNET_MAX_URL_LENGTH - 1,
-                  L"https://steamdb.info/app/%lu",
-                  pApp->id);
-          }
-
-          if (*wszURL != L'\0')
-          {
-              SKIF_Util_OpenURI(wszURL);
-          }
+          SKIF_Util_OpenURI(
+              std::wstring(L"https://steamdb.info/app/") +
+              std::to_wstring(pApp->id)
+          );
       }
       SKIF_ImGui_SetMouseCursorHand();
       SKIF_ImGui_SetHoverText(
@@ -1739,10 +1754,10 @@ SKIF_GameManagement_DrawTab (void)
 
   ImGui::EndGroup   ();
 
-  /*
-  if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+  
+  if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
   {
-      if (pApp != nullptr && pApp->id != SKIF_STEAM_APPID)
+      if (pApp != nullptr && pApp->id != SKIF_STEAM_APPID && pApp->_status.running == false)
       {
           SKIF_Util_OpenURI(
               std::wstring(L"steam://run/") +
@@ -1752,7 +1767,7 @@ SKIF_GameManagement_DrawTab (void)
 
           pApp->_status.invalidate();
       }
-  }*/
+  }
 
   SKIF_ImGui_SetHoverText (
     "Right click for more details"
@@ -1776,9 +1791,6 @@ SKIF_GameManagement_DrawTab (void)
   else if (pApp != nullptr)
   {
     _PrintInjectionSummary (pApp);
-
-    bool clicked  = false;
-    bool running  = pApp->_status.running;
 
     extern ImGuiStyle SKIF_ImGui_DefaultStyle;
            ImGuiStyle _style = ImGui::GetStyle ();
@@ -1858,29 +1870,7 @@ SKIF_GameManagement_DrawTab (void)
 
     ImGui::SetCursorPos (cursor_pos_xy);
 
-    bool last_hover =
-       launch_hovered;
-
     ImGui::EndGroup ();
-
-    if (last_hover)
-    {
-      SKIF_ImGui_SetHoverText (
-        running ? "Game is already running"
-                : launch_description.c_str ()
-      );
-    }
-
-    if ((! running) && clicked)
-    {
-      SKIF_Util_OpenURI (
-        std::   wstring (L"steam://run/") +
-        std::to_wstring (pApp->id),
-          SW_SHOWNA
-      );
-
-      pApp->_status.invalidate ();
-    }
 
     ImGui::GetStyle () = _style;
 
