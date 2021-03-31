@@ -192,25 +192,25 @@ bool SKIF_ImGui_IsHoverable (void)
 
 void SKIF_ImGui_SetMouseCursorHand (void)
 {
-    if (ImGui::IsItemHovered())
-        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+  if (ImGui::IsItemHovered())
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }
 
 void SKIF_ImGui_SetHoverTip  (const char* szText)
 {
   if (SKIF_ImGui_IsHoverable () && ! SKIF_bDisableTooltips)
   {
-      if (ImGui::IsItemHovered())
-      {
-          auto& io    = ImGui::GetIO();
+    if (ImGui::IsItemHovered())
+    {
+      auto& io    = ImGui::GetIO();
 
-          ImVec2 cursorPos = io.MousePos;
-          int cursorScale = WindowsCursorSize;
-          ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ );
-          ImGui::SetNextWindowPos(tooltip_pos);
+      ImVec2 cursorPos = io.MousePos;
+      int cursorScale = WindowsCursorSize;
+      ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ );
+      ImGui::SetNextWindowPos(tooltip_pos);
           
-          ImGui::SetTooltip(szText);
-      }
+      ImGui::SetTooltip(szText);
+    }
   }
 }
 
@@ -1617,182 +1617,182 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // InjectionConfig
         if (ImGui::CollapsingHeader("Injection", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            static std::wstring root_dir =
-                std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+          static std::wstring root_dir =
+              std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
 
-            static char whitelist[MAX_PATH * 16 * 2] = { };
-            static char blacklist[MAX_PATH * 16 * 2] = { };
-            static bool white_edited = false,
-                black_edited = false;
+          static char whitelist[MAX_PATH * 16 * 2] = { };
+          static char blacklist[MAX_PATH * 16 * 2] = { };
+          static bool white_edited = false,
+              black_edited = false;
 
-            auto _StoreList = [](char* szOut, std::wstring fname)->void
-            {
-                std::wofstream list_file(
+          auto _StoreList = [](char* szOut, std::wstring fname)->void
+          {
+              std::wofstream list_file(
+                  fname
+              );
+
+              if (list_file.is_open())
+              {
+                  std::wstring out_text =
+                      SK_UTF8ToWideChar(szOut);
+
+                  list_file.write(out_text.c_str(), out_text.length());
+                  list_file.close();
+              }
+          };
+          auto _LoadList = [](char* szIn, std::wstring fname)->void
+          {
+              std::wifstream list_file(
                     fname
-                );
+              );
 
-                if (list_file.is_open())
-                {
-                    std::wstring out_text =
-                        SK_UTF8ToWideChar(szOut);
+              std::wstring full_text;
 
-                    list_file.write(out_text.c_str(), out_text.length());
-                    list_file.close();
-                }
-            };
-            auto _LoadList = [](char* szIn, std::wstring fname)->void
-            {
-                std::wifstream list_file(
-                     fname
-                );
+              if (list_file.is_open())
+              {
+                  std::wstring line;
 
-                std::wstring full_text;
+                  while (list_file.good())
+                  {
+                      std::getline(list_file, line);
 
-                if (list_file.is_open())
-                {
-                    std::wstring line;
+                      full_text += line;
+                      full_text += L'\n';
+                  }
+                  full_text.resize(full_text.length() - 1);
 
-                    while (list_file.good())
-                    {
-                        std::getline(list_file, line);
+                  list_file.close();
+                  strcpy(szIn, SK_WideCharToUTF8(full_text).c_str());
+              }
+          };
 
-                        full_text += line;
-                        full_text += L'\n';
-                    }
-                    full_text.resize(full_text.length() - 1);
+          SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
+          SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
 
-                    list_file.close();
-                    strcpy(szIn, SK_WideCharToUTF8(full_text).c_str());
-                }
-            };
+          ImGui::BeginGroup();
+          ImGui::Spacing();
 
-            SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
-            SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
+          ImGui::Text("The following lists manage initialization in processes using RegEx patterns. The patterns are matched\nagainst the full path of the injected process, so a pattern like \"Games\" (w/o the citation marks) will match\nan executable at \"C:\\Games\\Medium\\Medium.exe\".");
 
-            ImGui::BeginGroup();
-            ImGui::Spacing();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
-            ImGui::Text("The following lists manage initialization in processes using RegEx patterns. The patterns are matched\nagainst the full path of the injected process, so a pattern like \"Games\" (w/o the citation marks) will match\nan executable at \"C:\\Games\\Medium\\Medium.exe\".");
+          extern void
+              SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
 
-            ImGui::Spacing();
-            ImGui::Spacing();
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
+          ImGui::EndGroup();
 
-            extern void
-                SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+          SKIF_ImGui_SetMouseCursorHand();
+          SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
+          if (ImGui::IsItemClicked())
+              SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
-            ImGui::EndGroup();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
-            SKIF_ImGui_SetMouseCursorHand();
-            SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
-            if (ImGui::IsItemClicked())
-                SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+          ImGui::EndGroup();
 
-            ImGui::Spacing();
-            ImGui::Spacing();
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
+          ImGui::EndGroup();
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
-            ImGui::EndGroup();
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
+          ImGui::EndGroup();
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
-            ImGui::EndGroup();
+          SKIF_ImGui_SetHoverTip("e.g. to specifically whitelist all executables below \"Ubisoft Games Launcher\\games\",\ntype it as \"Ubisoft Games Launcher\\\\games\" in the list instead.");
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
-            ImGui::EndGroup();
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
+          ImGui::EndGroup();
 
-            SKIF_ImGui_SetHoverTip("e.g. to specifically whitelist all executables below \"Ubisoft Games Launcher\\games\",\ntype it as \"Ubisoft Games Launcher\\\\games\" in the list instead.");
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
+          ImGui::EndGroup();
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
-            ImGui::EndGroup();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
-            ImGui::EndGroup();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
-            ImGui::Spacing();
-            ImGui::Spacing();
+          ImGui::Text("Whitelist Patterns:");
+          white_edited |=
+              ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150), ImGuiInputTextFlags_Multiline);
 
-            ImGui::Spacing();
-            ImGui::Spacing();
+          ImGui::Spacing();
+          ImGui::Spacing();
 
-            ImGui::Text("Whitelist Patterns:");
-            white_edited |=
-                ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150), ImGuiInputTextFlags_Multiline);
+          ImGui::Text("Blacklist Patterns:");
+          black_edited |=
+              ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100), ImGuiInputTextFlags_Multiline);
 
-            ImGui::Spacing();
-            ImGui::Spacing();
+          ImGui::Separator();
 
-            ImGui::Text("Blacklist Patterns:");
-            black_edited |=
-                ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100), ImGuiInputTextFlags_Multiline);
+          bool bDisabled = (white_edited || black_edited) ? false : true ;
 
-            ImGui::Separator();
+          if (bDisabled)
+          {
+              ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+              ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 
+                  ImGui::GetStyle().Alpha *
+                      ((SKIF_IsHDR()) ? 0.1f
+                                      : 0.5f
+              ));
+          }
 
-            bool bDisabled = (white_edited || black_edited) ? false : true ;
+          if (ImGui::Button("Save Changes"))
+          {
+              // Create the folder if it does not already exist
+              CreateDirectoryW(root_dir.c_str(), NULL);
 
-            if (bDisabled)
-            {
-                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 
-                    ImGui::GetStyle().Alpha *
-                        ((SKIF_IsHDR()) ? 0.1f
-                                        : 0.5f
-                ));
-            }
+              if (white_edited)
+              {
+                  _StoreList(whitelist, root_dir + L"whitelist.ini");
+                  white_edited = false;
+              }
+              if (black_edited)
+              {
+                  _StoreList(blacklist, root_dir + L"blacklist.ini");
+                  black_edited = false;
+              }
+          }
 
-            if (ImGui::Button("Save Changes"))
-            {
-                // Create the folder if it does not already exist
-                CreateDirectoryW(root_dir.c_str(), NULL);
+          ImGui::SameLine();
 
-                if (white_edited)
-                {
-                    _StoreList(whitelist, root_dir + L"whitelist.ini");
-                    white_edited = false;
-                }
-                if (black_edited)
-                {
-                    _StoreList(blacklist, root_dir + L"blacklist.ini");
-                    black_edited = false;
-                }
-            }
+          if (ImGui::Button("Reset"))
+          {
+              if (white_edited)
+              {
+                  _LoadList(whitelist, root_dir + L"whitelist.ini");
+                  white_edited = false;
+              }
+              if (black_edited)
+              {
+                  _LoadList(blacklist, root_dir + L"blacklist.ini");
+                  black_edited = false;
+              }
+          }
 
-            ImGui::SameLine();
+          if (bDisabled)
+          {
+              ImGui::PopItemFlag();
+              ImGui::PopStyleVar();
+          }
 
-            if (ImGui::Button("Reset"))
-            {
-                if (white_edited)
-                {
-                    _LoadList(whitelist, root_dir + L"whitelist.ini");
-                    white_edited = false;
-                }
-                if (black_edited)
-                {
-                    _LoadList(blacklist, root_dir + L"blacklist.ini");
-                    black_edited = false;
-                }
-            }
-
-            if (bDisabled)
-            {
-                ImGui::PopItemFlag();
-                ImGui::PopStyleVar();
-            }
-
-                ImGui::EndGroup();
-            }
-            ImGui::EndTabItem   (                          ); 
+              ImGui::EndGroup();
+          }
+          ImGui::EndTabItem   (                          ); 
       }
 
 
@@ -1805,7 +1805,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::Spacing();
 
-          ImGui::Text("Special K is an extensive game modifying framework allowing\nfor various forms of in-depth tweaking of a game.");
+          ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Lovingly referred to as the Swiss Army Knife of PC gaming,\nSpecial K does a bit of everything.\n\nIt is best known for fixing and enhancing graphics,\nits many detailed performance analysis and correction mods,\nand a constantly growing palette of tools that solve a wide\nvariety of issues affecting PC games.");
 
           ImGui::Spacing();
           ImGui::Spacing();

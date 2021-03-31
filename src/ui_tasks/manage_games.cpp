@@ -617,9 +617,16 @@ SKIF_GameManagement_DrawTab (void)
 
       for ( auto& app : apps )
       {
-        app.first.clear ();
+        // Special handling for non-Steam owners
+        //   of Special K / SKIF
+        if (app.second.id == SKIF_STEAM_APPID)
+          app.first = "Special K";
+        else {
+          // Regular handling for the remaining Steam games
+          app.first.clear();
 
-        app.second._status.refresh (&app.second);
+          app.second._status.refresh(&app.second);
+        }
 
         // Only bother opening the application manifest
         //   and looking for a name if the client claims
