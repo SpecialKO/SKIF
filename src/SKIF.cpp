@@ -1672,7 +1672,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::BeginGroup();
             ImGui::Spacing();
 
-            ImGui::Text("The following lists manage initialization in processes using RegEx patterns.");
+            ImGui::Text("The following lists manage initialization in processes using RegEx patterns. The patterns are matched\nagainst the full path of the injected process, so a pattern like \"Games\" (w/o the citation marks) will match\nan executable at \"C:\\Games\\Medium\\Medium.exe\".");
 
             ImGui::Spacing();
             ImGui::Spacing();
@@ -1686,7 +1686,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndGroup();
 
             SKIF_ImGui_SetMouseCursorHand();
-            SKIF_ImGui_SetHoverTip("The service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (hook APIs etc)\nor remain idle/inert within the injected process.");
+            SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
             if (ImGui::IsItemClicked())
                 SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
@@ -1705,8 +1705,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folder separators must use two backslashes \"\\\\\" and not one \"\\\".");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
             ImGui::EndGroup();
+
+            SKIF_ImGui_SetHoverTip("e.g. to specifically whitelist all executables below \"Ubisoft Games Launcher\\games\",\ntype it as \"Ubisoft Games Launcher\\\\games\" in the list instead.");
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
@@ -1715,22 +1717,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by | characters.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
             ImGui::EndGroup();
+
+            ImGui::Spacing();
+            ImGui::Spacing();
 
             ImGui::Spacing();
             ImGui::Spacing();
 
             ImGui::Text("Whitelist Patterns:");
             white_edited |=
-                ImGui::InputTextMultiline("###WhitelistPatterns", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150));
+                ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150), ImGuiInputTextFlags_Multiline);
 
             ImGui::Spacing();
             ImGui::Spacing();
 
             ImGui::Text("Blacklist Patterns:");
             black_edited |=
-                ImGui::InputTextMultiline("###BlacklistPatterns", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100));
+                ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100), ImGuiInputTextFlags_Multiline);
 
             ImGui::Separator();
 
@@ -1795,6 +1800,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
           tab_selected = Help;
 
+          extern void
+              SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
           ImGui::Spacing();
 
           ImGui::Text("Special K is an extensive game modifying framework allowing\nfor various forms of in-depth tweaking of a game.");
@@ -1802,12 +1810,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::Spacing();
 
-          ImGui::Text("Online resources:");
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "How to inject Special K into games:");
+
           ImGui::Spacing();
 
-          extern void
-              SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Global (system-wide)"))
+              SKIF_Util_OpenURI(L"https://wiki.special-k.info/SpecialK/Global");
+          SKIF_ImGui_SetMouseCursorHand();
+          ImGui::EndGroup();
 
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          if (ImGui::Selectable("Local (game-specific)"))
+              SKIF_Util_OpenURI(L"https://wiki.special-k.info/SpecialK/Local");
+          SKIF_ImGui_SetMouseCursorHand();
+          ImGui::EndGroup();
+
+          ImGui::Spacing();
+          ImGui::Spacing();
+
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Online resources:");
+
+          ImGui::Spacing();
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
@@ -1817,8 +1845,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
-          ImGui::Spacing();
-
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
@@ -1827,8 +1853,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
 
-          ImGui::Spacing();
-
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
@@ -1836,8 +1860,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
           SKIF_ImGui_SetMouseCursorHand();
           ImGui::EndGroup();
-
-          ImGui::Spacing();
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();

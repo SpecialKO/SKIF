@@ -645,7 +645,10 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   } else {
     ImGui::Spacing();
-    ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Global injection is unavailable as the required files are missing.");
+
+    ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Global injection service is unavailable as the required\n\"Servlets\" subfolder and files are missing.");
+
+    ImGui::Spacing();
   }
 
   ImGui::EndGroup      ();
@@ -696,6 +699,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     }
     else
     {
+        ImGui::Spacing();
+
         ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Settings are unavailable as the required files are missing.");
     }
 
