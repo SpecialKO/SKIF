@@ -676,6 +676,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 BOOL
 IsWindows8Point1OrGreater (void)
 {
+  SetLastError(NO_ERROR);
+
   static BOOL
     bResult =
       GetProcAddress (
@@ -690,6 +692,8 @@ IsWindows8Point1OrGreater (void)
 BOOL
 IsWindows10OrGreater (void)
 {
+  SetLastError(NO_ERROR);
+
   static BOOL
   bResult =
     GetProcAddress (
@@ -1222,6 +1226,9 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
   ImGuiStyle &style =
     ImGui::GetStyle ();
 
+  /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
+  *    over to ImGuiConfigFlags_DpiEnableScaleFonts
+  
   if (SKIF_bDPIScaling)
   {
     //default_style.WindowPadding    = ImVec2(0, 0);
@@ -1251,6 +1258,7 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 
 
   style = default_style;
+  */
 }
 
 static

@@ -736,16 +736,16 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::BeginGroup    (                                                  );
   float fX =
   ImGui::GetCursorPosX (                                                  );
-  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F, 900.0F));
+  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale, 900.0F * SKIF_ImGui_GlobalDPIScale));
   if (appid == SKIF_STEAM_APPID) {
   float fY =
   ImGui::GetCursorPosY (                                                  );
   ImGui::SetCursorPosX (                                   fX             );
-  ImGui::SetCursorPos  (                           ImVec2 (fX, fY - 200.f));
+  ImGui::SetCursorPos  (                           ImVec2 (fX, fY - 200.f * SKIF_ImGui_GlobalDPIScale));
   ImGui::BeginGroup    ();
   static bool hovered = false;
   bool        clicked =
-  ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F, 200.0F),
+  ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale, 200.0F * SKIF_ImGui_GlobalDPIScale),
                                                    ImVec2 (0.f,       0.f),
                                                    ImVec2 (1.f,       1.f),     0,
                                                    ImVec4 (.033f,.033f,.033f, 1.0f),
@@ -781,8 +781,8 @@ SKIF_GameManagement_DrawTab (void)
     SKIF_GetPatrons () + '\0';
 
   ImGui::InputTextMultiline ("###Patrons",patrons_.data (), patrons_.length (),
-                 ImVec2 (400.0f - ImGui::GetStyle ().ItemSpacing.x * 3,
-                         133.3f - ImGui::GetTextLineHeightWithSpacing () ),
+                 ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle ().ItemSpacing.x * 3,
+                         133.3f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing () ),
                                   ImGuiInputTextFlags_ReadOnly );
   ImGui::PopStyleColor (                                                 3);
   ImGui::EndGroup      (                                                  );
@@ -852,7 +852,7 @@ SKIF_GameManagement_DrawTab (void)
                               L"_library_600x900_x2.jpg" );
   }
 
-  float fTestScale    =                 io.FontGlobalScale,
+  float fTestScale    = SKIF_ImGui_GlobalDPIScale,
         fScrollbar    = ImGui::GetStyle ().ScrollbarSize,
         fFrameWidth   = ImGui::GetStyle ().FramePadding.x * 4.0f,
         fSpacing      = ImGui::GetStyle ().ItemSpacing.x  * 4.0f,
@@ -870,7 +870,7 @@ SKIF_GameManagement_DrawTab (void)
   //_HEIGHT (360/2)
 
 #define _WIDTH2  ((float)_WIDTH)
-#define _HEIGHT2 (900.0f/(21.0f/9.0f)/2.0f + 88.0f/*(float)_WIDTH / (21.0f/9.0f) + fFrameHeight + fSpaceHeight * 2.0f*/)
+#define _HEIGHT2 (900.0f * SKIF_ImGui_GlobalDPIScale/(21.0f/9.0f)/2.0f + 88.0f /*(float)_WIDTH / (21.0f/9.0f) + fFrameHeight + fSpaceHeight * 2.0f*/)
 
   ImGui::BeginGroup ();
 
@@ -1206,9 +1206,9 @@ SKIF_GameManagement_DrawTab (void)
       auto frame_id2 =
           ImGui::GetID("###Injection_Play_Button_Frame");
 
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(140, 45));
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120 * SKIF_ImGui_GlobalDPIScale, 40 * SKIF_ImGui_GlobalDPIScale));
 
-      ImGui::BeginChildFrame(frame_id2, ImVec2(_WIDTH - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht),
+      ImGui::BeginChildFrame(frame_id2, ImVec2(_WIDTH * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht * SKIF_ImGui_GlobalDPIScale),
           ImGuiWindowFlags_NavFlattened |
           ImGuiWindowFlags_NoScrollbar |
           ImGuiWindowFlags_NoScrollWithMouse |
@@ -1231,7 +1231,7 @@ SKIF_GameManagement_DrawTab (void)
                   ));
       }
 
-      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags))
+      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150 * SKIF_ImGui_GlobalDPIScale, 50 * SKIF_ImGui_GlobalDPIScale), buttonFlags))
       {
         SKIF_Util_OpenURI(
             std::wstring(L"steam://run/") +
@@ -1262,7 +1262,7 @@ SKIF_GameManagement_DrawTab (void)
   static app_record_s*      pApp = nullptr;
 
   ImGui::BeginChild ("###AppListInset",
-                     ImVec2 (_WIDTH2, 900 - _HEIGHT2), true,
+                     ImVec2 (_WIDTH2, 900 * SKIF_ImGui_GlobalDPIScale - _HEIGHT2), true,
                      ImGuiWindowFlags_NavFlattened);
   ImGui::BeginGroup ();
 
@@ -1805,7 +1805,7 @@ SKIF_GameManagement_DrawTab (void)
     ImGuiStyle style =
       SKIF_ImGui_DefaultStyle;
 
-    ImGui::GetStyle () = style;
+    //ImGui::GetStyle () = style;
 
     ImVec2 content_region =
       ImVec2 (ImGui::GetWindowContentRegionMax ().x - ImGui::GetWindowContentRegionMin ().x,

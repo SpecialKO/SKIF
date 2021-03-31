@@ -1163,6 +1163,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   UNREFERENCED_PARAMETER (hPrevInstance);
   UNREFERENCED_PARAMETER (hInstance);
 
+  ImGui_ImplWin32_EnableDpiAwareness();
+
   CoInitializeEx (nullptr, 0x0);
 
   WindowsCursorSize = SKIF_MakeRegKeyI(LR"(SOFTWARE\Microsoft\Accessibility\)",
@@ -1190,9 +1192,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       regKVDisableTooltips.getData();
 
   SKIF_VersionCtl.CheckForUpdates (L"SKIF", SKIF_DEPLOYED_BUILD);
-
-  if (SKIF_bDPIScaling)
-    ImGui_ImplWin32_EnableDpiAwareness ();
 
   SKIF_GetFolderPath (&path_cache.specialk_userdata);
   PathAppendW (        path_cache.specialk_userdata.path,
@@ -1295,10 +1294,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
 
+
   if (SKIF_bDPIScaling)
   {
-  //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
-    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
+    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
+  //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
   }
 
   // Setup Dear ImGui style
@@ -1396,16 +1396,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame ();
     ImGui::NewFrame          ();
     {
-      io.FontGlobalScale =
-       ( io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports )
-                        ? SKIF_ImGui_GlobalDPIScale
-                        : 1.0f;
+      io.FontGlobalScale = 1.0f;
 
       ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
                        &bKeepWindowAlive,
                          ImGuiWindowFlags_AlwaysAutoResize |
                          ImGuiWindowFlags_NoCollapse
                    );
+
+      //SKIF_ImGui_GlobalDPIScale = io.FontGlobalScale;
+
+      SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
 
       ImGuiTabBarFlags flags =
         ImGuiTabItemFlags_None;
@@ -1532,17 +1533,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
             if (ImGui::Checkbox("Scale the UI based on the DPI###EnableDPI", &SKIF_bDPIScaling))
             {
-                ImGui_ImplWin32_EnableDpiAwareness();
+              io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
 
-                SKIF_ImGui_GlobalDPIScale =
-                        ImGui_ImplWin32_GetDpiScaleForHwnd(0);
+              if (SKIF_bDPIScaling)
+                io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 
-                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleViewports;
-
-                if (SKIF_bDPIScaling)
-                        io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
-
-                regKVDPIScaling.putData(SKIF_bDPIScaling);
+              regKVDPIScaling.putData(SKIF_bDPIScaling);
             }
 
             SKIF_ImGui_SetHoverTip("This feature is still experimental");
@@ -1585,7 +1581,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     : 0.5f
                     ));
 
-            bool button = ImGui::ButtonEx("**Not Implemented**", ImVec2(200, 25), ImGuiButtonFlags_Disabled);
+            bool button = ImGui::ButtonEx("**Not Implemented**", ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale), ImGuiButtonFlags_Disabled);
 
             // Disabled button
             ImGui::PopStyleVar();
@@ -1728,14 +1724,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::Text("Whitelist Patterns:");
           white_edited |=
-              ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700, 150), ImGuiInputTextFlags_Multiline);
+              ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700 * SKIF_ImGui_GlobalDPIScale, 150 * SKIF_ImGui_GlobalDPIScale), ImGuiInputTextFlags_Multiline);
 
           ImGui::Spacing();
           ImGui::Spacing();
 
           ImGui::Text("Blacklist Patterns:");
           black_edited |=
-              ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700, 100), ImGuiInputTextFlags_Multiline);
+              ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700 * SKIF_ImGui_GlobalDPIScale, 100 * SKIF_ImGui_GlobalDPIScale), ImGuiInputTextFlags_Multiline);
 
           ImGui::Separator();
 
@@ -1931,7 +1927,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::Spacing();
 
-          if (ImGui::Button("Minimize", ImVec2(100, 25)))
+          if (ImGui::Button("Minimize", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
           {
               bKeepWindowAlive = true;
               ImGui::CloseCurrentPopup();
@@ -1942,7 +1938,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::SameLine();
 
-          if (ImGui::Button("Stop Service And Exit", ImVec2(0, 25)))
+          if (ImGui::Button("Stop Service And Exit", ImVec2(0 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
           {
               _inject._StartStopInject(true);
               bKeepProcessAlive = false;
@@ -1952,7 +1948,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::SameLine();
 
-          if (ImGui::Button("Exit", ImVec2(100, 25)))
+          if (ImGui::Button("Exit", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
           {
               bKeepProcessAlive = false;
           }
@@ -1961,7 +1957,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::SameLine();
 
-          if (ImGui::Button("Cancel", ImVec2(100, 25)))
+          if (ImGui::Button("Cancel", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
           {
               bKeepWindowAlive = true;
               ImGui::CloseCurrentPopup();
@@ -2255,8 +2251,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   case WM_DPICHANGED:
     if (ImGui::GetIO ().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
     {
-      SKIF_ImGui_GlobalDPIScale = (float)HIWORD(wParam) / 96.0f * 100.0f;
-
+      //SKIF_ImGui_GlobalDPIScale = (float)HIWORD(wParam) / 96.0f * 100.0f;
       //const int dpi = HIWORD(wParam);
       //printf("WM_DPICHANGED to %d (%.0f%%)\n", dpi, (float)dpi / 96.0f * 100.0f);
       const RECT *suggested_rect =

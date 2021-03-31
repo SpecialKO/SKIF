@@ -353,19 +353,18 @@ extern bool SKIF_bDisableExitConfirmation;
 
 void what(std::wstring call)
 {
-    DWORD dwLastError = GetLastError();
+    //DWORD dwLastError = GetLastError();
 
     OutputDebugStringW(
         (
-            call +
+            call + std::wstring(L"\n") /* +
             std::wstring(L" (") +
             std::to_wstring(dwLastError) +
             std::wstring(L"): ") +
             _com_error(dwLastError).ErrorMessage() +
-            std::wstring(L"\n")).c_str()
+            std::wstring(L"\n") */
+        ).c_str()
     );
-
-    SetLastError(NO_ERROR);
 }
 
 bool
