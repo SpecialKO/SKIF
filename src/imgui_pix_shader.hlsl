@@ -145,7 +145,7 @@ float4 main (PS_INPUT input) : SV_Target
     float hdr_scale  = hdr10 ? ( -input.uv3.x / 10000.0 )
                              :    input.uv3.x;
 
-    float hdr_offset = hdr10 ? 0.0f : input.uv3.z;
+    float hdr_offset = hdr10 ? 0.0f : input.uv3.z / 80.0;
 
     hdr_scale -= hdr_offset;
 

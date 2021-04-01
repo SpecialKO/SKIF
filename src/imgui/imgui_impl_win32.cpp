@@ -370,7 +370,7 @@ memset_size (
 extern CONDITION_VARIABLE SKIF_IsFocused;
 
 // Gamepad navigation mapping
-bool ImGui_ImplWin32_UpdateGamepads ( )
+DWORD ImGui_ImplWin32_UpdateGamepads ( )
 {
   ImGuiIO &io =
     ImGui::GetIO ( );
@@ -390,10 +390,10 @@ bool ImGui_ImplWin32_UpdateGamepads ( )
     sizeof (_fZeros));
 
   if (! g_Focused)
-    return false;
+    return 0;
 
   if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
-    return false;
+    return 0;
 
   if (HWND focused_hwnd = ::GetForegroundWindow ())
   {
@@ -413,7 +413,7 @@ bool ImGui_ImplWin32_UpdateGamepads ( )
 
     // Don't poll the gamepad when we're not focused.
     if (dwWindowOwnerPid != dwPidOfMe)
-      return false;
+      return 0;
   }
 
  // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
@@ -464,7 +464,8 @@ bool ImGui_ImplWin32_UpdateGamepads ( )
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
 
-  return g_HasGamepad;
+  return                 g_HasGamepad ?
+          xinput_state.dwPacketNumber : 0;
 }
 
 INT64 current_time;
@@ -565,13 +566,13 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     break;
 
   case WM_KILLFOCUS:
-    //if ((HWND)wParam != g_hWnd && (! IsChild (g_hWnd, (HWND)wParam)))
-    //{
+    if ((HWND)wParam != g_hWnd && (! IsChild (g_hWnd, (HWND)wParam)))
+    {
       g_Focused = false;
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
-    //}
+    }
     return 0;
     break;
 
@@ -620,6 +621,10 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   case WM_SYSKEYUP:
     if (wParam < 256 && g_Focused)
       io.KeysDown [wParam] = 0;
+    return 0;
+  case WM_SYSCOMMAND:
+    if (wParam == SC_MINIMIZE)
+    
     return 0;
   case WM_CHAR:
       // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
@@ -1107,9 +1112,8 @@ ImGui_ImplWin32_SetWindowSize ( ImGuiViewport *viewport,
                    0,                    0,
                    rect.right  - rect.left,
                    rect.bottom - rect.top,
-                     SWP_NOZORDER |
-                     SWP_NOMOVE   |
-                     SWP_NOACTIVATE );
+                     SWP_NOZORDER   | SWP_NOMOVE   |
+                     SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
 }
 
 static void
@@ -1145,8 +1149,16 @@ ImGui_ImplWin32_GetWindowMinimized (ImGuiViewport *viewport)
 
   IM_ASSERT (data->Hwnd != 0);
 
+  HWND hWndSelfOrOwner =
+    GetWindow (data->Hwnd, GW_OWNER);
+
+  if (hWndSelfOrOwner == 0)
+    hWndSelfOrOwner = data->Hwnd;
+  else
+    IM_ASSERT (data->HwndOwned);
+
   return
-    ::IsIconic (data->Hwnd) != 0;
+    ::IsIconic (hWndSelfOrOwner) != 0;
 }
 
 static void

@@ -551,7 +551,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                                "Starting...###GlobalStartStop");
 
     if (SKIF_bDisableExitConfirmation)
-        SKIF_ImGui_SetHoverText ( running                  ?
+        SKIF_ImGui_SetHoverTip ( running                  ?
           ""                                               :
           "Service continues running after SKIF is closed"
         );
@@ -630,6 +630,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     SKIF_ImGui_SetMouseCursorHand();
     SKIF_ImGui_SetHoverTip("It is recommended to disable the global injection service before\nstarting a multiplayer game (regardless of platform) where\nanti-cheat protection might be present.");
+    SKIF_ImGui_SetHoverText("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
     if (ImGui::IsItemClicked())
         SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 

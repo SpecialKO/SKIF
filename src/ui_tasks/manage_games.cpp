@@ -111,7 +111,7 @@ SKIF_GameManagement_ShowScreenshot (std::wstring filename)
             srv_desc.Texture2D.MipLevels       =  1;
             srv_desc.Texture2D.MostDetailedMip =  0;
 
-          if (
+          if (   pTex2D.p == nullptr ||
             FAILED (
               g_pd3dDevice->CreateShaderResourceView (
                  pTex2D.p, &srv_desc,
@@ -366,8 +366,6 @@ SKIF_GameManagement_DrawTab (void)
         )
       )
       {
-
-
         D3D11_SHADER_RESOURCE_VIEW_DESC
           srv_desc                           = { };
           srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
@@ -375,7 +373,7 @@ SKIF_GameManagement_DrawTab (void)
           srv_desc.Texture2D.MipLevels       = UINT_MAX;
           srv_desc.Texture2D.MostDetailedMip =  0;
 
-        if (    pTex2D.p != nullptr &&
+        if (    pTex2D.p == nullptr ||
           FAILED (
             g_pd3dDevice->CreateShaderResourceView (
                 pTex2D.p, &srv_desc,
@@ -512,7 +510,7 @@ SKIF_GameManagement_DrawTab (void)
             srv_desc.Texture2D.MipLevels       = UINT_MAX;
             srv_desc.Texture2D.MostDetailedMip =  0;
 
-            if (
+            if (   pPatTex2D  .p == nullptr ||
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
                    pPatTex2D  .p, &srv_desc,
@@ -596,7 +594,7 @@ SKIF_GameManagement_DrawTab (void)
             srv_desc.Texture2D.MipLevels       = UINT_MAX;
             srv_desc.Texture2D.MostDetailedMip =  0;
 
-            if (  pLocalTex2D.p != nullptr &&
+            if (   pLocalTex2D.p == nullptr ||
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
                    pLocalTex2D.p, &srv_desc,
@@ -754,10 +752,9 @@ SKIF_GameManagement_DrawTab (void)
   hovered =
   ImGui::IsItemHovered (                                                  );
 
-  void SKIF_ImGui_SetHoverText (const char *szText);
-       SKIF_ImGui_SetHoverText ("Click to help support the project");
-
   SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverTip("Click to help support the project");
+  SKIF_ImGui_SetHoverText("https://www.patreon.com/bePatron?u=33423623");
 
   if (clicked)
     SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
@@ -1183,7 +1180,6 @@ SKIF_GameManagement_DrawTab (void)
         _inject.TestServletRunlevel (_inject.run_lvl_changed);
 
       SKIF_ImGui_SetMouseCursorHand();
-      SKIF_ImGui_SetHoverText (cache.injection.hover_text.c_str ());
       SKIF_ImGui_SetHoverTip  (cache.injection.hover_text.c_str());
 
       if (! cache.dll.shorthand.empty ())
@@ -1596,6 +1592,9 @@ SKIF_GameManagement_DrawTab (void)
                   ImGui::CloseCurrentPopup ();
                 }
                 SKIF_ImGui_SetMouseCursorHand();
+                SKIF_ImGui_SetHoverText(
+                  SK_FormatString(R"(%ws)", cloud.second.evaluated_dir.c_str()).c_str()
+                );
               }
             }
           }
