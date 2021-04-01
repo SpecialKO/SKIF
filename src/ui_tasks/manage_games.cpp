@@ -965,6 +965,10 @@ SKIF_GameManagement_DrawTab (void)
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
   float
   {
+    static int lastApp = 0;
+    static bool pathDLLExists = false;
+    static bool pathConfExists = false;
+
     if (pTargetApp != nullptr && pTargetApp->id != SKIF_STEAM_APPID)
     {
       struct summary_cache_s {
@@ -1030,12 +1034,19 @@ SKIF_GameManagement_DrawTab (void)
         PathStripPathW (                         wszConfigPath);
         cfg.shorthand       = SK_WideCharToUTF8 (wszConfigPath);
 
-        if (! PathFileExistsW (sk_install.config.file.c_str ()))
-          cfg.shorthand     = "";
+        if (cache.app_id != lastApp)
+        {
+          pathConfExists = PathFileExistsW(sk_install.config.file.c_str());
+          pathDLLExists = PathFileExistsA(cache.dll.full_path.c_str());
 
-        if (! PathFileExistsA (cache.dll.full_path.c_str ()))
+          lastApp = cache.app_id;
+        }
+
+        if (!pathConfExists)
+          cfg.shorthand = "";
+
+        if (!pathDLLExists)
           cache.dll.shorthand = "";
-
 
         cache.injection.type         = "None";
         cache.injection.status.text  =     "";
