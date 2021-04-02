@@ -991,9 +991,14 @@ SKIF_GameManagement_DrawTab (void)
         DWORD       running = 0;
       } static cache;
 
-      // BUG: Currently causes constant invalidation since run_lvl_changed is always set to 'true' when this code gets run
-      if (                              _inject.run_lvl_changed ||
-           cache.running != pTargetApp->_status.running)
+      bool changing = false;
+
+      // Uses a Directory Watch signal, so this is cheap; do it every frame
+      _inject.running =
+        _inject.TestServletRunlevel(changing);
+
+      if (              changing ||
+                   cache.running != pTargetApp->_status.running)
       {
         cache.app_id = 0;
       }
@@ -1050,10 +1055,9 @@ SKIF_GameManagement_DrawTab (void)
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  =
-                   _inject.running         ? _inject.run_lvl_changed ? "Service Running"
-                                                                     : "Stopping..."
-                                           : _inject.run_lvl_changed ? "Service Stopped"
-                                                                     : "Starting...";
+                   _inject.running         ? "Service Running"
+                                           : "Service Stopped";
+
               cache.injection.status.color =
                    _inject.running         ? ImColor::HSV (0.3F,  0.99F, 1.F)
                                            : ImColor::HSV (0.08F, 0.99F, 1.F);
