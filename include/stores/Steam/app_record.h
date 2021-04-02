@@ -79,8 +79,10 @@ private:
 struct app_record_s {
   app_record_s (uint32_t id_) : id (id_) { };
 
-  uint32_t id;
-  bool     cloud_enabled = true; // hidecloudui=false
+  uint32_t     id;
+  bool         cloud_enabled = true; // hidecloudui=false
+  std::wstring install_dir;
+  std::string  type;
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);

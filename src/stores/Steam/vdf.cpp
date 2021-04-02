@@ -238,6 +238,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           SKIF_GetFolderPath ( &path_cache.win_saved_games    );
         }
 
+        pAppRecord->install_dir = SK_UseManifestToGetInstallDir ( appid );
+
         for (auto& finished_section : section.finished_sections)
         {
           if (finished_section.keys.empty ())
@@ -342,6 +344,16 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                 {
                   pAppRecord->common_config.cpu_type =
                     _ParseOSArch (key);
+                }
+
+                if (! _stricmp (key.first, "type"))
+                {
+                  if      (! _stricmp ((char*)key.second.second, "game"))
+                    pAppRecord->type = "Game";
+                  else if (! _stricmp ((char*)key.second.second, "application"))
+                    pAppRecord->type = "Application";
+                  else
+                    pAppRecord->type = SK_FormatString((char*)key.second.second);
                 }
               }
             }
@@ -470,8 +482,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           { "WinAppDataLocalLow",    path_cache.app_data_local_low.path    },
           { "WinAppDataRoaming",     path_cache.app_data_roaming.path      },
           { "WinSavedGames",         path_cache.win_saved_games.path       },
-          { "App Install Directory", SK_UseManifestToGetInstallDir (appid) },
-          { "gameinstall",           SK_UseManifestToGetInstallDir (appid) },
+          { "App Install Directory", pAppRecord->install_dir               },
+          { "gameinstall",           pAppRecord->install_dir               },
           { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                 }
         };
 

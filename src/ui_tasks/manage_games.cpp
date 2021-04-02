@@ -965,10 +965,6 @@ SKIF_GameManagement_DrawTab (void)
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
   float
   {
-    static int lastApp = 0;
-    static bool pathDLLExists = false;
-    static bool pathConfExists = false;
-
     if (pTargetApp != nullptr && pTargetApp->id != SKIF_STEAM_APPID)
     {
       struct summary_cache_s {
@@ -995,8 +991,9 @@ SKIF_GameManagement_DrawTab (void)
         DWORD       running = 0;
       } static cache;
 
+      // BUG: Currently causes constant invalidation since run_lvl_changed is always set to 'true' when this code gets run
       if (                              _inject.run_lvl_changed ||
-           cache.running != pTargetApp->_status.running )
+           cache.running != pTargetApp->_status.running)
       {
         cache.app_id = 0;
       }
@@ -1034,18 +1031,10 @@ SKIF_GameManagement_DrawTab (void)
         PathStripPathW (                         wszConfigPath);
         cfg.shorthand       = SK_WideCharToUTF8 (wszConfigPath);
 
-        if (cache.app_id != lastApp)
-        {
-          pathConfExists = PathFileExistsW(sk_install.config.file.c_str());
-          pathDLLExists = PathFileExistsA(cache.dll.full_path.c_str());
-
-          lastApp = cache.app_id;
-        }
-
-        if (!pathConfExists)
+        if (!PathFileExistsW(sk_install.config.file.c_str()))
           cfg.shorthand = "";
 
-        if (!pathDLLExists)
+        if (!PathFileExistsA(cache.dll.full_path.c_str()))
           cache.dll.shorthand = "";
 
         cache.injection.type         = "None";
@@ -1224,7 +1213,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::PopStyleVar();
 
-      std::string buttonLabel = "Play Game";
+      std::string buttonLabel = "Launch " + pTargetApp->type;
       ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
 
       if (pTargetApp->_status.running)
@@ -1528,19 +1517,19 @@ SKIF_GameManagement_DrawTab (void)
   {
     if (pApp != nullptr)
     {
-        if (pApp->id != SKIF_STEAM_APPID)
+      if (pApp->id != SKIF_STEAM_APPID)
+      {
+        if (ImGui::Selectable(("Launch " + pApp->type).c_str(), false, ( (pApp->_status.running != 0x0) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
         {
-            if (ImGui::Selectable("Play Game", false, ( (pApp->_status.running) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
-            {
-                SKIF_Util_OpenURI(
-                    std::wstring(L"steam://run/") +
-                    std::to_wstring(pApp->id),
-                    SW_SHOWNA
-                );
+          SKIF_Util_OpenURI(
+            std::wstring(L"steam://run/") +
+            std::to_wstring(pApp->id),
+            SW_SHOWNA
+          );
 
-                pApp->_status.invalidate();
-            }
+          pApp->_status.invalidate();
         }
+      }
 
       if (! pApp->specialk.screenshots.empty ())
       {
@@ -1722,16 +1711,14 @@ SKIF_GameManagement_DrawTab (void)
       );
 
           ImGui::Separator  ();
-      
-      std::wstring installFolder = SK_UseManifestToGetInstallDir(pApp->id);
 
       if (ImGui::Selectable("Browse Game Folder"))
       {
-        SKIF_Util_ExplorePath(installFolder);
+        SKIF_Util_ExplorePath(pApp->install_dir);
       }
       SKIF_ImGui_SetMouseCursorHand();
       SKIF_ImGui_SetHoverText(
-          SK_FormatString(R"(%ws)", installFolder.c_str()).c_str()
+          SK_FormatString(R"(%ws)", pApp->install_dir.c_str()).c_str()
       );
 
       if (ImGui::Selectable ("Browse PCGamingWiki"))
@@ -1798,6 +1785,8 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::BeginGroup ();
 
   static bool launch_hovered = false;
+
+
 
   if ( pApp     == nullptr       ||
        pApp->id == SKIF_STEAM_APPID )
@@ -1872,11 +1861,10 @@ SKIF_GameManagement_DrawTab (void)
 
     if (pApp->extended_config.vac.enabled)
     {
-      /*draw_list->AddText ( ImGui::GetFont (), 20.0f,
+      draw_list->AddText ( ImGui::GetFont (), 20.0f,
                            cursor_pos_xy,
             ImColor::HSV ( 0.25f, 0.75f, 0.95f ),
                            "VAC Protected Game" );
-                           */
 
       extern std::string
         SKIF_StatusBarText;
