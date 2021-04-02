@@ -1170,21 +1170,25 @@ SKIF_GameManagement_DrawTab (void)
                                                                     : "( %s )",
                                cache.injection.status.text.c_str ());
 
-      if (ImGui::IsItemClicked ())
+      if (cache.injection.type == "Global")
       {
-        _inject._StartStopInject (_inject.running);
-        _inject.run_lvl_changed = false;
+        if (ImGui::IsItemClicked())
+        {
+          _inject._StartStopInject(_inject.running);
+          _inject.run_lvl_changed = false;
 
-        cache.app_id    = 0;
-        SKIF_ServiceRunning = _inject.running;
+          cache.app_id = 0;
+        }
+
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverTip(cache.injection.hover_text.c_str());
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
       _inject.running =
-        _inject.TestServletRunlevel (_inject.run_lvl_changed);
+        _inject.TestServletRunlevel(_inject.run_lvl_changed);
 
-      SKIF_ImGui_SetMouseCursorHand();
-      SKIF_ImGui_SetHoverTip  (cache.injection.hover_text.c_str());
+      SKIF_ServiceRunning = _inject.running;
 
       if (! cache.dll.shorthand.empty ())
       {
