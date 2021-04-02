@@ -1870,6 +1870,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
           ImGui::Spacing();
 
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "UI hints:");
+
+          ImGui::Spacing();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< This indicates a regular bullet point.");
+          ImGui::EndGroup();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< More info is available when hovering the mouse\n    cursor over the item.");
+          ImGui::EndGroup();
+
+          SKIF_ImGui_SetHoverTip("The info either further elaborates on the topic\nor provides relevant recommendations or tips.");
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< In addition to having more info when hovering,\n    the item can also be clicked to open a relevant link.");
+          ImGui::EndGroup();
+
+          SKIF_ImGui_SetMouseCursorHand();
+          SKIF_ImGui_SetHoverText("https://wiki.special-k.info/");
+          SKIF_ImGui_SetHoverTip("Click this item to open the Special K wiki which\ncan contain even more relevant information.");
+          if (ImGui::IsItemClicked())
+            SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+
+          ImGui::Spacing();
+          ImGui::Spacing();
+
           ImGui::EndTabItem();
         }
 
