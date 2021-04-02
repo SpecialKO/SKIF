@@ -618,14 +618,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::BeginGroup             ();
     ImGui::Spacing                (); ImGui::SameLine();
-    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
+    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "? "); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
     ImGui::EndGroup               ();
 
     SKIF_ImGui_SetHoverTip        ("Any that deal with system input or some sort\nof window or keyboard/mouse input activity.");
 
     ImGui::BeginGroup             ();
     ImGui::Spacing                (); ImGui::SameLine();
-    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
+    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
     ImGui::EndGroup               ();
 
     SKIF_ImGui_SetMouseCursorHand ();
@@ -672,7 +672,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
         ImGui::BeginGroup();
         ImGui::Spacing(); ImGui::SameLine();
-        ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
+        ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
         ImGui::EndGroup();
 
         ImGui::Spacing();

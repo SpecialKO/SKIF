@@ -223,7 +223,7 @@ void SKIF_ImGui_SetHoverTip  (const char* szText)
 
 void SKIF_ImGui_SetHoverText (const char* szText, bool overrideExistingText)
 {
-  if (ImGui::IsItemHovered () && (overrideExistingText || SKIF_StatusBarText.empty ()) )
+  if (ImGui::IsItemHovered () && (overrideExistingText || SKIF_StatusBarHelp.empty ()) )
     SKIF_StatusBarHelp = szText;
 }
 
@@ -1527,6 +1527,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
               regKVDisableTooltips.putData(SKIF_bDisableTooltips);
 
+            if (ImGui::IsItemHovered ())
+              SKIF_StatusBarText = "Info: ";
             SKIF_ImGui_SetHoverText("This is where the info will be displayed.");
             SKIF_ImGui_SetHoverTip("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
 
@@ -1671,7 +1673,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetMouseCursorHand();
@@ -1685,29 +1687,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
             ImGui::EndGroup();
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
             ImGui::EndGroup();
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetHoverTip("e.g. to specifically whitelist all executables below \"Ubisoft Games Launcher\\games\",\ntype it as \"Ubisoft Games Launcher\\\\games\" in the list instead.");
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
             ImGui::EndGroup();
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
             ImGui::EndGroup();
 
             ImGui::Spacing();
@@ -1806,7 +1808,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Global (system-wide)"))
             SKIF_Util_OpenURI(L"https://wiki.special-k.info/SpecialK/Global");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1815,7 +1817,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Local (game-specific)"))
             SKIF_Util_OpenURI(L"https://wiki.special-k.info/SpecialK/Local");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1831,7 +1833,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Discord"))
             SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1840,7 +1842,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Forum"))
             SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1849,7 +1851,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Wiki"))
             SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1858,7 +1860,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(i)"); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Patreon"))
             SKIF_Util_OpenURI(L"https://www.patreon.com/bePatron?u=33423623");
           SKIF_ImGui_SetMouseCursorHand();
