@@ -550,11 +550,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       ImGui::Button (running ? "Stopping...###GlobalStartStop" :
                                "Starting...###GlobalStartStop");
 
-    if (SKIF_bDisableExitConfirmation)
-        SKIF_ImGui_SetHoverTip ( running                  ?
-          ""                                               :
-          "Service continues running after SKIF is closed"
-        );
+    if (! running && SKIF_bDisableExitConfirmation)
+        SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
     ImGui::EndGroup    ();
     ImGui::SameLine    ();
@@ -572,7 +569,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       void Display (int bits)
       {
         ImGui::BeginGroup  ();
-        ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), " %d-Bit Service: ", bits);
+        ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), " %d-bit Service: ", bits);
         ImGui::SameLine    ();
         ImGui::TextColored (color, text);
         ImGui::EndGroup    ();

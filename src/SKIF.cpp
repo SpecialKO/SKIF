@@ -1382,7 +1382,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (dwWait != WAIT_OBJECT_0)
     {
-      if (!_TranslateAndDispatch())
+      if (! _TranslateAndDispatch ())
         break;
 
       continue;
@@ -1876,19 +1876,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< This indicates a regular bullet point.");
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "= This indicates a regular bullet point.");
           ImGui::EndGroup();
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< More info is available when hovering the mouse\n    cursor over the item.");
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "= More info is available when hovering the mouse\n    cursor over the item.");
           ImGui::EndGroup();
 
           SKIF_ImGui_SetHoverTip("The info either further elaborates on the topic\nor provides relevant recommendations or tips.");
 
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "< In addition to having more info when hovering,\n    the item can also be clicked to open a relevant link.");
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "= In addition to having more info when hovering,\n    the item can also be clicked to open a relevant link.");
           ImGui::EndGroup();
 
           SKIF_ImGui_SetMouseCursorHand();
@@ -1999,7 +1999,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation)
-          SKIF_ImGui_SetHoverTip("Global Injection service will continue running after exit");
+          SKIF_ImGui_SetHoverTip("Service continues running after SKIF is closed");
 
         ImGui::SameLine();
 
@@ -2154,7 +2154,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       while (WAIT_OBJECT_0 != MsgWaitForMultipleObjects(1, &event, FALSE,
         INFINITE, QS_ALLINPUT))
       {
-        _TranslateAndDispatch();
+        if (! _TranslateAndDispatch ())
+          break;
       }
 
       if (hDC != 0)
