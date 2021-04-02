@@ -1716,7 +1716,7 @@ SKIF_GameManagement_DrawTab (void)
 
           ImGui::Separator  ();
 
-      if (ImGui::Selectable("Browse Game Folder"))
+      if (ImGui::Selectable("Browse Install Folder"))
       {
         SKIF_Util_ExplorePath(pApp->install_dir);
       }
