@@ -753,8 +753,8 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::IsItemHovered (                                                  );
 
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverTip("Click to help support the project");
   SKIF_ImGui_SetHoverText("https://www.patreon.com/bePatron?u=33423623");
+  SKIF_ImGui_SetHoverTip("Click to help support the project");
 
   if (clicked)
     SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");

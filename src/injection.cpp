@@ -613,26 +613,27 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::EndGroup    (); */
 
-    ImGui::Spacing();
-    ImGui::Spacing();
+    ImGui::Spacing                ();
+    ImGui::Spacing                ();
 
-    ImGui::BeginGroup();
-    ImGui::Spacing(); ImGui::SameLine();
-    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
-    ImGui::EndGroup();
+    ImGui::BeginGroup             ();
+    ImGui::Spacing                (); ImGui::SameLine();
+    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
+    ImGui::EndGroup               ();
 
-    SKIF_ImGui_SetHoverTip("The service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.");
+    SKIF_ImGui_SetHoverTip        ("Any that deal with system input or some sort\nof window or keyboard/mouse input activity.");
 
-    ImGui::BeginGroup();
-    ImGui::Spacing(); ImGui::SameLine();
-    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
-    ImGui::EndGroup();
+    ImGui::BeginGroup             ();
+    ImGui::Spacing                (); ImGui::SameLine();
+    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "(!)"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
+    ImGui::EndGroup               ();
 
-    SKIF_ImGui_SetMouseCursorHand();
-    SKIF_ImGui_SetHoverTip("It is recommended to disable the global injection service before\nstarting a multiplayer game (regardless of platform) where\nanti-cheat protection might be present.");
-    SKIF_ImGui_SetHoverText("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    if (ImGui::IsItemClicked())
-        SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    SKIF_ImGui_SetHoverTip        ("In particular games where anti-cheat\nprotection might be present.");
+
+    if ( ImGui::IsItemClicked     ())
+        SKIF_Util_OpenURI         (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
     ImGui::Spacing();
 

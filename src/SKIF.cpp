@@ -198,26 +198,33 @@ void SKIF_ImGui_SetMouseCursorHand (void)
 
 void SKIF_ImGui_SetHoverTip  (const char* szText)
 {
-  if (SKIF_ImGui_IsHoverable () && ! SKIF_bDisableTooltips)
+  if (SKIF_ImGui_IsHoverable ())
   {
-    if (ImGui::IsItemHovered())
+    if (ImGui::IsItemHovered ())
     {
-      auto& io    = ImGui::GetIO();
+      if (! SKIF_bDisableTooltips)
+      {
+        auto& io = ImGui::GetIO();
 
-      ImVec2 cursorPos = io.MousePos;
-      int cursorScale = WindowsCursorSize;
-      ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ );
-      ImGui::SetNextWindowPos(tooltip_pos);
-          
-      ImGui::SetTooltip(szText);
+        ImVec2 cursorPos = io.MousePos;
+        int cursorScale = WindowsCursorSize;
+        ImVec2 tooltip_pos = ImVec2(cursorPos.x + 16 + 4 * (cursorScale - 1), cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */);
+        ImGui::SetNextWindowPos(tooltip_pos);
+
+        ImGui::SetTooltip(szText);
+      }
+      else {
+        SKIF_StatusBarText = "Info: ";
+        SKIF_ImGui_SetHoverText (szText, true);
+      }
     }
   }
 }
 
-void SKIF_ImGui_SetHoverText (const char* szText)
+void SKIF_ImGui_SetHoverText (const char* szText, bool overrideExistingText)
 {
-  if (ImGui::IsItemHovered () && SKIF_StatusBarText.empty ())
-    SKIF_StatusBarText = szText;
+  if (ImGui::IsItemHovered () && (overrideExistingText || SKIF_StatusBarText.empty ()) )
+    SKIF_StatusBarHelp = szText;
 }
 
 const ImWchar*
@@ -1520,7 +1527,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
               regKVDisableTooltips.putData(SKIF_bDisableTooltips);
 
-            SKIF_ImGui_SetHoverTip("Tooltips may sometime contain additional information");
+            SKIF_ImGui_SetHoverText("This is where the info will be displayed.");
+            SKIF_ImGui_SetHoverTip("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
 
             ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
             if (ImGui::Checkbox("Scale the UI based on the DPI###EnableDPI", &SKIF_bDPIScaling))
@@ -1536,7 +1544,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF", &SKIF_bDisableExitConfirmation))
               regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
-            SKIF_ImGui_SetHoverTip("The global injector will remain active in the background");
+            SKIF_ImGui_SetHoverTip("The global injector will remain active in the background.");
 
             _DrawHDRConfig();
 
@@ -1667,8 +1675,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndGroup();
 
             SKIF_ImGui_SetMouseCursorHand();
-            SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
             SKIF_ImGui_SetHoverText("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+            SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
             if (ImGui::IsItemClicked())
               SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
@@ -1964,10 +1972,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SameLine();
 
         ImGui::SetColumnWidth(0,
+          ImGui::GetCursorPosX()
+          /*
           ImGui::GetCursorPosX() +
           ImGui::GetStyle().ColumnsMinSpacing +
           ImGui::GetStyle().ItemSpacing.x +
           ImGui::GetStyle().FramePadding.x * 2.0f
+          */
         );
 
         auto _StatusPartSize = [&](std::string& part) -> float
@@ -1979,8 +1990,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ).x;
         };
 
-        float fStatusWidth = _StatusPartSize(SKIF_StatusBarText),
-          fHelpWidth = _StatusPartSize(SKIF_StatusBarHelp);
+        float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
+              fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
 
         ImGui::NextColumn();
 
