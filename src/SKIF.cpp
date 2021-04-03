@@ -2274,6 +2274,8 @@ LRESULT
 WINAPI
 WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  Sleep(1); // without this call the process remains running in the background when closing it through taskbar -> right-click -> 'Close window' option.
+
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
 
