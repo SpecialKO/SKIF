@@ -1361,13 +1361,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
   }
 
-  while (msg.message != WM_QUIT)
-  {      msg                   = { };
+  while (IsWindow(hWnd) && msg.message != WM_QUIT)
+  {                        msg                   = { };
     auto _TranslateAndDispatch = [&](void) -> bool
     {
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT )
       {
+        if (!IsWindow(hWnd))
+          return false;
+
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
       }
@@ -2114,25 +2117,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SetEvent(event);
             SendMessageTimeout(SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 0, nullptr);
 
-            if (dwGamepadPacket != 0)
-            {
-              // XInput tends to have ~3-7 ms of latency between updates
-              //   best-case, try to delay the next poll until there's
-              //     new data.
-              Sleep (6);
-            }
-
-            else if (! SKIF_ImGui_IsFocused ())
-            {
-              SleepConditionVariableCS (
-                &SKIF_IsFocused, &GamepadInputPump,
-                  INFINITE
-              );
-            }
-
-            if (dwGamepadPacket == 0)
-              Sleep(6);
-
             if (! SKIF_ImGui_IsFocused ())
             {
               SleepConditionVariableCS (
@@ -2140,6 +2124,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   INFINITE
               );
             }
+
+            // XInput tends to have ~3-7 ms of latency between updates
+            //   best-case, try to delay the next poll until there's
+            //     new data.
+            Sleep(6);
           }
 
           LeaveCriticalSection  (&GamepadInputPump);
@@ -2151,8 +2140,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }, 0, nullptr
         );
 
-      while (WAIT_OBJECT_0 != MsgWaitForMultipleObjects(1, &event, FALSE,
-        INFINITE, QS_ALLINPUT))
+      while ( IsWindow (hWnd) &&
+                WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event, FALSE,
+                                                              INFINITE, QS_ALLINPUT ) )
       {
         if (! _TranslateAndDispatch ())
           break;
@@ -2274,8 +2264,6 @@ LRESULT
 WINAPI
 WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  Sleep(1); // without this call the process remains running in the background when closing it through taskbar -> right-click -> 'Close window' option.
-
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
 
