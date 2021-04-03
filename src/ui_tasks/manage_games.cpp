@@ -1107,6 +1107,8 @@ SKIF_GameManagement_DrawTab (void)
                                   ImGuiWindowFlags_NoBackground );
 
       ImGui::BeginGroup       ();
+
+      // Column 1
       ImGui::BeginGroup       ();
       ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
       ImGui::TextUnformatted  ("Injection Strategy:");
@@ -1118,6 +1120,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::SameLine         ();
 
+      // Column 2
       ImGui::BeginGroup       ();
       ImGui::TextUnformatted  (cache.injection.type.c_str   ());
 
@@ -1159,11 +1162,11 @@ SKIF_GameManagement_DrawTab (void)
           ImGui::TextUnformatted   (cache.config_repo.c_str      ());
           ImGui::TextUnformatted   ("N/A");
       }
-
       ImGui::EndGroup         ();
 
       ImGui::SameLine         ();
 
+      // Column 3
       ImGui::BeginGroup       ();
       ImGui::TextColored      (cache.injection.status.color,
                                cache.injection.status.text.empty () ? "      "
@@ -1197,6 +1200,8 @@ SKIF_GameManagement_DrawTab (void)
                                cache.dll.version.c_str ());
       }
       ImGui::EndGroup         ();
+
+      // End of columns
       ImGui::EndGroup         ();
 
       sk_global_ctl_x = std::max (
@@ -1781,9 +1786,10 @@ SKIF_GameManagement_DrawTab (void)
       }
   }
 
-  SKIF_ImGui_SetHoverText (
-    "Right click for more details"
-  );
+  extern std::string SKIF_StatusBarText;
+
+  if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
+    SKIF_ImGui_SetHoverText ("Right click for more details");
 
   ImGui::EndChild   ();
   ImGui::BeginChild ("###AppListInset2", ImVec2 (_WIDTH2, _HEIGHT2), true,

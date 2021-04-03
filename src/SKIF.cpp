@@ -1159,6 +1159,8 @@ SKIF_VersionControl::CheckForUpdates ( const wchar_t *wszProduct,
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
+extern void SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
+
 // Main code
 int
 APIENTRY
@@ -1399,6 +1401,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::NewFrame();
       {
         io.FontGlobalScale = 1.0f;
+
+        // Fixes the wobble that occurs when switching between tabs,
+        //  as the width/height of the window isn't dynamically calculated.
+        // 
+        // Sized after the Steam Management tab.
+        //ImGui::SetNextWindowSize(ImVec2(1045 * SKIF_ImGui_GlobalDPIScale, 0.0f));
 
         ImGui::Begin(SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
           &bKeepWindowAlive,
@@ -1660,77 +1668,131 @@ wWinMain ( _In_     HINSTANCE hInstance,
               }
             };
 
+            auto _CheckWarnings = [](char* szList)->void
+            {
+              static int i, count;
+
+              if (strstr(szList, "\"") != NULL || strstr(szList, "'") != NULL)
+              {
+                ImGui::BeginGroup();
+                ImGui::Spacing();
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Please remove all quotes");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " \" ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "and");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " ' ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "from the list.");
+                ImGui::EndGroup();
+              }
+
+              // Loop through the list, checking the existance of a lone \ not proceeded or followed by other \.
+              // i == 0 to prevent szList[i - 1] from executing when at the first character.
+              for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 16 * 2; i++)
+                count += ( szList[i] == '\\' && szList[i + 1] != '\\' && ( i == 0 || szList[i - 1] != '\\' ) );
+
+              if (count > 0)
+              {
+                ImGui::BeginGroup();
+                ImGui::Spacing();
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Folders must be separated using two backslashes");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f), " \\\\ ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "instead of one");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " \\ ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "backslash.");
+                ImGui::EndGroup();
+
+                SKIF_ImGui_SetHoverTip("e.g. C:\\\\Program Files (x86)\\\\Uplay\\\\games");
+              }
+
+              // Loop through the list, counting the number of occurances of a newline
+              for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 16 * 2; i++)
+                count += ( szList[i] == '\n' );
+
+              if (count > 15)
+              {
+                ImGui::BeginGroup();
+                ImGui::Spacing();
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "The list can only include");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " 16 ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "lines, though multiple can be combined using a pipe");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f), " | ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "character.");
+                ImGui::EndGroup();
+
+                SKIF_ImGui_SetHoverTip("e.g. \"NieRAutomataPC|Epic Games\" will match any application\ninstalled under a NieRAutomataPC or Epic Games folder.");
+              }
+            };
+
             SK_RunOnce(_LoadList(whitelist, root_dir + L"whitelist.ini"));
             SK_RunOnce(_LoadList(blacklist, root_dir + L"blacklist.ini"));
 
             ImGui::BeginGroup();
             ImGui::Spacing();
 
-            ImGui::Text("The following lists manage initialization in processes using RegEx patterns. The patterns are matched\nagainst the full path of the injected process, so a pattern like \"Games\" (w/o the citation marks) will match\nan executable at \"C:\\Games\\Medium\\Medium.exe\".");
+            ImGui::Text("The following lists manage Special K in processes as patterns are matched against the full path of the\ninjected process.");
 
             ImGui::Spacing();
             ImGui::Spacing();
-
-            extern void
-              SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
 
             ImGui::BeginGroup();
             ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into matching processes.");
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
+            ImGui::EndGroup();
+
+            SKIF_ImGui_SetHoverTip("e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\nC:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe");
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing the name of a shared parent folder will match all applications below that folder.");
+            ImGui::EndGroup();
+
+            SKIF_ImGui_SetHoverTip("e.g. a pattern like \"Epic Games\" will match any\napplication installed under the Epic Games folder.");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::BeginGroup();
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into processes.");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetMouseCursorHand();
             SKIF_ImGui_SetHoverText("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-            SKIF_ImGui_SetHoverTip("The global injection service injects Special K's DLL files into any process that deals with\nsystem input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be initalized (the whitelist) to hook APIs etc,\nor remain idle/inert (the blacklist) within injected processes.");
+            if (SKIF_bDisableTooltips)
+              SKIF_ImGui_SetHoverTip("These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\nor remain disabled/idle/inert (the blacklist) within the injected process.");
+            else
+              SKIF_ImGui_SetHoverTip("The global injection service injects Special K into any process that deals\nwith system input or some sort of window or keyboard/mouse input activity.\n\nThese lists control whether Special K should be enabled (the whitelist),\nor remain idle/inert (the blacklist) within the injected process.");
             if (ImGui::IsItemClicked())
               SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
             ImGui::Spacing();
             ImGui::Spacing();
 
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Enter up to 16 patterns for each list.");
-            ImGui::EndGroup();
-
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
-            ImGui::EndGroup();
-
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Folders must be separated using two backslashes \"\\\\\" and not one \"\\\".");
-            ImGui::EndGroup();
-
-            SKIF_ImGui_SetHoverTip("e.g. to specifically whitelist all executables below \"Ubisoft Games Launcher\\games\",\ntype it as \"Ubisoft Games Launcher\\\\games\" in the list instead.");
-
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing \"Games\" (w/o the citation marks) will match all executables below a \"Games\" folder.");
-            ImGui::EndGroup();
-
-            ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "If more than 16 patterns are required, combine multiple lines on a single line delimited by a pipe \"|\".");
-            ImGui::EndGroup();
-
-            ImGui::Spacing();
-            ImGui::Spacing();
-
-            ImGui::Spacing();
-            ImGui::Spacing();
+            // Whitelist section
 
             ImGui::Text("Whitelist Patterns:");
             white_edited |=
               ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700 * SKIF_ImGui_GlobalDPIScale, 150 * SKIF_ImGui_GlobalDPIScale), ImGuiInputTextFlags_Multiline);
 
+            if (whitelist[0] == '\0')
+            {
+              SKIF_ImGui_SetHoverTip("\"SteamApps\" is the pattern used internally to enable Special K for all Steam games.\nIt is presented here solely as an example of how a potential pattern might look like.");
+            }
+
+            _CheckWarnings(whitelist);
+
             ImGui::Spacing();
             ImGui::Spacing();
+
+            // Blacklist section
 
             ImGui::Text("Blacklist Patterns:");
             black_edited |=
               ImGui::InputTextEx("###BlacklistPatterns", "launcher.exe", blacklist, MAX_PATH * 16 - 1, ImVec2(700 * SKIF_ImGui_GlobalDPIScale, 100 * SKIF_ImGui_GlobalDPIScale), ImGuiInputTextFlags_Multiline);
+
+            _CheckWarnings(blacklist);
 
             ImGui::Separator();
 
@@ -1746,7 +1808,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   ));
             }
 
-            if (ImGui::Button("Save Changes"))
+            // Hotkey: Ctrl+S
+            if (ImGui::Button("Save Changes") || (! bDisabled && io.KeyCtrl && io.KeysDown['S']))
             {
               // Create the folder if it does not already exist
               CreateDirectoryW(root_dir.c_str(), NULL);
@@ -1794,9 +1857,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::BeginTabItem("Help"))
         {
           tab_selected = Help;
-
-          extern void
-            SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
 
           ImGui::Spacing();
 
@@ -2006,8 +2066,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SameLine();
 
+        float exitButtonMaxX = ImGui::GetCursorPosX();
+
+        // Compensate for disabled tooltips by adding an additional line to the status bar at all times
+        //   to prevent wobbly image when the window height dynamically resizes as the status bar contents
+        //   change.
+        if (SKIF_bDisableTooltips)
+        {
+          ImGui::NewLine();
+          ImGui::Text(" ");
+        }
+
         ImGui::SetColumnWidth(0,
-          ImGui::GetCursorPosX()
+          exitButtonMaxX
           /*
           ImGui::GetCursorPosX() +
           ImGui::GetStyle().ColumnsMinSpacing +
