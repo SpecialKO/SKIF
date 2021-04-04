@@ -1672,16 +1672,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             {
               static int i, count;
 
-              if (strstr(szList, "\"") != NULL || strstr(szList, "'") != NULL)
+              if (strstr(szList, "\"") != NULL)
               {
                 ImGui::BeginGroup();
                 ImGui::Spacing();
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Please remove all quotes");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " \" ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "and");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " ' ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "from the list.");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "• ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "Please remove all double quotes");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f),      " \" ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "from the list.");
                 ImGui::EndGroup();
               }
 
@@ -1694,12 +1692,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::BeginGroup();
                 ImGui::Spacing();
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Folders must be separated using two backslashes");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f), " \\\\ ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "instead of one");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " \\ ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "backslash.");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "? ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "Folders must be separated using two backslashes");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f),      " \\\\ ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "instead of one");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f),      " \\ ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "backslash.");
                 ImGui::EndGroup();
 
                 SKIF_ImGui_SetHoverTip("e.g. C:\\\\Program Files (x86)\\\\Uplay\\\\games");
@@ -1713,12 +1711,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::BeginGroup();
                 ImGui::Spacing();
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "The list can only include");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f), " 16 ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "lines, though multiple can be combined using a pipe");
-                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f), " | ");
-                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "character.");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "? ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "The list can only include");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.86f, 0.2f, 0.27f),      " 16 ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "lines, though multiple can be combined using a pipe");
+                ImGui::SameLine(); ImGui::TextColored(ImColor(0.2f, 0.86f, 0.27f),      " | ");
+                ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "character.");
                 ImGui::EndGroup();
 
                 SKIF_ImGui_SetHoverTip("e.g. \"NieRAutomataPC|Epic Games\" will match any application\ninstalled under a NieRAutomataPC or Epic Games folder.");
@@ -1737,15 +1735,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing();
 
             ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Easiest is to use the name of the executable or folder of the game.");
+            ImGui::Spacing();
+            ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "? ");
+            ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F),     "Easiest is to use the name of the executable or folder of the game.");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetHoverTip("e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\nC:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe");
 
             ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Typing the name of a shared parent folder will match all applications below that folder.");
+            ImGui::Spacing();
+            ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "? ");
+            ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F),     "Typing the name of a shared parent folder will match all applications below that folder.");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetHoverTip("e.g. a pattern like \"Epic Games\" will match any\napplication installed under the Epic Games folder.");
@@ -1754,8 +1754,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing();
 
             ImGui::BeginGroup();
-            ImGui::Spacing(); ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Note that these lists do not prevent Special K from being injected into processes.");
+            ImGui::Spacing();
+            ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F),  "?!");
+            ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),    "Note that these lists do not prevent Special K from being injected into processes.");
             ImGui::EndGroup();
 
             SKIF_ImGui_SetMouseCursorHand();
@@ -2074,7 +2075,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_bDisableTooltips)
         {
           ImGui::NewLine();
-          ImGui::Text(" ");
+          ImGui::ItemSize(ImVec2(10, ImGui::GetTextLineHeight() - 5.0f));
         }
 
         ImGui::SetColumnWidth(0,
