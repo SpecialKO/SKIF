@@ -1467,7 +1467,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (fMaxLuma != 0.0f)
           {
-            if (ImGui::SliderFloat("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, u8"HDR White:\t%04.1f cd/m²"))
+            if (ImGui::SliderFloat("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, "HDR White:\t%04.1f cd/m²"))
             {
               SKIF_SetHDRWhiteLuma(fLuma);
               regKVLuma.putData(fLuma);
@@ -1625,7 +1625,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             static char whitelist[MAX_PATH * 16 * 2] = { };
             static char blacklist[MAX_PATH * 16 * 2] = { };
             static bool white_edited = false,
-              black_edited = false;
+                        black_edited = false;
 
             auto _StoreList = [](char* szOut, std::wstring fname)->void
             {
@@ -1774,6 +1774,39 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Whitelist section
 
             ImGui::Text("Whitelist Patterns:");
+            ImGui::SameLine(); ImGui::ItemSize(ImVec2(375.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetTextLineHeight()));
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            if (ImGui::BeginMenu("Add Common Patterns"))
+            {
+              if (ImGui::Selectable("Games"))
+              {
+                white_edited = true;
+
+                if (whitelist[0] == '\0')
+                  snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "Games");
+                else
+                  snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "\nGames");
+              }
+
+              SKIF_ImGui_SetHoverTip("Whitelists games on most platforms, such as Epic Games, Origin, Uplay, etc.");
+
+              if (ImGui::Selectable("WindowsApps"))
+              {
+                white_edited = true;
+
+                if (whitelist[0] == '\0')
+                  snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "WindowsApps");
+                else
+                  snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "\nWindowsApps");
+              }
+
+              SKIF_ImGui_SetHoverTip("Whitelists games on the Microsoft Store.");
+
+              ImGui::EndMenu();
+            }
+            ImGui::EndGroup();
+
             white_edited |=
               ImGui::InputTextEx("###WhitelistPatterns", "SteamApps", whitelist, MAX_PATH * 16 - 1, ImVec2(700 * SKIF_ImGui_GlobalDPIScale, 150 * SKIF_ImGui_GlobalDPIScale), ImGuiInputTextFlags_Multiline);
 
