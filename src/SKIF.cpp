@@ -1126,7 +1126,7 @@ SKIF_VersionControl::CheckForUpdates ( const wchar_t *wszProduct,
     if (installed_build.getData () == 0)
         installed_build.putData (local_build);
 
-    if (local_build != remote_build &&
+    if (local_build  < remote_build &&
                   0 != remote_build)
     {
       if ( IDYES ==
