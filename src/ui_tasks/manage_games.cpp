@@ -2102,8 +2102,11 @@ SKIF_GameManagement_DrawTab (void)
                            "VAC Protected Game" );
 
       extern std::string
+        SKIF_StatusBarHelp;
+      extern std::string
         SKIF_StatusBarText;
-        SKIF_StatusBarText = "Injection Disabled for VAC Protected Game";
+        SKIF_StatusBarText = "Warning: ";
+        SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
     }
 
     draw_list->PopClipRect ();

@@ -1505,8 +1505,51 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (ImGui::BeginTabItem("Settings"))
         {
+          static bool driverInstalled = false;
+
+          // Check if the WinRing0_1_2_0 kernel driver service is installed or not
+          auto _CheckDriver = []()->bool
+          {
+            bool      ret          = false;
+            SC_HANDLE schSCManager = NULL,
+                      svcWinRing0  = NULL;
+
+            // Get a handle to the SCM database. 
+            schSCManager = OpenSCManager(
+              NULL,                           // local computer
+              NULL,                           // servicesActive database 
+              SC_MANAGER_ENUMERATE_SERVICE);  // enumerate services 
+
+            if (NULL != schSCManager)
+            {
+              // Get a handle to the service.
+              svcWinRing0 = OpenService(
+                schSCManager,                   // SCM database 
+                L"WinRing0_1_2_0",              // name of service 
+                SERVICE_QUERY_STATUS);          // request status
+
+              if (NULL != svcWinRing0)
+              {
+                ret = true;
+                CloseServiceHandle(svcWinRing0);
+              }
+              else
+                printf("OpenService failed (%d)\n", GetLastError());
+
+              CloseServiceHandle(schSCManager);
+            }
+            else
+              printf("OpenSCManager failed (%d)\n", GetLastError());
+
+            return ret;
+          };
+
+          // Refresh things when visiting from another tab
           if (tab_selected != Settings)
+          {
+            driverInstalled = _CheckDriver();
             _inject._RefreshSKDLLVersions();
+          }
 
           tab_selected = Settings;
 
@@ -1558,28 +1601,53 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::BeginGroup();
             ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
             ImGui::SameLine();
-            ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Unknown"); // Not Installed coloring
-            //ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed"); // Installed coloring
+
+            if (driverInstalled)
+              ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed");
+            else
+              ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Not Installed");
 
             ImGui::EndGroup();
 
             // Disabled button
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-              ImGui::GetStyle().Alpha *
-              ((SKIF_IsHDR()) ? 0.1f
-                : 0.5f
-                ));
+            if (false)
+            {
+              ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+              ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+                ImGui::GetStyle().Alpha *
+                ((SKIF_IsHDR()) ? 0.1f
+                  : 0.5f
+                  ));
+            }
 
-            bool button = ImGui::ButtonEx("**Not Implemented**", ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale), ImGuiButtonFlags_Disabled);
+            if (ImGui::ButtonEx(
+                ! driverInstalled
+                  ? "Install driver"
+                  : "Uninstall driver"
+                , ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+            {
+                // Install/Uninstall driver.
+              const wchar_t* wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
+
+              if ( driverInstalled )
+                wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
+
+              if (
+                ShellExecuteW(
+                  nullptr, L"runas",
+                  wszDriverTaskCmd,
+                  nullptr, nullptr,
+                  SW_HIDE) > (HINSTANCE)32)
+              {
+                driverInstalled = ! driverInstalled;
+              }
+            }
 
             // Disabled button
-            ImGui::PopStyleVar();
-            ImGui::PopItemFlag();
-
-            if (button)
+            if (false)
             {
-              // Install/Uninstall driver.
+              ImGui::PopStyleVar();
+              ImGui::PopItemFlag();
             }
 
             ImGui::EndGroup();
