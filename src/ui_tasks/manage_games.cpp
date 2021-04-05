@@ -874,7 +874,7 @@ SKIF_GameManagement_DrawTab (void)
     float fY =
     ImGui::GetCursorPosY (                                                  );
     ImGui::SetCursorPosX (                                   fX             );
-    ImGui::SetCursorPos  (                           ImVec2 (fX, fY - 200.f * SKIF_ImGui_GlobalDPIScale));
+    ImGui::SetCursorPos  (                           ImVec2 (fX, fY - (204.f * SKIF_ImGui_GlobalDPIScale)));
     ImGui::BeginGroup    ();
     static bool hovered = false;
     bool        clicked =
@@ -1007,11 +1007,11 @@ SKIF_GameManagement_DrawTab (void)
       //fFrameHeight  = ImGui::GetStyle ().FramePadding.y * 2.0f,
       //fSpaceHeight  = ImGui::GetStyle ().ItemSpacing.y  * 2.0f,
         fInjectWidth =
-         ( sk_global_ctl_x + fDecorations - fScrollbar * 2.0f ),
+         ( /* sk_global_ctl_x */ + fDecorations - fScrollbar * 2.0f ),
         fLongestLabel =
-         ( 32 + max_app_name_len * fTestScale + fDecorations );
+         ( 32 + max_app_name_len + fDecorations );
 
-#define _WIDTH std::max ( fInjectWidth, std::min ( 640.0f, fLongestLabel ) )
+#define _WIDTH std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
   //_WIDTH  (640/2)
 #define _HEIGHT (float)_WIDTH / (fAspect)
   //_HEIGHT (360/2)
@@ -1232,7 +1232,7 @@ SKIF_GameManagement_DrawTab (void)
         switch (sk_install.config.type)
         {
           case ConfigType::Centralized:
-            cache.config_repo = "Centralized";  break;
+            cache.config_repo = "Centralized "; break; // ' ' fixes column width diff between SpecialK.ini games and those without
           case ConfigType::Localized:
             cache.config_repo = "Localized";    break;
           default:
