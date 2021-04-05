@@ -1232,12 +1232,12 @@ SKIF_GameManagement_DrawTab (void)
         switch (sk_install.config.type)
         {
           case ConfigType::Centralized:
-            cache.config_repo = "Centralized "; break;    // ' ' fixes column width diff between SpecialK.ini games and those without
+            cache.config_repo = "Centralized"; break;
           case ConfigType::Localized:
-            cache.config_repo = "Localized    ";    break; // '    ' brings it in line with Centralized and matches column width between all items (additional space is required due to Tahoma being a non-monospace font)
+            cache.config_repo = "Localized";   break;
           default:
             cache.config_repo      = "UNKNOWN";
-            cache.config.shorthand = "";        break;
+            cache.config.shorthand = "";       break;
         }
       }
 
@@ -1312,6 +1312,7 @@ SKIF_GameManagement_DrawTab (void)
           ImGui::TextUnformatted   (cache.config_repo.c_str      ());
           ImGui::TextUnformatted   ("N/A");
       }
+      ImGui::ItemSize(ImVec2(100.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 100px (scaled with the DPI)
       ImGui::EndGroup         ();
 
       ImGui::SameLine         ();
