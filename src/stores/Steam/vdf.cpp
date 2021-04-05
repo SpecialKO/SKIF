@@ -25,6 +25,8 @@
 
 #include <fsutil.h>
 
+const int SKIF_STEAM_APPID = 1157970;
+
 // Shorthands, to make life less painful
 using appinfo_s     = skValveDataFile::appinfo_s;
 using app_section_s =                  appinfo_s::section_s;
@@ -170,6 +172,13 @@ appinfo_s*
 skValveDataFile::getAppInfo ( uint32_t     appid,
                               ISteamUser *pUser )
 {
+  extern bool SKIF_STEAM_OWNER;
+
+  // Skip call if it concerns someone whom does not have SKIF installed on Steam
+  if (   appid == SKIF_STEAM_APPID &&
+       ! SKIF_STEAM_OWNER )
+    return nullptr;
+
   if (root != nullptr)
   {
     skValveDataFile::appinfo_s *pIter = root;

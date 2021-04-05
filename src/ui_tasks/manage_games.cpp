@@ -21,8 +21,10 @@
 //
 
 #include <wmsdk.h>
+#include <filesystem>
 
-const int SKIF_STEAM_APPID = 1157970;
+extern bool SKIF_STEAM_OWNER = false;
+const int   SKIF_STEAM_APPID = 1157970;
 
 #include <SKIF.h>
 #include <injection.h>
@@ -62,7 +64,7 @@ SKIF_Util_OpenURI (std::wstring path, DWORD dwAction = SW_SHOWNORMAL)
 
 #include <patreon.png.h>
 #include <sk_icon.jpg.h>
-#include <sk_boxart.jpg.h>
+#include <sk_boxart.png.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -402,7 +404,7 @@ SKIF_GameManagement_DrawTab (void)
     if (
       SUCCEEDED (
         DirectX::LoadFromWICMemory(
-          sk_boxart_jpg, sizeof(sk_boxart_jpg),
+          sk_boxart_png, sizeof(sk_boxart_png),
             DirectX::WIC_FLAGS_NONE,
               &meta, img
         )
@@ -500,14 +502,32 @@ SKIF_GameManagement_DrawTab (void)
     sort_changed = true;
   }
 
-  static bool     update    = true;
-  static uint32_t appid     = SKIF_STEAM_APPID;
-  static bool     populated = false;
+  static bool     update        = true;
+  static uint32_t appid         = SKIF_STEAM_APPID;
+  static bool     populated     = false;
 
   if (! populated)
   {
-    populated = true;
-    apps      = PopulateAppRecords ();
+    populated      = true;
+    apps           = PopulateAppRecords ();
+
+    for (auto& app : apps)
+      if (app.second.id == SKIF_STEAM_APPID)
+        SKIF_STEAM_OWNER = true;
+
+    if ( ! SKIF_STEAM_OWNER )
+    {
+      app_record_s SKIF_record(SKIF_STEAM_APPID);
+
+      SKIF_record.id = SKIF_STEAM_APPID;
+      SKIF_record.names.normal = "Special K";
+      SKIF_record.names.all_upper = "SPECIAL K";
+      SKIF_record.install_dir = std::filesystem::current_path();
+
+      std::pair <std::string, app_record_s> SKIF("Special K", SKIF_record);
+
+      apps.emplace_back(SKIF);
+    }
 
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](LPVOID pUser)->void
@@ -895,8 +915,11 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
 
     ImGui::SameLine           ( );
+    ImGui::ItemSize           (ImVec2 (160.0f * SKIF_ImGui_GlobalDPIScale,
+                                       200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing() ));
+    ImGui::SameLine();
     ImGui::BeginGroup         ( );
-    ImGui::SetCursorPosY      (ImGui::GetCursorPosY () + 66.67f);
+    //ImGui::SetCursorPosY      (ImGui::GetCursorPosY () + 66.67f);
     ImGui::PushStyleColor     (ImGuiCol_Text, ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
     ImGui::TextUnformatted    ("SpecialK Thanks to our Patrons:");
 
@@ -913,8 +936,8 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_GetPatrons () + '\0';
 
     ImGui::InputTextMultiline ("###Patrons",patrons_.data (), patrons_.length (),
-                   ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle ().ItemSpacing.x * 3,
-                           133.3f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing () ),
+                   ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle ().ItemSpacing.x * 3,
+                           200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing () ),
                                     ImGuiInputTextFlags_ReadOnly );
     ImGui::PopStyleColor (                                                 3);
     ImGui::EndGroup      (                                                  );
@@ -931,7 +954,7 @@ SKIF_GameManagement_DrawTab (void)
 
     update  = false;
 
-    if (appinfo != nullptr)
+    if ( appinfo != nullptr )
     {
       skValveDataFile::appinfo_s *pAppInfo =
         appinfo->getAppInfo ( appid, nullptr );
@@ -1382,7 +1405,7 @@ SKIF_GameManagement_DrawTab (void)
 
       if (pTargetApp->_status.running)
       {
-          buttonLabel = "Already running";
+          buttonLabel = "Already Running";
           buttonFlags = ImGuiButtonFlags_Disabled;
           ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
               ImGui::GetStyle().Alpha *
@@ -1681,6 +1704,8 @@ SKIF_GameManagement_DrawTab (void)
   {
     if ( pApp != nullptr )
     {
+
+      // Hide the Launch option for Special K
       if ( pApp->id != SKIF_STEAM_APPID )
       {
         if (ImGui::Selectable(("Launch " + pApp->type).c_str(), false, ( (pApp->_status.running != 0x0) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
@@ -1693,6 +1718,44 @@ SKIF_GameManagement_DrawTab (void)
 
           pApp->_status.invalidate();
         }
+      }
+      
+      // Special K is selected -- relevant show quick links
+      else {
+
+        if (ImGui::Selectable("Wiki"))
+        {
+          SKIF_Util_OpenURI(std::wstring(L"https://wiki.special-k.info/"));
+        }
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverText("https://wiki.special-k.info/");
+
+
+        if (ImGui::Selectable("Discord"))
+        {
+          SKIF_Util_OpenURI(std::wstring(L"https://discord.com/invite/ER4EDBJPTa"));
+        }
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverText("https://discord.com/invite/ER4EDBJPTa");
+
+
+        if (ImGui::Selectable("Forum"))
+        {
+          SKIF_Util_OpenURI(std::wstring(L"https://discourse.differentk.fyi/"));
+        }
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverText("https://discourse.differentk.fyi/");
+
+
+        if (ImGui::Selectable("Patreon"))
+        {
+          SKIF_Util_OpenURI(std::wstring(L"https://www.patreon.com/bePatron?u=33423623"));
+        }
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverText("https://www.patreon.com/bePatron?u=33423623");
+
+
+        ImGui::Separator ();
       }
 
       if ( ! pApp->specialk.screenshots.empty ())
@@ -1873,8 +1936,9 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::PushStyleColor ( ImGuiCol_Text,
         (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
       );
-
-          ImGui::Separator  ();
+      
+      if ( pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER )
+        ImGui::Separator ();
 
       if (ImGui::Selectable("Browse Install Folder"))
       {
@@ -1897,17 +1961,20 @@ SKIF_GameManagement_DrawTab (void)
           SK_FormatString(R"(%ws%lu)", L"http://pcgamingwiki.com/api/appid.php?appid=", pApp->id).c_str()
       );
 
-      if (ImGui::Selectable("Browse SteamDB"))
+      if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
-          SKIF_Util_OpenURI(
-              std::wstring(L"https://steamdb.info/app/") +
-              std::to_wstring(pApp->id)
-          );
+        if (ImGui::Selectable("Browse SteamDB"))
+        {
+            SKIF_Util_OpenURI(
+                std::wstring(L"https://steamdb.info/app/") +
+                std::to_wstring(pApp->id)
+            );
+        }
+        SKIF_ImGui_SetMouseCursorHand();
+        SKIF_ImGui_SetHoverText(
+            SK_FormatString(R"(%ws%lu)", L"https://steamdb.info/app/", pApp->id).c_str()
+        );
       }
-      SKIF_ImGui_SetMouseCursorHand();
-      SKIF_ImGui_SetHoverText(
-          SK_FormatString(R"(%ws%lu)", L"https://steamdb.info/app/", pApp->id).c_str()
-      );
 
       ImGui::PopStyleColor ();
     }
@@ -2069,7 +2136,7 @@ SKIF_GameManagement_DrawTab (void)
                                 ImGuiWindowFlags_NoBackground );
 
       auto _BlacklistCfg =
-      [&](app_record_s::launch_config_s& launch_cfg) ->
+      [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
       void
       {
         if (pApp->extended_config.vac.enabled)
@@ -2081,65 +2148,73 @@ SKIF_GameManagement_DrawTab (void)
           launch_cfg.isBlacklisted (pApp->id);
 
         char        szButtonLabel [256] = { };
-        sprintf_s ( szButtonLabel, 255,
-                      " Disable Special K###DisableLaunch%d",
-                        launch_cfg.id );
+
+        if (menu)
+          sprintf_s ( szButtonLabel, 255,
+                        " for \"%ws\"###DisableLaunch%d",
+                          launch_cfg.description.empty ()
+                            ? launch_cfg.executable .c_str ()
+                            : launch_cfg.description.c_str (),
+                          launch_cfg.id);
+        else
+          sprintf_s ( szButtonLabel, 255,
+                        " Disable Special K###DisableLaunch%d",
+                          launch_cfg.id );
 
         if (ImGui::Checkbox (szButtonLabel,   &blacklist))
           launch_cfg.setBlacklisted (pApp->id, blacklist);
 
         SKIF_ImGui_SetHoverText (
                     SK_FormatString (
-          launch_cfg.description.empty () ?
-                                R"(%ws%ws)" :
-                       R"("%ws"   -   %ws)",
-                       launch_cfg.description.c_str (),
-                       launch_cfg.executable.c_str  () ).c_str ()
+                      menu
+                        ? R"(%ws    )"
+                        : R"(%ws)",
+                      launch_cfg.executable.c_str  ()
+                    ).c_str ()
         );
       };
 
+      // Set horizontal position
+      ImGui::SetCursorPosX(
+        ImGui::GetCursorPosX() +
+        ImGui::GetColumnWidth() -
+        ImGui::CalcTextSize("Disable Special K =>").x -
+        ImGui::GetScrollX() -
+        2 * ImGui::GetStyle().ItemSpacing.x
+      );
 
-      std::set <std::wstring>
-        _used = {
-          pApp->launch_configs.begin ()->second.executable
-        };
-
-      ImGui::Columns         (2, nullptr, false);
-
-      _BlacklistCfg          (
-           pApp->launch_configs.begin ()->second );
-      if ( pApp->launch_configs.size  () > 1     )
+      // If there is only one launch option
+      if ( pApp->launch_configs.size  () == 1 )
       {
-        ImGui::NextColumn    ( );
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () +
-          ImGui::GetStyle      ().ItemSpacing.y / 2.0f
+        ImGui::SetCursorPosY(
+          ImGui::GetCursorPosY() - 1.0f
         );
 
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX  () +
-          ImGui::GetColumnWidth () -
-          ImGui::CalcTextSize   ("Other Launch Configs =>").x -
-          ImGui::GetScrollX     () -
-      2 * ImGui::GetStyle       ().ItemSpacing.x
+        _BlacklistCfg          (
+             pApp->launch_configs.begin ()->second );
+      }
+      
+      // If there are more than one launch option
+      else {
+        ImGui::SetCursorPosY(
+          ImGui::GetCursorPosY() +
+          ImGui::GetStyle().ItemSpacing.y / 2.0f
         );
 
-        if (ImGui::BeginMenu ("Other Launch Configs"))
+        if (ImGui::BeginMenu ("Disable Special K"))
         {
           for ( auto& launch : pApp->launch_configs )
           {
             if (! launch.second.valid)
               continue;
-
-            if (_used.emplace (launch.second.executable).second)
-              _BlacklistCfg   (launch.second);
+            
+            _BlacklistCfg   (launch.second, true);
           }
 
           ImGui::EndMenu     ( );
         }
       }
 
-      ImGui::Columns      (1);
       ImGui::EndChildFrame ();
       fBottomDist = ImGui::GetItemRectSize ().y;
       ImGui::EndGroup      ();

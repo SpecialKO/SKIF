@@ -1479,55 +1479,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
         };
 
         enum _Selection {
-          Global,
           Management,
-          InjectionConfig,
+          Settings,
           Help
         } static tab_selected = Management;
 
+        SK_RunOnce(_inject._RefreshSKDLLVersions());
+
         ImGui::BeginGroup();
         ImGui::BeginTabBar("###SKIF_TAB_BAR", ImGuiTabBarFlags_FittingPolicyResizeDown |
-          ImGuiTabBarFlags_FittingPolicyScroll);
-        if (ImGui::BeginTabItem("Global Injection"))
-        {
-          // Select the 2nd tab on first frame
-          SK_RunOnce(flags = ImGuiTabItemFlags_SetSelected);
+                                              ImGuiTabBarFlags_FittingPolicyScroll );
 
-          if (tab_selected != Global)
+        if (ImGui::BeginTabItem("Steam Management", nullptr, flags))
+        {
+          if (tab_selected != Management)
             _inject._RefreshSKDLLVersions();
 
-          tab_selected = Global;
+          tab_selected = Management;
 
-          _inject._GlobalInjectionCtl();
+          extern void SKIF_GameManagement_DrawTab(void);
+          SKIF_GameManagement_DrawTab();
 
           ImGui::EndTabItem();
         }
 
-        extern const wchar_t* SK_GetSteamDir(void);
-        static
-          std::wstring steam_path(
-            SK_GetSteamDir()
-          );
-
-        if (!steam_path.empty())
+        if (ImGui::BeginTabItem("Settings"))
         {
-          if (ImGui::BeginTabItem("Steam Management", nullptr, flags))
-          {
-            if (tab_selected != Management)
-              _inject._RefreshSKDLLVersions();
+          if (tab_selected != Settings)
+            _inject._RefreshSKDLLVersions();
 
-            tab_selected = Management;
-
-            extern void SKIF_GameManagement_DrawTab(void);
-            SKIF_GameManagement_DrawTab();
-
-            ImGui::EndTabItem();
-          }
-        }
-
-        if (ImGui::BeginTabItem("Options"))
-        {
-          tab_selected = InjectionConfig;
+          tab_selected = Settings;
 
           // SKIF Options
           if (ImGui::CollapsingHeader("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1610,6 +1591,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // Global injection
           if (ImGui::CollapsingHeader("Global injection", ImGuiTreeNodeFlags_DefaultOpen))
           {
+            _inject._GlobalInjectionCtl();
+
+            ImGui::Separator();
+
             _inject._StartAtLogonCtrl();
           }
 
@@ -1931,6 +1916,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginGroup();
           ImGui::Spacing(); ImGui::SameLine();
           ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
+          if (ImGui::Selectable("Wiki"))
+            SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
+          SKIF_ImGui_SetMouseCursorHand();
+          SKIF_ImGui_SetHoverText("https://wiki.special-k.info/");
+          ImGui::EndGroup();
+
+          ImGui::BeginGroup();
+          ImGui::Spacing(); ImGui::SameLine();
+          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
           if (ImGui::Selectable("Discord"))
             SKIF_Util_OpenURI(L"https://discord.com/invite/ER4EDBJPTa");
           SKIF_ImGui_SetMouseCursorHand();
@@ -1944,15 +1938,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_Util_OpenURI(L"https://discourse.differentk.fyi/");
           SKIF_ImGui_SetMouseCursorHand();
           SKIF_ImGui_SetHoverText("https://discourse.differentk.fyi/");
-          ImGui::EndGroup();
-
-          ImGui::BeginGroup();
-          ImGui::Spacing(); ImGui::SameLine();
-          ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
-          if (ImGui::Selectable("Wiki"))
-            SKIF_Util_OpenURI(L"https://wiki.special-k.info/");
-          SKIF_ImGui_SetMouseCursorHand();
-          SKIF_ImGui_SetHoverText("https://wiki.special-k.info/");
           ImGui::EndGroup();
 
           ImGui::BeginGroup();

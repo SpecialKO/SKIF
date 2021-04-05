@@ -213,7 +213,7 @@ SK_Steam_GetInstalledAppIDs (void)
     }
   }
 
-  if (! bHasSpecialK)
+  if ( false ) // ! bHasSpecialK)
   {
     wchar_t wszManifestDir [MAX_PATH + 2] = { };
 
