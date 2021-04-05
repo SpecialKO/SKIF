@@ -2108,7 +2108,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_bDisableTooltips)
         {
           ImGui::NewLine();
-          ImGui::ItemSize(ImVec2(10, ImGui::GetTextLineHeight() - 5.0f));
+          ImGui::ItemSize(ImVec2(10, ImGui::GetTextLineHeight()));
         }
 
         ImGui::SetColumnWidth(0,
