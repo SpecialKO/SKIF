@@ -1505,7 +1505,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (ImGui::BeginTabItem("Settings"))
         {
-          static bool driverInstalled = false;
+          static bool driverStatus  = false,
+                      driverPending = false;
 
           // Check if the WinRing0_1_2_0 kernel driver service is installed or not
           auto _CheckDriver = []()->bool
@@ -1533,21 +1534,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ret = true;
                 CloseServiceHandle(svcWinRing0);
               }
-              else
-                printf("OpenService failed (%d)\n", GetLastError());
-
               CloseServiceHandle(schSCManager);
             }
-            else
-              printf("OpenSCManager failed (%d)\n", GetLastError());
 
             return ret;
           };
 
+          // Driver is supposedly getting a new state -- check for an update
+          //   on each frame until driverStatus matches driverPending
+          if ( driverPending != driverStatus)
+            driverStatus = _CheckDriver();
+
           // Refresh things when visiting from another tab
-          if (tab_selected != Settings)
+          if ( tab_selected != Settings )
           {
-            driverInstalled = _CheckDriver();
+            driverStatus = driverPending = _CheckDriver();
             _inject._RefreshSKDLLVersions();
           }
 
@@ -1602,15 +1603,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), " Kernel Driver: ");
             ImGui::SameLine();
 
-            if (driverInstalled)
+            static std::string btnDriverLabel;
+            const wchar_t* wszDriverTaskCmd;
+
+            if ( driverStatus != driverPending )
+            {
+              btnDriverLabel = "Please wait...";
+              ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Pending...");
+            }
+            else if ( driverStatus )
+            {
+              wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
+              btnDriverLabel = "Uninstall driver";
               ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed");
-            else
+            }
+            else {
+              wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
+              btnDriverLabel = "Install driver";
               ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Not Installed");
+            }
 
             ImGui::EndGroup();
 
-            // Disabled button
-            if (false)
+            // Disable button if the status is pending
+            if (driverPending != driverStatus)
             {
               ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
               ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
@@ -1620,18 +1636,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   ));
             }
 
-            if (ImGui::ButtonEx(
-                ! driverInstalled
-                  ? "Install driver"
-                  : "Uninstall driver"
-                , ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+            if (ImGui::ButtonEx(btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
             {
-                // Install/Uninstall driver.
-              const wchar_t* wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
-
-              if ( driverInstalled )
-                wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
-
               if (
                 ShellExecuteW(
                   nullptr, L"runas",
@@ -1639,12 +1645,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   nullptr, nullptr,
                   SW_HIDE) > (HINSTANCE)32)
               {
-                driverInstalled = ! driverInstalled;
+                // Batch call succeeded -- flip driverPending to the opposite of driverStatus
+                //   to sign that a new state may be pending.
+                driverPending = ! driverStatus;
               }
             }
 
-            // Disabled button
-            if (false)
+            // Disable button (-- 'else if' is to prevent it from being called when the button has actually been pressed)
+            else if (driverPending != driverStatus)
             {
               ImGui::PopStyleVar();
               ImGui::PopItemFlag();
