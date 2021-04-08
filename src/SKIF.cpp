@@ -1454,39 +1454,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGuiWindowFlags_NoCollapse
         );
 
+        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+
         // Rescale the style on DPI changes
-        if (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts)
+        /*
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
-          if (SKIF_ImGui_GlobalDPIScale != ImGui::GetCurrentWindow()->Viewport->DpiScale)
-          {
-            SKIF_ImGui_GlobalDPIScale = ImGui::GetCurrentWindow()->Viewport->DpiScale;
+          style.WindowRounding = 5.0F * SKIF_ImGui_GlobalDPIScale;
+          style.Colors[ImGuiCol_WindowBg].w = 1.0F;
+        }*/
 
-            ImStyle& style =
-              ImGui::GetStyle();
+        style.WindowRounding    =          4.0F                                       * SKIF_ImGui_GlobalDPIScale; // style.ScrollbarRounding;
+        style.ChildRounding     = style.WindowRounding;
+        style.TabRounding       = style.WindowRounding;
+        style.FrameRounding     = style.WindowRounding;
+        style.FramePadding      = ImVec2 ( SKIF_ImGui_DefaultStyle.FramePadding.x     * SKIF_ImGui_GlobalDPIScale,
+                                           SKIF_ImGui_DefaultStyle.FramePadding.y     * SKIF_ImGui_GlobalDPIScale);
+        style.ItemSpacing       = ImVec2 ( SKIF_ImGui_DefaultStyle.ItemSpacing.x      * SKIF_ImGui_GlobalDPIScale,
+                                           SKIF_ImGui_DefaultStyle.ItemSpacing.y      * SKIF_ImGui_GlobalDPIScale);
+        style.ItemInnerSpacing  = ImVec2 ( SKIF_ImGui_DefaultStyle.ItemInnerSpacing.x * SKIF_ImGui_GlobalDPIScale,
+                                           SKIF_ImGui_DefaultStyle.ItemInnerSpacing.y * SKIF_ImGui_GlobalDPIScale);
+        style.IndentSpacing     =          SKIF_ImGui_DefaultStyle.IndentSpacing      * SKIF_ImGui_GlobalDPIScale;
+        style.ColumnsMinSpacing =          SKIF_ImGui_DefaultStyle.ColumnsMinSpacing  * SKIF_ImGui_GlobalDPIScale;
+        style.ScrollbarSize     =          SKIF_ImGui_DefaultStyle.ScrollbarSize      * SKIF_ImGui_GlobalDPIScale;
+        // Finish style rescale
 
-            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-            {
-              style.WindowRounding = 5.0F * SKIF_ImGui_GlobalDPIScale;
-              style.Colors[ImGuiCol_WindowBg].w = 1.0F;
-            }
-
-            style.WindowRounding    =          4.0F                                       * SKIF_ImGui_GlobalDPIScale;// style.ScrollbarRounding;
-            style.ChildRounding     = style.WindowRounding;
-            style.TabRounding       = style.WindowRounding;
-            style.FrameRounding     = style.WindowRounding;
-            style.FramePadding      = ImVec2 ( SKIF_ImGui_DefaultStyle.FramePadding.x     * SKIF_ImGui_GlobalDPIScale,
-                                               SKIF_ImGui_DefaultStyle.FramePadding.y     * SKIF_ImGui_GlobalDPIScale);
-            style.ItemSpacing       = ImVec2 ( SKIF_ImGui_DefaultStyle.ItemSpacing.x      * SKIF_ImGui_GlobalDPIScale,
-                                               SKIF_ImGui_DefaultStyle.ItemSpacing.y      * SKIF_ImGui_GlobalDPIScale);
-            style.ItemInnerSpacing  = ImVec2 ( SKIF_ImGui_DefaultStyle.ItemInnerSpacing.x * SKIF_ImGui_GlobalDPIScale,
-                                               SKIF_ImGui_DefaultStyle.ItemInnerSpacing.y * SKIF_ImGui_GlobalDPIScale);
-            style.IndentSpacing     =          SKIF_ImGui_DefaultStyle.IndentSpacing      * SKIF_ImGui_GlobalDPIScale;
-            style.ColumnsMinSpacing =          SKIF_ImGui_DefaultStyle.ColumnsMinSpacing  * SKIF_ImGui_GlobalDPIScale;
-            style.ScrollbarSize     =          SKIF_ImGui_DefaultStyle.ScrollbarSize      * SKIF_ImGui_GlobalDPIScale;
-          }
-        }
-        else
-          SKIF_ImGui_GlobalDPIScale = 1.0f;
 
         ImGuiTabBarFlags flags =
           ImGuiTabItemFlags_None;
