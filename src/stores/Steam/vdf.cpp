@@ -361,6 +361,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                     pAppRecord->type = "Game";
                   else if (! _stricmp ((char*)key.second.second, "application"))
                     pAppRecord->type = "Application";
+                  else if (! _stricmp ((char*)key.second.second, "tool"))
+                    pAppRecord->type = "Tool";
                   else
                     pAppRecord->type = SK_FormatString((char*)key.second.second);
                 }

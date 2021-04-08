@@ -72,10 +72,10 @@ struct SKIF_InjectionContext {
   std::string SKVer64 = "";
 
   bool _StartStopInject (bool running_);
-  bool _InjectProcess   (void);
 
   bool TestServletRunlevel (bool& changed_state);
   void _RefreshSKDLLVersions(void);
   bool _GlobalInjectionCtl (void);
   void _StartAtLogonCtrl   (void);
+  void _ToggleTaskbarOverlay(bool show);
 } extern _inject;

@@ -40,6 +40,9 @@ extern IDXGISwapChain*         g_pSwapChain;
 extern ID3D11RenderTargetView* g_mainRenderTargetView;
 extern bool                    SKIF_ServiceRunning;
 extern float                   SKIF_ImGui_GlobalDPIScale;
+extern std::string             SKIF_StatusBarHelp;
+extern std::string             SKIF_StatusBarText;
+extern bool                    SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
@@ -400,6 +403,8 @@ SKIF_GameManagement_DrawTab (void)
          CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
          const std::wstring&                 name )
   {
+    UNREFERENCED_PARAMETER(appid);
+    UNREFERENCED_PARAMETER(name);
 
     if (
       SUCCEEDED (
@@ -549,8 +554,8 @@ SKIF_GameManagement_DrawTab (void)
            const std::wstring&                  name
          )
       {
+        UNREFERENCED_PARAMETER(appid);
         UNREFERENCED_PARAMETER (name);
-        UNREFERENCED_PARAMETER (appid);
 
         if (
           SUCCEEDED (
@@ -611,6 +616,8 @@ SKIF_GameManagement_DrawTab (void)
            const std::wstring&                 name
          )
       {
+        UNREFERENCED_PARAMETER(appid);
+        UNREFERENCED_PARAMETER(name);
 
         if (
           SUCCEEDED (
@@ -846,7 +853,8 @@ SKIF_GameManagement_DrawTab (void)
         if ( app.second.id == SKIF_STEAM_APPID )
           __LoadSKIconTexture ( app.second.id,
                                 app.second.textures.icon,
-                                                 L"_icon.jpg");
+                                                 L"_icon.jpg"
+        );
 
         // Load all other apps from the librarycache of the Steam client
         else 
@@ -1034,13 +1042,15 @@ SKIF_GameManagement_DrawTab (void)
         fLongestLabel =
          ( 32 + max_app_name_len + fDecorations );
 
-#define _WIDTH std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
+// AppListInset1
+#define _WIDTH (414.0f * SKIF_ImGui_GlobalDPIScale) // std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
   //_WIDTH  (640/2)
-#define _HEIGHT (float)_WIDTH / (fAspect)
+#define _HEIGHT (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x * SKIF_ImGui_GlobalDPIScale) //(float)_WIDTH / (fAspect)
   //_HEIGHT (360/2)
 
-#define _WIDTH2  ((float)_WIDTH)
-#define _HEIGHT2 (900.0f * SKIF_ImGui_GlobalDPIScale/(21.0f/9.0f)/2.0f + 88.0f /*(float)_WIDTH / (21.0f/9.0f) + fFrameHeight + fSpaceHeight * 2.0f*/)
+// AppListInset2
+#define _WIDTH2  (414.0f * SKIF_ImGui_GlobalDPIScale) //((float)_WIDTH)
+#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale) // (900.0f * SKIF_ImGui_GlobalDPIScale/(21.0f/9.0f)/2.0f + 88.0f /*(float)_WIDTH / (21.0f/9.0f) + fFrameHeight + fSpaceHeight * 2.0f*/)
 
   ImGui::BeginGroup ();
 
@@ -1272,7 +1282,7 @@ SKIF_GameManagement_DrawTab (void)
       auto frame_id =
         ImGui::GetID ("###Injection_Summary_Frame");
 
-      ImGui::BeginChildFrame  ( frame_id, ImVec2 (_WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f, num_lines * line_ht),
+      SKIF_ImGui_BeginChildFrame  ( frame_id, ImVec2 (_WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f, num_lines * line_ht),
                                   ImGuiWindowFlags_NavFlattened      |
                                   ImGuiWindowFlags_NoScrollbar       |
                                   ImGuiWindowFlags_NoScrollWithMouse |
@@ -1289,6 +1299,7 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::TextUnformatted  ("Config Root:");
       ImGui::TextUnformatted  ("Config File:");
       ImGui::PopStyleColor    ();
+      ImGui::ItemSize(ImVec2(140.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 130px (scaled with the DPI)
       ImGui::EndGroup         ();
 
       ImGui::SameLine         ();
@@ -1391,7 +1402,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120 * SKIF_ImGui_GlobalDPIScale, 40 * SKIF_ImGui_GlobalDPIScale));
 
-      ImGui::BeginChildFrame(frame_id2, ImVec2(_WIDTH * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht * SKIF_ImGui_GlobalDPIScale),
+      SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(_WIDTH * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht * SKIF_ImGui_GlobalDPIScale),
           ImGuiWindowFlags_NavFlattened |
           ImGuiWindowFlags_NoScrollbar |
           ImGuiWindowFlags_NoScrollWithMouse |
@@ -1429,14 +1440,6 @@ SKIF_GameManagement_DrawTab (void)
           ImGui::PopStyleVar();
 
       ImGui::EndChildFrame();
-
-
-      float panel_ht =
-                                   line_ht * num_lines +
-        ImGui::GetStyle ().FrameBorderSize * 2.0f      +
-        ImGui::GetStyle ().FramePadding.y  * 2.0f;
-
-      return panel_ht;
     }
 
     return 0.0f;
@@ -1444,8 +1447,7 @@ SKIF_GameManagement_DrawTab (void)
 
   static app_record_s*      pApp = nullptr;
 
-  ImGui::BeginChild ("###AppListInset",
-                     ImVec2 (_WIDTH2, 900 * SKIF_ImGui_GlobalDPIScale - _HEIGHT2), true,
+  ImGui::BeginChild ("###AppListInset", ImVec2 (_WIDTH2, _HEIGHT), true,
                      ImGuiWindowFlags_NavFlattened);
   ImGui::BeginGroup ();
 
@@ -1504,6 +1506,9 @@ SKIF_GameManagement_DrawTab (void)
 
   static bool deferred_update = false;
 
+
+  // Start populating the whole list
+
   for (auto& app : apps)
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
@@ -1517,6 +1522,9 @@ SKIF_GameManagement_DrawTab (void)
 
     float fOriginalY =
       ImGui::GetCursorPosY ();
+
+
+    // Start Icon + Selectable row
 
     ImGui::BeginGroup      ();
     ImGui::Image           (app.second.textures.icon.p, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
@@ -1538,12 +1546,35 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::Selectable      (app.first.c_str (), &selected, ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (                     );
 
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+      if (pApp != nullptr &&
+        pApp->id != SKIF_STEAM_APPID &&
+        !pApp->_status.running
+        )
+      {
+        SKIF_Util_OpenURI(
+          std::wstring(L"steam://run/") +
+          std::to_wstring(pApp->id),
+          SW_SHOWNA
+        );
+
+        pApp->_status.invalidate();
+      }
+    }
+
+    if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
+      SKIF_ImGui_SetHoverText("Right click for more details");
+
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
     change |=
       _HandleItemSelection ();
 
     ImGui::EndGroup        ();
+
+    // End Icon + Selectable row
+
 
     change |=
       _HandleItemSelection ();
@@ -1578,7 +1609,7 @@ SKIF_GameManagement_DrawTab (void)
         ImGui::ActivateItem (ImGui::GetID (app.first.c_str ()));
 
         if (! ImGui::IsItemVisible    (    )) {
-          ImGui::SetScrollHereY       (0.5f);
+          ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
         } ImGui::SetKeyboardFocusHere (    );
 
         deferred_update = true;
@@ -1647,6 +1678,9 @@ SKIF_GameManagement_DrawTab (void)
       pApp = &app.second;
     }
   }
+
+  // Stop populating the whole list
+
 
   if (update && pApp != nullptr)
   {
@@ -1989,30 +2023,8 @@ SKIF_GameManagement_DrawTab (void)
 
   ImGui::EndGroup   ();
 
-  
-  if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-  {
-      if (   pApp != nullptr &&
-             pApp->id != SKIF_STEAM_APPID &&
-           ! pApp->_status.running
-         )
-      {
-          SKIF_Util_OpenURI(
-              std::wstring(L"steam://run/") +
-              std::to_wstring(pApp->id),
-              SW_SHOWNA
-          );
-
-          pApp->_status.invalidate();
-      }
-  }
-
-  extern std::string SKIF_StatusBarText;
-
-  if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
-    SKIF_ImGui_SetHoverText ("Right click for more details");
-
   ImGui::EndChild   ();
+
   ImGui::BeginChild ("###AppListInset2", ImVec2 (_WIDTH2, _HEIGHT2), true,
                      ImGuiWindowFlags_NoScrollbar       |
                      ImGuiWindowFlags_NoScrollWithMouse |
@@ -2036,8 +2048,8 @@ SKIF_GameManagement_DrawTab (void)
     extern ImGuiStyle SKIF_ImGui_DefaultStyle;
            ImGuiStyle _style = ImGui::GetStyle ();
 
-    ImGuiStyle style =
-      SKIF_ImGui_DefaultStyle;
+    ImGuiStyle style = ImGui::GetStyle();
+      //SKIF_ImGui_DefaultStyle;
 
     //ImGui::GetStyle () = style;
 
@@ -2101,10 +2113,6 @@ SKIF_GameManagement_DrawTab (void)
             ImColor::HSV ( 0.25f, 0.75f, 0.95f ),
                            "VAC Protected Game" );
 
-      extern std::string
-        SKIF_StatusBarHelp;
-      extern std::string
-        SKIF_StatusBarText;
         SKIF_StatusBarText = "Warning: ";
         SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
     }
@@ -2129,7 +2137,7 @@ SKIF_GameManagement_DrawTab (void)
                              //ImVec4 (.5f, .5f, .5f, .75f));
       ImGui::BeginGroup    ( );
       ImGui::Separator     ( );
-      ImGui::BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
+      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
                                 ImVec2 (ImGui::GetContentRegionAvail ().x,
                               std::max (ImGui::GetContentRegionAvail ().y,
                           checkbox_ht + ImGui::GetStyle ().ItemSpacing.y * 2)),
@@ -2226,6 +2234,7 @@ SKIF_GameManagement_DrawTab (void)
         launch_hovered = false;
     }
   }
+
 
   ImGui::EndGroup     (                  );
   ImGui::EndChild     (                  );

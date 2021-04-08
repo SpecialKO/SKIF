@@ -28,6 +28,7 @@
 
 #include <sk_utility/utility.h>
 #include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 #include <wtypes.h>
 #include <process.h>
@@ -345,133 +346,15 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
     changed_state = true;
   }
 
+  if (changed_state)
+    _ToggleTaskbarOverlay(ret);
+
   return ret;
 };
 
+extern bool SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 extern std::wstring SKIF_GetSpecialKDLLVersion(const wchar_t*);
 extern bool SKIF_bDisableExitConfirmation;
-
-void what(std::wstring call)
-{
-    //DWORD dwLastError = GetLastError();
-
-    OutputDebugStringW(
-        (
-            call + std::wstring(L"\n") /* +
-            std::wstring(L" (") +
-            std::to_wstring(dwLastError) +
-            std::wstring(L"): ") +
-            _com_error(dwLastError).ErrorMessage() +
-            std::wstring(L"\n") */
-        ).c_str()
-    );
-}
-
-bool
-SKIF_InjectionContext::_InjectProcess (void)
-{
-    SK_RunOnce(
-        SetLastError(NO_ERROR)
-    );
-
-    bool injected = false;
-
-    DWORD PID = NULL;
-
-    HWND window = GetForegroundWindow();
-    if (!window)
-        what(L"GetForegroundWindow");
-
-    DWORD thread = GetWindowThreadProcessId(window, &PID);
-    if (!thread)
-        what(L"GetWindowThreadProcessId");
-
-    if (!PID)
-        what(L"PID");
-
-    HANDLE process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, PID);
-    if (!process)
-        what(L"OpenProcess");
-
-    BOOL bIsWow64 = false;
-
-    if (0 == IsWow64Process(process, &bIsWow64))
-        what(L"IsWow64Process");
-
-    if (bIsWow64)
-    {
-        // 32-bit application on 64-bit Windows
-
-        // doable? https://stackoverflow.com/questions/8776437/c-injecting-32-bit-targets-from-64-bit-process
-        // otherwise helper app needed?
-    }
-    else {
-        // 64-bit application
-        // or technically 32-bit application on 32-bit Windows, but then again SKIF doesn't have a 32-bit build
-
-        //const WCHAR dll_path[] = L"F:\\Aemony\\Documents\\GitHub\\SKIF\\x64\\Release\\SpecialK64.dll";
-        WCHAR dll_pathTest[MAX_PATH] = { };
-        GetModuleFileNameW(0, dll_pathTest, MAX_PATH);
-        PathRemoveFileSpecW(dll_pathTest);
-        PathAppendW(dll_pathTest, L"SpecialK64.dll");
-        const int dll_path_size = (wcslen(dll_pathTest) + 1) * sizeof(WCHAR); // or sizeof(dll_path); or sizeof(WCHAR);
-
-        FARPROC lib = GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
-        if (!lib)
-            what(L"GetProcAddress");
-
-        LPVOID base = VirtualAllocEx(process, 0, dll_path_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (!base)
-            what(L"VirtualAllocEx");
-
-        BOOL good = WriteProcessMemory(process, base, dll_pathTest, dll_path_size, 0);
-        if (!good)
-            what(L"WriteProcessMemory");
-
-        HANDLE thread = CreateRemoteThread(process, 0, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(lib), base, 0, 0);
-        if (!thread)
-            what(L"CreateRemoteThread");
-
-        OutputDebugStringW(
-            (
-                std::wstring(L"Remote thread successfully created in process ") +
-                std::to_wstring(PID) +
-                std::wstring(L".\n")).c_str()
-        );
-
-        WaitForSingleObject(thread, INFINITE);
-
-        DWORD exitCode = 0;
-        GetExitCodeThread(thread, &exitCode);
-
-        if (exitCode != 0)
-        {
-            injected = true;
-            OutputDebugStringW(
-                (
-                    std::wstring(L"DLL loaded successfully in process ") +
-                    std::to_wstring(PID) +
-                    std::wstring(L".\n")).c_str()
-            );
-        }
-        else
-        {
-            OutputDebugStringW(
-                (
-                    std::wstring(L"DLL load failed in process ") +
-                    std::to_wstring(PID) +
-                    std::wstring(L".\n")).c_str()
-            );
-        }
-
-#if 1
-        CloseHandle(thread);
-        CloseHandle(process);
-#endif
-
-        return injected;
-    }
-}
 
 extern void
 SKIF_Util_OpenURI(std::wstring path, DWORD dwAction = SW_SHOWNORMAL);
@@ -493,53 +376,119 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions(void)
 bool
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
-  ImGui::BeginGroup   (                  );
+  extern float SKIF_ImGui_GlobalDPIScale;
+
   if (bHasServlet)
   {
     running =
       TestServletRunlevel (run_lvl_changed);
 
+    // Injection Summary
+    auto frame_id =
+      ImGui::GetID("###Global_Injection_Summary_Frame");
+
+    SKIF_ImGui_BeginChildFrame(frame_id, ImVec2(0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing()),
+      ImGuiWindowFlags_NavFlattened |
+      ImGuiWindowFlags_NoScrollbar |
+      ImGuiWindowFlags_NoScrollWithMouse |
+      ImGuiWindowFlags_NoBackground);
+
+
+    // Begin columns
     ImGui::BeginGroup();
 
-    ImGui::Spacing();
-    ImGui::Spacing();
+    // Column 1
+    ImGui::BeginGroup();
+    ImGui::TextUnformatted( (SKVer32 == SKVer64) ? ("Special K v " + SKVer32).c_str() : "Special K" );
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+    ImGui::TextUnformatted("Config Root:");
+    ImGui::TextUnformatted("32-bit Service:");
+    ImGui::TextUnformatted("64-bit Service:");
+    ImGui::PopStyleColor();
+    ImGui::ItemSize(ImVec2(140.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 130px (scaled with the DPI)
+    ImGui::EndGroup();
 
-    if (SKVer32 == SKVer64)
+    ImGui::SameLine();
+
+    // Column 2
+    ImGui::BeginGroup();
+    ImGui::NewLine();
+
+    // Config Root
+    static std::wstring root_dir =
+      std::wstring(path_cache.specialk_userdata.path);
+    if (ImGui::Selectable("Centralized"))
     {
-        std::string SKVer3264Label = "Special K 32/64-bit v " + SKVer32;
-
-        ImGui::Spacing();
-        ImGui::SameLine();
-        ImGui::Text(SKVer3264Label.c_str());
+      SKIF_Util_OpenURI(root_dir);
     }
-    else {
-        std::string SKVer32Label = "Special K 32-Bit v " + SKVer32;
-        std::string SKVer64Label = "Special K 64-Bit v " + SKVer64;
 
-        ImGui::Spacing();
-        ImGui::SameLine();
-        ImGui::Text(SKVer32Label.c_str());
+    SKIF_ImGui_SetMouseCursorHand();
+    SKIF_ImGui_SetHoverText(SK_FormatString(R"(%ws)", root_dir).c_str());
+    SKIF_ImGui_SetHoverTip("Open the config root folder");
 
-        ImGui::Spacing();
-        ImGui::SameLine();
-        ImGui::Text(SKVer64Label.c_str());
+    // 32-bit/64-bit Services
+    if (pid32)
+      ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
+    else
+      ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
+
+    if (pid64)
+      ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
+    else
+      ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
+
+    ImGui::ItemSize(ImVec2(100.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 100px (scaled with the DPI)
+    ImGui::EndGroup();
+
+    ImGui::SameLine();
+
+    // Column 3
+    ImGui::BeginGroup();
+    // empty
+    ImGui::NewLine();
+    ImGui::NewLine();
+
+    if (SKVer32 != SKVer64)
+    {
+      ImGui::Text("( v %s )", SKVer32.c_str());
+      ImGui::Text("( v %s )", SKVer64.c_str());
     }
+    else
+      ImGui::NewLine();
 
     ImGui::EndGroup();
 
-    ImGui::BeginGroup ();
-    ImGui::Spacing    ();
-    ImGui::Spacing    ();
-    ImGui::Spacing    ();
-    ImGui::SameLine   ();
+    // End columns
+    ImGui::EndGroup();
+    ImGui::EndChildFrame();
 
+
+    ImGui::Separator();
+
+
+
+    // Start/Stop Service
+    auto frame_id2 =
+      ImGui::GetID("###Global_Injection_Toggle_Frame");
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120.0f * SKIF_ImGui_GlobalDPIScale, 40.0f * SKIF_ImGui_GlobalDPIScale));
+
+    SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(0.0f, 110.f *SKIF_ImGui_GlobalDPIScale),
+      ImGuiWindowFlags_NavFlattened |
+      ImGuiWindowFlags_NoScrollbar |
+      ImGuiWindowFlags_NoScrollWithMouse |
+      ImGuiWindowFlags_NoBackground);
+
+    ImGui::PopStyleVar();
+
+    
     if (run_lvl_changed)
     {
       const char *szStartStopLabel =
         running ?  "Stop Service###GlobalStartStop"  :
                   "Start Service###GlobalStartStop";
 
-      if (ImGui::Button (szStartStopLabel))
+      if (ImGui::Button (szStartStopLabel, ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale)))
       {
         _StartStopInject (running);
 
@@ -547,99 +496,47 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       }
     }
     else
-      ImGui::Button (running ? "Stopping...###GlobalStartStop" :
-                               "Starting...###GlobalStartStop");
+      ImGui::ButtonEx (running ? "Stopping...###GlobalStartStop" :
+                               "Starting...###GlobalStartStop"
+                    , ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), ImGuiButtonFlags_Disabled);
 
     if (! running && SKIF_bDisableExitConfirmation)
         SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
-    ImGui::EndGroup    ();
-    ImGui::SameLine    ();
-    ImGui::BeginGroup  ();
+    ImGui::EndChildFrame();
 
-    enum {
-          RUNNING = 0,
-      NOT_RUNNING = 1
-    };
 
-    struct status_s {
-      ImColor     color;
-      const char* text;
 
-      void Display (int bits)
-      {
-        ImGui::BeginGroup  ();
-        ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), " %d-bit Service: ", bits);
-        ImGui::SameLine    ();
-        ImGui::TextColored (color, text);
-        ImGui::EndGroup    ();
-      }
-    } static status [] =
-      {
-        { ImColor::HSV (0.3F,  0.99F, 1.F),     "Running" },
-        { ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running" }
-      };
+    // Tips 'n Tricks
+    auto frame_id3 =
+      ImGui::GetID("###Global_Injection_TipsNTricks");
 
-    status [pid32 != 0 ? RUNNING : NOT_RUNNING].Display (32);
-    status [pid64 != 0 ? RUNNING : NOT_RUNNING].Display (64);
+    SKIF_ImGui_BeginChildFrame(frame_id3, ImVec2(0.0f, 2.0f * ImGui::GetTextLineHeightWithSpacing()),
+      ImGuiWindowFlags_NavFlattened |
+      ImGuiWindowFlags_NoScrollbar |
+      ImGuiWindowFlags_NoScrollWithMouse |
+      ImGuiWindowFlags_NoBackground);
 
-    ImGui::SameLine   ();
-    ImGui::Spacing    ();
-    ImGui::EndGroup   (); /* ImGui::SameLine ();
-    ImGui::BeginGroup ();
-    ImGui::Spacing    (); ImGui::Spacing  ();
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
+    ImGui::EndGroup();
 
-    if (ImGui::Checkbox ("Start At Logon", &bLogonTaskEnabled))
-    {
-      const wchar_t* wszLogonTaskCmd =
-        ( bLogonTaskEnabled ?
-            LR"(Servlet\enable_logon.bat)" :
-            LR"(Servlet\disable_logon.bat)" );
+    SKIF_ImGui_SetHoverTip("Any that deal with system input or some sort\nof window or keyboard/mouse input activity.");
 
-      if (
-        ShellExecuteW (
-          nullptr, L"runas",
-            wszLogonTaskCmd,
-              nullptr, nullptr,
-                SW_HIDE ) < (HINSTANCE)32 )
-      {
-        bLogonTaskEnabled =
-          ! bLogonTaskEnabled;
-      }
-    }
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
+    ImGui::EndGroup();
 
-    ImGui::EndGroup    (); */
+    SKIF_ImGui_SetMouseCursorHand();
+    SKIF_ImGui_SetHoverText("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    SKIF_ImGui_SetHoverTip("In particular games where anti-cheat\nprotection might be present.");
 
-    ImGui::Spacing                ();
-    ImGui::Spacing                ();
+    if (ImGui::IsItemClicked())
+      SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
-    ImGui::BeginGroup             ();
-    ImGui::Spacing                (); ImGui::SameLine();
-    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "? "); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
-    ImGui::EndGroup               ();
-
-    SKIF_ImGui_SetHoverTip        ("Any that deal with system input or some sort\nof window or keyboard/mouse input activity.");
-
-    ImGui::BeginGroup             ();
-    ImGui::Spacing                (); ImGui::SameLine();
-    ImGui::TextColored            (ImColor::HSV (0.55F, 0.99F, 1.F), "?!"); ImGui::SameLine (); ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F), "Stop the service before playing a multiplayer game.");
-    ImGui::EndGroup               ();
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    SKIF_ImGui_SetHoverTip        ("In particular games where anti-cheat\nprotection might be present.");
-
-    if ( ImGui::IsItemClicked     ())
-        SKIF_Util_OpenURI         (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-
-    ImGui::Spacing();
-
-#if 0
-
-    if (ImGui::Button("Inject SpecialK64.dll in SKIF!", ImVec2(0, 0)))
-        _InjectProcess();
-
-#endif // 1
+    ImGui::EndChildFrame();
 
   } else {
     ImGui::Spacing();
@@ -648,10 +545,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::Spacing();
   }
-
-  ImGui::EndGroup      ();
-
-  sk_global_ctl_x     = ImGui::GetItemRectSize ().x;
   SKIF_ServiceRunning = running;
 
   return running;
@@ -665,13 +558,22 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     if (bHasServlet)
     {
         ImGui::Spacing();
-        ImGui::Text("Global injection can be configured to start automatically with Windows.");
+        ImGui::Text("The global injection service can be configured to start automatically with Windows.");
+
+        ImGui::Spacing();
+        ImGui::Spacing();
 
         ImGui::BeginGroup();
         ImGui::Spacing(); ImGui::SameLine();
         ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
         ImGui::EndGroup();
 
+        ImGui::BeginGroup();
+        ImGui::Spacing(); ImGui::SameLine();
+        ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Note that SKIF will not start alongside the service.");
+        ImGui::EndGroup();
+
+        ImGui::Spacing();
         ImGui::Spacing();
 
         if (ImGui::Checkbox("Start At Logon", &bLogonTaskEnabled))
@@ -703,4 +605,31 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     }
 
     ImGui::EndGroup();
+}
+
+void
+SKIF_InjectionContext::_ToggleTaskbarOverlay(bool show)
+{
+  ITaskbarList3* taskbar;
+  if (S_OK == CoCreateInstance(CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (void**)&taskbar))
+  {
+    extern HWND        SKIF_hWnd;
+
+    HMODULE hModSelf =
+      GetModuleHandleW(nullptr);
+
+    HICON hIcon; //  = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF))
+
+    SHSTOCKICONINFO sii;
+    sii.cbSize = sizeof(sii);
+    if (SUCCEEDED(SHGetStockIconInfo(SIID_INFO, SHGSI_ICON | SHGSI_LARGEICON, &sii)))
+    {
+      if (show)
+        taskbar->SetOverlayIcon(SKIF_hWnd, sii.hIcon, L"Global injection service is running.");
+      else
+        taskbar->SetOverlayIcon(SKIF_hWnd, NULL, NULL);
+
+      DestroyIcon(sii.hIcon);
+    }
+  }
 }
