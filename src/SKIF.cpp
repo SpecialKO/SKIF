@@ -359,7 +359,7 @@ auto SKIF_ImGui_LoadFont =
   return (ImFont *)nullptr;
 };
 
-auto SKIF_ImGui_InitFonts = [&](void)
+auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
 {
   auto& io =
     ImGui::GetIO ();
@@ -389,15 +389,11 @@ auto SKIF_ImGui_InitFonts = [&](void)
   font_cfg           = {  };
   font_cfg.MergeMode = true;
 
-  if (! SKIF_ImGui_LoadFont (
-          L"Tahoma.ttf",
-            18.0F,
-              SK_ImGui_GetGlyphRangesDefaultEx () ) )
-  {
-    io.Fonts->AddFontDefault ();
-  }
+  SKIF_ImGui_LoadFont(
+    L"Tahoma.ttf",
+      fontSize,
+        SK_ImGui_GetGlyphRangesDefaultEx());
 
-  else
     io.Fonts->AddFontDefault ();
 };
 
@@ -1431,21 +1427,47 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     else
     {
+
+      io.FontGlobalScale = 1.0f;
+
+      // Handling sub-1000px resolutions by rebuilding the font at 11px
+      static bool tinyDPIFonts = false;
+
+      if (SKIF_ImGui_GlobalDPIScale < 1.0f && ! tinyDPIFonts )
+      {
+        SKIF_ImGui_InitFonts(11.0F);
+        ImGui::GetIO().Fonts->Build();
+        ImGui_ImplDX11_InvalidateDeviceObjects();
+        tinyDPIFonts = true;
+      }
+      else if (SKIF_ImGui_GlobalDPIScale >= 1.0f && tinyDPIFonts)
+      {
+        SKIF_ImGui_InitFonts();
+        ImGui::GetIO().Fonts->Build();
+        ImGui_ImplDX11_InvalidateDeviceObjects();
+        tinyDPIFonts = false;
+      }
+
       // Start the Dear ImGui frame
       ImGui_ImplDX11_NewFrame();
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
       {
-        io.FontGlobalScale = 1.0f;
 
         // Fixes the wobble that occurs when switching between tabs,
         //  as the width/height of the window isn't dynamically calculated.
-        ImVec2 SKIF_vecSmallMode   = ImVec2 (  415                                        * SKIF_ImGui_GlobalDPIScale,
-                                               340                                        * SKIF_ImGui_GlobalDPIScale);
-        ImVec2 SKIF_vecLargeMode   = ImVec2 ( 1038                                        * SKIF_ImGui_GlobalDPIScale,
-                                              1000                                        * SKIF_ImGui_GlobalDPIScale);
+#define SKIF_wLargeMode 1038
+#define SKIF_hLargeMode 1000
+#define SKIF_wSmallMode  415
+#define SKIF_hSmallMode  340
+        ImVec2 SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode                       * SKIF_ImGui_GlobalDPIScale,
+                                              SKIF_hSmallMode                       * SKIF_ImGui_GlobalDPIScale);
+        ImVec2 SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode                       * SKIF_ImGui_GlobalDPIScale,
+                                              SKIF_hLargeMode                       * SKIF_ImGui_GlobalDPIScale);
         SKIF_vecLargeMode.y       += (SKIF_bDisableTooltips) ? (ImGui::GetTextLineHeight() * 0.6f) : 0.0f;
         ImVec2 SKIF_vecCurrentMode = (SKIF_bSmallMode) ? SKIF_vecSmallMode : SKIF_vecLargeMode;
+
+
         ImGui::SetNextWindowSize(SKIF_vecCurrentMode);
 
         ImGui::Begin(SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
@@ -1454,9 +1476,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGuiWindowFlags_NoCollapse
         );
 
-        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+        const int monitor_idx = ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend;
+        ImVec2 monitor_wz = ImGui::GetPlatformIO().Monitors[monitor_idx].WorkSize;
 
-        // Rescale the style on DPI changes
+        if ( monitor_wz.y < SKIF_hLargeMode )
+        {
+          SKIF_ImGui_GlobalDPIScale = (monitor_wz.y - 100.0f) / SKIF_hLargeMode;
+        } else {
+          SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+        }
+
         /*
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
@@ -1464,6 +1493,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           style.Colors[ImGuiCol_WindowBg].w = 1.0F;
         }*/
 
+        // Rescale the style on DPI changes
         style.WindowRounding    =          4.0F                                       * SKIF_ImGui_GlobalDPIScale; // style.ScrollbarRounding;
         style.ChildRounding     = style.WindowRounding;
         style.TabRounding       = style.WindowRounding;

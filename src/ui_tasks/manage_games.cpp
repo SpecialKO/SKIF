@@ -1400,9 +1400,9 @@ SKIF_GameManagement_DrawTab (void)
       auto frame_id2 =
           ImGui::GetID("###Injection_Play_Button_Frame");
 
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120 * SKIF_ImGui_GlobalDPIScale, 40 * SKIF_ImGui_GlobalDPIScale));
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120.0f * SKIF_ImGui_GlobalDPIScale, 40.0f * SKIF_ImGui_GlobalDPIScale));
 
-      SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(_WIDTH * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2.0f, (num_lines + 5.0f) * line_ht * SKIF_ImGui_GlobalDPIScale),
+      SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(0.0f, 110.f * SKIF_ImGui_GlobalDPIScale),
           ImGuiWindowFlags_NavFlattened |
           ImGuiWindowFlags_NoScrollbar |
           ImGuiWindowFlags_NoScrollWithMouse |
@@ -1425,7 +1425,7 @@ SKIF_GameManagement_DrawTab (void)
                   ));
       }
 
-      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150 * SKIF_ImGui_GlobalDPIScale, 50 * SKIF_ImGui_GlobalDPIScale), buttonFlags))
+      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags))
       {
         SKIF_Util_OpenURI(
             std::wstring(L"steam://run/") +
