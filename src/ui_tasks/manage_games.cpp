@@ -1444,7 +1444,10 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
 
-      SKIF_ImGui_SetHoverTip( launch_description.c_str() );
+      if (pTargetApp->_status.running)
+        ImGui::PopStyleVar();
+      else
+        SKIF_ImGui_SetHoverTip(launch_description.c_str());
 
       ImGui::SetNextWindowSize(ImVec2(464.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
       if (ImGui::BeginPopupModal("Confirm Launch", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
@@ -1496,9 +1499,6 @@ SKIF_GameManagement_DrawTab (void)
 
         ImGui::EndPopup();
       }
-
-      if (pTargetApp->_status.running)
-          ImGui::PopStyleVar();
 
       ImGui::EndChildFrame();
     }
@@ -1617,9 +1617,6 @@ SKIF_GameManagement_DrawTab (void)
         clickedGameLaunch = true;
       }
     }
-
-    if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
-      SKIF_ImGui_SetHoverText("Right click for more details");
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
@@ -1851,6 +1848,9 @@ SKIF_GameManagement_DrawTab (void)
             {
               SKIF_GameManagement_ShowScreenshot (SK_UTF8ToWideChar (screenshot));
             }
+            
+            SKIF_ImGui_SetMouseCursorHand();
+            SKIF_ImGui_SetHoverText(screenshot.c_str());
           }
 
           ImGui::EndMenu ();
@@ -1871,6 +1871,8 @@ SKIF_GameManagement_DrawTab (void)
             ImGui::TextColored ( ImColor::HSV (0.08F, 0.99F, 1.F),
                                    "Developer forgot to enable Steam auto-cloud (!!)" );
           }
+
+          bool bCloudSaves = false;
 
           for (auto& cloud : pApp->cloud_saves)
           {
@@ -1905,8 +1907,14 @@ SKIF_GameManagement_DrawTab (void)
                 SKIF_ImGui_SetHoverText(
                   SK_FormatString(R"(%ws)", cloud.second.evaluated_dir.c_str()).c_str()
                 );
+                bCloudSaves = true;
               }
             }
+          }
+
+          if ( ! bCloudSaves)
+          {
+            ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f), "N/A");
           }
 
           ImGui::EndMenu ();
@@ -2073,6 +2081,10 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::EndGroup   ();
 
   ImGui::EndChild   ();
+
+  // Applies hover text on the whole AppListInset1
+  if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
+    SKIF_ImGui_SetHoverText("Right click for more details");
 
   ImGui::BeginChild ("###AppListInset2", ImVec2 (_WIDTH2, _HEIGHT2), true,
                      ImGuiWindowFlags_NoScrollbar       |
