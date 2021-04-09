@@ -39,6 +39,7 @@ struct SKIF_InjectionContext {
   bool    bHasServlet       = false;
   bool    bHasUpdatedFiles  = false;
   bool    bLogonTaskEnabled = false;
+  bool    bHasServletTasks  = false;
 
   bool    bOnDemandInject   = false;
 

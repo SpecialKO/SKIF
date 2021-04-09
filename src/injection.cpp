@@ -208,6 +208,10 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   bHasServlet  =
     PathFileExistsW (L"Servlet");
 
+  bHasServletTasks =
+    PathFileExistsW(LR"(Servlet\task_inject.bat)") &&
+    PathFileExistsW(LR"(Servlet\task_eject.bat)");
+
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
 
@@ -378,145 +382,161 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
 
-  if (bHasServlet)
+  running =
+    TestServletRunlevel (run_lvl_changed);
+
+  // Injection Summary
+  auto frame_id =
+    ImGui::GetID("###Global_Injection_Summary_Frame");
+
+  SKIF_ImGui_BeginChildFrame(frame_id, ImVec2(0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing()),
+    ImGuiWindowFlags_NavFlattened |
+    ImGuiWindowFlags_NoScrollbar |
+    ImGuiWindowFlags_NoScrollWithMouse |
+    ImGuiWindowFlags_NoBackground);
+
+
+  // Begin columns
+  ImGui::BeginGroup();
+
+  // Column 1
+  ImGui::BeginGroup();
+  ImGui::TextUnformatted( (SKVer32 == SKVer64) ? ("Special K v " + SKVer32).c_str() : "Special K" );
+  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+  ImGui::TextUnformatted("Config Root:");
+  ImGui::TextUnformatted("32-bit Service:");
+  ImGui::TextUnformatted("64-bit Service:");
+  ImGui::PopStyleColor();
+  ImGui::ItemSize(ImVec2(140.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 130px (scaled with the DPI)
+  ImGui::EndGroup();
+
+  ImGui::SameLine();
+
+  // Column 2
+  ImGui::BeginGroup();
+  ImGui::NewLine();
+
+  // Config Root
+  static std::wstring root_dir =
+    std::wstring(path_cache.specialk_userdata.path);
+  if (ImGui::Selectable("Centralized"))
   {
-    running =
-      TestServletRunlevel (run_lvl_changed);
+    SKIF_Util_OpenURI(root_dir);
+  }
 
-    // Injection Summary
-    auto frame_id =
-      ImGui::GetID("###Global_Injection_Summary_Frame");
+  SKIF_ImGui_SetMouseCursorHand();
+  SKIF_ImGui_SetHoverText(SK_FormatString(R"(%ws)", root_dir).c_str());
+  SKIF_ImGui_SetHoverTip("Open the config root folder");
 
-    SKIF_ImGui_BeginChildFrame(frame_id, ImVec2(0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing()),
-      ImGuiWindowFlags_NavFlattened |
-      ImGuiWindowFlags_NoScrollbar |
-      ImGuiWindowFlags_NoScrollWithMouse |
-      ImGuiWindowFlags_NoBackground);
+  // 32-bit/64-bit Services
+  if (pid32)
+    ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
+  else
+    ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
 
+  if (pid64)
+    ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
+  else
+    ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
 
-    // Begin columns
-    ImGui::BeginGroup();
+  ImGui::ItemSize(ImVec2(100.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 100px (scaled with the DPI)
+  ImGui::EndGroup();
 
-    // Column 1
-    ImGui::BeginGroup();
-    ImGui::TextUnformatted( (SKVer32 == SKVer64) ? ("Special K v " + SKVer32).c_str() : "Special K" );
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-    ImGui::TextUnformatted("Config Root:");
-    ImGui::TextUnformatted("32-bit Service:");
-    ImGui::TextUnformatted("64-bit Service:");
-    ImGui::PopStyleColor();
-    ImGui::ItemSize(ImVec2(140.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 130px (scaled with the DPI)
-    ImGui::EndGroup();
+  ImGui::SameLine();
 
-    ImGui::SameLine();
+  // Column 3
+  ImGui::BeginGroup();
+  // empty
+  ImGui::NewLine();
+  ImGui::NewLine();
 
-    // Column 2
-    ImGui::BeginGroup();
+  if (SKVer32 != SKVer64)
+  {
+    ImGui::Text("( v %s )", SKVer32.c_str());
+    ImGui::Text("( v %s )", SKVer64.c_str());
+  }
+  else
     ImGui::NewLine();
 
-    // Config Root
-    static std::wstring root_dir =
-      std::wstring(path_cache.specialk_userdata.path);
-    if (ImGui::Selectable("Centralized"))
-    {
-      SKIF_Util_OpenURI(root_dir);
-    }
+  ImGui::EndGroup();
 
-    SKIF_ImGui_SetMouseCursorHand();
-    SKIF_ImGui_SetHoverText(SK_FormatString(R"(%ws)", root_dir).c_str());
-    SKIF_ImGui_SetHoverTip("Open the config root folder");
-
-    // 32-bit/64-bit Services
-    if (pid32)
-      ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
-    else
-      ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
-
-    if (pid64)
-      ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Running");
-    else
-      ImGui::TextColored(ImColor::HSV(0.08F, 0.99F, 1.F), "Not Running");
-
-    ImGui::ItemSize(ImVec2(100.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 100px (scaled with the DPI)
-    ImGui::EndGroup();
-
-    ImGui::SameLine();
-
-    // Column 3
-    ImGui::BeginGroup();
-    // empty
-    ImGui::NewLine();
-    ImGui::NewLine();
-
-    if (SKVer32 != SKVer64)
-    {
-      ImGui::Text("( v %s )", SKVer32.c_str());
-      ImGui::Text("( v %s )", SKVer64.c_str());
-    }
-    else
-      ImGui::NewLine();
-
-    ImGui::EndGroup();
-
-    // End columns
-    ImGui::EndGroup();
-    ImGui::EndChildFrame();
+  // End columns
+  ImGui::EndGroup();
+  ImGui::EndChildFrame();
 
 
-    ImGui::Separator();
+  ImGui::Separator();
 
 
 
-    // Start/Stop Service
-    auto frame_id2 =
-      ImGui::GetID("###Global_Injection_Toggle_Frame");
+  // Start/Stop Service
+  auto frame_id2 =
+    ImGui::GetID("###Global_Injection_Toggle_Frame");
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120.0f * SKIF_ImGui_GlobalDPIScale, 40.0f * SKIF_ImGui_GlobalDPIScale));
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120.0f * SKIF_ImGui_GlobalDPIScale, 40.0f * SKIF_ImGui_GlobalDPIScale));
 
-    SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(0.0f, 110.f *SKIF_ImGui_GlobalDPIScale),
-      ImGuiWindowFlags_NavFlattened |
-      ImGuiWindowFlags_NoScrollbar |
-      ImGuiWindowFlags_NoScrollWithMouse |
-      ImGuiWindowFlags_NoBackground);
+  SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(0.0f, 110.f *SKIF_ImGui_GlobalDPIScale),
+    ImGuiWindowFlags_NavFlattened |
+    ImGuiWindowFlags_NoScrollbar |
+    ImGuiWindowFlags_NoScrollWithMouse |
+    ImGuiWindowFlags_NoBackground);
 
-    ImGui::PopStyleVar();
+  ImGui::PopStyleVar();
 
+
+  if ( ! bHasServletTasks )
+  {
+    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+      ImGui::GetStyle().Alpha *
+      ((SKIF_IsHDR()) ? 0.1f
+        : 0.5f
+        ));
+  }
     
-    if (run_lvl_changed)
+  if (run_lvl_changed)
+  {
+    const char *szStartStopLabel =
+      running ?  "Stop Service###GlobalStartStop"  :
+                "Start Service###GlobalStartStop";
+
+    if (ImGui::Button (szStartStopLabel, ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale)))
     {
-      const char *szStartStopLabel =
-        running ?  "Stop Service###GlobalStartStop"  :
-                  "Start Service###GlobalStartStop";
+      _StartStopInject (running);
 
-      if (ImGui::Button (szStartStopLabel, ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale)))
-      {
-        _StartStopInject (running);
-
-        run_lvl_changed = false;
-      }
+      run_lvl_changed = false;
     }
-    else
-      ImGui::ButtonEx (running ? "Stopping...###GlobalStartStop" :
-                               "Starting...###GlobalStartStop"
-                    , ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), ImGuiButtonFlags_Disabled);
+  }
+  else
+    ImGui::ButtonEx (running ? "Stopping...###GlobalStartStop" :
+                              "Starting...###GlobalStartStop"
+                  , ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), ImGuiButtonFlags_Disabled);
 
-    if (! running && SKIF_bDisableExitConfirmation)
-        SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
+  if ( ! running && SKIF_bDisableExitConfirmation)
+      SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
-    ImGui::EndChildFrame();
+  if ( ! bHasServletTasks )
+  {
+    ImGui::PopStyleVar();
+    ImGui::PopItemFlag();
+  }
+
+  ImGui::EndChildFrame();
 
 
 
-    // Tips 'n Tricks
-    auto frame_id3 =
-      ImGui::GetID("###Global_Injection_TipsNTricks");
+  // Tips 'n Tricks
+  auto frame_id3 =
+    ImGui::GetID("###Global_Injection_TipsNTricks");
 
-    SKIF_ImGui_BeginChildFrame(frame_id3, ImVec2(0.0f, 2.0f * ImGui::GetTextLineHeightWithSpacing()),
-      ImGuiWindowFlags_NavFlattened |
-      ImGuiWindowFlags_NoScrollbar |
-      ImGuiWindowFlags_NoScrollWithMouse |
-      ImGuiWindowFlags_NoBackground);
+  SKIF_ImGui_BeginChildFrame(frame_id3, ImVec2(0.0f, 2.0f * ImGui::GetTextLineHeightWithSpacing()),
+    ImGuiWindowFlags_NavFlattened |
+    ImGuiWindowFlags_NoScrollbar |
+    ImGuiWindowFlags_NoScrollWithMouse |
+    ImGuiWindowFlags_NoBackground);
 
+  if ( bHasServletTasks )
+  {
     ImGui::BeginGroup();
     ImGui::Spacing(); ImGui::SameLine();
     ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "The service injects Special K into most user processes.");
@@ -535,16 +555,16 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (ImGui::IsItemClicked())
       SKIF_Util_OpenURI(L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-
-    ImGui::EndChildFrame();
-
-  } else {
-    ImGui::Spacing();
-
-    ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Global injection service is unavailable as the required\n\"Servlets\" subfolder and files are missing.");
-
-    ImGui::Spacing();
   }
+
+  else {
+    ImGui::PushStyleColor(ImGuiCol_Text, ImColor::HSV(0.11F, 1.F, 1.F).Value);
+    ImGui::TextWrapped("Global injection service is unavailable as one or more of the required files are missing.");
+    ImGui::PopStyleColor();
+  }
+
+  ImGui::EndChildFrame();
+
   SKIF_ServiceRunning = running;
 
   return running;
@@ -554,54 +574,69 @@ void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
     ImGui::BeginGroup();
+    
+    static bool requiredFiles = PathFileExistsW(LR"(Servlet\enable_logon.bat)") &&
+                                PathFileExistsW(LR"(Servlet\disable_logon.bat)");
 
-    if (bHasServlet)
+    ImGui::Spacing();
+    ImGui::Text("The global injection service can be configured to start automatically with Windows.");
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
+    ImGui::EndGroup();
+
+    ImGui::BeginGroup();
+    ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Note that SKIF will not start alongside the service.");
+    ImGui::EndGroup();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    if (! requiredFiles)
     {
-        ImGui::Spacing();
-        ImGui::Text("The global injection service can be configured to start automatically with Windows.");
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        ImGui::BeginGroup();
-        ImGui::Spacing(); ImGui::SameLine();
-        ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "This setting affects all users on the system.");
-        ImGui::EndGroup();
-
-        ImGui::BeginGroup();
-        ImGui::Spacing(); ImGui::SameLine();
-        ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Note that SKIF will not start alongside the service.");
-        ImGui::EndGroup();
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        if (ImGui::Checkbox("Start At Logon", &bLogonTaskEnabled))
-        {
-            const wchar_t* wszLogonTaskCmd =
-                (bLogonTaskEnabled ?
-                    LR"(Servlet\enable_logon.bat)" :
-                    LR"(Servlet\disable_logon.bat)");
-
-            if (
-                ShellExecuteW(
-                    nullptr, L"runas",
-                    wszLogonTaskCmd,
-                    nullptr, nullptr,
-                    SW_HIDE) < (HINSTANCE)32)
-            {
-                bLogonTaskEnabled =
-                    !bLogonTaskEnabled;
-            }
-        }
-
-        SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
+      // Disable button
+      ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+        ImGui::GetStyle().Alpha *
+        ((SKIF_IsHDR()) ? 0.1f
+          : 0.5f
+          ));
     }
-    else
-    {
-        ImGui::Spacing();
 
-        ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Settings are unavailable as the required files are missing.");
+    if (ImGui::Checkbox("Start At Logon", &bLogonTaskEnabled))
+    {
+      const wchar_t* wszLogonTaskCmd =
+        (bLogonTaskEnabled ?
+          LR"(Servlet\enable_logon.bat)" :
+          LR"(Servlet\disable_logon.bat)");
+
+      if (
+        ShellExecuteW(
+          nullptr, L"runas",
+          wszLogonTaskCmd,
+          nullptr, nullptr,
+          SW_HIDE) < (HINSTANCE)32)
+      {
+        bLogonTaskEnabled =
+          !bLogonTaskEnabled;
+      }
+    }
+
+    SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
+
+    if (! requiredFiles)
+    {
+      ImGui::PopStyleVar();
+      ImGui::PopItemFlag();
+
+      ImGui::SameLine();
+
+      ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as one or more of the required files are missing.");
     }
 
     ImGui::EndGroup();

@@ -1767,6 +1767,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::CollapsingHeader("Advanced CPU Hardware Reporting"))
             {
               ImGui::BeginGroup();
+
               ImGui::Spacing();
               ImGui::Text("Special K can make use of an optional kernel driver to provide advanced CPU hardware reporting.");
 
@@ -1808,37 +1809,65 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::Spacing();
               ImGui::Spacing();
 
-              // Disable button if the status is pending
-              if (driverPending != driverStatus)
-              {
-                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-                  ImGui::GetStyle().Alpha *
-                  ((SKIF_IsHDR()) ? 0.1f
-                    : 0.5f
-                    ));
-              }
+              static bool requiredFiles = PathFileExistsW(LR"(Servlet\driver_install.bat)")   &&
+                                          PathFileExistsW(LR"(Servlet\driver_install.ps1)")   &&
+                                          PathFileExistsW(LR"(Servlet\driver_uninstall.bat)") &&
+                                          PathFileExistsW(LR"(Servlet\driver_uninstall.ps1)");
 
-              if (ImGui::ButtonEx(btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+              if (requiredFiles)
               {
-                if (
-                  ShellExecuteW(
-                    nullptr, L"runas",
-                    wszDriverTaskCmd,
-                    nullptr, nullptr,
-                    SW_HIDE) > (HINSTANCE)32)
+                // Disable button if the status is pending
+                if (driverPending != driverStatus)
                 {
-                  // Batch call succeeded -- flip driverPending to the opposite of driverStatus
-                  //   to sign that a new state may be pending.
-                  driverPending = !driverStatus;
+                  ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                  ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+                    ImGui::GetStyle().Alpha *
+                    ((SKIF_IsHDR()) ? 0.1f
+                      : 0.5f
+                      ));
+                }
+
+                // Show Button
+                if (ImGui::ButtonEx(btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+                {
+                  if (
+                    ShellExecuteW(
+                      nullptr, L"runas",
+                      wszDriverTaskCmd,
+                      nullptr, nullptr,
+                      SW_HIDE) > (HINSTANCE)32)
+                  {
+                    // Batch call succeeded -- flip driverPending to the opposite of driverStatus
+                    //   to sign that a new state may be pending.
+                    driverPending = !driverStatus;
+                  }
+                }
+
+                // Disable button (-- 'else if' is to prevent it from being called when the button has actually been pressed)
+                else if (driverPending != driverStatus)
+                {
+                  ImGui::PopStyleVar();
+                  ImGui::PopItemFlag();
                 }
               }
 
-              // Disable button (-- 'else if' is to prevent it from being called when the button has actually been pressed)
-              else if (driverPending != driverStatus)
-              {
+              else {
+                // Disable button
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+                  ImGui::GetStyle().Alpha*
+                  ((SKIF_IsHDR()) ? 0.1f
+                    : 0.5f
+                    ));
+
+                ImGui::ButtonEx("Not available", ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale));
+
                 ImGui::PopStyleVar();
                 ImGui::PopItemFlag();
+
+                ImGui::SameLine();
+
+                ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as one or more of the required files are missing.");
               }
 
               ImGui::EndGroup();
