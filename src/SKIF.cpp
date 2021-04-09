@@ -28,6 +28,7 @@ int WindowsCursorSize = 1;
 bool SKIF_bDisableDPIScaling = false,
      SKIF_bDisableExitConfirmation = false,
      SKIF_bDisableTooltips = false,
+     SKIF_bDisableStatusBar = false,
      SKIF_bSmallMode = false,
      SKIF_bFirstLaunch = false;
 
@@ -1217,6 +1218,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
           LR"(Disable Tooltips)" );
 
+  static auto regKVDisableStatusBar =
+    SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+      LR"(Disable Status Bar)");
+
   static auto regKVSmallMode =
     SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
       LR"(Small Mode)");
@@ -1229,6 +1234,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData ();
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ();
   SKIF_bDisableTooltips         = regKVDisableTooltips.getData();
+  SKIF_bDisableStatusBar        = regKVDisableStatusBar.getData();
   SKIF_bSmallMode               = regKVSmallMode.getData();
   SKIF_bFirstLaunch             = regKVFirstLaunch.getData();
 
@@ -1458,14 +1464,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Fixes the wobble that occurs when switching between tabs,
         //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
-#define SKIF_hLargeMode  975
+#define SKIF_hLargeMode  944 // Does not include the status bar
 #define SKIF_wSmallMode  415
 #define SKIF_hSmallMode  305
         ImVec2 SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode                       * SKIF_ImGui_GlobalDPIScale,
                                               SKIF_hSmallMode                       * SKIF_ImGui_GlobalDPIScale);
         ImVec2 SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode                       * SKIF_ImGui_GlobalDPIScale,
                                               SKIF_hLargeMode                       * SKIF_ImGui_GlobalDPIScale);
-        SKIF_vecLargeMode.y       += (SKIF_bDisableTooltips) ? (ImGui::GetTextLineHeight() * 0.7f) : 0.0f;
+
+        // Add the status bar if it is not disabled
+        if ( ! SKIF_bDisableStatusBar )
+        {
+          SKIF_vecLargeMode.y += 31.0f * SKIF_ImGui_GlobalDPIScale;
+          SKIF_vecLargeMode.y += (SKIF_bDisableTooltips) ? (ImGui::GetTextLineHeight() * 0.7f) : 0.0f;
+        }
+
+        // Fixes weird size difference with this exact combination of settings which only occurs when DPI scaling is disabled
+        if ( ! SKIF_bDisableStatusBar && SKIF_bDisableTooltips && SKIF_bDisableDPIScaling)
+          SKIF_vecLargeMode.y += 6.0f;
+
         ImVec2 SKIF_vecCurrentMode = (SKIF_bSmallMode) ? SKIF_vecSmallMode : SKIF_vecLargeMode;
 
 
@@ -1731,15 +1748,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup();
               ImGui::Spacing();
 
-              if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
-                regKVDisableTooltips.putData(SKIF_bDisableTooltips);
-
-              if (ImGui::IsItemHovered())
-                SKIF_StatusBarText = "Info: ";
-              SKIF_ImGui_SetHoverText("This is where the info will be displayed.");
-              SKIF_ImGui_SetHoverTip ("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
-
-              ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
               if (ImGui::Checkbox("Disable UI scaling based on display DPI", &SKIF_bDisableDPIScaling))
               {
                 io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
@@ -1750,12 +1758,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 regKVDisableDPIScaling.putData(SKIF_bDisableDPIScaling);
               }
 
+              SKIF_ImGui_SetHoverTip("This application will appear much smaller on HiDPI monitors.");
+
+              if (ImGui::Checkbox("Disable UI tooltips", &SKIF_bDisableTooltips))
+                regKVDisableTooltips.putData(SKIF_bDisableTooltips);
+
+              if (ImGui::IsItemHovered())
+                SKIF_StatusBarText = "Info: ";
+              SKIF_ImGui_SetHoverText("This is where the info will be displayed.");
+              SKIF_ImGui_SetHoverTip ("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
+
+              if (ImGui::Checkbox("Disable UI status bar", &SKIF_bDisableStatusBar))
+                regKVDisableStatusBar.putData(SKIF_bDisableStatusBar);
+
+              SKIF_ImGui_SetHoverTip("Combining this with disabled UI tooltips will hide all context based information or tips.");
+
               if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF", &SKIF_bDisableExitConfirmation))
                 regKVDisableExitConfirmation.putData(SKIF_bDisableExitConfirmation);
 
               SKIF_ImGui_SetHoverTip("The global injector will remain active in the background.");
 
               _DrawHDRConfig();
+
+              if (SKIF_bDisableTooltips && SKIF_bDisableStatusBar)
+              {
+                ImGui::BeginGroup();
+                ImGui::Spacing(); ImGui::SameLine();
+                ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine(); ImGui::TextColored(ImColor(0.68F, 0.68F, 0.68F), "Both tooltips and status bar are disabled; context based information or tips will not appear!");
+                ImGui::EndGroup();
+              }
 
               ImGui::EndGroup();
             }
@@ -2358,10 +2389,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::EndGroup();
 
-
-        // Separate Content Area from Status Bar
-        //ImGui::ItemSize(ImVec2(0.0f, 0.5f * SKIF_ImGui_GlobalDPIScale), 0.0f);
-
+        // Status Bar at the bottom
         if ( ! SKIF_bSmallMode )
         {
           ImVec2 currPos = ImGui::GetCursorPos();
@@ -2370,57 +2398,58 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SetCursorPosX(404.0f * SKIF_ImGui_GlobalDPIScale);
           ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
 
-          ImGui::SetCursorPos(currPos);
-
-          ImGui::Separator();
-
-          // End Separation
-
-          auto _StatusPartSize = [&](std::string& part) -> float
+          if ( ! SKIF_bDisableStatusBar )
           {
-            return
-              part.empty() ?
-              0.0f : ImGui::CalcTextSize(
-                part.c_str()
-              ).x;
-          };
+            ImGui::SetCursorPos(currPos);
 
-          float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
-                fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
+            ImGui::Separator();
 
-          ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-            ImGui::GetWindowSize().x -
-            (fStatusWidth +
-              fHelpWidth) -
-            ImGui::GetScrollX() -
-            2 * ImGui::GetStyle().ItemSpacing.x);
+            // End Separation
 
-          ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
-            ImGui::GetTextLineHeight() / 4.0f);
+            auto _StatusPartSize = [&](std::string& part) -> float
+            {
+              return
+                part.empty() ?
+                0.0f : ImGui::CalcTextSize(
+                  part.c_str()
+                ).x;
+            };
 
-          ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f),
-            "%s",
-            SKIF_StatusBarText.c_str());
+            float fStatusWidth = _StatusPartSize(SKIF_StatusBarText),
+              fHelpWidth = _StatusPartSize(SKIF_StatusBarHelp);
 
-          if (!SKIF_StatusBarHelp.empty())
-          {
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(
-              ImGui::GetCursorPosX() -
-              ImGui::GetStyle().ItemSpacing.x
-            );
-            ImGui::TextDisabled("%s", SKIF_StatusBarHelp.c_str());
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+              ImGui::GetWindowSize().x -
+              (fStatusWidth +
+                fHelpWidth) -
+              ImGui::GetScrollX() -
+              2 * ImGui::GetStyle().ItemSpacing.x);
+
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
+              ImGui::GetTextLineHeight() / 4.0f);
+
+            ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f),
+              "%s",
+              SKIF_StatusBarText.c_str());
+
+            if (!SKIF_StatusBarHelp.empty())
+            {
+              ImGui::SameLine();
+              ImGui::SetCursorPosX(
+                ImGui::GetCursorPosX() -
+                ImGui::GetStyle().ItemSpacing.x
+              );
+              ImGui::TextDisabled("%s", SKIF_StatusBarHelp.c_str());
+            }
+
+            // Clear the status every frame, it's mostly used for mouse hover tooltips.
+            SKIF_StatusBarText = "";
+            SKIF_StatusBarHelp = "";
           }
-
-          // Clear the status every frame, it's mostly used for mouse hover tooltips.
-          SKIF_StatusBarText = "";
-          SKIF_StatusBarHelp = "";
-
         }
 
 
         // Confirm Exit prompt
-
         ImGui::SetNextWindowSize(ImVec2(515.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
         if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
         {
