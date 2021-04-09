@@ -25,7 +25,7 @@ int WindowsCursorSize = 1;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
-bool SKIF_bDPIScaling = true,
+bool SKIF_bDisableDPIScaling = false,
      SKIF_bDisableExitConfirmation = false,
      SKIF_bDisableTooltips = false,
      SKIF_bSmallMode = false,
@@ -1205,9 +1205,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   WindowsCursorSize = SKIF_MakeRegKeyI(LR"(SOFTWARE\Microsoft\Accessibility\)",
       LR"(CursorSize)").getData();
 
-  static auto regKVDPIScaling =
+  static auto regKVDisableDPIScaling =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(SKIF DPI Scaling)" );
+                         LR"(Disable DPI Scaling)" );
 
   static auto regKVDisableExitConfirmation =
       SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -1226,7 +1226,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       LR"(First Launch)");
 
   // Read current settings
-  SKIF_bDPIScaling              = regKVDPIScaling.getData ();
+  SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData ();
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ();
   SKIF_bDisableTooltips         = regKVDisableTooltips.getData();
   SKIF_bSmallMode               = regKVSmallMode.getData();
@@ -1331,6 +1331,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
+  io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
   io.ConfigViewportsNoAutoMerge      = false;
   io.ConfigViewportsNoTaskBarIcon    =  true;
   io.ConfigViewportsNoDefaultParent  = false;
@@ -1338,9 +1339,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingTransparentPayload =  true;
 
 
-  if (SKIF_bDPIScaling)
+  if (SKIF_bDisableDPIScaling)
   {
-    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
+    io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
   //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
   }
 
@@ -1714,17 +1715,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (ImGui::IsItemHovered())
                 SKIF_StatusBarText = "Info: ";
               SKIF_ImGui_SetHoverText("This is where the info will be displayed.");
-              SKIF_ImGui_SetHoverTip("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
+              SKIF_ImGui_SetHoverTip ("The info will instead be displayed in the status bar at the bottom.\nNote that some links cannot be previewed as a result.");
 
               ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-              if (ImGui::Checkbox("Scale the UI based on the DPI###EnableDPI", &SKIF_bDPIScaling))
+              if (ImGui::Checkbox("Disable UI scaling based on display DPI", &SKIF_bDisableDPIScaling))
               {
-                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
+                io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 
-                if (SKIF_bDPIScaling)
-                  io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+                if (SKIF_bDisableDPIScaling)
+                  io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
 
-                regKVDPIScaling.putData(SKIF_bDPIScaling);
+                regKVDisableDPIScaling.putData(SKIF_bDisableDPIScaling);
               }
 
               if (ImGui::Checkbox("Do not prompt about a running service when closing SKIF", &SKIF_bDisableExitConfirmation))
