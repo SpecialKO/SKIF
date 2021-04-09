@@ -1458,23 +1458,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Fixes the wobble that occurs when switching between tabs,
         //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
-#define SKIF_hLargeMode 1000
+#define SKIF_hLargeMode  975
 #define SKIF_wSmallMode  415
-#define SKIF_hSmallMode  340
+#define SKIF_hSmallMode  305
         ImVec2 SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode                       * SKIF_ImGui_GlobalDPIScale,
                                               SKIF_hSmallMode                       * SKIF_ImGui_GlobalDPIScale);
         ImVec2 SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode                       * SKIF_ImGui_GlobalDPIScale,
                                               SKIF_hLargeMode                       * SKIF_ImGui_GlobalDPIScale);
-        SKIF_vecLargeMode.y       += (SKIF_bDisableTooltips) ? (ImGui::GetTextLineHeight() * 0.6f) : 0.0f;
+        SKIF_vecLargeMode.y       += (SKIF_bDisableTooltips) ? (ImGui::GetTextLineHeight() * 0.7f) : 0.0f;
         ImVec2 SKIF_vecCurrentMode = (SKIF_bSmallMode) ? SKIF_vecSmallMode : SKIF_vecLargeMode;
 
 
         ImGui::SetNextWindowSize(SKIF_vecCurrentMode);
 
         ImGui::Begin(SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
-          &bKeepWindowAlive,
+          nullptr,
           ImGuiWindowFlags_AlwaysAutoResize |
-          ImGuiWindowFlags_NoCollapse
+          ImGuiWindowFlags_NoCollapse |
+          ImGuiWindowFlags_NoTitleBar
         );
 
         const int monitor_idx = ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend;
@@ -1579,27 +1580,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SK_RunOnce(_inject._RefreshSKDLLVersions());
 
-        /*
+        ImVec2 topCursorPos = ImGui::GetCursorPos();
+
+
+        // Top right window buttons
         ImRect titlebar = ImGui::GetCurrentWindowRead()->TitleBarRect();
 
         ImGui::SetCursorPosX(titlebar.GetWidth() - 160.0f * SKIF_ImGui_GlobalDPIScale);
+        ImGui::SetCursorPosY(4.0f * SKIF_ImGui_GlobalDPIScale);
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 25.0f);
 
-        ImGui::Button("Small Mode", ImVec2(100.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+        if (ImGui::Button((SKIF_bSmallMode) ? "Large Mode" : "Small Mode", ImVec2(100.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
+        {
+          SKIF_bSmallMode = !SKIF_bSmallMode;
+          regKVSmallMode.putData(SKIF_bSmallMode);
+        }
 
         ImGui::SameLine();
 
-        ImGui::Button("-", ImVec2(20.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+        if ( ImGui::Button("-", ImVec2(20.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)) )
+          ShowWindow(hWnd, SW_MINIMIZE);
 
         ImGui::SameLine();
 
-        ImGui::Button("X", ImVec2(20.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+        if (ImGui::Button("X", ImVec2(20.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
+          if (SKIF_ServiceRunning && !SKIF_bDisableExitConfirmation)
+            ImGui::OpenPopup("Confirm Exit");
+          else
+            bKeepProcessAlive = false;
 
         ImGui::PopStyleVar();
-        */
 
-        float topCursorPosY = ImGui::GetCursorPosY();
+        if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation)
+          SKIF_ImGui_SetHoverTip("Service continues running after SKIF is closed");
+        
+        ImGui::SetCursorPos(topCursorPos);
+
+        // End of top right window buttons
+
 
         ImGui::BeginGroup();
 
@@ -1608,6 +1627,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           auto smallMode_id =
             ImGui::GetID("###Small_Mode_Frame");
+
+          // A new line to allow the window titlebar buttons to be accessible
+          ImGui::NewLine();
 
           SKIF_ImGui_BeginChildFrame(smallMode_id, ImVec2(400.0f * SKIF_ImGui_GlobalDPIScale, 12.0f * ImGui::GetTextLineHeightWithSpacing()), ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NavFlattened |
             ImGuiWindowFlags_NoScrollbar |
@@ -2127,7 +2149,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndTabItem();
           }
 
-          if (ImGui::BeginTabItem("Help", nullptr, flags))
+          bool helpSelected = ImGui::BeginTabItem("Help", nullptr, flags);
+
+          if (helpSelected)
           {
             SKIF_ImGui_BeginTabChildFrame();
 
@@ -2309,20 +2333,64 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Separate Content Area from Status Bar
         //ImGui::ItemSize(ImVec2(0.0f, 0.5f * SKIF_ImGui_GlobalDPIScale), 0.0f);
 
-        ImGui::Separator();
-
-        // End Separation
-
-        ImGui::Columns(2, nullptr, false);
-
-        // Exit / Collapse
-        if (ImGui::Button("Exit") || !bKeepWindowAlive)
+        if ( ! SKIF_bSmallMode )
         {
-          if (SKIF_ServiceRunning && !SKIF_bDisableExitConfirmation)
-            ImGui::OpenPopup("Confirm Exit");
-          else
-            bKeepProcessAlive = false;
+          ImVec2 currPos = ImGui::GetCursorPos();
+
+          ImGui::SetCursorPosY(7.0f * SKIF_ImGui_GlobalDPIScale);
+          ImGui::SetCursorPosX(404.0f * SKIF_ImGui_GlobalDPIScale);
+          ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
+
+          ImGui::SetCursorPos(currPos);
+
+          ImGui::Separator();
+
+          // End Separation
+
+          auto _StatusPartSize = [&](std::string& part) -> float
+          {
+            return
+              part.empty() ?
+              0.0f : ImGui::CalcTextSize(
+                part.c_str()
+              ).x;
+          };
+
+          float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
+                fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
+
+          ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+            ImGui::GetWindowSize().x -
+            (fStatusWidth +
+              fHelpWidth) -
+            ImGui::GetScrollX() -
+            2 * ImGui::GetStyle().ItemSpacing.x);
+
+          ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
+            ImGui::GetTextLineHeight() / 4.0f);
+
+          ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f),
+            "%s",
+            SKIF_StatusBarText.c_str());
+
+          if (!SKIF_StatusBarHelp.empty())
+          {
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(
+              ImGui::GetCursorPosX() -
+              ImGui::GetStyle().ItemSpacing.x
+            );
+            ImGui::TextDisabled("%s", SKIF_StatusBarHelp.c_str());
+          }
+
+          // Clear the status every frame, it's mostly used for mouse hover tooltips.
+          SKIF_StatusBarText = "";
+          SKIF_StatusBarHelp = "";
+
         }
+
+
+        // Confirm Exit prompt
 
         ImGui::SetNextWindowSize(ImVec2(515.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
         if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
@@ -2371,83 +2439,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::EndPopup();
         }
-
-        if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation)
-          SKIF_ImGui_SetHoverTip("Service continues running after SKIF is closed");
-
-        ImGui::SameLine();
-
-        // Minimize
-        if (ImGui::Button("Minimize"))
-          ShowWindow(hWnd, SW_MINIMIZE);
-
-        ImGui::SameLine();
-
-        if (ImGui::Button( (SKIF_bSmallMode) ? "Large Mode" : "Small Mode" ))
-        {
-          SKIF_bSmallMode = !SKIF_bSmallMode;
-          regKVSmallMode.putData(SKIF_bSmallMode);
-        }
-
-        ImGui::SameLine();
-
-        float exitButtonMaxX = ImGui::GetCursorPosX();
-
-        // Compensate for disabled tooltips by adding an additional line to the status bar at all times
-        //   to prevent wobbly image when the window height dynamically resizes as the status bar contents
-        //   change.
-
-        ImGui::SetColumnWidth(0,
-          exitButtonMaxX
-          /*
-          ImGui::GetCursorPosX() +
-          ImGui::GetStyle().ColumnsMinSpacing +
-          ImGui::GetStyle().ItemSpacing.x +
-          ImGui::GetStyle().FramePadding.x * 2.0f
-          */
-        );
-
-        auto _StatusPartSize = [&](std::string& part) -> float
-        {
-          return
-            part.empty() ?
-            0.0f : ImGui::CalcTextSize(
-              part.c_str()
-            ).x;
-        };
-
-        float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
-              fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
-
-        ImGui::NextColumn();
-
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-          ImGui::GetColumnWidth() -
-          (fStatusWidth +
-            fHelpWidth) -
-          ImGui::GetScrollX() -
-          2 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
-          ImGui::GetTextLineHeight() / 4.0f);
-        ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f),
-          "%s",
-          SKIF_StatusBarText.c_str());
-
-        if (!SKIF_StatusBarHelp.empty())
-        {
-          ImGui::SameLine();
-          ImGui::SetCursorPosX(
-            ImGui::GetCursorPosX() -
-            ImGui::GetStyle().ItemSpacing.x
-          );
-          ImGui::TextDisabled("%s", SKIF_StatusBarHelp.c_str());
-        }
-
-        // Clear the status every frame, it's mostly used for mouse hover tooltips.
-        SKIF_StatusBarText = "";
-        SKIF_StatusBarHelp = "";
-
-        ImGui::Columns(1);
 
         ImGui::End();
       }
