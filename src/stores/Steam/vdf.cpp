@@ -434,6 +434,12 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                     SK_UTF8ToWideChar ((const char *)key.second.second);
                 }
               }
+
+              // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
+              if ( ! launch_cfg.executable.empty() )
+               std::replace(launch_cfg.executable.begin(), launch_cfg.executable.end(), '/', '\\');
+              if ( ! launch_cfg.working_dir.empty() )
+                std::replace(launch_cfg.working_dir.begin(), launch_cfg.working_dir.end(), '/', '\\');
             }
           }
         }
