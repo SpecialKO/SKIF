@@ -25,6 +25,7 @@
 
 extern bool SKIF_STEAM_OWNER = false;
 const int   SKIF_STEAM_APPID = 1157970;
+static bool clickedGameLaunch = false;
 
 #include <SKIF.h>
 #include <injection.h>
@@ -1232,7 +1233,7 @@ SKIF_GameManagement_DrawTab (void)
         switch (sk_install.injection.type)
         {
           case sk_install_state_s::Injection::Type::Global:
-            launch_description = "Click to launch game :: (Without Special K)";
+            launch_description = "Click to launch game (without Special K)";
 
             if (_inject.bHasServlet)
             {
@@ -1252,13 +1253,13 @@ SKIF_GameManagement_DrawTab (void)
               cache.dll.shorthand = "";
             else
             {
-              launch_description = "Click to launch game :: (Global Injection)";
+              launch_description = "Click to launch game (global injection)";
             }
             break;
 
           case sk_install_state_s::Injection::Type::Local:
             cache.injection.type = "Local";
-              launch_description = "Click to launch game :: (Local Injection)";
+              launch_description = "Click to launch game with (local injection)";
             break;
         }
 
@@ -1425,15 +1426,75 @@ SKIF_GameManagement_DrawTab (void)
                   ));
       }
 
-      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags))
+      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags) || clickedGameLaunch)
       {
-        SKIF_Util_OpenURI(
+        clickedGameLaunch = false;
+        if ( ! _inject.running && cache.injection.type == "Global" )
+        {
+          ImGui::OpenPopup("Confirm Launch");
+        }
+        else {
+          SKIF_Util_OpenURI(
             std::wstring(L"steam://run/") +
             std::to_wstring(pTargetApp->id),
             SW_SHOWNA
-        );
+          );
 
-        pTargetApp->_status.invalidate();
+          pTargetApp->_status.invalidate();
+        }
+      }
+
+      SKIF_ImGui_SetHoverTip( launch_description.c_str() );
+
+      ImGui::SetNextWindowSize(ImVec2(464.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+      if (ImGui::BeginPopupModal("Confirm Launch", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
+      {
+        SKIF_ImGui_Spacing();
+
+        ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "      Special K will be unavailable in the game unless the global\n                             injection service is started.");
+
+        SKIF_ImGui_Spacing();
+
+        if (ImGui::Button("Start Service And Launch Game", ImVec2(0 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+        {
+          _inject._StartStopInject(false);
+
+          SKIF_Util_OpenURI(
+            std::wstring(L"steam://run/") +
+            std::to_wstring(pTargetApp->id),
+            SW_SHOWNA
+          );
+
+          pTargetApp->_status.invalidate();
+          ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+        ImGui::Spacing();
+        ImGui::SameLine();
+
+        if (ImGui::Button("Launch Game", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+        {
+          SKIF_Util_OpenURI(
+            std::wstring(L"steam://run/") +
+            std::to_wstring(pTargetApp->id),
+            SW_SHOWNA
+          );
+
+          pTargetApp->_status.invalidate();
+          ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+        ImGui::Spacing();
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+        {
+          ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
       }
 
       if (pTargetApp->_status.running)
@@ -1548,18 +1609,12 @@ SKIF_GameManagement_DrawTab (void)
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
-      if (pApp != nullptr &&
-        pApp->id != SKIF_STEAM_APPID &&
-        !pApp->_status.running
+      if ( pApp     != nullptr          &&
+           pApp->id != SKIF_STEAM_APPID &&
+         ! pApp->_status.running
         )
       {
-        SKIF_Util_OpenURI(
-          std::wstring(L"steam://run/") +
-          std::to_wstring(pApp->id),
-          SW_SHOWNA
-        );
-
-        pApp->_status.invalidate();
+        clickedGameLaunch = true;
       }
     }
 
@@ -1744,13 +1799,7 @@ SKIF_GameManagement_DrawTab (void)
       {
         if (ImGui::Selectable(("Launch " + pApp->type).c_str(), false, ( (pApp->_status.running != 0x0) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
         {
-          SKIF_Util_OpenURI(
-            std::wstring(L"steam://run/") +
-            std::to_wstring(pApp->id),
-            SW_SHOWNA
-          );
-
-          pApp->_status.invalidate();
+          clickedGameLaunch = true;
         }
       }
       

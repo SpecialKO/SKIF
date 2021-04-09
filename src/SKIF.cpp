@@ -232,7 +232,7 @@ void SKIF_ImGui_SetHoverText (const char* szText, bool overrideExistingText)
 
 void SKIF_ImGui_Spacing (float multiplier)
 {
-  ImGui::ItemSize(ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * multiplier));
+  ImGui::ItemSize(ImVec2(ImGui::GetTextLineHeightWithSpacing() * multiplier, ImGui::GetTextLineHeightWithSpacing() * multiplier));
 }
 
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
@@ -1598,6 +1598,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::PopStyleVar();
         */
 
+        float topCursorPosY = ImGui::GetCursorPosY();
+
         ImGui::BeginGroup();
 
         // Begin Small Mode
@@ -2321,13 +2323,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             bKeepProcessAlive = false;
         }
 
+        ImGui::SetNextWindowSize(ImVec2(515.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
         if (ImGui::BeginPopupModal("Confirm Exit", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
         {
-          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "            Exiting without stopping the service will leave the global\n                          injection running in the background.");
+          SKIF_ImGui_Spacing();
 
-          ImGui::Spacing();
-          ImGui::Spacing();
-          ImGui::Spacing();
+          ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "              Exiting without stopping the service will leave the global\n                            injection running in the background.");
+
+          SKIF_ImGui_Spacing();
 
           if (ImGui::Button("Stop Service And Exit", ImVec2(0 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
           {
