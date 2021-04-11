@@ -1407,6 +1407,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGuiPlatformMonitor* monitor = nullptr;
   ImVec2 monitor_wz,
          windowPos;
+  ImRect monitor_extent;
   bool changedMode = false;
 
   while (IsWindow(hWnd) && msg.message != WM_QUIT)
@@ -1505,15 +1506,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                         windowPos.y + SKIF_vecCurrentMode.y ),
                  newWindowPos = windowPos;
           
-          if ( topLeft.x < 0.0f )
-            newWindowPos.x = 0.0f;
-          if ( topLeft.y < 0.0f )
-            newWindowPos.y = 0.0f;
+          if ( topLeft.x < monitor_extent.Min.x)
+            newWindowPos.x = monitor_extent.Min.x;
+          if ( topLeft.y < monitor_extent.Min.y )
+            newWindowPos.y = monitor_extent.Min.y;
 
-          if ( bottomRight.x > monitor_wz.x )
-            newWindowPos.x = monitor_wz.x - SKIF_vecCurrentMode.x;
-          if ( bottomRight.y > monitor_wz.y )
-            newWindowPos.y = monitor_wz.y - SKIF_vecCurrentMode.y;
+          if ( bottomRight.x > monitor_extent.Max.x )
+            newWindowPos.x = monitor_extent.Max.x - SKIF_vecCurrentMode.x;
+          if ( bottomRight.y > monitor_extent.Max.y )
+            newWindowPos.y = monitor_extent.Max.y - SKIF_vecCurrentMode.y;
 
           if ( newWindowPos.x != windowPos.x || newWindowPos.y != windowPos.y )
             ImGui::SetNextWindowPos(newWindowPos);
@@ -2533,6 +2534,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndPopup();
         }
 
+        monitor_extent = ImGui::GetWindowAllowedExtentRect(ImGui::GetCurrentWindowRead());
         windowPos = ImGui::GetWindowPos();
         SK_RunOnce(changedMode = true); // This allows us to ensure the window gets set within the workspace on the second frame after launch
 
