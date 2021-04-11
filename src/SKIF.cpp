@@ -633,6 +633,7 @@ SKIF_GetPatrons (void)
 
 #include <gsl/gsl>
 #include <comdef.h>
+#include <filesystem>
 
 struct skif_version_info_t {
   wchar_t wszHostName  [INTERNET_MAX_HOST_NAME_LENGTH] = { };
@@ -1485,18 +1486,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImVec2 SKIF_vecCurrentMode = (SKIF_bSmallMode) ? SKIF_vecSmallMode : SKIF_vecLargeMode;
 
-
         ImGui::SetNextWindowSize(SKIF_vecCurrentMode);
 
         ImGui::Begin(SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
           nullptr,
           ImGuiWindowFlags_AlwaysAutoResize |
           ImGuiWindowFlags_NoCollapse |
-          ImGuiWindowFlags_NoTitleBar
+          ImGuiWindowFlags_NoTitleBar |
+          ImGuiWindowFlags_NoScrollbar |      // Hide the scrollbar for the main window
+          ImGuiWindowFlags_NoScrollWithMouse  // Prevent scrolling with the mouse as well
         );
 
         const int monitor_idx = ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend;
-        ImVec2 monitor_wz = ImGui::GetPlatformIO().Monitors[monitor_idx].WorkSize;
+        ImGuiPlatformMonitor* monitor = &ImGui::GetPlatformIO().Monitors[monitor_idx];
+        ImVec2 monitor_wz = monitor->WorkSize;
 
         if ( monitor_wz.y < SKIF_hLargeMode )
         {
@@ -1597,16 +1600,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SK_RunOnce(_inject._RefreshSKDLLVersions());
 
-        ImVec2 topCursorPos = ImGui::GetCursorPos();
-
 
         // Top right window buttons
-        ImRect titlebar = ImGui::GetCurrentWindowRead()->TitleBarRect();
-
-        ImGui::SetCursorPosX(titlebar.GetWidth() - 160.0f * SKIF_ImGui_GlobalDPIScale);
+        ImVec2 topCursorPos = ImGui::GetCursorPos();
+        ImGui::SetCursorPosX(SKIF_vecCurrentMode.x - 160.0f * SKIF_ImGui_GlobalDPIScale);
         ImGui::SetCursorPosY(4.0f * SKIF_ImGui_GlobalDPIScale);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 25.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale);
 
         if (ImGui::Button((SKIF_bSmallMode) ? "Large Mode" : "Small Mode", ImVec2(100.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
         {
@@ -1880,6 +1880,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   ImGui::PopStyleVar();
                   ImGui::PopItemFlag();
                 }
+
+                SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
               }
 
               else {
@@ -2164,8 +2166,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Hotkey: Ctrl+S
               if (ImGui::Button("Save Changes") || (!bDisabled && io.KeyCtrl && io.KeysDown['S']))
               {
-                // Create the folder if it does not already exist
-                CreateDirectoryW(root_dir.c_str(), NULL);
+                // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
+                std::filesystem::create_directories(root_dir.c_str());
 
                 if (white_edited)
                 {
