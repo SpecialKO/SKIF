@@ -1403,6 +1403,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
   }
 
+  int monitor_idx = 0;
+  ImGuiPlatformMonitor* monitor = nullptr;
+  ImVec2 monitor_wz,
+         windowPos;
+  bool changedMode = false;
+
   while (IsWindow(hWnd) && msg.message != WM_QUIT)
   {                        msg                   = { };
     auto _TranslateAndDispatch = [&](void) -> bool
@@ -1488,6 +1494,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SetNextWindowSize(SKIF_vecCurrentMode);
 
+        // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
+        if (changedMode)
+        {
+          changedMode = false;
+
+          ImVec2 topLeft      = ImVec2( windowPos.x,
+                                        windowPos.y ),
+                 bottomRight  = ImVec2( windowPos.x + SKIF_vecCurrentMode.x,
+                                        windowPos.y + SKIF_vecCurrentMode.y ),
+                 newWindowPos = windowPos;
+          
+          if ( topLeft.x < 0.0f )
+            newWindowPos.x = 0.0f;
+          if ( topLeft.y < 0.0f )
+            newWindowPos.y = 0.0f;
+
+          if ( bottomRight.x > monitor_wz.x )
+            newWindowPos.x = monitor_wz.x - SKIF_vecCurrentMode.x;
+          if ( bottomRight.y > monitor_wz.y )
+            newWindowPos.y = monitor_wz.y - SKIF_vecCurrentMode.y;
+
+          if ( newWindowPos.x != windowPos.x || newWindowPos.y != windowPos.y )
+            ImGui::SetNextWindowPos(newWindowPos);
+        }
+
         ImGui::Begin(SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
           nullptr,
           ImGuiWindowFlags_AlwaysAutoResize |
@@ -1497,9 +1528,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGuiWindowFlags_NoScrollWithMouse  // Prevent scrolling with the mouse as well
         );
 
-        const int monitor_idx = ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend;
-        ImGuiPlatformMonitor* monitor = &ImGui::GetPlatformIO().Monitors[monitor_idx];
-        ImVec2 monitor_wz = monitor->WorkSize;
+        // Update current monitors/worksize etc;
+        monitor_idx = ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend;
+        monitor = &ImGui::GetPlatformIO().Monitors[monitor_idx];
+        monitor_wz = monitor->WorkSize;
 
         if ( monitor_wz.y < SKIF_hLargeMode )
         {
@@ -1612,6 +1644,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_bSmallMode = !SKIF_bSmallMode;
           regKVSmallMode.putData(SKIF_bSmallMode);
+          changedMode = true;
         }
 
         ImGui::SameLine();
@@ -2499,6 +2532,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::EndPopup();
         }
+
+        windowPos = ImGui::GetWindowPos();
+        SK_RunOnce(changedMode = true); // This allows us to ensure the window gets set within the workspace on the second frame after launch
 
         ImGui::End();
       }
