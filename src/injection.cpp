@@ -645,8 +645,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 void
 SKIF_InjectionContext::_ToggleTaskbarOverlay(bool show)
 {
-  ITaskbarList3* taskbar;
-  if (S_OK == CoCreateInstance(CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (void**)&taskbar))
+  CComPtr <ITaskbarList3> taskbar;
+  if (S_OK == CoCreateInstance(CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (void**)&taskbar.p))
   {
     extern HWND        SKIF_hWnd;
 
