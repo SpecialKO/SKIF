@@ -1237,7 +1237,7 @@ SKIF_GameManagement_DrawTab (void)
           case sk_install_state_s::Injection::Type::Global:
             launch_description = "Click to launch game (without Special K)";
 
-            if (_inject.bHasServletTasks)
+            if ( _inject.bHasServlet )
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  =

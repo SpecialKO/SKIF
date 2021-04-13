@@ -114,10 +114,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
       COINIT_DISABLE_OLE1DDE
     );
 
-    ///const wchar_t *wszStartStopCommand =
-    ///  running ? LR"(Servlet\stop.bat)" :
-    ///            LR"(Servlet\start.bat)";
-
     const wchar_t *wszStartStopCommand =
                 LR"(rundll32.exe)";
 
@@ -128,9 +124,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     const wchar_t *wszStartStopParams64 =
       running ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
               : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
-
-    HWND hWndForeground =
-          GetForegroundWindow ();
 
     wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
     wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
@@ -157,16 +150,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
       sexi.lpFile       = wszStartStopCommand64;
       sexi.lpParameters = wszStartStopParams64;
 
-      if ( ShellExecuteExW (&sexi) )
-      {
-        *_inout= true;
-
-        Sleep               (800UL);
-        SetForegroundWindow (hWndForeground);
-        SetFocus            (hWndForeground);
-      }
-
-      else *_inout = false;
+      *_inout =
+        ShellExecuteExW (&sexi);
     }
 
     else
@@ -175,10 +160,11 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     _endthreadex (0);
 
     return 0;
-  }, (LPVOID)&_inout, 0x0, &tid);
+  }, (LPVOID)&_inout, CREATE_SUSPENDED, &tid);
 
   if (hThread != 0)
   {
+    ResumeThread        (hThread);
     WaitForSingleObject (hThread, INFINITE);
     CloseHandle         (hThread);
   }
@@ -205,12 +191,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   // Let's change that to the folder of the executable itself.
   std::filesystem::current_path(std::filesystem::path(wszPath).remove_filename());
 
-  bHasServlet  =
-    PathFileExistsW (L"Servlet");
-
-  bHasServletTasks =
-    PathFileExistsW(LR"(Servlet\task_inject.bat)") &&
-    PathFileExistsW(LR"(Servlet\task_eject.bat)");
+  bHasServlet =
+    PathFileExistsW  (L"Servlet") ||
+    CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the folder if it does not exist
 
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
@@ -301,6 +284,11 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   running =
     TestServletRunlevel (run_lvl_changed);
+
+  bHasServlet =
+    bHasServlet &&
+    PathFileExistsW(L"SpecialK32.dll") &&
+    PathFileExistsW(L"SpecialK64.dll");
 }
 
 bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
@@ -484,7 +472,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::PopStyleVar();
 
 
-  if ( ! bHasServletTasks )
+  if ( ! bHasServlet )
   {
     ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
@@ -515,7 +503,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if ( ! running && SKIF_bDisableExitConfirmation)
       SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
-  if ( ! bHasServletTasks )
+  if ( ! bHasServlet )
   {
     ImGui::PopStyleVar();
     ImGui::PopItemFlag();
@@ -535,7 +523,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGuiWindowFlags_NoScrollWithMouse |
     ImGuiWindowFlags_NoBackground);
 
-  if ( bHasServletTasks )
+  if ( bHasServlet )
   {
     ImGui::BeginGroup();
     ImGui::Spacing(); ImGui::SameLine();
@@ -575,8 +563,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
     ImGui::BeginGroup();
     
-    static bool requiredFiles = PathFileExistsW(LR"(Servlet\enable_logon.bat)") &&
-                                PathFileExistsW(LR"(Servlet\disable_logon.bat)");
+    static bool requiredFiles = PathFileExistsW (LR"(Servlet\enable_logon.bat)")  &&
+                                PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
+                                PathFileExistsW (LR"(Servlet\task_inject.bat)");
+                              //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
 
     ImGui::Spacing();
 

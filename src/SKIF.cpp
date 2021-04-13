@@ -202,7 +202,7 @@ void SKIF_ImGui_SetMouseCursorHand (void)
 
 void SKIF_ImGui_SetHoverTip  (const char* szText)
 {
-  if (SKIF_ImGui_IsHoverable () && ! SKIF_bSmallMode)
+  if ( SKIF_ImGui_IsHoverable () && ! SKIF_bSmallMode)
   {
     if (ImGui::IsItemHovered ())
     {
@@ -216,7 +216,6 @@ void SKIF_ImGui_SetHoverTip  (const char* szText)
         ImGui::SetNextWindowPos(tooltip_pos);
 
         ImGui::SetTooltip("%hs", szText);
-        //ImGui::SetTooltip(szText);
       }
       else {
         SKIF_StatusBarText = "Info: ";
@@ -2216,6 +2215,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::Spacing(); ImGui::SameLine();
               ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
+
               if (ImGui::Selectable("Games"))
               {
                 white_edited = true;
@@ -2225,10 +2225,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 else
                   snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "\nGames");
               }
+
               SKIF_ImGui_SetHoverTip("Whitelists games on most platforms, such as Epic Games, Origin, Uplay, etc.");
 
               ImGui::Spacing(); ImGui::SameLine();
               ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• "); ImGui::SameLine();
+
               if (ImGui::Selectable("WindowsApps"))
               {
                 white_edited = true;
@@ -2238,6 +2240,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 else
                   snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, "\nWindowsApps");
               }
+
               SKIF_ImGui_SetHoverTip("Whitelists games on the Microsoft Store.");
 
               ImGui::EndGroup();
