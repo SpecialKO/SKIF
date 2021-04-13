@@ -1031,17 +1031,19 @@ SKIF_GameManagement_DrawTab (void)
 
   }
 
+  /*
   float fTestScale    = SKIF_ImGui_GlobalDPIScale,
         fScrollbar    = ImGui::GetStyle ().ScrollbarSize,
         fFrameWidth   = ImGui::GetStyle ().FramePadding.x * 4.0f,
-        fSpacing      = ImGui::GetStyle ().ItemSpacing.x  * 4.0f,
-        fDecorations  = (fFrameWidth + fSpacing + fScrollbar),
+        fSpacing      = ImGui::GetStyle ().ItemSpacing.x  * 4.0f;
+        fDecorations  = (fFrameWidth + fSpacing + fScrollbar);
       //fFrameHeight  = ImGui::GetStyle ().FramePadding.y * 2.0f,
       //fSpaceHeight  = ImGui::GetStyle ().ItemSpacing.y  * 2.0f,
         fInjectWidth =
-         ( /* sk_global_ctl_x */ + fDecorations - fScrollbar * 2.0f ),
+         ( sk_global_ctl_x  + fDecorations - fScrollbar * 2.0f ),
         fLongestLabel =
          ( 32 + max_app_name_len + fDecorations );
+  */
 
 // AppListInset1
 #define _WIDTH (414.0f * SKIF_ImGui_GlobalDPIScale) // std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
@@ -2106,7 +2108,7 @@ SKIF_GameManagement_DrawTab (void)
   {
     _PrintInjectionSummary (pApp);
 
-    extern ImGuiStyle SKIF_ImGui_DefaultStyle;
+    //extern ImGuiStyle SKIF_ImGui_DefaultStyle;
            ImGuiStyle _style = ImGui::GetStyle ();
 
     ImGuiStyle style = ImGui::GetStyle();

@@ -1729,40 +1729,40 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_BeginTabChildFrame();
 
             static int driverStatus = 0,
-                       driverPending = 0;
+                       driverStatusPending = 0;
             static std::wstring driverBinaryPath = L"";
 
             // Check if the WinRing0_1_2_0 kernel driver service is installed or not
-            auto _CheckDriver = [](int& driverStatus)->std::wstring
+            auto _CheckDriver = [](int& status)->std::wstring
             {
-              std::wstring       ret = L"";
-              SC_HANDLE schSCManager = NULL,
-                svcWinRing0 = NULL;
-              LPQUERY_SERVICE_CONFIG lpsc{};
-              LPSERVICE_DESCRIPTION lpsd;
-              DWORD dwBytesNeeded, cbBufSize{}, dwError;
-              driverStatus = 0; // Assume it's not installed
+              std::wstring       binaryPath = L"";
+              SC_HANDLE        schSCManager = NULL,
+                                svcWinRing0 = NULL;
+              LPQUERY_SERVICE_CONFIG   lpsc{};
+              DWORD                    dwBytesNeeded,
+                                       cbBufSize{},
+                                       dwError;
+
+              // Reset the current status to not installed.
+              status = 0;
 
               // Get a handle to the SCM database. 
               schSCManager = OpenSCManager(
-                NULL,                           // local computer
-                NULL,                           // servicesActive database 
-                STANDARD_RIGHTS_READ);  // enumerate services 
+                NULL,                         // local computer
+                NULL,                         // servicesActive database 
+                STANDARD_RIGHTS_READ);        // enumerate services 
 
               if (NULL != schSCManager)
               {
                 // Get a handle to the service.
                 svcWinRing0 = OpenService(
-                  schSCManager,                   // SCM database 
-                  L"WinRing0_1_2_0",              // name of service 
-                  SERVICE_QUERY_CONFIG);          // request status
+                  schSCManager,               // SCM database
+                  L"WinRing0_1_2_0",          // name of service
+                  SERVICE_QUERY_CONFIG);      // query config
 
                 if (NULL != svcWinRing0)
                 {
-                  bool error = false;
-
-                  // Get the configuration information.
-
+                  // Attempt to get the configuration information to get an idea of what buffer size is required. 
                   if (!QueryServiceConfig(
                     svcWinRing0,
                     NULL,
@@ -1773,43 +1773,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     if (ERROR_INSUFFICIENT_BUFFER == dwError)
                     {
                       cbBufSize = dwBytesNeeded;
-                      lpsc = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, cbBufSize);
+                      lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, cbBufSize);
 
+                      // Get the configuration information with the necessary buffer size.
                       if (QueryServiceConfig(
                         svcWinRing0,
                         lpsc,
                         cbBufSize,
                         &dwBytesNeeded))
                       {
-                        ret = std::wstring(lpsc->lpBinaryPathName);
+                        // Store the binary path of the installed driver.
+                        binaryPath = std::wstring(lpsc->lpBinaryPathName);
 
-                        if (ret.find(L"SpecialK") == -1)
-                          driverStatus = 2;
+                        // Check if 'SpecialK' can be found in the path.
+                        if (binaryPath.find(L"SpecialK") == -1)
+                          status = 2; // Other driver installed
                         else
-                          driverStatus = 1;
+                          status = 1; // SK driver installed
                       }
                       LocalFree(lpsc);
                     }
                   }
-
                   CloseServiceHandle(svcWinRing0);
                 }
                 CloseServiceHandle(schSCManager);
               }
 
-              return ret;
+              return binaryPath;
             };
 
             // Driver is supposedly getting a new state -- check for an update
-            //   on each frame until driverStatus matches driverPending
-            if (driverPending != driverStatus)
+            //   on each frame until driverStatus matches driverStatusPending
+            if (driverStatusPending != driverStatus)
               driverBinaryPath = _CheckDriver(driverStatus);
 
-            // Refresh things when visiting from another tab
+            // Reset and refresh things when visiting from another tab
             if (tab_selected != Settings)
             {
               driverBinaryPath = _CheckDriver(driverStatus);
-              driverPending = driverStatus;
+              driverStatusPending = driverStatus;
               _inject._RefreshSKDLLVersions();
             }
 
@@ -1873,7 +1875,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup();
 
               ImGui::Spacing();
-              ImGui::Text("Special K can make use of an optional kernel driver to provide advanced CPU hardware reporting.");
+
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
+              ImGui::TextWrapped("Special K can make use of an optional kernel driver to provide advanced CPU hardware reporting.");
+              ImGui::PopStyleColor();
 
               ImGui::Spacing();
               ImGui::Spacing();
@@ -1891,26 +1896,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
               static std::string btnDriverLabel;
               const wchar_t* wszDriverTaskCmd = L"";
 
-              if (driverStatus != driverPending)
+              static bool requiredFiles = PathFileExistsW(LR"(Servlet\driver_install.bat)") &&
+                PathFileExistsW(LR"(Servlet\driver_install.ps1)") &&
+                PathFileExistsW(LR"(Servlet\driver_uninstall.bat)") &&
+                PathFileExistsW(LR"(Servlet\driver_uninstall.ps1)");
+
+              // Missing required files
+              if (! requiredFiles)
+              {
+                btnDriverLabel = "Not available";
+                ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Unsupported");
+              }
+
+              // Status is pending...
+              else if (driverStatus != driverStatusPending)
               {
                 btnDriverLabel = "Please Wait...";
                 ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Pending...");
               }
+
+              // Driver is installed
               else if (driverStatus == 1)
               {
                 wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
-                //wszDriverTaskCmd = L"rundll32 \"F:\\Aemony\\Documents\\My Mods\\SpecialK\\Drivers\\WinRing0\\Installer.dll\",RunDLL_WinRing0 Install";
                 btnDriverLabel = "Uninstall Driver";
                 ImGui::TextColored(ImColor::HSV(0.3F, 0.99F, 1.F), "Installed");
               }
+
+              // Other driver is installed
               else if (driverStatus == 2)
               {
                 btnDriverLabel = "Unavailable";
                 ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Unsupported");
               }
+
+              // Driver is not installed
               else {
                 wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
-                //wszDriverTaskCmd = L"rundll32 \"F:\\Aemony\\Documents\\My Mods\\SpecialK\\Drivers\\WinRing0\\Installer.dll\",RunDLL_WinRing0 Install";
                 btnDriverLabel = "Install Driver";
                 ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "Not Installed");
               }
@@ -1919,82 +1941,71 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::Spacing();
               ImGui::Spacing();
-
-              static bool requiredFiles = PathFileExistsW(LR"(Servlet\driver_install.bat)")   &&
-                                          PathFileExistsW(LR"(Servlet\driver_install.ps1)")   &&
-                                          PathFileExistsW(LR"(Servlet\driver_uninstall.bat)") &&
-                                          PathFileExistsW(LR"(Servlet\driver_uninstall.ps1)");
-
-              if (requiredFiles)
+              
+              // Disable button if the required files are missing, status is pending, or if another driver is installed
+              if ( ! requiredFiles ||
+                     driverStatusPending != driverStatus ||
+                     driverStatus == 2 )
               {
-                // Disable button if the status is pending
-                if (driverPending != driverStatus || driverStatus == 2)
-                {
-                  ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                  ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-                    ImGui::GetStyle().Alpha *
-                    ((SKIF_IsHDR()) ? 0.1f
-                      : 0.5f
-                      ));
-                }
-
-                // Show Button
-
-                bool driverButton = ImGui::ButtonEx(btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale));
-
-                SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
-
-                if (driverButton)
-                {
-                  if (
-                    ShellExecuteW(
-                      nullptr, L"runas",
-                      wszDriverTaskCmd,
-                      nullptr, nullptr,
-                      SW_HIDE) > (HINSTANCE)32)
-                  {
-                    // Batch call succeeded -- flip driverPending to the opposite of driverStatus
-                    //   to sign that a new state may be pending.
-                    driverPending = (driverStatus == 1) ? 0 : 1;
-                  }
-                }
-
-                // Disable button (-- 'else if' is to prevent it from being called when the button has actually been pressed)
-                else if (driverPending != driverStatus || driverStatus == 2)
-                {
-                  ImGui::PopStyleVar();
-                  ImGui::PopItemFlag();
-
-                  if (driverStatus == 2)
-                  {
-                    ImGui::SameLine();
-                    ImGui::BeginGroup();
-                    ImGui::Spacing();
-                    ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
-                    ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as another application have already installed a copy of the driver.");
-                    ImGui::EndGroup();
-                    SKIF_ImGui_SetHoverTip( SK_WideCharToUTF8(driverBinaryPath).c_str() );
-                  }
-                }
-              }
-
-              else {
-                // Disable button
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-                  ImGui::GetStyle().Alpha*
+                  ImGui::GetStyle().Alpha *
                   ((SKIF_IsHDR()) ? 0.1f
                     : 0.5f
                     ));
+              }
 
-                ImGui::ButtonEx("Not available", ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale));
+              // Show button
+              bool driverButton = ImGui::ButtonEx(btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale));
 
+              SKIF_ImGui_SetHoverTip("Administrative privileges are required on the system to enable this.");
+
+              if ( driverButton && requiredFiles )
+              {
+                if (
+                  ShellExecuteW(
+                    nullptr, L"runas",
+                    wszDriverTaskCmd,
+                    nullptr, nullptr,
+                    SW_HIDE) > (HINSTANCE)32)
+                {
+                  // Batch call succeeded -- change driverStatusPending to the 
+                  //   opposite of driverStatus to signal that a new state is pending.
+                  driverStatusPending = (driverStatus == 1) ? 0 : 1;
+                }
+              }
+
+              // Disabled button
+              //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
+              else if ( ! requiredFiles ||
+                          driverStatusPending != driverStatus ||
+                          driverStatus == 2 )
+              {
                 ImGui::PopStyleVar();
                 ImGui::PopItemFlag();
 
-                ImGui::SameLine();
+                // Show warning about missing files
+                if (!requiredFiles)
+                {
+                  ImGui::SameLine();
+                  ImGui::BeginGroup();
+                  ImGui::Spacing();
+                  ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "• ");
+                  ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as one or more of the required files are missing.");
+                  ImGui::EndGroup();
+                }
 
-                ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as one or more of the required files are missing.");
+                // Show warning about another driver being installed
+                else if (driverStatus == 2)
+                {
+                  ImGui::SameLine();
+                  ImGui::BeginGroup();
+                  ImGui::Spacing();
+                  ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.55F, 0.99F, 1.F), "? ");
+                  ImGui::SameLine(); ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "Option is unavailable as another application have already installed a copy of the driver.");
+                  ImGui::EndGroup();
+                  SKIF_ImGui_SetHoverTip(SK_WideCharToUTF8(driverBinaryPath).c_str());
+                }
               }
 
               ImGui::EndGroup();
@@ -2125,7 +2136,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup();
               ImGui::Spacing();
 
-              ImGui::Text("The following lists manage Special K in processes as patterns are matched against the full path of the\ninjected process.");
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
+              ImGui::TextWrapped("The following lists manage Special K in processes as patterns are matched against the full path of the injected process.");
+              ImGui::PopStyleColor();
 
               ImGui::Spacing();
               ImGui::Spacing();

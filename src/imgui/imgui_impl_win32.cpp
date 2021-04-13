@@ -1232,14 +1232,14 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
   extern bool       SKIF_bDPIScaling;
   extern ImGuiStyle SKIF_ImGui_DefaultStyle;
 
+  /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
+  *    over to ImGuiConfigFlags_DpiEnableScaleFonts
+  
   ImGuiStyle default_style =
     SKIF_ImGui_DefaultStyle;
 
   ImGuiStyle &style =
     ImGui::GetStyle ();
-
-  /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
-  *    over to ImGuiConfigFlags_DpiEnableScaleFonts
   
   if (SKIF_bDPIScaling)
   {

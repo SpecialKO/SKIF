@@ -425,7 +425,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   SKIF_ImGui_SetMouseCursorHand();
-  SKIF_ImGui_SetHoverText(SK_FormatString(R"(%ws)", root_dir).c_str());
+  SKIF_ImGui_SetHoverText( SK_WideCharToUTF8(root_dir).c_str() );
   SKIF_ImGui_SetHoverTip("Open the config root folder");
 
   // 32-bit/64-bit Services
@@ -579,7 +579,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                                 PathFileExistsW(LR"(Servlet\disable_logon.bat)");
 
     ImGui::Spacing();
-    ImGui::Text("The global injection service can be configured to start automatically with Windows.");
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
+    ImGui::TextWrapped("The global injection service can be configured to start in the background automatically with Windows.");
+    ImGui::PopStyleColor();
 
     ImGui::Spacing();
     ImGui::Spacing();
@@ -650,10 +653,7 @@ SKIF_InjectionContext::_ToggleTaskbarOverlay(bool show)
   {
     extern HWND        SKIF_hWnd;
 
-    HMODULE hModSelf =
-      GetModuleHandleW(nullptr);
-
-    HICON hIcon; //  = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF))
+    //HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF));
 
     SHSTOCKICONINFO sii;
     sii.cbSize = sizeof(sii);
