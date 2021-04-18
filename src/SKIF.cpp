@@ -1686,7 +1686,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_GlobalDPIScale = (monitor_wz.y - 100.0f) / SKIF_hLargeMode;
         } else {
-          SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+          SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (ImGui::GetCurrentWindow()->Viewport->DpiScale <= 2.0f) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 2.0f : 1.0f;
         }
 
         /*
