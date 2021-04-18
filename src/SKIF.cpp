@@ -1900,14 +1900,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             SKIF_ImGui_BeginTabChildFrame ();
 
-            static int driverStatus        = 0,
-                       driverStatusPending = 0;
-
             static std::wstring
                        driverBinaryPath    = L"";
 
+            enum Status {
+              Zero,
+              One,
+              Two
+            }
+
+            static driverStatus        = Zero,
+                   driverStatusPending = Zero;
+
             // Check if the WinRing0_1_2_0 kernel driver service is installed or not
-            auto _CheckDriver = [](int& status)->std::wstring
+            auto _CheckDriver = [](Status& _status)->std::wstring
             {
               std::wstring       binaryPath = L"";
               SC_HANDLE        schSCManager = NULL,
@@ -1918,7 +1924,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                        dwError;
 
               // Reset the current status to not installed.
-              status = 0;
+              _status = Zero;
 
               // Get a handle to the SCM database. 
               schSCManager =
@@ -1968,9 +1974,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                         // Check if 'SpecialK' can be found in the path.
                         if (binaryPath.find (L"SpecialK") != std::wstring::npos)
-                          status = 1; // SK driver installed
+                          _status = One; // SK driver installed
                         else
-                          status = 2; // Other driver installed
+                          _status = Two; // Other driver installed
                       }
                       LocalFree (lpsc);
                     }
@@ -2131,7 +2137,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               }
 
               // Driver is installed
-              else if (driverStatus == 1)
+              else if (driverStatus == One)
               {
                 wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
                 btnDriverLabel   = "Uninstall Driver";
@@ -2139,7 +2145,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               }
 
               // Other driver is installed
-              else if (driverStatus == 2)
+              else if (driverStatus == Two)
               {
                 btnDriverLabel = "Unavailable";
                 ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Unsupported");
@@ -2160,7 +2166,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Disable button if the required files are missing, status is pending, or if another driver is installed
               if ( (! requiredFiles)                     ||
                      driverStatusPending != driverStatus ||
-                                       2 == driverStatus )
+                                     Two == driverStatus )
               {
                 ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
                 ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
@@ -2192,8 +2198,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   // Batch call succeeded -- change driverStatusPending to the 
                   //   opposite of driverStatus to signal that a new state is pending.
                   driverStatusPending =
-                    (driverStatus == 1) ?
-                                      0 : 1;
+                    (driverStatus == One) ?
+                                      Zero : One;
                 }
               }
 
