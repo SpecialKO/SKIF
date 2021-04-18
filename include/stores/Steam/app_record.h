@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Andon "Kaldaien" Coleman
+// Copyright 2020-2021 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -82,7 +82,7 @@ struct app_record_s {
   uint32_t     id;
   bool         cloud_enabled = true; // hidecloudui=false
   std::wstring install_dir;
-  std::string  type;
+  std::string  type; // TODO: Proper enum
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);

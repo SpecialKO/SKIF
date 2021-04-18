@@ -1,8 +1,33 @@
+//
+// Copyright 2019-2021 Andon "Kaldaien" Coleman
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
+
 #pragma once
 
 #include "resource.h"
 
 #include <combaseapi.h>
+#include <comdef.h>
+
+#include <string_view>
 
 class SK_AutoCOMInit
 {
@@ -42,16 +67,24 @@ private:
 BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);
 
-bool SKIF_ImGui_IsHoverable  (void);
+bool SKIF_ImGui_IsHoverable        (void);
 void SKIF_ImGui_SetMouseCursorHand (void);
-void SKIF_ImGui_SetHoverTip  (const char* szText);
-void SKIF_ImGui_SetHoverText (const char* szText, bool overrideExistingText = false);
-void SKIF_ImGui_Spacing       (float multiplier = 0.25f);
+void SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
+void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
+void SKIF_ImGui_Spacing            (float multiplier = 0.25f);
 
 void  SKIF_SetHDRWhiteLuma    (float fLuma);
 FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
 BOOL  SKIF_IsHDR              (void);
+
+#include <string>
+
+HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL);
+HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);
+
+HINSTANCE SKIF_Util_ExplorePath_Formatted (                const wchar_t* const wszFmt, ...);
+HINSTANCE SKIF_Util_OpenURI_Formatted     (DWORD dwAction, const wchar_t* const wszFmt, ...);
 
 extern float sk_global_ctl_x;
 extern float fAspect;

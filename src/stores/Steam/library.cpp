@@ -388,22 +388,30 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 const wchar_t*
 SK_GetSteamDir (void)
 {
-  static
-    wchar_t wszSteamPath [MAX_PATH + 2] = { };
-  DWORD     len    =      MAX_PATH;
-  LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-                     LR"(SOFTWARE\Valve\Steam\)",
-                                      L"SteamPath",
-                       RRF_RT_REG_SZ,
-                         nullptr,
-                           wszSteamPath,
-                             (LPDWORD)&len );
+  static wchar_t
+       wszSteamPath [MAX_PATH + 2] = { };
+  if (*wszSteamPath == L'\0')
+  {
+    // Don't keep querying the registry if Steam is not installed   
+    wszSteamPath [0] = L'?';
 
-  if (status == ERROR_SUCCESS)
-    return wszSteamPath;
-  else
-    return L"";
+    DWORD     len    =      MAX_PATH;
+    LSTATUS   status =
+      RegGetValueW ( HKEY_CURRENT_USER,
+                       LR"(SOFTWARE\Valve\Steam\)",
+                                        L"SteamPath",
+                         RRF_RT_REG_SZ,
+                           nullptr,
+                             wszSteamPath,
+                               (LPDWORD)&len );
+
+    if (status == ERROR_SUCCESS)
+      return wszSteamPath;
+    else
+      return L"";
+  }
+
+  return wszSteamPath;
 }
 
 

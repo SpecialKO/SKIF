@@ -73,8 +73,14 @@
     <Filter Include="Source Files\Utility">
       <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Utility\PresentMon">
+      <UniqueIdentifier>{15464633-d63b-47da-b515-b6a3a78a0ee3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -234,6 +240,9 @@
     <ClInclude Include="steam\steamuniverse.h">
       <Filter>Header Files\Stores\Steam\API</Filter>
     </ClInclude>
+    <ClInclude Include="include\vfs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\stores\Steam\achievements.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
@@ -300,20 +309,41 @@
     <ClInclude Include="include\stores\Steam\asset_fetch.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
+    <ClInclude Include="include\injection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\install_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\SKIF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\targetver.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\patreon.png.h">
+      <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\injection.h">
-      <Filter>Header Files\Utility</Filter>
+    <ClInclude Include="include\sk_icon.jpg.h">
+      <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\vfs.h">
-      <Filter>Header Files\Utility</Filter>
+    <ClInclude Include="include\shaders\imgui_pix.h">
+      <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\install_utils.h">
-      <Filter>Header Files\Utility</Filter>
+    <ClInclude Include="include\shaders\imgui_vtx.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sk_boxart.png.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\font_awesome.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts\fa_brands_400.ttf.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts\fa_regular_400.ttf.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts\fa_solid_900.ttf.h">
+      <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -439,6 +469,51 @@
     </ClCompile>
     <ClCompile Include="src\ui_tasks\manage_colorspace.cpp">
       <Filter>Source Files\UI Tasks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui_tasks\debug.cpp">
+      <Filter>Source Files\UI Tasks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\CommandLine.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\Console.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\ConsumerThread.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\CsvOutput.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\MainThread.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\OutputThread.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\Privilege.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\PD_TraceSession.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\LateStageReprojectionData.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\PM_Debug.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\MixedRealityTraceConsumer.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\PresentMonTraceConsumer.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\TraceConsumer.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PresentMon\PM_TraceSession.cpp">
+      <Filter>Source Files\Utility\PresentMon</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -295,13 +295,14 @@ ImGui_ImplWin32_UpdateMousePos (void)
     {
       // Multi-viewport mode: mouse position in OS absolute coordinates (io.MousePos is (0,0) when the mouse is on the upper-left of the primary monitor)
       // This is the position you can get with GetCursorPos(). In theory adding viewport->Pos is also the reverse operation of doing ScreenToClient().
-      if (ImGui::FindViewportByPlatformHandle ((void *)focused_hwnd) != NULL)
+    ////if (ImGui::FindViewportByPlatformHandle ((void *)focused_hwnd) != NULL)
       {
         io.MousePos =
           ImVec2 ( (float)mouse_screen_pos.x,
                    (float)mouse_screen_pos.y );
       }
     }
+
     else
     {
       // Single viewport mode: mouse position in client window coordinates (io.MousePos is (0,0) when the mouse is on the upper-left corner of the app window.)
@@ -311,7 +312,7 @@ ImGui_ImplWin32_UpdateMousePos (void)
         POINT mouse_client_pos =
           mouse_screen_pos;
 
-        ::ScreenToClient (focused_hwnd, &mouse_client_pos);
+        ::ScreenToClient (g_hWnd, &mouse_client_pos);
 
         io.MousePos =
           ImVec2 ( (float)mouse_client_pos.x,
@@ -681,7 +682,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 BOOL
 IsWindows8Point1OrGreater (void)
 {
-  SetLastError(NO_ERROR);
+  SetLastError (NO_ERROR);
 
   static BOOL
     bResult =
@@ -697,7 +698,7 @@ IsWindows8Point1OrGreater (void)
 BOOL
 IsWindows10OrGreater (void)
 {
-  SetLastError(NO_ERROR);
+  SetLastError (NO_ERROR);
 
   static BOOL
   bResult =

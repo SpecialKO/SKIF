@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Andon "Kaldaien" Coleman
+// Copyright 2020-2021 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -31,27 +31,28 @@ const int SKIF_STEAM_APPID = 1157970;
 using appinfo_s     = skValveDataFile::appinfo_s;
 using app_section_s =                  appinfo_s::section_s;
 
-skValveDataFile::skValveDataFile (std::wstring source)
+skValveDataFile::skValveDataFile (std::wstring source) : path (source)
 {
-  path        = source;
   FILE *fData = nullptr;
 
   _wfopen_s (&fData, path.c_str (), L"rbS");
 
   if (fData != nullptr)
   {
-    fseek  (fData, 0, SEEK_END);
-    size_t size =
-    ftell  (fData);
-    rewind (fData);
+    _fseeki64 (fData, 0, SEEK_END);
+    size_t
+    size =
+    _ftelli64 (fData);
+    rewind    (fData);
 
     _data.resize (size);
 
     fread  (_data.data (), size, 1, fData);
     fclose (                        fData);
 
-    base = (header_s *)
-      _data.data ();
+    base =
+      reinterpret_cast <
+             header_s *> (_data.data ());
     root =
       &base->head;
   }
@@ -175,8 +176,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
   extern bool SKIF_STEAM_OWNER;
 
   // Skip call if it concerns someone whom does not have SKIF installed on Steam
-  if (   appid == SKIF_STEAM_APPID &&
-       ! SKIF_STEAM_OWNER )
+  if ( appid == SKIF_STEAM_APPID &&
+             (! SKIF_STEAM_OWNER) )
     return nullptr;
 
   if (root != nullptr)
@@ -247,7 +248,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           SKIF_GetFolderPath ( &path_cache.win_saved_games    );
         }
 
-        pAppRecord->install_dir = SK_UseManifestToGetInstallDir ( appid );
+        pAppRecord->install_dir =
+          SK_UseManifestToGetInstallDir (appid);
 
         for (auto& finished_section : section.finished_sections)
         {
@@ -357,14 +359,18 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
 
                 if (! _stricmp (key.first, "type"))
                 {
-                  if      (! _stricmp ((char*)key.second.second, "game"))
+                  if      (! _stricmp ((char *)key.second.second, "game"))
                     pAppRecord->type = "Game";
-                  else if (! _stricmp ((char*)key.second.second, "application"))
+                  else if (! _stricmp ((char *)key.second.second, "application"))
                     pAppRecord->type = "Application";
-                  else if (! _stricmp ((char*)key.second.second, "tool"))
+                  else if (! _stricmp ((char *)key.second.second, "tool"))
                     pAppRecord->type = "Tool";
+                  else if (! _stricmp ((char *)key.second.second, "music"))
+                    pAppRecord->type = "Music";
+                  else if (! _stricmp ((char *)key.second.second, "demo"))
+                    pAppRecord->type = "Demo";
                   else
-                    pAppRecord->type = SK_FormatString((char*)key.second.second);
+                    pAppRecord->type = SK_FormatString ("(?) %s", (char *)key.second.second);
                 }
               }
             }
@@ -436,10 +442,10 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
               }
 
               // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
-              if ( ! launch_cfg.executable.empty() )
-               std::replace(launch_cfg.executable.begin(), launch_cfg.executable.end(), '/', '\\');
-              if ( ! launch_cfg.working_dir.empty() )
-                std::replace(launch_cfg.working_dir.begin(), launch_cfg.working_dir.end(), '/', '\\');
+              if (! launch_cfg.executable.empty ())
+                std::replace (launch_cfg.executable.begin  (), launch_cfg.executable.end  (), '/', '\\');
+              if (! launch_cfg.working_dir.empty ())
+                std::replace (launch_cfg.working_dir.begin (), launch_cfg.working_dir.end (), '/', '\\');
             }
           }
         }
@@ -544,9 +550,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                 {
                   if (_stricmp ((char *)key.second.second, "windows"))
                   {
-                    ufs_root    = L"";
-                    add_path    = L"";
-                    use_instead = L"";
+                    ufs_root.clear    ();
+                    add_path.clear    ();
+                    use_instead.clear ();
                     break;
                   }
                 }
@@ -743,19 +749,20 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                         }
                       };
 
-                      pAppRecord->cloud_saves [cloud_idx].path =
+                      auto& rkCloudSave =
+                        pAppRecord->cloud_saves [cloud_idx];
+
+                      rkCloudSave.path =
                         SK_UTF8ToWideChar ((const char *)key.second.second);
 
                       if (pUser != nullptr)
                       {
-                        replaceSpecialValues (
-                          pAppRecord->cloud_saves [cloud_idx].path,
+                        replaceSpecialValues ( rkCloudSave.path,
                                                L"{64BitSteamID}",
                             std::to_wstring (pUser->GetSteamID ().ConvertToUint64 ())
                         );
 
-                        replaceSpecialValues (
-                          pAppRecord->cloud_saves [cloud_idx].path,
+                        replaceSpecialValues ( rkCloudSave.path,
                                                             L"{Steam3AccountID}",
                             std::to_wstring (pUser->GetSteamID ().GetAccountID ())
                         );

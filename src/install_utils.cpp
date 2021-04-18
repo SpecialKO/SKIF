@@ -264,14 +264,14 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
   else
     install_state.localized_name = "<executable_name_here>";
 
-  std::wstring name =
-    SK_UTF8ToWideChar (
-      install_state.localized_name
-    );
-
   if ( ConfigType::Centralized ==
          install_state.config.type )
   {
+    std::wstring name =
+      SK_UTF8ToWideChar (
+        install_state.localized_name
+      );
+
     name.erase ( std::remove_if ( name.begin (),
                                   name.end   (),
 

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Andon "Kaldaien" Coleman
+// Copyright 2020-2021 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -72,11 +72,11 @@ struct SKIF_InjectionContext {
   std::string SKVer32 = "";
   std::string SKVer64 = "";
 
-  bool _StartStopInject (bool running_);
+  bool    _StartStopInject      (bool running_);
 
-  bool TestServletRunlevel (bool& changed_state);
-  void _RefreshSKDLLVersions(void);
-  bool _GlobalInjectionCtl (void);
-  void _StartAtLogonCtrl   (void);
-  void _ToggleTaskbarOverlay(bool show);
+  bool     TestServletRunlevel  (bool& changed_state);
+  void    _RefreshSKDLLVersions (void);
+  bool    _GlobalInjectionCtl   (void);
+  void    _StartAtLogonCtrl     (void);
+  HRESULT _SetTaskbarOverlay    (bool show);
 } extern _inject;

@@ -248,7 +248,7 @@ public:
                      vfsNode (name, vfsNode::type::Directory) { }
   };
 
-  ~SK_VirtualFS (void)
+  virtual ~SK_VirtualFS (void)
   {
     delete root;
            root = nullptr;

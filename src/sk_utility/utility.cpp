@@ -30,6 +30,10 @@
 #include <codecvt>
 #endif
 
+#include <fonts/fa_regular_400.ttf.h>
+#include <fonts/fa_brands_400.ttf.h>
+#include <fonts/fa_solid_900.ttf.h>
+
 std::string
 SK_WideCharToUTF8 (const std::wstring& in)
 {
