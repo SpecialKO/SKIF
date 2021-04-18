@@ -2207,7 +2207,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
               else if ( (! requiredFiles)                     ||
                           driverStatusPending != driverStatus ||
-                                            2 == driverStatus )
+                                 NotInstalled == driverStatus )
               {
                 ImGui::PopStyleVar ();
                 ImGui::PopItemFlag ();
@@ -2226,7 +2226,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 }
 
                 // Show warning about another driver being installed
-                else if (driverStatus == 2)
+                else if (NotInstalled == driverStatus)
                 {
                   ImGui::SameLine   ();
                   ImGui::BeginGroup ();
