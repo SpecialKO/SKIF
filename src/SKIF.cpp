@@ -1968,9 +1968,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                         // Check if 'SpecialK' can be found in the path.
                         if (binaryPath.find (L"SpecialK") != std::wstring::npos)
-                          status = 2; // Other driver installed
-                        else
                           status = 1; // SK driver installed
+                        else
+                          status = 2; // Other driver installed
                       }
                       LocalFree (lpsc);
                     }
