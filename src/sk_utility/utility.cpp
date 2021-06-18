@@ -363,3 +363,28 @@ SK_FormatStringW (wchar_t const* const _Format, ...)
   return
     pData.get ();
 }
+
+size_t
+SK_RemoveTrailingDecimalZeros (char* szNum, size_t bufLen)
+{
+  if (szNum == nullptr)
+    return 0;
+
+  // Remove trailing 0's after the .
+  size_t len = bufLen == 0 ?
+                  strlen (szNum) :
+        std::min (strlen (szNum), bufLen);
+
+  for (size_t i = (len - 1); i > 1; i--)
+  {
+    if (szNum [i] == '0' && szNum [i - 1] != '.')
+      len--;
+
+    if (szNum [i] != '0' && szNum [i] != '\0')
+      break;
+  }
+
+  szNum [len] = '\0';
+
+  return len;
+}

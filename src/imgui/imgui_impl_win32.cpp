@@ -776,10 +776,6 @@ ImGui_ImplWin32_EnableDpiAwareness (void)
   }
 }
 
-#ifdef _MSC_VER
-#pragma comment(lib, "gdi32")   // GetDeviceCaps()
-#endif
-
 float
 ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 {
@@ -803,10 +799,16 @@ ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 
   else
   {
-    const HDC dc = ::GetDC         (nullptr);
-            xdpi = ::GetDeviceCaps (dc, LOGPIXELSX);
-            ydpi = ::GetDeviceCaps (dc, LOGPIXELSY);
-                   ::ReleaseDC     (nullptr, dc);
+    using  GetDeviceCaps_pfn = int (WINAPI *)(HDC,int);
+    static GetDeviceCaps_pfn
+          SKIF_GetDeviceCaps = (GetDeviceCaps_pfn)GetProcAddress (
+                LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+              "GetDeviceCaps"                                    );
+
+    const HDC dc =    ::GetDC         (nullptr);
+            xdpi = SKIF_GetDeviceCaps (dc, LOGPIXELSX);
+            ydpi = SKIF_GetDeviceCaps (dc, LOGPIXELSY);
+                   ::ReleaseDC        (nullptr, dc);
   }
 
   IM_ASSERT (xdpi == ydpi); // Please contact me if you hit this assert!
@@ -901,6 +903,11 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
+
+  #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+
+  *out_ex_style |=
+    WS_EX_NOREDIRECTIONBITMAP;
 }
 
 static void
@@ -1383,7 +1390,7 @@ ImGui_ImplWin32_InitPlatformInterface (void)
   WNDCLASSEX
    wcex               = {                 };
    wcex.cbSize        = sizeof (WNDCLASSEX); // Real classy sex
-   wcex.style         = CS_HREDRAW | CS_VREDRAW;
+   wcex.style         = 0x0;//CS_HREDRAW | CS_VREDRAW;
    wcex.lpfnWndProc   = ImGui_ImplWin32_WndProcHandler_PlatformWindow;
    wcex.cbClsExtra    = 0;
    wcex.cbWndExtra    = 0;

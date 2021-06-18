@@ -73,9 +73,6 @@
     <Filter Include="Source Files\Utility">
       <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Utility\PresentMon">
-      <UniqueIdentifier>{15464633-d63b-47da-b515-b6a3a78a0ee3}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -345,6 +342,9 @@
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\sk_utility\command.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -473,47 +473,11 @@
     <ClCompile Include="src\ui_tasks\debug.cpp">
       <Filter>Source Files\UI Tasks</Filter>
     </ClCompile>
-    <ClCompile Include="src\PresentMon\CommandLine.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
+    <ClCompile Include="sk_console.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\PresentMon\Console.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\ConsumerThread.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\CsvOutput.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\MainThread.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\OutputThread.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\Privilege.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\PD_TraceSession.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\LateStageReprojectionData.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\PM_Debug.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\MixedRealityTraceConsumer.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\PresentMonTraceConsumer.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\TraceConsumer.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PresentMon\PM_TraceSession.cpp">
-      <Filter>Source Files\Utility\PresentMon</Filter>
+    <ClCompile Include="src\ui_tasks\display_mgmt.cpp">
+      <Filter>Source Files\UI Tasks</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -79,7 +79,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Special K\</OutDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -89,7 +88,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Special K\</OutDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -167,7 +165,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;d3d12.lib;d3d9.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;tdh.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
@@ -229,12 +227,12 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WINBLUE;_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING;_CRT_SECURE_NO_WARNINGS;NOMINMAX;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
       <StringPooling>true</StringPooling>
@@ -256,16 +254,17 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 /Zf %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;d3d11.lib;dxgi.lib;tdh.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;tdh.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <SetChecksum>true</SetChecksum>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -303,6 +302,7 @@
     <ClInclude Include="include\sk_boxart.png.h" />
     <ClInclude Include="include\sk_config\ini.h" />
     <ClInclude Include="include\sk_icon.jpg.h" />
+    <ClInclude Include="include\sk_utility\command.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
     <ClInclude Include="include\stores\Steam\achievements.h" />
@@ -363,6 +363,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
@@ -581,20 +582,6 @@
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\injection.cpp" />
     <ClCompile Include="src\install_utils.cpp" />
-    <ClCompile Include="src\PresentMon\CommandLine.cpp" />
-    <ClCompile Include="src\PresentMon\Console.cpp" />
-    <ClCompile Include="src\PresentMon\ConsumerThread.cpp" />
-    <ClCompile Include="src\PresentMon\CsvOutput.cpp" />
-    <ClCompile Include="src\PresentMon\PM_Debug.cpp" />
-    <ClCompile Include="src\PresentMon\LateStageReprojectionData.cpp" />
-    <ClCompile Include="src\PresentMon\MainThread.cpp" />
-    <ClCompile Include="src\PresentMon\MixedRealityTraceConsumer.cpp" />
-    <ClCompile Include="src\PresentMon\OutputThread.cpp" />
-    <ClCompile Include="src\PresentMon\PM_TraceSession.cpp" />
-    <ClCompile Include="src\PresentMon\PresentMonTraceConsumer.cpp" />
-    <ClCompile Include="src\PresentMon\Privilege.cpp" />
-    <ClCompile Include="src\PresentMon\TraceConsumer.cpp" />
-    <ClCompile Include="src\PresentMon\PD_TraceSession.cpp" />
     <ClCompile Include="src\SKIF.cpp" />
     <ClCompile Include="src\sk_config\ini.cpp" />
     <ClCompile Include="src\sk_utility\utility.cpp" />
@@ -605,6 +592,7 @@
     <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
     <ClCompile Include="src\ui_tasks\debug.cpp" />
+    <ClCompile Include="src\ui_tasks\display_mgmt.cpp" />
     <ClCompile Include="src\ui_tasks\manage_colorspace.cpp" />
     <ClCompile Include="src\ui_tasks\manage_games.cpp" />
     <ClCompile Include="src\vfs.cpp" />

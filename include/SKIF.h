@@ -89,3 +89,10 @@ HINSTANCE SKIF_Util_OpenURI_Formatted     (DWORD dwAction, const wchar_t* const 
 extern float sk_global_ctl_x;
 extern float fAspect;
 extern float fBottomDist;
+
+using  CreateDXGIFactory1_pfn = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
+extern CreateDXGIFactory1_pfn
+  SKIF_CreateDXGIFactory1;
+
+DWORD   SKIF_timeGetTime   (void);
+DWORD64 SKIF_timeGetTimeEx (void);

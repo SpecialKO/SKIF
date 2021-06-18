@@ -1,5 +1,5 @@
 ﻿//
-// Copyright 2020 Andon "Kaldaien" Coleman
+// Copyright 2020 - 2021 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -20,10 +20,20 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
+#include <wtypes.h>
+#include <dxgi1_5.h>
+
+#include <gsl/gsl_util>
+
+const GUID IID_IDXGIFactory5 =
+  { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
+
 const int SKIF_STEAM_APPID = 1157970;
 int WindowsCursorSize = 1;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+
+extern void SKIF_ProcessCommandLine (const char* szCmd);
 
 bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableExitConfirmation = false,
@@ -31,7 +41,15 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableStatusBar        = false,
      SKIF_bSmallMode               = false,
      SKIF_bFirstLaunch             = false,
-     SKIF_bEnableDebugMode         = false;
+     SKIF_bEnableDebugMode         = false,
+     SKIF_bAllowMultipleInstances  = false,
+     SKIF_bAllowBackgroundService  = false;
+BOOL SKIF_bAllowTearing            = FALSE;
+
+#include <sk_utility/command.h>
+
+extern        SK_ICommandProcessor*
+  __stdcall SK_GetCommandProcessor (void);
 
 #include <SKIF.h>
 
@@ -53,24 +71,67 @@ bool SKIF_bDisableDPIScaling       = false,
 #include <fstream>
 #include <typeindex>
 
-#pragma comment (lib, "winmm.lib")
 #pragma comment (lib, "wininet.lib")
 
+using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
+static GetSystemMetricsForDpi_pfn
+       GetSystemMetricsForDpi = nullptr;
 
-#define SK_BORDERLESS ( WS_VISIBLE | WS_POPUP        | WS_MINIMIZEBOX | \
-                        WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS  )
+#define SK_BORDERLESS ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | \
+                        WS_SYSMENU )
 
 #define SK_BORDERLESS_EX      ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE )
 #define SK_BORDERLESS_WIN8_EX ( SK_BORDERLESS_EX | WS_EX_NOREDIRECTIONBITMAP )
 
-#define SK_FULLSCREEN_X GetSystemMetrics (SM_CXFULLSCREEN)
-#define SK_FULLSCREEN_Y GetSystemMetrics (SM_CYFULLSCREEN)
+#define SK_FULLSCREEN_X(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CXFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CXFULLSCREEN)
+#define SK_FULLSCREEN_Y(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CYFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CYFULLSCREEN)
 
 #define GCL_HICON           (-14)
 
 #ifndef WM_DPICHANGED
 #define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
 #endif
+
+DWORD SKIF_timeGetTime (void)
+{
+  static LARGE_INTEGER qpcFreq = { };
+         LARGE_INTEGER li      = { };
+
+  using timeGetTime_pfn =
+          DWORD (WINAPI *)(void);
+  static timeGetTime_pfn
+   winmm_timeGetTime     = nullptr;
+
+  if (  winmm_timeGetTime == nullptr || qpcFreq.QuadPart == 1)
+  {
+    if (winmm_timeGetTime == nullptr)
+    {
+      HMODULE hModWinMM =
+        LoadLibraryEx ( L"winmm.dll", nullptr,
+                          LOAD_LIBRARY_SEARCH_SYSTEM32 );
+        winmm_timeGetTime =
+             (timeGetTime_pfn)GetProcAddress (hModWinMM,
+             "timeGetTime"                   );
+    }
+
+    return winmm_timeGetTime != nullptr ?
+           winmm_timeGetTime ()         : static_cast <DWORD> (-1);
+  }
+
+  if (QueryPerformanceCounter (&li))
+  {
+    if (qpcFreq.QuadPart == 0 && QueryPerformanceFrequency (&qpcFreq) == FALSE)
+    {   qpcFreq.QuadPart  = 1;
+
+      return rand ();
+    }
+
+    return
+      li.QuadPart / ( qpcFreq.QuadPart / 1000ULL);
+  }
+
+  return static_cast <DWORD> (-1);
+}
 
 BOOL
 SKIF_IsWindows8Point1OrGreater (void)
@@ -176,9 +237,9 @@ int __height = 0;
 
 float SKIF_ImGui_GlobalDPIScale = 1.0f;
 
-std::string SKIF_StatusBarText;
-std::string SKIF_StatusBarHelp;
-HWND        SKIF_hWnd;
+std::string SKIF_StatusBarText = "";
+std::string SKIF_StatusBarHelp = "";
+HWND        SKIF_hWnd          =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 CONDITION_VARIABLE SKIF_IsNotFocused = { };
@@ -726,7 +787,8 @@ SKIF_GetPatrons (void)
     _fseeki64 (fPatrons, 0, SEEK_END);
 
     size_t size =
-      _ftelli64 (fPatrons);
+      gsl::narrow_cast <size_t> (
+      _ftelli64 (fPatrons)      );
     rewind      (fPatrons);
 
     out.resize (size);
@@ -1307,6 +1369,134 @@ SKIF_Util_CompactWorkingSet (void)
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
+HWND hWndOrigForeground;
+
+struct SKIF_Signals {
+  BOOL Stop      = FALSE;
+  BOOL Start     = FALSE;
+  BOOL Quit      = FALSE;
+  BOOL Minimize  = FALSE;
+  BOOL Restore   =  TRUE;
+
+  BOOL _Disowned = FALSE;
+} _Signal;
+
+constexpr UINT WM_SKIF_STOP     = WM_USER + 0x2048;
+constexpr UINT WM_SKIF_START    = WM_USER + 0x1024;
+constexpr UINT WM_SKIF_MINIMIZE = WM_USER +  0x512;
+
+const wchar_t* SKIF_WindowClass =
+             L"SK_Injection_Frontend";
+
+void
+SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
+{
+  HWND hwndAlreadyExists =
+    FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
+
+  _Signal.Stop =
+    StrStrIW (lpCmdLine, L"Stop")     != nullptr;
+
+  _Signal.Start =
+    StrStrIW (lpCmdLine, L"Start")    != nullptr;
+
+  _Signal.Quit =
+    StrStrIW (lpCmdLine, L"Quit")     != nullptr;
+
+  _Signal.Minimize =
+    StrStrIW (lpCmdLine, L"Minimize") != nullptr;
+
+  if ( hwndAlreadyExists != 0 && (
+              (! SKIF_bAllowMultipleInstances)  || 
+                                   _Signal.Stop || _Signal.Start ||
+                                   _Signal.Quit || _Signal.Minimize 
+                                 ) 
+     )
+  {
+    if (IsIconic        (hwndAlreadyExists))
+      ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
+    SetForegroundWindow (hwndAlreadyExists);
+
+    struct injection_probe_s {
+      FILE          *pid;
+      const wchar_t *wszFile;
+      DWORD_PTR      x = 0;
+    } _32 { nullptr, LR"(Servlet\SpecialK32.pid)" },
+      _64 { nullptr, LR"(Servlet\SpecialK64.pid)" };
+
+    if (_Signal.Stop || _Signal.Quit)
+    {
+      if (_Signal.Stop)
+      {
+        for ( auto probe : { _32, _64 } )
+        {
+          do {
+            probe.pid =
+              _wfopen (probe.wszFile, L"r");
+
+            if (probe.pid != nullptr)
+            {
+              fclose (probe.pid);
+
+              SendMessageTimeout (
+                hwndAlreadyExists, WM_SKIF_STOP,
+                              0x0, 0x0, 0x0,
+                                     2, &probe.x
+                                 );
+            }
+          } while (probe.pid != nullptr);
+        }
+      }
+
+      if (_Signal.Quit)
+        PostMessage ( hwndAlreadyExists, WM_QUIT,
+                                    0x0, 0x0 );
+    }
+
+    if (_Signal.Start)
+    {
+      for ( auto probe : { _32, _64 } )
+      {
+        do {
+          probe.pid =
+            _wfopen (probe.wszFile, L"r");
+
+          if (probe.pid == nullptr)
+          {
+            SendMessageTimeout (
+              hwndAlreadyExists, WM_SKIF_START,
+                            0x0, 0x0, 0x0,
+                                   2, &probe.x
+                               );
+          }
+
+          else
+          {
+            fclose (probe.pid);
+            break;
+          }
+        } while (probe.pid == nullptr);
+      }
+    }
+
+    if (_Signal.Minimize)
+    {
+      SendMessageTimeout (
+        hwndAlreadyExists, WM_SKIF_MINIMIZE,
+                      0x0, 0x0, 0x0,
+                             2, &_32.x
+                         );
+    }
+
+    if (IsIconic        (hWndOrigForeground))
+      ShowWindow        (hWndOrigForeground, SW_SHOWNA);
+    SetForegroundWindow (hWndOrigForeground);
+
+    if (_Signal.Quit || (! _Signal._Disowned))
+       ExitProcess (0x0);
+  }
+}
+
 // Main code
 int
 APIENTRY
@@ -1317,14 +1507,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 {
   UNREFERENCED_PARAMETER (hPrevInstance);
   UNREFERENCED_PARAMETER (hInstance);
-
-
-  extern void SKIF_SpawnConsole (void);
-              SKIF_SpawnConsole (    );
-  ShowWindow (GetConsoleWindow (), SW_HIDE);
-
+  
+  SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
 
   ImGui_ImplWin32_EnableDpiAwareness ();
+
+  GetSystemMetricsForDpi =
+ (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
+ "GetSystemMetricsForDpi");
 
   CoInitializeEx (nullptr, 0x0);
 
@@ -1360,6 +1550,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(First Launch)" );
 
+  static auto regKVAllowMultipleInstances =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Allow Multiple SKIF Instances)" );
+
+  static auto regKVAllowBackgroundService =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Allow Background Service)" );
+
   // Read current settings
   SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ();
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ();
@@ -1368,6 +1566,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bEnableDebugMode         = regKVEnableDebugMode.getData         ();
   SKIF_bSmallMode               = regKVSmallMode.getData               ();
   SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ();
+  SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ();
+  SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ();
+
+  hWndOrigForeground =
+    GetForegroundWindow ();
+
+  SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
   // Check for updates
   SKIF_VersionCtl.CheckForUpdates (
@@ -1420,11 +1625,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
       nCmdShow != SW_HIDE)
     dwStyleEx &= ~WS_EX_NOACTIVATE;
 
+  HMONITOR hMonitor =
+    MonitorFromWindow (hWndOrigForeground, MONITOR_DEFAULTTONEAREST);
+
+  MONITORINFOEX
+    miex        = {           };
+    miex.cbSize = sizeof (miex);
+
+  UINT dpi = 0;
+
+  if ( GetMonitorInfoW (hMonitor, &miex) )
+  {
+    float fdpiX =
+      ImGui_ImplWin32_GetDpiScaleForMonitor (hMonitor);
+
+    dpi =
+      static_cast <UINT> (fdpiX * 96.0f);
+
+    //int cxLogical = ( miex.rcMonitor.right  -
+    //                  miex.rcMonitor.left  );
+    //int cyLogical = ( miex.rcMonitor.bottom -
+    //                  miex.rcMonitor.top   );
+  }
+
   SKIF_hWnd             =
     CreateWindowExW (                      dwStyleEx,
       wc.lpszClassName, SKIF_WINDOW_TITLE, dwStyle,
-      SK_FULLSCREEN_X / 2 - __width  / 2,
-      SK_FULLSCREEN_Y / 2 - __height / 2,
+      SK_FULLSCREEN_X (dpi) / 2 - __width  / 2,
+      SK_FULLSCREEN_Y (dpi) / 2 - __height / 2,
                    __width, __height,
                    nullptr, nullptr,
               wc.hInstance, nullptr
@@ -1520,9 +1748,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   MSG msg = { };
 
   CHandle hSwapWait (0);
-  HDC     hDC =
-    GetWindowDC (hWnd);
-
+  
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (g_pSwapChain);
   if (pSwap3 != nullptr)
@@ -1538,8 +1764,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGuiPlatformMonitor* monitor = nullptr;
   ImVec2 monitor_wz,
          windowPos;
-  ImRect monitor_extent;
+  ImRect monitor_extent = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool changedMode = false;
+
+  // Handle cases where a Start / Stop Command Line was Passed,
+  //   but no running instance existed to service it yet...
+  _Signal._Disowned = TRUE;
+
+  if      (_Signal.Start)
+    SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+  else if (_Signal.Stop)
+    SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg                   = { };
@@ -1561,13 +1796,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     auto _UpdateOcclusionStatus = [&](void)
     {
+      HDC hDC =
+        GetWindowDC (hWnd);
+
       if (hDC != 0)
       {
-        RECT              rcClipBox = { };
-        GetClipBox (hDC, &rcClipBox);
+        using  GetClipBox_pfn = int (WINAPI *)(HDC,LPRECT);
+        static GetClipBox_pfn
+          SKIF_GetClipBox     = (GetClipBox_pfn)GetProcAddress (
+                LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+              "GetClipBox"                                     );
+
+             RECT              rcClipBox = { };
+        SKIF_GetClipBox (hDC, &rcClipBox);
 
         bOccluded =
           IsRectEmpty (&rcClipBox);
+
+        ReleaseDC (hWnd, hDC);
       }
 
       else
@@ -1668,9 +1914,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SetNextWindowPos(newWindowPos);
         }
 
+        // Fix for window being created in the bottom right corner on first ever launch when an imgui.ini file is missing
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+
         ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
                          nullptr,
-                           ImGuiWindowFlags_AlwaysAutoResize |
+                           ImGuiWindowFlags_NoResize         |
                            ImGuiWindowFlags_NoCollapse       |
                            ImGuiWindowFlags_NoTitleBar       |
                            ImGuiWindowFlags_NoScrollbar      | // Hide the scrollbar for the main window
@@ -1682,11 +1931,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         monitor     = &ImGui::GetPlatformIO        ().Monitors [monitor_idx];
         monitor_wz  = monitor->WorkSize;
 
-        if ( monitor_wz.y < SKIF_hLargeMode )
+        if ( monitor_wz.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1 )
         {
           SKIF_ImGui_GlobalDPIScale = (monitor_wz.y - 100.0f) / SKIF_hLargeMode;
         } else {
-          SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (ImGui::GetCurrentWindow()->Viewport->DpiScale <= 2.0f) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 2.0f : 1.0f;
+          SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (ImGui::GetCurrentWindow ()->Viewport->DpiScale <= 2.0f) ? ImGui::GetCurrentWindow ()->Viewport->DpiScale : 2.0f : 1.0f;
+          /////SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
         }
 
         /*
@@ -1804,8 +2054,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                         0.0f ) )
            )
         {
-          SKIF_bSmallMode =
-            (! SKIF_bSmallMode);
+          SKIF_ProcessCommandLine ("SKIF.UI.SmallMode Toggle");
 
           regKVSmallMode.putData (SKIF_bSmallMode);
 
@@ -1825,15 +2074,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if ( ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                             0.0f ) ) )
         {
-          if (SKIF_ServiceRunning && (! SKIF_bDisableExitConfirmation))
-            ImGui::OpenPopup ("Confirm Exit");
+          if (SKIF_ServiceRunning && (!SKIF_bDisableExitConfirmation))
+          {
+            ImGui::OpenPopup("Confirm Exit");
+          }
           else
+          {
+            if (SKIF_ServiceRunning && ! SKIF_bAllowBackgroundService )
+              _inject._StartStopInject(true);
+
             bKeepProcessAlive = false;
+          }
         }
 
         ImGui::PopStyleVar ();
 
-        if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation)
+        if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
           SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
         
         ImGui::SetCursorPos (topCursorPos);
@@ -1902,7 +2158,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             static std::wstring
                        driverBinaryPath    = L"";
-
+            
             enum Status {
               NotInstalled,
               Installed,
@@ -1969,8 +2225,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          )
                       {
                         // Store the binary path of the installed driver.
-                        binaryPath =
-                          std::wstring (lpsc->lpBinaryPathName);
+                        binaryPath = std::wstring (lpsc->lpBinaryPathName);
 
                         // Check if 'SpecialK' can be found in the path.
                         if (binaryPath.find (L"SpecialK") != std::wstring::npos)
@@ -2008,8 +2263,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // SKIF Options
             if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
             {
-              ImGui::BeginGroup ();
-              ImGui::Spacing    ();
+              ImGui::BeginGroup ( );
+              ImGui::Spacing    ( );
 
               if (ImGui::Checkbox ("Disable UI scaling based on display DPI", &SKIF_bDisableDPIScaling))
               {
@@ -2042,22 +2297,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 "Combining this with disabled UI tooltips will hide all context based information or tips."
               );
 
-              if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
-                                             &SKIF_bEnableDebugMode))
-                regKVEnableDebugMode.putData (SKIF_bEnableDebugMode);
+              if (ImGui::Checkbox("Allow the global injector to run in the background after closing SKIF",
+                                                     &SKIF_bAllowBackgroundService))
+                regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
 
-              if (SKIF_bEnableDebugMode)
-                  SKIF_ImGui_SetHoverTip (
-                    "Halt " ICON_FA_EXCLAMATION_CIRCLE "\n " ICON_FA_ELLIPSIS_H " Try Not To Catch Fire " ICON_FA_FREE_CODE_CAMP
-                  );
-
-              if (ImGui::Checkbox ("Disable nag screen when closing SKIF (" ICON_FA_ACCESSIBLE_ICON ")",
+              if (ImGui::Checkbox ("Disable the exit prompt when closing SKIF (" ICON_FA_WINDOW_CLOSE ")",
                                                      &SKIF_bDisableExitConfirmation))
                 regKVDisableExitConfirmation.putData (SKIF_bDisableExitConfirmation);
 
-              SKIF_ImGui_SetHoverTip (
-                "The global injector will remain active in the background."
-              );
+              if (SKIF_bAllowBackgroundService)
+                SKIF_ImGui_SetHoverTip(
+                  "The global injector will remain active in the background."
+                );
+              else
+                SKIF_ImGui_SetHoverTip (
+                  "The global injector will stop automatically."
+                );
 
               _DrawHDRConfig ();
 
@@ -2074,7 +2329,60 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImGui::EndGroup    ();
               }
 
-              ImGui::EndGroup ();
+              ImGui::EndGroup      ( );
+              ImGui::SameLine      ( );
+              ImGui::BeginGroup    ( );
+
+              if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
+                                                        &SKIF_bEnableDebugMode))
+                SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
+                                            std::string ( SKIF_bEnableDebugMode ? "On"
+                                                                                : "Off" )
+                                          ).c_str ()
+                );
+
+              if (SKIF_bEnableDebugMode)
+              {
+                  SKIF_ImGui_SetHoverTip (
+                    "Halt " ICON_FA_EXCLAMATION_CIRCLE "\n " ICON_FA_ELLIPSIS_H
+                    " Try Not To Catch Fire " ICON_FA_FREE_CODE_CAMP
+                  );
+
+                ImGui::TreePush ("");
+
+                if ( ImGui::Checkbox (
+                       "Allow Multiple Instances of SKIF",
+                         &SKIF_bAllowMultipleInstances )
+                   )
+                {
+                  if (! SKIF_bAllowMultipleInstances)
+                  {
+                    // Immediately close out any duplicate instances, they're undesirables
+                    EnumWindows ( []( HWND   hWnd,
+                                      LPARAM lParam ) -> BOOL
+                    {
+                      wchar_t                         wszRealWindowClass [64] = { };
+                      if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+                      {
+                        if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+                        {
+                          if (SKIF_hWnd != hWnd)
+                            PostMessage (  hWnd, WM_QUIT,
+                                            0x0, 0x0  );
+                        }
+                      }
+                      return TRUE;
+                    }, (LPARAM)SKIF_WindowClass);
+                  }
+
+                  regKVAllowMultipleInstances.putData (
+                    SKIF_bAllowMultipleInstances
+                   );
+                }
+
+                ImGui::TreePop  ( );
+              }
+              ImGui::EndGroup   ( );
             }
 
             ImGui::Spacing ();
@@ -2198,8 +2506,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   // Batch call succeeded -- change driverStatusPending to the 
                   //   opposite of driverStatus to signal that a new state is pending.
                   driverStatusPending =
-                    (driverStatus == Installed) ?
-                                   NotInstalled : Installed;
+                        (driverStatus == Installed) ?
+                                       NotInstalled : Installed;
                 }
               }
 
@@ -2207,40 +2515,40 @@ wWinMain ( _In_     HINSTANCE hInstance,
               //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
               else if ( (! requiredFiles)                     ||
                           driverStatusPending != driverStatus ||
-                                 NotInstalled == driverStatus )
+                         OtherDriverInstalled == driverStatus )
               {
                 ImGui::PopStyleVar ();
                 ImGui::PopItemFlag ();
+              }
 
-                // Show warning about missing files
-                if (!requiredFiles)
-                {
-                  ImGui::SameLine   ();
-                  ImGui::BeginGroup ();
-                  ImGui::Spacing    ();
-                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F),
-                                                            "Option is unavailable as one or more of the required files are missing."
-                  );
-                  ImGui::EndGroup   ();
-                }
+              // Show warning about missing files
+              if (!requiredFiles)
+              {
+                ImGui::SameLine   ();
+                ImGui::BeginGroup ();
+                ImGui::Spacing    ();
+                ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+                ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F),
+                                                          "Option is unavailable as one or more of the required files are missing."
+                );
+                ImGui::EndGroup   ();
+              }
 
-                // Show warning about another driver being installed
-                else if (NotInstalled == driverStatus)
-                {
-                  ImGui::SameLine   ();
-                  ImGui::BeginGroup ();
-                  ImGui::Spacing    ();
-                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "? ");
-                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F),
-                                                            "Option is unavailable as another application have already installed a copy of the driver."
-                  );
-                  ImGui::EndGroup   ();
+              // Show warning about another driver being installed
+              else if (OtherDriverInstalled == driverStatus)
+              {
+                ImGui::SameLine   ();
+                ImGui::BeginGroup ();
+                ImGui::Spacing    ();
+                ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "? ");
+                ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F),
+                                                          "Option is unavailable as another application have already installed a copy of the driver."
+                );
+                ImGui::EndGroup   ();
 
-                  SKIF_ImGui_SetHoverTip (
-                    SK_WideCharToUTF8 (driverBinaryPath).c_str ()
-                  );
-                }
+                SKIF_ImGui_SetHoverTip (
+                  SK_WideCharToUTF8 (driverBinaryPath).c_str ()
+                );
               }
 
               ImGui::EndGroup ();
@@ -2952,7 +3260,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ( 0.0f, fNewPos );
 
             auto current_time =
-              timeGetTime ();
+              SKIF_timeGetTime ();
 
             ImGui::SetCursorPosY (
               ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
@@ -3031,7 +3339,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Confirm Exit prompt
         ImGui::SetNextWindowSize (
-          ImVec2 ( 515.0f * SKIF_ImGui_GlobalDPIScale, 
+          ImVec2 ( (SKIF_bAllowBackgroundService)
+                      ? 515.0f * SKIF_ImGui_GlobalDPIScale
+                      : 350.0f * SKIF_ImGui_GlobalDPIScale,
                      0.0f )
         );
 
@@ -3043,28 +3353,39 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_Spacing ();
 
-          ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                "              Exiting without stopping the service will leave the global"
-                "\n                            injection running in the background."
-          );
+          if (SKIF_bAllowBackgroundService)
+            ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),
+              "                           Exiting will leave the global injection"
+              "\n                            service running in the background."
+            );
+          else
+            ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
+                  "      Exiting will stop the global injection service."
+            );
 
           SKIF_ImGui_Spacing ();
 
-          if (ImGui::Button ("Stop Service And Exit", ImVec2 (  0 * SKIF_ImGui_GlobalDPIScale,
-                                                               25 * SKIF_ImGui_GlobalDPIScale )))
+          if (SKIF_bAllowBackgroundService)
           {
-            _inject._StartStopInject (true);
+            if (ImGui::Button ("Stop Service And Exit", ImVec2 (  0 * SKIF_ImGui_GlobalDPIScale,
+                                                                 25 * SKIF_ImGui_GlobalDPIScale )))
+            {
+              _inject._StartStopInject(true);
 
-            bKeepProcessAlive = false;
+              bKeepProcessAlive = false;
+            }
+
+            ImGui::SameLine ();
+            ImGui::Spacing  ();
+            ImGui::SameLine ();
           }
-
-          ImGui::SameLine ();
-          ImGui::Spacing  ();
-          ImGui::SameLine ();
 
           if (ImGui::Button ("Exit", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
           {
+            if (! SKIF_bAllowBackgroundService)
+              _inject._StartStopInject(true);
+
             bKeepProcessAlive = false;
           }
 
@@ -3113,8 +3434,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Rendering
       ImGui::Render ();
 
-//////g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
-//////g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
+      g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
+      g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
       ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
@@ -3125,22 +3446,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::RenderPlatformWindowsDefault ();
       }
 
-      if (FAILED (g_pSwapChain->Present (1, DXGI_PRESENT_RESTART)))
+      UINT Interval =
+        SKIF_bAllowTearing ? 0
+                           : 1;
+      UINT  Flags   =
+        SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING
+                           : 0x0;
+
+      if (FAILED (g_pSwapChain->Present (Interval, Flags)))
         break;
     }
 
     _UpdateOcclusionStatus ();
 
     if ((! bKeepProcessAlive) && hWnd != 0)
-      PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
+      PostMessage(hWnd, WM_QUIT, 0x0, 0x0);
 
     else if (bOccluded || IsIconic (hWnd))
     {
-      static HANDLE      event =
-          CreateEvent (nullptr, false, false, nullptr);
+      static CHandle event (
+               CreateEvent (nullptr, false, false, nullptr)
+        );
 
       static auto thread =
-        _beginthread ( [](void *)
+        _beginthreadex ( nullptr, 0x0, [](void *) -> unsigned
         {
           CRITICAL_SECTION            GamepadInputPump = { };
           InitializeCriticalSection (&GamepadInputPump);
@@ -3152,7 +3481,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGui_ImplWin32_UpdateGamepads ();
 
             SetEvent           (event);
-            SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 0, nullptr);
+            PostMessage        (SKIF_hWnd, WM_NULL, 0x0, 0x0);
+          //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 0, nullptr);
 
             if (! SKIF_ImGui_IsFocused ())
             {
@@ -3173,14 +3503,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
           LeaveCriticalSection  (&GamepadInputPump);
           DeleteCriticalSection (&GamepadInputPump);
 
-          CloseHandle (event);
+          _endthreadex (0x0);
 
-          _endthread ();
-        }, 0, nullptr
+          return 0;
+        }, nullptr, 0x0, nullptr
       );
 
       while ( IsWindow (hWnd) &&
-                WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event, FALSE,
+                WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
         if (! _TranslateAndDispatch ())
@@ -3192,9 +3522,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
   }
-
-  if (hDC != 0)
-    ReleaseDC (hWnd, hDC);
 
   ImGui_ImplDX11_Shutdown   (    );
   ImGui_ImplWin32_Shutdown  (    );
@@ -3210,23 +3537,61 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
+using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
+using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
+                                                  CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
+                                                  CONST DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**,
+                                                                               ID3D11Device**,
+                                                        D3D_FEATURE_LEVEL*,    ID3D11DeviceContext**);
+
+CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
+D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
+
 // Helper functions
 
 bool CreateDeviceD3D (HWND hWnd)
 {
+  HMODULE hModD3D11 =
+    LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+  HMODULE hModDXGI =
+    LoadLibraryEx (L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+  SKIF_CreateDXGIFactory1 =
+      (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
+      "CreateDXGIFactory1");
+
+  CComPtr <IDXGIFactory5>
+               pFactory5;
+
+  if ( SUCCEEDED (
+    SKIF_CreateDXGIFactory1 (
+       IID_IDXGIFactory5,
+     (void **)&pFactory5.p ) ) )
+               pFactory5->CheckFeatureSupport (
+                          DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                                        &SKIF_bAllowTearing,
+                                sizeof ( SKIF_bAllowTearing )
+                                              );
+
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
-  sd.BufferCount                        = 3;
-  sd.BufferDesc.Width                   = 2;
-  sd.BufferDesc.Height                  = 2;
+  sd.BufferCount                        =  3 ;
+  sd.BufferDesc.Width                   =  4 ;
+  sd.BufferDesc.Height                  =  4 ;
   sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 1;
   sd.Flags                              =
     SKIF_IsWindows8Point1OrGreater () ?   DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                      :   0;
-  sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_BACK_BUFFER;
+                                      :   0x0;
+  sd.Flags |=
+    SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                       : 0x0;
+
+  sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT |
+                                          DXGI_USAGE_BACK_BUFFER;
   sd.OutputWindow                       = hWnd;
   sd.SampleDesc.Count                   = 1;
   sd.SampleDesc.Quality                 = 0;
@@ -3245,14 +3610,18 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0
   };
 
-  if ( D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                         createDeviceFlags, featureLevelArray,
-                                                    sizeof (featureLevelArray) / sizeof featureLevel,
-                                           D3D11_SDK_VERSION,
-                                             &sd, &g_pSwapChain,
-                                                  &g_pd3dDevice,
-                                                           &featureLevel,
-                                                  &g_pd3dDeviceContext) != S_OK ) return false;
+  SKIF_D3D11CreateDeviceAndSwapChain =
+      (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
+      "D3D11CreateDeviceAndSwapChain");
+
+  if ( SKIF_D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                              createDeviceFlags, featureLevelArray,
+                                                         sizeof (featureLevelArray) / sizeof featureLevel,
+                                                D3D11_SDK_VERSION,
+                                                  &sd, &g_pSwapChain,
+                                                       &g_pd3dDevice,
+                                                                &featureLevel,
+                                                       &g_pd3dDeviceContext) != S_OK ) return false;
 
   CreateRenderTarget ();
   
@@ -3298,6 +3667,15 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_SKIF_MINIMIZE:
+      ShowWindow (hWnd, SW_MINIMIZE);   break;
+
+    case WM_SKIF_START:
+      _inject._StartStopInject (false); break;
+
+    case WM_SKIF_STOP:
+      _inject._StartStopInject  (true); break;
+
   case WM_SIZE:
     if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
     {
@@ -3305,8 +3683,10 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       g_pSwapChain->ResizeBuffers (
         0, (UINT)LOWORD (lParam),
            (UINT)HIWORD (lParam),
-          DXGI_FORMAT_UNKNOWN, SKIF_IsWindows8Point1OrGreater () ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                                                 : 0
+          DXGI_FORMAT_UNKNOWN, SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                                                  : 0x0 |
+                SKIF_IsWindows8Point1OrGreater () ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                                  : 0x0
       );
       CreateRenderTarget ();
     }

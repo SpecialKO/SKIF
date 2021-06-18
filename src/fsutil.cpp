@@ -153,7 +153,7 @@ SK_Generate8Dot3 (const wchar_t* wszLongFileName)
       if ( pwszExt != nullptr &&
           *pwszExt == L'.' )
       {
-        swprintf ( wszDot3,
+        _swprintf ( wszDot3,
                      L"%3s",
                        CharNextW (pwszExt) );
       }
@@ -176,7 +176,7 @@ SK_Generate8Dot3 (const wchar_t* wszLongFileName)
       wsz8 [7] = L'0';
       wsz8 [8] = L'\0';
 
-      swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
+      _swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
 
       while ((! SetFileShortNameW (hFile, wsz8Dot3)) && idx < 9)
       {
@@ -184,13 +184,13 @@ SK_Generate8Dot3 (const wchar_t* wszLongFileName)
         wsz8 [7] = L'0' + idx++;
         wsz8 [8] = L'\0';
 
-        swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
+        _swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
       }
     }
 
     else
     {
-      swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
+      _swprintf (wsz8Dot3, dir ? L"%s" : L"%s.%s", wsz8, wszDot3);
     }
 
     if (idx == 9)

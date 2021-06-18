@@ -1140,7 +1140,7 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     const  DWORD dwTimeout    = 425UL;
-    static DWORD dwLastUpdate = timeGetTime ();
+    static DWORD dwLastUpdate = SKIF_timeGetTime ();
 
     struct {
       std::string text = "";
@@ -1149,7 +1149,7 @@ SKIF_GameManagement_DrawTab (void)
 
     if (bText)
     {
-      dwLastUpdate = timeGetTime ();
+      dwLastUpdate = SKIF_timeGetTime ();
 
       if (labels.search (test_))
       {
@@ -1183,9 +1183,9 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_StatusBarHelp = result.text.substr (len, result.text.length () - len);
     }
 
-    if (                  dwLastUpdate != MAXDWORD &&
-         timeGetTime () - dwLastUpdate >
-                          dwTimeout )
+    if (                       dwLastUpdate != MAXDWORD &&
+         SKIF_timeGetTime () - dwLastUpdate >
+                               dwTimeout )
     {
       if (result.app_id != 0)
       {
@@ -1235,7 +1235,7 @@ SKIF_GameManagement_DrawTab (void)
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
       _inject.running =
-        _inject.TestServletRunlevel(changing);
+        _inject.TestServletRunlevel (changing);
 
       if (              changing ||
                    cache.running != pTargetApp->_status.running)

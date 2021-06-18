@@ -169,6 +169,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     CloseHandle         (hThread);
   }
 
+  // Hack-a-la-Aemony to fix stupid service not stopping properly after subsequent SKIF launches
+  Sleep(50);
+
   return _inout;
 };
 
@@ -295,9 +298,12 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
 bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
 {
-  bool ret = running;
+  static bool ret    = false;
+  static bool oldRet = false;
+  oldRet = ret;
+  ret = running;
 
-  if (dir_watch.isSignaled ())
+  if (true)//dir_watch.isSignaled ())
   {
     for ( auto& record : records )
     {
@@ -339,7 +345,8 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
 
     changed_state = true;
 
-    _SetTaskbarOverlay (ret);
+    if (oldRet != ret)
+      _SetTaskbarOverlay (ret);
   }
 
   return ret;
@@ -612,16 +619,16 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     PathFileExistsW (LR"(Servlet\enable_logon.bat)" ) &&
     PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
     PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
-                            //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
+  //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
   
   ImGui::Spacing     ();
   
   ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
   ImGui::TextWrapped    (
-    "The global injection service can be configured to start in the background automatically with Windows."
+    "SKIF and the global injection service can be configured to start automatically with Windows."
   );
   ImGui::PopStyleColor  ();
-  
+
   ImGui::Spacing     ();
   ImGui::Spacing     ();
   
@@ -629,9 +636,9 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   ImGui::Spacing     (); ImGui::SameLine();
   ImGui::TextColored ( ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
   ImGui::SameLine    ();
-  ImGui::TextColored ( ImColor (0.68F, 0.68F, 0.68F),    "This setting affects all users on the system.");
+  ImGui::TextColored ( ImColor (ImColor::HSV(0.11F, 1.F, 1.F)),    "This option is currently not recommended !");
   ImGui::EndGroup    ();
-  
+
   ImGui::BeginGroup  ();
   ImGui::Spacing     ();
   ImGui::SameLine    ();

@@ -37,6 +37,7 @@
 #include <SKIF.h>
 
 #define SKIF_scRGB
+extern BOOL SKIF_bAllowTearing;
 
 #include <atlbase.h>
 #include <dxgi1_6.h>
@@ -394,6 +395,9 @@ FLOAT SKIF_GetMinHDRLuminance (void)
 {
   if (! SKIF_IsHDR ())
     return 0.0f;
+
+  if (hdrOutDesc.MinLuminance > hdrOutDesc.MaxFullFrameLuminance)
+    std::swap (hdrOutDesc.MinLuminance, hdrOutDesc.MaxFullFrameLuminance);
 
   return
     hdrOutDesc.MinLuminance;
@@ -954,7 +958,7 @@ ImGui_ImplDX11_Init ( ID3D11Device *device,
   g_pd3dDevice        = device;
   g_pd3dDeviceContext = device_context;
 
-  CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+  SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     ImGui_ImplDX11_InitPlatformInterface ();
@@ -992,7 +996,7 @@ void ImGui_ImplDX11_NewFrame (void)
      pFactory1.Release ();
     g_pFactory.Release ();
 
-    CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+    SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
 
     ImGuiContext& g = *GImGui;
     for (int i = 0; i < g.Viewports.Size; i++)
@@ -1062,6 +1066,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.Flags =
     bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT :
                0x0;
+
+  swap_desc.Flags |=
+    SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                       : 0x0;
 
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
@@ -1264,12 +1272,12 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
   g_pd3dDeviceContext->OMSetRenderTargets ( 1,
                 &data->RTView,    nullptr );
 
-  /////if (! (viewport->Flags & ImGuiViewportFlags_NoRendererClear))
-  /////{
-  /////  g_pd3dDeviceContext->ClearRenderTargetView (
-  /////                                data->RTView,
-  /////                       (float *)&clear_color );
-  /////}
+  if (! (viewport->Flags & ImGuiViewportFlags_NoRendererClear))
+  {
+    g_pd3dDeviceContext->ClearRenderTargetView (
+                                  data->RTView,
+                         (float *)&clear_color );
+  }
 
   ImGui_ImplDX11_RenderDrawData (viewport->DrawData);
 }
@@ -1283,6 +1291,10 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
+  UINT Interval =
+    SKIF_bAllowTearing ? 0
+                       : 1;
+
   if (data->WaitHandle)
   {
     CComQIPtr <IDXGISwapChain3> 
@@ -1293,15 +1305,18 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     
     if (dwWaitState == WAIT_OBJECT_0)
     {
-      DXGI_PRESENT_PARAMETERS                          pparams = { };
-      pSwap3->Present1 ( 0, DXGI_PRESENT_DO_NOT_WAIT, &pparams );
+      DXGI_PRESENT_PARAMETERS                                 pparams = { };
+      pSwap3->Present1 ( Interval, SKIF_bAllowTearing ?
+                           DXGI_PRESENT_ALLOW_TEARING : 0x0, &pparams );
       data->PresentCount++;
     }
   }
   
-  else {
-  data->SwapChain->Present ( 0, DXGI_PRESENT_DO_NOT_WAIT );
-  data->PresentCount++;
+  else
+  {
+    data->SwapChain->Present ( Interval, SKIF_bAllowTearing ?
+                                 DXGI_PRESENT_ALLOW_TEARING : 0x0 );
+    data->PresentCount++;
   }
 }
 
