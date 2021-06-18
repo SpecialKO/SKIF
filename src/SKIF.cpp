@@ -1765,7 +1765,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImVec2 monitor_wz,
          windowPos;
   ImRect monitor_extent = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  bool changedMode = false;
+  bool changedMode     = false,
+       todoFixUglyHack = ! PathFileExistsW(L"imgui.ini");
 
   // Handle cases where a Start / Stop Command Line was Passed,
   //   but no running instance existed to service it yet...
@@ -1866,10 +1867,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #define SKIF_wSmallMode  415
 #define SKIF_hSmallMode  305
 
-        ImVec2 SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode * SKIF_ImGui_GlobalDPIScale,
-                                              SKIF_hSmallMode * SKIF_ImGui_GlobalDPIScale );
-        ImVec2 SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode * SKIF_ImGui_GlobalDPIScale,
-                                              SKIF_hLargeMode * SKIF_ImGui_GlobalDPIScale );
+        static ImVec2 SKIF_vecSmallMode,
+                      SKIF_vecLargeMode,
+                      SKIF_vecCurrentMode;
+
+        SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode * SKIF_ImGui_GlobalDPIScale,
+                                       SKIF_hSmallMode * SKIF_ImGui_GlobalDPIScale );
+        SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode * SKIF_ImGui_GlobalDPIScale,
+                                       SKIF_hLargeMode * SKIF_ImGui_GlobalDPIScale );
 
         // Add the status bar if it is not disabled
         if ( ! SKIF_bDisableStatusBar )
@@ -1883,14 +1888,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if ((! SKIF_bDisableStatusBar) && SKIF_bDisableTooltips && SKIF_bDisableDPIScaling)
           SKIF_vecLargeMode.y += 6.0f;
 
-        ImVec2 SKIF_vecCurrentMode =
-          (SKIF_bSmallMode) ? SKIF_vecSmallMode
-                            : SKIF_vecLargeMode;
+        SKIF_vecCurrentMode  =
+                      (SKIF_bSmallMode) ? SKIF_vecSmallMode
+                                        : SKIF_vecLargeMode;
 
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
+        // Fix for window being created in the bottom right corner on first ever launch when an imgui.ini file is missing
+        //   Usually just using ImGuiCond_FirstUseEver should do the trick, but for some reason it fails, which causes the above section with boundaries calculations
+        //     to never trigger when changing modes etc... So instead we make the call only if imgui.ini is actually missing from the working directory.
+        if (todoFixUglyHack)
+        {
+          todoFixUglyHack = false;
+          ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+        }
+
         // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
-        if (changedMode)
+        //   Delay running the code to on the third frame to allow other required parts to have already executed...
+        //     Otherwise window gets positioned wrong on smaller monitors !
+        if (changedMode && ImGui::GetFrameCount() > 2)
         {
           changedMode = false;
 
@@ -1913,9 +1929,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if ( newWindowPos.x != windowPos.x || newWindowPos.y != windowPos.y )
             ImGui::SetNextWindowPos(newWindowPos);
         }
-
-        // Fix for window being created in the bottom right corner on first ever launch when an imgui.ini file is missing
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
 
         ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
                          nullptr,
