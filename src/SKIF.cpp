@@ -1497,6 +1497,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   }
 }
 
+bool bKeepWindowAlive  = true,
+            bKeepProcessAlive = true;
+
 // Main code
 int
 APIENTRY
@@ -1610,9 +1613,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     return 0;
   }
-
-  bool bKeepWindowAlive  = true,
-       bKeepProcessAlive = true;
 
   DWORD dwStyle   = SK_BORDERLESS,
         dwStyleEx =
@@ -2085,7 +2085,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SameLine ();
 
         if ( ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
-                                                            0.0f ) ) )
+                                                            0.0f ) )
+            || bKeepWindowAlive == false
+           )
         {
           if (SKIF_ServiceRunning && (!SKIF_bDisableExitConfirmation))
           {
@@ -3716,6 +3718,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
     }
     break;
+
   case WM_DESTROY:
     ::PostQuitMessage (0);
     return 0;
