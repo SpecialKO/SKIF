@@ -388,9 +388,11 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 const wchar_t*
 SK_GetSteamDir (void)
 {
+  extern bool SKIF_bDisableSteamLibrary;
+
   static wchar_t
        wszSteamPath [MAX_PATH + 2] = { };
-  if (*wszSteamPath == L'\0')
+  if (*wszSteamPath == L'\0' && ! SKIF_bDisableSteamLibrary)
   {
     // Don't keep querying the registry if Steam is not installed   
     wszSteamPath [0] = L'?';
@@ -473,12 +475,22 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         {
           data [dwSize] = '\0';
 
-          for (int i = 1; i < MAX_STEAM_LIBRARIES; i++)
+          for (int i = 1; i < MAX_STEAM_LIBRARIES - 1; i++)
           {
+            // Old libraryfolders.vdf format
             std::wstring lib_path =
               SK_Steam_KeyValues::getValueAsUTF16 (
                 data, { "LibraryFolders" }, std::to_string (i)
               );
+
+            if (lib_path.empty ())
+            {
+              // New (July 2021) libraryfolders.vdf format
+              lib_path =
+                SK_Steam_KeyValues::getValueAsUTF16 (
+                  data, { "LibraryFolders", std::to_string (i) }, "path"
+                );
+            }
 
             if (! lib_path.empty ())
             {

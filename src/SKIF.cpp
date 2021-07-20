@@ -39,6 +39,7 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableExitConfirmation = false,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
+     SKIF_bDisableSteamLibrary     = false,
      SKIF_bSmallMode               = false,
      SKIF_bFirstLaunch             = false,
      SKIF_bEnableDebugMode         = false,
@@ -1545,6 +1546,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Status Bar)" );
 
+  static auto regKVDisableSteamLibrary =
+    SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+      LR"(Disable Steam Library)");
+
   static auto regKVSmallMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Small Mode)" );
@@ -1566,6 +1571,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ();
   SKIF_bDisableTooltips         = regKVDisableTooltips.getData         ();
   SKIF_bDisableStatusBar        = regKVDisableStatusBar.getData        ();
+  SKIF_bDisableSteamLibrary     = regKVDisableSteamLibrary.getData     ();
   SKIF_bEnableDebugMode         = regKVEnableDebugMode.getData         ();
   SKIF_bSmallMode               = regKVSmallMode.getData               ();
   SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ();
@@ -2329,6 +2335,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   "The global injector will stop automatically."
                 );
 
+              if (ImGui::Checkbox ("Disable Steam Library in SKIF", &SKIF_bDisableSteamLibrary))
+                regKVDisableSteamLibrary.putData (                   SKIF_bDisableSteamLibrary);
+
+              SKIF_ImGui_SetHoverTip (
+                "This will prevent SKIF from reading and listing discovered Steam games."
+              );
+
               _DrawHDRConfig ();
 
               if (SKIF_bDisableTooltips && SKIF_bDisableStatusBar)
@@ -2573,7 +2586,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing ();
 
             // Global injection
-            if (ImGui::CollapsingHeader ("Autostart Global Injection Service"))
+            if (ImGui::CollapsingHeader ("Autostart Global Injection Service", ImGuiTreeNodeFlags_DefaultOpen))
             {
               _inject._StartAtLogonCtrl ();
             }
@@ -2790,8 +2803,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (*whitelist == '\0')
               {
                 SKIF_ImGui_SetHoverTip (
-                  R"("SteamApps" is the pattern used internally to enable Special K for all Steam games."
-                     "It is presented here solely as an example of how a potential pattern might look like.)"
+                  "SteamApps is the pattern used internally to enable Special K for all Steam games.\n"
+                  "It is presented here solely as an example of how a potential pattern might look like."
                 );
               }
 

@@ -40,6 +40,10 @@ struct SKIF_InjectionContext {
   bool    bHasUpdatedFiles  = false;
   bool    bLogonTaskEnabled = false;
   bool    bHasServletTasks  = false;
+  
+  bool    bAutoStartSKIF    = false;
+  bool    bAutoStartService = false;
+  bool    bStartMinimized   = false;
 
   bool    bOnDemandInject   = false;
 

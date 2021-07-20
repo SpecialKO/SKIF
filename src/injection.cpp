@@ -40,6 +40,7 @@
 #include <vector>
 #include <iostream>
 #include <filesystem>
+#include <strsafe.h>
 
 float sk_global_ctl_x;
 bool  SKIF_ServiceRunning;
@@ -610,6 +611,175 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   return running;
 };
 
+//
+// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
+// 
+// CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
+//              to create and store a shortcut to the specified object. 
+//
+// Returns the result of calling the member functions of the interfaces. 
+//
+// Parameters:
+// lpszPathObj  - Address of a buffer that contains the path of the object,
+//                including the file name.
+// lpszPathLink - Address of a buffer that contains the path where the 
+//                Shell link is to be stored, including the file name.
+// lpszDesc     - Address of a buffer that contains a description of the 
+//                Shell link, stored in the Comment field of the link
+//                properties.
+
+HRESULT
+CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR lpszDesc)
+{
+  HRESULT hres;
+  IShellLink* psl;
+
+  CoInitializeEx(nullptr, 0x0);
+
+  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+  // has already been called.
+  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+
+  if (SUCCEEDED(hres))
+  {
+    IPersistFile* ppf;
+
+    // Set the path to the shortcut target and add the description. 
+    psl->SetPath(lpszPathObj);
+    psl->SetArguments(lpszArgs);
+    psl->SetDescription(lpszDesc);
+
+    // Query IShellLink for the IPersistFile interface, used for saving the 
+    // shortcut in persistent storage. 
+    //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
+
+    if (SUCCEEDED(hres))
+    {
+
+      WCHAR wsz[MAX_PATH];
+
+      // Ensure that the string is Unicode. 
+      MultiByteToWideChar(CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
+
+      // Save the link by calling IPersistFile::Save. 
+      hres = ppf->Save(wsz, FALSE);
+      if (SUCCEEDED(hres))
+      {
+        // Handle success
+        // Despite succeeding, this throws an error...?
+      }
+      else
+      {
+        // Handle the error
+      }
+
+      ppf->Release();
+    }
+    psl->Release();
+  }
+  return hres;
+}
+
+//
+// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#resolving-a-shortcut
+// 
+// ResolveIt - Uses the Shell's IShellLink and IPersistFile interfaces 
+//             to retrieve the path and description from an existing shortcut. 
+//
+// Returns the result of calling the member functions of the interfaces. 
+//
+// Parameters:
+// hwnd         - A handle to the parent window. The Shell uses this window to 
+//                display a dialog box if it needs to prompt the user for more 
+//                information while resolving the link.
+// lpszLinkFile - Address of a buffer that contains the path of the link,
+//                including the file name.
+// lpszPath     - Address of a buffer that receives the path of the link target, including the file name.
+// lpszDesc     - Address of a buffer that receives the description of the 
+//                Shell link, stored in the Comment field of the link
+//                properties.
+
+HRESULT
+ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszArguments, int iPathBufferSize)
+{
+  HRESULT hres;
+  IShellLink* psl;
+
+  WCHAR szGotPath[MAX_PATH];
+  WCHAR szArguments[MAX_PATH];
+  WIN32_FIND_DATA wfd;
+
+  *lpszArguments = 0; // Assume failure
+
+  CoInitializeEx(nullptr, 0x0);
+
+  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+  // has already been called. 
+
+  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+
+  if (SUCCEEDED(hres))
+  {
+    IPersistFile* ppf;
+
+    // Get a pointer to the IPersistFile interface. 
+    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
+
+    if (SUCCEEDED(hres))
+    {
+      WCHAR wsz[MAX_PATH];
+
+      // Ensure that the string is Unicode. 
+      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
+
+      // Add code here to check return value from MultiByteWideChar 
+      // for success.
+
+      // Load the shortcut. 
+      hres = ppf->Load(wsz, STGM_READ);
+
+      if (SUCCEEDED(hres))
+      {
+        // Resolve the link. 
+        hres = psl->Resolve(hwnd, 0);
+
+        if (SUCCEEDED(hres))
+        {
+          // Get the path to the link target. 
+          hres = psl->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
+
+          if (SUCCEEDED(hres))
+          {
+            // Get the arguments of the target. 
+            hres = psl->GetArguments(szArguments, MAX_PATH);
+
+            if (SUCCEEDED(hres))
+            {
+              hres = StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
+              if (SUCCEEDED(hres))
+              {
+                // Handle success
+              }
+              else
+              {
+                // Handle the error
+              }
+            }
+          }
+        }
+      }
+
+      // Release the pointer to the IPersistFile interface. 
+      ppf->Release();
+    }
+
+    // Release the pointer to the IShellLink interface. 
+    psl->Release();
+  }
+  return hres;
+}
+
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
@@ -628,64 +798,97 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     "SKIF and the global injection service can be configured to start automatically with Windows."
   );
   ImGui::PopStyleColor  ();
-
-  ImGui::Spacing     ();
-  ImGui::Spacing     ();
-  
-  ImGui::BeginGroup  ();
-  ImGui::Spacing     (); ImGui::SameLine();
-  ImGui::TextColored ( ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-  ImGui::SameLine    ();
-  ImGui::TextColored ( ImColor (ImColor::HSV(0.11F, 1.F, 1.F)),    "This option is currently not recommended !");
-  ImGui::EndGroup    ();
-
-  ImGui::BeginGroup  ();
-  ImGui::Spacing     ();
-  ImGui::SameLine    ();
-  ImGui::TextColored ( ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-  ImGui::SameLine    ();
-  ImGui::TextColored ( ImColor (0.68F, 0.68F, 0.68F),    "Note that SKIF will not start alongside the service.");
-  ImGui::EndGroup    ();
   
   ImGui::Spacing ();
   ImGui::Spacing ();
-  
-  if (! requiredFiles)
+
+  // New method
+
+  if (bLogonTaskEnabled)
   {
     // Disable button
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
     ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                           ImGui::GetStyle ().Alpha *
-                             ( (SKIF_IsHDR ()) ? 0.1f
-                                               : 0.5f
-                             )
+                            ImGui::GetStyle ().Alpha *
+                              ( (SKIF_IsHDR ()) ? 0.1f
+                                                : 0.5f
+                              )
     );
   }
   
-  if (ImGui::Checkbox (" " ICON_FA_SHIELD_ALT " Start At Logon", &bLogonTaskEnabled))
-  {
-    const wchar_t* wszLogonTaskCmd =
-      (bLogonTaskEnabled ?
-        LR"(Servlet\enable_logon.bat)" :
-        LR"(Servlet\disable_logon.bat)");
-  
-    if (
-      ShellExecuteW (
-        nullptr, L"runas",
-          wszLogonTaskCmd,
-            nullptr, nullptr,
-              SW_HIDE ) < (HINSTANCE)32 )
-    {
-      bLogonTaskEnabled =
-        ! bLogonTaskEnabled;
-    }
-  }
-  
-  SKIF_ImGui_SetHoverTip (
-    "Administrative privileges are required on the system to enable this."
+  ImGui::BeginGroup  ();
+
+  path_cache_s::win_path_s user_startup  =
+  {            FOLDERID_Startup,
+    L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
+  };
+
+  SKIF_GetFolderPath(&user_startup);
+
+  static std::wstring target = SK_FormatStringW ( LR"(%ws\SKIF.exe)",
+                               path_cache.specialk_userdata.path );
+
+  static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
+                               user_startup.path );
+
+  SK_RunOnce(
+    bAutoStartSKIF = PathFileExists(SK_UTF8ToWideChar(link).c_str())
   );
+
+  static bool argsChecked = false;
+  static std::wstring args = L"\0";
+
+  if ( ! argsChecked && bAutoStartSKIF )
+  {
+    extern HWND SKIF_hWnd;
+    WCHAR szArguments[MAX_PATH];
+    SK_RunOnce(ResolveIt(SKIF_hWnd, link.c_str(), szArguments, MAX_PATH));
+    args = szArguments;
+    
+    bAutoStartService = (args.find(L"START")    != std::wstring::npos);
+    bStartMinimized   = (args.find(L"MINIMIZE") != std::wstring::npos);
+
+    argsChecked = true;
+  }
+
+  static bool changes = false;
+
+  if (ImGui::Checkbox(" Start with Windows", &bAutoStartSKIF))
+    changes = true;
+
+  if (bAutoStartSKIF)
+  {
+    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
+    if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
+      changes = true;
+
+    /* Disabled for now
+    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
+    if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+      changes = true;
+    */
+  }
+
+  if (changes)
+  {
+    DeleteFileW(SK_UTF8ToWideChar(link).c_str());
+
+    if (bStartMinimized)
+      args = (bAutoStartService) ? L"START MINIMIZE" : L"STOP MINIMIZE";
+    else
+      args = (bAutoStartService) ? L"START"          : L"";
+
+    if (bAutoStartSKIF)
+     CreateLink(target.c_str(), link.c_str(), args.c_str(), L"Special K Injection Frontend");
+    else
+      bAutoStartService = bStartMinimized = false;
+
+    changes = false;
+  }
+
+  ImGui::EndGroup    ();
   
-  if (! requiredFiles)
+  if (bLogonTaskEnabled)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
@@ -693,10 +896,63 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     ImGui::SameLine    ();
   
     ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                           "Option is unavailable as one or more of the required files are missing."
+                            "Please disable the obsolete autostart method !"
     );
   }
+
+
+  // Obsolete method, only appear if it is actually enabled
+
+  if (bLogonTaskEnabled)
+  {
+    if (! requiredFiles)
+    {
+      // Disable button
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                             ImGui::GetStyle ().Alpha *
+                               ( (SKIF_IsHDR ()) ? 0.1f
+                                                 : 0.5f
+                               )
+      );
+    }
   
+    if (ImGui::Checkbox (" " ICON_FA_SHIELD_ALT " Start At Logon (obsolete)", &bLogonTaskEnabled))
+    {
+      const wchar_t* wszLogonTaskCmd =
+        (bLogonTaskEnabled ?
+          LR"(Servlet\enable_logon.bat)" :
+          LR"(Servlet\disable_logon.bat)");
+  
+      if (
+        ShellExecuteW (
+          nullptr, L"runas",
+            wszLogonTaskCmd,
+              nullptr, nullptr,
+                SW_HIDE ) < (HINSTANCE)32 )
+      {
+        bLogonTaskEnabled =
+          ! bLogonTaskEnabled;
+      }
+    }
+  
+    SKIF_ImGui_SetHoverTip (
+      "Administrative privileges are required on the system to toggle this."
+    );
+  
+    if (! requiredFiles)
+    {
+      ImGui::PopStyleVar ();
+      ImGui::PopItemFlag ();
+  
+      ImGui::SameLine    ();
+  
+      ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
+                             "Option is unavailable as one or more of the required files are missing."
+      );
+    }
+  }
+
   ImGui::EndGroup      ();
 }
 
