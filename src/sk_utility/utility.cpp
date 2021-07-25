@@ -30,6 +30,10 @@
 #include <codecvt>
 #endif
 
+#include <fonts/fa_regular_400.ttf.h>
+#include <fonts/fa_brands_400.ttf.h>
+#include <fonts/fa_solid_900.ttf.h>
+
 std::string
 SK_WideCharToUTF8 (const std::wstring& in)
 {
@@ -358,4 +362,29 @@ SK_FormatStringW (wchar_t const* const _Format, ...)
 
   return
     pData.get ();
+}
+
+size_t
+SK_RemoveTrailingDecimalZeros (char* szNum, size_t bufLen)
+{
+  if (szNum == nullptr)
+    return 0;
+
+  // Remove trailing 0's after the .
+  size_t len = bufLen == 0 ?
+                  strlen (szNum) :
+        std::min (strlen (szNum), bufLen);
+
+  for (size_t i = (len - 1); i > 1; i--)
+  {
+    if (szNum [i] == '0' && szNum [i - 1] != '.')
+      len--;
+
+    if (szNum [i] != '0' && szNum [i] != '\0')
+      break;
+  }
+
+  szNum [len] = '\0';
+
+  return len;
 }

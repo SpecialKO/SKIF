@@ -69,19 +69,19 @@ app_launch_config_s::getBlacklistFilename (int32_t appid)
     PathStripPathW       ( wszExecutableBase );
     PathRemoveExtensionW ( wszExecutableBase );
 
-    swprintf_s ( wszBlacklistPath, MAX_PATH,
-                   L"%ws\\SpecialK.deny.%ws",
-                     wszBlacklistPath, wszExecutableBase );
-
     blacklist_file =
-      wszBlacklistPath;
+      SK_FormatStringW (
+        L"%ws\\SpecialK.deny.%ws",
+          wszBlacklistPath, wszExecutableBase
+                       );
   }
 
   else
     blacklist_file =
       L"InvalidLaunchConfig.NeverInject";
 
-  return blacklist_file;
+  return
+    blacklist_file;
 }
 
 bool
@@ -236,7 +236,7 @@ struct SKIF_RegistryWatch {
   }
 
   struct {
-    HKEY         root;
+    HKEY         root        = { };
     std::wstring sub_key;
     DWORD        filter_mask =
       REG_NOTIFY_CHANGE_LAST_SET;

@@ -43,8 +43,8 @@ ModifyPrivilege (
 // Cache of paths that do not change between AppIDs
 struct path_cache_s {
   struct win_path_s {
-    KNOWNFOLDERID   folderid;
-    const wchar_t*  legacy_env_var;
+    KNOWNFOLDERID   folderid        = { };
+    const wchar_t*  legacy_env_var  = L"";
     wchar_t         path [MAX_PATH] = { };
     volatile LONG __init            =  0;
   };

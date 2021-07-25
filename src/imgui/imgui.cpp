@@ -6099,7 +6099,8 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
 
         UpdateSelectWindowViewport(window);
         SetCurrentViewport(window, window->Viewport);
-        window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? window->Viewport->DpiScale : 1.0f;
+    ////window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? window->Viewport->DpiScale : 1.0f;
+        window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (window->Viewport->DpiScale <= 2.0f) ? window->Viewport->DpiScale : 2.0f : 1.0f;
         SetCurrentWindow(window);
         flags = window->Flags;
 
@@ -6226,7 +6227,8 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
                 // FIXME-DPI
                 //IM_ASSERT(old_viewport->DpiScale == window->Viewport->DpiScale); // FIXME-DPI: Something went wrong
                 SetCurrentViewport(window, window->Viewport);
-                window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? window->Viewport->DpiScale : 1.0f;
+          //////window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? window->Viewport->DpiScale : 1.0f;
+                window->FontDpiScale = (g.IO.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (window->Viewport->DpiScale <= 2.0f) ? window->Viewport->DpiScale : 2.0f : 1.0f;
                 SetCurrentWindow(window);
             }
 
@@ -11533,24 +11535,24 @@ void ImGui::UpdatePlatformWindows()
 //
 void ImGui::RenderPlatformWindowsDefault(void* platform_render_arg, void* renderer_render_arg)
 {
-    // Skip the main viewport (index 0), which is always fully handled by the application!
-    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-    for (int i = 1; i < platform_io.Viewports.Size; i++)
+  //// Skip the main viewport (index 0), which is always fully handled by the application!
+  ImGuiPlatformIO& platform_io =
+    ImGui::GetPlatformIO ();
+
+  for (int i = 1; i < platform_io.Viewports.Size; i++)
+  {
+    ImGuiViewport* viewport =
+       platform_io.Viewports [i];
+
+    if ((viewport->Flags & ImGuiViewportFlags_Minimized) == 0)
     {
-        ImGuiViewport* viewport = platform_io.Viewports[i];
-        if (viewport->Flags & ImGuiViewportFlags_Minimized)
-            continue;
-        if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow(viewport, platform_render_arg);
-        if (platform_io.Renderer_RenderWindow) platform_io.Renderer_RenderWindow(viewport, renderer_render_arg);
+      if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow (viewport, platform_render_arg);
+      if (platform_io.Platform_SwapBuffers)  platform_io.Platform_SwapBuffers  (viewport, platform_render_arg);
+
+      if (platform_io.Renderer_RenderWindow) platform_io.Renderer_RenderWindow (viewport, renderer_render_arg);
+      if (platform_io.Renderer_SwapBuffers)  platform_io.Renderer_SwapBuffers  (viewport, renderer_render_arg);
     }
-    for (int i = 1; i < platform_io.Viewports.Size; i++)
-    {
-        ImGuiViewport* viewport = platform_io.Viewports[i];
-        if (viewport->Flags & ImGuiViewportFlags_Minimized)
-            continue;
-        if (platform_io.Platform_SwapBuffers) platform_io.Platform_SwapBuffers(viewport, platform_render_arg);
-        if (platform_io.Renderer_SwapBuffers) platform_io.Renderer_SwapBuffers(viewport, renderer_render_arg);
-    }
+  }
 }
 
 static int ImGui::FindPlatformMonitorForPos(const ImVec2& pos)
@@ -11614,6 +11616,7 @@ void ImGui::DestroyPlatformWindow(ImGuiViewportP* viewport)
             g.PlatformIO.Renderer_DestroyWindow(viewport);
         if (g.PlatformIO.Platform_DestroyWindow)
             g.PlatformIO.Platform_DestroyWindow(viewport);
+
         IM_ASSERT(viewport->RendererUserData == NULL && viewport->PlatformUserData == NULL);
 
         // Don't clear PlatformWindowCreated for the main viewport, as we initially set that up to true in Initialize()

@@ -295,13 +295,14 @@ ImGui_ImplWin32_UpdateMousePos (void)
     {
       // Multi-viewport mode: mouse position in OS absolute coordinates (io.MousePos is (0,0) when the mouse is on the upper-left of the primary monitor)
       // This is the position you can get with GetCursorPos(). In theory adding viewport->Pos is also the reverse operation of doing ScreenToClient().
-      if (ImGui::FindViewportByPlatformHandle ((void *)focused_hwnd) != NULL)
+    ////if (ImGui::FindViewportByPlatformHandle ((void *)focused_hwnd) != NULL)
       {
         io.MousePos =
           ImVec2 ( (float)mouse_screen_pos.x,
                    (float)mouse_screen_pos.y );
       }
     }
+
     else
     {
       // Single viewport mode: mouse position in client window coordinates (io.MousePos is (0,0) when the mouse is on the upper-left corner of the app window.)
@@ -311,7 +312,7 @@ ImGui_ImplWin32_UpdateMousePos (void)
         POINT mouse_client_pos =
           mouse_screen_pos;
 
-        ::ScreenToClient (focused_hwnd, &mouse_client_pos);
+        ::ScreenToClient (g_hWnd, &mouse_client_pos);
 
         io.MousePos =
           ImVec2 ( (float)mouse_client_pos.x,
@@ -556,6 +557,17 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   ImGuiIO &io = ImGui::GetIO ( );
   switch (msg)
   {
+
+  case WM_CLOSE:
+    extern bool bKeepWindowAlive;
+    if (hwnd != nullptr && bKeepWindowAlive)
+    {
+      bKeepWindowAlive = false;
+      SetForegroundWindow(hwnd);
+      return 1;
+    }
+    break;
+
   case WM_SETFOCUS:
     g_Focused = true;
 
@@ -681,7 +693,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 BOOL
 IsWindows8Point1OrGreater (void)
 {
-  SetLastError(NO_ERROR);
+  SetLastError (NO_ERROR);
 
   static BOOL
     bResult =
@@ -697,7 +709,7 @@ IsWindows8Point1OrGreater (void)
 BOOL
 IsWindows10OrGreater (void)
 {
-  SetLastError(NO_ERROR);
+  SetLastError (NO_ERROR);
 
   static BOOL
   bResult =
@@ -775,10 +787,6 @@ ImGui_ImplWin32_EnableDpiAwareness (void)
   }
 }
 
-#ifdef _MSC_VER
-#pragma comment(lib, "gdi32")   // GetDeviceCaps()
-#endif
-
 float
 ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 {
@@ -802,10 +810,16 @@ ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 
   else
   {
-    const HDC dc = ::GetDC         (nullptr);
-            xdpi = ::GetDeviceCaps (dc, LOGPIXELSX);
-            ydpi = ::GetDeviceCaps (dc, LOGPIXELSY);
-                   ::ReleaseDC     (nullptr, dc);
+    using  GetDeviceCaps_pfn = int (WINAPI *)(HDC,int);
+    static GetDeviceCaps_pfn
+          SKIF_GetDeviceCaps = (GetDeviceCaps_pfn)GetProcAddress (
+                LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+              "GetDeviceCaps"                                    );
+
+    const HDC dc =    ::GetDC         (nullptr);
+            xdpi = SKIF_GetDeviceCaps (dc, LOGPIXELSX);
+            ydpi = SKIF_GetDeviceCaps (dc, LOGPIXELSY);
+                   ::ReleaseDC        (nullptr, dc);
   }
 
   IM_ASSERT (xdpi == ydpi); // Please contact me if you hit this assert!
@@ -900,6 +914,11 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
+
+  #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+
+  *out_ex_style |=
+    WS_EX_NOREDIRECTIONBITMAP;
 }
 
 static void
@@ -1382,7 +1401,7 @@ ImGui_ImplWin32_InitPlatformInterface (void)
   WNDCLASSEX
    wcex               = {                 };
    wcex.cbSize        = sizeof (WNDCLASSEX); // Real classy sex
-   wcex.style         = CS_HREDRAW | CS_VREDRAW;
+   wcex.style         = 0x0;//CS_HREDRAW | CS_VREDRAW;
    wcex.lpfnWndProc   = ImGui_ImplWin32_WndProcHandler_PlatformWindow;
    wcex.cbClsExtra    = 0;
    wcex.cbWndExtra    = 0;

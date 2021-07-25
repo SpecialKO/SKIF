@@ -25,13 +25,24 @@
 #include <fsutil.h>
 #include <stores/Steam/apps_list.h>
 
-#pragma comment (lib, "version.lib")
+using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
+using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);
 
 std::wstring
 SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
 {
   if (! wszName)
     return L"";
+
+  static VerQueryValueW_pfn
+    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "VerQueryValueW"                                     );
+
+  static GetFileVersionInfoExW_pfn
+    SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetFileVersionInfoExW"                                            );
 
   UINT cbTranslatedBytes = 0,
        cbProductBytes    = 0,
@@ -49,16 +60,16 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
-                               wszName,
-                                   0x00,
-                  static_cast <DWORD> (cbData.size ()),
-                                       cbData.data () );
+    SKIF_GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                                   wszName,
+                                     0x00,
+                    static_cast <DWORD> (cbData.size ()),
+                                         cbData.data () );
 
   if (! bRet) return L"";
 
-  if ( VerQueryValueW ( cbData.data (),
-                        TEXT ("\\VarFileInfo\\Translation"),
+  if ( SKIF_VerQueryValueW ( cbData.data (),
+                             TEXT ("\\VarFileInfo\\Translation"),
             static_cast_p2p <void> (&lpTranslate),
                                     &cbTranslatedBytes ) &&
                                      cbTranslatedBytes   && lpTranslate )
@@ -69,8 +80,8 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
                      lpTranslate   [0].wLanguage,
                        lpTranslate [0].wCodePage );
 
-    VerQueryValueW ( cbData.data (),
-                       wszPropName,
+    SKIF_VerQueryValueW ( cbData.data (),
+                            wszPropName,
            static_cast_p2p <void> (&wszProduct),
                                    &cbProductBytes );
 
@@ -81,8 +92,8 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
                          lpTranslate   [0].wLanguage,
                            lpTranslate [0].wCodePage );
 
-      VerQueryValueW ( cbData.data (),
-                         wszPropName,
+      SKIF_VerQueryValueW ( cbData.data (),
+                              wszPropName,
              static_cast_p2p <void> (&wszVersion),
                                      &cbVersionBytes );
 
@@ -264,14 +275,14 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
   else
     install_state.localized_name = "<executable_name_here>";
 
-  std::wstring name =
-    SK_UTF8ToWideChar (
-      install_state.localized_name
-    );
-
   if ( ConfigType::Centralized ==
          install_state.config.type )
   {
+    std::wstring name =
+      SK_UTF8ToWideChar (
+        install_state.localized_name
+      );
+
     name.erase ( std::remove_if ( name.begin (),
                                   name.end   (),
 

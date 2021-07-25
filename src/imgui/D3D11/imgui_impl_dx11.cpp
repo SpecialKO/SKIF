@@ -37,6 +37,7 @@
 #include <SKIF.h>
 
 #define SKIF_scRGB
+extern BOOL SKIF_bAllowTearing;
 
 #include <atlbase.h>
 #include <dxgi1_6.h>
@@ -350,6 +351,23 @@ struct SK_IMGUI_D3D11StateBlock {
   }
 };
 
+//--------------------------------------------------------------------------------------------------------
+// MULTI-VIEWPORT / PLATFORM INTERFACE SUPPORT
+// This is an _advanced_ and _optional_ feature, allowing the back-end to create and handle multiple viewports simultaneously.
+// If you are new to dear imgui or creating a new binding for dear imgui, it is recommended that you completely ignore this section first..
+//--------------------------------------------------------------------------------------------------------
+
+struct ImGuiViewportDataDx11 {
+  IDXGISwapChain         *SwapChain;
+  ID3D11RenderTargetView *RTView;
+  UINT                    PresentCount;
+  HANDLE                  WaitHandle;
+  BOOL                    HDR;
+
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; HDR = FALSE; }
+  ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
+};
+
 
 
 FLOAT             fHDRLuma    = 0.0f;
@@ -377,6 +395,9 @@ FLOAT SKIF_GetMinHDRLuminance (void)
 {
   if (! SKIF_IsHDR ())
     return 0.0f;
+
+  if (hdrOutDesc.MinLuminance > hdrOutDesc.MaxFullFrameLuminance)
+    std::swap (hdrOutDesc.MinLuminance, hdrOutDesc.MaxFullFrameLuminance);
 
   return
     hdrOutDesc.MinLuminance;
@@ -582,7 +603,12 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     constant_buffer->luminance_scale [2] = 0.0f;
     constant_buffer->luminance_scale [3] = 0.0f;
 
-    if (! SKIF_IsHDR ())
+    ImGuiViewportDataDx11 *data =
+      static_cast <ImGuiViewportDataDx11 *> (
+                      draw_data->OwnerViewport->RendererUserData
+      );
+
+    if (! data->HDR)
     {
       constant_buffer->luminance_scale [0] = 1.0f;
       constant_buffer->luminance_scale [1] = 2.2f;
@@ -606,7 +632,7 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                     ) != S_OK
        ) return;
 
-    if (SKIF_IsHDR ())
+    if (data->HDR)
     {
       static_cast <  float *> (mapped_resource.pData)[0] = 0.0f;
       static_cast <  float *> (mapped_resource.pData)[1] = 0.0f;
@@ -929,22 +955,10 @@ ImGui_ImplDX11_Init ( ID3D11Device *device,
   io.BackendFlags       |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
   io.BackendFlags       |= ImGuiBackendFlags_RendererHasViewports;  // We can create multi-viewports on the Renderer side (optional)
 
-  // Get factory from device
-  CComPtr <IDXGIDevice>  pDXGIDevice;
-  CComPtr <IDXGIAdapter> pDXGIAdapter;
-  CComPtr <IDXGIFactory> pFactory;
+  g_pd3dDevice        = device;
+  g_pd3dDeviceContext = device_context;
 
-  if (     device->QueryInterface (IID_PPV_ARGS (&pDXGIDevice.p) ) == S_OK)
-    if (   pDXGIDevice->GetParent (IID_PPV_ARGS (&pDXGIAdapter.p)) == S_OK)
-      if (pDXGIAdapter->GetParent (IID_PPV_ARGS (&pFactory.p)    ) == S_OK)
-      {
-        g_pd3dDevice        = device;
-        g_pd3dDeviceContext = device_context;
-        g_pFactory          = pFactory;
-      }
-
-  pDXGIDevice  = nullptr;
-  pDXGIAdapter = nullptr;
+  SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     ImGui_ImplDX11_InitPlatformInterface ();
@@ -962,27 +976,41 @@ void ImGui_ImplDX11_Shutdown (void)
   g_pd3dDeviceContext = nullptr;
 }
 
+#include <imgui/imgui_internal.h>
+extern ImGuiContext* GImGui;
+
+static void
+ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport);
+
+static void
+ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport);
+
 void ImGui_ImplDX11_NewFrame (void)
 {
+  CComQIPtr <IDXGIFactory1>
+                 pFactory1
+              (g_pFactory);
+  if (           pFactory1.p != nullptr &&
+              (! pFactory1->IsCurrent ()) )
+  {
+     pFactory1.Release ();
+    g_pFactory.Release ();
+
+    SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+
+    ImGuiContext& g = *GImGui;
+    for (int i = 0; i < g.Viewports.Size; i++)
+    {
+      ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
+      ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
+    }
+  }
+
   if (! g_pFontSampler)
     ImGui_ImplDX11_CreateDeviceObjects ();
 }
 
-//--------------------------------------------------------------------------------------------------------
-// MULTI-VIEWPORT / PLATFORM INTERFACE SUPPORT
-// This is an _advanced_ and _optional_ feature, allowing the back-end to create and handle multiple viewports simultaneously.
-// If you are new to dear imgui or creating a new binding for dear imgui, it is recommended that you completely ignore this section first..
-//--------------------------------------------------------------------------------------------------------
 
-struct ImGuiViewportDataDx11 {
-  IDXGISwapChain         *SwapChain;
-  ID3D11RenderTargetView *RTView;
-  UINT                    PresentCount;
-  HANDLE                  WaitHandle;
-
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; }
-  ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                   }
-};
 
 static void
 ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
@@ -1028,7 +1056,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
     bCanFlip ?
-           2 : 1;
+           3 : 2;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1039,6 +1067,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT :
                0x0;
 
+  swap_desc.Flags |=
+    SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                       : 0x0;
+
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
@@ -1048,6 +1080,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // Create the render target
   if (data->SwapChain != nullptr)
   {
+      data->HDR = FALSE;
+
     CComPtr   <
       IDXGIOutput
     >     pOutput;
@@ -1088,7 +1122,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
              hdrOutDesc.ColorSpace ==
                    DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 )
         {
-          bHDR = TRUE;
+          data->HDR = TRUE;
+               bHDR = TRUE;
 
           pSwapChain3->SetColorSpace1 (
 #ifdef SKIF_scRGB
@@ -1108,8 +1143,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   if (data->SwapChain)
   {
-    if (! bHDR)
+    if (! data->HDR)
     {
+      bHDR = FALSE;
+
       swap_desc.BufferDesc.Format =
         DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -1196,7 +1233,9 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
       data->SwapChain->ResizeBuffers (
         0, (UINT)size.x,
            (UINT)size.y,
-             DXGI_FORMAT_UNKNOWN,
+             data->HDR ?
+               DXGI_FORMAT_R16G16B16A16_FLOAT :
+               DXGI_FORMAT_R8G8B8A8_UNORM,
                swap_desc.Flags
       );
 
@@ -1252,24 +1291,31 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
+  UINT Interval =
+    SKIF_bAllowTearing ? 0
+                       : 1;
+
   if (data->WaitHandle)
   {
     CComQIPtr <IDXGISwapChain3> 
       pSwap3 (data->SwapChain);
-
+  
     DWORD dwWaitState =
       WaitForSingleObject (data->WaitHandle, INFINITE);
     
     if (dwWaitState == WAIT_OBJECT_0)
     {
-      DXGI_PRESENT_PARAMETERS     pparams = { };
-      pSwap3->Present1 ( 1, 0x0, &pparams );
+      DXGI_PRESENT_PARAMETERS                                 pparams = { };
+      pSwap3->Present1 ( Interval, SKIF_bAllowTearing ?
+                           DXGI_PRESENT_ALLOW_TEARING : 0x0, &pparams );
       data->PresentCount++;
     }
   }
-
-  else {
-    data->SwapChain->Present ( 0, 0x0 );
+  
+  else
+  {
+    data->SwapChain->Present ( Interval, SKIF_bAllowTearing ?
+                                 DXGI_PRESENT_ALLOW_TEARING : 0x0 );
     data->PresentCount++;
   }
 }

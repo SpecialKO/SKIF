@@ -89,7 +89,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
-    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -128,6 +127,8 @@
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -164,11 +165,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;d3d12.lib;d3d9.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;tdh.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -224,12 +227,12 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WINBLUE;_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING;_CRT_SECURE_NO_WARNINGS;NOMINMAX;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
       <StringPooling>true</StringPooling>
@@ -251,16 +254,17 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 /Zf %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;d3d12.lib;d3d9.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;tdh.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <SetChecksum>true</SetChecksum>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -275,6 +279,10 @@
     <ClInclude Include="DirectXTex\DirectXTexP.h" />
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
+    <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
+    <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
+    <ClInclude Include="include\font_awesome.h" />
     <ClInclude Include="include\fsutil.h" />
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
     <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h" />
@@ -287,8 +295,14 @@
     <ClInclude Include="include\imgui\imstb_truetype.h" />
     <ClInclude Include="include\injection.h" />
     <ClInclude Include="include\install_utils.h" />
+    <ClInclude Include="include\patreon.png.h" />
+    <ClInclude Include="include\shaders\imgui_pix.h" />
+    <ClInclude Include="include\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
+    <ClInclude Include="include\sk_boxart.png.h" />
     <ClInclude Include="include\sk_config\ini.h" />
+    <ClInclude Include="include\sk_icon.jpg.h" />
+    <ClInclude Include="include\sk_utility\command.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
     <ClInclude Include="include\stores\Steam\achievements.h" />
@@ -298,7 +312,6 @@
     <ClInclude Include="include\stores\Steam\library.h" />
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
-    <ClInclude Include="include\targetver.h" />
     <ClInclude Include="include\ui_tasks\manage_games.h" />
     <ClInclude Include="include\version.h" />
     <ClInclude Include="include\vfs.h" />
@@ -347,8 +360,10 @@
     <ClInclude Include="steam\steam_api_flat.h" />
     <ClInclude Include="steam\steam_api_internal.h" />
     <ClInclude Include="steam\steam_gameserver.h" />
+    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
@@ -576,6 +591,8 @@
     <ClCompile Include="src\stores\Steam\library.cpp" />
     <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
+    <ClCompile Include="src\ui_tasks\debug.cpp" />
+    <ClCompile Include="src\ui_tasks\display_mgmt.cpp" />
     <ClCompile Include="src\ui_tasks\manage_colorspace.cpp" />
     <ClCompile Include="src\ui_tasks\manage_games.cpp" />
     <ClCompile Include="src\vfs.cpp" />

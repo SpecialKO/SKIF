@@ -19,4 +19,4 @@
 /include/imgui
 /include/imgui - Copy
 *.tlog
-patrons.txt
+/include/fonts/bin2header.exe

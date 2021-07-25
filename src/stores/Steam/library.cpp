@@ -114,7 +114,7 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
   int        found                  = 0;
   wchar_t    wszPath [MAX_PATH + 2] = { };
-  swprintf (wszPath, LR"(%s\*)", wszDir);
+  _swprintf (wszPath, LR"(%s\*)", wszDir);
 
   WIN32_FIND_DATA fd          = {   };
   HANDLE          hFind       =
@@ -132,8 +132,8 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
     if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
-      wchar_t   wszDescend [MAX_PATH + 2] = { };
-      swprintf (wszDescend, LR"(%s\%s)", wszDir, fd.cFileName);
+       wchar_t   wszDescend [MAX_PATH + 2] = { };
+      _swprintf (wszDescend, LR"(%s\%s)", wszDir, fd.cFileName);
 
       if (! pVFSImmutableRoot->containsDirectory (wszDescend))
       {
@@ -388,22 +388,32 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 const wchar_t*
 SK_GetSteamDir (void)
 {
-  static
-    wchar_t wszSteamPath [MAX_PATH + 2] = { };
-  DWORD     len    =      MAX_PATH;
-  LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-                     LR"(SOFTWARE\Valve\Steam\)",
-                                      L"SteamPath",
-                       RRF_RT_REG_SZ,
-                         nullptr,
-                           wszSteamPath,
-                             (LPDWORD)&len );
+  extern bool SKIF_bDisableSteamLibrary;
 
-  if (status == ERROR_SUCCESS)
-    return wszSteamPath;
-  else
-    return L"";
+  static wchar_t
+       wszSteamPath [MAX_PATH + 2] = { };
+  if (*wszSteamPath == L'\0' && ! SKIF_bDisableSteamLibrary)
+  {
+    // Don't keep querying the registry if Steam is not installed   
+    wszSteamPath [0] = L'?';
+
+    DWORD     len    =      MAX_PATH;
+    LSTATUS   status =
+      RegGetValueW ( HKEY_CURRENT_USER,
+                       LR"(SOFTWARE\Valve\Steam\)",
+                                        L"SteamPath",
+                         RRF_RT_REG_SZ,
+                           nullptr,
+                             wszSteamPath,
+                               (LPDWORD)&len );
+
+    if (status == ERROR_SUCCESS)
+      return wszSteamPath;
+    else
+      return L"";
+  }
+
+  return wszSteamPath;
 }
 
 
@@ -465,12 +475,22 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         {
           data [dwSize] = '\0';
 
-          for (int i = 1; i < MAX_STEAM_LIBRARIES; i++)
+          for (int i = 1; i < MAX_STEAM_LIBRARIES - 1; i++)
           {
+            // Old libraryfolders.vdf format
             std::wstring lib_path =
               SK_Steam_KeyValues::getValueAsUTF16 (
                 data, { "LibraryFolders" }, std::to_string (i)
               );
+
+            if (lib_path.empty ())
+            {
+              // New (July 2021) libraryfolders.vdf format
+              lib_path =
+                SK_Steam_KeyValues::getValueAsUTF16 (
+                  data, { "LibraryFolders", std::to_string (i) }, "path"
+                );
+            }
 
             if (! lib_path.empty ())
             {

@@ -23,8 +23,8 @@
 #include <wmsdk.h>
 #include <filesystem>
 
-extern bool SKIF_STEAM_OWNER = false;
-const int   SKIF_STEAM_APPID = 1157970;
+const int   SKIF_STEAM_APPID  = 1157970;
+      bool  SKIF_STEAM_OWNER  = false;
 static bool clickedGameLaunch = false;
 
 #include <SKIF.h>
@@ -35,35 +35,88 @@ static bool clickedGameLaunch = false;
 
 #include "../DirectXTex/DirectXTex.h"
 
-extern ID3D11Device*           g_pd3dDevice;
-extern ID3D11DeviceContext*    g_pd3dDeviceContext;
-extern IDXGISwapChain*         g_pSwapChain;
-extern ID3D11RenderTargetView* g_mainRenderTargetView;
-extern bool                    SKIF_ServiceRunning;
-extern float                   SKIF_ImGui_GlobalDPIScale;
-extern std::string             SKIF_StatusBarHelp;
-extern std::string             SKIF_StatusBarText;
-extern bool                    SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+#include <font_awesome.h>
+
+extern ID3D11Device* g_pd3dDevice;
+extern bool          SKIF_ServiceRunning;
+extern float         SKIF_ImGui_GlobalDPIScale;
+extern std::string   SKIF_StatusBarHelp;
+extern std::string   SKIF_StatusBarText;
+extern bool          SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
 
 static std::wstring sshot_file = L"";
 
-void
-SKIF_Util_ExplorePath (std::wstring path)
+HINSTANCE
+SKIF_Util_ExplorePath (
+  const std::wstring_view& path )
 {
-  ShellExecuteW ( nullptr, L"EXPLORE",
-   path.c_str (), nullptr,
-                  nullptr, SW_SHOWNORMAL );
+  return
+    ShellExecuteW ( nullptr, L"EXPLORE",
+      path.data (), nullptr,
+                    nullptr, SW_SHOWNORMAL );
 }
 
-void
-SKIF_Util_OpenURI (std::wstring path, DWORD dwAction = SW_SHOWNORMAL)
+HINSTANCE
+SKIF_Util_ExplorePath_Formatted (
+  const wchar_t * const wszFmt,
+                        ... )
+{  static        thread_local
+        wchar_t _thread_localPath  
+        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
+        {                                };
+  va_list       vArgs   =   nullptr;
+  va_start    ( vArgs,  wszFmt    );
+  wvnsprintfW ( _thread_localPath, 
+    ARRAYSIZE ( _thread_localPath ),
+                        wszFmt,
+                vArgs             );
+  va_end      ( vArgs             );
+
+  return
+    ShellExecuteW (
+      nullptr, L"EXPLORE",
+                _thread_localPath,
+      nullptr,    nullptr,
+             SW_SHOWNORMAL
+                  );
+}
+
+HINSTANCE
+SKIF_Util_OpenURI (
+  const std::wstring_view& path,
+               DWORD       dwAction )
 {
-  ShellExecuteW ( nullptr, L"OPEN",
-   path.c_str (), nullptr,
-                  nullptr, dwAction );
+  return
+    ShellExecuteW ( nullptr, L"OPEN",
+      path.data (), nullptr,
+                    nullptr, dwAction );
+}
+
+HINSTANCE
+SKIF_Util_OpenURI_Formatted (
+          DWORD       dwAction,
+  const wchar_t * const wszFmt,
+                        ... )
+{  static        thread_local
+        wchar_t _thread_localPath  
+        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
+        {                                };
+  va_list       vArgs   =   nullptr;
+  va_start    ( vArgs,  wszFmt    );
+  wvnsprintfW ( _thread_localPath, 
+    ARRAYSIZE ( _thread_localPath ),
+                        wszFmt,
+                vArgs             );
+  va_end      ( vArgs             );
+
+  return
+    ShellExecuteW ( nullptr,
+      L"OPEN",  _thread_localPath,
+         nullptr,   nullptr,   dwAction
+                  );
 }
 
 #include <patreon.png.h>
@@ -74,7 +127,7 @@ CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 
 void
-SKIF_GameManagement_ShowScreenshot (std::wstring filename)
+SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
 {
   static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
@@ -187,15 +240,15 @@ public:
 			this->character [i] = nullptr;
 	}
 
-	void insert       (std::string);
-	bool deletion     (Trie*&, std::string);
-	bool search       (std::string);
+	void insert       (        const std::string&);
+	bool deletion     (Trie*&, const std::string&);
+	bool search       (        const std::string&);
 	bool haveChildren (Trie const*);
 };
 
 // Iterative function to insert a key in the Trie
 void
-Trie::insert (std::string key)
+Trie::insert (const std::string& key)
 {
 	// start from root node
 	Trie* curr = this;
@@ -215,12 +268,8 @@ Trie::insert (std::string key)
 
 // Iterative function to search a key in Trie. It returns true
 // if the key is found in the Trie, else it returns false
-bool Trie::search(std::string key)
+bool Trie::search (const std::string& key)
 {
-	// return false if Trie is empty
-	if (this == nullptr)
-		return false;
-
 	Trie* curr = this;
 	for (size_t i = 0; i < key.length(); i++)
 	{
@@ -248,7 +297,7 @@ bool Trie::haveChildren(Trie const* curr)
 }
 
 // Recursive function to delete a key in the Trie
-bool Trie::deletion(Trie*& curr, std::string key)
+bool Trie::deletion (Trie*& curr, const std::string& key)
 {
 	// return if Trie is empty
 	if (curr == nullptr)
@@ -358,7 +407,7 @@ SKIF_GameManagement_DrawTab (void)
       SUCCEEDED (
         DirectX::LoadFromWICFile (
           load_str.c_str (),
-            DirectX::WIC_FLAGS_NONE,
+            DirectX::WIC_FLAGS_FILTER_POINT,
               &meta, img
         )
       )
@@ -409,9 +458,9 @@ SKIF_GameManagement_DrawTab (void)
 
     if (
       SUCCEEDED (
-        DirectX::LoadFromWICMemory(
-          sk_boxart_png, sizeof(sk_boxart_png),
-            DirectX::WIC_FLAGS_NONE,
+        DirectX::LoadFromWICMemory (
+          sk_boxart_png, sizeof (sk_boxart_png),
+            DirectX::WIC_FLAGS_FILTER_POINT,
               &meta, img
         )
       )
@@ -523,16 +572,18 @@ SKIF_GameManagement_DrawTab (void)
 
     if ( ! SKIF_STEAM_OWNER )
     {
-      app_record_s SKIF_record(SKIF_STEAM_APPID);
+      app_record_s SKIF_record (SKIF_STEAM_APPID);
 
-      SKIF_record.id = SKIF_STEAM_APPID;
-      SKIF_record.names.normal = "Special K";
+      SKIF_record.id              = SKIF_STEAM_APPID;
+      SKIF_record.names.normal    = "Special K";
       SKIF_record.names.all_upper = "SPECIAL K";
-      SKIF_record.install_dir = std::filesystem::current_path();
+      SKIF_record.install_dir =
+        std::filesystem::current_path ();
 
-      std::pair <std::string, app_record_s> SKIF("Special K", SKIF_record);
+      std::pair <std::string, app_record_s>
+        SKIF ( "Special K", SKIF_record );
 
-      apps.emplace_back(SKIF);
+      apps.emplace_back (SKIF);
     }
 
     // We're going to stream icons in asynchronously on this thread
@@ -555,14 +606,14 @@ SKIF_GameManagement_DrawTab (void)
            const std::wstring&                  name
          )
       {
-        UNREFERENCED_PARAMETER(appid);
-        UNREFERENCED_PARAMETER (name);
+        UNREFERENCED_PARAMETER (appid);
+        UNREFERENCED_PARAMETER  (name);
 
         if (
           SUCCEEDED (
             DirectX::LoadFromWICMemory (
               patreon_png, sizeof (patreon_png),
-                DirectX::WIC_FLAGS_NONE,
+                DirectX::WIC_FLAGS_FILTER_POINT,
                   &local_meta, local_img
             )
           )
@@ -617,14 +668,14 @@ SKIF_GameManagement_DrawTab (void)
            const std::wstring&                 name
          )
       {
-        UNREFERENCED_PARAMETER(appid);
-        UNREFERENCED_PARAMETER(name);
+        UNREFERENCED_PARAMETER (appid);
+        UNREFERENCED_PARAMETER (name);
 
         if (
           SUCCEEDED (
-            DirectX::LoadFromWICMemory(
-              sk_icon_jpg, sizeof(sk_icon_jpg),
-                DirectX::WIC_FLAGS_NONE,
+            DirectX::LoadFromWICMemory (
+              sk_icon_jpg, sizeof (sk_icon_jpg),
+                DirectX::WIC_FLAGS_FILTER_POINT,
                   &local_meta, local_img
             )
           )
@@ -703,7 +754,7 @@ SKIF_GameManagement_DrawTab (void)
           SUCCEEDED (
             DirectX::LoadFromWICFile (
               load_str.c_str (),
-                DirectX::WIC_FLAGS_NONE,
+                DirectX::WIC_FLAGS_FILTER_POINT,
                   &local_meta, local_img
             )
           )
@@ -774,9 +825,9 @@ SKIF_GameManagement_DrawTab (void)
 
         // Regular handling for the remaining Steam games
         else {
-          app.first.clear();
+          app.first.clear ();
 
-          app.second._status.refresh(&app.second);
+          app.second._status.refresh (&app.second);
         }
 
         // Only bother opening the application manifest
@@ -896,18 +947,21 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::BeginGroup    (                                                  );
   float fX =
   ImGui::GetCursorPosX (                                                  );
-  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale, 900.0F * SKIF_ImGui_GlobalDPIScale));
+  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 ( 600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                            900.0F * SKIF_ImGui_GlobalDPIScale ));
 
   // Special handling at the bottom for Special K
   if ( appid == SKIF_STEAM_APPID ) {
     float fY =
     ImGui::GetCursorPosY (                                                  );
-    ImGui::SetCursorPosX (                                   fX             );
-    ImGui::SetCursorPos  (                           ImVec2 (fX, fY - (204.f * SKIF_ImGui_GlobalDPIScale)));
+    ImGui::SetCursorPosX (                                    fX            );
+    ImGui::SetCursorPos  (                           ImVec2 ( fX,
+                                                              fY - (204.f * SKIF_ImGui_GlobalDPIScale)) );
     ImGui::BeginGroup    ();
     static bool hovered = false;
     bool        clicked =
-    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale, 200.0F * SKIF_ImGui_GlobalDPIScale),
+    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
                                                      ImVec2 (0.f,       0.f),
                                                      ImVec2 (1.f,       1.f),     0,
                                                      ImVec4 (.033f,.033f,.033f, 1.0f),
@@ -917,15 +971,15 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::IsItemHovered (                                                  );
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText("https://www.patreon.com/bePatron?u=33423623");
-    SKIF_ImGui_SetHoverTip("Click to help support the project");
+    SKIF_ImGui_SetHoverText ("https://www.patreon.com/bePatron?u=33423623");
+    SKIF_ImGui_SetHoverTip  ("Click to help support the project");
 
     if (clicked)
       SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
 
     ImGui::SameLine           ( );
     ImGui::ItemSize           (ImVec2 (160.0f * SKIF_ImGui_GlobalDPIScale,
-                                       200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing() ));
+                                       200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing ()));
     ImGui::SameLine();
     ImGui::BeginGroup         ( );
     //ImGui::SetCursorPosY      (ImGui::GetCursorPosY () + 66.67f);
@@ -1001,10 +1055,10 @@ SKIF_GameManagement_DrawTab (void)
       {
         if (
           SUCCEEDED (
-            DirectX::LoadFromWICFile (
-              load_str.c_str (),
-                DirectX::WIC_FLAGS_NONE,
-                  &meta, img
+          DirectX::GetMetadataFromWICFile (
+            load_str.c_str (),
+              DirectX::WIC_FLAGS_FILTER_POINT,
+                meta
             )
           )
         )
@@ -1086,7 +1140,7 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     const  DWORD dwTimeout    = 425UL;
-    static DWORD dwLastUpdate = timeGetTime ();
+    static DWORD dwLastUpdate = SKIF_timeGetTime ();
 
     struct {
       std::string text = "";
@@ -1095,7 +1149,7 @@ SKIF_GameManagement_DrawTab (void)
 
     if (bText)
     {
-      dwLastUpdate = timeGetTime ();
+      dwLastUpdate = SKIF_timeGetTime ();
 
       if (labels.search (test_))
       {
@@ -1129,9 +1183,9 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_StatusBarHelp = result.text.substr (len, result.text.length () - len);
     }
 
-    if (                  dwLastUpdate != MAXDWORD &&
-         timeGetTime () - dwLastUpdate >
-                          dwTimeout )
+    if (                       dwLastUpdate != MAXDWORD &&
+         SKIF_timeGetTime () - dwLastUpdate >
+                               dwTimeout )
     {
       if (result.app_id != 0)
       {
@@ -1181,7 +1235,7 @@ SKIF_GameManagement_DrawTab (void)
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
       _inject.running =
-        _inject.TestServletRunlevel(changing);
+        _inject.TestServletRunlevel (changing);
 
       if (              changing ||
                    cache.running != pTargetApp->_status.running)
@@ -1222,15 +1276,16 @@ SKIF_GameManagement_DrawTab (void)
         PathStripPathW (                         wszConfigPath);
         cfg.shorthand       = SK_WideCharToUTF8 (wszConfigPath);
 
-        if (!PathFileExistsW(sk_install.config.file.c_str()))
-          cfg.shorthand = "";
+        if (! PathFileExistsW (sk_install.config.file.c_str ()))
+          cfg.shorthand.clear ();
 
-        if (!PathFileExistsA(cache.dll.full_path.c_str()))
-          cache.dll.shorthand = "";
+        if (! PathFileExistsA (cache.dll.full_path.c_str ()))
+          cache.dll.shorthand.clear ();
 
-        cache.injection.type         = "None";
-        cache.injection.status.text  =     "";
-        cache.injection.hover_text   =     "";
+
+        cache.injection.type        = "None";
+        cache.injection.status.text.clear ();
+        cache.injection.hover_text.clear  ();
 
         switch (sk_install.injection.type)
         {
@@ -1252,7 +1307,7 @@ SKIF_GameManagement_DrawTab (void)
                                            : "Click to start injection service";
             }
             if (! _inject.running)
-              cache.dll.shorthand = "";
+              cache.dll.shorthand.clear ();
             else
             {
               launch_description = "Click to launch game (global injection)";
@@ -1272,8 +1327,8 @@ SKIF_GameManagement_DrawTab (void)
           case ConfigType::Localized:
             cache.config_repo = "Localized";   break;
           default:
-            cache.config_repo      = "UNKNOWN";
-            cache.config.shorthand = "";       break;
+            cache.config_repo = "UNKNOWN";
+            cache.config.shorthand.clear ();   break;
         }
       }
 
@@ -1285,12 +1340,15 @@ SKIF_GameManagement_DrawTab (void)
       auto frame_id =
         ImGui::GetID ("###Injection_Summary_Frame");
 
-      SKIF_ImGui_BeginChildFrame  ( frame_id, ImVec2 (_WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f, num_lines * line_ht),
-                                  ImGuiWindowFlags_NavFlattened      |
-                                  ImGuiWindowFlags_NoScrollbar       |
-                                  ImGuiWindowFlags_NoScrollWithMouse |
-                                  ImGuiWindowFlags_AlwaysAutoResize  |
-                                  ImGuiWindowFlags_NoBackground );
+      SKIF_ImGui_BeginChildFrame ( frame_id,
+                                     ImVec2 ( _WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f,
+                                                                                num_lines * line_ht ),
+                                        ImGuiWindowFlags_NavFlattened      |
+                                        ImGuiWindowFlags_NoScrollbar       |
+                                        ImGuiWindowFlags_NoScrollWithMouse |
+                                        ImGuiWindowFlags_AlwaysAutoResize  |
+                                        ImGuiWindowFlags_NoBackground 
+                                 );
 
       ImGui::BeginGroup       ();
 
@@ -1302,7 +1360,9 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::TextUnformatted  ("Config Root:");
       ImGui::TextUnformatted  ("Config File:");
       ImGui::PopStyleColor    ();
-      ImGui::ItemSize(ImVec2(140.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 130px (scaled with the DPI)
+      ImGui::ItemSize         (ImVec2 (140.f * SKIF_ImGui_GlobalDPIScale,
+                                         0.f)
+                              ); // Column should have min-width 130px (scaled with the DPI)
       ImGui::EndGroup         ();
 
       ImGui::SameLine         ();
@@ -1320,64 +1380,74 @@ SKIF_GameManagement_DrawTab (void)
       else
         ImGui::TextUnformatted ("N/A");
 
-      if (! cache.config.shorthand.empty() )
+      if (! cache.config.shorthand.empty ())
       {
-          // Config Root
-          if (ImGui::Selectable     (cache.config_repo.c_str     ()))
-          {
-              SKIF_Util_OpenURI(
-                  SK_UTF8ToWideChar (cache.config.root_dir.c_str ())
-              );
-          }
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str());
-          SKIF_ImGui_SetHoverTip        ("Open the config root folder");
+        // Config Root
+        if (ImGui::Selectable         (cache.config_repo.c_str ()))
+        {
+          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs",
+                                       cache.config.root_dir.c_str ());
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str ());
+        SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
-          // Config File
-          if (ImGui::Selectable     (cache.config.shorthand.c_str()))
-          {
-              SKIF_Util_OpenURI(
-                  SK_UTF8ToWideChar (cache.config.full_path.c_str())
-              );
-          }
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
-          SKIF_ImGui_SetHoverTip        ("Open the config file");
+        // Config File
+        if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
+        {
+          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs",
+                                       cache.config.full_path.c_str ());
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
+        SKIF_ImGui_SetHoverTip        ("Open the config file");
       }
 
-      else {
-          ImGui::TextUnformatted   (cache.config_repo.c_str      ());
-          ImGui::TextUnformatted   ("N/A");
+      else
+      {
+        ImGui::TextUnformatted        (cache.config_repo.c_str ());
+        ImGui::TextUnformatted        ("N/A");
       }
-      ImGui::ItemSize(ImVec2(100.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column should have min-width 100px (scaled with the DPI)
-      ImGui::EndGroup         ();
 
-      ImGui::SameLine         ();
+      // Column should have min-width 100px (scaled with the DPI)
+      ImGui::ItemSize         (
+        ImVec2 ( 100.0f * SKIF_ImGui_GlobalDPIScale,
+                   0.0f
+               )                );
+      ImGui::EndGroup         ( );
+      ImGui::SameLine         ( );
 
       // Column 3
-      ImGui::BeginGroup       ();
-      ImGui::TextColored      (cache.injection.status.color,
-                               cache.injection.status.text.empty () ? "      "
-                                                                    : "( %s )",
-                               cache.injection.status.text.c_str ());
+      ImGui::BeginGroup       ( );
+      ImGui::TextColored      (
+        cache.injection.status.color,
+        cache.injection.status.text.empty () ?
+                                    "      " : "( %s )",
+        cache.injection.status.text.c_str ()
+                                );
 
-      if (cache.injection.type == "Global")
+      if (cache.injection.type._Equal ("Global"))
       {
-        if (ImGui::IsItemClicked())
+        if (ImGui::IsItemClicked ())
         {
-          _inject._StartStopInject(_inject.running);
+          _inject._StartStopInject (
+            _inject.running
+          );
+          
           _inject.run_lvl_changed = false;
 
           cache.app_id = 0;
         }
 
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverTip(cache.injection.hover_text.c_str());
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverTip        (
+          cache.injection.hover_text.c_str ()
+        );
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
       _inject.running =
-        _inject.TestServletRunlevel(_inject.run_lvl_changed);
+        _inject.TestServletRunlevel (_inject.run_lvl_changed);
 
       SKIF_ServiceRunning = _inject.running;
 
@@ -1398,120 +1468,146 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::EndChildFrame    ();
 
-      ImGui::Separator();
+      ImGui::Separator ();
 
       auto frame_id2 =
-          ImGui::GetID("###Injection_Play_Button_Frame");
+        ImGui::GetID ("###Injection_Play_Button_Frame");
 
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(120.0f * SKIF_ImGui_GlobalDPIScale, 40.0f * SKIF_ImGui_GlobalDPIScale));
+      ImGui::PushStyleVar (
+        ImGuiStyleVar_FramePadding,
+          ImVec2 ( 120.0f * SKIF_ImGui_GlobalDPIScale,
+                    40.0f * SKIF_ImGui_GlobalDPIScale)
+      );
 
-      SKIF_ImGui_BeginChildFrame(frame_id2, ImVec2(0.0f, 110.f * SKIF_ImGui_GlobalDPIScale),
-          ImGuiWindowFlags_NavFlattened |
-          ImGuiWindowFlags_NoScrollbar |
+      SKIF_ImGui_BeginChildFrame (
+        frame_id2, ImVec2 (  0.0f,
+                            110.f * SKIF_ImGui_GlobalDPIScale ),
+          ImGuiWindowFlags_NavFlattened      |
+          ImGuiWindowFlags_NoScrollbar       |
           ImGuiWindowFlags_NoScrollWithMouse |
-          ImGuiWindowFlags_AlwaysAutoResize |
-          ImGuiWindowFlags_NoBackground);
+          ImGuiWindowFlags_AlwaysAutoResize  |
+          ImGuiWindowFlags_NoBackground
+      );
 
-      ImGui::PopStyleVar();
+      ImGui::PopStyleVar ();
 
-      std::string buttonLabel = "Launch " + pTargetApp->type;
+      std::string      buttonLabel = "Launch " + pTargetApp->type;
       ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
 
       if (pTargetApp->_status.running)
       {
           buttonLabel = "Already Running";
           buttonFlags = ImGuiButtonFlags_Disabled;
-          ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-              ImGui::GetStyle().Alpha *
-              ((SKIF_IsHDR()) ? 0.1f
-                  : 0.5f
-                  ));
+          ImGui::PushStyleVar ( ImGuiStyleVar_Alpha,
+              ImGui::GetStyle ().Alpha *
+                 ((SKIF_IsHDR ()) ? 0.1f
+                                  : 0.5f));
       }
 
-      if (ImGui::ButtonEx(buttonLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale, 50.0f * SKIF_ImGui_GlobalDPIScale), buttonFlags) || clickedGameLaunch)
+      if ( ImGui::ButtonEx (
+                  buttonLabel.c_str (),
+                      ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
+                                50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags )
+           ||
+        clickedGameLaunch )
       {
         clickedGameLaunch = false;
-        if ( ! _inject.running && cache.injection.type == "Global" )
-        {
-          ImGui::OpenPopup("Confirm Launch");
-        }
-        else {
-          SKIF_Util_OpenURI(
-            std::wstring(L"steam://run/") +
-            std::to_wstring(pTargetApp->id),
-            SW_SHOWNA
-          );
 
-          pTargetApp->_status.invalidate();
+        if ((! _inject.running) && cache.injection.type._Equal ("Global"))
+        {
+          ImGui::OpenPopup ("Confirm Launch");
+        }
+
+        else
+        {
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"steam://run/%lu", pTargetApp->id
+          );                    pTargetApp->_status.invalidate ();
         }
       }
 
       if (pTargetApp->_status.running)
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar ();
+
       else
-        SKIF_ImGui_SetHoverTip(launch_description.c_str());
+        SKIF_ImGui_SetHoverTip (launch_description.c_str ());
 
-      ImGui::SetNextWindowSize(ImVec2(464.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
-      if (ImGui::BeginPopupModal("Confirm Launch", nullptr, ImGuiWindowFlags_NoResize + ImGuiWindowFlags_NoMove + ImGuiWindowFlags_AlwaysAutoResize))
+      ImGui::SetNextWindowSize (
+        ImVec2 (464.0f * SKIF_ImGui_GlobalDPIScale,
+                  0.0f)
+      );
+      if (ImGui::BeginPopupModal ("Confirm Launch", nullptr,
+                                    ImGuiWindowFlags_NoResize |
+                                    ImGuiWindowFlags_NoMove   |
+                                    ImGuiWindowFlags_AlwaysAutoResize)
+         )
       {
-        SKIF_ImGui_Spacing();
+        SKIF_ImGui_Spacing ();
 
-        ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F), "      Special K will be unavailable in the game unless the global\n                             injection service is started.");
+        ImGui::TextColored (
+          ImColor::HSV (0.11F, 1.F, 1.F),
+            "      Special K will be unavailable in the game unless the global"
+            "\n                             injection service is started."
+        );
 
-        SKIF_ImGui_Spacing();
+        SKIF_ImGui_Spacing ();
 
-        if (ImGui::Button("Start Service And Launch Game", ImVec2(0 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+        if (ImGui::Button ("Start Service And Launch Game",
+                             ImVec2 ( 0 * SKIF_ImGui_GlobalDPIScale,
+                                     25 * SKIF_ImGui_GlobalDPIScale)
+                          )
+           )
         {
-          _inject._StartStopInject(false);
+          _inject._StartStopInject (false);
 
-          SKIF_Util_OpenURI(
-            std::wstring(L"steam://run/") +
-            std::to_wstring(pTargetApp->id),
-            SW_SHOWNA
-          );
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"steam://run/%lu", pTargetApp->id
+          );                    pTargetApp->_status.invalidate ();
 
-          pTargetApp->_status.invalidate();
-          ImGui::CloseCurrentPopup();
+          ImGui::CloseCurrentPopup ();
         }
 
-        ImGui::SameLine();
-        ImGui::Spacing();
-        ImGui::SameLine();
+        ImGui::SameLine ();
+        ImGui::Spacing  ();
+        ImGui::SameLine ();
 
-        if (ImGui::Button("Launch Game", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
+        if ( ImGui::Button ( "Launch Game",
+                               ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                         25 * SKIF_ImGui_GlobalDPIScale )
+                           )
+           )
         {
-          SKIF_Util_OpenURI(
-            std::wstring(L"steam://run/") +
-            std::to_wstring(pTargetApp->id),
-            SW_SHOWNA
-          );
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+               L"steam://run/%lu", pTargetApp->id
+          );                       pTargetApp->_status.invalidate ();
 
-          pTargetApp->_status.invalidate();
-          ImGui::CloseCurrentPopup();
+          ImGui::CloseCurrentPopup ();
         }
 
-        ImGui::SameLine();
-        ImGui::Spacing();
-        ImGui::SameLine();
+        ImGui::SameLine ();
+        ImGui::Spacing  ();
+        ImGui::SameLine ();
 
-        if (ImGui::Button("Cancel", ImVec2(100 * SKIF_ImGui_GlobalDPIScale, 25 * SKIF_ImGui_GlobalDPIScale)))
-        {
-          ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
+        if ( ImGui::Button ( "Cancel",
+                               ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                         25 * SKIF_ImGui_GlobalDPIScale ) 
+                           )
+           ) ImGui::CloseCurrentPopup ();
+                      ImGui::EndPopup ();
       }
-
-      ImGui::EndChildFrame();
+      ImGui::EndChildFrame ();
     }
 
     return 0.0f;
   };
 
-  static app_record_s*      pApp = nullptr;
+  static
+    app_record_s *pApp = nullptr;
 
-  ImGui::BeginChild ("###AppListInset", ImVec2 (_WIDTH2, _HEIGHT), true,
-                     ImGuiWindowFlags_NavFlattened);
+  ImGui::BeginChild ( "###AppListInset",
+                        ImVec2 ( _WIDTH2,
+                                 _HEIGHT ), true,
+                            ImGuiWindowFlags_NavFlattened );
   ImGui::BeginGroup ();
 
   auto _HandleItemSelection = [&](void) ->
@@ -1529,17 +1625,18 @@ SKIF_GameManagement_DrawTab (void)
                                       io.NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
 
     bool ret =
-      ImGui::IsItemActivated ( ) ||
-      ImGui::IsItemClicked   (1) ||
-      _GamePadRightClick         ||
+      ImGui::IsItemActivated (                      ) ||
+      ImGui::IsItemClicked   (ImGuiMouseButton_Right) ||
+      _GamePadRightClick                              ||
       _NavLongActivate;
 
-    if (! ImGui::IsPopupOpen          ("GameContextMenu"))
+    if ( ! ImGui::IsPopupOpen ("GameContextMenu"))
     {
       if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
-           _GamePadRightClick || _NavLongActivate )
+           _GamePadRightClick                            ||
+           _NavLongActivate )
       {
-          ImGui::OpenPopup            ("GameContextMenu");
+        ImGui::OpenPopup      ("GameContextMenu");
       }
     }
 
@@ -1590,7 +1687,10 @@ SKIF_GameManagement_DrawTab (void)
     // Start Icon + Selectable row
 
     ImGui::BeginGroup      ();
-    ImGui::Image           (app.second.textures.icon.p, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
+    ImGui::Image           (app.second.textures.icon.p,
+                              ImVec2 ( _ICON_HEIGHT,
+                                       _ICON_HEIGHT )
+                           );
 
     change |=
       _HandleItemSelection ();
@@ -1609,7 +1709,8 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::Selectable      (app.first.c_str (), &selected, ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (                     );
 
-    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    if ( ImGui::IsItemHovered        () &&
+         ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) )
     {
       if ( pApp     != nullptr          &&
            pApp->id != SKIF_STEAM_APPID &&
@@ -1738,12 +1839,15 @@ SKIF_GameManagement_DrawTab (void)
 
   if (update && pApp != nullptr)
   {
+    // Launch button got changed, now we don't need this anymore.
+#ifdef _USE_LOGO
     if (pApp->textures.logo.p == nullptr)
     {
       _LoadLibraryTexture (pApp->id,
                   pApp->textures.logo,
                               L"_logo.png");
     }
+#endif
 
     pApp->specialk.injection =
       SKIF_InstallUtils_GetInjectionStrategy (pApp->id);
@@ -1763,24 +1867,27 @@ SKIF_GameManagement_DrawTab (void)
 
         UNREFERENCED_PARAMETER (files);
 
-        SK_VirtualFS::vfsNode* pFile =
-          profile_vfs;
+        //SK_VirtualFS::vfsNode* pFile =
+        //  profile_vfs;
 
-        for (const auto& it : pFile->children)
-        {
-          if (it.second->type_ == SK_VirtualFS::vfsNode::type::Directory)
-          {
-            if (it.second->name.find (LR"(\Screenshots)") != std::wstring::npos)
-            {
-              for ( const auto& it2 : it.second->children )
-              {
-                pApp->specialk.screenshots.emplace (
-                  SK_WideCharToUTF8 (it2.second->getFullPath ())
-                );
-              }
-            }
-          }
-        }
+        // 4/15/21: Temporarily disable Screenshot Browser, it's not functional enough
+        //            to have it distract users yet.
+        // 
+        /////for (const auto& it : pFile->children)
+        /////{
+        /////  if (it.second->type_ == SK_VirtualFS::vfsNode::type::Directory)
+        /////  {
+        /////    if (it.second->name.find (LR"(\Screenshots)") != std::wstring::npos)
+        /////    {
+        /////      for ( const auto& it2 : it.second->children )
+        /////      {
+        /////        pApp->specialk.screenshots.emplace (
+        /////          SK_WideCharToUTF8 (it2.second->getFullPath ())
+        /////        );
+        /////      }
+        /////    }
+        /////  }
+        /////}
       }
     }
   }
@@ -1790,57 +1897,104 @@ SKIF_GameManagement_DrawTab (void)
 
   if (ImGui::BeginPopup ("GameContextMenu"))
   {
-    if ( pApp != nullptr )
+    if (pApp != nullptr)
     {
-
       // Hide the Launch option for Special K
-      if ( pApp->id != SKIF_STEAM_APPID )
+      if (pApp->id != SKIF_STEAM_APPID)
       {
-        if (ImGui::Selectable(("Launch " + pApp->type).c_str(), false, ( (pApp->_status.running != 0x0) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None ) ) )
+        if ( ImGui::Selectable (
+                    ("Launch " + pApp->type).c_str (),
+                       true,  ( (pApp->_status.running != 0x0) ?
+                                 ImGuiSelectableFlags_Disabled :
+                                 ImGuiSelectableFlags_None )
+                               )
+           )
         {
           clickedGameLaunch = true;
         }
       }
       
       // Special K is selected -- relevant show quick links
-      else {
+      else
+      {
+        ImGui::BeginGroup  ( );
+        ImGui::TextColored (
+               ImColor   (24, 118, 210, 255).Value,
+                 ICON_FA_BOOK_OPEN
+                             );
+        ImGui::TextColored (
+               ImColor   (114, 137, 218, 255).Value,
+                 ICON_FA_DISCORD
+                             );
+        ImGui::TextColored (
+               ImColor   (255, 249, 175, 255).Value,
+                 ICON_FA_DISCOURSE
+                             );
+        ImGui::TextColored (
+               ImColor   (249, 104,  84, 255).Value,
+                 ICON_FA_PATREON
+                             );
+        ImGui::TextColored (
+               ImColor   (226,  67,  40, 255).Value,
+                 ICON_FA_GITLAB
+                             );
+        ImGui::EndGroup   (  );
+        ImGui::SameLine   (  );
+        ImGui::BeginGroup (  );
 
-        if (ImGui::Selectable("Wiki"))
+        if (ImGui::Selectable ("Wiki"))
         {
-          SKIF_Util_OpenURI(std::wstring(L"https://wiki.special-k.info/"));
+          SKIF_Util_OpenURI (
+            L"https://wiki.special-k.info/"
+          );
         }
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverText("https://wiki.special-k.info/");
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
 
 
-        if (ImGui::Selectable("Discord"))
+        if (ImGui::Selectable ("Discord"))
         {
-          SKIF_Util_OpenURI(std::wstring(L"https://discord.com/invite/ER4EDBJPTa"));
+          SKIF_Util_OpenURI (
+            L"https://discord.com/invite/ER4EDBJPTa"
+          );
         }
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverText("https://discord.com/invite/ER4EDBJPTa");
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://discord.com/invite/ER4EDBJPTa");
 
 
-        if (ImGui::Selectable("Forum"))
+        if (ImGui::Selectable ("Forum"))
         {
-          SKIF_Util_OpenURI(std::wstring(L"https://discourse.differentk.fyi/"));
+          SKIF_Util_OpenURI (
+            L"https://discourse.differentk.fyi/"
+          );
         }
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverText("https://discourse.differentk.fyi/");
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
 
 
-        if (ImGui::Selectable("Patreon"))
+        if (ImGui::Selectable ("Patreon"))
         {
-          SKIF_Util_OpenURI(std::wstring(L"https://www.patreon.com/bePatron?u=33423623"));
+          SKIF_Util_OpenURI (
+            L"https://www.patreon.com/bePatron?u=33423623"
+          );
         }
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverText("https://www.patreon.com/bePatron?u=33423623");
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://www.patreon.com/bePatron?u=33423623");
 
+        if (ImGui::Selectable ("GitLab"))
+        {
+          SKIF_Util_OpenURI (
+            L"https://gitlab.special-k.info/"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://gitlab.special-k.info/");
 
-        ImGui::Separator ();
+        ImGui::EndGroup   ( );
+        ImGui::Separator  ( );
       }
 
-      if ( ! pApp->specialk.screenshots.empty ())
+      if (! pApp->specialk.screenshots.empty ())
       {
         if (ImGui::BeginMenu ("Screenshots"))
         {
@@ -1848,11 +2002,13 @@ SKIF_GameManagement_DrawTab (void)
           {
             if (ImGui::Selectable (screenshot.c_str ()))
             {
-              SKIF_GameManagement_ShowScreenshot (SK_UTF8ToWideChar (screenshot));
+              SKIF_GameManagement_ShowScreenshot (
+                SK_UTF8ToWideChar (screenshot)
+              );
             }
             
-            SKIF_ImGui_SetMouseCursorHand();
-            SKIF_ImGui_SetHoverText(screenshot.c_str());
+            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_SetHoverText       (screenshot.c_str ());
           }
 
           ImGui::EndMenu ();
@@ -1862,7 +2018,7 @@ SKIF_GameManagement_DrawTab (void)
       if (! pApp->cloud_saves.empty ())
       {
         bool bMenuOpen =
-          ImGui::BeginMenu ("Game Saves and Config");
+          ImGui::BeginMenu (ICON_FA_SD_CARD "\tGame Saves and Config");
 
         std::set <std::wstring> used_paths_;
 
@@ -1905,30 +2061,32 @@ SKIF_GameManagement_DrawTab (void)
 
                   ImGui::CloseCurrentPopup ();
                 }
-                SKIF_ImGui_SetMouseCursorHand();
-                SKIF_ImGui_SetHoverText(
-                  SK_FormatString(R"(%ws)", cloud.second.evaluated_dir.c_str()).c_str()
-                );
+                SKIF_ImGui_SetMouseCursorHand ();
+                SKIF_ImGui_SetHoverText       (
+                             SK_FormatString ( R"(%ws)",
+                                        cloud.second.evaluated_dir.c_str ()
+                                             ).c_str ()
+                                              );
                 bCloudSaves = true;
               }
             }
           }
 
-          if ( ! bCloudSaves)
+          if (! bCloudSaves)
           {
-            ImGui::TextColored(ImColor::HSV(0.0f, 0.0f, 0.75f), "N/A");
+            ImGui::TextColored (ImColor::HSV(0.0f, 0.0f, 0.75f), "N/A");
           }
 
           ImGui::EndMenu ();
 
-          SKIF_ImGui_SetHoverTip("Browse files cloud-sync'd by Steam");
+        //SKIF_ImGui_SetHoverTip ("Browse files cloud-sync'd by Steam");
         }
       }
 
       if (! pApp->branches.empty ())
       {
         bool bMenuOpen =
-          ImGui::BeginMenu ("Software Branches");
+          ImGui::BeginMenu (ICON_FA_CODE_BRANCH "\tSoftware Branches");
 
         static
           std::set  < std::string >
@@ -1963,7 +2121,7 @@ SKIF_GameManagement_DrawTab (void)
                   it.second;
 
                 // Sort in descending order
-                branches.insert (
+                branches.emplace (
                   std::make_pair   (-(int64_t)branch.build_id,
                     std::make_pair (
                       const_cast <std::string                   *> (&it.first),
@@ -2016,7 +2174,7 @@ SKIF_GameManagement_DrawTab (void)
 
               ImGui::MenuItem ( "Accessibility", branch.pwd_required ?
                                        "Private (Password Required)" :
-                                       "Public (No Password)" );
+                                              "Public (No Password)" );
 
               ImGui::EndMenu ();
             }
@@ -2031,45 +2189,74 @@ SKIF_GameManagement_DrawTab (void)
       );
       
       if ( pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER )
-        ImGui::Separator ();
+        ImGui::Separator ( );
 
-      if (ImGui::Selectable("Browse Install Folder"))
+      ImGui::BeginGroup  ( );
+      ImGui::TextColored (
+               ImColor   (255, 229, 150, 255).Value,
+                 ICON_FA_FOLDER_OPEN
+                           );
+      ImGui::TextColored (
+               ImColor   (200, 200, 200, 255).Value,
+                 ICON_FA_TOOLS
+                           );
+      if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
-        SKIF_Util_ExplorePath(pApp->install_dir);
+        ImGui::TextColored (
+         ImColor   (101, 192, 244, 255).Value,
+           ICON_FA_DATABASE );
       }
-      SKIF_ImGui_SetMouseCursorHand();
-      SKIF_ImGui_SetHoverText(
-          SK_FormatString(R"(%ws)", pApp->install_dir.c_str()).c_str()
-      );
+      ImGui::EndGroup    ( );
+      ImGui::SameLine    ( );
+      ImGui::BeginGroup  ( );
+      if (ImGui::Selectable ("Browse Install Folder"))
+      {
+        SKIF_Util_ExplorePath         (
+          pApp->install_dir             );
+      }
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (
+          SK_WideCharToUTF8 (pApp->install_dir)
+                                        );
+      }
 
-      if (ImGui::Selectable ("Browse PCGamingWiki"))
+      if (ImGui::Selectable  ("Browse PCGamingWiki"))
       {
-        SKIF_Util_OpenURI(
-            std::wstring(L"http://pcgamingwiki.com/api/appid.php?appid=") +
-            std::to_wstring(pApp->id)
-        );
+        SKIF_Util_OpenURI_Formatted   ( SW_SHOWNORMAL,
+               L"http://pcgamingwiki.com/api/appid.php?appid=%lu", pApp->id
+                                        );
       }
-      SKIF_ImGui_SetMouseCursorHand();
-      SKIF_ImGui_SetHoverText(
-          SK_FormatString(R"(%ws%lu)", L"http://pcgamingwiki.com/api/appid.php?appid=", pApp->id).c_str()
-      );
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (
+          SK_FormatString (
+            "http://pcgamingwiki.com/api/appid.php?appid=%lu", pApp->id
+                          )             );
+      }
 
       if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
-        if (ImGui::Selectable("Browse SteamDB"))
+        if (ImGui::Selectable  ("Browse SteamDB"))
         {
-            SKIF_Util_OpenURI(
-                std::wstring(L"https://steamdb.info/app/") +
-                std::to_wstring(pApp->id)
-            );
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"https://steamdb.info/app/%lu", pApp->id
+                                        );
         }
-        SKIF_ImGui_SetMouseCursorHand();
-        SKIF_ImGui_SetHoverText(
-            SK_FormatString(R"(%ws%lu)", L"https://steamdb.info/app/", pApp->id).c_str()
-        );
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "https://steamdb.info/app/%lu", pApp->id
+                            )
+                                          );
+        }
       }
-
-      ImGui::PopStyleColor ();
+      ImGui::EndGroup      ( );
+      ImGui::PopStyleColor ( );
     }
 
     else if (! update)
@@ -2081,22 +2268,23 @@ SKIF_GameManagement_DrawTab (void)
   }
 
   ImGui::EndGroup   ();
-
   ImGui::EndChild   ();
 
   // Applies hover text on the whole AppListInset1
-  if (SKIF_StatusBarText.empty()) // Prevents the text from overriding the keyboard search hint
-    SKIF_ImGui_SetHoverText("Right click for more details");
+  if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
+    SKIF_ImGui_SetHoverText ("Right click for more details");
 
-  ImGui::BeginChild ("###AppListInset2", ImVec2 (_WIDTH2, _HEIGHT2), true,
-                     ImGuiWindowFlags_NoScrollbar       |
-                     ImGuiWindowFlags_NoScrollWithMouse |
-                     ImGuiWindowFlags_NavFlattened);
+  ImGui::BeginChild (
+    "###AppListInset2",
+      ImVec2 ( _WIDTH2,
+               _HEIGHT2 ), true,
+        ImGuiWindowFlags_NoScrollbar       |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NavFlattened
+  );
   ImGui::BeginGroup ();
 
   static bool launch_hovered = false;
-
-
 
   if ( pApp     == nullptr       ||
        pApp->id == SKIF_STEAM_APPID )
@@ -2117,8 +2305,8 @@ SKIF_GameManagement_DrawTab (void)
     //ImGui::GetStyle () = style;
 
     ImVec2 content_region =
-      ImVec2 (ImGui::GetWindowContentRegionMax ().x - ImGui::GetWindowContentRegionMin ().x,
-              ImGui::GetWindowContentRegionMax ().y - ImGui::GetWindowContentRegionMin ().y),
+      ImVec2 ( ImGui::GetWindowContentRegionMax ().x - ImGui::GetWindowContentRegionMin ().x,
+               ImGui::GetWindowContentRegionMax ().y - ImGui::GetWindowContentRegionMin ().y ),
            item_spacing   =
       style.ItemSpacing,
            frame_padding  =
@@ -2221,8 +2409,7 @@ SKIF_GameManagement_DrawTab (void)
         bool blacklist =
           launch_cfg.isBlacklisted (pApp->id);
 
-        char        szButtonLabel [256] = { };
-
+        char          szButtonLabel [256] = { };
         if (menu)
           sprintf_s ( szButtonLabel, 255,
                         " for \"%ws\"###DisableLaunch%d",
@@ -2249,19 +2436,19 @@ SKIF_GameManagement_DrawTab (void)
       };
 
       // Set horizontal position
-      ImGui::SetCursorPosX(
-        ImGui::GetCursorPosX() +
-        ImGui::GetColumnWidth() -
-        ImGui::CalcTextSize("Disable Special K =>").x -
-        ImGui::GetScrollX() -
-        2 * ImGui::GetStyle().ItemSpacing.x
+      ImGui::SetCursorPosX (
+        ImGui::GetCursorPosX  () +
+        ImGui::GetColumnWidth () -
+        ImGui::CalcTextSize   ("Disable Special K =>").x -
+        ImGui::GetScrollX     () -
+        ImGui::GetStyle       ().ItemSpacing.x * 2
       );
 
       // If there is only one launch option
       if ( pApp->launch_configs.size  () == 1 )
       {
-        ImGui::SetCursorPosY(
-          ImGui::GetCursorPosY() - 1.0f
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY () - 1.0f
         );
 
         _BlacklistCfg          (
@@ -2269,30 +2456,35 @@ SKIF_GameManagement_DrawTab (void)
       }
       
       // If there are more than one launch option
-      else {
-        ImGui::SetCursorPosY(
-          ImGui::GetCursorPosY() +
-          ImGui::GetStyle().ItemSpacing.y / 2.0f
+      else
+      {
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY () +
+          ImGui::GetStyle      ().ItemSpacing.y / 2.0f
         );
 
-        if (ImGui::BeginMenu ("Disable Special K"))
+        if ( ImGui::BeginMenu ("Disable Special K") )
         {
           for ( auto& launch : pApp->launch_configs )
           {
             if (! launch.second.valid)
               continue;
             
-            _BlacklistCfg   (launch.second, true);
+            _BlacklistCfg (launch.second, true);
           }
 
-          ImGui::EndMenu     ( );
+          ImGui::EndMenu       ();
         }
       }
 
-      ImGui::EndChildFrame ();
-      fBottomDist = ImGui::GetItemRectSize ().y;
-      ImGui::EndGroup      ();
-      ImGui::PopStyleColor ();
+      ImGui::EndChildFrame     ();
+
+      fBottomDist =
+        ImGui::GetItemRectSize ().y;
+
+      ImGui::EndGroup          ();
+      ImGui::PopStyleColor     ();
+
       if (ImGui::IsItemHovered ())
         launch_hovered = false;
     }
