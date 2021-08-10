@@ -80,6 +80,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -89,6 +90,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -315,7 +317,7 @@
     <ClInclude Include="include\ui_tasks\manage_games.h" />
     <ClInclude Include="include\version.h" />
     <ClInclude Include="include\vfs.h" />
-    <ClInclude Include="Resource.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
     <ClInclude Include="steam\isteamappticket.h" />
@@ -602,6 +604,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="SKIF.ico" />
+    <Image Include="SKIF_overlay.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DirectXTex\DirectXTex.inl" />

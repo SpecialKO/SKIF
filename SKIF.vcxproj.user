@@ -4,26 +4,27 @@
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Special K\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommand>taskmgr.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Special K\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommand>C:\Program Files (x86)\Steam\steamapps\common\Special K\SKIF.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Special K\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommand>taskmgr.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>

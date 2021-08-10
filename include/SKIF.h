@@ -86,7 +86,6 @@ HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);
 HINSTANCE SKIF_Util_ExplorePath_Formatted (                const wchar_t* const wszFmt, ...);
 HINSTANCE SKIF_Util_OpenURI_Formatted     (DWORD dwAction, const wchar_t* const wszFmt, ...);
 
-extern float sk_global_ctl_x;
 extern float fAspect;
 extern float fBottomDist;
 
@@ -96,3 +95,6 @@ extern CreateDXGIFactory1_pfn
 
 DWORD   SKIF_timeGetTime   (void);
 DWORD64 SKIF_timeGetTimeEx (void);
+
+const UINT_PTR IDT_GISERVICE = 1337;
+const UINT_PTR IDT_REFRESH   = 1338;

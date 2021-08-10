@@ -38,7 +38,7 @@ static bool clickedGameLaunch = false;
 #include <font_awesome.h>
 
 extern ID3D11Device* g_pd3dDevice;
-extern bool          SKIF_ServiceRunning;
+//extern bool          SKIF_ServiceRunning;
 extern float         SKIF_ImGui_GlobalDPIScale;
 extern std::string   SKIF_StatusBarHelp;
 extern std::string   SKIF_StatusBarText;
@@ -1229,15 +1229,16 @@ SKIF_GameManagement_DrawTab (void)
         } dll;
         AppId_t     app_id  = 0;
         DWORD       running = 0;
+        bool        service = _inject.bCurrentState;
       } static cache;
 
-      bool changing = false;
+      //bool changing = false;
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
-      _inject.running =
-        _inject.TestServletRunlevel (changing);
+      //6_inject.running =
+        //_inject.TestServletRunlevel (changing);
 
-      if (              changing ||
+      if (         cache.service != _inject.bCurrentState  ||
                    cache.running != pTargetApp->_status.running)
       {
         cache.app_id = 0;
@@ -1248,6 +1249,7 @@ SKIF_GameManagement_DrawTab (void)
       {
         cache.app_id  = pTargetApp->id;
         cache.running = pTargetApp->_status.running;
+        cache.service = _inject.bCurrentState;
 
         sk_install_state_s& sk_install =
           pTargetApp->specialk.injection;
@@ -1290,33 +1292,35 @@ SKIF_GameManagement_DrawTab (void)
         switch (sk_install.injection.type)
         {
           case sk_install_state_s::Injection::Type::Global:
-            launch_description = "Click to launch game (without Special K)";
+            launch_description = "Click to launch game (global injection)";
 
             if ( _inject.bHasServlet )
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  =
-                   _inject.running         ? "Service Running"
+                   _inject.bCurrentState   ? "Service Running"
                                            : "Service Stopped";
 
               cache.injection.status.color =
-                   _inject.running         ? ImColor::HSV (0.3F,  0.99F, 1.F)
+                   _inject.bCurrentState   ? ImColor::HSV (0.3F,  0.99F, 1.F)
                                            : ImColor::HSV (0.08F, 0.99F, 1.F);
               cache.injection.hover_text   =
-                   _inject.running         ? "Click to stop injection service"
+                   _inject.bCurrentState   ? "Click to stop injection service"
                                            : "Click to start injection service";
             }
-            if (! _inject.running)
+            /* Not needed any longer since the service autostarts when launching the game
+            if (! _inject.bCurrentState)
               cache.dll.shorthand.clear ();
             else
             {
               launch_description = "Click to launch game (global injection)";
             }
+            */
             break;
 
           case sk_install_state_s::Injection::Type::Local:
             cache.injection.type = "Local";
-              launch_description = "Click to launch game with (local injection)";
+              launch_description = "Click to launch game (local injection)";
             break;
         }
 
@@ -1431,7 +1435,7 @@ SKIF_GameManagement_DrawTab (void)
         if (ImGui::IsItemClicked ())
         {
           _inject._StartStopInject (
-            _inject.running
+            _inject.bCurrentState
           );
           
           _inject.run_lvl_changed = false;
@@ -1446,10 +1450,10 @@ SKIF_GameManagement_DrawTab (void)
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it every frame
-      _inject.running =
-        _inject.TestServletRunlevel (_inject.run_lvl_changed);
+      //_inject.running =
+        //_inject.TestServletRunlevel (_inject.run_lvl_changed);
 
-      SKIF_ServiceRunning = _inject.running;
+      //SKIF_ServiceRunning = _inject.running;
 
       if (! cache.dll.shorthand.empty ())
       {
@@ -1461,10 +1465,6 @@ SKIF_GameManagement_DrawTab (void)
 
       // End of columns
       ImGui::EndGroup         ();
-
-      sk_global_ctl_x = std::max (
-        ImGui::GetItemRectSize ().x, sk_global_ctl_x
-      );
 
       ImGui::EndChildFrame    ();
 
@@ -1513,9 +1513,23 @@ SKIF_GameManagement_DrawTab (void)
       {
         clickedGameLaunch = false;
 
-        if ((! _inject.running) && cache.injection.type._Equal ("Global"))
+        if ((! _inject.bCurrentState) && cache.injection.type._Equal ("Global"))
         {
-          ImGui::OpenPopup ("Confirm Launch");
+          extern HWND SKIF_hWnd;
+          extern int SKIF_iGlobalServiceTimout;
+
+          _inject._StartStopInject (false);
+
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"steam://run/%lu", pTargetApp->id
+          );                    pTargetApp->_status.invalidate ();
+
+          SetTimer (SKIF_hWnd,
+                    IDT_GISERVICE,
+                   (SKIF_iGlobalServiceTimout * 1000),
+                   (TIMERPROC) NULL);
+
+          //ImGui::OpenPopup ("Confirm Launch");
         }
 
         else
@@ -1558,11 +1572,19 @@ SKIF_GameManagement_DrawTab (void)
                           )
            )
         {
+          extern HWND SKIF_hWnd;
+          extern int SKIF_iGlobalServiceTimout;
+
           _inject._StartStopInject (false);
 
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"steam://run/%lu", pTargetApp->id
           );                    pTargetApp->_status.invalidate ();
+
+          SetTimer (SKIF_hWnd,
+                    IDT_GISERVICE,
+                   (SKIF_iGlobalServiceTimout * 1000),
+                   (TIMERPROC) NULL);
 
           ImGui::CloseCurrentPopup ();
         }

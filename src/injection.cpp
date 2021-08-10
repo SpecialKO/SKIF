@@ -39,38 +39,17 @@
 #include <array>
 #include <vector>
 #include <iostream>
+#include <locale>
+#include <codecvt>
+#include <fstream>
 #include <filesystem>
 #include <strsafe.h>
-
-float sk_global_ctl_x;
-bool  SKIF_ServiceRunning;
 
 SKIF_InjectionContext _inject;
 
 bool
 SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
 {
-  if (wszDirectory [0] == L'\0')
-  {
-    GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
-    PathAppendW          (           wszDirectory, L"Servlet" );
-
-    hChangeNotification =
-      FindFirstChangeNotificationW (
-        wszDirectory, FALSE,
-          FILE_NOTIFY_CHANGE_FILE_NAME
-      );
-
-    if (hChangeNotification != INVALID_HANDLE_VALUE)
-    {
-      FindNextChangeNotification (
-        hChangeNotification
-      );
-    }
-
-    return true;
-  }
-
   bool bRet = false;
 
   if (hChangeNotification != INVALID_HANDLE_VALUE)
@@ -88,6 +67,25 @@ SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
   }
 
   return bRet;
+}
+
+SKIF_InjectionContext::pid_directory_watch_s::pid_directory_watch_s (void)
+{
+  GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
+  PathAppendW          (           wszDirectory, L"Servlet" );
+
+  hChangeNotification =
+    FindFirstChangeNotificationW (
+      wszDirectory, FALSE,
+        FILE_NOTIFY_CHANGE_FILE_NAME
+    );
+
+  if (hChangeNotification != INVALID_HANDLE_VALUE)
+  {
+    FindNextChangeNotification (
+      hChangeNotification
+    );
+  }
 }
 
 SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
@@ -146,10 +144,22 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                           SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
+    if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
+    {
+      sexi.lpFile       = LR"(SKIFsvc32.exe)";
+      sexi.lpParameters = L"";
+    }
+
     if ( ShellExecuteExW (&sexi) || running )
     {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
       sexi.lpFile       = wszStartStopCommand64;
       sexi.lpParameters = wszStartStopParams64;
+
+      if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc64.exe)"))
+      {
+        sexi.lpFile       = LR"(SKIFsvc64.exe)";
+        sexi.lpParameters = L"";
+      }
 
       *_inout =
         ShellExecuteExW (&sexi);
@@ -171,7 +181,10 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
   }
 
   // Hack-a-la-Aemony to fix stupid service not stopping properly after subsequent SKIF launches
-  Sleep(50);
+  //Sleep(50);
+
+  bExpectedState = ! running_;
+  bPendingState = true;
 
   return _inout;
 };
@@ -263,8 +276,8 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   if (updates_pending > 0)
   {
-    if (TestServletRunlevel (run_lvl_changed))
-      _StartStopInject (true);
+    //if (TestServletRunlevel (run_lvl_changed))
+    //  _StartStopInject (true);
 
     for ( auto& file : updated_files )
     {
@@ -288,24 +301,41 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     }
   }
 
-  running =
-    TestServletRunlevel (run_lvl_changed);
+  //running =
+    //TestServletRunlevel (run_lvl_changed);
 
   bHasServlet =
     bHasServlet &&
     PathFileExistsW (L"SpecialK32.dll") &&
     PathFileExistsW (L"SpecialK64.dll");
+
+  // Force a one-time check on launch
+  TestServletRunlevel (true);
+  bExpectedState = bCurrentState;
 }
 
-bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
+void
+SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  static bool ret    = false;
-  static bool oldRet = false;
-  oldRet = ret;
-  ret = running;
+  if (bExpectedState != bCurrentState)
+    forcedCheck = true;
 
-  if (true)//dir_watch.isSignaled ())
+  bool prevState = bCurrentState;
+
+  if (dir_watch.isSignaled () || forcedCheck)
   {
+    /*
+    OutputDebugString(L"Directory signaled or forced!\n");
+
+    OutputDebugString(L"bCurrentState: ");
+    OutputDebugString(std::to_wstring(bCurrentState).c_str());
+    OutputDebugString(L"\n");
+
+    OutputDebugString(L"bExpectedState: ");
+    OutputDebugString(std::to_wstring(bExpectedState).c_str());
+    OutputDebugString(L"\n");
+    */
+
     for ( auto& record : records )
     {
       if (                 *record.pPid == 0 &&
@@ -339,18 +369,34 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
         DeleteFileW (record.wszPidFilename);
                     *record.pPid = 0;
       }
+      /*
+      else {
+        OutputDebugString(L"File: ");
+        OutputDebugString(record.wszPidFilename);
+        OutputDebugString(L" - PID: ");
+        OutputDebugString(std::to_wstring(*record.pPid).c_str());
+        OutputDebugString(L"\n");
+      }
+      */
     }
 
-    ret =
+    bCurrentState =
       ( pid32 || pid64 );
 
-    changed_state = true;
+    /*
+    OutputDebugString(L"bCurrentState (new): ");
+    OutputDebugString(std::to_wstring(bCurrentState).c_str());
+    OutputDebugString(L"\n");
+    */
 
-    if (oldRet != ret)
-      _SetTaskbarOverlay (ret);
+    if (bCurrentState != prevState)
+    {
+      _SetTaskbarOverlay (bCurrentState);
+
+      if (bPendingState)
+        bPendingState = false;
+    }
   }
-
-  return ret;
 };
 
 extern bool SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
@@ -373,13 +419,13 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
 }
 
-bool
+void
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
 
-  running =
-    TestServletRunlevel (run_lvl_changed);
+  //running =
+    //TestServletRunlevel (run_lvl_changed);
 
   // Injection Summary
   auto frame_id =
@@ -512,32 +558,27 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     );
   }
     
-  if (run_lvl_changed)
+  if (bCurrentState == bExpectedState)
   {
-    static HRESULT hr0 =
-      _SetTaskbarOverlay (running);
-
     const char *szStartStopLabel =
-      running ?  "Stop Service###GlobalStartStop"  :
-                "Start Service###GlobalStartStop";
+      bCurrentState ?  "Stop Service###GlobalStartStop"  :
+                       "Start Service###GlobalStartStop";
 
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
     {
-      _StartStopInject (running);
-
-      run_lvl_changed = false;
+      _StartStopInject (bCurrentState);
     }
   }
 
   else
-    ImGui::ButtonEx (running ? "Stopping...###GlobalStartStop" :
-                               "Starting...###GlobalStartStop",
+    ImGui::ButtonEx (bCurrentState ? "Stopping...###GlobalStartStop" :
+                                     "Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
 
-  if ( ! running && SKIF_bDisableExitConfirmation)
+  if ( ! bCurrentState && SKIF_bDisableExitConfirmation)
       SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
   if ( ! bHasServlet )
@@ -605,10 +646,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   ImGui::EndChildFrame ();
-
-  SKIF_ServiceRunning = running;
-
-  return running;
 };
 
 //
@@ -971,7 +1008,9 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
     extern HWND SKIF_hWnd;
 
     //HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF));
+    HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIFO));
 
+    /*
     SHSTOCKICONINFO
       sii        = {          };
       sii.cbSize = sizeof (sii);
@@ -981,18 +1020,25 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
                                   SHGSI_ICON | SHGSI_LARGEICON,
                                     &sii )
        ) )
+    */
+
+    if (hIcon != NULL)
     {
       if (show)
-        taskbar->SetOverlayIcon (SKIF_hWnd, sii.hIcon, L"Global injection service is running.");
+        taskbar->SetOverlayIcon (SKIF_hWnd, hIcon, L"Global injection service is running.");
       else
         taskbar->SetOverlayIcon (SKIF_hWnd, NULL, NULL);
 
-      DestroyIcon (sii.hIcon);
-    }
+      //DestroyIcon (sii.hIcon);
+      DestroyIcon (hIcon);
 
-    return S_OK;
+      bTaskbarOverlayIcon = show;
+
+      return S_OK;
+    }
   }
 
+  bTaskbarOverlayIcon = false;
   return E_UNEXPECTED;
 }
 

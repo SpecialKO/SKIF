@@ -27,10 +27,6 @@
 #include <array>
 #include <string>
 
-// Move somewhere else please
-extern float sk_global_ctl_x;
-extern bool  SKIF_ServiceRunning;
-
 struct SKIF_InjectionContext {
   SKIF_InjectionContext (void);
 
@@ -47,11 +43,16 @@ struct SKIF_InjectionContext {
 
   bool    bOnDemandInject   = false;
 
-  bool    running           = false;
+  bool    running           = false; // Obsolete
+  bool    run_lvl_changed   = false; // Obsolete
+  
+  bool    bCurrentState     = false; // Replaced running
+  bool    bExpectedState    = false; // Keeps track of the new expected state
+  bool    bPendingState     = false; // Indicates we're expecting a new state -- sorta replaced run_lvl_changed
+  bool    bTaskbarOverlayIcon = false;
+
   int     pid32             = 0,
           pid64             = 0;
-
-  bool    run_lvl_changed   = false;
 
   struct pid_file_watch_s {
     const wchar_t* wszPidFilename;
@@ -61,6 +62,7 @@ struct SKIF_InjectionContext {
 
   struct pid_directory_watch_s
   {
+    pid_directory_watch_s  (void);
     ~pid_directory_watch_s (void);
 
     bool isSignaled (void);
@@ -78,9 +80,9 @@ struct SKIF_InjectionContext {
 
   bool    _StartStopInject      (bool running_);
 
-  bool     TestServletRunlevel  (bool& changed_state);
+  void     TestServletRunlevel  (bool forcedCheck = false);
   void    _RefreshSKDLLVersions (void);
-  bool    _GlobalInjectionCtl   (void);
+  void    _GlobalInjectionCtl   (void);
   void    _StartAtLogonCtrl     (void);
   HRESULT _SetTaskbarOverlay    (bool show);
 } extern _inject;

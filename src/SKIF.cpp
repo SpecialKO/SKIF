@@ -35,6 +35,7 @@ int WindowsCursorSize = 1;
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
+int  SKIF_iGlobalServiceTimout     = 30;
 bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableExitConfirmation = false,
      SKIF_bDisableTooltips         = false,
@@ -1499,7 +1500,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 }
 
 bool bKeepWindowAlive  = true,
-            bKeepProcessAlive = true;
+     bKeepProcessAlive = true;
 
 // Main code
 int
@@ -1525,6 +1526,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   WindowsCursorSize =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Microsoft\Accessibility\)",
                          LR"(CursorSize)" ).getData ();
+
+  static auto regKVGlobalServiceTimout =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                        LR"(Global Service Timeout)" );
   
   static auto regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -1567,16 +1572,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          LR"(Allow Background Service)" );
 
   // Read current settings
-  SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ();
-  SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ();
-  SKIF_bDisableTooltips         = regKVDisableTooltips.getData         ();
-  SKIF_bDisableStatusBar        = regKVDisableStatusBar.getData        ();
-  SKIF_bDisableSteamLibrary     = regKVDisableSteamLibrary.getData     ();
-  SKIF_bEnableDebugMode         = regKVEnableDebugMode.getData         ();
-  SKIF_bSmallMode               = regKVSmallMode.getData               ();
-  SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ();
-  SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ();
-  SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ();
+  SKIF_iGlobalServiceTimout     = regKVGlobalServiceTimout.getData     ( );
+  if (SKIF_iGlobalServiceTimout == 0) // If the registry key doesn't exist, or is set to 0, assume 30
+    SKIF_iGlobalServiceTimout = 30;
+
+  SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ( );
+  SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ( );
+  SKIF_bDisableTooltips         = regKVDisableTooltips.getData         ( );
+  SKIF_bDisableStatusBar        = regKVDisableStatusBar.getData        ( );
+  SKIF_bDisableSteamLibrary     = regKVDisableSteamLibrary.getData     ( );
+  SKIF_bEnableDebugMode         = regKVEnableDebugMode.getData         ( );
+  SKIF_bSmallMode               = regKVSmallMode.getData               ( );
+  SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ( );
+  SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ( );
+  SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -1689,6 +1698,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ShowWindow   (hWnd, SW_SHOWDEFAULT);
   UpdateWindow (hWnd);
 
+  // Set a timer to trigger a window refresh every 1000ms,
+  //   since two counts are apparently required for each new frame.
+  SetTimer( hWnd,
+            IDT_REFRESH,
+            500,
+            (TIMERPROC) NULL );
+
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
   ImGui::CreateContext ();
@@ -1784,11 +1800,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
-  {                         msg                   = { };
+  {                         msg          = { };
     auto _TranslateAndDispatch = [&](void) -> bool
     {
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
-                            msg.message  !=  WM_QUIT )
+                            msg.message  !=  WM_QUIT)
       {
         if (! IsWindow (hWnd))
           return false;
@@ -1827,16 +1843,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bOccluded = FALSE;
     };
 
-
     //DWORD dwWait =
-      MsgWaitForMultipleObjects ( 1, &hSwapWait.m_h, TRUE,
+    MsgWaitForMultipleObjects ( 1, &hSwapWait.m_h, TRUE,
                                      INFINITE, QS_ALLINPUT );
+    
+    //static int frameCount = 0;
 
-    if (! _TranslateAndDispatch ())
+    if (! _TranslateAndDispatch () )
       break;
 
     else //if (dwWait == WAIT_OBJECT_0)
     {
+      /*
+      OutputDebugString(L"New Frame ");
+      OutputDebugString(std::to_wstring(frameCount).c_str());
+      OutputDebugString(L"\n");
+      frameCount++;
+      */
+
       io.FontGlobalScale = 1.0f;
 
       // Handling sub-1000px resolutions by rebuilding the font at 11px
@@ -2095,14 +2119,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             || bKeepWindowAlive == false
            )
         {
-          if (SKIF_ServiceRunning && (!SKIF_bDisableExitConfirmation))
+          if (_inject.bCurrentState && (!SKIF_bDisableExitConfirmation))
           {
             ImGui::OpenPopup("Confirm Exit");
           }
           else
           {
-            if (SKIF_ServiceRunning && ! SKIF_bAllowBackgroundService )
-              _inject._StartStopInject(true);
+            if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+              _inject._StartStopInject (true);
 
             bKeepProcessAlive = false;
           }
@@ -2110,7 +2134,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::PopStyleVar ();
 
-        if (SKIF_ServiceRunning && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
+        if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
           SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
         
         ImGui::SetCursorPos (topCursorPos);
@@ -2359,7 +2383,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::EndGroup      ( );
               ImGui::SameLine      ( );
+
               ImGui::BeginGroup    ( );
+              ImGui::Spacing       ( );
+
+              ImGui::Text             ("When launching a game through SKIF, stop service after");
+              ImGui::SetNextItemWidth (200 * SKIF_ImGui_GlobalDPIScale);
+              if(ImGui::SliderInt        ("seconds##timeout", &SKIF_iGlobalServiceTimout, 15, 180))
+              {
+                if (SKIF_iGlobalServiceTimout == 0)
+                  SKIF_iGlobalServiceTimout = 30;
+                regKVGlobalServiceTimout.putData(SKIF_iGlobalServiceTimout);
+              }
+
+              ImGui::Spacing       ( );
+              ImGui::Spacing       ( );
 
               if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
                                                         &SKIF_bEnableDebugMode))
@@ -2416,15 +2454,176 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing ();
             ImGui::Spacing ();
 
-            // WinRing0
-            if (ImGui::CollapsingHeader ("Advanced CPU Hardware Reporting"))
+
+            if (ImGui::CollapsingHeader ("Advanced Monitoring"))
             {
+              // PresentMon prerequisites
               ImGui::BeginGroup  ();
               ImGui::Spacing     ();
 
+              ImGui::Text        ("SwapChain Presentation Monitor");
+
               ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
               ImGui::TextWrapped    (
-                "Special K can make use of an optional kernel driver to provide advanced CPU hardware reporting."
+                "Special K can give users an insight into how frames is presented by tracking ETW events and changes as they occur."
+              );
+              ImGui::PopStyleColor  ();
+
+              ImGui::Spacing     ();
+              ImGui::Spacing     ();
+
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "Tell at a glance whether:"
+              );
+
+              ImGui::BeginGroup  ();
+              ImGui::Spacing     ();
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"?!");
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed."
+              );
+              ImGui::EndGroup    ();
+
+              SKIF_ImGui_SetHoverTip("Appears as 'Hardware [Composed]: Independent Flip'");
+              SKIF_ImGui_SetMouseCursorHand ();
+              SKIF_ImGui_SetHoverText       ("https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/for-best-performance--use-dxgi-flip-model#directflip");
+
+              if (ImGui::IsItemClicked      ())
+                SKIF_Util_OpenURI           (L"https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/for-best-performance--use-dxgi-flip-model#directflip");
+
+              ImGui::BeginGroup  ();
+              ImGui::Spacing     ();
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"?!");
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it."
+              );
+              ImGui::EndGroup    ();
+
+              SKIF_ImGui_SetHoverTip(
+                                  "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'"
+                                  "\nFSO appears as 'Hardware [Composed]: Independent Flip'"
+              );
+              SKIF_ImGui_SetMouseCursorHand ();
+              SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
+
+              if (ImGui::IsItemClicked      ())
+                SKIF_Util_OpenURI           (L"https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
+
+              ImGui::BeginGroup  ();
+              ImGui::Spacing     ();
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"? ");
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "The game is running in a suboptimal presentation mode."
+              );
+              ImGui::EndGroup    ();
+
+              SKIF_ImGui_SetHoverTip("Appears as 'Composed: [Flip|Copy with GPU GDI|Copy with CPU GDI|Composition Atlas]'");
+
+              ImGui::Spacing();
+              ImGui::Spacing();
+
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "Requirement:"
+              );
+
+              static BOOL  pfuAccessToken = FALSE;
+              static BYTE  pfuSID[SECURITY_MAX_SID_SIZE];
+              static DWORD cbSize = sizeof(pfuSID);
+
+              SK_RunOnce ( CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinBuiltinPerfLoggingUsersSid, NULL, &pfuSID, &cbSize));
+              SK_RunOnce ( CheckTokenMembership (NULL, &pfuSID, &pfuAccessToken));
+
+              enum pfuPermissions {
+                Missing,
+                Granted,
+                Pending
+              } static pfuState = (pfuAccessToken) ? Granted : Missing;
+
+              ImGui::BeginGroup  ();
+              ImGui::Spacing     ();
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+              ImGui::SameLine    ();
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Granted 'Performance Log Users' permission?");
+              ImGui::SameLine    ();
+              if      (pfuState == Granted)
+                ImGui::TextColored (ImColor::HSV ( 0.3F, 0.99F, 1.F), "Yes");
+              else if (pfuState == Missing)
+                ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), "No");
+              else // (pfuState == Pending)
+                ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), "Yes, but a sign out from Windows is needed to allow the changes to take effect.");
+              ImGui::EndGroup    ();
+
+              ImGui::Spacing  ();
+              ImGui::Spacing  ();
+              
+              // Disable button for granted + pending states
+              if (pfuState != Missing)
+              {
+                ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                                ImGui::GetStyle ().Alpha *
+                                   ((SKIF_IsHDR ()) ? 0.1f
+                                                    : 0.5f)
+                );
+              }
+
+              std::string btnPfuLabel = (pfuState == Granted) ?                                ICON_FA_CHECK " Permissions granted!" // Granted
+                                                              : (pfuState == Missing) ?   ICON_FA_SHIELD_ALT " Grant permissions"    // Missing
+                                                                                      : ICON_FA_SIGN_OUT_ALT " Sign out to apply";   // Pending
+
+              if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
+                                                                   25 * SKIF_ImGui_GlobalDPIScale)))
+              {
+                if (
+                  // Add NT AUTHORITY\INTERACTIVE to the BUILT-IN\Performance Log Users group
+                  ShellExecuteW (
+                    nullptr, L"runas",
+                      L"powershell",
+                        L"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'\"", nullptr,
+                          SW_SHOW ) > (HINSTANCE)32) // COM exception is thrown?
+                {
+                  // PowerShell call succeeded!
+                  pfuState    = Pending;
+                }
+              }
+
+              // Disable button for granted + pending states
+              else if (pfuState != Missing)
+              {
+                ImGui::PopStyleVar();
+                ImGui::PopItemFlag();
+              }
+              
+              else
+              {
+                SKIF_ImGui_SetHoverTip(
+                  "Administrative privileges are required on the system to toggle this."
+                );
+              }
+
+              ImGui::Spacing  ();
+              ImGui::Spacing  ();
+
+              ImGui::EndGroup    ();
+
+              ImGui::Separator   ();
+
+              // WinRing0
+              ImGui::BeginGroup  ();
+              ImGui::Spacing     ();
+
+              ImGui::Text        ("Advanced CPU Hardware Reporting (Intel only)");
+
+              ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
+              ImGui::TextWrapped    (
+                "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
               );
               ImGui::PopStyleColor  ();
 
@@ -2437,9 +2636,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
               ImGui::SameLine    ();
               ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                  "Extends the CPU widget with thermals, energy, and precise clock rate on supported hardware."
+                                  "Extends the CPU widget with thermals, energy, and precise clock rate on supported Intel hardware."
               );
               ImGui::EndGroup    ();
+
+              ImGui::Spacing();
+              ImGui::Spacing();
+
+              ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
+                                  "Requirement:"
+              );
 
               ImGui::BeginGroup  ();
               ImGui::Spacing     ();
@@ -2468,7 +2674,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Status is pending...
               else if (driverStatus != driverStatusPending)
               {
-                btnDriverLabel = "Please Wait...";
+                btnDriverLabel = ICON_FA_SPINNER " Please Wait...";
                 ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Pending...");
               }
 
@@ -2476,21 +2682,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
               else if (driverStatus == Installed)
               {
                 wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
-                btnDriverLabel   = "Uninstall Driver";
+                btnDriverLabel   = ICON_FA_SHIELD_ALT " Uninstall Driver";
                 ImGui::TextColored (ImColor::HSV (0.3F, 0.99F, 1.F), "Installed");
               }
 
               // Other driver is installed
               else if (driverStatus == OtherDriverInstalled)
               {
-                btnDriverLabel = "Unavailable";
+                btnDriverLabel = ICON_FA_BAN " Unavailable";
                 ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Unsupported");
               }
 
               // Driver is not installed
               else {
                 wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
-                btnDriverLabel   = "Install Driver";
+                btnDriverLabel   = ICON_FA_SHIELD_ALT " Install Driver";
                 ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "Not Installed");
               }
 
@@ -2514,8 +2720,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               // Show button
               bool driverButton =
-                ImGui::ButtonEx (btnDriverLabel.c_str (), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
-                                                                   25 * SKIF_ImGui_GlobalDPIScale));
+                ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
+                                                                 25 * SKIF_ImGui_GlobalDPIScale));
 
               SKIF_ImGui_SetHoverTip (
                 "Administrative privileges are required on the system to enable this."
@@ -2607,31 +2813,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               auto _StoreList = [](char* szOut, std::wstring fname)->void
               {
-                std::wofstream list_file (
+                // std::ofstream list_file // UTF-8
+                std::wofstream list_file ( // ANSI
                   fname
                 );
 
                 if (list_file.is_open ())
                 {
+                  /* ANSI */
                   std::wstring out_text =
                     SK_UTF8ToWideChar (szOut);
 
+                  // Strip all null terminator \0 characters from the string
+                  out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
+
                   list_file.write ( out_text.c_str  (),
                                     out_text.length () );
+                  
+                  /* UTF-8
+                  list_file.write ( szOut,
+                            strlen( szOut) );
+                  */
                   list_file.close ();
                 }
               };
+
               auto _LoadList = [](char* szIn, std::wstring fname)->void
               {
-                std::wifstream list_file(
+                // std::ifstream list_file // UTF-8
+                std::wifstream list_file( // ANSI
                   fname
                 );
 
-                std::wstring full_text;
+                // std::string full_text; // UTF-8
+                std::wstring full_text; // ANSI
 
                 if (list_file.is_open ())
                 {
-                  std::wstring line;
+                  // std::string line; // UTF-8
+                  std::wstring line; // ANSI
 
                   while (list_file.good ())
                   {
@@ -2646,8 +2866,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                   list_file.close ();
 
+                  /* ANSI */
                   strcpy ( szIn,
                              SK_WideCharToUTF8 (full_text).c_str ()
+                  
+                  /* UTF-8
+                  strcpy ( szIn,
+                             full_text.c_str ()
+                  */
                   );
                 }
               };
@@ -2732,8 +2958,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::EndGroup   ();
 
               SKIF_ImGui_SetHoverTip (
-                R"(e.g. a pattern like "Assassin's Creed Valhalla" will match an application at"
-                 "C:\Games\Uplay\games\Assassin's Creed Valhalla\ACValhalla.exe)"
+                "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at"
+                 "\nC:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
               );
 
               ImGui::BeginGroup ();
@@ -2743,8 +2969,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::EndGroup   ();
 
               SKIF_ImGui_SetHoverTip (
-                R"(e.g. a pattern like "Epic Games" will match any"
-                 "application installed under the Epic Games folder.)"
+                "e.g. a pattern like \"Epic Games\" will match any"
+                 "\napplication installed under the Epic Games folder."
               );
 
               ImGui::Spacing    ();
@@ -2803,8 +3029,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (*whitelist == '\0')
               {
                 SKIF_ImGui_SetHoverTip (
-                  "SteamApps is the pattern used internally to enable Special K for all Steam games.\n"
-                  "It is presented here solely as an example of how a potential pattern might look like."
+                  "SteamApps is the pattern used internally to enable Special K for all Steam games."
+                  "\nIt is presented here solely as an example of how a potential pattern might look like."
                 );
               }
 
@@ -2983,7 +3209,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextWrapped      ("You are looking at the 'Special K Injection Frontend', commonly referred to as 'SKIF'.\n\n"
                                      "SKIF is used to start and stop Special K's 'Global Injection Service', "
                                      "which injects Special K's features into games as they start (and even games that are already running). "
-                                     "The tool also provides convenient shortcuts to special locations, including cloud saves, config and log files.");
+                                     "The tool also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
 
             ImGui::NewLine          ( );
 
@@ -3249,21 +3475,39 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
 
           auto title_len =
-            ImGui::GetFont ()->CalcTextSizeA ( 1.0f,
+            ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F,
                                       FLT_MAX, 0.0f,
                          SKIF_WINDOW_TITLE_A ).x;
 
-          ImGui::SetCursorPosX ( ImGui::GetCursorPos ().x + 
-                                          (
-             (ImGui::GetContentRegionAvail ().x - 100.0f * SKIF_ImGui_GlobalDPIScale) - title_len
-                                          )     /   2.0f 
-                                                 );
+          /*
+          OutputDebugString(L"title_len: ");
+          OutputDebugString(std::to_wstring(title_len).c_str());
+          OutputDebugString(L"\n");
+          */
+
+          float title_pos =                                     ImGui::GetCursorPos().x +
+              (
+                (ImGui::GetContentRegionAvail().x - 100.0f * SKIF_ImGui_GlobalDPIScale) - title_len
+              )
+                                                                                        / 2.0f;
+
+          ImGui::SetCursorPosX (title_pos);
+
+          /*
+          OutputDebugString(L"title_pos: ");
+          OutputDebugString(std::to_wstring(title_pos).c_str());
+          OutputDebugString(L"\n");
+
+          OutputDebugString(L"GetCursorPos: ");
+          OutputDebugString(std::to_wstring(ImGui::GetCursorPos().x).c_str());
+          OutputDebugString(L"\n");
+          */
 
           ImGui::SetCursorPosY (
             7.0f * SKIF_ImGui_GlobalDPIScale
           );
 
-          ImGui::TextColored (ImVec4 (.666f, .666f, .666f, 1.f), SKIF_WINDOW_TITLE_A);
+          ImGui::TextColored (ImVec4 (.666f, .666f, .666f, 1.f), SKIF_WINDOW_TITLE_A_EX);
 
           if (_inject.running && SKIF_bEnableDebugMode)
           {
@@ -3375,7 +3619,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (ImGui::BeginPopupModal ( "Confirm Exit", nullptr,
                                        ImGuiWindowFlags_NoResize |
-                                       ImGuiWindowFlags_NoMove   |
                                        ImGuiWindowFlags_AlwaysAutoResize )
            )
         {
@@ -3398,7 +3641,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::Button ("Stop Service And Exit", ImVec2 (  0 * SKIF_ImGui_GlobalDPIScale,
                                                                  25 * SKIF_ImGui_GlobalDPIScale )))
             {
-              _inject._StartStopInject(true);
+              _inject._StartStopInject (true);
 
               bKeepProcessAlive = false;
             }
@@ -3412,7 +3655,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
           {
             if (! SKIF_bAllowBackgroundService)
-              _inject._StartStopInject(true);
+              _inject._StartStopInject (true);
 
             bKeepProcessAlive = false;
           }
@@ -3444,6 +3687,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::EndPopup ();
         }
+
+        // Uses a Directory Watch signal, so this is cheap; do it once every frame
+        _inject.TestServletRunlevel ();
+
+        if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
+          _inject._SetTaskbarOverlay(_inject.bCurrentState);
 
         monitor_extent =
           ImGui::GetWindowAllowedExtentRect (
@@ -3547,6 +3796,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
         else if (msg.message == WM_SETFOCUS   || msg.message <= WM_KILLFOCUS) break;
+        else if (msg.message == WM_TIMER)                                     break;
       }
     }
   }
@@ -3704,53 +3954,65 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_STOP:
       _inject._StartStopInject  (true); break;
 
-  case WM_SIZE:
-    if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
-    {
-      CleanupRenderTarget ();
-      g_pSwapChain->ResizeBuffers (
-        0, (UINT)LOWORD (lParam),
-           (UINT)HIWORD (lParam),
-          DXGI_FORMAT_UNKNOWN, SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                                                  : 0x0 |
-                SKIF_IsWindows8Point1OrGreater () ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                                  : 0x0
-      );
-      CreateRenderTarget ();
-    }
-    return 0;
-
-  case WM_SYSCOMMAND:
-    if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
-    {
-      // Disable ALT application menu
-      if ( lParam == 0x00 ||
-           lParam == 0x20 )
+    case WM_TIMER:
+      switch (wParam)
       {
-        return 0;
+        case IDT_GISERVICE:
+          _inject._StartStopInject(true);
+          KillTimer (SKIF_hWnd, IDT_GISERVICE);
+          return 0;
+        case IDT_REFRESH:
+          //OutputDebugString(L"IDT_REFRESH\n");
+          return 0;
       }
-    }
-    break;
 
-  case WM_DESTROY:
-    ::PostQuitMessage (0);
-    return 0;
+    case WM_SIZE:
+      if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
+      {
+        CleanupRenderTarget ();
+        g_pSwapChain->ResizeBuffers (
+          0, (UINT)LOWORD (lParam),
+             (UINT)HIWORD (lParam),
+            DXGI_FORMAT_UNKNOWN, SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                                                    : 0x0 |
+                  SKIF_IsWindows8Point1OrGreater () ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                                    : 0x0
+        );
+        CreateRenderTarget ();
+      }
+      return 0;
 
-  case WM_DPICHANGED:
-    if (ImGui::GetIO ().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
-    {
-      //SKIF_ImGui_GlobalDPIScale = (float)HIWORD(wParam) / 96.0f * 100.0f;
-      //const int dpi = HIWORD(wParam);
-      //printf("WM_DPICHANGED to %d (%.0f%%)\n", dpi, (float)dpi / 96.0f * 100.0f);
-      const RECT *suggested_rect =
-           (RECT *)lParam;
+    case WM_SYSCOMMAND:
+      if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
+      {
+        // Disable ALT application menu
+        if ( lParam == 0x00 ||
+             lParam == 0x20 )
+        {
+          return 0;
+        }
+      }
+      break;
 
-      ::SetWindowPos ( hWnd, nullptr,
-                         suggested_rect->left,                         suggested_rect->top,
-                         suggested_rect->right - suggested_rect->left, suggested_rect->bottom - suggested_rect->top,
-                         SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
-    }
-    break;
+    case WM_DESTROY:
+      ::PostQuitMessage (0);
+      return 0;
+
+    case WM_DPICHANGED:
+      if (ImGui::GetIO ().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
+      {
+        //SKIF_ImGui_GlobalDPIScale = (float)HIWORD(wParam) / 96.0f * 100.0f;
+        //const int dpi = HIWORD(wParam);
+        //printf("WM_DPICHANGED to %d (%.0f%%)\n", dpi, (float)dpi / 96.0f * 100.0f);
+        const RECT *suggested_rect =
+             (RECT *)lParam;
+
+        ::SetWindowPos ( hWnd, nullptr,
+                           suggested_rect->left,                         suggested_rect->top,
+                           suggested_rect->right - suggested_rect->left, suggested_rect->bottom - suggested_rect->top,
+                           SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
+      }
+      break;
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);
