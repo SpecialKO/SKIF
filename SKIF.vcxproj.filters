@@ -78,9 +78,6 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Header Files\DXTex</Filter>
     </ClInclude>
@@ -344,6 +341,9 @@
     </ClInclude>
     <ClInclude Include="include\sk_utility\command.h">
       <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\resource.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
