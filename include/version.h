@@ -26,9 +26,9 @@
 
 #define SKIF_MAJOR 0
 #define SKIF_MINOR 8
-#define SKIF_BUILD 2
-#define SKIF_REV_N 5
-#define SKIF_REV   5
+#define SKIF_BUILD 3
+#define SKIF_REV_N 0
+#define SKIF_REV   0
 
 
 #define _A2(a)     #a

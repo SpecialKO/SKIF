@@ -180,8 +180,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
     CloseHandle         (hThread);
   }
 
-  // Hack-a-la-Aemony to fix stupid service not stopping properly after subsequent SKIF launches
-  //Sleep(50);
+  // Hack-a-la-Aemony to fix stupid service not stopping properly on exit
+  Sleep(50);
 
   bExpectedState = ! running_;
   bPendingState = true;
@@ -828,6 +828,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
   //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
   
+  /*
   ImGui::Spacing     ();
   
   ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
@@ -838,6 +839,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   
   ImGui::Spacing ();
   ImGui::Spacing ();
+  */
 
   // New method
 
@@ -890,20 +892,21 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   static bool changes = false;
 
-  if (ImGui::Checkbox(" Start with Windows", &bAutoStartSKIF))
+  if (ImGui::Checkbox("Start SKIF with Windows", &bAutoStartSKIF))
     changes = true;
 
   if (bAutoStartSKIF)
   {
-    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
+    ImGui::TreePush ("");
     if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
       changes = true;
 
     /* Disabled for now
-    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
     if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
       changes = true;
     */
+
+    ImGui::TreePop  ( );
   }
 
   if (changes)

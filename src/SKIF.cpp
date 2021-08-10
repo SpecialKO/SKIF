@@ -45,7 +45,8 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bFirstLaunch             = false,
      SKIF_bEnableDebugMode         = false,
      SKIF_bAllowMultipleInstances  = false,
-     SKIF_bAllowBackgroundService  = false;
+     SKIF_bAllowBackgroundService  = false,
+     SKIF_bEnableHDR               = false;
 BOOL SKIF_bAllowTearing            = FALSE;
 
 #include <sk_utility/command.h>
@@ -1571,6 +1572,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Allow Background Service)" );
 
+  static auto regKVEnableHDR =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(HDR)" );
+
   // Read current settings
   SKIF_iGlobalServiceTimout     = regKVGlobalServiceTimout.getData     ( );
   if (SKIF_iGlobalServiceTimout == 0) // If the registry key doesn't exist, or is set to 0, assume 30
@@ -1586,6 +1591,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ( );
   SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ( );
   SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ( );
+  SKIF_bEnableHDR               = regKVEnableHDR.getData               ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -2012,8 +2018,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         FLOAT SKIF_GetHDRWhiteLuma (void);
         void  SKIF_SetHDRWhiteLuma (FLOAT);
 
-        static bool bEnableHDR;
-
         static auto regKVLuma =
           SKIF_MakeRegKeyF (
             LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -2041,8 +2045,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return fLumaInReg;
         };
 
-        //          ImGui::Checkbox ("Enable HDR###HDR_ImGui", &bEnableHDR);
-
         static float fLuma =
           _InitFromRegistry ();
 
@@ -2055,15 +2057,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (fMaxLuma != 0.0f)
           {
+            ImGui::TreePush("");
+            ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
             if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, u8"HDR White:\t%04.1f cd/m²"))
             {
               SKIF_SetHDRWhiteLuma (fLuma);
               regKVLuma.putData    (fLuma);
             }
+            ImGui::TreePop ( );
+            ImGui::Spacing();
           }
-
-          else
-            ImGui::Spacing ();
         };
 
         enum _Selection {
@@ -2099,7 +2102,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ProcessCommandLine ("SKIF.UI.SmallMode Toggle");
 
-          regKVSmallMode.putData (SKIF_bSmallMode);
+          regKVSmallMode.putData (  SKIF_bSmallMode);
 
           changedMode = true;
         }
@@ -2175,24 +2178,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (ImGui::BeginTabItem (ICON_FA_SYRINGE " Injection"))
           {
-            /* TODO: Fix mouse pos changing on launch in manage_games.cpp before enabling this!
-            if ( ! SKIF_bFirstLaunch )
+            /* TODO: Fix mouse pos changing on launch in manage_games.cpp before enabling this! */
+            if (!SKIF_bFirstLaunch)
             {
               // Select the Help tab on first launch
-              SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
+              SKIF_bFirstLaunch = !SKIF_bFirstLaunch;
               flags = ImGuiTabItemFlags_SetSelected;
 
               // Store in the registry so this only occur once.
               regKVFirstLaunch.putData(SKIF_bFirstLaunch);
-            }*/
+            }
 
             if (tab_selected != Injection)
-              _inject._RefreshSKDLLVersions ();
+              _inject._RefreshSKDLLVersions();
 
             tab_selected = Injection;
 
-            extern void SKIF_GameManagement_DrawTab (void);
-                        SKIF_GameManagement_DrawTab ();
+            extern void SKIF_GameManagement_DrawTab(void);
+            SKIF_GameManagement_DrawTab();
 
             ImGui::EndTabItem ();
           }
@@ -2308,10 +2311,82 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // SKIF Options
             if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
             {
-              ImGui::BeginGroup ( );
               ImGui::Spacing    ( );
 
-              if (ImGui::Checkbox ("Disable UI scaling based on display DPI", &SKIF_bDisableDPIScaling))
+              ImGui::Columns    (2, nullptr, true);
+
+              SK_RunOnce(
+                ImGui::SetColumnWidth(0, SKIF_vecCurrentMode.x / 2.0f)
+              );
+
+              ImGui::Text          ("When launching a game through SKIF, stop service after");
+              ImGui::TreePush      ("");
+              ImGui::SetNextItemWidth (300 * SKIF_ImGui_GlobalDPIScale);
+              if(ImGui::SliderInt     ("seconds##timeout", &SKIF_iGlobalServiceTimout, 15, 180))
+              {
+                if (SKIF_iGlobalServiceTimout == 0)
+                  SKIF_iGlobalServiceTimout = 30;
+                regKVGlobalServiceTimout.putData (          SKIF_iGlobalServiceTimout);
+              }
+              ImGui::TreePop       ( );
+
+              ImGui::Spacing       ( );
+              ImGui::Spacing       ( );
+
+              if (ImGui::Checkbox("When closing SKIF allow the global injector to remain active",
+                                                     &SKIF_bAllowBackgroundService))
+                regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
+
+              _inject._StartAtLogonCtrl ( );
+
+              ImGui::NextColumn    ( );
+
+              // New column
+
+              ImGui::Text("Disable UI elements");
+              ImGui::TreePush("");
+
+              if (ImGui::Checkbox ("Exit prompt  ",
+                                                     &SKIF_bDisableExitConfirmation))
+                regKVDisableExitConfirmation.putData (SKIF_bDisableExitConfirmation);
+
+              if (SKIF_bAllowBackgroundService)
+                SKIF_ImGui_SetHoverTip(
+                  "The global injector will remain active in the background."
+                );
+              else
+                SKIF_ImGui_SetHoverTip (
+                  "The global injector will stop automatically."
+                );
+
+              ImGui::SameLine ( );
+              ImGui::Spacing  ( );
+              ImGui::SameLine ( );
+
+              if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
+                regKVDisableTooltips.putData (             SKIF_bDisableTooltips);
+
+              if (ImGui::IsItemHovered ())
+                SKIF_StatusBarText = "Info: ";
+
+              SKIF_ImGui_SetHoverText ("This is where the info will be displayed.");
+              SKIF_ImGui_SetHoverTip  ("The info will instead be displayed in the status bar at the bottom."
+                                       "\nNote that some links cannot be previewed as a result.");
+
+              ImGui::SameLine ( );
+              ImGui::Spacing  ( );
+              ImGui::SameLine ( );
+
+              if (ImGui::Checkbox ("Status bar", &SKIF_bDisableStatusBar))
+                regKVDisableStatusBar.putData (              SKIF_bDisableStatusBar);
+
+              SKIF_ImGui_SetHoverTip (
+                "Combining this with disabled UI tooltips will hide all context based information or tips."
+              );
+
+              // New line
+
+              if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
               {
                 io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 
@@ -2325,87 +2400,54 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 "This application will appear much smaller on HiDPI monitors."
               );
 
-              if (ImGui::Checkbox ("Disable UI tooltips", &SKIF_bDisableTooltips))
-                regKVDisableTooltips.putData (             SKIF_bDisableTooltips);
+              ImGui::SameLine ( );
+              ImGui::Spacing  ( );
+              ImGui::SameLine ( );
 
-              if (ImGui::IsItemHovered ())
-                SKIF_StatusBarText = "Info: ";
-
-              SKIF_ImGui_SetHoverText ("This is where the info will be displayed.");
-              SKIF_ImGui_SetHoverTip  ("The info will instead be displayed in the status bar at the bottom."
-                                       "\nNote that some links cannot be previewed as a result.");
-
-              if (ImGui::Checkbox ("Disable UI status bar", &SKIF_bDisableStatusBar))
-                regKVDisableStatusBar.putData (              SKIF_bDisableStatusBar);
-
-              SKIF_ImGui_SetHoverTip (
-                "Combining this with disabled UI tooltips will hide all context based information or tips."
-              );
-
-              if (ImGui::Checkbox("Allow the global injector to run in the background after closing SKIF",
-                                                     &SKIF_bAllowBackgroundService))
-                regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
-
-              if (ImGui::Checkbox ("Disable the exit prompt when closing SKIF (" ICON_FA_WINDOW_CLOSE ")",
-                                                     &SKIF_bDisableExitConfirmation))
-                regKVDisableExitConfirmation.putData (SKIF_bDisableExitConfirmation);
-
-              if (SKIF_bAllowBackgroundService)
-                SKIF_ImGui_SetHoverTip(
-                  "The global injector will remain active in the background."
-                );
-              else
-                SKIF_ImGui_SetHoverTip (
-                  "The global injector will stop automatically."
-                );
-
-              if (ImGui::Checkbox ("Disable Steam Library in SKIF", &SKIF_bDisableSteamLibrary))
+              if (ImGui::Checkbox ("Steam Library (restart required)", &SKIF_bDisableSteamLibrary))
                 regKVDisableSteamLibrary.putData (                   SKIF_bDisableSteamLibrary);
 
               SKIF_ImGui_SetHoverTip (
-                "This will prevent SKIF from reading and listing discovered Steam games."
+                "This will prevent SKIF from listing discovered Steam games."
               );
-
-              _DrawHDRConfig ();
 
               if (SKIF_bDisableTooltips && SKIF_bDisableStatusBar)
               {
-                ImGui::BeginGroup  ();
-                ImGui::Spacing     ();
-                ImGui::SameLine    ();
+                ImGui::BeginGroup  ( );
+                ImGui::Spacing     ( );
+                ImGui::SameLine    ( );
                 ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-                ImGui::SameLine    ();
-                ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                      "Both tooltips and status bar are disabled; context based information or tips will not appear!"
-                );
-                ImGui::EndGroup    ();
+                ImGui::SameLine    ( );
+                ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
+                ImGui::TextWrapped ("Both tooltips and status bar are disabled; context based information or tips will not appear!");
+                ImGui::PopStyleColor ( );
+                ImGui::EndGroup    ( );
               }
 
-              ImGui::EndGroup      ( );
-              ImGui::SameLine      ( );
+              ImGui::TreePop();
 
-              ImGui::BeginGroup    ( );
+              ImGui::Spacing       ( );
               ImGui::Spacing       ( );
 
-              ImGui::Text             ("When launching a game through SKIF, stop service after");
-              ImGui::SetNextItemWidth (200 * SKIF_ImGui_GlobalDPIScale);
-              if(ImGui::SliderInt        ("seconds##timeout", &SKIF_iGlobalServiceTimout, 15, 180))
+              ImGui::Text          ("Experimental SKIF features:");
+              ImGui::TreePush      ("");
+
+              if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
+                regKVEnableHDR.putData (                                                                              SKIF_bEnableHDR);
+
+              _DrawHDRConfig       ( );
+
+              if (ImGui::Checkbox ("Debug Mode (" ICON_FA_BUG ")",
+                                                         &SKIF_bEnableDebugMode))
               {
-                if (SKIF_iGlobalServiceTimout == 0)
-                  SKIF_iGlobalServiceTimout = 30;
-                regKVGlobalServiceTimout.putData(SKIF_iGlobalServiceTimout);
-              }
-
-              ImGui::Spacing       ( );
-              ImGui::Spacing       ( );
-
-              if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
-                                                        &SKIF_bEnableDebugMode))
                 SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
                                             std::string ( SKIF_bEnableDebugMode ? "On"
                                                                                 : "Off" )
                                           ).c_str ()
+                  
                 );
+                regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
+              }
 
               if (SKIF_bEnableDebugMode)
               {
@@ -2448,7 +2490,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 ImGui::TreePop  ( );
               }
-              ImGui::EndGroup   ( );
+              ImGui::TreePop    ( );
+              ImGui::Columns    (1);
             }
 
             ImGui::Spacing ();
@@ -2791,15 +2834,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing ();
             ImGui::Spacing ();
 
-            // Global injection
-            if (ImGui::CollapsingHeader ("Autostart Global Injection Service", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-              _inject._StartAtLogonCtrl ();
-            }
-
-            ImGui::Spacing ();
-            ImGui::Spacing ();
-
             // Whitelist/Blacklist
             if (ImGui::CollapsingHeader ("Whitelist/Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -2809,10 +2843,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
               static char whitelist [MAX_PATH * 16 * 2] = { };
               static char blacklist [MAX_PATH * 16 * 2] = { };
               static bool white_edited = false,
-                          black_edited = false;
+                          black_edited = false,
+                          white_stored = true,
+                          black_stored = true;
 
-              auto _StoreList = [](char* szOut, std::wstring fname)->void
+              auto _StoreList = [](char* szOut, std::wstring fname)->bool
               {
+                bool ret = false;
+
                 // std::ofstream list_file // UTF-8
                 std::wofstream list_file ( // ANSI
                   fname
@@ -2830,12 +2868,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   list_file.write ( out_text.c_str  (),
                                     out_text.length () );
                   
+                  if (list_file.good())
+                    ret = true;
+
                   /* UTF-8
                   list_file.write ( szOut,
                             strlen( szOut) );
                   */
                   list_file.close ();
                 }
+
+                return ret;
               };
 
               auto _LoadList = [](char* szIn, std::wstring fname)->void
@@ -3133,16 +3176,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 if (white_edited)
                 {
-                  _StoreList (whitelist, root_dir + L"whitelist.ini");
+                  white_stored = _StoreList (whitelist, root_dir + L"whitelist.ini");
 
-                  white_edited = false;
+                  if (white_stored)
+                    white_edited = false;
                 }
 
                 if (black_edited)
                 {
-                  _StoreList (blacklist, root_dir + L"blacklist.ini");
+                  black_stored = _StoreList (blacklist, root_dir + L"blacklist.ini");
 
-                  black_edited = false;
+                  if (black_stored)
+                    black_edited = false;
                 }
               }
 
@@ -3155,6 +3200,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   _LoadList (whitelist, root_dir + L"whitelist.ini");
 
                   white_edited = false;
+                  white_stored = true;
                 }
 
                 if (black_edited)
@@ -3162,6 +3208,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   _LoadList (blacklist, root_dir + L"blacklist.ini");
                   
                   black_edited = false;
+                  black_stored = true;
                 }
               }
 
@@ -3169,6 +3216,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::PopItemFlag  ( );
                 ImGui::PopStyleVar  ( );
+              }
+
+              ImGui::Spacing();
+
+              if (! white_stored)
+              {
+                  ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F),  u8"• ");
+                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F), "The whitelist could not be saved! Please remove any non-Latin characters and try again.");
+              }
+
+              if (! black_stored)
+              {
+                  ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F),  u8"• ");
+                  ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV (0.11F, 1.F,   1.F), "The blacklist could not be saved! Please remove any non-Latin characters and try again.");
               }
 
               ImGui::EndGroup       ( );
@@ -3231,7 +3292,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImColor::HSV (0.55F, 0.99F, 1.F),
                                   "1 ");
             ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("Start the 'Global Injection Service' using the '" ICON_FA_SYRINGE " Injection' tab, selecting 'Special K', and pressing 'Start Service'.");
+            ImGui::TextWrapped      ("Go to the '" ICON_FA_SYRINGE " Injection' tab.");
 
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
@@ -3239,7 +3300,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImColor::HSV (0.55F, 0.99F, 1.F),
                                   "2 ");
             ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("Launch the Steam game as usual.");
+            ImGui::TextWrapped      ("Select and launch the Steam game.");
 
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
@@ -3445,10 +3506,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ICON_FA_PATREON " "   );
             ImGui::SameLine         ( );
             if (ImGui::Selectable   ("Patreon"))
-              SKIF_Util_OpenURI     (L"https://www.patreon.com/bePatron?u=33423623");
+              SKIF_Util_OpenURI     (L"https://www.patreon.com/Kaldaien");
 
             SKIF_ImGui_SetMouseCursorHand ();
-            SKIF_ImGui_SetHoverText ( "https://www.patreon.com/bePatron?u=33423623");
+            SKIF_ImGui_SetHoverText ( "https://www.patreon.com/Kaldaien");
             ImGui::EndGroup         ( );
 
             ImGui::Columns          (1);
@@ -3509,20 +3570,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TextColored (ImVec4 (.666f, .666f, .666f, 1.f), SKIF_WINDOW_TITLE_A_EX);
 
-          if (_inject.running && SKIF_bEnableDebugMode)
+          if (_inject.bCurrentState && SKIF_bEnableDebugMode)
           {
+            ImGui::SameLine(); // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
+
             static float direction = -1.0f;
-            static float fMaxPos   = (ImGui::GetContentRegionAvail ().x - 100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos ().x) / 6.0f -
-                                                    ImGui::GetFont ()->CalcTextSizeA ( 1.1f, FLT_MAX, 0.0f,
+            static float fMinPos   = 0.0f;
+            /*
+            static float fMinPos   =                ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f,
                                                                                              ICON_FA_GHOST ).x;
-            static float fMinPos   =                ImGui::GetFont ()->CalcTextSizeA ( 1.1f, FLT_MAX, 0.0f,
+            */
+
+            float fMaxPos   = SKIF_vecCurrentMode.x - ImGui::GetCursorPosX() - 125.0f * SKIF_ImGui_GlobalDPIScale; // Needs to be updated constantly due to mixed-DPI monitor configs
+            /*
+            static float fMaxPos   = (ImGui::GetContentRegionAvail ().x - ImGui::GetCursorPos ().x) / 6.0f -
+                                                    ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f,
                                                                                              ICON_FA_GHOST ).x;
+            */
             static float fNewPos   =
                        ( fMaxPos   -
                          fMinPos ) * 0.5f;
 
                      fNewPos +=
-                         direction;
+                         direction * SKIF_ImGui_GlobalDPIScale;
 
             if (     fNewPos < fMinPos)
             {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }

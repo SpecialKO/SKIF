@@ -23,9 +23,10 @@
 #include <wmsdk.h>
 #include <filesystem>
 
-const int   SKIF_STEAM_APPID  = 1157970;
-      bool  SKIF_STEAM_OWNER  = false;
-static bool clickedGameLaunch = false;
+const int   SKIF_STEAM_APPID      = 1157970;
+      bool  SKIF_STEAM_OWNER      = false;
+static bool clickedGameLaunch     = false,
+            clickedGameLaunchWoSK = false;
 
 #include <SKIF.h>
 #include <injection.h>
@@ -971,11 +972,11 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::IsItemHovered (                                                  );
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText ("https://www.patreon.com/bePatron?u=33423623");
+    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
     SKIF_ImGui_SetHoverTip  ("Click to help support the project");
 
     if (clicked)
-      SKIF_Util_OpenURI (L"https://www.patreon.com/bePatron?u=33423623");
+      SKIF_Util_OpenURI (L"https://www.patreon.com/Kaldaien");
 
     ImGui::SameLine           ( );
     ImGui::ItemSize           (ImVec2 (160.0f * SKIF_ImGui_GlobalDPIScale,
@@ -1307,6 +1308,7 @@ SKIF_GameManagement_DrawTab (void)
               cache.injection.hover_text   =
                    _inject.bCurrentState   ? "Click to stop injection service"
                                            : "Click to start injection service";
+            
             }
             /* Not needed any longer since the service autostarts when launching the game
             if (! _inject.bCurrentState)
@@ -1322,6 +1324,15 @@ SKIF_GameManagement_DrawTab (void)
             cache.injection.type = "Local";
               launch_description = "Click to launch game (local injection)";
             break;
+
+          // Unknown injection strategy, but let's assume global would work
+          default:
+            if (_inject.bHasServlet)
+            {
+              cache.injection.type = "Global";
+              launch_description   = "Click to launch game (unknown; using global injection)";
+            }
+            break;
         }
 
         switch (sk_install.config.type)
@@ -1331,7 +1342,7 @@ SKIF_GameManagement_DrawTab (void)
           case ConfigType::Localized:
             cache.config_repo = "Localized";   break;
           default:
-            cache.config_repo = "UNKNOWN";
+            cache.config_repo = "Unknown";
             cache.config.shorthand.clear ();   break;
         }
       }
@@ -1496,7 +1507,7 @@ SKIF_GameManagement_DrawTab (void)
 
       if (pTargetApp->_status.running)
       {
-          buttonLabel = "Already Running";
+          buttonLabel = "Running...";
           buttonFlags = ImGuiButtonFlags_Disabled;
           ImGui::PushStyleVar ( ImGuiStyleVar_Alpha,
               ImGui::GetStyle ().Alpha *
@@ -1509,35 +1520,46 @@ SKIF_GameManagement_DrawTab (void)
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags )
            ||
-        clickedGameLaunch )
+        clickedGameLaunch
+           ||
+        clickedGameLaunchWoSK )
       {
-        clickedGameLaunch = false;
 
-        if ((! _inject.bCurrentState) && cache.injection.type._Equal ("Global"))
+        // Launch preparations for non-Local installs
+        if (! cache.injection.type._Equal ("Local"))
         {
-          extern HWND SKIF_hWnd;
-          extern int SKIF_iGlobalServiceTimout;
+          // This captures two events -- launching through context menu + large button
+          if (! clickedGameLaunchWoSK &&
+              !_inject.bCurrentState )
+          {
+            extern HWND SKIF_hWnd;
+            extern int SKIF_iGlobalServiceTimout;
 
-          _inject._StartStopInject (false);
+            _inject._StartStopInject (false);
 
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"steam://run/%lu", pTargetApp->id
-          );                    pTargetApp->_status.invalidate ();
+            SetTimer (SKIF_hWnd,
+                      IDT_GISERVICE,
+                     (SKIF_iGlobalServiceTimout * 1000),
+                     (TIMERPROC) NULL);
+          }
 
-          SetTimer (SKIF_hWnd,
-                    IDT_GISERVICE,
-                   (SKIF_iGlobalServiceTimout * 1000),
-                   (TIMERPROC) NULL);
+          // Stop the service if the user attempts to launch without SK
+          else if (  clickedGameLaunchWoSK &&
+                    _inject.bCurrentState )
+          {
+            _inject._StartStopInject (true);
+          }
 
           //ImGui::OpenPopup ("Confirm Launch");
         }
 
-        else
-        {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"steam://run/%lu", pTargetApp->id
-          );                    pTargetApp->_status.invalidate ();
-        }
+        // Launch game
+        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+          L"steam://run/%lu", pTargetApp->id
+        );                    pTargetApp->_status.invalidate ();
+
+        clickedGameLaunch = false;
+        clickedGameLaunchWoSK = false;
       }
 
       if (pTargetApp->_status.running)
@@ -1926,13 +1948,37 @@ SKIF_GameManagement_DrawTab (void)
       {
         if ( ImGui::Selectable (
                     ("Launch " + pApp->type).c_str (),
-                       true,  ( (pApp->_status.running != 0x0) ?
+                      false,  ( (pApp->_status.running != 0x0) ?
                                  ImGuiSelectableFlags_Disabled :
                                  ImGuiSelectableFlags_None )
                                )
            )
         {
           clickedGameLaunch = true;
+        }
+
+        if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
+        {
+          if (! _inject.bCurrentState)
+            SKIF_ImGui_SetHoverText("Starts the global injection service as well.");
+
+          ImGui::PushStyleColor ( ImGuiCol_Text,
+            (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f));
+
+          if ( ImGui::Selectable (
+                      ("Launch " + pApp->type + " without Special K").c_str(),
+                        false,  ( (pApp->_status.running != 0x0) ?
+                                   ImGuiSelectableFlags_Disabled :
+                                   ImGuiSelectableFlags_None )
+                                 )
+             )
+          {
+            clickedGameLaunchWoSK = true;
+          }
+
+          ImGui::PopStyleColor    ( );
+          if (_inject.bCurrentState)
+            SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
         }
       }
       
@@ -1997,11 +2043,11 @@ SKIF_GameManagement_DrawTab (void)
         if (ImGui::Selectable ("Patreon"))
         {
           SKIF_Util_OpenURI (
-            L"https://www.patreon.com/bePatron?u=33423623"
+            L"https://www.patreon.com/Kaldaien"
           );
         }
         SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://www.patreon.com/bePatron?u=33423623");
+        SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
 
         if (ImGui::Selectable ("GitLab"))
         {

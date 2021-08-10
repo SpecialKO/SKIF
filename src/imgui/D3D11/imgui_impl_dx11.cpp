@@ -1117,7 +1117,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       {
         pOutput6->GetDesc1 (&hdrOutDesc);
 
-        if ( hdrOutDesc.ColorSpace ==
+        extern bool SKIF_bEnableHDR;
+
+        if ( SKIF_bEnableHDR &&
+             hdrOutDesc.ColorSpace ==
                    DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 ||
              hdrOutDesc.ColorSpace ==
                    DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 )
