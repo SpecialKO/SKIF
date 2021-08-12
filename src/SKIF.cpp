@@ -1978,7 +1978,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (RepositionSKIF)
         {
-          OutputDebugString(L"RepositionSKIF recognized\n");
+          //OutputDebugString(L"RepositionSKIF recognized\n");
           // Repositions the window in the center of the current monitor it is on
           //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
@@ -2366,18 +2366,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImGui::SetColumnWidth(0, SKIF_vecCurrentMode.x / 2.0f)
               );
 
-              ImGui::Spacing       ( );
-              ImGui::Spacing       ( );
-
               if (ImGui::Checkbox("When closing SKIF allow the global injector to remain active",
                                                      &SKIF_bAllowBackgroundService))
                 regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
 
               _inject._StartAtLogonCtrl ( );
 
-              ImGui::NextColumn    ( );
-
-              // New column
+              ImGui::Spacing       ( );
+              ImGui::Spacing       ( );
 
               ImGui::Text("Disable UI elements");
               ImGui::TreePush("");
@@ -2449,27 +2445,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               if (SKIF_bDisableTooltips && SKIF_bDisableStatusBar)
               {
-                ImGui::BeginGroup  ( );
-                ImGui::Spacing     ( );
-                ImGui::SameLine    ( );
-                ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-                ImGui::SameLine    ( );
+                ImGui::BeginGroup     ( );
+                ImGui::Spacing        ( );
+                ImGui::SameLine       ( );
+                ImGui::TextColored    (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+                ImGui::SameLine       ( );
                 ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
-                ImGui::TextWrapped ("Both tooltips and status bar are disabled; context based information or tips will not appear!");
-                ImGui::PopStyleColor ( );
-                ImGui::EndGroup    ( );
+                ImGui::TextWrapped    ("Both tooltips and status bar are disabled; context based information or tips will not appear!");
+                ImGui::PopStyleColor  ( );
+                ImGui::EndGroup       ( );
               }
 
               ImGui::TreePop();
 
-              ImGui::Spacing       ( );
-              ImGui::Spacing       ( );
+              ImGui::NextColumn    ( );
 
-              ImGui::Text          ("Experimental SKIF features:");
+              // New column
+
+              ImGui::Text          ("Experimental SKIF features");
               ImGui::TreePush      ("");
 
               if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
-                regKVEnableHDR.putData (                                                                              SKIF_bEnableHDR);
+                regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
 
               _DrawHDRConfig       ( );
 
