@@ -1961,7 +1961,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (RepositionSKIF)
         {
-          OutputDebugString(L"RepositionSKIF recognized\n");
+          //OutputDebugString(L"RepositionSKIF recognized\n");
           // Repositions the window in the center of the current monitor it is on
           //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));

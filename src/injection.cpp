@@ -157,12 +157,12 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
       sexi.lpParameters = (std::wstring(L"/trustlevel:0x20000 ") + sexi.lpFile + L" " + sexi.lpParameters).c_str();
       sexi.lpFile       = L"runas";
     }
-    */
 
     OutputDebugString(sexi.lpParameters);
     OutputDebugString(L"\n");
     OutputDebugString(sexi.lpFile);
     OutputDebugString(L"\n");
+    */
 
     if ( ShellExecuteExW (&sexi) || running )
     {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
