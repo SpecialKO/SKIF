@@ -144,11 +144,25 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                           SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
+
     if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
     {
       sexi.lpFile       = LR"(SKIFsvc32.exe)";
       sexi.lpParameters = L"";
     }
+
+    /*
+    if (IsUserAnAdmin())
+    {
+      sexi.lpParameters = (std::wstring(L"/trustlevel:0x20000 ") + sexi.lpFile + L" " + sexi.lpParameters).c_str();
+      sexi.lpFile       = L"runas";
+    }
+    */
+
+    OutputDebugString(sexi.lpParameters);
+    OutputDebugString(L"\n");
+    OutputDebugString(sexi.lpFile);
+    OutputDebugString(L"\n");
 
     if ( ShellExecuteExW (&sexi) || running )
     {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
@@ -160,6 +174,14 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_)
         sexi.lpFile       = LR"(SKIFsvc64.exe)";
         sexi.lpParameters = L"";
       }
+
+      /*
+      if (IsUserAnAdmin())
+      {
+        sexi.lpParameters = (std::wstring(L"/trustlevel:0x20000 ") + sexi.lpFile + L" " + sexi.lpParameters).c_str();
+        sexi.lpFile       = L"runas";
+      }
+      */
 
       *_inout =
         ShellExecuteExW (&sexi);
@@ -821,12 +843,8 @@ void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
   ImGui::BeginGroup ();
-  
-  static bool requiredFiles =
-    PathFileExistsW (LR"(Servlet\enable_logon.bat)" ) &&
-    PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
-    PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
-  //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
+
+  extern bool SKIF_bEnableDebugMode;
   
   /*
   ImGui::Spacing     ();
@@ -892,7 +910,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   static bool changes = false;
 
-  if (ImGui::Checkbox("Start SKIF with Windows", &bAutoStartSKIF))
+  if (ImGui::Checkbox("Start Special K Injection Frontend (SKIF) with Windows", &bAutoStartSKIF))
     changes = true;
 
   if (bAutoStartSKIF)
@@ -900,11 +918,22 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     ImGui::TreePush ("");
     if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
       changes = true;
-
-    /* Disabled for now
+    
+    // Disable button
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                            ImGui::GetStyle ().Alpha *
+                              ( (SKIF_IsHDR ()) ? 0.1f
+                                                : 0.5f
+                              )
+    );
     if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
       changes = true;
-    */
+    
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
+    SKIF_ImGui_SetHoverTip ("This option is currently disabled due to not working properly.");
+
 
     ImGui::TreePop  ( );
   }
@@ -932,65 +961,91 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
-  
-    ImGui::SameLine    ();
-  
-    ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                            "Please disable the obsolete autostart method !"
-    );
+
+    SKIF_ImGui_SetHoverTip (   "The legacy autostart method needs to be disabled to migrate over to the new method."
+                             "\nThe difference is that the new method autostarts SKIF, and not just the GI service." );
   }
 
 
-  // Obsolete method, only appear if it is actually enabled
+  // Legacy method, only appear if it is actually enabled or debug mode is enabled
 
-  if (bLogonTaskEnabled)
+  if ( bLogonTaskEnabled ||
+       SKIF_bEnableDebugMode )
   {
-    if (! requiredFiles)
-    {
-      // Disable button
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                             ImGui::GetStyle ().Alpha *
-                               ( (SKIF_IsHDR ()) ? 0.1f
-                                                 : 0.5f
-                               )
-      );
-    }
+    _StartAtLogonCtrlLegacy ( );
+  }
+
+  ImGui::EndGroup      ( );
+}
+
+/* Legacy option
+* 
+* Autostarts the global injection service on logon.
+* SKIF will not start alongside the background service!
+* 
+*/
+void
+SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
+{
+  ImGui::BeginGroup ();
   
-    if (ImGui::Checkbox (" " ICON_FA_SHIELD_ALT " Start At Logon (obsolete)", &bLogonTaskEnabled))
-    {
-      const wchar_t* wszLogonTaskCmd =
-        (bLogonTaskEnabled ?
-          LR"(Servlet\enable_logon.bat)" :
-          LR"(Servlet\disable_logon.bat)");
-  
-      if (
-        ShellExecuteW (
-          nullptr, L"runas",
-            wszLogonTaskCmd,
-              nullptr, nullptr,
-                SW_HIDE ) < (HINSTANCE)32 )
-      {
-        bLogonTaskEnabled =
-          ! bLogonTaskEnabled;
-      }
-    }
-  
-    SKIF_ImGui_SetHoverTip (
-      "Administrative privileges are required on the system to toggle this."
+  static bool requiredFiles =
+    PathFileExistsW (LR"(Servlet\enable_logon.bat)" ) &&
+    PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
+    PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
+  //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
+
+  if (! requiredFiles || 
+        bAutoStartSKIF )
+  {
+    // Disable button
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                            ImGui::GetStyle ().Alpha *
+                              ( (SKIF_IsHDR ()) ? 0.1f
+                                                : 0.5f
+                              )
     );
+  }
   
-    if (! requiredFiles)
+  if (ImGui::Checkbox ("Start Global Injection Service At Logon (legacy) " ICON_FA_SHIELD_ALT, &bLogonTaskEnabled))
+  {
+    const wchar_t* wszLogonTaskCmd =
+      (bLogonTaskEnabled ?
+        LR"(Servlet\enable_logon.bat)" :
+        LR"(Servlet\disable_logon.bat)");
+  
+    if (
+      ShellExecuteW (
+        nullptr, L"runas",
+          wszLogonTaskCmd,
+            nullptr, nullptr,
+              SW_HIDE ) < (HINSTANCE)32 )
     {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
-  
-      ImGui::SameLine    ();
-  
-      ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                             "Option is unavailable as one or more of the required files are missing."
-      );
+      bLogonTaskEnabled =
+        ! bLogonTaskEnabled;
     }
+  }
+  
+  SKIF_ImGui_SetHoverTip (
+      "Administrative privileges are required on the system to toggle this."
+    "\nNote that this injection frontend (SKIF) will not start with Windows."
+  );
+  
+  if (! requiredFiles ||
+        bAutoStartSKIF )
+  {
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
+  
+    ImGui::SameLine    ();
+
+    if (! requiredFiles)
+      ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),
+        "Option is unavailable as one or more of the required files are missing.");
+    else
+      SKIF_ImGui_SetHoverTip (   "The regular autostart method needs to be disabled to migrate over to this legacy method."
+                               "\nThe difference is that this legacy method just starts the GI service, and not SKIF." );
   }
 
   ImGui::EndGroup      ();

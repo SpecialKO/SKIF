@@ -30,6 +30,7 @@ const GUID IID_IDXGIFactory5 =
 
 const int SKIF_STEAM_APPID = 1157970;
 int WindowsCursorSize = 1;
+bool RepositionSKIF = false;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
@@ -46,7 +47,8 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bEnableDebugMode         = false,
      SKIF_bAllowMultipleInstances  = false,
      SKIF_bAllowBackgroundService  = false,
-     SKIF_bEnableHDR               = false;
+     SKIF_bEnableHDR               = false,
+     SKIF_bOpenAtCursorPosition    = false;
 BOOL SKIF_bAllowTearing            = FALSE;
 
 #include <sk_utility/command.h>
@@ -1384,9 +1386,10 @@ struct SKIF_Signals {
   BOOL _Disowned = FALSE;
 } _Signal;
 
-constexpr UINT WM_SKIF_STOP     = WM_USER + 0x2048;
-constexpr UINT WM_SKIF_START    = WM_USER + 0x1024;
-constexpr UINT WM_SKIF_MINIMIZE = WM_USER +  0x512;
+constexpr UINT WM_SKIF_REPOSITION = WM_USER + 0x4096;
+constexpr UINT WM_SKIF_STOP       = WM_USER + 0x2048;
+constexpr UINT WM_SKIF_START      = WM_USER + 0x1024;
+constexpr UINT WM_SKIF_MINIMIZE   = WM_USER +  0x512;
 
 const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
@@ -1419,6 +1422,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (IsIconic        (hwndAlreadyExists))
       ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
     SetForegroundWindow (hwndAlreadyExists);
+    PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
 
     struct injection_probe_s {
       FILE          *pid;
@@ -1576,6 +1580,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(HDR)" );
 
+  static auto regKVOpenAtCursorPosition =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Open At Cursor Position)" );
+
   // Read current settings
   SKIF_iGlobalServiceTimout     = regKVGlobalServiceTimout.getData     ( );
   if (SKIF_iGlobalServiceTimout == 0) // If the registry key doesn't exist, or is set to 0, assume 30
@@ -1592,6 +1600,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ( );
   SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ( );
   SKIF_bEnableHDR               = regKVEnableHDR.getData               ( );
+  SKIF_bOpenAtCursorPosition    = regKVOpenAtCursorPosition.getData    ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -1736,12 +1745,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (SKIF_bDisableDPIScaling)
   {
     io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
-  //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
+  //io.ConfigFlags |=  ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
   }
 
   // Setup Dear ImGui style
   ImGui::StyleColorsDark ();
-  //ImGui::StyleColorsClassic();
+//ImGui::StyleColorsClassic();
 
   using ImStyle =
         ImGuiStyle;
@@ -1792,9 +1801,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGuiPlatformMonitor* monitor = nullptr;
   ImVec2 monitor_wz,
          windowPos;
-  ImRect monitor_extent = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  bool changedMode     = false,
-       todoFixUglyHack = ! PathFileExistsW(L"imgui.ini");
+  ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
+  bool changedMode        = false,
+       todoFixUglyHack    = (! PathFileExistsW(L"imgui.ini") || SKIF_bOpenAtCursorPosition);
 
   // Handle cases where a Start / Stop Command Line was Passed,
   //   but no running instance existed to service it yet...
@@ -1936,7 +1945,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (todoFixUglyHack)
         {
           todoFixUglyHack = false;
-          ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+
+          //ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Once, ImVec2(0.5f, 0.5f));
+
+          // Positiong the window at the mouse cursor
+          ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
+          
+          /*
+          if (SKIF_bOpenAtCursorPosition)
+            ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
+          else
+            ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+          */
+        }
+
+        if (RepositionSKIF)
+        {
+          OutputDebugString(L"RepositionSKIF recognized\n");
+          // Repositions the window in the center of the current monitor it is on
+          //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
+          ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
+          SetForegroundWindow(SKIF_hWnd);
+          RepositionSKIF = false;
         }
 
         // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
@@ -2487,6 +2517,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     SKIF_bAllowMultipleInstances
                    );
                 }
+
+                if ( ImGui::Checkbox ( "Open SKIF at the position of the mouse", &SKIF_bOpenAtCursorPosition ) )
+                  regKVOpenAtCursorPosition.putData(                              SKIF_bOpenAtCursorPosition );
 
                 ImGui::TreePop  ( );
               }
@@ -4015,6 +4048,9 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_SKIF_REPOSITION:
+      RepositionSKIF = true;            break;
+
     case WM_SKIF_MINIMIZE:
       ShowWindow (hWnd, SW_MINIMIZE);   break;
 
