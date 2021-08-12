@@ -36,7 +36,6 @@ bool RepositionSKIF = false;
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
-int  SKIF_iGlobalServiceTimout     = 30;
 bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableExitConfirmation = false,
      SKIF_bDisableTooltips         = false,
@@ -235,6 +234,10 @@ public:
 private:
   WNDCLASSEX wc_;
 };
+
+
+CHandle hInjectAck (0); // Signalled when a game finishes injection
+CHandle hSwapWait  (0);
 
 
 int __width  = 0;
@@ -523,7 +526,7 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
   skif_fs::path fontDir
           (path_cache.specialk_userdata.
            path);
-  
+
   fontDir /= L"Fonts";
 
   if (! skif_fs::exists (            fontDir))
@@ -538,7 +541,7 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
        const uint8_t akData [],
        const size_t  cbSize )
   {
-    if (! skif_fs::is_regular_file ( fontDir / szFont)            ) 
+    if (! skif_fs::is_regular_file ( fontDir / szFont)            )
                      std::ofstream ( fontDir / szFont, skif_fs_wb ).
       write ( reinterpret_cast <const char *> (akData),
                                                cbSize);
@@ -567,7 +570,7 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
      SKIF_ImGui_LoadFont (
                     fontDir/
       std::get <0> (font),
-                    fontSize, 
+                    fontSize,
         SK_ImGui_GetGlyphRangesFontAwesome (),
                    &font_cfg
                          );
@@ -1413,10 +1416,10 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     StrStrIW (lpCmdLine, L"Minimize") != nullptr;
 
   if ( hwndAlreadyExists != 0 && (
-              (! SKIF_bAllowMultipleInstances)  || 
+              (! SKIF_bAllowMultipleInstances)  ||
                                    _Signal.Stop || _Signal.Start ||
-                                   _Signal.Quit || _Signal.Minimize 
-                                 ) 
+                                   _Signal.Quit || _Signal.Minimize
+                                 )
      )
   {
     if (IsIconic        (hwndAlreadyExists))
@@ -1517,7 +1520,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 {
   UNREFERENCED_PARAMETER (hPrevInstance);
   UNREFERENCED_PARAMETER (hInstance);
-  
+
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
 
   ImGui_ImplWin32_EnableDpiAwareness ();
@@ -1535,7 +1538,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static auto regKVGlobalServiceTimout =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                         LR"(Global Service Timeout)" );
-  
+
   static auto regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
@@ -1583,11 +1586,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static auto regKVOpenAtCursorPosition =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );
-
-  // Read current settings
-  SKIF_iGlobalServiceTimout     = regKVGlobalServiceTimout.getData     ( );
-  if (SKIF_iGlobalServiceTimout == 0) // If the registry key doesn't exist, or is set to 0, assume 30
-    SKIF_iGlobalServiceTimout = 30;
 
   SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ( );
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ( );
@@ -1784,14 +1782,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Main loop
   MSG msg = { };
 
-  CHandle hSwapWait (0);
-  
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (g_pSwapChain);
   if (pSwap3 != nullptr)
   {
     pSwap3->SetMaximumFrameLatency (1);
-    
+
     hSwapWait.Attach (
       pSwap3->GetFrameLatencyWaitableObject ()
     );
@@ -1858,17 +1854,38 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bOccluded = FALSE;
     };
 
-    //DWORD dwWait =
-    MsgWaitForMultipleObjects ( 1, &hSwapWait.m_h, TRUE,
-                                     INFINITE, QS_ALLINPUT );
-    
+    const int           max_wait_objs  = 2;
+    HANDLE hWaitStates [max_wait_objs] = {
+      hSwapWait.m_h,
+      hInjectAck.m_h,
+    };
+
+    int num_wait_objs =
+      ( hInjectAck.m_h > 0 ) ?
+                           2 : 1;
+
+    DWORD dwWait =
+      MsgWaitForMultipleObjects ( num_wait_objs, hWaitStates, FALSE,
+                                    INFINITE, QS_ALLINPUT );
+
     //static int frameCount = 0;
 
-    if (! _TranslateAndDispatch () )
-      break;
-
-    else //if (dwWait == WAIT_OBJECT_0)
+    if (dwWait == WAIT_OBJECT_0 + num_wait_objs)
     {
+      if (! _TranslateAndDispatch ())
+        break;
+    }
+
+    else if (dwWait == WAIT_OBJECT_0)
+    {
+      //// Injection acknowledgment; shutdown injection
+      if (                     hInjectAck.m_h != 0 &&
+          WaitForSingleObject (hInjectAck.m_h, 0) == WAIT_OBJECT_0)
+      {
+        hInjectAck.Close ();
+        PostMessage (hWnd, WM_SKIF_STOP, 0, 0);
+      }
+
       /*
       OutputDebugString(L"New Frame ");
       OutputDebugString(std::to_wstring(frameCount).c_str());
@@ -1950,7 +1967,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           // Positiong the window at the mouse cursor
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
-          
+
           /*
           if (SKIF_bOpenAtCursorPosition)
             ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
@@ -1961,7 +1978,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (RepositionSKIF)
         {
-          //OutputDebugString(L"RepositionSKIF recognized\n");
+          OutputDebugString(L"RepositionSKIF recognized\n");
           // Repositions the window in the center of the current monitor it is on
           //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
@@ -1981,7 +1998,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                  bottomRight  = ImVec2( windowPos.x + SKIF_vecCurrentMode.x,
                                         windowPos.y + SKIF_vecCurrentMode.y ),
                  newWindowPos = windowPos;
-          
+
           if ( topLeft.x < monitor_extent.Min.x)
             newWindowPos.x = monitor_extent.Min.x;
           if ( topLeft.y < monitor_extent.Min.y )
@@ -2169,7 +2186,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
           SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
-        
+
         ImGui::SetCursorPos (topCursorPos);
 
         // End of top right window buttons
@@ -2236,7 +2253,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             static std::wstring
                        driverBinaryPath    = L"";
-            
+
             enum Status {
               NotInstalled,
               Installed,
@@ -2260,12 +2277,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Reset the current status to not installed.
               _status = NotInstalled;
 
-              // Get a handle to the SCM database. 
+              // Get a handle to the SCM database.
               schSCManager =
                 OpenSCManager (
                   nullptr,             // local computer
-                  nullptr,             // servicesActive database 
-                  STANDARD_RIGHTS_READ // enumerate services 
+                  nullptr,             // servicesActive database
+                  STANDARD_RIGHTS_READ // enumerate services
                 );
 
               if (nullptr != schSCManager)
@@ -2280,7 +2297,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 if (nullptr != svcWinRing0)
                 {
-                  // Attempt to get the configuration information to get an idea of what buffer size is required. 
+                  // Attempt to get the configuration information to get an idea of what buffer size is required.
                   if (! QueryServiceConfig (
                           svcWinRing0,
                             nullptr, 0,
@@ -2348,17 +2365,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SK_RunOnce(
                 ImGui::SetColumnWidth(0, SKIF_vecCurrentMode.x / 2.0f)
               );
-
-              ImGui::Text          ("When launching a game through SKIF, stop service after");
-              ImGui::TreePush      ("");
-              ImGui::SetNextItemWidth (300 * SKIF_ImGui_GlobalDPIScale);
-              if(ImGui::SliderInt     ("seconds##timeout", &SKIF_iGlobalServiceTimout, 15, 180))
-              {
-                if (SKIF_iGlobalServiceTimout == 0)
-                  SKIF_iGlobalServiceTimout = 30;
-                regKVGlobalServiceTimout.putData (          SKIF_iGlobalServiceTimout);
-              }
-              ImGui::TreePop       ( );
 
               ImGui::Spacing       ( );
               ImGui::Spacing       ( );
@@ -2474,7 +2480,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                             std::string ( SKIF_bEnableDebugMode ? "On"
                                                                                 : "Off" )
                                           ).c_str ()
-                  
+
                 );
                 regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
               }
@@ -2638,7 +2644,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::Spacing  ();
               ImGui::Spacing  ();
-              
+
               // Disable button for granted + pending states
               if (pfuState != Missing)
               {
@@ -2676,7 +2682,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImGui::PopStyleVar();
                 ImGui::PopItemFlag();
               }
-              
+
               else
               {
                 SKIF_ImGui_SetHoverTip(
@@ -2780,7 +2786,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::Spacing  ();
               ImGui::Spacing  ();
-              
+
               // Disable button if the required files are missing, status is pending, or if another driver is installed
               if ( (! requiredFiles)                     ||
                      driverStatusPending != driverStatus ||
@@ -2813,7 +2819,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                           SW_HIDE
                   ) > (HINSTANCE)32 )
                 {
-                  // Batch call succeeded -- change driverStatusPending to the 
+                  // Batch call succeeded -- change driverStatusPending to the
                   //   opposite of driverStatus to signal that a new state is pending.
                   driverStatusPending =
                         (driverStatus == Installed) ?
@@ -2900,7 +2906,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                   list_file.write ( out_text.c_str  (),
                                     out_text.length () );
-                  
+
                   if (list_file.good())
                     ret = true;
 
@@ -2945,7 +2951,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   /* ANSI */
                   strcpy ( szIn,
                              SK_WideCharToUTF8 (full_text).c_str ()
-                  
+
                   /* UTF-8
                   strcpy ( szIn,
                              full_text.c_str ()
@@ -3239,7 +3245,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 if (black_edited)
                 {
                   _LoadList (blacklist, root_dir + L"blacklist.ini");
-                  
+
                   black_edited = false;
                   black_stored = true;
                 }
@@ -3318,7 +3324,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      "Getting started with Steam games:");
 
             SKIF_ImGui_Spacing      ( );
-            
+
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
             ImGui::TextColored      (
@@ -3418,7 +3424,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
             float pushColumnSeparator =
-              (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () - 
+              (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
                                                     (ImGui::GetTextLineHeightWithSpacing () );
 
             ImGui::ItemSize (
@@ -3429,16 +3435,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored      (
               ImColor::HSV (0.11F, 1.F, 1.F),
                 "About Special K:"    );
-                                   
+
             SKIF_ImGui_Spacing      ( );
-                                   
+
             ImGui::TextWrapped      ("Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything.");
             ImGui::NewLine          ( );
             ImGui::TextWrapped      ("It is best known for fixing and enhancing graphics, its many detailed performance analysisand correction mods, "
                                      "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games.");
 
             ImGui::PopStyleColor    ( );
-                                  
+
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
 
@@ -3448,7 +3454,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             );
 
             SKIF_ImGui_Spacing      ( );
-                                    
+
             ImGui::BeginGroup       ( );
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
@@ -3483,7 +3489,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImColor::HSV (0.11F, 1.F, 1.F),
                 "Online resources:"   );
             SKIF_ImGui_Spacing      ( );
-                                    
+
             ImGui::BeginGroup       ( );
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
@@ -3498,8 +3504,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
             ImGui::EndGroup         ( );
-                                    
-                                    
+
+
             ImGui::BeginGroup       ( );
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
@@ -3514,8 +3520,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText ( "https://discord.com/invite/ER4EDBJPTa");
             ImGui::EndGroup         ( );
-                                    
-                                    
+
+
             ImGui::BeginGroup       ( );
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
@@ -4005,7 +4011,7 @@ bool CreateDeviceD3D (HWND hWnd)
                                                        &g_pd3dDeviceContext) != S_OK ) return false;
 
   CreateRenderTarget ();
-  
+
   return true;
 }
 
@@ -4063,10 +4069,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
       switch (wParam)
       {
-        case IDT_GISERVICE:
-          _inject._StartStopInject(true);
-          KillTimer (SKIF_hWnd, IDT_GISERVICE);
-          return 0;
         case IDT_REFRESH:
           //OutputDebugString(L"IDT_REFRESH\n");
           return 0;

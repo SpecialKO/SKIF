@@ -65,12 +65,12 @@ SKIF_Util_ExplorePath_Formatted (
   const wchar_t * const wszFmt,
                         ... )
 {  static        thread_local
-        wchar_t _thread_localPath  
+        wchar_t _thread_localPath
         [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
         {                                };
   va_list       vArgs   =   nullptr;
   va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath, 
+  wvnsprintfW ( _thread_localPath,
     ARRAYSIZE ( _thread_localPath ),
                         wszFmt,
                 vArgs             );
@@ -102,12 +102,12 @@ SKIF_Util_OpenURI_Formatted (
   const wchar_t * const wszFmt,
                         ... )
 {  static        thread_local
-        wchar_t _thread_localPath  
+        wchar_t _thread_localPath
         [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
         {                                };
   va_list       vArgs   =   nullptr;
   va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath, 
+  wvnsprintfW ( _thread_localPath,
     ARRAYSIZE ( _thread_localPath ),
                         wszFmt,
                 vArgs             );
@@ -901,7 +901,7 @@ SKIF_GameManagement_DrawTab (void)
           app.second.names.all_upper = trie_builder;
           app.second.names.normal    = app.first;
         }
-    
+
         // Load Special K's icon from the embedded resource
         if ( app.second.id == SKIF_STEAM_APPID )
           __LoadSKIconTexture ( app.second.id,
@@ -910,7 +910,7 @@ SKIF_GameManagement_DrawTab (void)
         );
 
         // Load all other apps from the librarycache of the Steam client
-        else 
+        else
           __LoadLibraryTexture ( app.second.id,
                                  app.second.textures.icon,
                                                   L"_icon.jpg"
@@ -1308,7 +1308,7 @@ SKIF_GameManagement_DrawTab (void)
               cache.injection.hover_text   =
                    _inject.bCurrentState   ? "Click to stop injection service"
                                            : "Click to start injection service";
-            
+
             }
             /* Not needed any longer since the service autostarts when launching the game
             if (! _inject.bCurrentState)
@@ -1362,7 +1362,7 @@ SKIF_GameManagement_DrawTab (void)
                                         ImGuiWindowFlags_NoScrollbar       |
                                         ImGuiWindowFlags_NoScrollWithMouse |
                                         ImGuiWindowFlags_AlwaysAutoResize  |
-                                        ImGuiWindowFlags_NoBackground 
+                                        ImGuiWindowFlags_NoBackground
                                  );
 
       ImGui::BeginGroup       ();
@@ -1448,7 +1448,7 @@ SKIF_GameManagement_DrawTab (void)
           _inject._StartStopInject (
             _inject.bCurrentState
           );
-          
+
           _inject.run_lvl_changed = false;
 
           cache.app_id = 0;
@@ -1532,15 +1532,16 @@ SKIF_GameManagement_DrawTab (void)
           if (! clickedGameLaunchWoSK &&
               !_inject.bCurrentState )
           {
-            extern HWND SKIF_hWnd;
-            extern int SKIF_iGlobalServiceTimout;
+            extern CHandle hInjectAck;
+
+            if (hInjectAck.m_h <= 0)
+            {
+              hInjectAck.Attach (
+                CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
+              );
+            }
 
             _inject._StartStopInject (false);
-
-            SetTimer (SKIF_hWnd,
-                      IDT_GISERVICE,
-                     (SKIF_iGlobalServiceTimout * 1000),
-                     (TIMERPROC) NULL);
           }
 
           // Stop the service if the user attempts to launch without SK
@@ -1594,19 +1595,20 @@ SKIF_GameManagement_DrawTab (void)
                           )
            )
         {
-          extern HWND SKIF_hWnd;
-          extern int SKIF_iGlobalServiceTimout;
+          extern CHandle hInjectAck;
+
+          if (hInjectAck.m_h <= 0)
+          {
+            hInjectAck.Attach (
+              CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
+            );
+          }
 
           _inject._StartStopInject (false);
 
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"steam://run/%lu", pTargetApp->id
           );                    pTargetApp->_status.invalidate ();
-
-          SetTimer (SKIF_hWnd,
-                    IDT_GISERVICE,
-                   (SKIF_iGlobalServiceTimout * 1000),
-                   (TIMERPROC) NULL);
 
           ImGui::CloseCurrentPopup ();
         }
@@ -1634,7 +1636,7 @@ SKIF_GameManagement_DrawTab (void)
 
         if ( ImGui::Button ( "Cancel",
                                ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                         25 * SKIF_ImGui_GlobalDPIScale ) 
+                                         25 * SKIF_ImGui_GlobalDPIScale )
                            )
            ) ImGui::CloseCurrentPopup ();
                       ImGui::EndPopup ();
@@ -1916,7 +1918,7 @@ SKIF_GameManagement_DrawTab (void)
 
         // 4/15/21: Temporarily disable Screenshot Browser, it's not functional enough
         //            to have it distract users yet.
-        // 
+        //
         /////for (const auto& it : pFile->children)
         /////{
         /////  if (it.second->type_ == SK_VirtualFS::vfsNode::type::Directory)
@@ -1981,7 +1983,7 @@ SKIF_GameManagement_DrawTab (void)
             SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
         }
       }
-      
+
       // Special K is selected -- relevant show quick links
       else
       {
@@ -2074,7 +2076,7 @@ SKIF_GameManagement_DrawTab (void)
                 SK_UTF8ToWideChar (screenshot)
               );
             }
-            
+
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText       (screenshot.c_str ());
           }
@@ -2255,7 +2257,7 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::PushStyleColor ( ImGuiCol_Text,
         (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
       );
-      
+
       if ( pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER )
         ImGui::Separator ( );
 
@@ -2522,7 +2524,7 @@ SKIF_GameManagement_DrawTab (void)
         _BlacklistCfg          (
              pApp->launch_configs.begin ()->second );
       }
-      
+
       // If there are more than one launch option
       else
       {
@@ -2537,7 +2539,7 @@ SKIF_GameManagement_DrawTab (void)
           {
             if (! launch.second.valid)
               continue;
-            
+
             _BlacklistCfg (launch.second, true);
           }
 
