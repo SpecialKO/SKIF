@@ -151,7 +151,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
       sexi.lpDirectory  = L"Servlet";
       sexi.nShow        = SW_HIDE;
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+                          SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS; // SEE_MASK_NOASYNC, SEE_MASK_ASYNCOK
 
 
     if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
@@ -212,7 +212,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
   }
 
   // Hack-a-la-Aemony to fix stupid service not stopping properly on exit
-  Sleep(50);
+  //Sleep(50);
 
   bExpectedState = ! running_;
   bPendingState = true;
