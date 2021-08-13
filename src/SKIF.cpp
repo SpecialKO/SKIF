@@ -1423,21 +1423,17 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.CustomLaunch =
     StrStrIW (lpCmdLine, L"\\")       != nullptr;
 
-  if ( hwndAlreadyExists != 0 && (
+  if (  hwndAlreadyExists != 0 && (
               (! SKIF_bAllowMultipleInstances)  ||
                                    _Signal.Stop || _Signal.Start ||
-                                   _Signal.Quit || _Signal.Minimize
-                                 )
+                                   _Signal.Quit || _Signal.Minimize 
+                                  ) &&
+        _Signal.CustomLaunch == false
      )
   {
     if (IsIconic        (hwndAlreadyExists))
       ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
     SetForegroundWindow (hwndAlreadyExists);
-
-    if (_Signal.CustomLaunch)
-      PostMessage         (hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0); // How do we PostMessage / SendMessage the lpCmdLine over to the running instance?! :|
-    else
-      PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
 
     struct injection_probe_s {
       FILE          *pid;
@@ -1541,7 +1537,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (! _inject.bCurrentState)
     {
       bStopOnInjection = true;
-      _inject._StartStopInject(false, true); //true
+      _inject._StartStopInject(false, true);
     }
 
     std::wstring cmdLine        = std::wstring(lpCmdLine);
@@ -1576,9 +1572,15 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       sexi.lpDirectory  = std::filesystem::path(path).remove_filename().c_str();
       sexi.nShow        = SW_SHOW;
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+                          SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
-      ShellExecuteExW(&sexi);
+    if (hwndAlreadyExists != 0)
+      SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
+
+    ShellExecuteExW(&sexi);
+
+    if (hwndAlreadyExists != 0)
+      ExitProcess(0x0);
   }
 }
 
@@ -4167,7 +4169,9 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject  (true); break;
 
     case WM_SKIF_CUSTOMLAUNCH:
-      break; // receive, start injection, launch game
+      if (! _inject.bCurrentState)
+        _inject._StartStopInject  (false, true);
+      break;
 
     case WM_TIMER:
       if (wParam == IDT_REFRESH)
