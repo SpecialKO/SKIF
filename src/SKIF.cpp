@@ -2672,7 +2672,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
               ImGui::TextWrapped    (
-                "Special K can give users an insight into how frames is presented by tracking ETW events and changes as they occur."
+                "Special K can give users an insight into how frames are presented by tracking ETW events and changes as they occur."
               );
               ImGui::PopStyleColor  ();
 

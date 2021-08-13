@@ -1400,8 +1400,14 @@ SKIF_GameManagement_DrawTab (void)
         // Config Root
         if (ImGui::Selectable         (cache.config_repo.c_str ()))
         {
+          SKIF_Util_ExplorePath(
+            SK_UTF8ToWideChar         (cache.config.root_dir)
+          );
+
+          /* Cannot handle special characters such as (c), (r), etc
           SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs",
                                        cache.config.root_dir.c_str ());
+          */
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str ());
@@ -1410,8 +1416,14 @@ SKIF_GameManagement_DrawTab (void)
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
         {
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs",
-                                       cache.config.full_path.c_str ());
+          ShellExecuteW ( nullptr,
+            L"OPEN", SK_UTF8ToWideChar(cache.config.full_path).c_str(),
+                nullptr,   nullptr, SW_SHOWNORMAL
+          );
+
+          /* Cannot handle special characters such as (c), (r), etc
+          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs", cache.config.full_path.c_str ());
+          */
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
