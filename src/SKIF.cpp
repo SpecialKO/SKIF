@@ -1546,6 +1546,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
+
+    // First position is a quotation mark -- we need to strip those
+    if (cmdLine.find(L"\"") == 0)
+      cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
+
     std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length()); // path
     std::wstring proxiedCmdLine = cmdLine.substr(cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
     std::string  parentFolder = std::filesystem::path(path).parent_path().filename().string(); // name of parent folder
