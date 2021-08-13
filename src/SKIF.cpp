@@ -1584,27 +1584,47 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   }
 }
 
-void
+bool
 SKIF_AddToEnvironmentalPath(void)
 {
   BYTE buffer[4000];
   DWORD buffsz = sizeof(buffer);
-  //HKEY_CURRENT_USER\Environment
   HKEY key;
+  bool ret = false;
 
+  //HKEY_CURRENT_USER\Environment
   if (RegOpenKeyEx    (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, std::addressof(key)) == 0 &&
       RegQueryValueEx (key, L"Path", nullptr, nullptr, buffer, std::addressof(buffsz)) == 0)
   {
-    std::wstring env = reinterpret_cast<const wchar_t*>(buffer);
-    std::wstring currentPath = std::filesystem::current_path().wstring();
+    std::wstring env         = reinterpret_cast<const wchar_t*>(buffer),
+                 currentPath = std::filesystem::current_path().wstring();
 
-    if (env.find(currentPath) == std::string::npos)
+    if (env         .find (currentPath)             == std::wstring::npos &&
+        currentPath .find (LR"(\My Mods\SpecialK)") != std::wstring::npos)
     {
-      std::wstring new_env = env + L";" + currentPath;
-      RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (new_env.size() + 1) * sizeof(wchar_t));
-      RegCloseKey(key);
+      std::wstring new_env = env;
+
+      if (env.rfind(L";") == env.length() - 1)
+        new_env += currentPath + L";";
+      else
+        new_env += L";" + currentPath + L";";
+
+      if (RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (new_env.size() + 1) * sizeof(wchar_t)) == ERROR_SUCCESS)
+        ret = true;
+      else
+        ret = false;
     }
+
+    else if (env    .find (currentPath)             != std::wstring::npos)
+      ret = true;
+
+    else
+      ret = false;
+
+    RegCloseKey (key);
   }
+
+  return ret;
 }
 
 bool bKeepWindowAlive  = true,
@@ -3478,52 +3498,71 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
-
-            ImGui::TextColored (
+            
+            ImGui::TextColored      (
               ImColor::HSV (0.11F, 1.F, 1.F),
-                           "UI hints:");
+                "Quick launch Special K for individual games through Steam:");
+            if (SKIF_AddToEnvironmentalPath())
+            {
+              ImGui::TextWrapped("Your computer is set up to quickly launch injection through Steam.");
 
-            SKIF_ImGui_Spacing      ( );
+              SKIF_ImGui_Spacing      ( );
 
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImColor::HSV (0.55F, 0.99F, 1.F),
-                                u8"• ");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("This indicates a regular bullet point.");
-            ImGui::EndGroup         ( );
+              ImGui::BeginGroup       ( );
+              ImGui::Spacing          ( );
+              ImGui::SameLine         ( );
+              ImGui::TextColored      (
+                ImColor::HSV (0.55F, 0.99F, 1.F),
+                                    "1 ");
+              ImGui::SameLine         ( );
+              ImGui::TextWrapped      ("Right click the desired game in Steam, and select \"Properties...\".");
+              ImGui::EndGroup         ( );
 
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImColor::HSV (0.55F, 0.99F, 1.F),
-                                  "? ");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("More info is available when hovering the mouse cursor over the item.");
-            ImGui::EndGroup         ( );
+              ImGui::BeginGroup       ( );
+              ImGui::Spacing          ( );
+              ImGui::SameLine         ( );
+              ImGui::TextColored      (
+                ImColor::HSV (0.55F, 0.99F, 1.F),
+                                    "2 ");
+              ImGui::SameLine         ( );
+              ImGui::TextWrapped      ("Copy and paste the below into the \"Launch Options\" field.");
+              ImGui::EndGroup         ( );
 
-            SKIF_ImGui_SetHoverTip  ("The info either further elaborates on the topic"
-                                     "\nor provides relevant recommendations or tips.");
+              char* cQuick = "SKIF %COMMAND%";
 
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImColor::HSV (0.55F, 0.99F, 1.F),
-                                  "?!");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("In addition to having more info when hovering, the item can also be clicked to open a relevant link.");
-            ImGui::EndGroup         ( );
+              ImGui::TreePush         ("");
+              ImGui::Spacing          ( );
+              ImGui::SameLine         ( );
+              ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (1.0f, 1.0f, 1.0f, 1.0f));
+              ImGui::InputTextEx("###QuickLaunch", NULL, cQuick, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+              ImGui::PopStyleColor    ( );
+              ImGui::TreePop          ( );
 
-            SKIF_ImGui_SetMouseCursorHand ();
-            SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
-            SKIF_ImGui_SetHoverTip  ( "Click this item to open the Special K wiki which"
-                                      "\ncan contain even more relevant information." );
-            if (ImGui::IsItemClicked ())
-              SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
+              ImGui::BeginGroup       ( );
+              ImGui::Spacing          ( );
+              ImGui::SameLine         ( );
+              ImGui::TextColored      (
+                ImColor::HSV (0.55F, 0.99F, 1.F),
+                                    "3 ");
+              ImGui::SameLine         ( );
+              ImGui::TextWrapped      ("Launch the game as usual through Steam.");
+              ImGui::EndGroup         ( );
+              
+              SKIF_ImGui_Spacing      ( );
+
+              ImGui::BeginGroup       ( );
+              ImGui::Spacing          ( );
+              ImGui::SameLine         ( );
+              ImGui::TextColored      (
+                ImColor::HSV (0.55F, 0.99F, 1.F),
+                                  u8"• ");
+              ImGui::SameLine         ( );
+              ImGui::TextWrapped      ("A one-time restart of the computer may be required if it does not work.");
+              ImGui::EndGroup         ( );
+            }
+            else {
+              ImGui::TextWrapped("Your computer is not set up to quickly launch injection through Steam. Please move SKIF to Documents\\My Mods\\SpecialK to use this feature.");
+            }
 
             float pushColumnSeparator =
               (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
@@ -3652,6 +3691,55 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText ( "https://www.patreon.com/Kaldaien");
             ImGui::EndGroup         ( );
+
+            ImGui::NewLine          ( );
+            ImGui::NewLine          ( );
+
+            ImGui::TextColored (
+              ImColor::HSV (0.11F, 1.F, 1.F),
+                           "UI hints:");
+
+            SKIF_ImGui_Spacing      ( );
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+            ImGui::TextColored      (
+              ImColor::HSV (0.55F, 0.99F, 1.F),
+                                u8"• ");
+            ImGui::SameLine         ( );
+            ImGui::TextWrapped      ("This indicates a regular bullet point.");
+            ImGui::EndGroup         ( );
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+            ImGui::TextColored      (
+              ImColor::HSV (0.55F, 0.99F, 1.F),
+                                  "? ");
+            ImGui::SameLine         ( );
+            ImGui::TextWrapped      ("More info is available when hovering the mouse cursor over the item.");
+            ImGui::EndGroup         ( );
+
+            SKIF_ImGui_SetHoverTip  ("The info either further elaborates on the topic"
+                                     "\nor provides relevant recommendations or tips.");
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+            ImGui::TextColored      (
+              ImColor::HSV (0.55F, 0.99F, 1.F),
+                                  "?!");
+            ImGui::SameLine         ( );
+            ImGui::TextWrapped      ("In addition to having more info when hovering, the item can also be clicked to open a relevant link.");
+            ImGui::EndGroup         ( );
+
+            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
+            SKIF_ImGui_SetHoverTip  ( "Click this item to open the Special K wiki which"
+                                      "\ncan contain even more relevant information." );
+            if (ImGui::IsItemClicked ())
+              SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
             ImGui::Columns          (1);
 
