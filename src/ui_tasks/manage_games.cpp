@@ -1532,16 +1532,7 @@ SKIF_GameManagement_DrawTab (void)
           if (! clickedGameLaunchWoSK &&
               !_inject.bCurrentState )
           {
-            extern CHandle hInjectAck;
-
-            if (hInjectAck.m_h <= 0)
-            {
-              hInjectAck.Attach (
-                CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
-              );
-            }
-
-            _inject._StartStopInject (false);
+            _inject._StartStopInject (false, true);
           }
 
           // Stop the service if the user attempts to launch without SK
@@ -1595,16 +1586,7 @@ SKIF_GameManagement_DrawTab (void)
                           )
            )
         {
-          extern CHandle hInjectAck;
-
-          if (hInjectAck.m_h <= 0)
-          {
-            hInjectAck.Attach (
-              CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
-            );
-          }
-
-          _inject._StartStopInject (false);
+          _inject._StartStopInject (false, true);
 
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"steam://run/%lu", pTargetApp->id

@@ -235,7 +235,7 @@ private:
   WNDCLASSEX wc_;
 };
 
-
+bool    bStopOnInjection = false; // Used to stop SKIF on a successful injection if it's used merely as a launcher
 CHandle hInjectAck (0); // Signalled when a game finishes injection
 CHandle hSwapWait  (0);
 
@@ -816,6 +816,7 @@ SKIF_GetPatrons (void)
 #include <gsl/gsl>
 #include <comdef.h>
 #include <filesystem>
+#include <regex>
 
 struct skif_version_info_t {
   wchar_t wszHostName  [INTERNET_MAX_HOST_NAME_LENGTH] = { };
@@ -1380,22 +1381,26 @@ ImGuiStyle SKIF_ImGui_DefaultStyle;
 HWND hWndOrigForeground;
 
 struct SKIF_Signals {
-  BOOL Stop      = FALSE;
-  BOOL Start     = FALSE;
-  BOOL Quit      = FALSE;
-  BOOL Minimize  = FALSE;
-  BOOL Restore   =  TRUE;
+  BOOL Stop          = FALSE;
+  BOOL Start         = FALSE;
+  BOOL Quit          = FALSE;
+  BOOL Minimize      = FALSE;
+  BOOL Restore       =  TRUE;
+  BOOL CustomLaunch  = FALSE;
 
   BOOL _Disowned = FALSE;
 } _Signal;
 
-constexpr UINT WM_SKIF_REPOSITION = WM_USER + 0x4096;
-constexpr UINT WM_SKIF_STOP       = WM_USER + 0x2048;
-constexpr UINT WM_SKIF_START      = WM_USER + 0x1024;
-constexpr UINT WM_SKIF_MINIMIZE   = WM_USER +  0x512;
+constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x8192;
+constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
+constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
+constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
+constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 
 const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
+
+#include <sstream>
 
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
@@ -1415,6 +1420,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Minimize =
     StrStrIW (lpCmdLine, L"Minimize") != nullptr;
 
+  _Signal.CustomLaunch =
+    StrStrIW (lpCmdLine, L"\\")       != nullptr;
+
   if ( hwndAlreadyExists != 0 && (
               (! SKIF_bAllowMultipleInstances)  ||
                                    _Signal.Stop || _Signal.Start ||
@@ -1425,7 +1433,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (IsIconic        (hwndAlreadyExists))
       ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
     SetForegroundWindow (hwndAlreadyExists);
-    PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
+
+    if (_Signal.CustomLaunch)
+      PostMessage         (hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0); // How do we PostMessage / SendMessage the lpCmdLine over to the running instance?! :|
+    else
+      PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
 
     struct injection_probe_s {
       FILE          *pid;
@@ -1504,6 +1516,87 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     if (_Signal.Quit || (! _Signal._Disowned))
        ExitProcess (0x0);
+  }
+
+  if (_Signal.CustomLaunch)
+  {
+    auto _SK_Inject_TestUserWhitelist = [](const char* wszExecutable)->bool
+    {
+      if (*_inject.whitelist == '\0')
+        return false;
+
+      std::istringstream iss(_inject.whitelist);
+
+      for (std::string line; std::getline(iss, line); )
+      {
+        std::regex regexp (line, std::regex_constants::icase);
+
+        if (std::regex_search(wszExecutable, regexp))
+          return true;
+      }
+
+      return false;
+    };
+
+    if (! _inject.bCurrentState)
+    {
+      bStopOnInjection = true;
+      _inject._StartStopInject(false, true); //true
+    }
+
+    std::wstring cmdLine        = std::wstring(lpCmdLine);
+    std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
+    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length()); // path
+    std::wstring proxiedCmdLine = cmdLine.substr(cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
+    std::string  parentFolder = std::filesystem::path(path).parent_path().filename().string(); // name of parent folder
+
+    if (  path.find(L"steamapps") == std::wstring::npos &&
+        ! _SK_Inject_TestUserWhitelist (SK_WideCharToUTF8(path).c_str())
+       )
+    {
+      if (*_inject.whitelist == '\0')
+        snprintf(_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, parentFolder.c_str());
+      else
+        snprintf(_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, ("|" + parentFolder).c_str());
+
+      _inject._StoreList(true);
+    }
+
+    SHELLEXECUTEINFOW
+      sexi              = { };
+      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+      sexi.lpVerb       = L"OPEN";
+      sexi.lpFile       = path.c_str();
+      sexi.lpParameters = proxiedCmdLine.c_str();
+      sexi.lpDirectory  = std::filesystem::path(path).remove_filename().c_str();
+      sexi.nShow        = SW_SHOW;
+      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+      ShellExecuteExW(&sexi);
+  }
+}
+
+void
+SKIF_AddToEnvironmentalPath(void)
+{
+  BYTE buffer[4000];
+  DWORD buffsz = sizeof(buffer);
+  //HKEY_CURRENT_USER\Environment
+  HKEY key;
+
+  if (RegOpenKeyEx    (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, std::addressof(key)) == 0 &&
+      RegQueryValueEx (key, L"Path", nullptr, nullptr, buffer, std::addressof(buffsz)) == 0)
+  {
+    std::wstring env = reinterpret_cast<const wchar_t*>(buffer);
+    std::wstring currentPath = std::filesystem::current_path().wstring();
+
+    if (env.find(currentPath) == std::string::npos)
+    {
+      std::wstring new_env = env + L";" + currentPath;
+      RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (new_env.size() + 1) * sizeof(wchar_t));
+      RegCloseKey(key);
+    }
   }
 }
 
@@ -1609,6 +1702,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_VersionCtl.CheckForUpdates (
     L"SKIF", SKIF_DEPLOYED_BUILD
   );
+
+  // Add SKIF to the user's environmental PATH variable
+  SKIF_AddToEnvironmentalPath ( );
 
   SKIF_GetFolderPath (&path_cache.specialk_userdata);
   PathAppendW (        path_cache.specialk_userdata.path,
@@ -1884,6 +1980,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         hInjectAck.Close ();
         PostMessage (hWnd, WM_SKIF_STOP, 0, 0);
+        if (bStopOnInjection)
+        {
+          bStopOnInjection = false;
+          PostMessage(hWnd, WM_QUIT, 0, 0);
+        }
       }
 
       /*
@@ -2873,11 +2974,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Whitelist/Blacklist
             if (ImGui::CollapsingHeader ("Whitelist/Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
             {
-              static std::wstring root_dir =
-                std::wstring (path_cache.specialk_userdata.path) + LR"(\Global\)";
+              //static std::wstring root_dir =
+                //std::wstring (path_cache.specialk_userdata.path) + LR"(\Global\)";
 
-              static char whitelist [MAX_PATH * 16 * 2] = { };
-              static char blacklist [MAX_PATH * 16 * 2] = { };
+              //static char whitelist [MAX_PATH * 16 * 2] = { };
+              //static char blacklist [MAX_PATH * 16 * 2] = { };
               static bool white_edited = false,
                           black_edited = false,
                           white_stored = true,
@@ -3017,8 +3118,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 }
               };
 
-              SK_RunOnce (_LoadList(whitelist, root_dir + L"whitelist.ini"));
-              SK_RunOnce (_LoadList(blacklist, root_dir + L"blacklist.ini"));
+              //SK_RunOnce (_inject._LoadList(true));
+              //SK_RunOnce (_inject._LoadList(false));
 
               ImGui::BeginGroup ();
               ImGui::Spacing    ();
@@ -3100,12 +3201,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               white_edited |=
                 ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps",
-                                       whitelist, MAX_PATH * 16 - 1,
+                                       _inject.whitelist, MAX_PATH * 16 - 1,
                                          ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                                   150 * SKIF_ImGui_GlobalDPIScale ),
                                             ImGuiInputTextFlags_Multiline );
 
-              if (*whitelist == '\0')
+              if (*_inject.whitelist == '\0')
               {
                 SKIF_ImGui_SetHoverTip (
                   "SteamApps is the pattern used internally to enable Special K for all Steam games."
@@ -3113,7 +3214,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 );
               }
 
-              _CheckWarnings (whitelist);
+              _CheckWarnings (_inject.whitelist);
 
               ImGui::EndGroup   ();
 
@@ -3145,10 +3246,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 white_edited = true;
 
-                if (*whitelist == '\0')
-                  snprintf (whitelist, sizeof whitelist, "%s%s", whitelist, "Games");
+                if (*_inject.whitelist == '\0')
+                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "Games");
                 else
-                  snprintf (whitelist, sizeof whitelist, "%s%s", whitelist, "\nGames");
+                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "\nGames");
               }
 
               SKIF_ImGui_SetHoverTip (
@@ -3159,10 +3260,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 white_edited = true;
 
-                if (*whitelist == '\0')
-                  snprintf (whitelist, sizeof whitelist, "%s%s", whitelist, "WindowsApps");
+                if (*_inject.whitelist == '\0')
+                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "WindowsApps");
                 else
-                  snprintf (whitelist, sizeof whitelist, "%s%s", whitelist, "\nWindowsApps");
+                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "\nWindowsApps");
               }
 
               SKIF_ImGui_SetHoverTip (
@@ -3182,12 +3283,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               black_edited |=
                 ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
-                                       blacklist, MAX_PATH * 16 - 1,
+                                       _inject.blacklist, MAX_PATH * 16 - 1,
                                          ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                                   100 * SKIF_ImGui_GlobalDPIScale ),
                                            ImGuiInputTextFlags_Multiline );
 
-              _CheckWarnings (blacklist);
+              _CheckWarnings (_inject.blacklist);
 
               ImGui::Separator ();
 
@@ -3207,12 +3308,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Hotkey: Ctrl+S
               if (ImGui::Button (ICON_FA_SAVE " Save Changes") || ((! bDisabled) && io.KeyCtrl && io.KeysDown ['S']))
               {
-                // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
-                std::filesystem::create_directories (root_dir.c_str ());
-
                 if (white_edited)
                 {
-                  white_stored = _StoreList (whitelist, root_dir + L"whitelist.ini");
+                  white_stored = _inject._StoreList(true);
 
                   if (white_stored)
                     white_edited = false;
@@ -3220,7 +3318,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 if (black_edited)
                 {
-                  black_stored = _StoreList (blacklist, root_dir + L"blacklist.ini");
+                  black_stored = _inject._StoreList (false);
 
                   if (black_stored)
                     black_edited = false;
@@ -3233,7 +3331,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 if (white_edited)
                 {
-                  _LoadList (whitelist, root_dir + L"whitelist.ini");
+                  _inject._LoadList (true);
 
                   white_edited = false;
                   white_stored = true;
@@ -3241,7 +3339,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 if (black_edited)
                 {
-                  _LoadList (blacklist, root_dir + L"blacklist.ini");
+                  _inject._LoadList(false);
 
                   black_edited = false;
                   black_stored = true;
@@ -4063,13 +4161,13 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_STOP:
       _inject._StartStopInject  (true); break;
 
+    case WM_SKIF_CUSTOMLAUNCH:
+      break; // receive, start injection, launch game
+
     case WM_TIMER:
-      switch (wParam)
-      {
-        case IDT_REFRESH:
-          //OutputDebugString(L"IDT_REFRESH\n");
-          return 0;
-      }
+      if (wParam == IDT_REFRESH)
+        return 0;
+      break;
 
     case WM_SIZE:
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)

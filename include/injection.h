@@ -32,6 +32,9 @@ struct SKIF_InjectionContext {
 
   HMODULE hModSelf          = nullptr;
 
+  char    whitelist[MAX_PATH * 16 * 2] = { };
+  char    blacklist[MAX_PATH * 16 * 2] = { };
+
   bool    bHasServlet       = false;
   bool    bHasUpdatedFiles  = false;
   bool    bLogonTaskEnabled = false;
@@ -78,7 +81,7 @@ struct SKIF_InjectionContext {
   std::string SKVer32 = "";
   std::string SKVer64 = "";
 
-  bool    _StartStopInject        (bool running_);
+  bool    _StartStopInject        (bool running_, bool autoStop = false);
 
   void     TestServletRunlevel    (bool forcedCheck = false);
   void    _RefreshSKDLLVersions   (void);
@@ -86,4 +89,8 @@ struct SKIF_InjectionContext {
   void    _StartAtLogonCtrl       (void);
   void    _StartAtLogonCtrlLegacy (void);
   HRESULT _SetTaskbarOverlay      (bool show);
+
+  bool    _StoreList              (bool whitelist_);
+  void    _LoadList               (bool whitelist_);
+
 } extern _inject;

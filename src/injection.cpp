@@ -94,9 +94,18 @@ SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
     FindCloseChangeNotification (hChangeNotification);
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool running_)
+bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
 {
   bool         _inout = running_;
+
+  extern CHandle hInjectAck;
+
+  if (autoStop && hInjectAck.m_h <= 0)
+  {
+    hInjectAck.Attach (
+      CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
+    );
+  }
 
   unsigned int tid;
   HANDLE       hThread =
@@ -334,6 +343,10 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   // Force a one-time check on launch
   TestServletRunlevel (true);
   bExpectedState = bCurrentState;
+
+  // Load the whitelist and blacklist
+  _LoadList(true);
+  _LoadList(false);
 }
 
 void
@@ -1098,6 +1111,91 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
   bTaskbarOverlayIcon = false;
   return E_UNEXPECTED;
+}
+
+bool SKIF_InjectionContext::_StoreList(bool whitelist_)
+{
+  bool ret = false;
+  static std::wstring root_dir =
+         std::filesystem::current_path().wstring();
+
+  // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
+  std::filesystem::create_directories ((root_dir + LR"(\Global\)").c_str ());
+
+  // std::ofstream list_file // UTF-8
+  std::wofstream list_file( // ANSI
+    (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
+                 : (root_dir + LR"(\Global\blacklist.ini)").c_str()
+  );
+
+  if (list_file.is_open())
+  {
+    /* ANSI */
+    std::wstring out_text =
+      SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
+
+    // Strip all null terminator \0 characters from the string
+    out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
+
+    list_file.write(out_text.c_str(),
+      out_text.length());
+
+    if (list_file.good())
+      ret = true;
+
+    /* UTF-8
+    list_file.write ( szOut,
+              strlen( szOut) );
+    */
+    list_file.close();
+  }
+
+  return ret;
+}
+
+void SKIF_InjectionContext::_LoadList(bool whitelist_)
+{
+  static std::wstring root_dir =
+         std::filesystem::current_path().wstring();
+
+  // std::ifstream list_file // UTF-8
+  std::wifstream list_file( // ANSI
+    (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
+                 : (root_dir + LR"(\Global\blacklist.ini)").c_str()
+  );
+
+  // std::string full_text; // UTF-8
+  std::wstring full_text; // ANSI
+
+  if (list_file.is_open ())
+  {
+    // std::string line; // UTF-8
+    std::wstring line; // ANSI
+
+    while (list_file.good ())
+    {
+      std::getline (
+        list_file, line
+      );
+
+      full_text += line;
+      full_text += L'\n';
+    }
+    full_text.resize (full_text.length () - 1);
+
+    list_file.close ();
+
+    /* ANSI */
+    strcpy ( (whitelist_) ? whitelist : blacklist,
+                SK_WideCharToUTF8 (full_text).c_str ()
+    );
+
+    /* UTF-8
+    strcpy ( szIn,
+                full_text.c_str ()
+    );
+    */
+  }
 }
 
 #if 0
