@@ -44,13 +44,12 @@ struct SKIF_InjectionContext {
   bool    bAutoStartService = false;
   bool    bStartMinimized   = false;
 
-  bool    bOnDemandInject   = false;
-
   bool    running           = false; // Obsolete
   bool    run_lvl_changed   = false; // Obsolete
+
+  bool    bOnDemandInject   = false;
   
   bool    bCurrentState     = false; // Replaced running
-  bool    bExpectedState    = false; // Keeps track of the new expected state
   bool    bPendingState     = false; // Indicates we're expecting a new state -- sorta replaced run_lvl_changed
   bool    bTaskbarOverlayIcon = false;
 

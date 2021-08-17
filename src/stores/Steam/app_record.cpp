@@ -167,14 +167,23 @@ app_branch_record_s::getTimeAsCStr (void) const
 
   FileTimeToSystemTime ( &ftBranchTime, &stBranchTime );
 
+  /* Old method
   GetDateFormat (LOCALE_USER_DEFAULT, DATE_AUTOLAYOUT,
     &stBranchTime, nullptr, wszSystemTime, 63);
   GetTimeFormat (LOCALE_USER_DEFAULT, TIME_NOSECONDS,
     &stBranchTime, nullptr, wszSystemDate, 63);
+  */
 
-  StringCchCatW (wszBranchTime, 127, wszSystemTime);
-  StringCchCatW (wszBranchTime, 127, L"  ");
+  // New method -- Uses Ex functions since Microsoft recommends this
+  // DATE_SHORTDATE solves | character in the date format caused by LTR / RTL markers that ImGui cannot handle properly
+  GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
+    &stBranchTime, NULL, wszSystemDate, 63, NULL);
+  GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
+    &stBranchTime, NULL, wszSystemTime, 63);
+
   StringCchCatW (wszBranchTime, 127, wszSystemDate);
+  StringCchCatW (wszBranchTime, 127, L" ");
+  StringCchCatW (wszBranchTime, 127, wszSystemTime);
 
   const_cast <std::string&> (time_string) =
     SK_WideCharToUTF8 (wszBranchTime);

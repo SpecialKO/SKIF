@@ -255,7 +255,8 @@ enum _SK_NTDLL_HANDLE_TYPE
   Thread                = 0x8,
   UserApcReserve        = 0xA,
   IoCompletionReserve   = 0xB,
-  Event                 = 0x12,
+  EventAlternate        = 0x10, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
+  Event                 = 0x12, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
   Mutant                = 0x13,
   Semaphore             = 0x15,
   Timer                 = 0x16,
@@ -708,18 +709,14 @@ struct SKIF_Console : SK_IVariableListener
 
     else if (Stricmp (command_line, "Start") == 0)
     {
-      if (! _inject.running)
+      if (! _inject.bCurrentState)
       {
         AddLog ("Starting Injection... ");
 
-        bool success =
-          _inject._StartStopInject (_inject.running);
-
-        AddLog ( success ? "[Success] Started" :
-                           "[Failure] Not Running" );
+        AddLog ( _inject._StartStopInject (_inject.bCurrentState)
+                         ? "[Success] Started"
+                         : "[Failure] Not Running" );
         AddLog ("\n");
-
-        if (success) _inject.running = true;
       }
 
       else
@@ -730,18 +727,14 @@ struct SKIF_Console : SK_IVariableListener
 
     else if (Stricmp (command_line, "Stop") == 0)
     {
-      if (_inject.running)
+      if (_inject.bCurrentState)
       {
         AddLog ("Stopping Injection... ");
 
-        bool success =
-          _inject._StartStopInject (_inject.running);
-
-        AddLog ( success ? "[Success] Stopped" :
-                           "[Failure] Still Running" );
+        AddLog ( _inject._StartStopInject (_inject.bCurrentState)
+                         ? "[Success] Stopped"
+                         : "[Failure] Still Running" );
         AddLog ("\n");
-
-        if (success) _inject.running = false;
       }
 
       else
@@ -961,8 +954,10 @@ SK_Inject_GetRecord   = nullptr;
 HRESULT
 SKIF_Debug_DrawUI (void)
 {
-  HMODULE hModSK64 =
-    LoadLibraryW (L"SpecialK64.dll");
+  extern HMODULE hModSK64;
+  
+  if (hModSK64 == NULL)
+    hModSK64 = LoadLibraryW (L"SpecialK64.dll");
 
   if (! hModSK64)
     return E_NOT_VALID_STATE;
@@ -1084,7 +1079,6 @@ SKIF_Debug_DrawUI (void)
          dwLastRefresh = 0;
     if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing )
     {    dwLastRefresh       = SKIF_timeGetTime ();
-
       standby_list.clear ();
       _Standby32.clear   ();
       _Standby64.clear   ();
@@ -1127,16 +1121,17 @@ SKIF_Debug_DrawUI (void)
 
         for ( unsigned int i = 0;
                            i < handleTableInformationEx->NumberOfHandles;
-                         ++i )
+                         i++)
         {
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
 
-          if (handleTableInformationEx->Handles [i].ObjectTypeIndex != Event)
+          // This does not work -- evaluates as true on seemingly all handles, including event handles
+          if (handleTableInformationEx->Handles[i].ObjectTypeIndex != Event && handleTableInformationEx->Handles[i].ObjectTypeIndex != EventAlternate)
             continue;
 
           handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
-               .emplace_back (handleTableInformationEx->Handles [i]);
+                .emplace_back (handleTableInformationEx->Handles [i]);
         }
 
         for ( auto& handles : handles_by_process )
@@ -1240,7 +1235,8 @@ SKIF_Debug_DrawUI (void)
       executables_32.clear ();
 
       if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
-      { executables_64 [proc.pid]     =     proc.filename;
+      {
+        executables_64 [proc.pid]     =     proc.filename;
         tooltips_64    [proc.pid]     =     proc.name;
 
         if (::StrStrIA    (proc.name.c_str (), "SteamApps") != nullptr)
@@ -1323,7 +1319,7 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PushStyleColor ( ImGuiCol_Text,                        ImVec4 ( .8f, .8f, .8f, 1.f ) );
         ImGui::Text   ("%ws",                proc32.second.c_str ());
-        ImGui::PopStyleColor   (3);
+        ImGui::PopStyleColor   (4);
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::PopID  ();
       }
@@ -1358,7 +1354,6 @@ SKIF_Debug_DrawUI (void)
                 handle_info_buffer.data (),
                 handle_info_size,
                &handle_info_size     );
-        
         } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
         
         if (NT_SUCCESS (ntStatusHandles))
@@ -1409,7 +1404,7 @@ SKIF_Debug_DrawUI (void)
                                  " Process %lu (%ws):\n"
                                  " ------------\n\n",
                                          dwProcId, wszProcessName);
-        
+
             for ( auto& handle : handles.second )
             {
               auto hHandleSrc = handle.Handle;
@@ -1438,7 +1433,7 @@ SKIF_Debug_DrawUI (void)
               if (! NT_SUCCESS (ntStat)) continue;
         
               std::wstring handle_name = L"";
-        
+
               if (handle.ObjectTypeIndex != File)
               {
                 ULONG      _ObjectNameLen (64);
@@ -1709,8 +1704,10 @@ SKIF_Debug_DrawUI (void)
 #endif
   }
 
+  /*
   if (hModSK64 != 0)
     FreeLibrary (hModSK64);
+  */
 
   return
     S_OK;

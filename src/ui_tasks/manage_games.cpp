@@ -39,7 +39,6 @@ static bool clickedGameLaunch     = false,
 #include <font_awesome.h>
 
 extern ID3D11Device* g_pd3dDevice;
-//extern bool          SKIF_ServiceRunning;
 extern float         SKIF_ImGui_GlobalDPIScale;
 extern std::string   SKIF_StatusBarHelp;
 extern std::string   SKIF_StatusBarText;
@@ -1233,12 +1232,6 @@ SKIF_GameManagement_DrawTab (void)
         bool        service = _inject.bCurrentState;
       } static cache;
 
-      //bool changing = false;
-
-      // Uses a Directory Watch signal, so this is cheap; do it every frame
-      //6_inject.running =
-        //_inject.TestServletRunlevel (changing);
-
       if (         cache.service != _inject.bCurrentState  ||
                    cache.running != pTargetApp->_status.running)
       {
@@ -1457,11 +1450,9 @@ SKIF_GameManagement_DrawTab (void)
       {
         if (ImGui::IsItemClicked ())
         {
-          _inject._StartStopInject (
-            _inject.bCurrentState
-          );
+          _inject._StartStopInject (_inject.bCurrentState);
 
-          _inject.run_lvl_changed = false;
+          //_inject.run_lvl_changed = false;
 
           cache.app_id = 0;
         }
@@ -1471,12 +1462,6 @@ SKIF_GameManagement_DrawTab (void)
           cache.injection.hover_text.c_str ()
         );
       }
-
-      // Uses a Directory Watch signal, so this is cheap; do it every frame
-      //_inject.running =
-        //_inject.TestServletRunlevel (_inject.run_lvl_changed);
-
-      //SKIF_ServiceRunning = _inject.running;
 
       if (! cache.dll.shorthand.empty ())
       {
@@ -1760,6 +1745,11 @@ SKIF_GameManagement_DrawTab (void)
         clickedGameLaunch = true;
       }
     }
+
+    // Show full title in tooltip if the title is made up out of more than 48 characters.
+    //   Use strlen(.c_str()) to strip \0 characters in the string that would otherwise also be counted.
+    if (strlen(app.first.c_str()) > 48)
+      SKIF_ImGui_SetHoverTip(app.first);
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 

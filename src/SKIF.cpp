@@ -49,6 +49,7 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bEnableHDR               = false,
      SKIF_bOpenAtCursorPosition    = false;
 BOOL SKIF_bAllowTearing            = FALSE;
+HMODULE hModSK64                   = NULL;
 
 #include <sk_utility/command.h>
 
@@ -1516,6 +1517,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
   if (_Signal.CustomLaunch)
   {
+    // Display in small mode
+    SKIF_bSmallMode = true;
+
     auto _SK_Inject_TestUserWhitelist = [](const char* wszExecutable)->bool
     {
       if (*_inject.whitelist == '\0')
@@ -1533,12 +1537,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
       return false;
     };
-
-    if (! _inject.bCurrentState)
-    {
-      bStopOnInjection = true;
-      _inject._StartStopInject(false, true);
-    }
 
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
@@ -1561,6 +1559,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         snprintf(_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, ("|" + parentFolder).c_str());
 
       _inject._StoreList(true);
+    }
+
+    if (! _inject.bCurrentState)
+    {
+      bStopOnInjection = true;
+      _inject._StartStopInject (false, true);
+      _inject.bOnDemandInject = true;
     }
 
     SHELLEXECUTEINFOW
@@ -1836,10 +1841,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Set a timer to trigger a window refresh every 1000ms,
   //   since two counts are apparently required for each new frame.
-  SetTimer( hWnd,
-            IDT_REFRESH,
-            500,
-            (TIMERPROC) NULL );
+  if (_Signal.CustomLaunch)
+    SetTimer( hWnd,
+              IDT_REFRESH,
+              50,
+              (TIMERPROC) NULL );
+  else
+    SetTimer( hWnd,
+              IDT_REFRESH,
+              500,
+              (TIMERPROC) NULL );
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -1991,8 +2002,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       MsgWaitForMultipleObjects ( num_wait_objs, hWaitStates, FALSE,
                                     INFINITE, QS_ALLINPUT );
 
-    //static int frameCount = 0;
-
     if (dwWait == WAIT_OBJECT_0 + num_wait_objs)
     {
       if (! _TranslateAndDispatch ())
@@ -2013,13 +2022,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           PostMessage(hWnd, WM_QUIT, 0, 0);
         }
       }
-
-      /*
-      OutputDebugString(L"New Frame ");
-      OutputDebugString(std::to_wstring(frameCount).c_str());
-      OutputDebugString(L"\n");
-      frameCount++;
-      */
 
       io.FontGlobalScale = 1.0f;
 
@@ -2090,25 +2092,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (todoFixUglyHack)
         {
           todoFixUglyHack = false;
-
-          //ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Once, ImVec2(0.5f, 0.5f));
-
           // Positiong the window at the mouse cursor
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
-
-          /*
-          if (SKIF_bOpenAtCursorPosition)
-            ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
-          else
-            ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
-          */
         }
 
         if (RepositionSKIF)
         {
-          //OutputDebugString(L"RepositionSKIF recognized\n");
           // Repositions the window in the center of the current monitor it is on
           //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
+          
+          // Positiong the window at the mouse cursor
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
           SetForegroundWindow(SKIF_hWnd);
           RepositionSKIF = false;
@@ -2826,7 +2819,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup  ();
               ImGui::Spacing     ();
 
-              ImGui::Text        ("Advanced CPU Hardware Reporting (Intel only)");
+              ImGui::Text        ("Advanced CPU Hardware Reporting");
 
               ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
               ImGui::TextWrapped    (
@@ -2843,7 +2836,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
               ImGui::SameLine    ();
               ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                  "Extends the CPU widget with thermals, energy, and precise clock rate on supported Intel hardware."
+                                  "Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware."
               );
               ImGui::EndGroup    ();
 
@@ -3501,7 +3494,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             
             ImGui::TextColored      (
               ImColor::HSV (0.11F, 1.F, 1.F),
-                "Quick launch Special K for individual games through Steam:");
+                "Quick launch Special K for select games through Steam:");
             if (SKIF_AddToEnvironmentalPath())
             {
               ImGui::TextWrapped("Your computer is set up to quickly launch injection through Steam.");
@@ -3557,7 +3550,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImColor::HSV (0.55F, 0.99F, 1.F),
                                   u8"• ");
               ImGui::SameLine         ( );
-              ImGui::TextWrapped      ("A one-time restart of the computer may be required if it does not work.");
+              ImGui::TextWrapped      ("A one-time restart of the computer may be required.");
               ImGui::EndGroup         ( );
             }
             else {
@@ -3763,17 +3756,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndChildFrame    ( );
             ImGui::EndTabItem       ( );
           }
+          else {
+            if (SKIF_bEnableDebugMode && hModSK64 != 0)
+            {
+              FreeLibrary (hModSK64);
+              hModSK64 = NULL;
+            }
+          }
 
           auto title_len =
             ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F,
                                       FLT_MAX, 0.0f,
                          SKIF_WINDOW_TITLE_A ).x;
-
-          /*
-          OutputDebugString(L"title_len: ");
-          OutputDebugString(std::to_wstring(title_len).c_str());
-          OutputDebugString(L"\n");
-          */
 
           float title_pos =                                     ImGui::GetCursorPos().x +
               (
@@ -3782,16 +3776,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                                                         / 2.0f;
 
           ImGui::SetCursorPosX (title_pos);
-
-          /*
-          OutputDebugString(L"title_pos: ");
-          OutputDebugString(std::to_wstring(title_pos).c_str());
-          OutputDebugString(L"\n");
-
-          OutputDebugString(L"GetCursorPos: ");
-          OutputDebugString(std::to_wstring(ImGui::GetCursorPos().x).c_str());
-          OutputDebugString(L"\n");
-          */
 
           ImGui::SetCursorPosY (
             7.0f * SKIF_ImGui_GlobalDPIScale
@@ -3988,7 +3972,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         // Uses a Directory Watch signal, so this is cheap; do it once every frame
-        _inject.TestServletRunlevel ();
+        _inject.TestServletRunlevel ( );
 
         if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
           _inject._SetTaskbarOverlay(_inject.bCurrentState);
@@ -4258,7 +4242,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_CUSTOMLAUNCH:
       if (! _inject.bCurrentState)
-        _inject._StartStopInject  (false, true);
+        _inject._StartStopInject (false, true);
       break;
 
     case WM_TIMER:

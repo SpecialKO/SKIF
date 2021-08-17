@@ -94,11 +94,10 @@ SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
     FindCloseChangeNotification (hChangeNotification);
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
+bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
 {
-  bool         _inout = running_;
-
   extern CHandle hInjectAck;
+  bool ret = false;
 
   if (autoStop && hInjectAck.m_h <= 0)
   {
@@ -107,6 +106,60 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
     );
   }
 
+  const wchar_t *wszStartStopCommand =
+              LR"(rundll32.exe)";
+
+  const wchar_t *wszStartStopParams32 =
+    currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
+
+  const wchar_t *wszStartStopParams64 =
+    currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
+
+  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
+  wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
+
+  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
+  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
+
+  GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
+  PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = wszStartStopCommand32;
+    sexi.lpParameters = wszStartStopParams32;
+    sexi.lpDirectory  = L"Servlet";
+    sexi.nShow        = SW_HIDE;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS; // SEE_MASK_NOASYNC, SEE_MASK_ASYNCOK
+
+
+  if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
+  {
+    sexi.lpFile       = LR"(SKIFsvc32.exe)";
+    sexi.lpParameters = L"";
+  }
+
+  if ( ShellExecuteExW (&sexi) || currentRunningState )
+  {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
+    sexi.lpFile       = wszStartStopCommand64;
+    sexi.lpParameters = wszStartStopParams64;
+
+    if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc64.exe)"))
+    {
+      sexi.lpFile       = LR"(SKIFsvc64.exe)";
+      sexi.lpParameters = L"";
+    }
+
+    ret =
+      ShellExecuteExW (&sexi);
+  }
+
+  /* Old implementation -- used a new thread to call ShellExecuteEx
   unsigned int tid;
   HANDLE       hThread =
  (HANDLE)
@@ -160,19 +213,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
       sexi.lpParameters = L"";
     }
 
-    /*
-    if (IsUserAnAdmin())
-    {
-      sexi.lpParameters = (std::wstring(L"/trustlevel:0x20000 ") + sexi.lpFile + L" " + sexi.lpParameters).c_str();
-      sexi.lpFile       = L"runas";
-    }
-
-    OutputDebugString(sexi.lpParameters);
-    OutputDebugString(L"\n");
-    OutputDebugString(sexi.lpFile);
-    OutputDebugString(L"\n");
-    */
-
     if ( ShellExecuteExW (&sexi) || running )
     {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
       sexi.lpFile       = wszStartStopCommand64;
@@ -183,14 +223,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
         sexi.lpFile       = LR"(SKIFsvc64.exe)";
         sexi.lpParameters = L"";
       }
-
-      /*
-      if (IsUserAnAdmin())
-      {
-        sexi.lpParameters = (std::wstring(L"/trustlevel:0x20000 ") + sexi.lpFile + L" " + sexi.lpParameters).c_str();
-        sexi.lpFile       = L"runas";
-      }
-      */
 
       *_inout =
         ShellExecuteExW (&sexi);
@@ -210,14 +242,14 @@ bool SKIF_InjectionContext::_StartStopInject (bool running_, bool autoStop)
     WaitForSingleObject (hThread, INFINITE);
     CloseHandle         (hThread);
   }
+  */
 
   // Hack-a-la-Aemony to fix stupid service not stopping properly on exit
   //Sleep(50);
 
-  bExpectedState = ! running_;
   bPendingState = true;
 
-  return _inout;
+  return ret;
 };
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
@@ -342,7 +374,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   // Force a one-time check on launch
   TestServletRunlevel (true);
-  bExpectedState = bCurrentState;
 
   // Load the whitelist and blacklist
   _LoadList(true);
@@ -352,25 +383,14 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 void
 SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  if (bExpectedState != bCurrentState)
+  // Perform a forced check on each frame if we're performing a quick launch action
+  if (bOnDemandInject)
     forcedCheck = true;
 
   bool prevState = bCurrentState;
 
   if (dir_watch.isSignaled () || forcedCheck)
   {
-    /*
-    OutputDebugString(L"Directory signaled or forced!\n");
-
-    OutputDebugString(L"bCurrentState: ");
-    OutputDebugString(std::to_wstring(bCurrentState).c_str());
-    OutputDebugString(L"\n");
-
-    OutputDebugString(L"bExpectedState: ");
-    OutputDebugString(std::to_wstring(bExpectedState).c_str());
-    OutputDebugString(L"\n");
-    */
-
     for ( auto& record : records )
     {
       if (                 *record.pPid == 0 &&
@@ -404,25 +424,10 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         DeleteFileW (record.wszPidFilename);
                     *record.pPid = 0;
       }
-      /*
-      else {
-        OutputDebugString(L"File: ");
-        OutputDebugString(record.wszPidFilename);
-        OutputDebugString(L" - PID: ");
-        OutputDebugString(std::to_wstring(*record.pPid).c_str());
-        OutputDebugString(L"\n");
-      }
-      */
     }
 
     bCurrentState =
       ( pid32 || pid64 );
-
-    /*
-    OutputDebugString(L"bCurrentState (new): ");
-    OutputDebugString(std::to_wstring(bCurrentState).c_str());
-    OutputDebugString(L"\n");
-    */
 
     if (bCurrentState != prevState)
     {
@@ -593,7 +598,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     );
   }
     
-  if (bCurrentState == bExpectedState)
+  if (! bPendingState)
   {
     const char *szStartStopLabel =
       bCurrentState ?  "Stop Service###GlobalStartStop"  :
