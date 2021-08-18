@@ -159,7 +159,7 @@ public:
           if (i++ > 0)
             out += "\x01";
 
-            out += str;
+          out += str;
         }
       }
     } search_tree;
@@ -284,9 +284,6 @@ public:
 
 const wchar_t *
 SK_GetSteamDir (void);
-
-int
-SK_Steam_GetLibraries (steam_library_t **ppLibraries);
 
 std::string
 SK_UseManifestToGetAppName (AppId_t appid);

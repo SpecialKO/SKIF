@@ -1433,8 +1433,12 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
      )
   {
     if (IsIconic        (hwndAlreadyExists))
+      //SetForegroundWindow (hwndAlreadyExists);
       ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
-    SetForegroundWindow (hwndAlreadyExists);
+    /*
+    PostMessage (        hwndAlreadyExists, WM_SKIF_REPOSITION,
+                                    0x0, 0x0 );
+    */
 
     struct injection_probe_s {
       FILE          *pid;
@@ -1554,9 +1558,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
        )
     {
       if (*_inject.whitelist == '\0')
-        snprintf(_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, parentFolder.c_str());
+        snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, parentFolder.c_str());
       else
-        snprintf(_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, ("|" + parentFolder).c_str());
+        snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, ("|" + parentFolder).c_str());
 
       _inject._StoreList(true);
     }
@@ -4243,6 +4247,9 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_CUSTOMLAUNCH:
       if (! _inject.bCurrentState)
         _inject._StartStopInject (false, true);
+
+      // Reload the whitelist as it might have been changed
+      _inject._LoadList(true);
       break;
 
     case WM_TIMER:

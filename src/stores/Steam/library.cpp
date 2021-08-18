@@ -166,9 +166,6 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   return found;
 }
 
-int
-SK_Steam_GetLibraries (steam_library_t** ppLibraries);
-
 std::vector <AppId_t>
 SK_Steam_GetInstalledAppIDs (void)
 {

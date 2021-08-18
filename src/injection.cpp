@@ -1127,15 +1127,16 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
   std::filesystem::create_directories ((root_dir + LR"(\Global\)").c_str ());
 
-  // std::ofstream list_file // UTF-8
-  std::wofstream list_file( // ANSI
+  std::wofstream list_file(
     (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
                  : (root_dir + LR"(\Global\blacklist.ini)").c_str()
   );
 
+  // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
+  list_file.imbue(std::locale("en_US.UTF-8"));
+
   if (list_file.is_open())
   {
-    /* ANSI */
     std::wstring out_text =
       SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
 
@@ -1148,10 +1149,6 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
     if (list_file.good())
       ret = true;
 
-    /* UTF-8
-    list_file.write ( szOut,
-              strlen( szOut) );
-    */
     list_file.close();
   }
 
@@ -1163,19 +1160,19 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
   static std::wstring root_dir =
          std::filesystem::current_path().wstring();
 
-  // std::ifstream list_file // UTF-8
-  std::wifstream list_file( // ANSI
+  std::wifstream list_file(
     (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
                  : (root_dir + LR"(\Global\blacklist.ini)").c_str()
   );
 
-  // std::string full_text; // UTF-8
-  std::wstring full_text; // ANSI
+  // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
+  list_file.imbue(std::locale("en_US.UTF-8"));
+
+  std::wstring full_text;
 
   if (list_file.is_open ())
   {
-    // std::string line; // UTF-8
-    std::wstring line; // ANSI
+    std::wstring line;
 
     while (list_file.good ())
     {
@@ -1190,16 +1187,9 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
 
     list_file.close ();
 
-    /* ANSI */
     strcpy ( (whitelist_) ? whitelist : blacklist,
                 SK_WideCharToUTF8 (full_text).c_str ()
     );
-
-    /* UTF-8
-    strcpy ( szIn,
-                full_text.c_str ()
-    );
-    */
   }
 }
 
