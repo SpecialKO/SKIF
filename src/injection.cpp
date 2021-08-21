@@ -268,7 +268,12 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   SK_Generate8Dot3   (wszPath);
 
   // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
-  // Let's change that to the folder of the executable itself.
+  extern std::filesystem::path orgWorkingDirectory;
+
+  // Store the original working directory in a variable, since it's used by custom launch, for example.
+  orgWorkingDirectory = std::filesystem::current_path();
+
+  // Let's change the current working directory to the folder of the executable itself.
   std::filesystem::current_path (
     std::filesystem::path (wszPath).remove_filename ()
   );
@@ -463,6 +468,7 @@ void
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
+  extern bool  SKIF_bStopOnInjection;
 
   //running =
     //TestServletRunlevel (run_lvl_changed);
@@ -607,7 +613,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
     {
-      _StartStopInject (bCurrentState);
+      _StartStopInject (bCurrentState, SKIF_bStopOnInjection);
     }
   }
 
@@ -634,18 +640,28 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   // Tips 'n Tricks
   auto frame_id3 =
     ImGui::GetID ("###Global_Injection_TipsNTricks");
+  
+  ImGui::SetCursorPosY (
+    ImGui::GetWindowHeight () - fBottomDist -
+    ImGui::GetStyle        ().ItemSpacing.y
+  );
+
+  ImGui::Separator     ( );
 
   SKIF_ImGui_BeginChildFrame ( frame_id3,
-                                 ImVec2 ( 0.0f,
-                                          2.0f * ImGui::GetTextLineHeightWithSpacing () ),
-                                   ImGuiWindowFlags_NavFlattened      |
-                                   ImGuiWindowFlags_NoScrollbar       |
-                                   ImGuiWindowFlags_NoScrollWithMouse |
-                                   ImGuiWindowFlags_NoBackground
+                                ImVec2 (ImGui::GetContentRegionAvail ().x,
+                              std::max (ImGui::GetContentRegionAvail ().y,
+                                        ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                       )),
+                                ImGuiWindowFlags_NavFlattened      |
+                                ImGuiWindowFlags_NoScrollbar       |
+                                ImGuiWindowFlags_NoScrollWithMouse |
+                                ImGuiWindowFlags_NoBackground
   );
 
   if ( bHasServlet )
   {
+    /*
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
@@ -675,6 +691,12 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (ImGui::IsItemClicked ())
       SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    */
+
+    extern void SKIF_putStopOnInjection(bool in);
+
+    if (ImGui::Checkbox("Stop on successful injection", &SKIF_bStopOnInjection))
+      SKIF_putStopOnInjection(SKIF_bStopOnInjection);
   }
 
   else {
@@ -686,6 +708,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   ImGui::EndChildFrame ();
+
+  SK_RunOnce(fBottomDist = ImGui::GetItemRectSize().y);
 };
 
 //

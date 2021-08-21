@@ -47,7 +47,8 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bAllowMultipleInstances  = false,
      SKIF_bAllowBackgroundService  = false,
      SKIF_bEnableHDR               = false,
-     SKIF_bOpenAtCursorPosition    = false;
+     SKIF_bOpenAtCursorPosition    = false,
+     SKIF_bStopOnInjection         = false;
 BOOL SKIF_bAllowTearing            = FALSE;
 HMODULE hModSK64                   = NULL;
 
@@ -76,7 +77,11 @@ extern        SK_ICommandProcessor*
 #include <fstream>
 #include <typeindex>
 
+#include <filesystem>
+
 #pragma comment (lib, "wininet.lib")
+
+std::filesystem::path orgWorkingDirectory;
 
 using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
 static GetSystemMetricsForDpi_pfn
@@ -132,7 +137,8 @@ DWORD SKIF_timeGetTime (void)
     }
 
     return
-      li.QuadPart / ( qpcFreq.QuadPart / 1000ULL);
+      static_cast <DWORD> ( li.QuadPart /
+                      (qpcFreq.QuadPart / 1000ULL) );
   }
 
   return static_cast <DWORD> (-1);
@@ -483,8 +489,6 @@ auto SKIF_ImGui_LoadFont =
 #include <fonts/fa_regular_400.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
 #include <fonts/fa_solid_900.ttf.h>
-
-#include <filesystem>
 
 namespace skif_fs = std::filesystem;
 
@@ -1392,7 +1396,7 @@ struct SKIF_Signals {
   BOOL _Disowned = FALSE;
 } _Signal;
 
-constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x8192;
+constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x4097;
 constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
@@ -1422,7 +1426,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     StrStrIW (lpCmdLine, L"Minimize") != nullptr;
 
   _Signal.CustomLaunch =
-    StrStrIW (lpCmdLine, L"\\")       != nullptr;
+    StrStrIW (lpCmdLine, L".exe")       != nullptr;
 
   if (  hwndAlreadyExists != 0 && (
               (! SKIF_bAllowMultipleInstances)  ||
@@ -1524,6 +1528,22 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     // Display in small mode
     SKIF_bSmallMode = true;
 
+    // Set up a quick timer that triggers refreshes
+    SetTimer (SKIF_hWnd,
+              IDT_REFRESH,
+              100,
+              (TIMERPROC) NULL
+    );
+
+    // Set up a longer timer that stops GI service if it hasn't already
+    /*
+    SetTimer (SKIF_hWnd,
+              IDT_GISERVICE,
+              100,
+              (TIMERPROC) NULL
+    );
+    */
+
     auto _SK_Inject_TestUserWhitelist = [](const char* wszExecutable)->bool
     {
       if (*_inject.whitelist == '\0')
@@ -1549,10 +1569,15 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (cmdLine.find(L"\"") == 0)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
-    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length()); // path
+    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length());                // path
     std::wstring proxiedCmdLine = cmdLine.substr(cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
-    std::string  parentFolder = std::filesystem::path(path).parent_path().filename().string(); // name of parent folder
+    std::string  parentFolder   = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
 
+    // Path does not seem to be absolute -- add the current working directory in front of the path
+    if (path.find(L"\\") == std::wstring::npos)
+      path = orgWorkingDirectory.wstring() + L"\\" + path;
+
+    // Check if the path has been whitelisted
     if (  path.find(L"steamapps") == std::wstring::npos &&
         ! _SK_Inject_TestUserWhitelist (SK_WideCharToUTF8(path).c_str())
        )
@@ -1636,6 +1661,15 @@ SKIF_AddToEnvironmentalPath(void)
   return ret;
 }
 
+static auto regKVDisableStopOnInjection =
+  SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                        LR"(Disable Stop On Injection)" );
+
+void SKIF_putStopOnInjection (bool in)
+{
+  regKVDisableStopOnInjection.putData(!in);
+}
+
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -1663,10 +1697,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   WindowsCursorSize =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Microsoft\Accessibility\)",
                          LR"(CursorSize)" ).getData ();
-
-  static auto regKVGlobalServiceTimout =
-    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                        LR"(Global Service Timeout)" );
 
   static auto regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -1728,6 +1758,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ( );
   SKIF_bEnableHDR               = regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    = regKVOpenAtCursorPosition.getData    ( );
+  SKIF_bStopOnInjection         = !regKVDisableStopOnInjection.getData ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -1845,16 +1876,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Set a timer to trigger a window refresh every 1000ms,
   //   since two counts are apparently required for each new frame.
-  if (_Signal.CustomLaunch)
-    SetTimer( hWnd,
-              IDT_REFRESH,
-              50,
-              (TIMERPROC) NULL );
-  else
-    SetTimer( hWnd,
-              IDT_REFRESH,
-              500,
-              (TIMERPROC) NULL );
+  /*
+  SetTimer( hWnd,
+            IDT_REFRESH,
+            500,
+            (TIMERPROC) NULL );
+  */
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -2140,11 +2167,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
                          nullptr,
-                           ImGuiWindowFlags_NoResize         |
-                           ImGuiWindowFlags_NoCollapse       |
-                           ImGuiWindowFlags_NoTitleBar       |
-                           ImGuiWindowFlags_NoScrollbar      | // Hide the scrollbar for the main window
-                           ImGuiWindowFlags_NoScrollWithMouse  // Prevent scrolling with the mouse as well
+                           ImGuiWindowFlags_NoResize          |
+                           ImGuiWindowFlags_NoCollapse        |
+                           ImGuiWindowFlags_NoTitleBar        |
+                           ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
+                           ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
         );
 
         // Update current monitors/worksize etc;

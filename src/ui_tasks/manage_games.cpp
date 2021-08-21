@@ -2338,8 +2338,6 @@ SKIF_GameManagement_DrawTab (void)
   );
   ImGui::BeginGroup ();
 
-  static bool launch_hovered = false;
-
   if ( pApp     == nullptr       ||
        pApp->id == SKIF_STEAM_APPID )
   {
@@ -2350,85 +2348,11 @@ SKIF_GameManagement_DrawTab (void)
   {
     _PrintInjectionSummary (pApp);
 
-    //extern ImGuiStyle SKIF_ImGui_DefaultStyle;
-           ImGuiStyle _style = ImGui::GetStyle ();
-
-    ImGuiStyle style = ImGui::GetStyle();
-      //SKIF_ImGui_DefaultStyle;
-
-    //ImGui::GetStyle () = style;
-
-    ImVec2 content_region =
-      ImVec2 ( ImGui::GetWindowContentRegionMax ().x - ImGui::GetWindowContentRegionMin ().x,
-               ImGui::GetWindowContentRegionMax ().y - ImGui::GetWindowContentRegionMin ().y ),
-           item_spacing   =
-      style.ItemSpacing,
-           frame_padding  =
-      style.FramePadding,
-           cursor_pos     =
-      ImGui::GetWindowContentRegionMin ();
-
-    float line_ht     =           ImGui::GetTextLineHeight (),
-          checkbox_ht = line_ht + ImGui::GetStyle          ().FramePadding.y * 2.0f;
-
-    content_region.y -= checkbox_ht + item_spacing.y * 2;
-    content_region.x -=               item_spacing.x;
-
-    float height = content_region.y,
-          width  = height * fAspect;
-
-    float fRescale = 1.0f;
-
-    if (                 width  > content_region.x)
-      fRescale = 1.0f / (width  / content_region.x);
-
-    else
-    if (                 height > content_region.y)
-      fRescale = 1.0f / (height / content_region.y);
-
-    height *= fRescale;
-    width  *= fRescale;
-
-    float x =
-      ( content_region.x   - width  ) / 2.0f +
-            cursor_pos.x,
-          y =
-      ( content_region.y   - height ) / 2.0f +
-            cursor_pos.y;
-
-    ImGui::SetCursorPos ( ImVec2 (x, y) );
-    ImGui::BeginGroup   ();
-
-    auto cursor_pos_xy   =
-      ImGui::GetCursorPos ();
-
-    ImGui::SetCursorPos (cursor_pos_xy);
-
-    ImDrawList* draw_list =
-      ImGui::GetWindowDrawList ();
-                draw_list->PushClipRect
-                ( ImVec2 ( cursor_pos_xy.x, cursor_pos_xy.y ),
-                  ImVec2 ( cursor_pos_xy.x + width,
-                           cursor_pos_xy.y + height ) );
-
     if (pApp->extended_config.vac.enabled)
     {
-      draw_list->AddText ( ImGui::GetFont (), 20.0f,
-                           cursor_pos_xy,
-            ImColor::HSV ( 0.25f, 0.75f, 0.95f ),
-                           "VAC Protected Game" );
-
         SKIF_StatusBarText = "Warning: ";
         SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
     }
-
-    draw_list->PopClipRect ();
-
-    ImGui::SetCursorPos (cursor_pos_xy);
-
-    ImGui::EndGroup ();
-
-    ImGui::GetStyle () = _style;
 
     if (! pApp->launch_configs.empty ())
     {
@@ -2437,19 +2361,18 @@ SKIF_GameManagement_DrawTab (void)
         ImGui::GetStyle        ().ItemSpacing.y
       );
 
-      ImGui::PushStyleColor (ImGuiCol_FrameBg,
-                             ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg));
-                             //ImVec4 (.5f, .5f, .5f, .75f));
-      ImGui::BeginGroup    ( );
       ImGui::Separator     ( );
+
       SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
-                                ImVec2 (ImGui::GetContentRegionAvail ().x,
-                              std::max (ImGui::GetContentRegionAvail ().y,
-                          checkbox_ht + ImGui::GetStyle ().ItemSpacing.y * 2)),
-                                ImGuiWindowFlags_NavFlattened      |
-                                ImGuiWindowFlags_NoScrollbar       |
-                                ImGuiWindowFlags_NoScrollWithMouse |
-                                ImGuiWindowFlags_NoBackground );
+                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                  std::max (ImGui::GetContentRegionAvail ().y,
+                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                           )),
+                                    ImGuiWindowFlags_NavFlattened      |
+                                    ImGuiWindowFlags_NoScrollbar       |
+                                    ImGuiWindowFlags_NoScrollWithMouse |
+                                    ImGuiWindowFlags_NoBackground
+      );
 
       auto _BlacklistCfg =
       [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
@@ -2533,14 +2456,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::EndChildFrame     ();
 
-      fBottomDist =
-        ImGui::GetItemRectSize ().y;
-
-      ImGui::EndGroup          ();
-      ImGui::PopStyleColor     ();
-
-      if (ImGui::IsItemHovered ())
-        launch_hovered = false;
+      SK_RunOnce(fBottomDist = ImGui::GetItemRectSize().y);
     }
   }
 
