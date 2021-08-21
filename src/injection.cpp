@@ -249,6 +249,16 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   bPendingState = true;
 
+  extern HWND SKIF_hWnd;
+
+  KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
+
+  SetTimer (SKIF_hWnd,
+            IDT_REFRESH_PENDING,
+            1000,
+            (TIMERPROC) NULL
+  );
+
   return ret;
 };
 
@@ -434,12 +444,17 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     bCurrentState =
       ( pid32 || pid64 );
 
-    if (bCurrentState != prevState)
+    if (bCurrentState != prevState || forcedCheck)
     {
       _SetTaskbarOverlay (bCurrentState);
 
       if (bPendingState)
+      {
         bPendingState = false;
+
+        extern HWND SKIF_hWnd;
+        KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
+      }
     }
   }
 };
@@ -709,7 +724,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   ImGui::EndChildFrame ();
 
-  SK_RunOnce(fBottomDist = ImGui::GetItemRectSize().y);
+  fBottomDist = ImGui::GetItemRectSize().y;
 };
 
 //

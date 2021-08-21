@@ -48,7 +48,8 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bAllowBackgroundService  = false,
      SKIF_bEnableHDR               = false,
      SKIF_bOpenAtCursorPosition    = false,
-     SKIF_bStopOnInjection         = false;
+     SKIF_bStopOnInjection         = false,
+     SKIF_bAlwaysShowGhost         = false;
 BOOL SKIF_bAllowTearing            = FALSE;
 HMODULE hModSK64                   = NULL;
 
@@ -1528,22 +1529,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     // Display in small mode
     SKIF_bSmallMode = true;
 
-    // Set up a quick timer that triggers refreshes
-    SetTimer (SKIF_hWnd,
-              IDT_REFRESH,
-              100,
-              (TIMERPROC) NULL
-    );
-
-    // Set up a longer timer that stops GI service if it hasn't already
-    /*
-    SetTimer (SKIF_hWnd,
-              IDT_GISERVICE,
-              100,
-              (TIMERPROC) NULL
-    );
-    */
-
     auto _SK_Inject_TestUserWhitelist = [](const char* wszExecutable)->bool
     {
       if (*_inject.whitelist == '\0')
@@ -1746,6 +1731,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );
 
+  static auto regKVAlwaysShowGhost =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Always Show Ghost)" );
+
   SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ( );
   SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         = regKVDisableTooltips.getData         ( );
@@ -1759,6 +1748,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bEnableHDR               = regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    = regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = !regKVDisableStopOnInjection.getData ( );
+  SKIF_bAlwaysShowGhost         = regKVAlwaysShowGhost.getData         ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -1873,15 +1863,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Show the window
   ShowWindow   (hWnd, SW_SHOWDEFAULT);
   UpdateWindow (hWnd);
-
-  // Set a timer to trigger a window refresh every 1000ms,
-  //   since two counts are apparently required for each new frame.
-  /*
-  SetTimer( hWnd,
-            IDT_REFRESH,
-            500,
-            (TIMERPROC) NULL );
-  */
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -2675,6 +2656,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                 if ( ImGui::Checkbox ( "Open SKIF at the position of the mouse", &SKIF_bOpenAtCursorPosition ) )
                   regKVOpenAtCursorPosition.putData(                              SKIF_bOpenAtCursorPosition );
+
+                if ( ImGui::Checkbox ( "Always show the Ghost",                  &SKIF_bAlwaysShowGhost ) )
+                  regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
 
                 ImGui::TreePop  ( );
               }
@@ -3778,6 +3762,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             SKIF_ImGui_BeginTabChildFrame ();
 
+            if (tab_selected != Debug)
+            {
+              SetTimer (SKIF_hWnd,
+                        IDT_REFRESH_DEBUG,
+                        1000,
+                        (TIMERPROC)NULL
+              );
+            }
+
             tab_selected = Debug;
 
             extern HRESULT
@@ -3787,13 +3780,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndChildFrame    ( );
             ImGui::EndTabItem       ( );
           }
+
           else {
             if (SKIF_bEnableDebugMode && hModSK64 != 0)
             {
               FreeLibrary (hModSK64);
               hModSK64 = NULL;
+
+              KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
             }
           }
+
+          // Ghost
 
           auto title_len =
             ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F,
@@ -3814,7 +3812,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TextColored (ImVec4 (.666f, .666f, .666f, 1.f), SKIF_WINDOW_TITLE_A_EX);
 
-          if (_inject.bCurrentState && SKIF_bEnableDebugMode)
+          if (SKIF_bAlwaysShowGhost || (_inject.bCurrentState && SKIF_bEnableDebugMode) )
           {
             ImGui::SameLine(); // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
 
@@ -4115,6 +4113,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
+  KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
+
   ImGui_ImplDX11_Shutdown   (    );
   ImGui_ImplWin32_Shutdown  (    );
 
@@ -4280,8 +4281,13 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_TIMER:
-      if (wParam == IDT_REFRESH)
+      if (wParam == IDT_REFRESH_PENDING || wParam == IDT_REFRESH_DEBUG)
+      {
+        if (wParam == IDT_REFRESH_PENDING)
+          _inject.TestServletRunlevel(true);
+
         return 0;
+      }
       break;
 
     case WM_SIZE:

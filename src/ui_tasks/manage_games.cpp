@@ -2456,7 +2456,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::EndChildFrame     ();
 
-      SK_RunOnce(fBottomDist = ImGui::GetItemRectSize().y);
+      fBottomDist = ImGui::GetItemRectSize().y;
     }
   }
 

@@ -96,5 +96,5 @@ extern CreateDXGIFactory1_pfn
 DWORD   SKIF_timeGetTime   (void);
 DWORD64 SKIF_timeGetTimeEx (void);
 
-const UINT_PTR IDT_GISERVICE = 1337;
-const UINT_PTR IDT_REFRESH   = 1338;
+const UINT_PTR IDT_REFRESH_PENDING = 1338;
+const UINT_PTR IDT_REFRESH_DEBUG   = 1339;
