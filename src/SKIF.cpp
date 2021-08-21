@@ -243,8 +243,8 @@ private:
   WNDCLASSEX wc_;
 };
 
-bool    bStopOnInjection = false; // Used to stop SKIF on a successful injection if it's used merely as a launcher
-CHandle hInjectAck (0); // Signalled when a game finishes injection
+bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
+CHandle hInjectAck (0);           // Signalled when a game finishes injection
 CHandle hSwapWait  (0);
 
 
@@ -1575,13 +1575,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       _inject._StoreList(true);
     }
 
-    if (! _inject.bCurrentState)
-    {
-      bStopOnInjection = true;
-      _inject._StartStopInject (false, true);
-      _inject.bOnDemandInject = true;
-    }
-
     SHELLEXECUTEINFOW
       sexi              = { };
       sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -1595,6 +1588,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     if (hwndAlreadyExists != 0)
       SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
+
+    else if (! _inject.bCurrentState)
+    {
+      bExitOnInjection = true;
+      _inject._StartStopInject (false, true);
+      _inject.bOnDemandInject = true;
+    }
 
     ShellExecuteExW(&sexi);
 
@@ -2006,34 +2006,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
       hInjectAck.m_h,
     };
 
-    int num_wait_objs =
-      ( hInjectAck.m_h > 0 ) ?
-                           2 : 1;
-
     DWORD dwWait =
-      MsgWaitForMultipleObjects ( num_wait_objs, hWaitStates, FALSE,
+      MsgWaitForMultipleObjects ( 1, hWaitStates, TRUE,
                                     INFINITE, QS_ALLINPUT );
 
-    if (dwWait == WAIT_OBJECT_0 + num_wait_objs)
+    if (dwWait == WAIT_OBJECT_0)
     {
-      if (! _TranslateAndDispatch ())
-        break;
-    }
-
-    else if (dwWait == WAIT_OBJECT_0)
-    {
-      //// Injection acknowledgment; shutdown injection
+      // Injection acknowledgment; shutdown injection
+      //
+      //  * This is backed by a periodic WM_TIMER message if injection
+      //      was programmatically started and ACK has not signaled
+      //
       if (                     hInjectAck.m_h != 0 &&
-          WaitForSingleObject (hInjectAck.m_h, 0) == WAIT_OBJECT_0)
+          WaitForSingleObject (hInjectAck.m_h,   0) == WAIT_OBJECT_0)
       {
         hInjectAck.Close ();
-        PostMessage (hWnd, WM_SKIF_STOP, 0, 0);
-        if (bStopOnInjection)
+        _inject._StartStopInject(true);
+
+        if (bExitOnInjection)
         {
-          bStopOnInjection = false;
+          bExitOnInjection = false;
           PostMessage(hWnd, WM_QUIT, 0, 0);
         }
       }
+
+      if (! _TranslateAndDispatch ())
+        break;
 
       io.FontGlobalScale = 1.0f;
 
@@ -3766,7 +3764,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             {
               SetTimer (SKIF_hWnd,
                         IDT_REFRESH_DEBUG,
-                        1000,
+                        500,
                         (TIMERPROC)NULL
               );
             }
@@ -4107,14 +4105,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
-        else if (msg.message == WM_SETFOCUS   || msg.message <= WM_KILLFOCUS) break;
+        else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) break;
         else if (msg.message == WM_TIMER)                                     break;
       }
     }
   }
 
-  KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
-  KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
 
   ImGui_ImplDX11_Shutdown   (    );
   ImGui_ImplWin32_Shutdown  (    );
@@ -4281,12 +4280,15 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_TIMER:
-      if (wParam == IDT_REFRESH_PENDING || wParam == IDT_REFRESH_DEBUG)
+      switch (wParam)
       {
-        if (wParam == IDT_REFRESH_PENDING)
-          _inject.TestServletRunlevel(true);
+        case IDT_REFRESH_ONDEMAND:
+        case IDT_REFRESH_PENDING:
+        case IDT_REFRESH_DEBUG:
+          if (wParam == IDT_REFRESH_PENDING)
+            _inject.TestServletRunlevel(true);
 
-        return 0;
+          return 0;
       }
       break;
 

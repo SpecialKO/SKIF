@@ -96,13 +96,23 @@ SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
 
 bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
 {
+  extern HWND    SKIF_hWnd;
   extern CHandle hInjectAck;
   bool ret = false;
+
+  KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
   if (autoStop && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
       CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
+    );
+
+    SetTimer (SKIF_hWnd,
+              IDT_REFRESH_ONDEMAND,
+              500,
+              (TIMERPROC) NULL
     );
   }
 
@@ -249,13 +259,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   bPendingState = true;
 
-  extern HWND SKIF_hWnd;
-
-  KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
-
   SetTimer (SKIF_hWnd,
             IDT_REFRESH_PENDING,
-            1000,
+            500,
             (TIMERPROC) NULL
   );
 
