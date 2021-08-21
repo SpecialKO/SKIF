@@ -294,6 +294,10 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     std::filesystem::path (wszPath).remove_filename ()
   );
 
+  // Cache the Special K user data path
+  SKIF_GetFolderPath (&path_cache.specialk_userdata);
+  PathAppendW (        path_cache.specialk_userdata.path,
+                         LR"(My Mods\SpecialK)"  );
   bHasServlet =
     PathFileExistsW  (L"Servlet") ||
     CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the folder if it does not exist
@@ -397,8 +401,8 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   TestServletRunlevel (true);
 
   // Load the whitelist and blacklist
-  _LoadList(true);
-  _LoadList(false);
+  _LoadList  (true);
+  _LoadList (false);
 }
 
 void
@@ -723,7 +727,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   else {
     ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
     ImGui::TextWrapped    (
-      "Global injection service is unavailable as one or more of the required files are missing."
+      "Global injection is unavailable due to missing files."
     );
     ImGui::PopStyleColor  ();
   }
@@ -1203,11 +1207,11 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 void SKIF_InjectionContext::_LoadList(bool whitelist_)
 {
   static std::wstring root_dir =
-         std::filesystem::current_path().wstring();
+           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
 
   std::wifstream list_file(
-    (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
-                 : (root_dir + LR"(\Global\blacklist.ini)").c_str()
+    (whitelist_) ? (root_dir + LR"(whitelist.ini)").c_str()
+                 : (root_dir + LR"(blacklist.ini)").c_str()
   );
 
   // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used

@@ -1556,11 +1556,12 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length());                // path
     std::wstring proxiedCmdLine = cmdLine.substr(cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
-    std::string  parentFolder   = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
       path = orgWorkingDirectory.wstring() + L"\\" + path;
+
+    std::string  parentFolder   = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
 
     // Check if the path has been whitelisted
     if (  path.find(L"steamapps") == std::wstring::npos &&
@@ -1735,20 +1736,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Always Show Ghost)" );
 
-  SKIF_bDisableDPIScaling       = regKVDisableDPIScaling.getData       ( );
-  SKIF_bDisableExitConfirmation = regKVDisableExitConfirmation.getData ( );
-  SKIF_bDisableTooltips         = regKVDisableTooltips.getData         ( );
-  SKIF_bDisableStatusBar        = regKVDisableStatusBar.getData        ( );
-  SKIF_bDisableSteamLibrary     = regKVDisableSteamLibrary.getData     ( );
-  SKIF_bEnableDebugMode         = regKVEnableDebugMode.getData         ( );
-  SKIF_bSmallMode               = regKVSmallMode.getData               ( );
-  SKIF_bFirstLaunch             = regKVFirstLaunch.getData             ( );
-  SKIF_bAllowMultipleInstances  = regKVAllowMultipleInstances.getData  ( );
-  SKIF_bAllowBackgroundService  = regKVAllowBackgroundService.getData  ( );
-  SKIF_bEnableHDR               = regKVEnableHDR.getData               ( );
-  SKIF_bOpenAtCursorPosition    = regKVOpenAtCursorPosition.getData    ( );
-  SKIF_bStopOnInjection         = !regKVDisableStopOnInjection.getData ( );
-  SKIF_bAlwaysShowGhost         = regKVAlwaysShowGhost.getData         ( );
+  SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
+  SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
+  SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
+  SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
+  SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
+  SKIF_bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
+  SKIF_bSmallMode               =   regKVSmallMode.getData               ( );
+  SKIF_bFirstLaunch             =   regKVFirstLaunch.getData             ( );
+  SKIF_bAllowMultipleInstances  =   regKVAllowMultipleInstances.getData  ( );
+  SKIF_bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
+  SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
+  SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
+  SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
+  SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -1763,9 +1764,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Add SKIF to the user's environmental PATH variable
   SKIF_AddToEnvironmentalPath ( );
 
+  // Cache the Special K user data path
+  /* This is handled in the injection.cpp constructor instead
   SKIF_GetFolderPath (&path_cache.specialk_userdata);
   PathAppendW (        path_cache.specialk_userdata.path,
                          LR"(My Mods\SpecialK)"  );
+  */
 
   int                                    app_id = SKIF_STEAM_APPID;
   if (StrStrW (lpCmdLine, L"AppID="))
