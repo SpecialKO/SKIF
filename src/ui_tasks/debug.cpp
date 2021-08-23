@@ -713,9 +713,11 @@ struct SKIF_Console : SK_IVariableListener
     {
       if (! _inject.bCurrentState)
       {
+        extern bool SKIF_bStopOnInjection;
+
         AddLog ("Starting Injection... ");
 
-        AddLog ( _inject._StartStopInject (_inject.bCurrentState)
+        AddLog ( _inject._StartStopInject (_inject.bCurrentState, SKIF_bStopOnInjection)
                          ? "[Success] Started"
                          : "[Failure] Not Running" );
         AddLog ("\n");
@@ -953,6 +955,42 @@ SK_Inject_AuditRecord = nullptr;
 SK_Inject_GetRecord_pfn
 SK_Inject_GetRecord   = nullptr;
 
+// Some string manipulation to assume whether a process is an Xbox app or not
+bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
+{
+  // Does the string contain "WindowsApps" ?
+  bool xbox_app = (path.find("WindowsApps") != std::string::npos);
+
+  // If the string does not contain "WindowsApps", do some string manipulation and assumptions
+  if (!xbox_app && path.length() > 0)
+  {
+    // \Device\HarddiskVolume21\Hades.exe
+
+    std::string p1 = R"(\Device\HarddiskVolume)";
+    if (path.find(p1) != std::string::npos)
+      path.erase(path.find(p1), p1.length());
+
+    // 21\Hades.exe
+
+    std::string p2 = R"(\)" + processName;
+    if (path.find(p2) != std::string::npos)
+      path.erase(path.find(p2), p2.length());
+
+    // 21
+
+    if (strlen(path.c_str()) < 3) // 0 - 99
+      xbox_app = true;
+  }
+
+  return xbox_app;
+}
+
+// Some string manipulation to assume whether a process is a Steam app or not
+bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
+{
+  return (path.find("SteamApps") != std::string::npos);
+}
+
 HRESULT
 SKIF_Debug_DrawUI (void)
 {
@@ -1035,27 +1073,27 @@ SKIF_Debug_DrawUI (void)
 
     if (ImGui::CollapsingHeader("Active 64-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
     {
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), " %s", "PID");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), " %s", "PID");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2( 55.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::ItemSize    (ImVec2 ( 55.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "%s", "Type");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Type");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2( 100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "%s", "Process Name");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Process Name");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2( 350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::ItemSize    (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "%s", "Steam ID");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Steam ID");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2( 450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "%s", "Window Title");
-      ImGui::SameLine ( );
-      ImGui::ItemSize ( ImVec2( 650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine ( );
-      ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Window Title");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
 
       ImGui::Separator   ( );
 
@@ -1072,74 +1110,45 @@ SKIF_Debug_DrawUI (void)
         auto *pRecord =
           SK_Inject_GetRecord (dwPID);
 
-        // Some string manipulation to assume whether a process is an Xbox app or not
-        std::string p = tooltips_64[dwPID];
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
 
-        // Does the string contain "WindowsApps" ?
-        bool xbox_app = (p.find("WindowsApps") != std::string::npos);
-
-        // If the string does not contain "WindowsApps", do some string manipulation and assumptions
-        if (! xbox_app && p.length() > 0)
+        if (pRecord->platform.steam_appid != 0x0 &&
+            pRecord->platform.steam_appid != INT_MAX)
         {
-          // \Device\HarddiskVolume21\Hades.exe
-
-          std::string p1 = R"(\Device\HarddiskVolume)";
-          if (p.find(p1) != std::string::npos)
-            p.erase(p.find(p1), p1.length());
-
-          // 21\Hades.exe
-
-          std::string p2 = R"(\)" + SK_WideCharToUTF8(pRecord->process.name);
-          if (p.find(p2) != std::string::npos)
-            p.erase(p.find(p2), p2.length());
-
-          // 21
-
-          if (strlen(p.c_str()) < 3) // 0 - 99
-            xbox_app = true;
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
         }
-
-        std::string pretty_str =
-          pRecord->platform.steam_appid != 0x0 &&  // Other game
-          pRecord->platform.steam_appid != INT_MAX // Non-Steam shortcut
-                                                                     ?
-                          ICON_FA_STEAM_SYMBOL                       :
-            pRecord->platform.uwp_full_name [0] != L'\0' || xbox_app ?
-                          ICON_FA_XBOX                               :
-                          ICON_FA_WINDOWS;
-
-        std::string pretty_str_hover =
-          pRecord->platform.steam_appid != 0x0 &&  // Other game
-          pRecord->platform.steam_appid != INT_MAX // Non-Steam shortcut
-                                                                     ?
-                                        "Steam"                      :
-            pRecord->platform.uwp_full_name [0] != L'\0' || xbox_app ?
-                                        "Xbox"                       :
-                                        "Windows";
+        else if (pRecord->platform.uwp_full_name[0] != L'\0' ||
+                 SKIF_Debug_IsXboxApp(tooltips_64[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
 
         if (executables_64.count (dwPID))
         {
           ImGui::Text     (" %i", pRecord->process.id);
           ImGui::SameLine ( );
-          ImGui::ItemSize ( ImVec2( 60.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::ItemSize (ImVec2 ( 60.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
-          ImGui::Text     ("%s", pretty_str.c_str());
+          ImGui::Text     (" %s", pretty_str.c_str());
           SKIF_ImGui_SetHoverTip (pretty_str_hover);
           ImGui::SameLine ( );
-          ImGui::ItemSize ( ImVec2( 100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::ItemSize (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.name).c_str());
           SKIF_ImGui_SetHoverTip (tooltips_64[dwPID]);
           ImGui::SameLine ( );
-          ImGui::ItemSize ( ImVec2( 350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::ItemSize (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%d", pRecord->platform.steam_appid);
           ImGui::SameLine ( );
-          ImGui::ItemSize ( ImVec2( 450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::ItemSize (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.win_title).c_str());
           ImGui::SameLine ( );
-          ImGui::ItemSize ( ImVec2( 650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::ItemSize (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->platform.uwp_full_name).c_str());
         }
@@ -1353,11 +1362,19 @@ SKIF_Debug_DrawUI (void)
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Type");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Arch");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Process Name");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Path");
 
       ImGui::Separator   ( );
 
@@ -1371,6 +1388,20 @@ SKIF_Debug_DrawUI (void)
 
         inject_policy policy =
           policies_64 [proc64.first];
+        
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
+        
+        if (StrStrIA(tooltips_64[proc64.first].c_str(), "SteamApps") != NULL)
+        {
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
+        }
+        else if (SKIF_Debug_IsXboxApp(tooltips_64[proc64.first], SK_WideCharToUTF8(proc64.second)))
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
 
         ImGui::PushID (proc64.first);
 
@@ -1402,14 +1433,23 @@ SKIF_Debug_DrawUI (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "  %s", pretty_str.c_str());
+        SKIF_ImGui_SetHoverTip (pretty_str_hover);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
         ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "64-bit");
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_64[proc64.first].c_str());
 
         ImGui::PopID  ( );
       }
@@ -1421,6 +1461,20 @@ SKIF_Debug_DrawUI (void)
 
         inject_policy policy =
           policies_32 [proc32.first];
+        
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
+
+        if (StrStrIA(tooltips_32[proc32.first].c_str(), "SteamApps") != NULL)
+        {
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
+        }
+        else if (SKIF_Debug_IsXboxApp(tooltips_32[proc32.first], SK_WideCharToUTF8(proc32.second)))
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
 
         ImGui::PushID (proc32.first);
 
@@ -1452,14 +1506,23 @@ SKIF_Debug_DrawUI (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "  %s", pretty_str.c_str());
+        SKIF_ImGui_SetHoverTip (pretty_str_hover);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
         ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "32-bit");
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_32[proc32.first].c_str());
 
         ImGui::PopID  ( );
       }
