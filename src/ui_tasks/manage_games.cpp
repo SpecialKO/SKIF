@@ -1450,7 +1450,9 @@ SKIF_GameManagement_DrawTab (void)
       {
         if (ImGui::IsItemClicked ())
         {
-          _inject._StartStopInject (_inject.bCurrentState);
+          extern bool SKIF_bStopOnInjection;
+
+          _inject._StartStopInject (_inject.bCurrentState, SKIF_bStopOnInjection);
 
           //_inject.run_lvl_changed = false;
 
