@@ -1090,10 +1090,10 @@ SKIF_Debug_DrawUI (void)
       ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Window Title");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
+    //ImGui::SameLine    ( );
+    //ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+    //ImGui::SameLine    ( );
+    //ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
 
       ImGui::Separator   ( );
 
@@ -1138,7 +1138,7 @@ SKIF_Debug_DrawUI (void)
           ImGui::ItemSize (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.name).c_str());
-          SKIF_ImGui_SetHoverTip (tooltips_64[dwPID]);
+        //SKIF_ImGui_SetHoverTip (tooltips_64[dwPID]);
           ImGui::SameLine ( );
           ImGui::ItemSize (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
@@ -1147,10 +1147,10 @@ SKIF_Debug_DrawUI (void)
           ImGui::ItemSize (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
           ImGui::SameLine ( );
           ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.win_title).c_str());
-          ImGui::SameLine ( );
-          ImGui::ItemSize (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-          ImGui::SameLine ( );
-          ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->platform.uwp_full_name).c_str());
+        //ImGui::SameLine ( );
+        //ImGui::ItemSize (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+        //ImGui::SameLine ( );
+        //ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->platform.uwp_full_name).c_str());
         }
       }
 
@@ -1445,11 +1445,13 @@ SKIF_Debug_DrawUI (void)
         ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
-        SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
+      //SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_64[proc64.first].c_str());
+        if (strlen (tooltips_64[proc64.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (tooltips_64[proc64.first]);
 
         ImGui::PopID  ( );
       }
@@ -1518,11 +1520,13 @@ SKIF_Debug_DrawUI (void)
         ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
-        SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
+      //SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_32[proc32.first].c_str());
+        if (strlen (tooltips_32[proc32.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (tooltips_32[proc32.first]);
 
         ImGui::PopID  ( );
       }

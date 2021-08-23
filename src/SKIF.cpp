@@ -1535,14 +1535,15 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (cmdLine.find(L"\"") == 0)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
-    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length());                // path
-    std::wstring proxiedCmdLine = cmdLine.substr(cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
+    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length());                   // path
+    std::wstring proxiedCmdLine = cmdLine.substr(   cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
       path = orgWorkingDirectory.wstring() + L"\\" + path;
 
-    std::string  parentFolder   = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
+    std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
+    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();
 
     // Check if the path has been whitelisted
     if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true))
@@ -1557,7 +1558,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       sexi.lpVerb       = L"OPEN";
       sexi.lpFile       = path.c_str();
       sexi.lpParameters = proxiedCmdLine.c_str();
-      sexi.lpDirectory  = std::filesystem::path(path).remove_filename().c_str();
+      sexi.lpDirectory  = workingDirectory.c_str();
       sexi.nShow        = SW_SHOW;
       sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                           SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
@@ -1942,7 +1943,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
       {
-        OutputDebugString(L"derp\n");
         if (! IsWindow (hWnd))
           return false;
 
