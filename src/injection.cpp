@@ -44,6 +44,9 @@
 #include <fstream>
 #include <filesystem>
 #include <strsafe.h>
+#include <regex>
+#include <string>
+#include <sstream>
 
 SKIF_InjectionContext _inject;
 
@@ -720,16 +723,22 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     extern void SKIF_putStopOnInjection(bool in);
 
-    if (ImGui::Checkbox("Stop on successful injection", &SKIF_bStopOnInjection))
-      SKIF_putStopOnInjection(SKIF_bStopOnInjection);
+    if (_inject.SKVer64 >= "21.08.12" &&
+        _inject.SKVer32 >= "21.08.12")
+    {
+      if (ImGui::Checkbox ("Stop on successful injection", &SKIF_bStopOnInjection))
+        SKIF_putStopOnInjection(SKIF_bStopOnInjection);
+    }
+
+    else {
+      ImGui::TextColored  (ImColor::HSV (0.11F, 1.F, 1.F), "Auto-stop is not available due to Special K being outdated.");
+      SKIF_ImGui_SetHoverTip ("The \"stop on successful injection\" feature"
+                             "\nrequires Special K v21.08.12 or newer.");
+    }
   }
 
   else {
-    ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
-    ImGui::TextWrapped    (
-      "Global injection is unavailable due to missing files."
-    );
-    ImGui::PopStyleColor  ();
+    ImGui::TextColored    (ImColor::HSV (0.11F, 1.F, 1.F), "Global injection is unavailable due to missing files.");
   }
 
   ImGui::EndChildFrame ();
@@ -1192,6 +1201,12 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
     // Strip all null terminator \0 characters from the string
     out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
 
+    // Strip all double (or more) newline characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(L"\n\n+"), L"\n");
+
+    // Strip trailing newline characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(L"\n+$"), L"");
+
     list_file.write(out_text.c_str(),
       out_text.length());
 
@@ -1225,20 +1240,71 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
 
     while (list_file.good ())
     {
-      std::getline (
-        list_file, line
-      );
+      std::getline (list_file, line);
 
-      full_text += line;
-      full_text += L'\n';
+      // Skip blank lines, since they would match everything....
+      for (const auto& it : line)
+      {
+        if (iswalpha(it) != 0)
+        {
+          full_text += line + L'\n';
+          break;
+        }
+      }
     }
-    full_text.resize (full_text.length () - 1);
+
+    if (full_text.length() > 0)
+      full_text.resize (full_text.length () - 1);
 
     list_file.close ();
 
     strcpy ( (whitelist_) ? whitelist : blacklist,
                 SK_WideCharToUTF8 (full_text).c_str ()
     );
+  }
+}
+
+bool SKIF_InjectionContext::_TestUserList(const char* wszExecutable, bool whitelist_)
+{
+  if (  whitelist_ && *whitelist == '\0' ||
+      ! whitelist_ && *blacklist == '\0')
+    return false;
+
+  if (  whitelist_ && StrStrIA(wszExecutable, "SteamApps") != NULL ||
+      ! whitelist_ && StrStrIA(wszExecutable, "GameBar")   != NULL ||
+      ! whitelist_ && StrStrIA(wszExecutable, "Launcher")  != NULL )
+    return true;
+
+  std::istringstream iss(  (whitelist_)
+                          ? whitelist
+                          : blacklist);
+
+  for (std::string line; std::getline(iss, line); )
+  {
+    std::regex regexp (line, std::regex_constants::icase);
+
+    if (std::regex_search(wszExecutable, regexp))
+      return true;
+  }
+
+  return false;
+}
+
+void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
+{
+  if (whitelist_)
+  {
+    if (*whitelist == '\0')
+      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, pattern.c_str());
+    else
+      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, ("|" + pattern).c_str());
+  }
+
+  else {
+    if (*blacklist == '\0')
+      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, pattern.c_str());
+    else
+      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("|" + pattern).c_str());
   }
 }
 

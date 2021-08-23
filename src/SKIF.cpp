@@ -247,7 +247,6 @@ bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
 CHandle hSwapWait  (0);
 
-
 int __width  = 0;
 int __height = 0;
 
@@ -1529,24 +1528,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     // Display in small mode
     SKIF_bSmallMode = true;
 
-    auto _SK_Inject_TestUserWhitelist = [](const char* wszExecutable)->bool
-    {
-      if (*_inject.whitelist == '\0')
-        return false;
-
-      std::istringstream iss(_inject.whitelist);
-
-      for (std::string line; std::getline(iss, line); )
-      {
-        std::regex regexp (line, std::regex_constants::icase);
-
-        if (std::regex_search(wszExecutable, regexp))
-          return true;
-      }
-
-      return false;
-    };
-
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
 
@@ -1564,15 +1545,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::string  parentFolder   = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
 
     // Check if the path has been whitelisted
-    if (  path.find(L"steamapps") == std::wstring::npos &&
-        ! _SK_Inject_TestUserWhitelist (SK_WideCharToUTF8(path).c_str())
-       )
+    if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true))
     {
-      if (*_inject.whitelist == '\0')
-        snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, parentFolder.c_str());
-      else
-        snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, ("|" + parentFolder).c_str());
-
+      _inject._AddUserList(parentFolder, true);
       _inject._StoreList(true);
     }
 
@@ -1967,6 +1942,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
       {
+        OutputDebugString(L"derp\n");
         if (! IsWindow (hWnd))
           return false;
 
@@ -2007,7 +1983,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     const int           max_wait_objs  = 2;
     HANDLE hWaitStates [max_wait_objs] = {
       hSwapWait.m_h,
-      hInjectAck.m_h,
+      hInjectAck.m_h
     };
 
     DWORD dwWait =
@@ -3283,10 +3259,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 white_edited = true;
 
-                if (*_inject.whitelist == '\0')
-                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "Games");
-                else
-                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "\nGames");
+                _inject._AddUserList("Games", true);
               }
 
               SKIF_ImGui_SetHoverTip (
@@ -3297,10 +3270,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 white_edited = true;
 
-                if (*_inject.whitelist == '\0')
-                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "WindowsApps");
-                else
-                  snprintf (_inject.whitelist, sizeof _inject.whitelist, "%s%s", _inject.whitelist, "\nWindowsApps");
+                _inject._AddUserList("WindowsApps", true);
               }
 
               SKIF_ImGui_SetHoverTip (
@@ -3595,6 +3565,54 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games.");
 
             ImGui::PopStyleColor    ( );
+
+            ImGui::NewLine          ( );
+            ImGui::NewLine          ( );
+
+            ImGui::TextColored (
+              ImColor::HSV (0.11F, 1.F, 1.F),
+                           "About multiplayer games:");
+
+            SKIF_ImGui_Spacing      ( );
+            
+            ImGui::BeginGroup  ();
+            ImGui::Spacing     ();
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "? ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F),
+                                                                  "The service injects Special K into most user processes."
+            );
+            ImGui::EndGroup    ();
+
+            SKIF_ImGui_SetHoverTip (
+              "Any that deal with system input or some sort\nof window or keyboard/mouse input activity."
+            );
+
+            ImGui::BeginGroup  ();
+            ImGui::Spacing     (); ImGui::SameLine ();
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "?!");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), 
+                                                                  "Stop the service before playing a multiplayer game."
+            );
+            ImGui::EndGroup    ();
+
+            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+            SKIF_ImGui_SetHoverTip        ("In particular games where anti-cheat\nprotection might be present.");
+
+            if (ImGui::IsItemClicked ())
+              SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+
+            ImGui::BeginGroup  ();
+            ImGui::Spacing     (); ImGui::SameLine ();
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), 
+                                                                  "When paired with Special K v21.07.22 or newer,\nSKIF will auto-stop the service after injection."
+            );
+            ImGui::EndGroup    ();
 
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
