@@ -1542,8 +1542,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (path.find(L"\\") == std::wstring::npos)
       path = orgWorkingDirectory.wstring() + L"\\" + path;
 
-    std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                  // name of parent folder
-    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();
+    std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
+    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
 
     // Check if the path has been whitelisted
     if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true))

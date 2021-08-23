@@ -21,9 +21,9 @@
     <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>Kani.exe</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
-    <LocalDebuggerWorkingDirectory>H:\Games\SteamLibrary\steamapps\common\Kill It With Fire\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
