@@ -79,6 +79,7 @@ extern        SK_ICommandProcessor*
 #include <typeindex>
 
 #include <filesystem>
+#include <regex>
 
 #pragma comment (lib, "wininet.lib")
 
@@ -820,8 +821,6 @@ SKIF_GetPatrons (void)
 
 #include <gsl/gsl>
 #include <comdef.h>
-#include <filesystem>
-#include <regex>
 
 struct skif_version_info_t {
   wchar_t wszHostName  [INTERNET_MAX_HOST_NAME_LENGTH] = { };
@@ -4069,7 +4068,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     _UpdateOcclusionStatus ();
 
     if ((! bKeepProcessAlive) && hWnd != 0)
-      PostMessage(hWnd, WM_QUIT, 0x0, 0x0);
+      PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
     else if (bOccluded || IsIconic (hWnd))
     {
@@ -4282,16 +4281,20 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_SKIF_REPOSITION:
-      RepositionSKIF = true;            break;
+      RepositionSKIF = true;
+      break;
 
     case WM_SKIF_MINIMIZE:
-      ShowWindow (hWnd, SW_MINIMIZE);   break;
+      ShowWindowAsync (hWnd, SW_MINIMIZE);
+      break;
 
     case WM_SKIF_START:
-      _inject._StartStopInject (false); break;
+      _inject._StartStopInject (false);
+      break;
 
     case WM_SKIF_STOP:
-      _inject._StartStopInject  (true); break;
+      _inject._StartStopInject  (true);
+      break;
 
     case WM_SKIF_CUSTOMLAUNCH:
       if (! _inject.bCurrentState)
