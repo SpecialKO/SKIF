@@ -1157,9 +1157,11 @@ SKIF_Debug_DrawUI (void)
       SKIF_ImGui_Spacing ( );
     }
 
+    extern bool SKIF_ImGui_IsFocused (void);
+
     static DWORD
          dwLastRefresh = 0;
-    if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing )
+    if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
     {    dwLastRefresh       = SKIF_timeGetTime ();
       standby_list.clear ();
       _Standby32.clear   ();
