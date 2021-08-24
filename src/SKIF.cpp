@@ -4310,9 +4310,21 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
         case IDT_REFRESH_DEBUG:
+        //OutputDebugString(L"Tick\n");
+
+          // If we have a refresh pending, check for a new state
           if (wParam == IDT_REFRESH_PENDING)
             _inject.TestServletRunlevel(true);
 
+          // SKIF is focused -- eat my NULL and don't redraw at all!
+          if (SKIF_ImGui_IsFocused ( ))
+          {
+          //OutputDebugString(L"Tock\n");
+            PostMessage(hWnd, WM_NULL, 0x0, 0x0);
+            return 1;
+          }
+
+        //OutputDebugString(L"Tale\n");
           return 0;
       }
       break;
