@@ -2261,6 +2261,10 @@ SKIF_GameManagement_DrawTab (void)
         ImGui::TextColored (
          ImColor   (101, 192, 244, 255).Value,
            ICON_FA_DATABASE );
+
+        ImGui::TextColored (
+         ImColor   (255, 255, 255, 255).Value,
+           ICON_FA_STEAM_SYMBOL );
       }
       ImGui::EndGroup    ( );
       ImGui::SameLine    ( );
@@ -2307,6 +2311,22 @@ SKIF_GameManagement_DrawTab (void)
           SKIF_ImGui_SetHoverText       (
             SK_FormatString (
               "https://steamdb.info/app/%lu", pApp->id
+                            )
+                                          );
+        }
+
+        if (ImGui::Selectable  ("Browse Steam Community"))
+        {
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"https://steamcommunity.com/app/%lu", pApp->id
+                                        );
+        }
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "https://steamcommunity.com/app/%lu", pApp->id
                             )
                                           );
         }

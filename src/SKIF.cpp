@@ -3507,13 +3507,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextWrapped      ("Copy and paste the below into the \"Launch Options\" field.");
               ImGui::EndGroup         ( );
 
-              char* cQuick = "SKIF %COMMAND%";
-
               ImGui::TreePush         ("");
               ImGui::Spacing          ( );
               ImGui::SameLine         ( );
               ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (1.0f, 1.0f, 1.0f, 1.0f));
-              ImGui::InputTextEx("###QuickLaunch", NULL, cQuick, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+              ImGui::InputTextEx("###QuickLaunch", NULL, "SKIF %COMMAND%", MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
               ImGui::PopStyleColor    ( );
               ImGui::TreePop          ( );
 
@@ -3543,6 +3541,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextWrapped("Your computer is not set up to quickly launch injection through Steam. Please move SKIF to Documents\\My Mods\\SpecialK to use this feature.");
             }
 
+            ImGui::NewLine          ( );
+            ImGui::NewLine          ( );
+
+            ImGui::TextColored      (
+              ImColor::HSV (0.11F, 1.F, 1.F),
+                                     ICON_FA_WRENCH "  Compatibility Options:");
+
+            SKIF_ImGui_Spacing      ( );
+
+            ImGui::TextWrapped      ("Hold down CTRL + Shift when starting a game to access compatibility options.");
+
+
             float pushColumnSeparator =
               (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
                                                     (ImGui::GetTextLineHeightWithSpacing () );
@@ -3550,6 +3560,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::ItemSize (
               ImVec2 (0.0f, pushColumnSeparator)
             );
+
 
             ImGui::NextColumn       ( ); // Next Column
             ImGui::TextColored      (
@@ -3763,8 +3774,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
-            SKIF_ImGui_SetHoverTip  ( "Click this item to open the Special K wiki which"
-                                      "\ncan contain even more relevant information." );
+            SKIF_ImGui_SetHoverTip  ( "The link that will be opened is also shown at"
+                                      "\nthe bottom of the window as in a web browser.");
             if (ImGui::IsItemClicked ())
               SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
