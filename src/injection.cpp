@@ -727,7 +727,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
         _inject.SKVer32 >= "21.08.12")
     {
       if (ImGui::Checkbox ("Stop on successful injection", &SKIF_bStopOnInjection))
-        SKIF_putStopOnInjection(SKIF_bStopOnInjection);
+        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
     }
 
     else {
@@ -1142,7 +1142,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
     extern HWND SKIF_hWnd;
 
     //HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF));
-    HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIFO));
+    HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIFON));
 
     /*
     SHSTOCKICONINFO
@@ -1305,6 +1305,88 @@ void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
       snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, pattern.c_str());
     else
       snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("|" + pattern).c_str());
+  }
+}
+
+// Header Files for Jump List features
+#include <objectarray.h>
+#include <shobjidl.h>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <knownfolders.h>
+#include <shlobj.h>
+
+void
+SKIF_InjectionContext::_InitializeJumpList (void)
+{
+  HRESULT                            hres;
+
+  CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
+  CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
+  CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
+  CComPtr <IObjectArray>             pRemovedItems;                             // Not actually used since we don't carry custom destinations
+  PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
+  UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
+
+  TCHAR                                    szExePath[MAX_PATH];
+  GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
+
+  hres = pDestList.CoCreateInstance(CLSID_DestinationList);                     // Create a jump list COM object.
+
+  if     (SUCCEEDED(hres))
+  {
+    pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS(&pRemovedItems));
+
+    hres = pObjColl.CoCreateInstance(CLSID_EnumerableObjectCollection);
+
+    if   (SUCCEEDED(hres))
+    {
+      // Task #1: Start Injection
+      hres = pLink.CoCreateInstance (CLSID_ShellLink);
+      if (SUCCEEDED(hres))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"START");                                 // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the global injection service");   // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Injection", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #2: Stop Injection
+      hres = pLink.CoCreateInstance (CLSID_ShellLink);
+      if (SUCCEEDED(hres))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"STOP");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Stops the global injection service");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Stop Injection", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      CComQIPtr <IObjectArray>       pTasksArray = pObjColl;                    // Get an IObjectArray interface for AddUserTasks.
+      pDestList   ->AddUserTasks    (pTasksArray);                              // Add the tasks to the jump list.
+      pDestList   ->CommitList      ( );                                        // Save the jump list.
+      pTasksArray  .Release         ( );
+
+      pObjColl     .Release         ( );
+    }
+    pDestList      .Release         ( );
   }
 }
 

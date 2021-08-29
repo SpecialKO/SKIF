@@ -5,7 +5,8 @@
 #define IDC_MYICON                      2
 #define IDD_SKIF_DIALOG                 102
 #define IDI_SKIF                        107
-#define IDI_SKIFO                       108
+#define IDI_SKIFON                      108
+#define IDI_SKIFOFF                     109
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
 

@@ -489,7 +489,10 @@
     <Image Include="SKIF.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="SKIF_overlay.ico">
+    <Image Include="SKIF_on.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SKIF_off.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

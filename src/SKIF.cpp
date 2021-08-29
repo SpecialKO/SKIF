@@ -1392,7 +1392,7 @@ struct SKIF_Signals {
   BOOL Restore       =  TRUE;
   BOOL CustomLaunch  = FALSE;
 
-  BOOL _Disowned = FALSE;
+  BOOL _Disowned     = FALSE;
 } _Signal;
 
 constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x4097;
@@ -1413,19 +1413,19 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 
   _Signal.Stop =
-    StrStrIW (lpCmdLine, L"Stop")     != nullptr;
+    StrStrIW (lpCmdLine, L"Stop")     != NULL;
 
   _Signal.Start =
-    StrStrIW (lpCmdLine, L"Start")    != nullptr;
+    StrStrIW (lpCmdLine, L"Start")    != NULL;
 
   _Signal.Quit =
-    StrStrIW (lpCmdLine, L"Quit")     != nullptr;
+    StrStrIW (lpCmdLine, L"Quit")     != NULL;
 
   _Signal.Minimize =
-    StrStrIW (lpCmdLine, L"Minimize") != nullptr;
+    StrStrIW (lpCmdLine, L"Minimize") != NULL;
 
   _Signal.CustomLaunch =
-    StrStrIW (lpCmdLine, L".exe")       != nullptr;
+    StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   if (  hwndAlreadyExists != 0 && (
               (! SKIF_bAllowMultipleInstances)  ||
@@ -1464,11 +1464,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
             {
               fclose (probe.pid);
 
-              SendMessageTimeout (
-                hwndAlreadyExists, WM_SKIF_STOP,
-                              0x0, 0x0, 0x0,
-                                     2, &probe.x
-                                 );
+                SendMessageTimeout (
+                  hwndAlreadyExists, WM_SKIF_STOP,
+                                0x0, 0x0, 0x0,
+                                       2, &probe.x
+                                   );
             }
           } while (probe.pid != nullptr);
         }
@@ -1646,6 +1646,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   UNREFERENCED_PARAMETER (hInstance);
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
+
+  if (! SKIF_IsWindows8Point1OrGreater ( ))
+  {
+    MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
+    return 0;
+  }
 
   ImGui_ImplWin32_EnableDpiAwareness ();
 
@@ -4050,6 +4056,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::End ();
       }
 
+      SK_RunOnce (_inject._InitializeJumpList ( ));
+
       // Rendering
       ImGui::Render ();
 
@@ -4300,11 +4308,12 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_START:
-      _inject._StartStopInject (false);
+      if (! _inject.bPendingState && ! _inject.bCurrentState)
+        _inject._StartStopInject (false, SKIF_bStopOnInjection);
       break;
 
     case WM_SKIF_STOP:
-      _inject._StartStopInject  (true);
+      _inject._StartStopInject   (true);
       break;
 
     case WM_SKIF_CUSTOMLAUNCH:

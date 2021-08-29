@@ -88,6 +88,7 @@ struct SKIF_InjectionContext {
   void    _StartAtLogonCtrl       (void);
   void    _StartAtLogonCtrlLegacy (void);
   HRESULT _SetTaskbarOverlay      (bool show);
+  void    _InitializeJumpList     (void);
 
   bool    _StoreList              (bool whitelist_);
   void    _LoadList               (bool whitelist_);
