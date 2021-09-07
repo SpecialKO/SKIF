@@ -38,6 +38,8 @@
 
 #define SKIF_scRGB
 extern BOOL SKIF_bAllowTearing;
+extern BOOL SKIF_bCanFlip;
+extern BOOL SKIF_bCanFlipDiscard;
 
 #include <atlbase.h>
 #include <dxgi1_6.h>
@@ -1030,10 +1032,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT (hWnd != nullptr);
 
   static bool bCanHDR         =
-    SKIF_IsWindows10OrGreater      () != FALSE,
-              bCanFlip        =
-    SKIF_IsWindows8Point1OrGreater () != FALSE,
-              bCanFlipDiscard =
     SKIF_IsWindows10OrGreater      () != FALSE;
 
   // Create swap chain
@@ -1054,20 +1052,20 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.SampleDesc.Quality = 0;
 
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swap_desc.BufferCount  =
-    bCanFlip ?
-           3 : 2;
+  swap_desc.BufferCount  = 
+           SKIF_bCanFlip ? 3
+                         : 2;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
-  swap_desc.SwapEffect   =
-    bCanFlipDiscard ?            DXGI_SWAP_EFFECT_FLIP_DISCARD
-                    : bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
-                               : DXGI_SWAP_EFFECT_DISCARD;
-  swap_desc.Flags =
-    bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT :
-               0x0;
+  swap_desc.SwapEffect   = 
+    SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
+                         : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
+                                         : DXGI_SWAP_EFFECT_DISCARD;
+  swap_desc.Flags = 
+    SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                  : 0x0;
 
-  swap_desc.Flags |=
+  swap_desc.Flags |= 
     SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
                        : 0x0;
 
@@ -1171,7 +1169,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (data->SwapChain);
-  if (pSwap3 != nullptr)
+  if (pSwap3 != nullptr && SKIF_bCanFlip)
   {
     pSwap3->SetMaximumFrameLatency (1);
 

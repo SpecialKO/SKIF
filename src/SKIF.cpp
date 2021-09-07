@@ -50,7 +50,9 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bOpenAtCursorPosition    = false,
      SKIF_bStopOnInjection         = false,
      SKIF_bAlwaysShowGhost         = false;
-BOOL SKIF_bAllowTearing            = FALSE;
+BOOL SKIF_bAllowTearing            = FALSE,
+     SKIF_bCanFlip                 = FALSE,
+     SKIF_bCanFlipDiscard          = FALSE;
 HMODULE hModSK64                   = NULL;
 
 #include <sk_utility/command.h>
@@ -1405,6 +1407,7 @@ const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
 
 #include <sstream>
+#include <cwctype>
 
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
@@ -1534,8 +1537,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (cmdLine.find(L"\"") == 0)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
-    std::wstring path           = cmdLine.substr(0, cmdLine.find(delimiter) + delimiter.length());                   // path
-    std::wstring proxiedCmdLine = cmdLine.substr(   cmdLine.find(delimiter) + delimiter.length(), cmdLine.length()); // proxied command line
+    // Transform to lowercase
+    std::wstring cmdLineLower = cmdLine;
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+
+    // Extract the target path and any proxied command line arguments
+    std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
+    std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
@@ -1544,8 +1552,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
 
-    // Check if the path has been whitelisted
-    if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true))
+    // Check if the path has been whitelisted, and parentFolder is at least a character in length
+    if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true) && parentFolder.length() > 0)
     {
       _inject._AddUserList(parentFolder, true);
       _inject._StoreList(true);
@@ -1915,7 +1923,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (g_pSwapChain);
-  if (pSwap3 != nullptr)
+  if (pSwap3 != nullptr && SKIF_bCanFlip)
   {
     pSwap3->SetMaximumFrameLatency (1);
 
@@ -1992,8 +2000,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     };
 
     DWORD dwWait =
-      MsgWaitForMultipleObjects ( 1, hWaitStates, TRUE,
-                                    INFINITE, QS_ALLINPUT );
+      MsgWaitForMultipleObjects ( 
+                           (hSwapWait.m_h != 0) ?
+                                         1 : 0,
+                                hWaitStates, TRUE,
+                                   INFINITE, QS_ALLINPUT );
 
     if (dwWait == WAIT_OBJECT_0)
     {
@@ -2046,7 +2057,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplWin32_NewFrame ();
       ImGui::NewFrame          ();
       {
-
         // Fixes the wobble that occurs when switching between tabs,
         //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
@@ -2306,7 +2316,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetCursorPos (topCursorPos);
 
         // End of top right window buttons
-
 
         ImGui::BeginGroup ();
 
@@ -2992,89 +3001,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Whitelist/Blacklist
             if (ImGui::CollapsingHeader ("Whitelist/Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
             {
-              //static std::wstring root_dir =
-                //std::wstring (path_cache.specialk_userdata.path) + LR"(\Global\)";
-
-              //static char whitelist [MAX_PATH * 16 * 2] = { };
-              //static char blacklist [MAX_PATH * 16 * 2] = { };
               static bool white_edited = false,
                           black_edited = false,
                           white_stored = true,
                           black_stored = true;
-
-              auto _StoreList = [](char* szOut, std::wstring fname)->bool
-              {
-                bool ret = false;
-
-                // std::ofstream list_file // UTF-8
-                std::wofstream list_file ( // ANSI
-                  fname
-                );
-
-                if (list_file.is_open ())
-                {
-                  /* ANSI */
-                  std::wstring out_text =
-                    SK_UTF8ToWideChar (szOut);
-
-                  // Strip all null terminator \0 characters from the string
-                  out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
-
-                  list_file.write ( out_text.c_str  (),
-                                    out_text.length () );
-
-                  if (list_file.good())
-                    ret = true;
-
-                  /* UTF-8
-                  list_file.write ( szOut,
-                            strlen( szOut) );
-                  */
-                  list_file.close ();
-                }
-
-                return ret;
-              };
-
-              auto _LoadList = [](char* szIn, std::wstring fname)->void
-              {
-                // std::ifstream list_file // UTF-8
-                std::wifstream list_file( // ANSI
-                  fname
-                );
-
-                // std::string full_text; // UTF-8
-                std::wstring full_text; // ANSI
-
-                if (list_file.is_open ())
-                {
-                  // std::string line; // UTF-8
-                  std::wstring line; // ANSI
-
-                  while (list_file.good ())
-                  {
-                    std::getline (
-                      list_file, line
-                    );
-
-                    full_text += line;
-                    full_text += L'\n';
-                  }
-                  full_text.resize (full_text.length () - 1);
-
-                  list_file.close ();
-
-                  /* ANSI */
-                  strcpy ( szIn,
-                             SK_WideCharToUTF8 (full_text).c_str ()
-
-                  /* UTF-8
-                  strcpy ( szIn,
-                             full_text.c_str ()
-                  */
-                  );
-                }
-              };
 
               auto _CheckWarnings = [](char* szList)->void
               {
@@ -3135,9 +3065,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   );
                 }
               };
-
-              //SK_RunOnce (_inject._LoadList(true));
-              //SK_RunOnce (_inject._LoadList(false));
 
               ImGui::BeginGroup ();
               ImGui::Spacing    ();
@@ -3320,6 +3247,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // Hotkey: Ctrl+S
               if (ImGui::Button (ICON_FA_SAVE " Save Changes") || ((! bDisabled) && io.KeyCtrl && io.KeysDown ['S']))
               {
+                // Clear the active ID to prevent ImGui from holding outdated copies of the variable
+                //   if saving succeeds, to allow _StoreList to update the variable successfully
+                ImGui::ClearActiveID();
+
                 if (white_edited)
                 {
                   white_stored = _inject._StoreList(true);
@@ -3621,15 +3552,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::IsItemClicked ())
               SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
 
-            ImGui::BeginGroup  ();
-            ImGui::Spacing     (); ImGui::SameLine ();
-            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-            ImGui::SameLine    ();
-            ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), 
-                                                                  "When paired with Special K v21.07.22 or newer,\nSKIF will auto-stop the service after injection."
-            );
-            ImGui::EndGroup    ();
-
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
 
@@ -3784,6 +3706,39 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                       "\nthe bottom of the window as in a web browser.");
             if (ImGui::IsItemClicked ())
               SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
+
+            ImGui::NewLine          ( );
+            ImGui::NewLine          ( );
+
+            ImGui::TextColored (
+              ImColor::HSV (0.11F, 1.F, 1.F),
+                "Status:"
+            );
+
+            SKIF_ImGui_Spacing      ( );
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+
+            static bool isAdmin = IsUserAnAdmin();
+            if (isAdmin)
+            {
+              ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+              ImGui::SameLine        ( );
+              ImGui::TextColored     (ImColor (255, 204, 0), "SKIF is running as an administrator!");
+              SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                                       "Please restart SKIF and the global injector service as a regular user.");
+            }
+            else {
+              ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+              ImGui::SameLine        ( );
+              ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running as a regular user.");
+              SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
+                                       "into system processes nor games running as an administrator.");
+            }
+
+            ImGui::EndGroup         ( );
 
             ImGui::Columns          (1);
 
@@ -4206,21 +4161,34 @@ bool CreateDeviceD3D (HWND hWnd)
                                 sizeof ( SKIF_bAllowTearing )
                                               );
 
+  SKIF_bCanFlip               =
+    SKIF_IsWindows8Point1OrGreater () != FALSE,
+  SKIF_bCanFlipDiscard        =
+    SKIF_IsWindows10OrGreater      () != FALSE;
+
+  /* Force BitBlt Discard */
+  SKIF_bAllowTearing          = 
+  SKIF_bCanFlip               =
+  SKIF_bCanFlipDiscard        = FALSE;
+
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
   sd.BufferCount                        =  3 ;
+  sd.BufferCount                        =  
+                          SKIF_bCanFlip ?  3
+                                        :  2 ;
   sd.BufferDesc.Width                   =  4 ;
   sd.BufferDesc.Height                  =  4 ;
   sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 1;
-  sd.Flags                              =
-    SKIF_IsWindows8Point1OrGreater () ?   DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                      :   0x0;
-  sd.Flags |=
-    SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                       : 0x0;
+  sd.Flags                              = 
+                          SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                        : 0x0;
+  sd.Flags |= 
+                     SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                                        : 0x0;
 
   sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT |
                                           DXGI_USAGE_BACK_BUFFER;
@@ -4228,13 +4196,14 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.SampleDesc.Count                   = 1;
   sd.SampleDesc.Quality                 = 0;
   sd.Windowed                           = TRUE;
-
-  sd.SwapEffect                         =
-    SKIF_IsWindows10OrGreater ()      ? DXGI_SWAP_EFFECT_FLIP_DISCARD
-                                      : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+  
+  sd.SwapEffect                         = 
+   SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
+                        : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
+                                        : DXGI_SWAP_EFFECT_DISCARD;
 
   UINT createDeviceFlags = 0;
-  //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+  createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
@@ -4309,7 +4278,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_START:
       if (! _inject.bPendingState && ! _inject.bCurrentState)
-        _inject._StartStopInject (false, SKIF_bStopOnInjection);
+        _inject._StartStopInject (false);
       break;
 
     case WM_SKIF_STOP:
@@ -4321,7 +4290,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         _inject._StartStopInject (false, true);
 
       // Reload the whitelist as it might have been changed
-      _inject._LoadList(true);
+      _inject._LoadList          (true);
       break;
 
     case WM_TIMER:
@@ -4330,7 +4299,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
         case IDT_REFRESH_DEBUG:
-        //OutputDebugString(L"Tick\n");
+      //OutputDebugString(L"Tick\n");
 
           // If we have a refresh pending, check for a new state
           if (wParam == IDT_REFRESH_PENDING)
@@ -4356,10 +4325,10 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         g_pSwapChain->ResizeBuffers (
           0, (UINT)LOWORD (lParam),
              (UINT)HIWORD (lParam),
-            DXGI_FORMAT_UNKNOWN, SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                                                    : 0x0 |
-                  SKIF_IsWindows8Point1OrGreater () ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                                    : 0x0
+            DXGI_FORMAT_UNKNOWN, (SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                                                     : 0x0) |
+                                              SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                                            : 0x0
         );
         CreateRenderTarget ();
       }

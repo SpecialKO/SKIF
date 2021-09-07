@@ -163,6 +163,7 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

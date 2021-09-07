@@ -1202,16 +1202,33 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
     out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
 
     // Strip all double (or more) newline characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(L"\n\n+"), L"\n");
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n\n+)"),   L"\n");
+
+    // Strip double pipe characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\|)"),    L"|");
+
+    // Strip pipe characters at the end of a line from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\n)"),    L"\n");
+
+    // Strip trailing pipe characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|+$)"),    L"");
 
     // Strip trailing newline characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(L"\n+$"), L"");
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n+$)"),    L"");
 
     list_file.write(out_text.c_str(),
       out_text.length());
 
     if (list_file.good())
+    {
+      // Update the internal variable with the manipulated string
+      if (whitelist_)
+        snprintf(whitelist, sizeof whitelist, "%s", SK_WideCharToUTF8(out_text).c_str());
+      else
+        snprintf(blacklist, sizeof blacklist, "%s", SK_WideCharToUTF8(out_text).c_str());
+
       ret = true;
+    }
 
     list_file.close();
   }
