@@ -1062,12 +1062,12 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                          : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
                                          : DXGI_SWAP_EFFECT_DISCARD;
   swap_desc.Flags = 
-    SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                  : 0x0;
+    SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                         : 0x0;
 
   swap_desc.Flags |= 
-    SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                       : 0x0;
+      SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                         : 0x0;
 
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
@@ -1169,7 +1169,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (data->SwapChain);
-  if (pSwap3 != nullptr && SKIF_bCanFlip)
+  if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
   {
     pSwap3->SetMaximumFrameLatency (1);
 
@@ -1294,7 +1294,8 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   UINT Interval =
     SKIF_bAllowTearing ? 0
-                       : 1;
+                       : SKIF_bCanFlipDiscard ? 1
+                                              : 0;
 
   if (data->WaitHandle)
   {

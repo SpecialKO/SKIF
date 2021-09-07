@@ -1923,7 +1923,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   CComQIPtr <IDXGISwapChain3>
       pSwap3 (g_pSwapChain);
-  if (pSwap3 != nullptr && SKIF_bCanFlip)
+  if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
   {
     pSwap3->SetMaximumFrameLatency (1);
 
@@ -2001,8 +2001,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     DWORD dwWait =
       MsgWaitForMultipleObjects ( 
-                           (hSwapWait.m_h != 0) ?
-                                         1 : 0,
+                      (hSwapWait.m_h != 0) ? 1 
+                                           : 0,
                                 hWaitStates, TRUE,
                                    INFINITE, QS_ALLINPUT );
 
@@ -4167,9 +4167,9 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_IsWindows10OrGreater      () != FALSE;
 
   /* Force BitBlt Discard */
-  SKIF_bAllowTearing          = 
-  SKIF_bCanFlip               =
-  SKIF_bCanFlipDiscard        = FALSE;
+//SKIF_bAllowTearing          = 
+//SKIF_bCanFlip               =
+//SKIF_bCanFlipDiscard        = FALSE;
 
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
@@ -4184,7 +4184,7 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 1;
   sd.Flags                              = 
-                          SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                   SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                                         : 0x0;
   sd.Flags |= 
                      SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
@@ -4203,7 +4203,7 @@ bool CreateDeviceD3D (HWND hWnd)
                                         : DXGI_SWAP_EFFECT_DISCARD;
 
   UINT createDeviceFlags = 0;
-  createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+//createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
@@ -4327,7 +4327,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
              (UINT)HIWORD (lParam),
             DXGI_FORMAT_UNKNOWN, (SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
                                                      : 0x0) |
-                                              SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                       SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                                                             : 0x0
         );
         CreateRenderTarget ();
