@@ -1191,7 +1191,16 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   );
 
   // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
-  list_file.imbue(std::locale("en_US.UTF-8"));
+  if (SKIF_IsWindows10OrGreater ( ))
+  {
+    list_file.imbue (std::locale("en_US.UTF-8"));
+  }
+  else
+  {
+    // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+    #pragma warning(suppress : 4996)
+    list_file.imbue (std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff>));
+  }
 
   if (list_file.is_open())
   {

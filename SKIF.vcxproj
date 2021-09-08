@@ -369,7 +369,7 @@
     <ClInclude Include="steam\steam_api_flat.h" />
     <ClInclude Include="steam\steam_api_internal.h" />
     <ClInclude Include="steam\steam_gameserver.h" />
-    <ClInclude Include="targetver.h" />
+    <ClInclude Include="include\targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sk_console.cpp" />

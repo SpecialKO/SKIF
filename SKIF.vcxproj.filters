@@ -75,7 +75,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="targetver.h">
+    <ClInclude Include="include\targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
