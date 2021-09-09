@@ -2788,17 +2788,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
                                                                    25 * SKIF_ImGui_GlobalDPIScale)))
               {
-                if (
-                  // Add NT AUTHORITY\INTERACTIVE to the BUILT-IN\Performance Log Users group
-                  ShellExecuteW (
-                    nullptr, L"runas",
-                      L"powershell",
-                        L"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'\"", nullptr,
-                          SW_SHOW ) > (HINSTANCE)32) // COM exception is thrown?
-                {
-                  // PowerShell call succeeded!
-                  pfuState    = Pending;
-                }
+                std::wstring exeArgs;
+
+                // Use the SIDs since the user and group have different names on non-English systems
+                // S-1-5-4      = NT AUTHORITY\INTERACTIVE           == Any interactive user sessions
+                // S-1-5-32-559 =     BUILT-IN\Performance Log Users == Members of this group may schedule logging of performance counters, enable trace providers, and collect event traces both locally and via remote access to this computer 
+
+                if (SKIF_IsWindows10OrGreater ( )) // On Windows 10, use the native PowerShell cmdlet Add-LocalGroupMember since it supports SIDs
+                  exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")";
+                else                               // Windows 8.1 lacks Add-LocalGroupMember, so fall back on using WMI (to retrieve the localized names of the group and user) and NET to add the user to the group
+                  exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "$Group = (Get-WmiObject -Class Win32_Group -Filter 'LocalAccount = True AND SID = \"S-1-5-32-559\"').Name; $User = (Get-WmiObject -Class Win32_SystemAccount -Filter 'LocalAccount = True AND SID = \"S-1-5-4\"').Name; net localgroup \"$Group\" \"$User\" /add")";
+
+                if (ShellExecuteW (nullptr, L"runas", L"powershell", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32) // COM exception is thrown?
+                  pfuState = Pending;
               }
 
               // Disable button for granted + pending states
@@ -2826,7 +2828,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup  ();
               ImGui::Spacing     ();
 
-              ImGui::Text        ("Advanced CPU Hardware Reporting");
+              ImGui::Text        ("Extended CPU Hardware Reporting");
 
               ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
               ImGui::TextWrapped    (

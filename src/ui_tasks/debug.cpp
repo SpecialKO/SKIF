@@ -255,6 +255,7 @@ enum _SK_NTDLL_HANDLE_TYPE
   Thread                = 0x8,
   UserApcReserve        = 0xA,
   IoCompletionReserve   = 0xB,
+  EventWin81            = 0xC,  // TODO: Fix whatever is going on here -- on Windows 8.1  it's 0xC  (12) ?
   EventAlternate        = 0x10, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
   Event                 = 0x12, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
   Mutant                = 0x13,
@@ -275,6 +276,8 @@ enum _SK_NTDLL_HANDLE_TYPE
   DxgkSharedSyncObject  = 0x40,
   DxgkCompositionObject = 0x45,
 };
+
+static USHORT FoundEvent = 0x0;
 
 enum _SK_NTDLL_HANDLE_OBJ_ATTRIB
 {
@@ -1210,12 +1213,29 @@ SKIF_Debug_DrawUI (void)
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
 
-          // This does not work -- evaluates as true on seemingly all handles, including event handles
-          if (handleTableInformationEx->Handles[i].ObjectTypeIndex != Event && handleTableInformationEx->Handles[i].ObjectTypeIndex != EventAlternate)
+          /*
+          if (handleTableInformationEx->Handles[i].ObjectTypeIndex != Event &&
+              handleTableInformationEx->Handles[i].ObjectTypeIndex != EventAlternate &&
+              handleTableInformationEx->Handles[i].ObjectTypeIndex != EventWin81)
+          */
+          // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
+          if (FoundEvent == 0x0)
+          {
+            if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 12 ||
+                handleTableInformationEx->Handles[i].ObjectTypeIndex > 18)
+            {
+              continue;
+            }
+          }
+
+          // When we know what event type to look for, skip all other
+          else if (FoundEvent != handleTableInformationEx->Handles[i].ObjectTypeIndex)
+          {
             continue;
+          }
 
           handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
-                .emplace_back (handleTableInformationEx->Handles [i]);
+               .emplace_back (handleTableInformationEx->Handles [i]);
         }
 
         for ( auto& handles : handles_by_process )
@@ -1275,6 +1295,13 @@ SKIF_Debug_DrawUI (void)
                       _pni->Name.Length > 0 ?
                       _pni->Name.Buffer     : L""
                                             : L"";
+            }
+
+            if (FoundEvent == 0x0 && (std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown64") ||
+                                      std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown32") ))
+            {
+              FoundEvent = handle.ObjectTypeIndex;
+              console.AddLog("Found Event Type: 0x%x (%u)", FoundEvent, FoundEvent);
             }
 
             CloseHandle (hDupHandle);
