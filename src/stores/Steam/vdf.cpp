@@ -284,6 +284,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
               if (pVac->enabled == -1)
                 pVac->enabled = false;
             }
+            
+            else if (pAppRecord->extended_config.vac.enabled == -1)
+              pAppRecord->extended_config.vac.enabled = false;
 
             auto _ParseOSArch =
             [&](appinfo_s::section_s::_kv_pair& kv) ->

@@ -11,11 +11,16 @@ using app_branch_record_s =
 std::wstring
 app_launch_config_s::getExecutableFullPath (int32_t appid)
 {
-  std::wstring exec_path =
-    SK_UseManifestToGetInstallDir (appid);
+  std::wstring exec_path = L"";
 
-  exec_path.append (L"\\");
-  exec_path.append (executable);
+  if (store == L"GOG")
+    exec_path = executable;
+
+  else {
+    exec_path = SK_UseManifestToGetInstallDir (appid);
+    exec_path.append (L"\\");
+    exec_path.append (executable);
+  }
 
   if (PathFileExistsW (exec_path.c_str ()))
     return exec_path;

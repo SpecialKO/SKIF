@@ -73,6 +73,12 @@
     <Filter Include="Source Files\Utility">
       <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\GOG">
+      <UniqueIdentifier>{a63d70cf-002b-4ddc-ac7f-410bfab95f2b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\GOG">
+      <UniqueIdentifier>{0431ab36-108a-4471-870f-0a20456bb775}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\targetver.h">
@@ -345,6 +351,9 @@
     <ClInclude Include="include\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\stores\GOG\gog_library.h">
+      <Filter>Header Files\Stores\GOG</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -478,6 +487,9 @@
     </ClCompile>
     <ClCompile Include="src\ui_tasks\display_mgmt.cpp">
       <Filter>Source Files\UI Tasks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\GOG\gog_library.cpp">
+      <Filter>Source Files\Stores\GOG</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

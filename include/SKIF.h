@@ -66,6 +66,7 @@ private:
 
 BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);
+BOOL SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 
 bool SKIF_ImGui_IsHoverable        (void);
 void SKIF_ImGui_SetMouseCursorHand (void);

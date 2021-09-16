@@ -1208,7 +1208,7 @@ SKIF_Debug_DrawUI (void)
 
         for ( unsigned int i = 0;
                            i < handleTableInformationEx->NumberOfHandles;
-                         i++)
+                           i++)
         {
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
@@ -1221,8 +1221,42 @@ SKIF_Debug_DrawUI (void)
           // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
           if (FoundEvent == 0x0)
           {
-            if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 12 ||
-                handleTableInformationEx->Handles[i].ObjectTypeIndex > 18)
+
+            /*
+            HANDLE     hDupHandle;
+            ULONG      _ObjectTypeLen = 0x1000;
+            _ByteArray pObjectType;
+                  
+            NTSTATUS ntStatTypeQuery  = 0x0;
+
+            do
+            {
+              pObjectType.resize (
+                    _ObjectTypeLen);
+
+              ntStatTypeQuery =
+                NtQueryObject ( handleTableInformationEx->Handles [i].Handle,
+                        ObjectTypeInformation,
+                      pObjectType.data (),
+                      _ObjectTypeLen,
+                      &_ObjectTypeLen
+                              );
+            } while (ntStatTypeQuery == STATUS_INFO_LENGTH_MISMATCH);
+
+            if (NT_SUCCESS (ntStatTypeQuery))
+            {
+              PUBLIC_OBJECT_TYPE_INFORMATION _poti =
+                *(PUBLIC_OBJECT_TYPE_INFORMATION *)pObjectType.data ();
+
+              if (SK_FormatString("%wZ", _poti.TypeName) != "Event")
+                continue;
+            }
+            else
+              continue;
+              */
+
+            if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 0xA ||  // 0xA  == 10 -- prev. 12
+                handleTableInformationEx->Handles[i].ObjectTypeIndex > 0x14)   // 0x14 == 20 -- prev. 18
             {
               continue;
             }
@@ -1300,8 +1334,8 @@ SKIF_Debug_DrawUI (void)
             if (FoundEvent == 0x0 && (std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown64") ||
                                       std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown32") ))
             {
-              FoundEvent = handle.ObjectTypeIndex;
-              console.AddLog("Found Event Type: 0x%x (%u)", FoundEvent, FoundEvent);
+              //FoundEvent = handle.ObjectTypeIndex;
+              //console.AddLog("Found Event Type: 0x%x (%u)", FoundEvent, FoundEvent);
             }
 
             CloseHandle (hDupHandle);

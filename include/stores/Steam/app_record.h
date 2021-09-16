@@ -82,7 +82,8 @@ struct app_record_s {
   uint32_t     id;
   bool         cloud_enabled = true; // hidecloudui=false
   std::wstring install_dir;
-  std::string  type; // TODO: Proper enum
+  std::string  type;  // TODO: Proper enum
+  std::string  store; // maybe enum?
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
@@ -160,8 +161,10 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
+    std::wstring store;          // Used by GOG -- getExecutableFullPath
     std::wstring executable;
     std::wstring description;
+    std::wstring launch_options; // Used by GOG
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring type;

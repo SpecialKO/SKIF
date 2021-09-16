@@ -937,7 +937,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   // New method
 
-  if (bLogonTaskEnabled)
+  if (bLogonTaskEnabled ||
+      bAutoStartServiceOnly)
   {
     // Disable button
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
@@ -1033,22 +1034,99 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::EndGroup    ();
   
-  if (bLogonTaskEnabled)
+  if (bLogonTaskEnabled ||
+      bAutoStartServiceOnly)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
 
-    SKIF_ImGui_SetHoverTip (   "The legacy autostart method needs to be disabled to migrate over to the new method."
-                             "\nThe difference is that the new method autostarts SKIF, and not just the GI service." );
+    SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
+                             "The difference is that this method autostarts SKIF, and not just the GI service." );
   }
 
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
 
-  if ( bLogonTaskEnabled ||
+  if ( bLogonTaskEnabled     ||
+       bAutoStartServiceOnly ||
        SKIF_bEnableDebugMode )
   {
     _StartAtLogonCtrlLegacy ( );
+    
+    // New approach to the legacy method
+    ImGui::BeginGroup ();
+
+    if ( bLogonTaskEnabled || 
+         bAutoStartSKIF )
+    {
+      // Disable button
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                              ImGui::GetStyle ().Alpha *
+                                ( (SKIF_IsHDR ()) ? 0.1f
+                                                  : 0.5f
+                                )
+      );
+    }
+
+    static std::wstring Svc32Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc32.exe)", path_cache.specialk_userdata.path),
+                        Svc64Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc64.exe)", path_cache.specialk_userdata.path);
+
+    static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
+                        Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
+
+    static bool dontCare = bAutoStartServiceOnly = PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
+  
+    if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
+    {
+      if (! bAutoStartServiceOnly)
+      {
+        if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
+                             L"\n"
+                             L"Special K Injection Frontend (SKIF) will not autostart.\n"
+                             L"\n"
+                             L"Are you sure you want to proceed?",
+                             L"Confirm autostart",
+                             MB_YESNO | MB_ICONWARNING) == IDYES)
+        {
+          CreateLink(Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
+          CreateLink(Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
+
+          bAutoStartServiceOnly = ! bAutoStartServiceOnly;
+        }
+
+        else {
+          dontCare = ! dontCare;
+        }
+      }
+
+      else {
+        DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
+        DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
+
+        bAutoStartServiceOnly = ! bAutoStartServiceOnly;
+      }
+    }
+  
+    SKIF_ImGui_SetHoverTip (
+        "Note that this injection frontend (SKIF) will not start with Windows."
+    );
+  
+    if ( bLogonTaskEnabled || 
+         bAutoStartSKIF )
+    {
+      ImGui::PopStyleVar ();
+      ImGui::PopItemFlag ();
+
+      if (bAutoStartSKIF)
+        SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                 "The difference is that the current method autostarts SKIF, and not just the GI service.");
+      else
+        SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                 "The difference is that this method does not require elevated privileges." );
+    }
+
+    ImGui::EndGroup      ();
   }
 
   ImGui::EndGroup      ( );
@@ -1071,8 +1149,9 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
     PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
   //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
 
-  if (! requiredFiles || 
-        bAutoStartSKIF )
+  if (! requiredFiles  || 
+        bAutoStartSKIF ||
+        bAutoStartServiceOnly)
   {
     // Disable button
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
@@ -1108,8 +1187,9 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
     "\nNote that this injection frontend (SKIF) will not start with Windows."
   );
   
-  if (! requiredFiles ||
-        bAutoStartSKIF )
+  if (! requiredFiles  ||
+        bAutoStartSKIF ||
+        bAutoStartServiceOnly)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
@@ -1120,8 +1200,8 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
       ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),
         "Option is unavailable as one or more of the required files are missing.");
     else
-      SKIF_ImGui_SetHoverTip (   "The regular autostart method needs to be disabled to migrate over to this legacy method."
-                               "\nThe difference is that this legacy method just starts the GI service, and not SKIF." );
+      SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
+                               "The difference is that this legacy method just starts the GI service, and not SKIF." );
   }
 
   ImGui::EndGroup      ();
@@ -1191,8 +1271,10 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   );
 
   // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
-  if (SKIF_IsWindows10OrGreater ( ))
+  if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
   {
+    // Win10 v1903 (build 18362) added UTF-8 code page:
+    //  https://docs.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
     list_file.imbue (std::locale("en_US.UTF-8"));
   }
   else
@@ -1256,7 +1338,18 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
   );
 
   // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
-  list_file.imbue(std::locale("en_US.UTF-8"));
+  if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+  {
+    // Win10 v1903 (build 18362) added UTF-8 code page:
+    //  https://docs.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    list_file.imbue (std::locale("en_US.UTF-8"));
+  }
+  else
+  {
+    // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+    #pragma warning(suppress : 4996)
+    list_file.imbue (std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff>));
+  }
 
   std::wstring full_text;
 
@@ -1386,7 +1479,27 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink      .Release         ( );
       }
 
-      // Task #2: Stop Injection
+      // Task #2: Start Injection (stop on inject)
+      hres = pLink.CoCreateInstance (CLSID_ShellLink);
+      if (SUCCEEDED(hres))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"TEMP START");                            // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the global injection service\n"
+                                     L"and stops on successful injection.");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Injection (with autostop)", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #3: Stop Injection
       hres = pLink.CoCreateInstance (CLSID_ShellLink);
       if (SUCCEEDED(hres))
       {

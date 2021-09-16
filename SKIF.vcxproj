@@ -315,6 +315,7 @@
     <ClInclude Include="include\sk_utility\command.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
+    <ClInclude Include="include\stores\GOG\gog_library.h" />
     <ClInclude Include="include\stores\Steam\achievements.h" />
     <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
@@ -594,6 +595,7 @@
     <ClCompile Include="src\SKIF.cpp" />
     <ClCompile Include="src\sk_config\ini.cpp" />
     <ClCompile Include="src\sk_utility\utility.cpp" />
+    <ClCompile Include="src\stores\GOG\gog_library.cpp" />
     <ClCompile Include="src\stores\Steam\apps_list.cpp" />
     <ClCompile Include="src\stores\Steam\app_record.cpp" />
     <ClCompile Include="src\stores\Steam\asset_fetch.cpp" />

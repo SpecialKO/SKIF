@@ -44,6 +44,8 @@ struct SKIF_InjectionContext {
   bool    bAutoStartService = false;
   bool    bStartMinimized   = false;
 
+  bool    bAutoStartServiceOnly = false;
+
   bool    running           = false; // Obsolete
   bool    run_lvl_changed   = false; // Obsolete
 

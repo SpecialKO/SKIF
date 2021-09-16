@@ -55,6 +55,10 @@ BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
 HMODULE hModSK64                   = NULL;
 
+// GOG Galaxy stuff
+std::wstring GOGGalaxy_Path;
+bool GOGGalaxy_Installed           = false;
+
 #include <sk_utility/command.h>
 
 extern        SK_ICommandProcessor*
@@ -182,6 +186,30 @@ SKIF_IsWindows10OrGreater (void)
       GetLastError  () == NO_ERROR;
 
   return bResult;
+}
+
+BOOL
+SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
+{
+	NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+	OSVERSIONINFOEXW osInfo;
+
+	*reinterpret_cast<FARPROC*>(&RtlGetVersion) = GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion");
+
+	if (nullptr != RtlGetVersion)
+	{
+		osInfo.dwOSVersionInfoSize = sizeof osInfo;
+		RtlGetVersion(&osInfo);
+
+    if (osInfo.dwMajorVersion < dwMajorVersion ||
+        osInfo.dwMinorVersion < dwMinorVersion ||
+        osInfo.dwBuildNumber  < dwBuildNumber  )
+      return false;
+
+    return true;
+	}
+
+  return false;
 }
 
 #include <dwmapi.h>
@@ -1389,6 +1417,7 @@ HWND hWndOrigForeground;
 struct SKIF_Signals {
   BOOL Stop          = FALSE;
   BOOL Start         = FALSE;
+  BOOL Temporary     = FALSE;
   BOOL Quit          = FALSE;
   BOOL Minimize      = FALSE;
   BOOL Restore       =  TRUE;
@@ -1397,6 +1426,7 @@ struct SKIF_Signals {
   BOOL _Disowned     = FALSE;
 } _Signal;
 
+constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x4098;
 constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x4097;
 constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
@@ -1421,6 +1451,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Start =
     StrStrIW (lpCmdLine, L"Start")    != NULL;
 
+  _Signal.Temporary =
+    StrStrIW (lpCmdLine, L"Temp")    != NULL;
+
   _Signal.Quit =
     StrStrIW (lpCmdLine, L"Quit")     != NULL;
 
@@ -1439,12 +1472,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
      )
   {
     if (IsIconic        (hwndAlreadyExists))
-      //SetForegroundWindow (hwndAlreadyExists);
       ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
-    /*
-    PostMessage (        hwndAlreadyExists, WM_SKIF_REPOSITION,
-                                    0x0, 0x0 );
-    */
+
+    PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
+
+    //SetForegroundWindow (hwndAlreadyExists);
 
     struct injection_probe_s {
       FILE          *pid;
@@ -1493,7 +1525,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
           if (probe.pid == nullptr)
           {
             SendMessageTimeout (
-              hwndAlreadyExists, WM_SKIF_START,
+              hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART
+                                                     : WM_SKIF_START,
                             0x0, 0x0, 0x0,
                                    2, &probe.x
                                );
@@ -2108,7 +2141,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           
           // Positiong the window at the mouse cursor
           ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
-          SetForegroundWindow(SKIF_hWnd);
           RepositionSKIF = false;
         }
 
@@ -2649,7 +2681,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 if ( ImGui::Checkbox ( "Open SKIF at the position of the mouse", &SKIF_bOpenAtCursorPosition ) )
                   regKVOpenAtCursorPosition.putData(                              SKIF_bOpenAtCursorPosition );
 
-                if ( ImGui::Checkbox ( "Always show the Ghost",                  &SKIF_bAlwaysShowGhost ) )
+                if ( ImGui::Checkbox ( "Always show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
                   regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
 
                 ImGui::TreePop  ( );
@@ -3930,7 +3962,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_Spacing ();
 
           if (SKIF_bAllowBackgroundService)
-            ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),
+            ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
               "                           Exiting will leave the global injection"
               "\n                            service running in the background."
             );
@@ -4271,6 +4303,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_SKIF_REPOSITION:
+      SetForegroundWindow(SKIF_hWnd);
       RepositionSKIF = true;
       break;
 
@@ -4281,6 +4314,11 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_START:
       if (! _inject.bPendingState && ! _inject.bCurrentState)
         _inject._StartStopInject (false);
+      break;
+
+    case WM_SKIF_TEMPSTART:
+      if (! _inject.bPendingState && ! _inject.bCurrentState)
+        _inject._StartStopInject (false, true);
       break;
 
     case WM_SKIF_STOP:

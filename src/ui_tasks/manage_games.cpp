@@ -25,8 +25,10 @@
 
 const int   SKIF_STEAM_APPID      = 1157970;
       bool  SKIF_STEAM_OWNER      = false;
-static bool clickedGameLaunch     = false,
-            clickedGameLaunchWoSK = false;
+static bool clickedGameLaunch,
+            clickedGameLaunchWoSK,
+            clickedGalaxyLaunch,
+            clickedGalaxyLaunchWoSK = false;
 
 #include <SKIF.h>
 #include <injection.h>
@@ -46,6 +48,7 @@ extern bool          SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size,
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
+#include <stores/GOG/gog_library.h>
 
 static std::wstring sshot_file = L"";
 
@@ -122,6 +125,7 @@ SKIF_Util_OpenURI_Formatted (
 #include <patreon.png.h>
 #include <sk_icon.jpg.h>
 #include <sk_boxart.png.h>
+#include <fsutil.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -577,14 +581,17 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_record.id              = SKIF_STEAM_APPID;
       SKIF_record.names.normal    = "Special K";
       SKIF_record.names.all_upper = "SPECIAL K";
-      SKIF_record.install_dir =
-        std::filesystem::current_path ();
+      SKIF_record.install_dir     = std::filesystem::current_path ();
+      SKIF_record.store           = "Steam";
 
       std::pair <std::string, app_record_s>
         SKIF ( "Special K", SKIF_record );
 
       apps.emplace_back (SKIF);
     }
+
+    // Load GOG titles from registry
+    SKIF_GOG_GetInstalledAppIDs(&apps);
 
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](LPVOID pUser)->void
@@ -816,6 +823,82 @@ SKIF_GameManagement_DrawTab (void)
         }
       };
 
+      auto __LoadGOGLibraryTexture =
+      [&]( uint32_t                            appid,
+           CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+           const std::wstring&                 name
+         )
+      {
+        UNREFERENCED_PARAMETER(appid);
+
+        std::wstring load_str = name;
+
+        if (
+          SUCCEEDED (
+            DirectX::LoadFromWICFile (
+              load_str.c_str (),
+                DirectX::WIC_FLAGS_FILTER_POINT,
+                  &local_meta, local_img
+            )
+          )
+        )
+        {
+          DirectX::ScratchImage* pImg   =
+                                     &local_img;
+          DirectX::ScratchImage   converted_img;
+
+          // We don't want single-channel icons, so convert to RGBA
+          if (local_meta.format == DXGI_FORMAT_R8_UNORM)
+          {
+            if (
+              SUCCEEDED (
+                DirectX::Convert (
+                  pImg->GetImages   (), pImg->GetImageCount (),
+                  pImg->GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DirectX::TEX_FILTER_DEFAULT,
+                    DirectX::TEX_THRESHOLD_DEFAULT,
+                      converted_img
+                )
+              )
+            ) { local_meta =  converted_img.GetMetadata ();
+                pImg       = &converted_img; }
+          }
+
+          if (
+            SUCCEEDED (
+              DirectX::CreateTexture (
+                (ID3D11Device *)g_pd3dDevice,
+                  pImg->GetImages (), pImg->GetImageCount (),
+                    local_meta, (ID3D11Resource **)&pLocalTex2D.p
+              )
+            )
+          )
+          {
+            D3D11_SHADER_RESOURCE_VIEW_DESC
+            srv_desc                           = { };
+            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srv_desc.Texture2D.MipLevels       = UINT_MAX;
+            srv_desc.Texture2D.MostDetailedMip =  0;
+
+            if (   pLocalTex2D.p == nullptr ||
+              FAILED (
+                g_pd3dDevice->CreateShaderResourceView (
+                   pLocalTex2D.p, &srv_desc,
+                  &pLibTexSRV.p
+                )
+              )
+            )
+            {
+              pLibTexSRV.p = nullptr;
+            }
+
+            // SRV is holding a reference, this is not needed anymore.
+            pLocalTex2D.Release ();
+          }
+        }
+      };
+
 
       for ( auto& app : apps )
       {
@@ -824,7 +907,7 @@ SKIF_GameManagement_DrawTab (void)
           app.first = "Special K";
 
         // Regular handling for the remaining Steam games
-        else {
+        else if (app.second.store != "GOG") {
           app.first.clear ();
 
           app.second._status.refresh (&app.second);
@@ -908,8 +991,15 @@ SKIF_GameManagement_DrawTab (void)
                                                  L"_icon.jpg"
         );
 
+        // Load GOG icons from the install folder
+        else  if (app.second.store == "GOG")
+          __LoadGOGLibraryTexture ( app.second.id,
+                                    app.second.textures.icon,
+                                    app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico"
+        );
+
         // Load all other apps from the librarycache of the Steam client
-        else
+        else if (app.second.store != "GOG")
           __LoadLibraryTexture ( app.second.id,
                                  app.second.textures.icon,
                                                   L"_icon.jpg"
@@ -1213,6 +1303,7 @@ SKIF_GameManagement_DrawTab (void)
           struct {
             std::string text;
             ImColor     color;
+            ImColor     color_hover;
           } status;
           std::string   hover_text;
         } injection;
@@ -1296,8 +1387,11 @@ SKIF_GameManagement_DrawTab (void)
                                            : "Service Stopped";
 
               cache.injection.status.color =
-                   _inject.bCurrentState   ? ImColor::HSV (0.3F,  0.99F, 1.F)
-                                           : ImColor::HSV (0.08F, 0.99F, 1.F);
+                   _inject.bCurrentState   ? ImColor ( 53, 255,   3)  // HSV (0.3F,  0.99F, 1.F)
+                                           : ImColor (255, 124,   3); // HSV (0.08F, 0.99F, 1.F);
+              cache.injection.status.color_hover =
+                   _inject.bCurrentState   ? ImColor (154, 255, 129)
+                                           : ImColor (255, 189, 129);
               cache.injection.hover_text   =
                    _inject.bCurrentState   ? "Click to stop injection service"
                                            : "Click to start injection service";
@@ -1439,12 +1533,18 @@ SKIF_GameManagement_DrawTab (void)
 
       // Column 3
       ImGui::BeginGroup       ( );
+
+      static bool quickServiceHover = false;
+
       ImGui::TextColored      (
-        cache.injection.status.color,
+        (quickServiceHover) ? cache.injection.status.color_hover
+                            : cache.injection.status.color,
         cache.injection.status.text.empty () ?
                                     "      " : "( %s )",
         cache.injection.status.text.c_str ()
                                 );
+
+      quickServiceHover = ImGui::IsItemHovered ();
 
       if (cache.injection.type._Equal ("Global"))
       {
@@ -1545,9 +1645,35 @@ SKIF_GameManagement_DrawTab (void)
         }
 
         // Launch game
-        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-          L"steam://run/%lu", pTargetApp->id
-        );                    pTargetApp->_status.invalidate ();
+        if (pTargetApp->store == "GOG")
+        {
+          // name of parent folder
+          std::string  parentFolder     = std::filesystem::path(pTargetApp->launch_configs[0].executable).parent_path().filename().string();
+
+          // Check if the path has been whitelisted, and parentFolder is at least a character in length
+          if (! _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable).c_str(), true) && parentFolder.length() > 0)
+          {
+            _inject._AddUserList(parentFolder, true);
+            _inject._StoreList(true);
+          }
+
+          SHELLEXECUTEINFOW
+          sexi              = { };
+          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+          sexi.lpVerb       = L"OPEN";
+          sexi.lpFile       = pTargetApp->launch_configs[0].executable.c_str();
+          sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
+          sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir.c_str();
+          sexi.nShow        = SW_SHOWDEFAULT;
+          sexi.fMask        = SEE_MASK_DEFAULT;
+
+          ShellExecuteExW(&sexi);
+        }
+        else {
+          SKIF_Util_OpenURI_Formatted(SW_SHOWNORMAL,
+            L"steam://run/%lu", pTargetApp->id
+          );                    pTargetApp->_status.invalidate();
+        }
 
         clickedGameLaunch = false;
         clickedGameLaunchWoSK = false;
@@ -1881,45 +2007,154 @@ SKIF_GameManagement_DrawTab (void)
     }
 #endif
 
-    pApp->specialk.injection =
-      SKIF_InstallUtils_GetInjectionStrategy (pApp->id);
+    // Handle GOG games
 
-    // Scan Special K configuration, etc.
-    if (pApp->specialk.profile_dir.empty ())
+    if (pApp->store == "GOG")
     {
-      pApp->specialk.profile_dir = pApp->specialk.injection.config.dir;
+      extern path_cache_s path_cache;
 
-      if (! pApp->specialk.profile_dir.empty ())
+      DWORD dwBinaryType = MAXDWORD;
+      if ( GetBinaryTypeW (pApp->launch_configs[0].executable.c_str (), &dwBinaryType) )
       {
-        SK_VirtualFS profile_vfs;
+        if (dwBinaryType == SCS_32BIT_BINARY)
+          pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+        else if (dwBinaryType == SCS_64BIT_BINARY)
+          pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+      }
 
-        int files =
-          SK_VFS_ScanTree ( profile_vfs,
-                              pApp->specialk.profile_dir.data (), 2 );
+      std::wstring test_path =
+        pApp->launch_configs[0].working_dir;
 
-        UNREFERENCED_PARAMETER (files);
+      struct {
+        InjectionBitness bitness;
+        InjectionPoint   entry_pt;
+        std::wstring     name;
+        std::wstring     path;
+      } test_dlls [] = {
+        { pApp->specialk.injection.injection.bitness, InjectionPoint::D3D9,    L"d3d9",     L"" },
+        { pApp->specialk.injection.injection.bitness, InjectionPoint::DXGI,    L"dxgi",     L"" },
+        { pApp->specialk.injection.injection.bitness, InjectionPoint::D3D11,   L"d3d11",    L"" },
+        { pApp->specialk.injection.injection.bitness, InjectionPoint::OpenGL,  L"OpenGL32", L"" },
+        { pApp->specialk.injection.injection.bitness, InjectionPoint::DInput8, L"dinput8",  L"" }
+      };
+      
+      // Assume Global 32-bit if we don't know otherwise
+      bool bIs64Bit =
+        ( pApp->specialk.injection.injection.bitness ==
+                         InjectionBitness::SixtyFour );
 
-        //SK_VirtualFS::vfsNode* pFile =
-        //  profile_vfs;
+      pApp->specialk.injection.config.type =
+        ConfigType::Centralized;
 
-        // 4/15/21: Temporarily disable Screenshot Browser, it's not functional enough
-        //            to have it distract users yet.
-        //
-        /////for (const auto& it : pFile->children)
-        /////{
-        /////  if (it.second->type_ == SK_VirtualFS::vfsNode::type::Directory)
-        /////  {
-        /////    if (it.second->name.find (LR"(\Screenshots)") != std::wstring::npos)
-        /////    {
-        /////      for ( const auto& it2 : it.second->children )
-        /////      {
-        /////        pApp->specialk.screenshots.emplace (
-        /////          SK_WideCharToUTF8 (it2.second->getFullPath ())
-        /////        );
-        /////      }
-        /////    }
-        /////  }
-        /////}
+      wchar_t                 wszPathToSelf [MAX_PATH] = { };
+      GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
+      PathRemoveFileSpecW (   wszPathToSelf);
+      PathAppendW         (   wszPathToSelf,
+                                bIs64Bit ? L"SpecialK64.dll"
+                                         : L"SpecialK32.dll" );
+      pApp->specialk.injection.injection.dll_path = wszPathToSelf;
+      pApp->specialk.injection.injection.dll_ver  =
+      SKIF_GetSpecialKDLLVersion (       wszPathToSelf);
+
+      pApp->specialk.injection.injection.type =
+        InjectionType::Global;
+      pApp->specialk.injection.injection.entry_pt =
+        InjectionPoint::CBTHook;
+      pApp->specialk.injection.config.file =
+        L"SpecialK.ini";
+
+      for ( auto& dll : test_dlls )
+      {
+        dll.path =
+          ( test_path + LR"(\)" ) +
+           ( dll.name + L".dll" );
+
+        if (PathFileExistsW (dll.path.c_str ()))
+        {
+          std::wstring dll_ver =
+            SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
+
+          if (! dll_ver.empty ())
+          {
+            pApp->specialk.injection.injection = {
+              dll.bitness,
+              dll.entry_pt, InjectionType::Local,
+              dll.path,     dll_ver
+            };
+
+            if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
+            {
+              pApp->specialk.injection.config.type =
+                ConfigType::Centralized;
+            }
+
+            else
+            {
+              pApp->specialk.injection.config = {
+                ConfigType::Localized,
+                test_path
+              };
+            }
+
+            pApp->specialk.injection.config.file =
+              dll.name + L".ini";
+
+            break;
+          }
+        }
+      }
+
+      if (pApp->specialk.injection.config.type == ConfigType::Centralized)
+        pApp->specialk.injection.config.dir =
+          SK_FormatStringW(LR"(%ws\Profiles\%ws)",
+            path_cache.specialk_userdata.path,
+            pApp->specialk.profile_dir.c_str());
+
+      pApp->specialk.injection.config.file =
+        ( pApp->specialk.injection.config.dir + LR"(\)" ) +
+          pApp->specialk.injection.config.file;
+
+    } else {
+      pApp->specialk.injection =
+        SKIF_InstallUtils_GetInjectionStrategy (pApp->id);
+
+      // Scan Special K configuration, etc.
+      if (pApp->specialk.profile_dir.empty ())
+      {
+        pApp->specialk.profile_dir = pApp->specialk.injection.config.dir;
+
+        if (! pApp->specialk.profile_dir.empty ())
+        {
+          SK_VirtualFS profile_vfs;
+
+          int files =
+            SK_VFS_ScanTree ( profile_vfs,
+                                pApp->specialk.profile_dir.data (), 2 );
+
+          UNREFERENCED_PARAMETER (files);
+
+          //SK_VirtualFS::vfsNode* pFile =
+          //  profile_vfs;
+
+          // 4/15/21: Temporarily disable Screenshot Browser, it's not functional enough
+          //            to have it distract users yet.
+          //
+          /////for (const auto& it : pFile->children)
+          /////{
+          /////  if (it.second->type_ == SK_VirtualFS::vfsNode::type::Directory)
+          /////  {
+          /////    if (it.second->name.find (LR"(\Screenshots)") != std::wstring::npos)
+          /////    {
+          /////      for ( const auto& it2 : it.second->children )
+          /////      {
+          /////        pApp->specialk.screenshots.emplace (
+          /////          SK_WideCharToUTF8 (it2.second->getFullPath ())
+          /////        );
+          /////      }
+          /////    }
+          /////  }
+          /////}
+        }
       }
     }
   }
@@ -1967,6 +2202,105 @@ SKIF_GameManagement_DrawTab (void)
           ImGui::PopStyleColor    ( );
           if (_inject.bCurrentState)
             SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
+        }
+
+        extern std::wstring GOGGalaxy_Path;
+        extern bool GOGGalaxy_Installed;
+
+        if (GOGGalaxy_Installed && pApp->store == "GOG")
+        {
+          ImGui::PushStyleColor ( ImGuiCol_Text,
+            (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f));
+
+          if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
+          {
+            ImGui::Separator ( );
+
+            if (ImGui::BeginMenu ("Launch using GOG Galaxy"))
+            {
+
+              if (ImGui::Selectable(
+                ("Launch " + pApp->type).c_str(),
+                false, ((pApp->_status.running != 0x0) ?
+                  ImGuiSelectableFlags_Disabled :
+                  ImGuiSelectableFlags_None)
+              )
+                )
+              {
+                clickedGalaxyLaunch = true;
+              }
+
+              if (ImGui::Selectable(
+                ("Launch " + pApp->type + " without Special K").c_str(),
+                false, ((pApp->_status.running != 0x0) ?
+                  ImGuiSelectableFlags_Disabled :
+                  ImGuiSelectableFlags_None)
+              )
+                )
+              {
+                clickedGalaxyLaunchWoSK = true;
+              }
+
+              ImGui::EndMenu ( );
+            }
+          }
+
+          else {
+            if (ImGui::Selectable(
+              "Launch using GOG Galaxy",
+              false, ((pApp->_status.running != 0x0) ?
+                ImGuiSelectableFlags_Disabled :
+                ImGuiSelectableFlags_None)
+            )
+              )
+            {
+              clickedGalaxyLaunch = true;
+            }
+          }
+
+          ImGui::PopStyleColor();
+
+          if (clickedGalaxyLaunch ||
+              clickedGalaxyLaunchWoSK)
+          {
+
+            if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
+            {
+              // name of parent folder
+              std::string  parentFolder     = std::filesystem::path(pApp->launch_configs[0].executable).parent_path().filename().string();
+
+              // Check if the path has been whitelisted, and parentFolder is at least a character in length
+              if (! _inject._TestUserList (SK_WideCharToUTF8(pApp->launch_configs[0].executable).c_str(), true) && parentFolder.length() > 0)
+              {
+                _inject._AddUserList(parentFolder, true);
+                _inject._StoreList(true);
+              }
+            
+              if (clickedGalaxyLaunch && ! _inject.bCurrentState)
+                _inject._StartStopInject(false, true);
+
+              else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
+                _inject._StartStopInject(true);
+            }
+
+            // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+            std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
+
+            SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = GOGGalaxy_Path.c_str();
+            sexi.lpParameters = launchOptions.c_str();
+            //sexi.lpDirectory  = NULL;
+            sexi.nShow        = SW_SHOWDEFAULT;
+            sexi.fMask        = SEE_MASK_DEFAULT;
+
+            ShellExecuteExW (&sexi);
+
+            clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
+          }
         }
       }
 
@@ -2256,7 +2590,15 @@ SKIF_GameManagement_DrawTab (void)
                ImColor   (200, 200, 200, 255).Value,
                  ICON_FA_TOOLS
                            );
-      if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
+
+      if (pApp->store == "GOG")
+      {
+        ImGui::TextColored (
+         ImColor   (155, 89, 182, 255).Value,
+           ICON_FA_DATABASE );
+      }
+
+      else if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
         ImGui::TextColored (
          ImColor   (101, 192, 244, 255).Value,
@@ -2285,19 +2627,42 @@ SKIF_GameManagement_DrawTab (void)
       if (ImGui::Selectable  ("Browse PCGamingWiki"))
       {
         SKIF_Util_OpenURI_Formatted   ( SW_SHOWNORMAL,
-               L"http://pcgamingwiki.com/api/appid.php?appid=%lu", pApp->id
-                                        );
+               (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%lu"
+                                      : L"http://www.pcgamingwiki.com/api/appid.php?appid=%lu",
+                                        pApp->id
+        );
       }
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (
           SK_FormatString (
-            "http://pcgamingwiki.com/api/appid.php?appid=%lu", pApp->id
-                          )             );
+            (pApp->store == "GOG") ? "http://www.pcgamingwiki.com/api/gog.php?page=%lu"
+                                   : "http://www.pcgamingwiki.com/api/appid.php?appid=%lu",
+                                     pApp->id
+          )
+        );
       }
 
-      if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
+      if (pApp->store == "GOG")
+      {
+        if (ImGui::Selectable  ("Browse GOG Database"))
+        {
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"https://www.gogdb.org/product/%lu", pApp->id
+          );
+        }
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "https://www.gogdb.org/product/%lu", pApp->id
+            )
+          );
+        }
+      }
+      else if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
         if (ImGui::Selectable  ("Browse SteamDB"))
         {
@@ -2370,7 +2735,7 @@ SKIF_GameManagement_DrawTab (void)
   {
     _PrintInjectionSummary (pApp);
 
-    if (pApp->extended_config.vac.enabled)
+    if (pApp->extended_config.vac.enabled == 1)
     {
         SKIF_StatusBarText = "Warning: ";
         SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
@@ -2400,7 +2765,7 @@ SKIF_GameManagement_DrawTab (void)
       [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
       void
       {
-        if (pApp->extended_config.vac.enabled)
+        if (pApp->extended_config.vac.enabled == 1)
         {
           launch_cfg.setBlacklisted (pApp->id, true);
         }
