@@ -406,6 +406,34 @@ SKIF_GameManagement_DrawTab (void)
 
     load_str +=   LR"(\appcache\librarycache\)" +
       std::to_wstring (appid) + name.c_str ();
+    
+    static unsigned long SteamUserID = 0;
+     
+    if (SteamUserID == 0)
+    {
+      HKEY hKey;
+      WCHAR szData[255];
+      DWORD dwSize = sizeof(szData);
+      PVOID pvData = szData;
+
+      //Allocationg memory for a DWORD value.
+      DWORD dataType;
+
+      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+      {
+        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
+          SteamUserID = *(DWORD*)pvData;
+
+        RegCloseKey(hKey);
+      }
+    }
+
+    std::wstring SteamCustomCoverPath = SK_FormatStringW(LR"(%ws/userdata/%i/config/grid/%i)", SK_GetSteamDir(), SteamUserID, appid);
+
+    if (PathFileExistsW ((SteamCustomCoverPath + L"p.png").c_str()))
+      load_str = SteamCustomCoverPath + L"p.png";
+    else if (PathFileExistsW ((SteamCustomCoverPath + L"p.jpg").c_str()))
+      load_str = SteamCustomCoverPath + L"p.jpg";
 
     if (
       SUCCEEDED (
@@ -1138,7 +1166,6 @@ SKIF_GameManagement_DrawTab (void)
     // Load all other apps from the librarycache of the Steam client
     else
     {
-
       // If 600x900 exists but 600x900_x2 cannot be found
       if (   PathFileExistsW (load_str.   c_str ()) &&
          ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
