@@ -439,7 +439,7 @@ SKIF_GameManagement_DrawTab (void)
       SUCCEEDED (
         DirectX::LoadFromWICFile (
           load_str.c_str (),
-            DirectX::WIC_FLAGS_FILTER_POINT,
+            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
               &meta, img
         )
       )
