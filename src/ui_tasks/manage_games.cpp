@@ -395,7 +395,7 @@ SKIF_GameManagement_DrawTab (void)
       )
   );
 
-  auto _LoadLibraryTexture =
+  auto _LoadSteamLibraryTexture =
     [&]( uint32_t                            appid,
          CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
          const std::wstring&                 name )
@@ -476,6 +476,90 @@ SKIF_GameManagement_DrawTab (void)
 
         // SRV is holding a reference, this is not needed anymore.
         pTex2D.Release ();
+      }
+    }
+  };
+
+  auto _LoadGOGLibraryTexture =
+    [&]( uint32_t                            appid,
+         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+         const std::wstring&                 name )
+  {
+
+    static std::wstring GOGUserID = L"";
+     
+    if (GOGUserID == L"")
+    {
+      HKEY hKey;
+      WCHAR szData[255];
+      DWORD dwSize = sizeof(szData) / sizeof(WCHAR);
+
+      //Allocationg memory for a DWORD value.
+      DWORD dataType;
+
+      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+      {
+        if (RegGetValueW(hKey, NULL, L"userId", RRF_RT_REG_SZ, &dataType, szData, &dwSize) == ERROR_SUCCESS)
+          GOGUserID = szData;
+
+        RegCloseKey(hKey);
+      }
+    }
+
+    std::wstring load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGUserID.c_str(), appid);
+
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    WIN32_FIND_DATA ffd;
+
+    hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+
+    if (INVALID_HANDLE_VALUE != hFind)
+    {
+      load_str += ffd.cFileName;
+      FindClose(hFind);
+
+      if (
+        SUCCEEDED (
+          DirectX::LoadFromWICFile (
+            load_str.c_str (),
+              DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+                &meta, img
+          )
+        )
+      )
+      {
+        if (
+          SUCCEEDED (
+            DirectX::CreateTexture (
+              (ID3D11Device *)g_pd3dDevice,
+                img.GetImages (), img.GetImageCount (),
+                  meta, (ID3D11Resource **)&pTex2D.p
+            )
+          )
+        )
+        {
+          D3D11_SHADER_RESOURCE_VIEW_DESC
+            srv_desc                           = { };
+            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srv_desc.Texture2D.MipLevels       = UINT_MAX;
+            srv_desc.Texture2D.MostDetailedMip =  0;
+
+          if (    pTex2D.p == nullptr ||
+            FAILED (
+              g_pd3dDevice->CreateShaderResourceView (
+                  pTex2D.p, &srv_desc,
+                &pLibTexSRV.p
+              )
+            )
+          )
+          {
+            pLibTexSRV.p = nullptr;
+          }
+
+          // SRV is holding a reference, this is not needed anymore.
+          pTex2D.Release ();
+        }
       }
     }
   };
@@ -1135,28 +1219,6 @@ SKIF_GameManagement_DrawTab (void)
 
     update  = false;
 
-    if ( appinfo != nullptr )
-    {
-      skValveDataFile::appinfo_s *pAppInfo =
-        appinfo->getAppInfo ( appid, nullptr );
-
-      DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
-    }
-
-    std::wstring load_str_2x (
-      SK_GetSteamDir ()
-    );
-    std::wstring load_str
-                (load_str_2x);
-
-    load_str_2x += LR"(/appcache/librarycache/)" +
-      std::to_wstring  (appid)                   +
-                              L"_library_600x900_x2.jpg";
-
-    load_str   += LR"(/appcache/librarycache/)" +
-      std::to_wstring (appid)                   +
-                              L"_library_600x900.jpg";
-
     // Load Special K's boxart from the embedded resource
     if ( appid == SKIF_STEAM_APPID )
       _LoadSKLibraryTexture ( appid,
@@ -1166,38 +1228,80 @@ SKIF_GameManagement_DrawTab (void)
     // Load all other apps from the librarycache of the Steam client
     else
     {
-      // If 600x900 exists but 600x900_x2 cannot be found
-      if (   PathFileExistsW (load_str.   c_str ()) &&
-         ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+
+      static
+        app_record_s* pApp = nullptr;
+
+      for (auto& app : apps)
+        if (app.second.id == appid)
+          pApp = &app.second;
+
+      // GOG
+      if (pApp->store == "GOG")
       {
-        if (
-          SUCCEEDED (
-          DirectX::GetMetadataFromWICFile (
-            load_str.c_str (),
-              DirectX::WIC_FLAGS_FILTER_POINT,
-                meta
-            )
-          )
-        )
+        _LoadGOGLibraryTexture ( appid,
+                                    pTexSRV,
+                                      L"*_glx_vertical_cover.webp" );
+      }
+      
+      // Steam
+      else {
+
+        if ( appinfo != nullptr )
         {
-          if (meta.width  == 600 &&
-              meta.height == 900)
-          {
-            // We have a 600x900 image, but it's auto-gen,
-            //   just make a copy called 600x900_2x so we
-            //     don't hit the server up for this image
-            //       constantly.
-            CopyFileW ( load_str.   c_str (),
-                        load_str_2x.c_str (), TRUE );
-          }
+          skValveDataFile::appinfo_s *pAppInfo =
+            appinfo->getAppInfo ( appid, nullptr );
+
+          DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
         }
 
-        SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-      }
+        std::wstring load_str_2x (
+          SK_GetSteamDir ()
+        );
+        std::wstring load_str
+                    (load_str_2x);
 
-      _LoadLibraryTexture ( appid,
-                              pTexSRV,
-                                L"_library_600x900_x2.jpg" );
+        load_str_2x += LR"(/appcache/librarycache/)" +
+          std::to_wstring  (appid)                   +
+                                  L"_library_600x900_x2.jpg";
+
+        load_str   += LR"(/appcache/librarycache/)" +
+          std::to_wstring (appid)                   +
+                                  L"_library_600x900.jpg";
+
+        // If 600x900 exists but 600x900_x2 cannot be found
+        if (   PathFileExistsW (load_str.   c_str ()) &&
+           ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+        {
+          if (
+            SUCCEEDED (
+            DirectX::GetMetadataFromWICFile (
+              load_str.c_str (),
+                DirectX::WIC_FLAGS_FILTER_POINT,
+                  meta
+              )
+            )
+          )
+          {
+            if (meta.width  == 600 &&
+                meta.height == 900)
+            {
+              // We have a 600x900 image, but it's auto-gen,
+              //   just make a copy called 600x900_2x so we
+              //     don't hit the server up for this image
+              //       constantly.
+              CopyFileW ( load_str.   c_str (),
+                          load_str_2x.c_str (), TRUE );
+            }
+          }
+
+          SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+        }
+
+        _LoadSteamLibraryTexture ( appid,
+                                    pTexSRV,
+                                      L"_library_600x900_x2.jpg" );
+      }
     }
 
   }

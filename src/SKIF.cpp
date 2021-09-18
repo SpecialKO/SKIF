@@ -57,6 +57,7 @@ HMODULE hModSK64                   = NULL;
 
 // GOG Galaxy stuff
 std::wstring GOGGalaxy_Path;
+std::wstring GOGGalaxy_Folder;
 bool GOGGalaxy_Installed           = false;
 
 #include <sk_utility/command.h>

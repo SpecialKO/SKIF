@@ -141,14 +141,15 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         if (RegGetValueW(hKey, NULL, L"clientExecutable", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
         {
           extern std::wstring GOGGalaxy_Path;
+          extern std::wstring GOGGalaxy_Folder;
           extern bool GOGGalaxy_Installed;
 
-          GOGGalaxy_Path = szData;
+          GOGGalaxy_Folder = szData;
 
           dwSize = sizeof(szData) / sizeof(WCHAR);
           if (RegGetValueW(hKey, L"paths", L"client", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
           {
-            GOGGalaxy_Path = SK_FormatStringW(LR"(%ws\%ws)", szData, GOGGalaxy_Path.c_str());
+            GOGGalaxy_Path = SK_FormatStringW(LR"(%ws\%ws)", szData, GOGGalaxy_Folder.c_str());
 
             if (PathFileExistsW(GOGGalaxy_Path.c_str()))
               GOGGalaxy_Installed = true;
