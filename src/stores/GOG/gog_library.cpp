@@ -86,7 +86,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               GOG_record.names.normal.erase(std::find(GOG_record.names.normal.begin(), GOG_record.names.normal.end(), '\0'), GOG_record.names.normal.end());
 
               // Add (GOG) at the end of the name
-              GOG_record.names.normal = GOG_record.names.normal + " (GOG)";
+              //GOG_record.names.normal = GOG_record.names.normal + " (GOG)";
 
               GOG_record.names.all_upper = GOG_record.names.normal;
               std::for_each(GOG_record.names.all_upper.begin(), GOG_record.names.all_upper.end(), ::toupper);

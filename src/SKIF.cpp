@@ -1586,37 +1586,58 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
 
-    // Check if the path has been whitelisted, and parentFolder is at least a character in length
-    if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true) && parentFolder.length() > 0)
+    bool isLocalBlacklisted  = false,
+         isGlobalBlacklisted = false;
+    
+    if (PathFileExistsW (path.c_str()))
     {
-      _inject._AddUserList(parentFolder, true);
-      _inject._StoreList(true);
+      std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
+                                                     std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                     std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+      );
+
+      // Check if the executable is blacklisted
+      isLocalBlacklisted  = PathFileExistsW(blacklistFile.c_str());
+      isGlobalBlacklisted = _inject._TestUserList(SK_WideCharToUTF8(path).c_str(), false);
+
+      if (! isLocalBlacklisted && 
+          ! isGlobalBlacklisted)
+      {
+        // Check if the path has been whitelisted, and parentFolder is at least a character in length
+        if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true) && parentFolder.length() > 0)
+        {
+          _inject._AddUserList(parentFolder, true);
+          _inject._StoreList(true);
+        }
+
+        if (hwndAlreadyExists != 0)
+          SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
+
+        else if (! _inject.bCurrentState)
+        {
+          bExitOnInjection = true;
+          _inject._StartStopInject (false, true);
+          _inject.bOnDemandInject = true;
+        }
+      }
+
+      SHELLEXECUTEINFOW
+        sexi              = { };
+        sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+        sexi.lpVerb       = L"OPEN";
+        sexi.lpFile       = path.c_str();
+        sexi.lpParameters = proxiedCmdLine.c_str();
+        sexi.lpDirectory  = workingDirectory.c_str();
+        sexi.nShow        = SW_SHOW;
+        sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                            SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+
+      // Launch executable
+      ShellExecuteExW(&sexi);
     }
 
-    SHELLEXECUTEINFOW
-      sexi              = { };
-      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-      sexi.lpVerb       = L"OPEN";
-      sexi.lpFile       = path.c_str();
-      sexi.lpParameters = proxiedCmdLine.c_str();
-      sexi.lpDirectory  = workingDirectory.c_str();
-      sexi.nShow        = SW_SHOW;
-      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-
-    if (hwndAlreadyExists != 0)
-      SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
-
-    else if (! _inject.bCurrentState)
-    {
-      bExitOnInjection = true;
-      _inject._StartStopInject (false, true);
-      _inject.bOnDemandInject = true;
-    }
-
-    ShellExecuteExW(&sexi);
-
-    if (hwndAlreadyExists != 0)
+    // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
+    if (hwndAlreadyExists != 0 || isLocalBlacklisted || isGlobalBlacklisted)
       ExitProcess(0x0);
   }
 }
@@ -4201,10 +4222,10 @@ bool CreateDeviceD3D (HWND hWnd)
   SKIF_bCanFlipDiscard        =
     SKIF_IsWindows10OrGreater      () != FALSE;
 
-  /* Force BitBlt Discard */
-//SKIF_bAllowTearing          = 
-//SKIF_bCanFlip               =
-//SKIF_bCanFlipDiscard        = FALSE;
+  // Overrides
+//SKIF_bAllowTearing          = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
+//SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
+//SKIF_bCanFlip               = FALSE; // Flip Sequential
 
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC

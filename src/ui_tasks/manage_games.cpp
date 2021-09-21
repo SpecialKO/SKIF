@@ -428,12 +428,17 @@ SKIF_GameManagement_DrawTab (void)
       }
     }
 
-    std::wstring SteamCustomCoverPath = SK_FormatStringW(LR"(%ws/userdata/%i/config/grid/%i)", SK_GetSteamDir(), SteamUserID, appid);
+    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::filesystem::current_path().wstring().c_str(), appid),
+                 SteamCustomCoverPath = SK_FormatStringW (LR"(%ws/userdata/%i/config/grid/%i)", SK_GetSteamDir(), SteamUserID,             appid);
 
-    if (PathFileExistsW ((SteamCustomCoverPath + L"p.png").c_str()))
-      load_str = SteamCustomCoverPath + L"p.png";
+    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+      load_str =               SKIFCustomCoverPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+      load_str =               SKIFCustomCoverPath + L".jpg";
+    else if (PathFileExistsW ((SteamCustomCoverPath + L"p.png").c_str()))
+      load_str =               SteamCustomCoverPath + L"p.png";
     else if (PathFileExistsW ((SteamCustomCoverPath + L"p.jpg").c_str()))
-      load_str = SteamCustomCoverPath + L"p.jpg";
+      load_str =               SteamCustomCoverPath + L"p.jpg";
 
     if (
       SUCCEEDED (
@@ -508,6 +513,14 @@ SKIF_GameManagement_DrawTab (void)
 
     std::wstring load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGUserID.c_str(), appid);
 
+    
+    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\cover)", std::filesystem::current_path().wstring().c_str(), appid);
+
+    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+      load_str =               SKIFCustomCoverPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+      load_str =               SKIFCustomCoverPath + L".jpg";
+
     HANDLE hFind = INVALID_HANDLE_VALUE;
     WIN32_FIND_DATA ffd;
 
@@ -517,49 +530,49 @@ SKIF_GameManagement_DrawTab (void)
     {
       load_str += ffd.cFileName;
       FindClose(hFind);
+    }
 
+    if (
+      SUCCEEDED (
+        DirectX::LoadFromWICFile (
+          load_str.c_str (),
+            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+              &meta, img
+        )
+      )
+    )
+    {
       if (
         SUCCEEDED (
-          DirectX::LoadFromWICFile (
-            load_str.c_str (),
-              DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-                &meta, img
+          DirectX::CreateTexture (
+            (ID3D11Device *)g_pd3dDevice,
+              img.GetImages (), img.GetImageCount (),
+                meta, (ID3D11Resource **)&pTex2D.p
           )
         )
       )
       {
-        if (
-          SUCCEEDED (
-            DirectX::CreateTexture (
-              (ID3D11Device *)g_pd3dDevice,
-                img.GetImages (), img.GetImageCount (),
-                  meta, (ID3D11Resource **)&pTex2D.p
+        D3D11_SHADER_RESOURCE_VIEW_DESC
+          srv_desc                           = { };
+          srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+          srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+          srv_desc.Texture2D.MipLevels       = UINT_MAX;
+          srv_desc.Texture2D.MostDetailedMip =  0;
+
+        if (    pTex2D.p == nullptr ||
+          FAILED (
+            g_pd3dDevice->CreateShaderResourceView (
+                pTex2D.p, &srv_desc,
+              &pLibTexSRV.p
             )
           )
         )
         {
-          D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip =  0;
-
-          if (    pTex2D.p == nullptr ||
-            FAILED (
-              g_pd3dDevice->CreateShaderResourceView (
-                  pTex2D.p, &srv_desc,
-                &pLibTexSRV.p
-              )
-            )
-          )
-          {
-            pLibTexSRV.p = nullptr;
-          }
-
-          // SRV is holding a reference, this is not needed anymore.
-          pTex2D.Release ();
+          pLibTexSRV.p = nullptr;
         }
+
+        // SRV is holding a reference, this is not needed anymore.
+        pTex2D.Release ();
       }
     }
   };
@@ -1052,7 +1065,7 @@ SKIF_GameManagement_DrawTab (void)
           continue;
         }
 
-        if (app.second._status.installed)
+        if (app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
         {
           std::string all_upper;
 
@@ -1149,8 +1162,109 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::BeginGroup    (                                                  );
   float fX =
   ImGui::GetCursorPosX (                                                  );
+
+  // Display cover image
   ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 ( 600.0F * SKIF_ImGui_GlobalDPIScale,
                                                             900.0F * SKIF_ImGui_GlobalDPIScale ));
+
+  if (appid != SKIF_STEAM_APPID && ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ImGui::OpenPopup ("CoverMenu");
+
+  if (ImGui::BeginPopup ("CoverMenu"))
+  {
+    static
+      app_record_s* pApp = nullptr;
+
+    for (auto& app : apps)
+      if (app.second.id == appid)
+        pApp = &app.second;
+
+    if (pApp != nullptr)
+    {
+      if (ImGui::Selectable ("Set Custom Artwork"))
+      {
+	      IFileOpenDialog  *pFileOpen;
+        COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png" };
+
+	      PWSTR pszFilePath = NULL;
+
+	      // Create the FileOpenDialog object.
+	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+	      if (SUCCEEDED(hr))
+	      {
+               pFileOpen->SetFileTypes(1, &fileTypes);
+		      hr = pFileOpen->Show(NULL);
+
+		      // Get the file name from the dialog box.
+		      if (SUCCEEDED(hr))
+		      {
+			      IShellItem *pItem;
+			      hr = pFileOpen->GetResult(&pItem);
+
+			      if (SUCCEEDED(hr))
+			      {
+				      hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+              std::wstring targetPath = L"";
+              std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
+
+              if (pApp->store == "GOG")
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
+              else
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
+
+              if (targetPath != L"")
+              {
+                std::filesystem::create_directories (targetPath);
+                targetPath += L"cover";
+
+                if (ext == L".jpg")
+                  DeleteFile((targetPath + L".png").c_str());
+
+                CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+
+                update = true;
+              }
+
+				      pItem->Release();
+			      }
+		      }
+		      pFileOpen->Release();
+	      }
+      }
+
+      if (ImGui::Selectable("Clear Custom Artwork"))
+      {
+        std::wstring targetPath = L"";
+
+        if (pApp->store == "GOG")
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
+        else
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
+
+        if (PathFileExists(targetPath.c_str()))
+        {
+          targetPath += L"cover";
+
+          DeleteFile((targetPath + L".png").c_str());
+          DeleteFile((targetPath + L".jpg").c_str());
+
+          update = true;
+        }
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::Selectable  ("Browse SteamGridDB"))
+      {
+        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+      }
+    }
+
+    ImGui::EndPopup();
+  }
 
   // Special handling at the bottom for Special K
   if ( appid == SKIF_STEAM_APPID ) {
@@ -1754,13 +1868,21 @@ SKIF_GameManagement_DrawTab (void)
            ||
         clickedGameLaunchWoSK )
       {
+        bool isLocalBlacklisted  = false,
+             isGlobalBlacklisted = false;
 
         // Launch preparations for non-Local installs
         if (! cache.injection.type._Equal ("Local"))
         {
+          isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
+          isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id)).c_str(), false);
+
           // This captures two events -- launching through context menu + large button
           if (! clickedGameLaunchWoSK &&
-              !_inject.bCurrentState )
+              ! _inject.bCurrentState &&
+              ! isLocalBlacklisted    &&
+              ! isGlobalBlacklisted
+             )
           {
             _inject._StartStopInject (false, true);
           }
@@ -1782,7 +1904,11 @@ SKIF_GameManagement_DrawTab (void)
           std::string  parentFolder     = std::filesystem::path(pTargetApp->launch_configs[0].executable).parent_path().filename().string();
 
           // Check if the path has been whitelisted, and parentFolder is at least a character in length
-          if (! _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable).c_str(), true) && parentFolder.length() > 0)
+          if (
+              ! isLocalBlacklisted  &&
+              ! isGlobalBlacklisted &&
+              ! _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable).c_str(), true) &&
+                parentFolder.length() > 0)
           {
             _inject._AddUserList(parentFolder, true);
             _inject._StoreList(true);
@@ -1792,22 +1918,22 @@ SKIF_GameManagement_DrawTab (void)
           sexi              = { };
           sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
           sexi.lpVerb       = L"OPEN";
-          sexi.lpFile       = pTargetApp->launch_configs[0].executable.c_str();
+          sexi.lpFile       = pTargetApp->launch_configs[0].executable    .c_str();
           sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
-          sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir.c_str();
+          sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
           sexi.nShow        = SW_SHOWDEFAULT;
           sexi.fMask        = SEE_MASK_DEFAULT;
 
-          ShellExecuteExW(&sexi);
+          ShellExecuteExW (&sexi);
         }
+
         else {
           SKIF_Util_OpenURI_Formatted(SW_SHOWNORMAL,
             L"steam://run/%lu", pTargetApp->id
           );                    pTargetApp->_status.invalidate();
         }
 
-        clickedGameLaunch = false;
-        clickedGameLaunchWoSK = false;
+        clickedGameLaunch = clickedGameLaunchWoSK = false;
       }
 
       if (pTargetApp->_status.running)
@@ -1816,6 +1942,7 @@ SKIF_GameManagement_DrawTab (void)
       else
         SKIF_ImGui_SetHoverTip (launch_description.c_str ());
 
+      /* Not used any longer
       ImGui::SetNextWindowSize (
         ImVec2 (464.0f * SKIF_ImGui_GlobalDPIScale,
                   0.0f)
@@ -1879,6 +2006,8 @@ SKIF_GameManagement_DrawTab (void)
            ) ImGui::CloseCurrentPopup ();
                       ImGui::EndPopup ();
       }
+      */
+
       ImGui::EndChildFrame ();
     }
 
@@ -2408,10 +2537,10 @@ SKIF_GameManagement_DrawTab (void)
               }
             
               if (clickedGalaxyLaunch && ! _inject.bCurrentState)
-                _inject._StartStopInject(false, true);
+                _inject._StartStopInject (false, true);
 
               else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
-                _inject._StartStopInject(true);
+                _inject._StartStopInject (true);
             }
 
             // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
