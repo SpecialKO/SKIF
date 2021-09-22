@@ -3851,100 +3851,109 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
 
-            static bool isAdmin = IsUserAnAdmin();
-            if (isAdmin)
+            static bool isSKIFAdmin = IsUserAnAdmin();
+            if (isSKIFAdmin)
             {
               ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
               ImGui::SameLine        ( );
               ImGui::TextColored     (ImColor (255, 204, 0), "SKIF is running as an administrator!");
               SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                       "Please restart SKIF and the global injector service as a regular user.");
+                                       "Please restart the global injector service and SKIF as a regular user.");
             }
             else {
               ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
               ImGui::SameLine        ( );
-              ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running as a regular user.");
+              ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running with normal privileges.");
               SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
                                        "into system processes nor games running as an administrator.");
             }
 
             ImGui::EndGroup         ( );
 
-            static PROCESSENTRY32W procSteam  = SK_FindProcessByName (L"steam.exe"),
-                                   procGalaxy = SK_FindProcessByName (L"GalaxyClient.exe");
-            static DWORD 
-                 dwLastRefresh = 0;
+            struct Platform {
+              std::string     Name;
+              std::wstring    ProcessName;
+              DWORD           ProcessID   = 0,
+                              PreviousPID = 0;
+              bool            isRunning   = false,
+                              isAdmin     = false;
+
+              Platform (std::string n, std::wstring pn)
+              {
+                Name        =  n;
+                ProcessName = pn;
+                Refresh ( );
+              }
+
+              void Refresh (void)
+              {
+                PROCESSENTRY32W pe = SK_FindProcessByName (ProcessName.c_str());
+                ProcessID = pe.th32ProcessID;
+
+                if (ProcessID != PreviousPID)
+                {
+                  PreviousPID = ProcessID;
+                  isRunning   = (ProcessID > 0);
+
+                  if (isRunning)
+                    isAdmin = SK_IsProcessAdmin (pe);
+                }
+              }
+            };
+
+            static DWORD dwLastRefresh = 0;
+            static Platform Platforms[] = {
+              {"32-bit Service",      L"SKIFsvc32.exe"},
+              {"64-bit Service",      L"SKIFsvc64.exe"},
+              {"Steam",               L"steam.exe"},
+              {"Origin",              L"Origin.exe"},
+              {"Galaxy",              L"GalaxyClient.exe"},
+              {"EA Desktop",          L"EADesktop.exe"},
+              {"Epic Games Launcher", L"EpicGamesLauncher.exe"}
+            };
+
+            for each (Platform &p in Platforms)
+            {
+              if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
+                  p.Refresh ( ); // Timer has expired, refresh
+
+              if (p.isRunning)
+              {
+                ImGui::BeginGroup       ( );
+                ImGui::Spacing          ( );
+                ImGui::SameLine         ( );
+
+                if (p.isAdmin)
+                {
+                  ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+                  ImGui::SameLine        ( );
+                  ImGui::TextColored     (ImColor (255, 204, 0), (p.Name + " is running as an administrator!").c_str() );
+
+                  if (isSKIFAdmin)
+                    SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
+                                              "Please restart both as a normal user.").c_str());
+                  else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+                    SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                                             "Please restart the global injector service and SKIF as a regular user.");
+                  else
+                    SKIF_ImGui_SetHoverTip ( ("Running elevated will prevent injection into these games.\n"
+                                              "Please restart " + p.Name + " as a normal user.").c_str());
+                }
+                else {
+                  ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+                  ImGui::SameLine        ( );
+                  ImGui::TextColored     (ImColor (144, 238, 144), (p.Name + " is running.").c_str());
+                }
+
+                ImGui::EndGroup          ( );
+
+                if (p.ProcessName == L"SKIFsvc64.exe")
+                  ImGui::Spacing         ( );
+              }
+            }
+
             if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
-            {    dwLastRefresh        = SKIF_timeGetTime ();
-              procSteam  = SK_FindProcessByName(L"steam.exe");
-              procGalaxy = SK_FindProcessByName(L"GalaxyClient.exe");
-            }
-
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-
-            if (procSteam.th32ProcessID != 0)
-            {
-              if (SK_IsProcessAdmin (procSteam))
-              {
-                ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (255, 204, 0), "Steam is running as an administrator!");
-
-                if (isAdmin)
-                  SKIF_ImGui_SetHoverTip ( "It is not recommended to run either Steam or SKIF elevated.\n"
-                                           "Please restart both as a regular user.");
-                else
-                  SKIF_ImGui_SetHoverTip ( "Running elevated will prevent Special K from being injected into the process.\n"
-                                           "Please restart Steam as a regular user.");
-              }
-              else {
-                ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (144, 238, 144), "Steam is running as a regular user.");
-              }
-            }
-            else {
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), ICON_FA_INFO_CIRCLE " ");
-              ImGui::SameLine        ( );
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), "Steam is not running.");
-            }
-
-            ImGui::EndGroup         ( );
-
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-
-            if (procGalaxy.th32ProcessID != 0)
-            {
-              if (SK_IsProcessAdmin (procGalaxy))
-              {
-                ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (255, 204, 0), "GOG Galaxy is running as an administrator!");
-
-                if (isAdmin)
-                  SKIF_ImGui_SetHoverTip ( "It is not recommended to run either GOG Galaxy or SKIF elevated.\n"
-                                           "Please restart both as a regular user.");
-                else
-                  SKIF_ImGui_SetHoverTip ( "Running elevated will prevent Special K from being injected into the process.\n"
-                                           "Please restart GOG Galaxy as a regular user.");
-              }
-              else {
-                ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (144, 238, 144), "GOG Galaxy is running as a regular user.");
-              }
-            }
-            else {
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), ICON_FA_INFO_CIRCLE " ");
-              ImGui::SameLine        ( );
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), "GOG Galaxy is not running.");
-            }
-
-            ImGui::EndGroup         ( );
+                 dwLastRefresh        = SKIF_timeGetTime (); // Set timer for next refresh
 
             ImGui::Columns          (1);
 

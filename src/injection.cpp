@@ -438,6 +438,8 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         } else *record.pPid = 0;
       }
 
+      SetLastError(NO_ERROR);
+
       // Verify the claimed PID is still running...
       CHandle hProcess (
           *record.pPid != 0 ?
@@ -446,8 +448,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
                             : INVALID_HANDLE_VALUE
                        );
 
-      // Nope, delete the PID file.
-      if ((intptr_t)hProcess.m_h <= 0)
+      // If the PID is not running, delete the file.
+      //  Do not delete it if we get access denied, as it means the PID is running outside of our security context
+      if ((intptr_t)hProcess.m_h <= 0 && GetLastError() != ERROR_ACCESS_DENIED)
       {
         DeleteFileW (record.wszPidFilename);
                     *record.pPid = 0;
@@ -640,8 +643,27 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
-    {
       _StartStopInject (bCurrentState, SKIF_bStopOnInjection);
+    
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+      ImGui::OpenPopup ("ServiceMenu");
+
+    if (ImGui::BeginPopup ("ServiceMenu"))
+    {
+      ImGui::TextColored (
+        ImColor::HSV (0.11F, 1.F, 1.F),
+          "Troubleshooting:"
+      );
+
+      ImGui::Separator ( );
+
+      if (ImGui::Selectable("Force Start Service"))
+        _StartStopInject (false, SKIF_bStopOnInjection);
+
+      if (ImGui::Selectable("Force Stop Service"))
+        _StartStopInject (true);
+
+      ImGui::EndPopup ( );
     }
   }
 

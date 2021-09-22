@@ -1042,11 +1042,13 @@ SKIF_Debug_DrawUI (void)
     std::set <DWORD> _Used64;
 
     static std::map <DWORD,  std::wstring> executables_64;
+    static std::map <DWORD,  std::wstring> executables_32;
     static std::map <DWORD, inject_policy>    policies_64;
+    static std::map <DWORD, inject_policy>    policies_32;
     static std::map <DWORD,   std::string>    tooltips_64;
     static std::map <DWORD,   std::string>    tooltips_32;
-    static std::map <DWORD, inject_policy>    policies_32;
-    static std::map <DWORD,  std::wstring> executables_32;
+    static std::map <DWORD,   std::string>     details_64;
+    static std::map <DWORD,   std::string>     details_32;
 
 
     static           DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
@@ -1221,40 +1223,6 @@ SKIF_Debug_DrawUI (void)
           // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
           if (FoundEvent == 0x0)
           {
-
-            /*
-            HANDLE     hDupHandle;
-            ULONG      _ObjectTypeLen = 0x1000;
-            _ByteArray pObjectType;
-                  
-            NTSTATUS ntStatTypeQuery  = 0x0;
-
-            do
-            {
-              pObjectType.resize (
-                    _ObjectTypeLen);
-
-              ntStatTypeQuery =
-                NtQueryObject ( handleTableInformationEx->Handles [i].Handle,
-                        ObjectTypeInformation,
-                      pObjectType.data (),
-                      _ObjectTypeLen,
-                      &_ObjectTypeLen
-                              );
-            } while (ntStatTypeQuery == STATUS_INFO_LENGTH_MISMATCH);
-
-            if (NT_SUCCESS (ntStatTypeQuery))
-            {
-              PUBLIC_OBJECT_TYPE_INFORMATION _poti =
-                *(PUBLIC_OBJECT_TYPE_INFORMATION *)pObjectType.data ();
-
-              if (SK_FormatString("%wZ", _poti.TypeName) != "Event")
-                continue;
-            }
-            else
-              continue;
-              */
-
             if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 0xA ||  // 0xA  == 10 -- prev. 12
                 handleTableInformationEx->Handles[i].ObjectTypeIndex > 0x14)   // 0x14 == 20 -- prev. 18
             {
@@ -1435,9 +1403,9 @@ SKIF_Debug_DrawUI (void)
       ImGui::SameLine    ( );
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Process Name");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Path");
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Details");
 
       ImGui::Separator   ( );
 
@@ -1485,7 +1453,10 @@ SKIF_Debug_DrawUI (void)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check64") && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
+        {
           _inject._AddUserList (SK_WideCharToUTF8(proc64.second), true);
+          _inject._StoreList   (true);
+        }
 
         ImGui::PopStyleColor   (3);
 
@@ -1508,13 +1479,13 @@ SKIF_Debug_DrawUI (void)
         ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
-      //SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
+        SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_64[proc64.first].c_str());
-        if (strlen (tooltips_64[proc64.first].c_str()) > 73)
-          SKIF_ImGui_SetHoverTip (tooltips_64[proc64.first]);
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", details_64[proc64.first].c_str());
+        if (strlen (details_64[proc64.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (details_64[proc64.first]);
 
         ImGui::PopID  ( );
       }
@@ -1547,7 +1518,10 @@ SKIF_Debug_DrawUI (void)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
+        {
           _inject._AddUserList (SK_WideCharToUTF8(proc32.second), false);
+          _inject._StoreList   (true);
+        }
         
         ImGui::SameLine        ( );
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
@@ -1583,13 +1557,13 @@ SKIF_Debug_DrawUI (void)
         ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
                                                                : ImVec4 (.8f, .8f, .8f, 1.f),
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
-      //SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
+        SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", tooltips_32[proc32.first].c_str());
-        if (strlen (tooltips_32[proc32.first].c_str()) > 73)
-          SKIF_ImGui_SetHoverTip (tooltips_32[proc32.first]);
+        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", details_32[proc32.first].c_str());
+        if (strlen (details_32[proc32.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (details_32[proc32.first]);
 
         ImGui::PopID  ( );
       }
