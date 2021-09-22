@@ -1648,7 +1648,10 @@ SKIF_AddToEnvironmentalPath(void)
   BYTE buffer[4000];
   DWORD buffsz = sizeof(buffer);
   HKEY key;
-  bool ret = false;
+  static int ret = -1;
+
+  if (ret != -1)
+    return ret;
 
   //HKEY_CURRENT_USER\Environment
   if (RegOpenKeyEx    (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, std::addressof(key)) == 0 &&
@@ -1668,16 +1671,16 @@ SKIF_AddToEnvironmentalPath(void)
         new_env += L";" + currentPath + L";";
 
       if (RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (new_env.size() + 1) * sizeof(wchar_t)) == ERROR_SUCCESS)
-        ret = true;
+        ret = 1;
       else
-        ret = false;
+        ret = 0;
     }
 
     else if (env    .find (currentPath)             != std::wstring::npos)
-      ret = true;
+      ret = 1;
 
     else
-      ret = false;
+      ret = 0;
 
     RegCloseKey (key);
   }
@@ -1692,6 +1695,73 @@ static auto regKVDisableStopOnInjection =
 void SKIF_putStopOnInjection (bool in)
 {
   regKVDisableStopOnInjection.putData(!in);
+}
+
+#include <Tlhelp32.h>
+
+bool
+SK_IsProcessAdmin (PROCESSENTRY32W proc)
+{
+  bool          bRet = false;
+  SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
+
+  SetLastError(NO_ERROR);
+
+  SK_AutoHandle hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, proc.th32ProcessID);
+
+  if (GetLastError() == ERROR_ACCESS_DENIED)
+    return true;
+
+  if ( OpenProcessToken ( hProcess,
+                            TOKEN_QUERY,
+                              &hToken.m_h )
+     )
+  {
+    TOKEN_ELEVATION Elevation = { };
+
+    DWORD cbSize =
+      sizeof (TOKEN_ELEVATION);
+
+    if ( GetTokenInformation ( hToken.m_h,
+                                 TokenElevation,
+                                   &Elevation,
+                                     sizeof (Elevation),
+                                       &cbSize )
+       )
+    {
+      bRet =
+        ( Elevation.TokenIsElevated != 0 );
+    }
+  }
+
+  return bRet;
+}
+
+PROCESSENTRY32W
+SK_FindProcessByName (const wchar_t* wszName)
+{
+  PROCESSENTRY32W none = { },
+                  pe32 = { };
+
+  SK_AutoHandle hProcessSnap (
+    CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+  );
+
+  if ((intptr_t)hProcessSnap.m_h <= 0) // == INVALID_HANDLE_VALUE)
+    return none;
+
+  pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+  if (! Process32FirstW (hProcessSnap, &pe32))
+    return none;
+
+  do
+  {
+    if (wcsstr (pe32.szExeFile, wszName))
+      return pe32;
+  } while (Process32NextW (hProcessSnap, &pe32));
+
+  return none;
 }
 
 bool bKeepWindowAlive  = true,
@@ -3472,7 +3542,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
             
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_ROCKET "  "
                 "Quick launch Special K for select games through Steam:");
             if (SKIF_AddToEnvironmentalPath())
             {
@@ -3714,6 +3784,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetHoverText ( "https://www.patreon.com/Kaldaien");
             ImGui::EndGroup         ( );
 
+            /*
+
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
 
@@ -3763,6 +3835,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::IsItemClicked ())
               SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
+            */
+
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
 
@@ -3792,6 +3866,82 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running as a regular user.");
               SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
                                        "into system processes nor games running as an administrator.");
+            }
+
+            ImGui::EndGroup         ( );
+
+            static PROCESSENTRY32W procSteam  = SK_FindProcessByName (L"steam.exe"),
+                                   procGalaxy = SK_FindProcessByName (L"GalaxyClient.exe");
+            static DWORD 
+                 dwLastRefresh = 0;
+            if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
+            {    dwLastRefresh        = SKIF_timeGetTime ();
+              procSteam  = SK_FindProcessByName(L"steam.exe");
+              procGalaxy = SK_FindProcessByName(L"GalaxyClient.exe");
+            }
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+
+            if (procSteam.th32ProcessID != 0)
+            {
+              if (SK_IsProcessAdmin (procSteam))
+              {
+                ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+                ImGui::SameLine        ( );
+                ImGui::TextColored     (ImColor (255, 204, 0), "Steam is running as an administrator!");
+
+                if (isAdmin)
+                  SKIF_ImGui_SetHoverTip ( "It is not recommended to run either Steam or SKIF elevated.\n"
+                                           "Please restart both as a regular user.");
+                else
+                  SKIF_ImGui_SetHoverTip ( "Running elevated will prevent Special K from being injected into the process.\n"
+                                           "Please restart Steam as a regular user.");
+              }
+              else {
+                ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+                ImGui::SameLine        ( );
+                ImGui::TextColored     (ImColor (144, 238, 144), "Steam is running as a regular user.");
+              }
+            }
+            else {
+              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), ICON_FA_INFO_CIRCLE " ");
+              ImGui::SameLine        ( );
+              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), "Steam is not running.");
+            }
+
+            ImGui::EndGroup         ( );
+
+            ImGui::BeginGroup       ( );
+            ImGui::Spacing          ( );
+            ImGui::SameLine         ( );
+
+            if (procGalaxy.th32ProcessID != 0)
+            {
+              if (SK_IsProcessAdmin (procGalaxy))
+              {
+                ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+                ImGui::SameLine        ( );
+                ImGui::TextColored     (ImColor (255, 204, 0), "GOG Galaxy is running as an administrator!");
+
+                if (isAdmin)
+                  SKIF_ImGui_SetHoverTip ( "It is not recommended to run either GOG Galaxy or SKIF elevated.\n"
+                                           "Please restart both as a regular user.");
+                else
+                  SKIF_ImGui_SetHoverTip ( "Running elevated will prevent Special K from being injected into the process.\n"
+                                           "Please restart GOG Galaxy as a regular user.");
+              }
+              else {
+                ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+                ImGui::SameLine        ( );
+                ImGui::TextColored     (ImColor (144, 238, 144), "GOG Galaxy is running as a regular user.");
+              }
+            }
+            else {
+              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), ICON_FA_INFO_CIRCLE " ");
+              ImGui::SameLine        ( );
+              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), "GOG Galaxy is not running.");
             }
 
             ImGui::EndGroup         ( );
@@ -4427,6 +4577,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                            SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
       }
       break;
+
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);

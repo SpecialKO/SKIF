@@ -584,6 +584,15 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
+
+      // Kill mouse capture on focus lost
+      io.MouseDown [0] = false;
+      io.MouseDown [1] = false;
+      io.MouseDown [2] = false;
+      io.MouseDown [3] = false;
+      io.MouseDown [4] = false;
+      if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
+        ::ReleaseCapture ( );
     }
     return 0;
     break;

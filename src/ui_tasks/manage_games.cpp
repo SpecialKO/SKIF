@@ -1259,7 +1259,10 @@ SKIF_GameManagement_DrawTab (void)
 
       if (ImGui::Selectable  ("Browse SteamGridDB"))
       {
-        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+        if (pApp->store == "GOG")
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+        else
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
       }
     }
 
