@@ -1472,12 +1472,16 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _Signal.CustomLaunch == false
      )
   {
-    if (IsIconic        (hwndAlreadyExists))
-      ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
+    if (! _Signal.Start &&
+        ! _Signal.Stop)
+    {
+      if (IsIconic        (hwndAlreadyExists))
+        ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
 
-    PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
+      PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
 
-    //SetForegroundWindow (hwndAlreadyExists);
+      //SetForegroundWindow (hwndAlreadyExists);
+    }
 
     struct injection_probe_s {
       FILE          *pid;
@@ -3946,10 +3950,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 }
 
                 ImGui::EndGroup          ( );
-
-                if (p.ProcessName == L"SKIFsvc64.exe")
-                  ImGui::Spacing         ( );
               }
+              else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+              {
+                ImGui::Spacing          ( );
+                ImGui::SameLine         ( );
+                ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_TIMES " ");
+                ImGui::SameLine        ( );
+                ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is not running.").c_str());
+              }
+
+              if (p.ProcessName == L"SKIFsvc64.exe")
+                ImGui::NewLine           ( );
             }
 
             if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
