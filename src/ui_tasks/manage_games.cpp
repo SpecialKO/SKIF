@@ -512,7 +512,6 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     std::wstring load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGUserID.c_str(), appid);
-
     
     std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\cover)", std::filesystem::current_path().wstring().c_str(), appid);
 
@@ -585,15 +584,42 @@ SKIF_GameManagement_DrawTab (void)
     UNREFERENCED_PARAMETER(appid);
     UNREFERENCED_PARAMETER(name);
 
-    if (
-      SUCCEEDED (
-        DirectX::LoadFromWICMemory (
-          sk_boxart_png, sizeof (sk_boxart_png),
-            DirectX::WIC_FLAGS_FILTER_POINT,
-              &meta, img
+    std::wstring load_str = L"\0",
+                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\cover)", std::filesystem::current_path().wstring().c_str(), appid);
+
+    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+      load_str =               SKIFCustomCoverPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+      load_str =               SKIFCustomCoverPath + L".jpg";
+
+    bool succeeded = false;
+
+    if (load_str != L"\0" &&
+        SUCCEEDED(
+          DirectX::LoadFromWICFile (
+            load_str.c_str (),
+              DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+                &meta, img
+          )
         )
       )
-    )
+    {
+      succeeded = true;
+    }
+    else if (
+        SUCCEEDED(
+          DirectX::LoadFromWICMemory(
+            sk_boxart_png, sizeof(sk_boxart_png),
+              DirectX::WIC_FLAGS_FILTER_POINT,
+                &meta, img
+          )
+        )
+      )
+    {
+      succeeded = true;
+    }
+
+    if (succeeded)
     {
       if (
         SUCCEEDED (
@@ -637,8 +663,10 @@ SKIF_GameManagement_DrawTab (void)
 
   static float max_app_name_len = 640.0f / 2.0f;
 
+  /* What does this even do? Nothing?
   std::vector <AppId_t>
     SK_Steam_GetInstalledAppIDs (void);
+  */
 
   static std::vector <AppId_t> appids =
     SK_Steam_GetInstalledAppIDs ();
@@ -716,7 +744,7 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     // Load GOG titles from registry
-    SKIF_GOG_GetInstalledAppIDs(&apps);
+    SKIF_GOG_GetInstalledAppIDs (&apps);
 
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](LPVOID pUser)->void
@@ -770,7 +798,7 @@ SKIF_GameManagement_DrawTab (void)
             srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
             srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
             srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip =  0;
+            srv_desc.Texture2D.MostDetailedMip = 0;
 
             if (   pPatTex2D  .p == nullptr ||
               FAILED (
@@ -849,7 +877,7 @@ SKIF_GameManagement_DrawTab (void)
             srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
             srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
             srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip =  0;
+            srv_desc.Texture2D.MostDetailedMip = 0;
 
             if (   pLocalTex2D.p == nullptr ||
               FAILED (
@@ -1056,6 +1084,9 @@ SKIF_GameManagement_DrawTab (void)
               SK_UseManifestToGetAppName (
                            app.second.id );
           }
+
+          // Strip null terminators
+          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
         }
 
         // Corrupted app manifest / not known to Steam client; SKIP!
@@ -1167,7 +1198,7 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 ( 600.0F * SKIF_ImGui_GlobalDPIScale,
                                                             900.0F * SKIF_ImGui_GlobalDPIScale ));
 
-  if (appid != SKIF_STEAM_APPID && ImGui::IsItemClicked (ImGuiMouseButton_Right))
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ImGui::OpenPopup ("CoverMenu");
 
   if (ImGui::BeginPopup ("CoverMenu"))
@@ -1210,7 +1241,9 @@ SKIF_GameManagement_DrawTab (void)
               std::wstring targetPath = L"";
               std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
 
-              if (pApp->store == "GOG")
+              if (pApp->id == SKIF_STEAM_APPID)
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::filesystem::current_path().c_str(), appid);
+              else if (pApp->store == "GOG")
                 targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
               else
                 targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
@@ -1238,8 +1271,10 @@ SKIF_GameManagement_DrawTab (void)
       if (ImGui::Selectable("Clear Custom Artwork"))
       {
         std::wstring targetPath = L"";
-
-        if (pApp->store == "GOG")
+        
+        if (pApp->id == SKIF_STEAM_APPID)
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::filesystem::current_path().c_str(), appid);
+        else if (pApp->store == "GOG")
           targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
         else
           targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
@@ -1278,14 +1313,24 @@ SKIF_GameManagement_DrawTab (void)
                                                               fY - (204.f * SKIF_ImGui_GlobalDPIScale)) );
     ImGui::BeginGroup    ();
     static bool hovered = false;
-    bool        clicked =
+
+    // Set all button styling to transparent
+    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
+
+    bool        clicked = 
     ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
                                                              200.0F * SKIF_ImGui_GlobalDPIScale),
                                                      ImVec2 (0.f,       0.f),
                                                      ImVec2 (1.f,       1.f),     0,
-                                                     ImVec4 (.033f,.033f,.033f, 1.0f),
+                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
                                            hovered ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
                                                    : ImVec4 (  .8f,  .8f,  .8f, .66f));
+
+    // Restore the custom button styling
+    ImGui::PopStyleColor (3);
+
     hovered =
     ImGui::IsItemHovered (                                                  );
 
@@ -1568,7 +1613,7 @@ SKIF_GameManagement_DrawTab (void)
         } dll;
         AppId_t     app_id  = 0;
         DWORD       running = 0;
-        bool        service = _inject.bCurrentState;
+        bool        service = false;
       } static cache;
 
       if (         cache.service != _inject.bCurrentState  ||
@@ -1582,11 +1627,12 @@ SKIF_GameManagement_DrawTab (void)
       {
         cache.app_id  = pTargetApp->id;
         cache.running = pTargetApp->_status.running;
-        cache.service = _inject.bCurrentState;
+
+        cache.service = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo && _inject.pid32) ||
+                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour && _inject.pid64);
 
         sk_install_state_s& sk_install =
           pTargetApp->specialk.injection;
-
 
         wchar_t     wszDLLPath [MAX_PATH];
         wcsncpy_s ( wszDLLPath, MAX_PATH,
@@ -1617,7 +1663,6 @@ SKIF_GameManagement_DrawTab (void)
         if (! PathFileExistsA (cache.dll.full_path.c_str ()))
           cache.dll.shorthand.clear ();
 
-
         cache.injection.type        = "None";
         cache.injection.status.text.clear ();
         cache.injection.hover_text.clear  ();
@@ -1631,28 +1676,20 @@ SKIF_GameManagement_DrawTab (void)
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  =
-                   _inject.bCurrentState   ? "Service Running"
+                         (cache.service)   ? "Service Running"
                                            : "Service Stopped";
 
               cache.injection.status.color =
-                   _inject.bCurrentState   ? ImColor ( 53, 255,   3)  // HSV (0.3F,  0.99F, 1.F)
+                         (cache.service)   ? ImColor ( 53, 255,   3)  // HSV (0.3F,  0.99F, 1.F)
                                            : ImColor (255, 124,   3); // HSV (0.08F, 0.99F, 1.F);
               cache.injection.status.color_hover =
-                   _inject.bCurrentState   ? ImColor (154, 255, 129)
+                         (cache.service)   ? ImColor (154, 255, 129)
                                            : ImColor (255, 189, 129);
               cache.injection.hover_text   =
-                   _inject.bCurrentState   ? "Click to stop injection service"
+                         (cache.service)   ? "Click to stop injection service"
                                            : "Click to start injection service";
 
             }
-            /* Not needed any longer since the service autostarts when launching the game
-            if (! _inject.bCurrentState)
-              cache.dll.shorthand.clear ();
-            else
-            {
-              launch_description = "Click to launch game (global injection)";
-            }
-            */
             break;
 
           case sk_install_state_s::Injection::Type::Local:
@@ -1800,7 +1837,7 @@ SKIF_GameManagement_DrawTab (void)
         {
           extern bool SKIF_bStopOnInjection;
 
-          _inject._StartStopInject (_inject.bCurrentState, SKIF_bStopOnInjection);
+          _inject._StartStopInject (cache.service, SKIF_bStopOnInjection);
 
           //_inject.run_lvl_changed = false;
 
@@ -1896,8 +1933,6 @@ SKIF_GameManagement_DrawTab (void)
           {
             _inject._StartStopInject (true);
           }
-
-          //ImGui::OpenPopup ("Confirm Launch");
         }
 
         // Launch game
@@ -1944,72 +1979,6 @@ SKIF_GameManagement_DrawTab (void)
 
       else
         SKIF_ImGui_SetHoverTip (launch_description.c_str ());
-
-      /* Not used any longer
-      ImGui::SetNextWindowSize (
-        ImVec2 (464.0f * SKIF_ImGui_GlobalDPIScale,
-                  0.0f)
-      );
-      if (ImGui::BeginPopupModal ("Confirm Launch", nullptr,
-                                    ImGuiWindowFlags_NoResize |
-                                    ImGuiWindowFlags_NoMove   |
-                                    ImGuiWindowFlags_AlwaysAutoResize)
-         )
-      {
-        SKIF_ImGui_Spacing ();
-
-        ImGui::TextColored (
-          ImColor::HSV (0.11F, 1.F, 1.F),
-            "      Special K will be unavailable in the game unless the global"
-            "\n                             injection service is started."
-        );
-
-        SKIF_ImGui_Spacing ();
-
-        if (ImGui::Button ("Start Service And Launch Game",
-                             ImVec2 ( 0 * SKIF_ImGui_GlobalDPIScale,
-                                     25 * SKIF_ImGui_GlobalDPIScale)
-                          )
-           )
-        {
-          _inject._StartStopInject (false, true);
-
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"steam://run/%lu", pTargetApp->id
-          );                    pTargetApp->_status.invalidate ();
-
-          ImGui::CloseCurrentPopup ();
-        }
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
-
-        if ( ImGui::Button ( "Launch Game",
-                               ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                         25 * SKIF_ImGui_GlobalDPIScale )
-                           )
-           )
-        {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-               L"steam://run/%lu", pTargetApp->id
-          );                       pTargetApp->_status.invalidate ();
-
-          ImGui::CloseCurrentPopup ();
-        }
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
-
-        if ( ImGui::Button ( "Cancel",
-                               ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                         25 * SKIF_ImGui_GlobalDPIScale )
-                           )
-           ) ImGui::CloseCurrentPopup ();
-                      ImGui::EndPopup ();
-      }
-      */
 
       ImGui::EndChildFrame ();
     }
@@ -2091,6 +2060,10 @@ SKIF_GameManagement_DrawTab (void)
     if (app.second.id == 0)
       continue;
 
+    // If not game, skip
+  //if (app.second.type != "Game")
+  //  continue; // This doesn't work since its reliant on loading the manifest, which is only done when an item is actually selected    
+
     bool selected = (appid == app.second.id);
     bool change   = false;
 
@@ -2120,9 +2093,11 @@ SKIF_GameManagement_DrawTab (void)
                   ? ImColor::HSV (0.3f, 1.f, 1.f) :
                     ImColor::HSV (0.0f, 0.f, 1.f);
 
+    // Game Title
+
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::SetCursorPosY   (fOriginalY + fOffset );
-    ImGui::Selectable      (app.first.c_str (), &selected, ImGuiSelectableFlags_SpanAvailWidth);
+    ImGui::Selectable      ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (                     );
 
     if ( ImGui::IsItemHovered        () &&

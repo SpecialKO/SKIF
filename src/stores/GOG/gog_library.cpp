@@ -1,6 +1,8 @@
 
 #include <stores/gog/gog_library.h>
+//#include <stores/generic_app.h>
 #include <wtypes.h>
+
 
 /*
 GOG Galaxy / Offline Installers shared registry struture
@@ -33,6 +35,12 @@ it's enough to launch the game through Galaxy like the start menu shortcuts does
 		
 	"D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
 
+*/
+
+/*
+struct gog_app : generic_app {
+
+};
 */
 
 
@@ -82,8 +90,8 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               if (RegGetValueW(hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
                 GOG_record.names.normal = SK_WideCharToUTF8(szData);
 
-              // Strip null terminators
-              GOG_record.names.normal.erase(std::find(GOG_record.names.normal.begin(), GOG_record.names.normal.end(), '\0'), GOG_record.names.normal.end());
+              // Strip null terminators // moved to later -- performed for all installed games as part of manage_games.cpp
+              //GOG_record.names.normal.erase(std::find(GOG_record.names.normal.begin(), GOG_record.names.normal.end(), '\0'), GOG_record.names.normal.end());
 
               // Add (GOG) at the end of the name
               //GOG_record.names.normal = GOG_record.names.normal + " (GOG)";

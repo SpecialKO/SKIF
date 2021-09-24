@@ -1440,7 +1440,10 @@ SKIF_Debug_DrawUI (void)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban64")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
+        {
           _inject._AddUserList (SK_WideCharToUTF8(proc64.second), false);
+          _inject._StoreList   (false);
+        }
         
         ImGui::SameLine        ( );
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
@@ -1520,7 +1523,7 @@ SKIF_Debug_DrawUI (void)
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
         {
           _inject._AddUserList (SK_WideCharToUTF8(proc32.second), false);
-          _inject._StoreList   (true);
+          _inject._StoreList   (false);
         }
         
         ImGui::SameLine        ( );
@@ -1534,7 +1537,10 @@ SKIF_Debug_DrawUI (void)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check32") && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
+        {
           _inject._AddUserList (SK_WideCharToUTF8(proc32.second), true);
+          _inject._StoreList   (true);
+        }
 
         ImGui::PopStyleColor   (3);
         

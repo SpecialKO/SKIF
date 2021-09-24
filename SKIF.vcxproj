@@ -288,6 +288,7 @@
     <ClInclude Include="DirectXTex\DirectXTexP.h" />
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="include\stores\generic_app.h" />
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
@@ -373,6 +374,7 @@
     <ClInclude Include="include\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\stores\generic_app.cpp" />
     <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>

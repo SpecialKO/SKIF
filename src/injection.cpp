@@ -1282,14 +1282,14 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 {
   bool ret = false;
   static std::wstring root_dir =
-         std::filesystem::current_path().wstring();
+           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
 
   // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
-  std::filesystem::create_directories ((root_dir + LR"(\Global\)").c_str ());
+  std::filesystem::create_directories (root_dir.c_str ());
 
   std::wofstream list_file(
-    (whitelist_) ? (root_dir + LR"(\Global\whitelist.ini)").c_str()
-                 : (root_dir + LR"(\Global\blacklist.ini)").c_str()
+    (whitelist_) ? (root_dir + LR"(\whitelist.ini)").c_str()
+                 : (root_dir + LR"(\blacklist.ini)").c_str()
   );
 
   // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
