@@ -1212,6 +1212,38 @@ SKIF_GameManagement_DrawTab (void)
 
     if (pApp != nullptr)
     {
+      // Column 1: Icons
+
+      ImGui::BeginGroup  ( );
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255).Value,
+                ICON_FA_FILE_IMAGE
+                            );
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255).Value,
+                ICON_FA_UNDO_ALT
+                            );
+
+      if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
+      {
+        ImGui::Separator   ( );
+        ImGui::TextColored (
+                ImColor   (255, 255, 255, 255).Value,
+                  ICON_FA_SYNC_ALT
+                              );
+      }
+
+      ImGui::Separator   ( );
+      ImGui::TextColored (
+              ImColor   (255, 255,  255, 255).Value,
+                ICON_FA_EXTERNAL_LINK_ALT
+                            );
+      ImGui::EndGroup   (  );
+
+      ImGui::SameLine   (  );
+
+      // Column 2: Items
+      ImGui::BeginGroup (  );
       if (ImGui::Selectable ("Set Custom Artwork"))
       {
 	      IFileOpenDialog  *pFileOpen;
@@ -1290,6 +1322,29 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
 
+      if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
+      {
+        ImGui::Separator();
+
+        if (ImGui::Selectable("Refresh Steam Cover"))
+        {
+          std::wstring load_str_2x (
+            SK_GetSteamDir ()
+          );
+
+          load_str_2x += LR"(/appcache/librarycache/)" +
+            std::to_wstring  (appid)                   +
+                                    L"_library_600x900_x2.jpg";
+
+          DeleteFile(load_str_2x.c_str());
+
+          update = true;
+        }
+
+        SKIF_ImGui_SetHoverTip ("This clears the cached Steam cover and forces a refresh.\n"
+                                "Use if SKIF does not show the latest cover for a game.");
+      }
+
       ImGui::Separator();
 
       if (ImGui::Selectable  ("Browse SteamGridDB"))
@@ -1299,9 +1354,11 @@ SKIF_GameManagement_DrawTab (void)
         else
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
       }
+
+      ImGui::EndGroup   (  );
     }
 
-    ImGui::EndPopup();
+    ImGui::EndPopup   (  );
   }
 
   // Special handling at the bottom for Special K
@@ -1431,10 +1488,13 @@ SKIF_GameManagement_DrawTab (void)
           std::to_wstring (appid)                   +
                                   L"_library_600x900.jpg";
 
+        std::wstring load_str_final = L"_library_600x900.jpg";
+
         // If 600x900 exists but 600x900_x2 cannot be found
         if (   PathFileExistsW (load_str.   c_str ()) &&
            ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
         {
+          // Load the metadata from 600x900
           if (
             SUCCEEDED (
             DirectX::GetMetadataFromWICFile (
@@ -1445,24 +1505,25 @@ SKIF_GameManagement_DrawTab (void)
             )
           )
           {
-            if (meta.width  == 600 &&
-                meta.height == 900)
+            // If the image is in reality 300x450, which indicates a real cover,
+            //   download the real 600x900 cover and store it in _x2
+            if (meta.width  == 300 &&
+                meta.height == 450)
             {
-              // We have a 600x900 image, but it's auto-gen,
-              //   just make a copy called 600x900_2x so we
-              //     don't hit the server up for this image
-              //       constantly.
-              CopyFileW ( load_str.   c_str (),
-                          load_str_2x.c_str (), TRUE );
+              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+              load_str_final = L"_library_600x900_x2.jpg";
             }
           }
+        }
 
-          SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+        // If 600x900_x2 exists, load that one instead
+        else {
+          load_str_final = L"_library_600x900_x2.jpg";
         }
 
         _LoadSteamLibraryTexture ( appid,
                                     pTexSRV,
-                                      L"_library_600x900_x2.jpg" );
+                                      load_str_final );
       }
     }
 
