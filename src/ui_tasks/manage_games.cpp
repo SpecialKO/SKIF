@@ -1224,6 +1224,7 @@ SKIF_GameManagement_DrawTab (void)
                 ICON_FA_UNDO_ALT
                             );
 
+      /*
       if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
       {
         ImGui::Separator   ( );
@@ -1232,6 +1233,7 @@ SKIF_GameManagement_DrawTab (void)
                   ICON_FA_SYNC_ALT
                               );
       }
+      */
 
       ImGui::Separator   ( );
       ImGui::TextColored (
@@ -1322,6 +1324,7 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
 
+      /*
       if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
       {
         ImGui::Separator();
@@ -1344,6 +1347,7 @@ SKIF_GameManagement_DrawTab (void)
         SKIF_ImGui_SetHoverTip ("This clears the cached Steam cover and forces a refresh.\n"
                                 "Use if SKIF does not show the latest cover for a game.");
       }
+      */
 
       ImGui::Separator();
 
@@ -1516,8 +1520,22 @@ SKIF_GameManagement_DrawTab (void)
           }
         }
 
-        // If 600x900_x2 exists, load that one instead
+        // If 600x900_x2 exists, check the last modified time stamps
         else {
+          WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
+
+          if (GetFileAttributesEx (load_str.c_str(),    GetFileExInfoStandard, &faX1) &&
+              GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
+          {
+            // If 600x900 has been edited after 600_900_x2,
+            //   download new copy of the 600_900_x2 cover
+            if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+            {
+              DeleteFile (load_str_2x.c_str());
+              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+            }
+          }
+
           load_str_final = L"_library_600x900_x2.jpg";
         }
 
