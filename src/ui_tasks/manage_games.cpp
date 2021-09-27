@@ -24,11 +24,12 @@
 #include <filesystem>
 
 const int   SKIF_STEAM_APPID      = 1157970;
-      bool  SKIF_STEAM_OWNER      = false;
+bool        SKIF_STEAM_OWNER      = false;
 static bool clickedGameLaunch,
             clickedGameLaunchWoSK,
             clickedGalaxyLaunch,
-            clickedGalaxyLaunchWoSK = false;
+            clickedGalaxyLaunchWoSK = false,
+            openedGameContextMenu = false;
 
 #include <SKIF.h>
 #include <injection.h>
@@ -428,13 +429,13 @@ SKIF_GameManagement_DrawTab (void)
       }
     }
 
-    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::filesystem::current_path().wstring().c_str(), appid),
-                 SteamCustomCoverPath = SK_FormatStringW (LR"(%ws/userdata/%i/config/grid/%i)", SK_GetSteamDir(), SteamUserID,             appid);
+    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::wstring (path_cache.specialk_userdata.path).c_str(), appid),
+                 SteamCustomCoverPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID,             appid);
 
-    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-      load_str =               SKIFCustomCoverPath + L".png";
-    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-      load_str =               SKIFCustomCoverPath + L".jpg";
+    if      (PathFileExistsW (( SKIFCustomCoverPath +  L".png").c_str()))
+      load_str =                SKIFCustomCoverPath +  L".png";
+    else if (PathFileExistsW (( SKIFCustomCoverPath +  L".jpg").c_str()))
+      load_str =                SKIFCustomCoverPath +  L".jpg";
     else if (PathFileExistsW ((SteamCustomCoverPath + L"p.png").c_str()))
       load_str =               SteamCustomCoverPath + L"p.png";
     else if (PathFileExistsW ((SteamCustomCoverPath + L"p.jpg").c_str()))
@@ -491,29 +492,10 @@ SKIF_GameManagement_DrawTab (void)
          const std::wstring&                 name )
   {
 
-    static std::wstring GOGUserID = L"";
-     
-    if (GOGUserID == L"")
-    {
-      HKEY hKey;
-      WCHAR szData[255];
-      DWORD dwSize = sizeof(szData) / sizeof(WCHAR);
+    extern std::wstring GOGGalaxy_UserID;
 
-      //Allocationg memory for a DWORD value.
-      DWORD dataType;
-
-      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-      {
-        if (RegGetValueW(hKey, NULL, L"userId", RRF_RT_REG_SZ, &dataType, szData, &dwSize) == ERROR_SUCCESS)
-          GOGUserID = szData;
-
-        RegCloseKey(hKey);
-      }
-    }
-
-    std::wstring load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGUserID.c_str(), appid);
-    
-    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\cover)", std::filesystem::current_path().wstring().c_str(), appid);
+    std::wstring load_str            = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid),
+                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\cover)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
     if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
       load_str =               SKIFCustomCoverPath + L".png";
@@ -585,7 +567,7 @@ SKIF_GameManagement_DrawTab (void)
     UNREFERENCED_PARAMETER(name);
 
     std::wstring load_str = L"\0",
-                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\cover)", std::filesystem::current_path().wstring().c_str(), appid);
+                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\cover)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
     if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
       load_str =               SKIFCustomCoverPath + L".png";
@@ -744,7 +726,9 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     // Load GOG titles from registry
-    SKIF_GOG_GetInstalledAppIDs (&apps);
+    extern bool SKIF_bDisableGOGLibrary;
+    if (! SKIF_bDisableGOGLibrary)
+      SKIF_GOG_GetInstalledAppIDs (&apps);
 
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](LPVOID pUser)->void
@@ -831,15 +815,44 @@ SKIF_GameManagement_DrawTab (void)
         UNREFERENCED_PARAMETER (appid);
         UNREFERENCED_PARAMETER (name);
 
-        if (
-          SUCCEEDED (
-            DirectX::LoadFromWICMemory (
-              sk_icon_jpg, sizeof (sk_icon_jpg),
-                DirectX::WIC_FLAGS_FILTER_POINT,
-                  &local_meta, local_img
+        std::wstring load_str            = L"\0",
+                     SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\icon)", std::wstring (path_cache.specialk_userdata.path).c_str());
+
+        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+          load_str =               SKIFCustomCoverPath + L".png";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+          load_str =               SKIFCustomCoverPath + L".jpg";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
+          load_str =               SKIFCustomCoverPath + L".ico";
+
+        bool succeeded = false;
+
+        if (load_str != L"\0" &&
+            SUCCEEDED(
+              DirectX::LoadFromWICFile (
+                load_str.c_str (),
+                  DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+                    &local_meta, local_img
+              )
             )
           )
-        )
+        {
+          succeeded = true;
+        }
+        else if (
+            SUCCEEDED(
+              DirectX::LoadFromWICMemory(
+                sk_icon_jpg, sizeof(sk_icon_jpg),
+                  DirectX::WIC_FLAGS_FILTER_POINT,
+                    &local_meta, local_img
+              )
+            )
+          )
+        {
+          succeeded = true;
+        }
+
+        if (succeeded)
         {
           DirectX::ScratchImage* pImg   =
                                      &local_img;
@@ -882,7 +895,7 @@ SKIF_GameManagement_DrawTab (void)
             if (   pLocalTex2D.p == nullptr ||
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
-                   pLocalTex2D.p, &srv_desc,
+                    pLocalTex2D.p, &srv_desc,
                   &pLibTexSRV.p
                 )
               )
@@ -909,6 +922,15 @@ SKIF_GameManagement_DrawTab (void)
 
         load_str +=   LR"(/appcache/librarycache/)" +
           std::to_wstring (appid)    +   name.c_str ();
+
+        std::wstring SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+          load_str =               SKIFCustomCoverPath + L".png";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+          load_str =               SKIFCustomCoverPath + L".jpg";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
+          load_str =               SKIFCustomCoverPath + L".ico";
 
         if (
           SUCCEEDED (
@@ -981,10 +1003,20 @@ SKIF_GameManagement_DrawTab (void)
            CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
            const std::wstring&                 name
          )
-      {
-        UNREFERENCED_PARAMETER(appid);
+      { 
+        extern std::wstring GOGGalaxy_UserID;
 
-        std::wstring load_str = name;
+        std::wstring load_str            = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid),
+                     SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\icon)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
+          load_str =               SKIFCustomCoverPath + L".png";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
+          load_str =               SKIFCustomCoverPath + L".jpg";
+        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
+          load_str =               SKIFCustomCoverPath + L".ico";
+        else
+          load_str = name;
 
         if (
           SUCCEEDED (
@@ -1215,38 +1247,23 @@ SKIF_GameManagement_DrawTab (void)
       // Column 1: Icons
 
       ImGui::BeginGroup  ( );
-      ImGui::TextColored (
-              ImColor   (255, 255, 255, 255).Value,
-                ICON_FA_FILE_IMAGE
-                            );
-      ImGui::TextColored (
-              ImColor   (255, 255, 255, 255).Value,
-                ICON_FA_UNDO_ALT
-                            );
+      ImVec2 iconPos = ImGui::GetCursorPos();
+      
+      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      ImGui::Separator  (  );
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::PopStyleColor (  );
 
-      /*
-      if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
-      {
-        ImGui::Separator   ( );
-        ImGui::TextColored (
-                ImColor   (255, 255, 255, 255).Value,
-                  ICON_FA_SYNC_ALT
-                              );
-      }
-      */
-
-      ImGui::Separator   ( );
-      ImGui::TextColored (
-              ImColor   (255, 255,  255, 255).Value,
-                ICON_FA_EXTERNAL_LINK_ALT
-                            );
       ImGui::EndGroup   (  );
 
       ImGui::SameLine   (  );
 
       // Column 2: Items
       ImGui::BeginGroup (  );
-      if (ImGui::Selectable ("Set Custom Artwork"))
+      bool dontCare = false;
+      if (ImGui::Selectable ("Set Custom Artwork",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
 	      IFileOpenDialog  *pFileOpen;
         COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png" };
@@ -1276,11 +1293,11 @@ SKIF_GameManagement_DrawTab (void)
               std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
 
               if (pApp->id == SKIF_STEAM_APPID)
-                targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::filesystem::current_path().c_str(), appid);
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
               else if (pApp->store == "GOG")
-                targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
               else
-                targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
               if (targetPath != L"")
               {
@@ -1302,16 +1319,16 @@ SKIF_GameManagement_DrawTab (void)
 	      }
       }
 
-      if (ImGui::Selectable("Clear Custom Artwork"))
+      if (ImGui::Selectable ("Clear Custom Artwork", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         std::wstring targetPath = L"";
         
         if (pApp->id == SKIF_STEAM_APPID)
-          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::filesystem::current_path().c_str(), appid);
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
         else if (pApp->store == "GOG")
-          targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::filesystem::current_path().c_str(), appid);
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
         else
-          targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::filesystem::current_path().c_str(), appid);
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
         if (PathFileExists(targetPath.c_str()))
         {
@@ -1324,34 +1341,9 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
 
-      /*
-      if (pApp->store == "Steam" && appid != SKIF_STEAM_APPID)
-      {
-        ImGui::Separator();
+      ImGui::Separator  (  );
 
-        if (ImGui::Selectable("Refresh Steam Cover"))
-        {
-          std::wstring load_str_2x (
-            SK_GetSteamDir ()
-          );
-
-          load_str_2x += LR"(/appcache/librarycache/)" +
-            std::to_wstring  (appid)                   +
-                                    L"_library_600x900_x2.jpg";
-
-          DeleteFile(load_str_2x.c_str());
-
-          update = true;
-        }
-
-        SKIF_ImGui_SetHoverTip ("This clears the cached Steam cover and forces a refresh.\n"
-                                "Use if SKIF does not show the latest cover for a game.");
-      }
-      */
-
-      ImGui::Separator();
-
-      if (ImGui::Selectable  ("Browse SteamGridDB"))
+      if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         if (pApp->store == "GOG")
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
@@ -1360,6 +1352,25 @@ SKIF_GameManagement_DrawTab (void)
       }
 
       ImGui::EndGroup   (  );
+
+      ImGui::SetCursorPos (iconPos);
+
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255),
+                ICON_FA_FILE_IMAGE
+                            );
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255),
+                ICON_FA_UNDO_ALT
+                            );
+
+      ImGui::Separator  (  );
+
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255),
+                ICON_FA_EXTERNAL_LINK_ALT
+                            );
+
     }
 
     ImGui::EndPopup   (  );
@@ -1635,14 +1646,53 @@ SKIF_GameManagement_DrawTab (void)
 
     if (! result.text.empty ())
     {
-      extern std::string SKIF_StatusBarText;
-      extern std::string SKIF_StatusBarHelp;
+      //extern std::string SKIF_StatusBarText;
+      //extern std::string SKIF_StatusBarHelp;
+      //extern int          WindowsCursorSize;
 
       size_t len =
         strlen (test_);
 
-      SKIF_StatusBarText = result.text.substr (0, len);
-      SKIF_StatusBarHelp = result.text.substr (len, result.text.length () - len);
+      //SKIF_StatusBarText = result.text.substr (0, len);
+      //SKIF_StatusBarHelp = result.text.substr (len, result.text.length () - len);
+
+      std::string strText = result.text.substr(0, len),
+                  strHelp = result.text.substr (len, result.text.length () - len);
+
+      ImGui::OpenPopup("KeyboardHint");
+
+      //ImVec2 cursorPos   = io.MousePos;
+      //int    cursorScale = WindowsCursorSize;
+
+      //ImGui::SetNextWindowPos (
+      //  ImVec2 ( cursorPos.x + 16      + 4 * (cursorScale - 1),
+      //           cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ )
+      //);
+
+      //ImGui::SetNextWindowSize (ImVec2 (0.0f, 0.0f));      
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+      ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.f, 0.f, 0.f, 0.5f));
+
+      if (ImGui::BeginPopupModal("KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
+      {
+        ImGui::TextColored ( ImColor::HSV(0.0f, 0.0f, 0.75f), // ImColor(53, 255, 3)
+                                "%s", strText.c_str ()
+        );
+
+        if (! strHelp.empty ())
+        {
+          ImGui::SameLine ();
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX () -
+            ImGui::GetStyle      ().ItemSpacing.x
+          );
+          ImGui::TextDisabled ("%s", strHelp.c_str ());
+        }
+
+        ImGui::EndPopup ( );
+      }
+
+      ImGui::PopStyleColor ( );
     }
 
     if (                       dwLastUpdate != MAXDWORD &&
@@ -1653,7 +1703,8 @@ SKIF_GameManagement_DrawTab (void)
       {
         *test_           = '\0';
         dwLastUpdate     = MAXDWORD;
-        manual_selection = result.app_id;
+        if (result.app_id != appid)
+          manual_selection = result.app_id;
         result.app_id    = 0;
         result.text.clear ();
       }
@@ -1749,7 +1800,7 @@ SKIF_GameManagement_DrawTab (void)
         switch (sk_install.injection.type)
         {
           case sk_install_state_s::Injection::Type::Global:
-            launch_description = "Click to launch game (global injection)";
+            //launch_description = "Click to launch game (global injection)";
 
             if ( _inject.bHasServlet )
             {
@@ -1765,24 +1816,22 @@ SKIF_GameManagement_DrawTab (void)
                          (cache.service)   ? ImColor (154, 255, 129)
                                            : ImColor (255, 189, 129);
               cache.injection.hover_text   =
-                         (cache.service)   ? "Click to stop injection service"
-                                           : "Click to start injection service";
+                         (cache.service)   ? "Click to stop the service"
+                                           : "Click to start the service";
 
             }
             break;
 
           case sk_install_state_s::Injection::Type::Local:
             cache.injection.type = "Local";
-              launch_description = "Click to launch game (local injection)";
+              //launch_description = "Click to launch game (local injection)";
             break;
 
           // Unknown injection strategy, but let's assume global would work
           default:
             if (_inject.bHasServlet)
-            {
               cache.injection.type = "Global";
-              launch_description   = "Click to launch game (unknown; using global injection)";
-            }
+              //launch_description   = "Click to launch game (unknown; using global injection)";
             break;
         }
 
@@ -1862,7 +1911,7 @@ SKIF_GameManagement_DrawTab (void)
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str ());
-        SKIF_ImGui_SetHoverTip        ("Open the config root folder");
+        //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
@@ -1878,7 +1927,7 @@ SKIF_GameManagement_DrawTab (void)
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
-        SKIF_ImGui_SetHoverTip        ("Open the config file");
+        //SKIF_ImGui_SetHoverTip        ("Open the config file");
       }
 
       else
@@ -2056,8 +2105,14 @@ SKIF_GameManagement_DrawTab (void)
       if (pTargetApp->_status.running)
         ImGui::PopStyleVar ();
 
-      else
-        SKIF_ImGui_SetHoverTip (launch_description.c_str ());
+      //else
+      //  SKIF_ImGui_SetHoverTip (launch_description.c_str ());
+      
+      if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
+          ! openedGameContextMenu)
+      {
+        openedGameContextMenu = true;
+      }
 
       ImGui::EndChildFrame ();
     }
@@ -2074,7 +2129,7 @@ SKIF_GameManagement_DrawTab (void)
                             ImGuiWindowFlags_NavFlattened );
   ImGui::BeginGroup ();
 
-  auto _HandleItemSelection = [&](void) ->
+  auto _HandleItemSelection = [&](bool iconMenu = false) ->
   bool
   {
     bool _GamePadRightClick =
@@ -2094,13 +2149,29 @@ SKIF_GameManagement_DrawTab (void)
       _GamePadRightClick                              ||
       _NavLongActivate;
 
-    if ( ! ImGui::IsPopupOpen ("GameContextMenu"))
+    // If the item is activated, but not visible, scroll to it
+    if (ret)
     {
-      if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
-           _GamePadRightClick                            ||
-           _NavLongActivate )
+      if (! ImGui::IsItemVisible    (    )) {
+        ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
+      }
+    }
+
+    if (iconMenu)
+    {
+      if ( ! ImGui::IsPopupOpen ("IconMenu") &&
+             ImGui::IsItemClicked (ImGuiMouseButton_Right))
+        ImGui::OpenPopup      ("IconMenu");
+    }
+    else {
+      if ( ! openedGameContextMenu)
       {
-        ImGui::OpenPopup      ("GameContextMenu");
+        if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
+             _GamePadRightClick                            ||
+             _NavLongActivate)
+        {
+          openedGameContextMenu = true;
+        }
       }
     }
 
@@ -2161,7 +2232,7 @@ SKIF_GameManagement_DrawTab (void)
                            );
 
     change |=
-      _HandleItemSelection ();
+      _HandleItemSelection (true);
 
     ImGui::SameLine        ();
 
@@ -2175,9 +2246,10 @@ SKIF_GameManagement_DrawTab (void)
     // Game Title
 
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
+    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset );
     ImGui::Selectable      ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth);
-    ImGui::PopStyleColor   (                     );
+    ImGui::PopStyleColor   (2                    );
 
     if ( ImGui::IsItemHovered        () &&
          ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) )
@@ -2191,6 +2263,9 @@ SKIF_GameManagement_DrawTab (void)
       }
     }
 
+    change |=
+      _HandleItemSelection ();
+
     // Show full title in tooltip if the title is made up out of more than 48 characters.
     //   Use strlen(.c_str()) to strip \0 characters in the string that would otherwise also be counted.
     if (strlen(app.first.c_str()) > 48)
@@ -2198,16 +2273,13 @@ SKIF_GameManagement_DrawTab (void)
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
-    change |=
-      _HandleItemSelection ();
-
     ImGui::EndGroup        ();
 
     // End Icon + Selectable row
 
 
-    change |=
-      _HandleItemSelection ();
+    //change |=
+    //  _HandleItemSelection ();
 
     if (manual_selection == app.second.id)
     {
@@ -2236,11 +2308,23 @@ SKIF_GameManagement_DrawTab (void)
       {
         app.second._status.invalidate ();
 
-        ImGui::ActivateItem (ImGui::GetID (app.first.c_str ()));
+        if (! ImGui::IsMouseDown(ImGuiMouseButton_Right))
+        {
+          // Activate the row of the current game
+          ImGui::ActivateItem (ImGui::GetID ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()));
 
-        if (! ImGui::IsItemVisible    (    )) {
-          ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
-        } ImGui::SetKeyboardFocusHere (    );
+          if (! ImGui::IsItemVisible    (    )) {
+            ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
+          } ImGui::SetKeyboardFocusHere (    );
+
+          // This fixes ImGui not allowing the GameContextMenu to be opened on first search
+          //   without an additional keyboard input
+          ImGuiContext& g = *ImGui::GetCurrentContext();
+          g.NavDisableHighlight = false;
+        }
+
+        //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());
+
 
         deferred_update = true;
       }
@@ -2273,7 +2357,7 @@ SKIF_GameManagement_DrawTab (void)
             ImGui::GetItemRectMin ().x + ImGui::GetWindowContentRegionWidth (),
             ImGui::GetItemRectMax ().y
           );
-
+          /*
           if (ImGui::IsItemVisible ())
           {
             auto _IsMouseInWindow = [&](void) -> bool
@@ -2300,6 +2384,7 @@ SKIF_GameManagement_DrawTab (void)
               io.WantSetMousePos = true;
             }
           }
+          */
 
           ImGui::Dummy    (ImVec2 (0,0));
         }
@@ -2476,7 +2561,320 @@ SKIF_GameManagement_DrawTab (void)
     }
   }
 
+  
 
+  if (ImGui::BeginPopup ("IconMenu"))
+  {
+    if (pApp != nullptr)
+    {
+      // Column 1: Icons
+
+      ImGui::BeginGroup  ( );
+      ImVec2 iconPos = ImGui::GetCursorPos();
+
+      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      ImGui::Separator  (  );
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::PopStyleColor (  );
+
+      ImGui::EndGroup   (  );
+
+      ImGui::SameLine   (  );
+
+      // Column 2: Items
+      ImGui::BeginGroup (  );
+      bool dontCare = false;
+      if (ImGui::Selectable ("Set Custom Icon",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      {
+	      IFileOpenDialog  *pFileOpen;
+        COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png;*.ico" };
+
+	      PWSTR pszFilePath = NULL;
+
+	      // Create the FileOpenDialog object.
+	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+	      if (SUCCEEDED(hr))
+	      {
+                pFileOpen->SetFileTypes(1, &fileTypes);
+		      hr = pFileOpen->Show(NULL);
+
+		      // Get the file name from the dialog box.
+		      if (SUCCEEDED(hr))
+		      {
+			      IShellItem *pItem;
+			      hr = pFileOpen->GetResult(&pItem);
+
+			      if (SUCCEEDED(hr))
+			      {
+				      hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+              std::wstring targetPath = L"";
+              std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
+
+              if (pApp->id == SKIF_STEAM_APPID)
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+              else if (pApp->store == "GOG")
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+              else
+                targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+              if (targetPath != L"")
+              {
+                std::filesystem::create_directories (targetPath);
+                targetPath += L"icon";
+
+                DeleteFile((targetPath + L".jpg").c_str());
+                DeleteFile((targetPath + L".ico").c_str());
+                DeleteFile((targetPath + L".png").c_str());
+
+                CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+
+                // Release current icon
+                //pApp->textures.icon.Release();
+
+                /*
+                // Load Special K's icon from the embedded resource
+                if ( pApp->id == SKIF_STEAM_APPID )
+                  __LoadSKIconTexture (pApp->id,
+                                        pApp->textures.icon,
+                                                         L"_icon.jpg"
+                );
+
+                // Load GOG icons from the install folder
+                else  if (pApp->store == "GOG")
+                  __LoadGOGLibraryTexture ( pApp->id,
+                                            pApp->textures.icon,
+                                            pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                );
+
+                // Load all other apps from the librarycache of the Steam client
+                else if (pApp->store != "GOG")
+                  __LoadLibraryTexture ( pApp->id,
+                                         pApp->textures.icon,
+                                                          L"_icon.jpg"
+                );
+                */
+              }
+
+				      pItem->Release();
+			      }
+		      }
+		      pFileOpen->Release();
+	      }
+      }
+
+      if (ImGui::Selectable ("Clear Custom Icon",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      {
+        std::wstring targetPath = L"";
+        
+        if (pApp->id == SKIF_STEAM_APPID)
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+        else if (pApp->store == "GOG")
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+        else
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+        if (PathFileExists(targetPath.c_str()))
+        {
+          targetPath += L"icon";
+
+          DeleteFile((targetPath + L".jpg").c_str());
+          DeleteFile((targetPath + L".ico").c_str());
+          DeleteFile((targetPath + L".png").c_str());
+
+          //update = true;
+          //pApp->textures.icon.Release();
+        }
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::Selectable ("Browse SteamGridDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      {
+        if (pApp->store == "GOG")
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+        else
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
+      }
+
+      ImGui::EndGroup   (  );
+
+      ImGui::SetCursorPos (iconPos);
+
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255).Value,
+                ICON_FA_FILE_IMAGE
+                            );
+      ImGui::TextColored (
+              ImColor   (255, 255, 255, 255).Value,
+                ICON_FA_UNDO_ALT
+                            );
+
+      ImGui::Separator   ( );
+
+      ImGui::TextColored (
+              ImColor   (255, 255,  255, 255).Value,
+                ICON_FA_EXTERNAL_LINK_ALT
+                            );
+    }
+
+    ImGui::EndPopup   (  );
+  }
+
+  ImGui::EndGroup   ();
+  ImGui::EndChild   ();
+
+  // Applies hover text on the whole AppListInset1
+  //if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
+    //SKIF_ImGui_SetHoverText ("Right click for more options");
+
+  ImGui::BeginChild (
+    "###AppListInset2",
+      ImVec2 ( _WIDTH2,
+               _HEIGHT2 ), true,
+        ImGuiWindowFlags_NoScrollbar       |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NavFlattened
+  );
+  ImGui::BeginGroup ();
+
+  if ( pApp     == nullptr       ||
+       pApp->id == SKIF_STEAM_APPID )
+  {
+    _inject._GlobalInjectionCtl ();
+  }
+
+  else if (pApp != nullptr)
+  {
+    _PrintInjectionSummary (pApp);
+
+    if (pApp->extended_config.vac.enabled == 1)
+    {
+        SKIF_StatusBarText = "Warning: ";
+        SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
+    }
+
+    if (! pApp->launch_configs.empty ())
+    {
+      ImGui::SetCursorPosY (
+        ImGui::GetWindowHeight () - fBottomDist -
+        ImGui::GetStyle        ().ItemSpacing.y
+      );
+
+      ImGui::Separator     ( );
+
+      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
+                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                  std::max (ImGui::GetContentRegionAvail ().y,
+                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                           )),
+                                    ImGuiWindowFlags_NavFlattened      |
+                                    ImGuiWindowFlags_NoScrollbar       |
+                                    ImGuiWindowFlags_NoScrollWithMouse |
+                                    ImGuiWindowFlags_NoBackground
+      );
+
+      auto _BlacklistCfg =
+      [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
+      void
+      {
+        if (pApp->extended_config.vac.enabled == 1)
+        {
+          launch_cfg.setBlacklisted (pApp->id, true);
+        }
+
+        bool blacklist =
+          launch_cfg.isBlacklisted (pApp->id);
+
+        char          szButtonLabel [256] = { };
+        if (menu)
+          sprintf_s ( szButtonLabel, 255,
+                        " for \"%ws\"###DisableLaunch%d",
+                          launch_cfg.description.empty ()
+                            ? launch_cfg.executable .c_str ()
+                            : launch_cfg.description.c_str (),
+                          launch_cfg.id);
+        else
+          sprintf_s ( szButtonLabel, 255,
+                        " Disable Special K###DisableLaunch%d",
+                          launch_cfg.id );
+
+        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+          launch_cfg.setBlacklisted (pApp->id, blacklist);
+
+        SKIF_ImGui_SetHoverText (
+                    SK_FormatString (
+                      menu
+                        ? R"(%ws    )"
+                        : R"(%ws)",
+                      launch_cfg.executable.c_str  ()
+                    ).c_str ()
+        );
+      };
+
+      // Set horizontal position
+      ImGui::SetCursorPosX (
+        ImGui::GetCursorPosX  () +
+        ImGui::GetColumnWidth () -
+        ImGui::CalcTextSize   ("Disable Special K =>").x -
+        ImGui::GetScrollX     () -
+        ImGui::GetStyle       ().ItemSpacing.x * 2
+      );
+
+      // If there is only one launch option
+      if ( pApp->launch_configs.size  () == 1 )
+      {
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY () - 1.0f
+        );
+
+        _BlacklistCfg          (
+             pApp->launch_configs.begin ()->second );
+      }
+
+      // If there are more than one launch option
+      else
+      {
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY () +
+          ImGui::GetStyle      ().ItemSpacing.y / 2.0f
+        );
+
+        if ( ImGui::BeginMenu ("Disable Special K") )
+        {
+          for ( auto& launch : pApp->launch_configs )
+          {
+            if (! launch.second.valid)
+              continue;
+
+            _BlacklistCfg (launch.second, true);
+          }
+
+          ImGui::EndMenu       ();
+        }
+      }
+
+      ImGui::EndChildFrame     ();
+
+      fBottomDist = ImGui::GetItemRectSize().y;
+    }
+  }
+
+  ImGui::EndGroup     (                  );
+  ImGui::EndChild     (                  );
+  ImGui::EndGroup     (                  );
+
+
+  
+  if (openedGameContextMenu)
+  {
+    ImGui::OpenPopup    ("GameContextMenu");
+    openedGameContextMenu = false;
+  }
 
 
   if (ImGui::BeginPopup ("GameContextMenu"))
@@ -2625,6 +3023,74 @@ SKIF_GameManagement_DrawTab (void)
       else
       {
         ImGui::BeginGroup  ( );
+        ImVec2 iconPos = ImGui::GetCursorPos();
+
+        ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_OPEN).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
+        ImGui::Separator  (  );
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
+        ImGui::PopStyleColor (  );
+
+        ImGui::EndGroup   (  );
+        ImGui::SameLine   (  );
+        ImGui::BeginGroup (  );
+        bool dontCare = false;
+
+        if (ImGui::Selectable ("Wiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI (
+            L"https://wiki.special-k.info/"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
+
+
+        if (ImGui::Selectable ("Discord", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI (
+            L"https://discord.com/invite/ER4EDBJPTa"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://discord.com/invite/ER4EDBJPTa");
+
+
+        if (ImGui::Selectable ("Forum", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI (
+            L"https://discourse.differentk.fyi/"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
+
+
+        if (ImGui::Selectable ("Patreon", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI (
+            L"https://www.patreon.com/Kaldaien"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
+
+        if (ImGui::Selectable ("GitLab", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI (
+            L"https://gitlab.special-k.info/"
+          );
+        }
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       ("https://gitlab.special-k.info/");
+
+        ImGui::EndGroup   ( );
+
+        ImGui::SetCursorPos(iconPos);
+        
         ImGui::TextColored (
                ImColor   (24, 118, 210, 255).Value,
                  ICON_FA_BOOK_OPEN
@@ -2645,61 +3111,10 @@ SKIF_GameManagement_DrawTab (void)
                ImColor   (226,  67,  40, 255).Value,
                  ICON_FA_GITLAB
                              );
-        ImGui::EndGroup   (  );
-        ImGui::SameLine   (  );
-        ImGui::BeginGroup (  );
-
-        if (ImGui::Selectable ("Wiki"))
-        {
-          SKIF_Util_OpenURI (
-            L"https://wiki.special-k.info/"
-          );
-        }
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
-
-
-        if (ImGui::Selectable ("Discord"))
-        {
-          SKIF_Util_OpenURI (
-            L"https://discord.com/invite/ER4EDBJPTa"
-          );
-        }
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://discord.com/invite/ER4EDBJPTa");
-
-
-        if (ImGui::Selectable ("Forum"))
-        {
-          SKIF_Util_OpenURI (
-            L"https://discourse.differentk.fyi/"
-          );
-        }
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
-
-
-        if (ImGui::Selectable ("Patreon"))
-        {
-          SKIF_Util_OpenURI (
-            L"https://www.patreon.com/Kaldaien"
-          );
-        }
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
-
-        if (ImGui::Selectable ("GitLab"))
-        {
-          SKIF_Util_OpenURI (
-            L"https://gitlab.special-k.info/"
-          );
-        }
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://gitlab.special-k.info/");
-
-        ImGui::EndGroup   ( );
-        ImGui::Separator  ( );
       }
+
+      if (pApp->store == "Steam")
+        ImGui::Separator  ( );
 
       if (! pApp->specialk.screenshots.empty ())
       {
@@ -2899,36 +3314,26 @@ SKIF_GameManagement_DrawTab (void)
         ImGui::Separator ( );
 
       ImGui::BeginGroup  ( );
-      ImGui::TextColored (
-               ImColor   (255, 229, 150, 255).Value,
-                 ICON_FA_FOLDER_OPEN
-                           );
-      ImGui::TextColored (
-               ImColor   (200, 200, 200, 255).Value,
-                 ICON_FA_TOOLS
-                           );
+      ImVec2 iconPos = ImGui::GetCursorPos();
+
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TOOLS)       .x, ImGui::GetTextLineHeight()));
 
       if (pApp->store == "GOG")
       {
-        ImGui::TextColored (
-         ImColor   (155, 89, 182, 255).Value,
-           ICON_FA_DATABASE );
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
       }
 
       else if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
-        ImGui::TextColored (
-         ImColor   (101, 192, 244, 255).Value,
-           ICON_FA_DATABASE );
-
-        ImGui::TextColored (
-         ImColor   (255, 255, 255, 255).Value,
-           ICON_FA_STEAM_SYMBOL );
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
       }
       ImGui::EndGroup    ( );
       ImGui::SameLine    ( );
       ImGui::BeginGroup  ( );
-      if (ImGui::Selectable ("Browse Install Folder"))
+      bool dontCare = false;
+      if (ImGui::Selectable ("Browse Install Folder", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         SKIF_Util_ExplorePath         (
           pApp->install_dir             );
@@ -2941,7 +3346,7 @@ SKIF_GameManagement_DrawTab (void)
                                         );
       }
 
-      if (ImGui::Selectable  ("Browse PCGamingWiki"))
+      if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         SKIF_Util_OpenURI_Formatted   ( SW_SHOWNORMAL,
                (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%lu"
@@ -2963,7 +3368,7 @@ SKIF_GameManagement_DrawTab (void)
 
       if (pApp->store == "GOG")
       {
-        if (ImGui::Selectable  ("Browse GOG Database"))
+        if (ImGui::Selectable  ("Browse GOG Database", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"https://www.gogdb.org/product/%lu", pApp->id
@@ -2981,7 +3386,7 @@ SKIF_GameManagement_DrawTab (void)
       }
       else if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
       {
-        if (ImGui::Selectable  ("Browse SteamDB"))
+        if (ImGui::Selectable  ("Browse SteamDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"https://steamdb.info/app/%lu", pApp->id
@@ -2997,7 +3402,7 @@ SKIF_GameManagement_DrawTab (void)
                                           );
         }
 
-        if (ImGui::Selectable  ("Browse Steam Community"))
+        if (ImGui::Selectable  ("Browse Steam Community", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
             L"https://steamcommunity.com/app/%lu", pApp->id
@@ -3015,6 +3420,36 @@ SKIF_GameManagement_DrawTab (void)
       }
       ImGui::EndGroup      ( );
       ImGui::PopStyleColor ( );
+
+      ImGui::SetCursorPos  (iconPos);
+
+      ImGui::TextColored (
+               ImColor   (255, 229, 150, 255).Value,
+                 ICON_FA_FOLDER_OPEN
+                           );
+      ImGui::TextColored (
+               ImColor   (200, 200, 200, 255).Value,
+                 ICON_FA_TOOLS
+                           );
+      
+      if (pApp->store == "GOG")
+      {
+        ImGui::TextColored (
+         ImColor   (155, 89, 182, 255).Value,
+           ICON_FA_DATABASE );
+      }
+
+      else if (pApp->id != SKIF_STEAM_APPID || SKIF_STEAM_OWNER)
+      {
+        ImGui::TextColored (
+         ImColor   (101, 192, 244, 255).Value,
+           ICON_FA_DATABASE );
+
+        ImGui::TextColored (
+         ImColor   (255, 255, 255, 255).Value,
+           ICON_FA_STEAM_SYMBOL );
+      }
+
     }
 
     else if (! update)
@@ -3024,150 +3459,6 @@ SKIF_GameManagement_DrawTab (void)
 
     ImGui::EndPopup ();
   }
-
-  ImGui::EndGroup   ();
-  ImGui::EndChild   ();
-
-  // Applies hover text on the whole AppListInset1
-  if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
-    SKIF_ImGui_SetHoverText ("Right click for more details");
-
-  ImGui::BeginChild (
-    "###AppListInset2",
-      ImVec2 ( _WIDTH2,
-               _HEIGHT2 ), true,
-        ImGuiWindowFlags_NoScrollbar       |
-        ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NavFlattened
-  );
-  ImGui::BeginGroup ();
-
-  if ( pApp     == nullptr       ||
-       pApp->id == SKIF_STEAM_APPID )
-  {
-    _inject._GlobalInjectionCtl ();
-  }
-
-  else if (pApp != nullptr)
-  {
-    _PrintInjectionSummary (pApp);
-
-    if (pApp->extended_config.vac.enabled == 1)
-    {
-        SKIF_StatusBarText = "Warning: ";
-        SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
-    }
-
-    if (! pApp->launch_configs.empty ())
-    {
-      ImGui::SetCursorPosY (
-        ImGui::GetWindowHeight () - fBottomDist -
-        ImGui::GetStyle        ().ItemSpacing.y
-      );
-
-      ImGui::Separator     ( );
-
-      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
-                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                  std::max (ImGui::GetContentRegionAvail ().y,
-                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
-                                           )),
-                                    ImGuiWindowFlags_NavFlattened      |
-                                    ImGuiWindowFlags_NoScrollbar       |
-                                    ImGuiWindowFlags_NoScrollWithMouse |
-                                    ImGuiWindowFlags_NoBackground
-      );
-
-      auto _BlacklistCfg =
-      [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
-      void
-      {
-        if (pApp->extended_config.vac.enabled == 1)
-        {
-          launch_cfg.setBlacklisted (pApp->id, true);
-        }
-
-        bool blacklist =
-          launch_cfg.isBlacklisted (pApp->id);
-
-        char          szButtonLabel [256] = { };
-        if (menu)
-          sprintf_s ( szButtonLabel, 255,
-                        " for \"%ws\"###DisableLaunch%d",
-                          launch_cfg.description.empty ()
-                            ? launch_cfg.executable .c_str ()
-                            : launch_cfg.description.c_str (),
-                          launch_cfg.id);
-        else
-          sprintf_s ( szButtonLabel, 255,
-                        " Disable Special K###DisableLaunch%d",
-                          launch_cfg.id );
-
-        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-          launch_cfg.setBlacklisted (pApp->id, blacklist);
-
-        SKIF_ImGui_SetHoverText (
-                    SK_FormatString (
-                      menu
-                        ? R"(%ws    )"
-                        : R"(%ws)",
-                      launch_cfg.executable.c_str  ()
-                    ).c_str ()
-        );
-      };
-
-      // Set horizontal position
-      ImGui::SetCursorPosX (
-        ImGui::GetCursorPosX  () +
-        ImGui::GetColumnWidth () -
-        ImGui::CalcTextSize   ("Disable Special K =>").x -
-        ImGui::GetScrollX     () -
-        ImGui::GetStyle       ().ItemSpacing.x * 2
-      );
-
-      // If there is only one launch option
-      if ( pApp->launch_configs.size  () == 1 )
-      {
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () - 1.0f
-        );
-
-        _BlacklistCfg          (
-             pApp->launch_configs.begin ()->second );
-      }
-
-      // If there are more than one launch option
-      else
-      {
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () +
-          ImGui::GetStyle      ().ItemSpacing.y / 2.0f
-        );
-
-        if ( ImGui::BeginMenu ("Disable Special K") )
-        {
-          for ( auto& launch : pApp->launch_configs )
-          {
-            if (! launch.second.valid)
-              continue;
-
-            _BlacklistCfg (launch.second, true);
-          }
-
-          ImGui::EndMenu       ();
-        }
-      }
-
-      ImGui::EndChildFrame     ();
-
-      fBottomDist = ImGui::GetItemRectSize().y;
-    }
-  }
-
-
-  ImGui::EndGroup     (                  );
-  ImGui::EndChild     (                  );
-  ImGui::EndGroup     (                  );
 }
 
 

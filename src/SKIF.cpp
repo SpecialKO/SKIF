@@ -31,6 +31,7 @@ const GUID IID_IDXGIFactory5 =
 const int SKIF_STEAM_APPID = 1157970;
 int WindowsCursorSize = 1;
 bool RepositionSKIF = false;
+bool tinyDPIFonts = false;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
@@ -41,6 +42,7 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
      SKIF_bDisableSteamLibrary     = false,
+     SKIF_bDisableGOGLibrary       = false,
      SKIF_bSmallMode               = false,
      SKIF_bFirstLaunch             = false,
      SKIF_bEnableDebugMode         = false,
@@ -56,8 +58,9 @@ BOOL SKIF_bAllowTearing            = FALSE,
 HMODULE hModSK64                   = NULL;
 
 // GOG Galaxy stuff
-std::wstring GOGGalaxy_Path;
-std::wstring GOGGalaxy_Folder;
+std::wstring GOGGalaxy_Path        = L"";
+std::wstring GOGGalaxy_Folder      = L"";
+std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
 
 #include <sk_utility/command.h>
@@ -322,10 +325,9 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
     {
       if (! SKIF_bDisableTooltips)
       {
-        auto& io =
-          ImGui::GetIO ();
-
-        ImVec2 cursorPos   = io.MousePos;
+        ImVec2 cursorPos   = (ImGui::IsItemFocused ( )) 
+                                ? ImGui::GetCursorScreenPos ( ) // If the item has keyboard focus, grab the position of the rendering cursor
+                                : ImGui::GetIO ( ).MousePos;    // If the item lacks keyboard focus, grab the position of the mouse cursor
         int    cursorScale = WindowsCursorSize;
 
         ImGui::SetNextWindowPos (
@@ -1692,6 +1694,43 @@ SKIF_AddToEnvironmentalPath(void)
   return ret;
 }
 
+bool
+SKIF_hasControlledFolderAccess (void)
+{
+  if (! SKIF_IsWindows10OrGreater ( ))
+    return false;
+
+  HKEY hKey;
+  DWORD buffer;
+  unsigned long size = 1024;
+  bool enabled = false;
+
+  // Check if Controlled Folder Access is enabled
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
+  {
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
+      enabled = buffer;
+
+    RegCloseKey (hKey);
+  }
+
+  if (enabled)
+  {
+    if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+    {
+      static TCHAR               szExePath[MAX_PATH];
+      GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+      if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
+        enabled = false;
+
+      RegCloseKey(hKey);
+    }
+  }
+
+  return enabled;
+}
+
 static auto regKVDisableStopOnInjection =
   SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                         LR"(Disable Stop On Injection)" );
@@ -1826,6 +1865,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
       LR"(Disable Steam Library)");
 
+  static auto regKVDisableGOGLibrary =
+    SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+      LR"(Disable GOG Library)");
+
   static auto regKVSmallMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Small Mode)" );
@@ -1859,6 +1902,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
   SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
   SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
+  SKIF_bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
   SKIF_bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
   SKIF_bSmallMode               =   regKVSmallMode.getData               ( );
   SKIF_bFirstLaunch             =   regKVFirstLaunch.getData             ( );
@@ -1880,7 +1924,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
   );
 
   // Add SKIF to the user's environmental PATH variable
-  SKIF_AddToEnvironmentalPath ( );
+  //SKIF_AddToEnvironmentalPath ( ); // Disabled pending rewrite to https://docs.microsoft.com/en-us/windows/win32/shell/app-registration
+
+  // Check if Controlled Folder Access is enabled
+  if (SKIF_hasControlledFolderAccess ( ))
+  {
+    MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K from working properly. "
+                     L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
+                     L"\n\n"
+                     L"This warning will appear until SKIF (this application) have been excluded or the feature have been disabled."
+                     L"\n\n"
+                     L"Microsoft's support page with more information will be opened upon clicking OK.",
+                     L"Warning about Controlled Folder Access",
+               MB_ICONWARNING | MB_OK);
+
+    SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
+  }
 
   // Cache the Special K user data path
   /* This is handled in the injection.cpp constructor instead
@@ -1888,6 +1947,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PathAppendW (        path_cache.specialk_userdata.path,
                          LR"(My Mods\SpecialK)"  );
   */
+  
+  //std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::wstring (path_cache.specialk_userdata.path).c_str(), 9999);
+
+  //MessageBox(NULL, SKIFCustomCoverPath.c_str(), L"Debug", MB_OK | MB_ICONINFORMATION);
 
   int                                    app_id = SKIF_STEAM_APPID;
   if (StrStrW (lpCmdLine, L"AppID="))
@@ -1983,8 +2046,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
   // Show the window
-  ShowWindow   (hWnd, SW_SHOWDEFAULT);
-  UpdateWindow (hWnd);
+  ShowWindowAsync (hWnd, nCmdShow);
+  UpdateWindow    (hWnd);
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -1995,11 +2058,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   (void)io; // WTF does this do?!
 
+//io.IniFilename = nullptr;                                   // Disable imgui.ini
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
 //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
+//io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
   io.ConfigViewportsNoAutoMerge      = false;
   io.ConfigViewportsNoTaskBarIcon    =  true;
@@ -2015,8 +2079,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Setup Dear ImGui style
-  ImGui::StyleColorsDark ();
-//ImGui::StyleColorsClassic();
+  ImGui::StyleColorsDark    ( );
+//ImGui::StyleColorsClassic ( );
+//ImGui::StyleColorsLight   ( );
 
   using ImStyle =
         ImGuiStyle;
@@ -2161,8 +2226,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       io.FontGlobalScale = 1.0f;
 
       // Handling sub-1000px resolutions by rebuilding the font at 11px
-      static bool tinyDPIFonts = false;
-
       if (SKIF_ImGui_GlobalDPIScale < 1.0f && (! tinyDPIFonts))
       {
         SKIF_ImGui_InitFonts (11.0F);
@@ -2227,7 +2290,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           todoFixUglyHack = false;
           // Positiong the window at the mouse cursor
-          ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
+          ImGui::SetNextWindowPos (ImVec2 (ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
         }
 
         if (RepositionSKIF)
@@ -2628,8 +2691,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::Spacing       ( );
               ImGui::Spacing       ( );
 
-              ImGui::Text("Disable UI elements");
-              ImGui::TreePush("");
+              ImGui::Text          ("Disable UI elements");
+              ImGui::TreePush      ("");
 
               if (ImGui::Checkbox ("Exit prompt  ",
                                                      &SKIF_bDisableExitConfirmation))
@@ -2649,7 +2712,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SameLine ( );
 
               if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
-                regKVDisableTooltips.putData (             SKIF_bDisableTooltips);
+                regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
 
               if (ImGui::IsItemHovered ())
                 SKIF_StatusBarText = "Info: ";
@@ -2663,13 +2726,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SameLine ( );
 
               if (ImGui::Checkbox ("Status bar", &SKIF_bDisableStatusBar))
-                regKVDisableStatusBar.putData (              SKIF_bDisableStatusBar);
+                regKVDisableStatusBar.putData (   SKIF_bDisableStatusBar);
 
               SKIF_ImGui_SetHoverTip (
                 "Combining this with disabled UI tooltips will hide all context based information or tips."
               );
 
-              // New line
+              ImGui::SameLine ( );
+              ImGui::Spacing  ( );
+              ImGui::SameLine ( );
 
               if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
               {
@@ -2678,25 +2743,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 if (SKIF_bDisableDPIScaling)
                   io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
 
-                regKVDisableDPIScaling.putData (SKIF_bDisableDPIScaling);
+                regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
               }
 
               SKIF_ImGui_SetHoverTip (
                 "This application will appear much smaller on HiDPI monitors."
               );
 
-              ImGui::SameLine ( );
-              ImGui::Spacing  ( );
-              ImGui::SameLine ( );
-
-              if (ImGui::Checkbox ("Steam Library (restart required)", &SKIF_bDisableSteamLibrary))
-                regKVDisableSteamLibrary.putData (                   SKIF_bDisableSteamLibrary);
-
-              SKIF_ImGui_SetHoverTip (
-                "This will prevent SKIF from listing discovered Steam games."
-              );
-
-              if (SKIF_bDisableTooltips && SKIF_bDisableStatusBar)
+              if (SKIF_bDisableTooltips &&
+                  SKIF_bDisableStatusBar)
               {
                 ImGui::BeginGroup     ( );
                 ImGui::Spacing        ( );
@@ -2709,7 +2764,33 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImGui::EndGroup       ( );
               }
 
-              ImGui::TreePop();
+              ImGui::TreePop       ( );
+
+              ImGui::Spacing       ( );
+              ImGui::Spacing       ( );
+
+              ImGui::Text          ("Disable libraries (restart required)");
+              ImGui::TreePush      ("");
+
+              if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
+                regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
+
+              SKIF_ImGui_SetHoverTip (
+                "This will prevent SKIF from listing discovered GOG games."
+              );
+
+              ImGui::SameLine ( );
+              ImGui::Spacing  ( );
+              ImGui::SameLine ( );
+
+              if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
+                regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
+
+              SKIF_ImGui_SetHoverTip (
+                "This will prevent SKIF from listing discovered Steam games."
+              );
+
+              ImGui::TreePop       ( );
 
               ImGui::NextColumn    ( );
 
@@ -3638,7 +3719,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::TextWrapped      ("Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything.");
             ImGui::NewLine          ( );
-            ImGui::TextWrapped      ("It is best known for fixing and enhancing graphics, its many detailed performance analysisand correction mods, "
+            ImGui::TextWrapped      ("It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, "
                                      "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games.");
 
             ImGui::PopStyleColor    ( );

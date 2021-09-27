@@ -71,12 +71,12 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         {
           dwSize = sizeof(szData) / sizeof(WCHAR);
 
-          if (RegGetValueW(hKey, szSubKey, L"dependsOn", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS &&
+          if (RegGetValueW(hKey, szSubKey, L"dependsOn", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS &&
             wcslen(szData) == 0) // Only handles items without a dependency (skips DLCs)
           {
             dwSize = sizeof(szData) / sizeof(WCHAR);
 
-            if (RegGetValueW(hKey, szSubKey, L"GameID", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+            if (RegGetValueW(hKey, szSubKey, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
             {
               app_record_s GOG_record(_wtoi(szData));
 
@@ -87,7 +87,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               GOG_record._status.installed = true;
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW(hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 GOG_record.names.normal = SK_WideCharToUTF8(szData);
 
               // Strip null terminators // moved to later -- performed for all installed games as part of manage_games.cpp
@@ -100,11 +100,11 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               std::for_each(GOG_record.names.all_upper.begin(), GOG_record.names.all_upper.end(), ::toupper);
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW(hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 GOG_record.install_dir = szData;
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW(hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               {
                 app_record_s::launch_config_s lc;
                 lc.id = 0;
@@ -113,13 +113,13 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 lc.working_dir = GOG_record.install_dir;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW(hKey, szSubKey, L"launchParam", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+                if (RegGetValueW(hKey, szSubKey, L"launchParam", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   lc.launch_options = szData;
 
                 GOG_record.launch_configs[0] = lc;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+                if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   GOG_record.specialk.profile_dir = szData;
 
                 GOG_record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
@@ -165,7 +165,21 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         }
 
         RegCloseKey(hKey);
+
+        // Galaxy User ID
+
+        extern std::wstring GOGGalaxy_UserID;
+
+        dwSize = sizeof(szData) / sizeof(WCHAR);
+        if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        {
+          if (RegGetValueW(hKey, NULL, L"userId", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+            GOGGalaxy_UserID = szData;
+
+          RegCloseKey(hKey);
+        }
       }
     }
   }
 }
+

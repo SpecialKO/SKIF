@@ -265,7 +265,7 @@ ImGui_ImplWin32_UpdateMousePos (void)
 
   // Set OS mouse position if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
   // (When multi-viewports are enabled, all imgui positions are same as OS positions)
-  if (io.WantSetMousePos && g_Focused)
+  if (io.WantSetMousePos && g_Focused && io.ConfigFlags & ImGuiConfigFlags_NavEnableSetMousePos)
   {
     POINT pos = {
       (int)io.MousePos.x,

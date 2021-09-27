@@ -301,6 +301,7 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   SKIF_GetFolderPath (&path_cache.specialk_userdata);
   PathAppendW (        path_cache.specialk_userdata.path,
                          LR"(My Mods\SpecialK)"  );
+
   bHasServlet =
     PathFileExistsW  (L"Servlet") ||
     CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the folder if it does not exist
@@ -553,9 +554,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   SKIF_ImGui_SetHoverText       (
     SK_WideCharToUTF8 (root_dir).c_str ()
   );
-  SKIF_ImGui_SetHoverTip        (
-    "Open the config root folder"
-  );
+  //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
   // 32-bit/64-bit Services
   if (pid32)
@@ -803,6 +802,7 @@ CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR l
 
     // Set the path to the shortcut target and add the description. 
     psl->SetPath(lpszPathObj);
+    psl->SetWorkingDirectory(std::filesystem::path(lpszPathObj).parent_path().c_str());
     psl->SetArguments(lpszArgs);
     psl->SetDescription(lpszDesc);
 
@@ -852,7 +852,8 @@ CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR l
 //                information while resolving the link.
 // lpszLinkFile - Address of a buffer that contains the path of the link,
 //                including the file name.
-// lpszPath     - Address of a buffer that receives the path of the link target, including the file name.
+// lpszPath     - Address of a buffer that receives the path of the link target,
+//                including the file name.
 // lpszDesc     - Address of a buffer that receives the description of the 
 //                Shell link, stored in the Comment field of the link
 //                properties.
@@ -863,9 +864,9 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszArguments, int iPathBufferS
   HRESULT hres;
   IShellLink* psl;
 
-  WCHAR szGotPath[MAX_PATH];
+  ///WCHAR szGotPath[MAX_PATH];
   WCHAR szArguments[MAX_PATH];
-  WIN32_FIND_DATA wfd;
+  //WIN32_FIND_DATA wfd;
 
   *lpszArguments = 0; // Assume failure
 
@@ -898,30 +899,28 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszArguments, int iPathBufferS
 
       if (SUCCEEDED(hres))
       {
+        // Disables the UI and hopefully sets a timeout duration of 10ms,
+        //   since we don't actually care all that much about resolving the target.
+        DWORD flags = MAKELONG(SLR_NO_UI, 10);
+
         // Resolve the link. 
-        hres = psl->Resolve(hwnd, 0);
+        hres = psl->Resolve(hwnd, flags);
 
         if (SUCCEEDED(hres))
         {
-          // Get the path to the link target. 
-          hres = psl->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
+          // Get the arguments of the target. 
+          hres = psl->GetArguments(szArguments, MAX_PATH);
 
           if (SUCCEEDED(hres))
           {
-            // Get the arguments of the target. 
-            hres = psl->GetArguments(szArguments, MAX_PATH);
-
+            hres = StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
             if (SUCCEEDED(hres))
             {
-              hres = StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
-              if (SUCCEEDED(hres))
-              {
-                // Handle success
-              }
-              else
-              {
-                // Handle the error
-              }
+              // Handle success
+            }
+            else
+            {
+              // Handle the error
             }
           }
         }
@@ -941,8 +940,6 @@ void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
   ImGui::BeginGroup ();
-
-  extern bool SKIF_bEnableDebugMode;
   
   /*
   ImGui::Spacing     ();
@@ -981,9 +978,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   SKIF_GetFolderPath(&user_startup);
 
-  static std::wstring target = SK_FormatStringW ( LR"(%ws\SKIF.exe)",
-                               path_cache.specialk_userdata.path );
-
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
                                user_startup.path );
 
@@ -998,14 +992,14 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     extern HWND SKIF_hWnd;
     WCHAR szArguments[MAX_PATH];
-    SK_RunOnce(ResolveIt(SKIF_hWnd, link.c_str(), szArguments, MAX_PATH));
+    ResolveIt (SKIF_hWnd, link.c_str(), szArguments, MAX_PATH);
     args = szArguments;
     
-    bAutoStartService = (args.find(L"START")    != std::wstring::npos);
-    bStartMinimized   = (args.find(L"MINIMIZE") != std::wstring::npos);
-
-    argsChecked = true;
+    bAutoStartService = (args.find (L"START")    != std::wstring::npos);
+    bStartMinimized   = (args.find (L"MINIMIZE") != std::wstring::npos);
   }
+
+  argsChecked = true;
 
   static bool changes = false;
 
@@ -1045,9 +1039,12 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       args = (bAutoStartService) ? L"START MINIMIZE" : L"STOP MINIMIZE";
     else
       args = (bAutoStartService) ? L"START"          : L"";
+    
+    static TCHAR                             szExePath[MAX_PATH];
+    GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
 
     if (bAutoStartSKIF)
-     CreateLink(target.c_str(), link.c_str(), args.c_str(), L"Special K Injection Frontend");
+     CreateLink (szExePath, link.c_str(), args.c_str(), L"Special K Injection Frontend");
     else
       bAutoStartService = bStartMinimized = false;
 
@@ -1069,87 +1066,92 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
 
+  /*
   if ( bLogonTaskEnabled     ||
        bAutoStartServiceOnly ||
        SKIF_bEnableDebugMode )
   {
+  */
+  if (bLogonTaskEnabled)
     _StartAtLogonCtrlLegacy ( );
     
-    // New approach to the legacy method
-    ImGui::BeginGroup ();
+  // New approach to the legacy method
+  ImGui::BeginGroup ();
 
-    if ( bLogonTaskEnabled || 
-         bAutoStartSKIF )
-    {
-      // Disable button
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                              ImGui::GetStyle ().Alpha *
-                                ( (SKIF_IsHDR ()) ? 0.1f
-                                                  : 0.5f
-                                )
-      );
-    }
+  if ( bLogonTaskEnabled || 
+        bAutoStartSKIF )
+  {
+    // Disable button
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                            ImGui::GetStyle ().Alpha *
+                              ( (SKIF_IsHDR ()) ? 0.1f
+                                                : 0.5f
+                              )
+    );
+  }
 
-    static std::wstring Svc32Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc32.exe)", path_cache.specialk_userdata.path),
-                        Svc64Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc64.exe)", path_cache.specialk_userdata.path);
+  static std::wstring Svc32Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc32.exe)", path_cache.specialk_userdata.path),
+                      Svc64Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc64.exe)", path_cache.specialk_userdata.path);
 
-    static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
-                        Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
+  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
+                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
 
-    static bool dontCare = bAutoStartServiceOnly = PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
+  static bool dontCare = bAutoStartServiceOnly = PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
   
-    if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
+  if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
+  {
+    if (! bAutoStartServiceOnly)
     {
-      if (! bAutoStartServiceOnly)
+      if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
+                            L"\n"
+                            L"Special K Injection Frontend (SKIF) will not autostart.\n"
+                            L"\n"
+                            L"Are you sure you want to proceed?",
+                            L"Confirm autostart",
+                            MB_YESNO | MB_ICONWARNING) == IDYES)
       {
-        if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
-                             L"\n"
-                             L"Special K Injection Frontend (SKIF) will not autostart.\n"
-                             L"\n"
-                             L"Are you sure you want to proceed?",
-                             L"Confirm autostart",
-                             MB_YESNO | MB_ICONWARNING) == IDYES)
-        {
-          CreateLink(Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
-          CreateLink(Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
-
-          bAutoStartServiceOnly = ! bAutoStartServiceOnly;
-        }
-
-        else {
-          dontCare = ! dontCare;
-        }
-      }
-
-      else {
-        DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
-        DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
+        CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
+        CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
 
         bAutoStartServiceOnly = ! bAutoStartServiceOnly;
       }
-    }
-  
-    SKIF_ImGui_SetHoverTip (
-        "Note that this injection frontend (SKIF) will not start with Windows."
-    );
-  
-    if ( bLogonTaskEnabled || 
-         bAutoStartSKIF )
-    {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
 
-      if (bAutoStartSKIF)
-        SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
-                                 "The difference is that the current method autostarts SKIF, and not just the GI service.");
-      else
-        SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
-                                 "The difference is that this method does not require elevated privileges." );
+      else {
+        dontCare = ! dontCare;
+      }
     }
 
-    ImGui::EndGroup      ();
+    else {
+      DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
+      DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
+
+      bAutoStartServiceOnly = ! bAutoStartServiceOnly;
+    }
   }
+  
+  SKIF_ImGui_SetHoverTip (
+      "Note that this injection frontend (SKIF) will not start with Windows."
+  );
+  
+  if ( bLogonTaskEnabled || 
+        bAutoStartSKIF )
+  {
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
+
+    if (bAutoStartSKIF)
+      SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                "The difference is that the current method autostarts SKIF, and not just the GI service.");
+    else
+      SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                "The difference is that this method does not require elevated privileges." );
+  }
+
+  ImGui::EndGroup      ();
+  /*
+  }
+  */
 
   ImGui::EndGroup      ( );
 }
