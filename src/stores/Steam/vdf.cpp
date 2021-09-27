@@ -24,6 +24,7 @@
 #include <stores/Steam/apps_list.h>
 
 #include <fsutil.h>
+#include <regex>
 
 const int SKIF_STEAM_APPID = 1157970;
 
@@ -250,6 +251,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
 
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (appid);
+
+        // Strip double backslashes characters from the string
+        pAppRecord->install_dir = std::regex_replace(pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
 
         for (auto& finished_section : section.finished_sections)
         {
