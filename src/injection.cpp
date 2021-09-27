@@ -1012,21 +1012,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
       changes = true;
     
-    // Disable button
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
     if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
       changes = true;
-    
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-    SKIF_ImGui_SetHoverTip ("This option is currently disabled due to not working properly.");
 
+    //SKIF_ImGui_SetHoverTip ("This option is currently disabled due to not working properly.");
 
     ImGui::TreePop  ( );
   }
@@ -1036,7 +1025,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     DeleteFileW(SK_UTF8ToWideChar(link).c_str());
 
     if (bStartMinimized)
-      args = (bAutoStartService) ? L"START MINIMIZE" : L"STOP MINIMIZE";
+      args = (bAutoStartService) ? L"START MINIMIZE" : L"MINIMIZE";
     else
       args = (bAutoStartService) ? L"START"          : L"";
     

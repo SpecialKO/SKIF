@@ -643,10 +643,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     if (wParam < 256 && g_Focused)
       io.KeysDown [wParam] = 0;
     return 0;
-  case WM_SYSCOMMAND:
-    if (wParam == SC_MINIMIZE)
-    
-    return 0;
   case WM_CHAR:
       // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
     io.AddInputCharacter ((unsigned int)wParam);

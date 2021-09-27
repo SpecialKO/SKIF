@@ -30,8 +30,9 @@ const GUID IID_IDXGIFactory5 =
 
 const int SKIF_STEAM_APPID = 1157970;
 int WindowsCursorSize = 1;
-bool RepositionSKIF = false;
-bool tinyDPIFonts = false;
+bool RepositionSKIF   = false;
+bool tinyDPIFonts     = false;
+bool startedMinimized = false;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
@@ -1918,6 +1919,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
+  if (_Signal.Minimize)
+    nCmdShow = SW_SHOWMINNOACTIVE;
+
+  if (nCmdShow == SW_SHOWMINNOACTIVE)
+    startedMinimized = true;
+
   // Check for updates
   SKIF_VersionCtl.CheckForUpdates (
     L"SKIF", SKIF_DEPLOYED_BUILD
@@ -1947,11 +1954,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PathAppendW (        path_cache.specialk_userdata.path,
                          LR"(My Mods\SpecialK)"  );
   */
-  
-  //std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::wstring (path_cache.specialk_userdata.path).c_str(), 9999);
 
-  //MessageBox(NULL, SKIFCustomCoverPath.c_str(), L"Debug", MB_OK | MB_ICONINFORMATION);
-
+  /*
   int                                    app_id = SKIF_STEAM_APPID;
   if (StrStrW (lpCmdLine, L"AppID="))
   {   assert ( 1 ==
@@ -1961,6 +1965,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   char      szAppID [16] = { };
   snprintf (szAppID, 15, "%li",          app_id);
+  */
 
   HMODULE hModSelf =
     GetModuleHandleW (nullptr);
@@ -2249,6 +2254,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplWin32_NewFrame ();
       ImGui::NewFrame          ();
       {
+
+
         // Fixes the wobble that occurs when switching between tabs,
         //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
@@ -4324,17 +4331,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Rendering
       ImGui::Render ();
 
-      g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
-      g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
-
-      ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
-
-      // Update and Render additional Platform Windows
-      if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+      if (! startedMinimized)
       {
-        ImGui::UpdatePlatformWindows        ();
-        ImGui::RenderPlatformWindowsDefault ();
+        g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
+        g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
+
+        ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
+
+        // Update and Render additional Platform Windows
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+          ImGui::UpdatePlatformWindows        ();
+          ImGui::RenderPlatformWindowsDefault ();
+        }
       }
+
+      if ( SKIF_ImGui_IsFocused ( ))
+        startedMinimized = false;
 
       UINT Interval =
         SKIF_bAllowTearing ? 0
