@@ -2288,7 +2288,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                       (SKIF_bSmallMode) ? SKIF_vecSmallMode
                                         : SKIF_vecLargeMode;
 
-        ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
+        if (ImGui::GetFrameCount() > 2)
+          ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
         // Fix for window being created in the bottom right corner on first ever launch when an imgui.ini file is missing
         //   Usually just using ImGuiCond_FirstUseEver should do the trick, but for some reason it fails, which causes the above section with boundaries calculations
@@ -2345,6 +2346,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                            ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
                            ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
         );
+
+        SK_RunOnce(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 3);
 
         // Update current monitors/worksize etc;
         monitor_idx =  ImGui::GetCurrentWindowRead ()->ViewportAllowPlatformMonitorExtend;
@@ -4331,10 +4334,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Rendering
       ImGui::Render ();
 
+      g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
+      g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
+
       if (! startedMinimized)
       {
-        g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
-        g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 

@@ -83,7 +83,7 @@ struct app_record_s {
   bool         cloud_enabled = true; // hidecloudui=false
   std::wstring install_dir;
   std::string  type  =  "Game";  // TODO: Proper enum
-  std::string  store = "Steam"; // maybe enum?
+  std::string  store = "Steam";  // maybe enum?
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
