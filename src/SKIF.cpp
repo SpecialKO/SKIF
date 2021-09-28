@@ -2268,7 +2268,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                       SKIF_vecCurrentMode;
         ImRect rectCursorMonitor;
 
-        // RepositionSKIF -- Step 1
+        // RepositionSKIF -- Step 1: Retrieve monitor of cursor, and set global DPI scale
         if (RepositionSKIF)
         {
           ImRect t;
@@ -2308,11 +2308,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::GetFrameCount() > 2)
           ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
-        // RepositionSKIF -- Step 2: Final Step
+        // RepositionSKIF -- Step 2: Repositon the window
         if (RepositionSKIF)
         {
-          RepositionSKIF = false;
-
           // Repositions the window in the center of the monitor the cursor is currently on
           ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
         }
@@ -2353,14 +2351,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
                            ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
         );
 
-        SK_RunOnce(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 3);
+        SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 3);
 
         // Update current monitors/worksize etc;
         monitor_idx =  ImGui::GetCurrentWindowRead ()->ViewportAllowPlatformMonitorExtend;
         monitor     = &ImGui::GetPlatformIO        ().Monitors [monitor_idx];
         monitor_wz  = monitor->WorkSize;
 
-        if ( monitor_wz.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1 )
+        // Move the invisible Win32 parent window over to the current monitor.
+        //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
+        if (monitor->MainPos.x != ImGui::GetMainViewport()->Pos.x ||
+            monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
+          MoveWindow (SKIF_hWnd, (int)monitor->MainPos.x, (int)monitor->MainPos.y, 0, 0, false);
+
+        // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
+        if ( RepositionSKIF )
+        {
+          RepositionSKIF = false;
+        } else if ( monitor_wz.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1)
         {
           SKIF_ImGui_GlobalDPIScale = (monitor_wz.y - 100.0f) / SKIF_hLargeMode;
         } else {

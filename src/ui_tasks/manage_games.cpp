@@ -57,10 +57,24 @@ HINSTANCE
 SKIF_Util_ExplorePath (
   const std::wstring_view& path )
 {
-  return
-    ShellExecuteW ( nullptr, L"EXPLORE",
-      path.data (), nullptr,
-                    nullptr, SW_SHOWNORMAL );
+  //return
+    //ShellExecuteW ( nullptr, L"EXPLORE",
+      //path.data (), nullptr,
+                    //nullptr, SW_SHOWNORMAL );
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"EXPLORE";
+    sexi.lpFile       = path.data ();
+    sexi.nShow        = SW_SHOWNORMAL;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+  if (ShellExecuteExW (&sexi))
+    return sexi.hInstApp;
+
+  return 0;
 }
 
 HINSTANCE
@@ -79,13 +93,27 @@ SKIF_Util_ExplorePath_Formatted (
                 vArgs             );
   va_end      ( vArgs             );
 
-  return
-    ShellExecuteW (
-      nullptr, L"EXPLORE",
-                _thread_localPath,
-      nullptr,    nullptr,
-             SW_SHOWNORMAL
-                  );
+  //return
+    //ShellExecuteW (
+      //nullptr, L"EXPLORE",
+                //_thread_localPath,
+      //nullptr,    nullptr,
+             //SW_SHOWNORMAL
+                  //);
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"EXPLORE";
+    sexi.lpFile       = _thread_localPath;
+    sexi.nShow        = SW_SHOWNORMAL;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+  if (ShellExecuteExW (&sexi))
+    return sexi.hInstApp;
+
+  return 0;
 }
 
 HINSTANCE
@@ -93,10 +121,23 @@ SKIF_Util_OpenURI (
   const std::wstring_view& path,
                DWORD       dwAction )
 {
-  return
-    ShellExecuteW ( nullptr, L"OPEN",
-      path.data (), nullptr,
-                    nullptr, dwAction );
+  //return
+    //ShellExecuteW ( nullptr, L"OPEN",
+      //path.data (), nullptr,
+                    //nullptr, dwAction );
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = path.data ();
+    sexi.nShow        = dwAction;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+  if (ShellExecuteExW (&sexi))
+    return sexi.hInstApp;
+
+  return 0;
 }
 
 HINSTANCE
@@ -116,11 +157,57 @@ SKIF_Util_OpenURI_Formatted (
                 vArgs             );
   va_end      ( vArgs             );
 
-  return
-    ShellExecuteW ( nullptr,
-      L"OPEN",  _thread_localPath,
-         nullptr,   nullptr,   dwAction
-                  );
+  //return
+    //ShellExecuteW ( nullptr,
+      //L"OPEN",  _thread_localPath,
+         //nullptr,   nullptr,   dwAction
+                  //);
+
+    SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = _thread_localPath;
+    sexi.nShow        = dwAction;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+  if (ShellExecuteExW (&sexi))
+    return sexi.hInstApp;
+
+  return 0;
+}
+
+void
+SKIF_Util_OpenURI_Threaded (
+        const LPCWSTR path )
+{
+  _beginthreadex(nullptr,
+                         0,
+  [](LPVOID lpUser)->unsigned
+  {
+    LPCWSTR _path = (LPCWSTR)lpUser;
+
+    CoInitializeEx (nullptr,
+      COINIT_APARTMENTTHREADED |
+      COINIT_DISABLE_OLE1DDE
+    );
+
+    SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = _path;
+    sexi.nShow        = SW_SHOWNORMAL;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+
+    ShellExecuteExW (&sexi);
+
+    _endthreadex(0);
+
+    return 0;
+  }, (LPVOID)path, NULL, NULL);
 }
 
 #include <patreon.png.h>
@@ -130,6 +217,120 @@ SKIF_Util_OpenURI_Formatted (
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
+
+enum class LibraryTexture
+{
+  Icon,
+  Cover,
+  Patreon
+};
+
+void
+LoadLibraryTexture (
+        LibraryTexture                      libTexToLoad,
+        uint32_t                            appid,
+        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+        const std::wstring&                 name,
+        app_record_s*                       pApp = nullptr)
+{
+  static CComPtr <ID3D11Texture2D>          pTex2D;
+  static CComPtr <ID3D11ShaderResourceView> pTexSRV;
+
+  static DirectX::TexMetadata     meta = { };
+  static DirectX::ScratchImage    img  = { };
+
+  std::wstring load_str = L"\0",
+               SKIFCustomPath,
+               SteamCustomPath;
+
+  bool succeeded = false;
+
+  if (pApp != nullptr)
+    appid = pApp->id;
+
+  if (    appid == SKIF_STEAM_APPID &&
+      libTexToLoad != LibraryTexture::Patreon)
+  {
+    SKIFCustomPath = SK_FormatStringW(LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
+
+    if (libTexToLoad == LibraryTexture::Cover)
+      SKIFCustomPath += L"cover";
+    else
+      SKIFCustomPath += L"icon";
+
+    if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+      load_str =               SKIFCustomPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =               SKIFCustomPath + L".jpg";
+    else if (libTexToLoad == LibraryTexture::Icon && PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+      load_str =               SKIFCustomPath + L".ico";
+  }
+
+  if (load_str != L"\0" &&
+      SUCCEEDED(
+        DirectX::LoadFromWICFile (
+          load_str.c_str (),
+            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+              &meta, img
+        )
+      )
+    )
+  {
+    succeeded = true;
+  }
+
+  else if (appid == SKIF_STEAM_APPID)
+  {
+    if (SUCCEEDED(
+          DirectX::LoadFromWICMemory(
+            (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
+            (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? sizeof(sk_boxart_png) : sizeof(patreon_png),
+              DirectX::WIC_FLAGS_FILTER_POINT,
+                &meta, img
+          )
+        )
+      )
+    {
+      succeeded = true;
+    }
+  }
+
+  if (succeeded)
+  {
+    if (
+      SUCCEEDED (
+        DirectX::CreateTexture (
+          (ID3D11Device *)g_pd3dDevice,
+            img.GetImages (), img.GetImageCount (),
+              meta, (ID3D11Resource **)&pTex2D.p
+        )
+      )
+    )
+    {
+      D3D11_SHADER_RESOURCE_VIEW_DESC
+        srv_desc                           = { };
+        srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+        srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srv_desc.Texture2D.MipLevels       = UINT_MAX;
+        srv_desc.Texture2D.MostDetailedMip =  0;
+
+      if (    pTex2D.p == nullptr ||
+        FAILED (
+          g_pd3dDevice->CreateShaderResourceView (
+              pTex2D.p, &srv_desc,
+            &pLibTexSRV.p
+          )
+        )
+      )
+      {
+        pLibTexSRV.p = nullptr;
+      }
+
+      // SRV is holding a reference, this is not needed anymore.
+      pTex2D.Release ();
+    }
+  }
+};
 
 void
 SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
@@ -1411,7 +1612,9 @@ SKIF_GameManagement_DrawTab (void)
     SKIF_ImGui_SetHoverTip  ("Click to help support the project");
 
     if (clicked)
-      SKIF_Util_OpenURI (L"https://www.patreon.com/Kaldaien");
+      SKIF_Util_OpenURI (
+        L"https://www.patreon.com/Kaldaien"
+      );
 
     ImGui::SameLine           ( );
     ImGui::ItemSize           (ImVec2 (160.0f * SKIF_ImGui_GlobalDPIScale,
@@ -1453,109 +1656,104 @@ SKIF_GameManagement_DrawTab (void)
 
     update  = false;
 
+    static
+      app_record_s* pApp = nullptr;
+
+    for (auto& app : apps)
+      if (app.second.id == appid)
+        pApp = &app.second;
+
     // Load Special K's boxart from the embedded resource
     if ( appid == SKIF_STEAM_APPID )
-      _LoadSKLibraryTexture ( appid,
+    {
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                              SKIF_STEAM_APPID,
                                 pTexSRV,
                                   L"_library_600x900_x2.jpg" );
-
-    // Load all other apps from the librarycache of the Steam client
-    else
-    {
-
-      static
-        app_record_s* pApp = nullptr;
-
-      for (auto& app : apps)
-        if (app.second.id == appid)
-          pApp = &app.second;
-
-      // GOG
-      if (pApp->store == "GOG")
-      {
-        _LoadGOGLibraryTexture ( appid,
-                                    pTexSRV,
-                                      L"*_glx_vertical_cover.webp" );
-      }
-      
-      // Steam
-      else {
-
-        if ( appinfo != nullptr )
-        {
-          skValveDataFile::appinfo_s *pAppInfo =
-            appinfo->getAppInfo ( appid, nullptr );
-
-          DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
-        }
-
-        std::wstring load_str_2x (
-          SK_GetSteamDir ()
-        );
-        std::wstring load_str
-                    (load_str_2x);
-
-        load_str_2x += LR"(/appcache/librarycache/)" +
-          std::to_wstring  (appid)                   +
-                                  L"_library_600x900_x2.jpg";
-
-        load_str   += LR"(/appcache/librarycache/)" +
-          std::to_wstring (appid)                   +
-                                  L"_library_600x900.jpg";
-
-        std::wstring load_str_final = L"_library_600x900.jpg";
-
-        // If 600x900 exists but 600x900_x2 cannot be found
-        if (   PathFileExistsW (load_str.   c_str ()) &&
-           ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
-        {
-          // Load the metadata from 600x900
-          if (
-            SUCCEEDED (
-            DirectX::GetMetadataFromWICFile (
-              load_str.c_str (),
-                DirectX::WIC_FLAGS_FILTER_POINT,
-                  meta
-              )
-            )
-          )
-          {
-            // If the image is in reality 300x450, which indicates a real cover,
-            //   download the real 600x900 cover and store it in _x2
-            if (meta.width  == 300 &&
-                meta.height == 450)
-            {
-              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-              load_str_final = L"_library_600x900_x2.jpg";
-            }
-          }
-        }
-
-        // If 600x900_x2 exists, check the last modified time stamps
-        else {
-          WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
-
-          if (GetFileAttributesEx (load_str.c_str(),    GetFileExInfoStandard, &faX1) &&
-              GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
-          {
-            // If 600x900 has been edited after 600_900_x2,
-            //   download new copy of the 600_900_x2 cover
-            if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
-            {
-              DeleteFile (load_str_2x.c_str());
-              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-            }
-          }
-
-          load_str_final = L"_library_600x900_x2.jpg";
-        }
-
-        _LoadSteamLibraryTexture ( appid,
-                                    pTexSRV,
-                                      load_str_final );
-      }
     }
 
+    else if ( pApp->store == "GOG" )
+    {
+      _LoadGOGLibraryTexture ( appid,
+                                  pTexSRV,
+                                    L"*_glx_vertical_cover.webp" );
+    }
+    
+    else if (pApp->store == "Steam") {
+
+      if ( appinfo != nullptr )
+      {
+        skValveDataFile::appinfo_s *pAppInfo =
+          appinfo->getAppInfo ( appid, nullptr );
+
+        DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
+      }
+
+      std::wstring load_str_2x (
+        SK_GetSteamDir ()
+      );
+      std::wstring load_str
+                  (load_str_2x);
+
+      load_str_2x += LR"(/appcache/librarycache/)" +
+        std::to_wstring  (appid)                   +
+                                L"_library_600x900_x2.jpg";
+
+      load_str   += LR"(/appcache/librarycache/)" +
+        std::to_wstring (appid)                   +
+                                L"_library_600x900.jpg";
+
+      std::wstring load_str_final = L"_library_600x900.jpg";
+
+      // If 600x900 exists but 600x900_x2 cannot be found
+      if (   PathFileExistsW (load_str.   c_str ()) &&
+          ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+      {
+        // Load the metadata from 600x900
+        if (
+          SUCCEEDED (
+          DirectX::GetMetadataFromWICFile (
+            load_str.c_str (),
+              DirectX::WIC_FLAGS_FILTER_POINT,
+                meta
+            )
+          )
+        )
+        {
+          // If the image is in reality 300x450, which indicates a real cover,
+          //   download the real 600x900 cover and store it in _x2
+          if (meta.width  == 300 &&
+              meta.height == 450)
+          {
+            SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+            load_str_final = L"_library_600x900_x2.jpg";
+          }
+        }
+      }
+
+      // If 600x900_x2 exists, check the last modified time stamps
+      else {
+        WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
+
+        if (GetFileAttributesEx (load_str.c_str(),    GetFileExInfoStandard, &faX1) &&
+            GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
+        {
+          // If 600x900 has been edited after 600_900_x2,
+          //   download new copy of the 600_900_x2 cover
+          if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+          {
+            DeleteFile (load_str_2x.c_str());
+            SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+          }
+        }
+
+        load_str_final = L"_library_600x900_x2.jpg";
+      }
+
+      _LoadSteamLibraryTexture ( appid,
+                                  pTexSRV,
+                                    load_str_final );
+    }
   }
 
   /*
@@ -1713,8 +1911,6 @@ SKIF_GameManagement_DrawTab (void)
 
   _HandleKeyboardInput ();
 
-  static std::string launch_description = "";
-
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
   float
   {
@@ -1799,8 +1995,12 @@ SKIF_GameManagement_DrawTab (void)
 
         switch (sk_install.injection.type)
         {
+          case sk_install_state_s::Injection::Type::Local:
+            cache.injection.type = "Local";
+            break;
+
           case sk_install_state_s::Injection::Type::Global:
-            //launch_description = "Click to launch game (global injection)";
+          default: // Unknown injection strategy, but let's assume global would work
 
             if ( _inject.bHasServlet )
             {
@@ -1818,20 +2018,7 @@ SKIF_GameManagement_DrawTab (void)
               cache.injection.hover_text   =
                          (cache.service)   ? "Click to stop the service"
                                            : "Click to start the service";
-
             }
-            break;
-
-          case sk_install_state_s::Injection::Type::Local:
-            cache.injection.type = "Local";
-              //launch_description = "Click to launch game (local injection)";
-            break;
-
-          // Unknown injection strategy, but let's assume global would work
-          default:
-            if (_inject.bHasServlet)
-              cache.injection.type = "Global";
-              //launch_description   = "Click to launch game (unknown; using global injection)";
             break;
         }
 
@@ -1916,10 +2103,14 @@ SKIF_GameManagement_DrawTab (void)
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
         {
+          /*
           ShellExecuteW ( nullptr,
             L"OPEN", SK_UTF8ToWideChar(cache.config.full_path).c_str(),
                 nullptr,   nullptr, SW_SHOWNORMAL
           );
+          */
+
+          SKIF_Util_OpenURI (SK_UTF8ToWideChar(cache.config.full_path).c_str(), SW_SHOWNORMAL);
 
           /* Cannot handle special characters such as (c), (r), etc
           SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs", cache.config.full_path.c_str ());
@@ -2088,15 +2279,15 @@ SKIF_GameManagement_DrawTab (void)
           sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
           sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
           sexi.nShow        = SW_SHOWDEFAULT;
-          sexi.fMask        = SEE_MASK_DEFAULT;
+          sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                              SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
           ShellExecuteExW (&sexi);
         }
 
         else {
-          SKIF_Util_OpenURI_Formatted(SW_SHOWNORMAL,
-            L"steam://run/%lu", pTargetApp->id
-          );                    pTargetApp->_status.invalidate();
+          SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
+          pTargetApp->_status.invalidate();
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -2104,9 +2295,6 @@ SKIF_GameManagement_DrawTab (void)
 
       if (pTargetApp->_status.running)
         ImGui::PopStyleVar ();
-
-      //else
-      //  SKIF_ImGui_SetHoverTip (launch_description.c_str ());
       
       if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
           ! openedGameContextMenu)
@@ -2197,7 +2385,7 @@ SKIF_GameManagement_DrawTab (void)
 
   float fOffset =
     ( std::max (f2, f1) - std::min (f2, f1) -
-           ImGui::GetStyle ().ItemSpacing.y / 2.0f ) / 2.0f;
+           ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f;
 
   static bool deferred_update = false;
 
@@ -3008,9 +3196,10 @@ SKIF_GameManagement_DrawTab (void)
             sexi.lpVerb       = L"OPEN";
             sexi.lpFile       = GOGGalaxy_Path.c_str();
             sexi.lpParameters = launchOptions.c_str();
-            //sexi.lpDirectory  = NULL;
+          //sexi.lpDirectory  = NULL;
             sexi.nShow        = SW_SHOWDEFAULT;
-            sexi.fMask        = SEE_MASK_DEFAULT;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                                SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
             ShellExecuteExW (&sexi);
 
@@ -3335,8 +3524,7 @@ SKIF_GameManagement_DrawTab (void)
       bool dontCare = false;
       if (ImGui::Selectable ("Browse Install Folder", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        SKIF_Util_ExplorePath         (
-          pApp->install_dir             );
+        SKIF_Util_ExplorePath (pApp->install_dir);
       }
       else
       {
@@ -3348,7 +3536,7 @@ SKIF_GameManagement_DrawTab (void)
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        SKIF_Util_OpenURI_Formatted   ( SW_SHOWNORMAL,
+        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
                (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%lu"
                                       : L"http://www.pcgamingwiki.com/api/appid.php?appid=%lu",
                                         pApp->id
