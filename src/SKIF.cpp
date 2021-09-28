@@ -2063,7 +2063,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   (void)io; // WTF does this do?!
 
-//io.IniFilename = nullptr;                                   // Disable imgui.ini
+  io.IniFilename = "SKIF.ini";                                   // nullptr to disable imgui.ini
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
 //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
@@ -2136,8 +2136,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImVec2 monitor_wz,
          windowPos;
   ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  bool changedMode        = false,
-       todoFixUglyHack    = (! PathFileExistsW(L"imgui.ini") || SKIF_bOpenAtCursorPosition);
+  bool changedMode        = false;
+       RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || SKIF_bOpenAtCursorPosition);
 
   // Handle cases where a Start / Stop Command Line was Passed,
   //   but no running instance existed to service it yet...
@@ -2308,23 +2308,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::GetFrameCount() > 2)
           ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
-        // Fix for window being created in the bottom right corner on first ever launch when an imgui.ini file is missing
-        //   Usually just using ImGuiCond_FirstUseEver should do the trick, but for some reason it fails, which causes the above section with boundaries calculations
-        //     to never trigger when changing modes etc... So instead we make the call only if imgui.ini is actually missing from the working directory.
-        if (todoFixUglyHack)
-        {
-          todoFixUglyHack = false;
-          // Positiong the window at the mouse cursor
-          ImGui::SetNextWindowPos (ImVec2 (ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
-        }
-
         // RepositionSKIF -- Step 2: Final Step
         if (RepositionSKIF)
         {
           RepositionSKIF = false;
 
           // Repositions the window in the center of the monitor the cursor is currently on
-          ImGui::SetNextWindowPos(ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
+          ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
         }
 
         // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
@@ -2881,8 +2871,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                    );
                 }
 
-                if ( ImGui::Checkbox ( "Open SKIF at the position of the mouse", &SKIF_bOpenAtCursorPosition ) )
-                  regKVOpenAtCursorPosition.putData(                              SKIF_bOpenAtCursorPosition );
+                if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
+                  regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
 
                 if ( ImGui::Checkbox ( "Always show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
                   regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
@@ -4610,7 +4600,12 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_SKIF_REPOSITION:
-      SetForegroundWindow(SKIF_hWnd);
+      SetForegroundWindow (hWnd);
+      SetActiveWindow     (hWnd);
+
+      if (IsIconic(hWnd))
+        ShowWindowAsync (hWnd, SW_RESTORE);
+
       RepositionSKIF = true;
       break;
 
