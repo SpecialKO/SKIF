@@ -2266,6 +2266,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
         static ImVec2 SKIF_vecSmallMode,
                       SKIF_vecLargeMode,
                       SKIF_vecCurrentMode;
+        ImRect rectCursorMonitor;
+
+        // RepositionSKIF -- Step 1
+        if (RepositionSKIF)
+        {
+          ImRect t;
+          for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
+          {
+            const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
+            t = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
+            if (t.Contains(ImGui::GetMousePos()))
+            {
+              SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+              rectCursorMonitor = t;
+            }
+          }
+        }
 
         SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode * SKIF_ImGui_GlobalDPIScale,
                                        SKIF_hSmallMode * SKIF_ImGui_GlobalDPIScale );
@@ -2301,14 +2318,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SetNextWindowPos (ImVec2 (ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
         }
 
+        // RepositionSKIF -- Step 2: Final Step
         if (RepositionSKIF)
         {
-          // Repositions the window in the center of the current monitor it is on
-          //ImGui::SetNextWindowPos(ImVec2(monitor_extent.GetCenter().x - SKIF_vecCurrentMode.x / 2.0f, monitor_extent.GetCenter().y - SKIF_vecCurrentMode.y / 2.0f));
-          
-          // Positiong the window at the mouse cursor
-          ImGui::SetNextWindowPos(ImVec2(ImGui::GetMousePos().x - SKIF_vecCurrentMode.x / 2.0f, ImGui::GetMousePos().y - SKIF_vecCurrentMode.y / 2.0f));
           RepositionSKIF = false;
+
+          // Repositions the window in the center of the monitor the cursor is currently on
+          ImGui::SetNextWindowPos(ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
         }
 
         // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
