@@ -2131,10 +2131,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
   }
 
-  int monitor_idx = 0;
   ImGuiPlatformMonitor* monitor = nullptr;
-  ImVec2 monitor_wz,
-         windowPos;
+  ImVec2 windowPos;
   ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool changedMode        = false;
        RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || SKIF_bOpenAtCursorPosition);
@@ -2322,23 +2320,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           changedMode = false;
 
-          ImVec2 topLeft      = ImVec2( windowPos.x,
-                                        windowPos.y ),
-                 bottomRight  = ImVec2( windowPos.x + SKIF_vecCurrentMode.x,
-                                        windowPos.y + SKIF_vecCurrentMode.y ),
+          ImVec2 topLeft      = windowPos,
+                 bottomRight  = windowPos + SKIF_vecCurrentMode,
                  newWindowPos = windowPos;
 
-          if ( topLeft.x < monitor_extent.Min.x)
-            newWindowPos.x = monitor_extent.Min.x;
-          if ( topLeft.y < monitor_extent.Min.y )
-            newWindowPos.y = monitor_extent.Min.y;
+          if (      topLeft.x < monitor_extent.Min.x )
+               newWindowPos.x = monitor_extent.Min.x;
+          if (      topLeft.y < monitor_extent.Min.y )
+               newWindowPos.y = monitor_extent.Min.y;
 
-          if ( bottomRight.x > monitor_extent.Max.x )
-            newWindowPos.x = monitor_extent.Max.x - SKIF_vecCurrentMode.x;
-          if ( bottomRight.y > monitor_extent.Max.y )
-            newWindowPos.y = monitor_extent.Max.y - SKIF_vecCurrentMode.y;
+          if (  bottomRight.x > monitor_extent.Max.x )
+               newWindowPos.x = monitor_extent.Max.x - SKIF_vecCurrentMode.x;
+          if (  bottomRight.y > monitor_extent.Max.y )
+               newWindowPos.y = monitor_extent.Max.y - SKIF_vecCurrentMode.y;
 
-          if ( newWindowPos.x != windowPos.x || newWindowPos.y != windowPos.y )
+          if ( newWindowPos.x != windowPos.x ||
+               newWindowPos.y != windowPos.y )
             ImGui::SetNextWindowPos(newWindowPos);
         }
 
@@ -2354,9 +2351,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 3);
 
         // Update current monitors/worksize etc;
-        monitor_idx =  ImGui::GetCurrentWindowRead ()->ViewportAllowPlatformMonitorExtend;
-        monitor     = &ImGui::GetPlatformIO        ().Monitors [monitor_idx];
-        monitor_wz  = monitor->WorkSize;
+        monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
 
         // Move the invisible Win32 parent window over to the current monitor.
         //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
@@ -2368,20 +2363,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if ( RepositionSKIF )
         {
           RepositionSKIF = false;
-        } else if ( monitor_wz.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1)
+        } else if ( monitor->WorkSize.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1)
         {
-          SKIF_ImGui_GlobalDPIScale = (monitor_wz.y - 100.0f) / SKIF_hLargeMode;
+          SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y - 100.0f) / SKIF_hLargeMode;
         } else {
           SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (ImGui::GetCurrentWindow ()->Viewport->DpiScale <= 2.0f) ? ImGui::GetCurrentWindow ()->Viewport->DpiScale : 2.0f : 1.0f;
           /////SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
         }
-
-        /*
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-          style.WindowRounding = 5.0F * SKIF_ImGui_GlobalDPIScale;
-          style.Colors[ImGuiCol_WindowBg].w = 1.0F;
-        }*/
 
         // Rescale the style on DPI changes
         style.WindowRounding    =          4.0F                                      * SKIF_ImGui_GlobalDPIScale; // style.ScrollbarRounding;
@@ -2706,6 +2694,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 ImGui::SetColumnWidth(0, SKIF_vecCurrentMode.x / 2.0f)
               );
 
+              if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
+                regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
+
               if (ImGui::Checkbox("When closing SKIF allow the global injector to remain active",
                                                      &SKIF_bAllowBackgroundService))
                 regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
@@ -2878,9 +2869,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     SKIF_bAllowMultipleInstances
                    );
                 }
-
-                if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
-                  regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
 
                 if ( ImGui::Checkbox ( "Always show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
                   regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );

@@ -233,11 +233,9 @@ LoadLibraryTexture (
         const std::wstring&                 name,
         app_record_s*                       pApp = nullptr)
 {
-  static CComPtr <ID3D11Texture2D>          pTex2D;
-  static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-
-  static DirectX::TexMetadata     meta = { };
-  static DirectX::ScratchImage    img  = { };
+  static CComPtr <ID3D11Texture2D> pTex2D;
+  static DirectX::TexMetadata        meta = { };
+  static DirectX::ScratchImage        img = { };
 
   std::wstring load_str = L"\0",
                SKIFCustomPath,
@@ -248,6 +246,7 @@ LoadLibraryTexture (
   if (pApp != nullptr)
     appid = pApp->id;
 
+  // SKIF
   if (    appid == SKIF_STEAM_APPID &&
       libTexToLoad != LibraryTexture::Patreon)
   {
@@ -262,8 +261,92 @@ LoadLibraryTexture (
       load_str =               SKIFCustomPath + L".png";
     else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
       load_str =               SKIFCustomPath + L".jpg";
-    else if (libTexToLoad == LibraryTexture::Icon && PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+    else if (libTexToLoad == LibraryTexture::Icon &&
+             PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
+  }
+
+  // GOG
+  else if (pApp != nullptr && pApp->store == "GOG")
+  {
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+    
+    if (libTexToLoad == LibraryTexture::Cover)
+      SKIFCustomPath += L"cover";
+    else
+      SKIFCustomPath += L"icon";
+
+    if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+      load_str =               SKIFCustomPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =               SKIFCustomPath + L".jpg";
+    else if (libTexToLoad == LibraryTexture::Icon &&
+             PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+      load_str =               SKIFCustomPath + L".ico";
+    else if (libTexToLoad == LibraryTexture::Icon)
+      load_str =               name;
+
+    if (libTexToLoad == LibraryTexture::Cover &&
+        load_str == L"\0")
+    {
+      extern std::wstring GOGGalaxy_UserID;
+      load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+
+      HANDLE hFind = INVALID_HANDLE_VALUE;
+      WIN32_FIND_DATA ffd;
+
+      hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+
+      if (INVALID_HANDLE_VALUE != hFind)
+      {
+        load_str += ffd.cFileName;
+        FindClose(hFind);
+      }
+    }
+  }
+
+  // STEAM
+  else if (pApp != nullptr && pApp->store == "Steam")
+  {
+    static unsigned long SteamUserID = 0;
+     
+    if (SteamUserID == 0)
+    {
+      HKEY hKey;
+      WCHAR szData[255];
+      DWORD dwSize = sizeof(szData);
+      PVOID pvData = szData;
+
+      //Allocationg memory for a DWORD value.
+      DWORD dataType;
+
+      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+      {
+        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
+          SteamUserID = *(DWORD*)pvData;
+
+        RegCloseKey(hKey);
+      }
+    }
+
+    SKIFCustomPath  = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
+    SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
+    
+    if (libTexToLoad == LibraryTexture::Cover)
+      SKIFCustomPath += L"cover";
+    else
+      SKIFCustomPath += L"icon";
+
+    if      (PathFileExistsW (( SKIFCustomPath +  L".png").c_str()))
+      load_str =                SKIFCustomPath +  L".png";
+    else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
+      load_str =                SKIFCustomPath +  L".jpg";
+    else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+      load_str =               SteamCustomPath + L"p.png";
+    else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+      load_str =               SteamCustomPath + L"p.jpg";
+    else
+      load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
   }
 
   if (load_str != L"\0" &&
@@ -297,6 +380,27 @@ LoadLibraryTexture (
 
   if (succeeded)
   {
+    DirectX::ScratchImage* pImg   =
+                                &img;
+    DirectX::ScratchImage   converted_img;
+
+    // We don't want single-channel icons, so convert to RGBA
+    if (meta.format == DXGI_FORMAT_R8_UNORM)
+    {
+      if (
+        SUCCEEDED (
+          DirectX::Convert (
+            pImg->GetImages   (), pImg->GetImageCount (),
+            pImg->GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
+              DirectX::TEX_FILTER_DEFAULT,
+              DirectX::TEX_THRESHOLD_DEFAULT,
+                converted_img
+          )
+        )
+      ) { meta =  converted_img.GetMetadata ();
+          pImg = &converted_img; }
+    }
+
     if (
       SUCCEEDED (
         DirectX::CreateTexture (
@@ -597,248 +701,6 @@ SKIF_GameManagement_DrawTab (void)
       )
   );
 
-  auto _LoadSteamLibraryTexture =
-    [&]( uint32_t                            appid,
-         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-         const std::wstring&                 name )
-  {
-    std::wstring load_str  (
-      SK_GetSteamDir ()
-    );
-
-    load_str +=   LR"(\appcache\librarycache\)" +
-      std::to_wstring (appid) + name.c_str ();
-    
-    static unsigned long SteamUserID = 0;
-     
-    if (SteamUserID == 0)
-    {
-      HKEY hKey;
-      WCHAR szData[255];
-      DWORD dwSize = sizeof(szData);
-      PVOID pvData = szData;
-
-      //Allocationg memory for a DWORD value.
-      DWORD dataType;
-
-      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-      {
-        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
-          SteamUserID = *(DWORD*)pvData;
-
-        RegCloseKey(hKey);
-      }
-    }
-
-    std::wstring  SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\cover)",      std::wstring (path_cache.specialk_userdata.path).c_str(), appid),
-                 SteamCustomCoverPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID,             appid);
-
-    if      (PathFileExistsW (( SKIFCustomCoverPath +  L".png").c_str()))
-      load_str =                SKIFCustomCoverPath +  L".png";
-    else if (PathFileExistsW (( SKIFCustomCoverPath +  L".jpg").c_str()))
-      load_str =                SKIFCustomCoverPath +  L".jpg";
-    else if (PathFileExistsW ((SteamCustomCoverPath + L"p.png").c_str()))
-      load_str =               SteamCustomCoverPath + L"p.png";
-    else if (PathFileExistsW ((SteamCustomCoverPath + L"p.jpg").c_str()))
-      load_str =               SteamCustomCoverPath + L"p.jpg";
-
-    if (
-      SUCCEEDED (
-        DirectX::LoadFromWICFile (
-          load_str.c_str (),
-            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-              &meta, img
-        )
-      )
-    )
-    {
-      if (
-        SUCCEEDED (
-          DirectX::CreateTexture (
-            (ID3D11Device *)g_pd3dDevice,
-              img.GetImages (), img.GetImageCount (),
-                meta, (ID3D11Resource **)&pTex2D.p
-          )
-        )
-      )
-      {
-        D3D11_SHADER_RESOURCE_VIEW_DESC
-          srv_desc                           = { };
-          srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-          srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-          srv_desc.Texture2D.MipLevels       = UINT_MAX;
-          srv_desc.Texture2D.MostDetailedMip =  0;
-
-        if (    pTex2D.p == nullptr ||
-          FAILED (
-            g_pd3dDevice->CreateShaderResourceView (
-                pTex2D.p, &srv_desc,
-              &pLibTexSRV.p
-            )
-          )
-        )
-        {
-          pLibTexSRV.p = nullptr;
-        }
-
-        // SRV is holding a reference, this is not needed anymore.
-        pTex2D.Release ();
-      }
-    }
-  };
-
-  auto _LoadGOGLibraryTexture =
-    [&]( uint32_t                            appid,
-         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-         const std::wstring&                 name )
-  {
-
-    extern std::wstring GOGGalaxy_UserID;
-
-    std::wstring load_str            = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid),
-                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\cover)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-      load_str =               SKIFCustomCoverPath + L".png";
-    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-      load_str =               SKIFCustomCoverPath + L".jpg";
-
-    HANDLE hFind = INVALID_HANDLE_VALUE;
-    WIN32_FIND_DATA ffd;
-
-    hFind = FindFirstFile((load_str + name).c_str(), &ffd);
-
-    if (INVALID_HANDLE_VALUE != hFind)
-    {
-      load_str += ffd.cFileName;
-      FindClose(hFind);
-    }
-
-    if (
-      SUCCEEDED (
-        DirectX::LoadFromWICFile (
-          load_str.c_str (),
-            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-              &meta, img
-        )
-      )
-    )
-    {
-      if (
-        SUCCEEDED (
-          DirectX::CreateTexture (
-            (ID3D11Device *)g_pd3dDevice,
-              img.GetImages (), img.GetImageCount (),
-                meta, (ID3D11Resource **)&pTex2D.p
-          )
-        )
-      )
-      {
-        D3D11_SHADER_RESOURCE_VIEW_DESC
-          srv_desc                           = { };
-          srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-          srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-          srv_desc.Texture2D.MipLevels       = UINT_MAX;
-          srv_desc.Texture2D.MostDetailedMip =  0;
-
-        if (    pTex2D.p == nullptr ||
-          FAILED (
-            g_pd3dDevice->CreateShaderResourceView (
-                pTex2D.p, &srv_desc,
-              &pLibTexSRV.p
-            )
-          )
-        )
-        {
-          pLibTexSRV.p = nullptr;
-        }
-
-        // SRV is holding a reference, this is not needed anymore.
-        pTex2D.Release ();
-      }
-    }
-  };
-
-  auto _LoadSKLibraryTexture =
-    [&]( uint32_t                            appid,
-         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-         const std::wstring&                 name )
-  {
-    UNREFERENCED_PARAMETER(appid);
-    UNREFERENCED_PARAMETER(name);
-
-    std::wstring load_str = L"\0",
-                 SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\cover)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-    if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-      load_str =               SKIFCustomCoverPath + L".png";
-    else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-      load_str =               SKIFCustomCoverPath + L".jpg";
-
-    bool succeeded = false;
-
-    if (load_str != L"\0" &&
-        SUCCEEDED(
-          DirectX::LoadFromWICFile (
-            load_str.c_str (),
-              DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-                &meta, img
-          )
-        )
-      )
-    {
-      succeeded = true;
-    }
-    else if (
-        SUCCEEDED(
-          DirectX::LoadFromWICMemory(
-            sk_boxart_png, sizeof(sk_boxart_png),
-              DirectX::WIC_FLAGS_FILTER_POINT,
-                &meta, img
-          )
-        )
-      )
-    {
-      succeeded = true;
-    }
-
-    if (succeeded)
-    {
-      if (
-        SUCCEEDED (
-          DirectX::CreateTexture (
-            (ID3D11Device *)g_pd3dDevice,
-              img.GetImages (), img.GetImageCount (),
-                meta, (ID3D11Resource **)&pTex2D.p
-          )
-        )
-      )
-      {
-        D3D11_SHADER_RESOURCE_VIEW_DESC
-          srv_desc                           = { };
-          srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-          srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-          srv_desc.Texture2D.MipLevels       = UINT_MAX;
-          srv_desc.Texture2D.MostDetailedMip =  0;
-
-        if (    pTex2D.p == nullptr ||
-          FAILED (
-            g_pd3dDevice->CreateShaderResourceView (
-                pTex2D.p, &srv_desc,
-              &pLibTexSRV.p
-            )
-          )
-        )
-        {
-          pLibTexSRV.p = nullptr;
-        }
-
-        // SRV is holding a reference, this is not needed anymore.
-        pTex2D.Release ();
-      }
-    }
-  };
-
   //ImGui::DockSpace(ImGui::GetID("Foobar?!"), ImVec2(600, 900), ImGuiDockNodeFlags_KeepAliveOnly | ImGuiDockNodeFlags_NoResize);
 
   auto& io =
@@ -945,135 +807,176 @@ SKIF_GameManagement_DrawTab (void)
       CComPtr <ID3D11Texture2D>& pLocalTex2D =
                                  *pUserTex2D;
 
-      auto __LoadPatreonTexture =
-      [&]( uint32_t                             appid,
-           CComPtr <ID3D11ShaderResourceView>& kpPatTexSRV,
-           const std::wstring&                  name
-         )
+      auto _LoadLibraryTexture =
+      [&] (
+              LibraryTexture                      libTexToLoad,
+              uint32_t                            appid,
+              CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+              const std::wstring&                 name,
+              app_record_s*                       pApp = nullptr)
       {
-        UNREFERENCED_PARAMETER (appid);
-        UNREFERENCED_PARAMETER  (name);
-
-        if (
-          SUCCEEDED (
-            DirectX::LoadFromWICMemory (
-              patreon_png, sizeof (patreon_png),
-                DirectX::WIC_FLAGS_FILTER_POINT,
-                  &local_meta, local_img
-            )
-          )
-        )
-        {
-          DirectX::ScratchImage* pImg   =
-                                     &local_img;
-          DirectX::ScratchImage   converted_img;
-
-          if (
-            SUCCEEDED (
-              DirectX::CreateTexture (
-                (ID3D11Device *)g_pd3dDevice,
-                  pImg->GetImages (), pImg->GetImageCount (),
-                    local_meta, (ID3D11Resource **)&pPatTex2D.p
-              )
-            )
-          )
-          {
-            D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip = 0;
-
-            if (   pPatTex2D  .p == nullptr ||
-              FAILED (
-                g_pd3dDevice->CreateShaderResourceView (
-                   pPatTex2D  .p, &srv_desc,
-                  &kpPatTexSRV.p
-                )
-              )
-            )
-            {
-              pPatTexSRV.p = nullptr;
-            }
-
-            // SRV is holding a reference, this is not needed anymore.
-            pPatTex2D.Release ();
-          }
-        }
-      };
-
-      SK_RunOnce (
-        __LoadPatreonTexture (0, pPatTexSRV, L"(patreon.png)")
-      );
-
-      auto __LoadSKIconTexture =
-      [&]( uint32_t                            appid,
-           CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-           const std::wstring&                 name
-         )
-      {
-        UNREFERENCED_PARAMETER (appid);
-        UNREFERENCED_PARAMETER (name);
-
-        std::wstring load_str            = L"\0",
-                     SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\icon)", std::wstring (path_cache.specialk_userdata.path).c_str());
-
-        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-          load_str =               SKIFCustomCoverPath + L".png";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-          load_str =               SKIFCustomCoverPath + L".jpg";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
-          load_str =               SKIFCustomCoverPath + L".ico";
+        std::wstring load_str = L"\0",
+                     SKIFCustomPath,
+                     SteamCustomPath;
 
         bool succeeded = false;
+
+        if (pApp != nullptr)
+          appid = pApp->id;
+
+        // SKIF
+        if (    appid == SKIF_STEAM_APPID &&
+            libTexToLoad != LibraryTexture::Patreon)
+        {
+          SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
+
+          if (libTexToLoad == LibraryTexture::Cover)
+            SKIFCustomPath += L"cover";
+          else
+            SKIFCustomPath += L"icon";
+
+          if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+            load_str =               SKIFCustomPath + L".png";
+          else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+            load_str =               SKIFCustomPath + L".jpg";
+          else if (libTexToLoad == LibraryTexture::Icon &&
+                   PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+            load_str =               SKIFCustomPath + L".ico";
+        }
+
+        // GOG
+        else if (pApp != nullptr && pApp->store == "GOG")
+        {
+          SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+    
+          if (libTexToLoad == LibraryTexture::Cover)
+            SKIFCustomPath += L"cover";
+          else
+            SKIFCustomPath += L"icon";
+
+          if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+            load_str =               SKIFCustomPath + L".png";
+          else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+            load_str =               SKIFCustomPath + L".jpg";
+          else if (libTexToLoad == LibraryTexture::Icon &&
+                   PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+            load_str =               SKIFCustomPath + L".ico";
+          else if (libTexToLoad == LibraryTexture::Icon)
+            load_str =               name;
+
+          if (libTexToLoad == LibraryTexture::Cover &&
+              load_str == L"\0")
+          {
+            extern std::wstring GOGGalaxy_UserID;
+            load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+
+            HANDLE hFind = INVALID_HANDLE_VALUE;
+            WIN32_FIND_DATA ffd;
+
+            hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+
+            if (INVALID_HANDLE_VALUE != hFind)
+            {
+              load_str += ffd.cFileName;
+              FindClose(hFind);
+            }
+          }
+        }
+
+        // STEAM
+        else if (pApp != nullptr && pApp->store == "Steam")
+        {
+          static unsigned long SteamUserID = 0;
+     
+          if (SteamUserID == 0)
+          {
+            HKEY hKey;
+            WCHAR szData[255];
+            DWORD dwSize = sizeof(szData);
+            PVOID pvData = szData;
+
+            //Allocationg memory for a DWORD value.
+            DWORD dataType;
+
+            if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+            {
+              if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
+                SteamUserID = *(DWORD*)pvData;
+
+              RegCloseKey(hKey);
+            }
+          }
+
+          SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
+          SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
+    
+          if (libTexToLoad == LibraryTexture::Cover)
+            SKIFCustomPath += L"cover";
+          else
+            SKIFCustomPath += L"icon";
+
+          if      (PathFileExistsW (( SKIFCustomPath +  L".png").c_str()))
+            load_str =                SKIFCustomPath +  L".png";
+          else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
+            load_str =                SKIFCustomPath +  L".jpg";
+          else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+            load_str =               SteamCustomPath + L"p.png";
+          else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+            load_str =               SteamCustomPath + L"p.jpg";
+          else
+            load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+        }
 
         if (load_str != L"\0" &&
             SUCCEEDED(
               DirectX::LoadFromWICFile (
                 load_str.c_str (),
                   DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-                    &local_meta, local_img
+                    &meta, img
               )
             )
           )
         {
           succeeded = true;
         }
-        else if (
-            SUCCEEDED(
-              DirectX::LoadFromWICMemory(
-                sk_icon_jpg, sizeof(sk_icon_jpg),
-                  DirectX::WIC_FLAGS_FILTER_POINT,
-                    &local_meta, local_img
+
+        else if (appid == SKIF_STEAM_APPID)
+        {
+          if (SUCCEEDED(
+                DirectX::LoadFromWICMemory(
+                  (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
+                  (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? sizeof(sk_boxart_png) : sizeof(patreon_png),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      &meta, img
+                )
               )
             )
-          )
-        {
-          succeeded = true;
+          {
+            succeeded = true;
+          }
         }
 
         if (succeeded)
         {
           DirectX::ScratchImage* pImg   =
-                                     &local_img;
+                                      &img;
           DirectX::ScratchImage   converted_img;
 
           // We don't want single-channel icons, so convert to RGBA
-          if (local_meta.format == DXGI_FORMAT_R8_UNORM)
+          if (meta.format == DXGI_FORMAT_R8_UNORM)
           {
             if (
               SUCCEEDED (
                 DirectX::Convert (
-                  pImg->GetImages   (), pImg->GetImageCount (),
-                  pImg->GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
+                  img.GetImages   (), img.GetImageCount (),
+                  img.GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
                     DirectX::TEX_FILTER_DEFAULT,
                     DirectX::TEX_THRESHOLD_DEFAULT,
                       converted_img
                 )
               )
-            ) { local_meta =  converted_img.GetMetadata ();
-                pImg       = &converted_img; }
+            ) { meta =  converted_img.GetMetadata ();
+                pImg = &converted_img; }
           }
 
           if (
@@ -1081,22 +984,22 @@ SKIF_GameManagement_DrawTab (void)
               DirectX::CreateTexture (
                 (ID3D11Device *)g_pd3dDevice,
                   pImg->GetImages (), pImg->GetImageCount (),
-                    local_meta, (ID3D11Resource **)&pLocalTex2D.p
+                    meta, (ID3D11Resource **)&pTex2D.p
               )
             )
           )
           {
             D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip = 0;
+              srv_desc                           = { };
+              srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+              srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+              srv_desc.Texture2D.MipLevels       = UINT_MAX;
+              srv_desc.Texture2D.MostDetailedMip =  0;
 
-            if (   pLocalTex2D.p == nullptr ||
+            if (    pTex2D.p == nullptr ||
               FAILED (
                 g_pd3dDevice->CreateShaderResourceView (
-                    pLocalTex2D.p, &srv_desc,
+                    pTex2D.p, &srv_desc,
                   &pLibTexSRV.p
                 )
               )
@@ -1106,185 +1009,15 @@ SKIF_GameManagement_DrawTab (void)
             }
 
             // SRV is holding a reference, this is not needed anymore.
-            pLocalTex2D.Release ();
+            pTex2D.Release ();
           }
         }
       };
 
-      auto __LoadLibraryTexture =
-      [&]( uint32_t                            appid,
-           CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-           const std::wstring&                 name
-         )
-      {
-        std::wstring load_str  (
-          SK_GetSteamDir ()
-        );
-
-        load_str +=   LR"(/appcache/librarycache/)" +
-          std::to_wstring (appid)    +   name.c_str ();
-
-        std::wstring SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-          load_str =               SKIFCustomCoverPath + L".png";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-          load_str =               SKIFCustomCoverPath + L".jpg";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
-          load_str =               SKIFCustomCoverPath + L".ico";
-
-        if (
-          SUCCEEDED (
-            DirectX::LoadFromWICFile (
-              load_str.c_str (),
-                DirectX::WIC_FLAGS_FILTER_POINT,
-                  &local_meta, local_img
-            )
-          )
-        )
-        {
-          DirectX::ScratchImage* pImg   =
-                                     &local_img;
-          DirectX::ScratchImage   converted_img;
-
-          // We don't want single-channel icons, so convert to RGBA
-          if (local_meta.format == DXGI_FORMAT_R8_UNORM)
-          {
-            if (
-              SUCCEEDED (
-                DirectX::Convert (
-                  pImg->GetImages   (), pImg->GetImageCount (),
-                  pImg->GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
-                    DirectX::TEX_FILTER_DEFAULT,
-                    DirectX::TEX_THRESHOLD_DEFAULT,
-                      converted_img
-                )
-              )
-            ) { local_meta =  converted_img.GetMetadata ();
-                pImg       = &converted_img; }
-          }
-
-          if (
-            SUCCEEDED (
-              DirectX::CreateTexture (
-                (ID3D11Device *)g_pd3dDevice,
-                  pImg->GetImages (), pImg->GetImageCount (),
-                    local_meta, (ID3D11Resource **)&pLocalTex2D.p
-              )
-            )
-          )
-          {
-            D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip =  0;
-
-            if (   pLocalTex2D.p == nullptr ||
-              FAILED (
-                g_pd3dDevice->CreateShaderResourceView (
-                   pLocalTex2D.p, &srv_desc,
-                  &pLibTexSRV.p
-                )
-              )
-            )
-            {
-              pLibTexSRV.p = nullptr;
-            }
-
-            // SRV is holding a reference, this is not needed anymore.
-            pLocalTex2D.Release ();
-          }
-        }
-      };
-
-      auto __LoadGOGLibraryTexture =
-      [&]( uint32_t                            appid,
-           CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-           const std::wstring&                 name
-         )
-      { 
-        extern std::wstring GOGGalaxy_UserID;
-
-        std::wstring load_str            = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid),
-                     SKIFCustomCoverPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\icon)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-        if      (PathFileExistsW ((SKIFCustomCoverPath + L".png").c_str()))
-          load_str =               SKIFCustomCoverPath + L".png";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".jpg").c_str()))
-          load_str =               SKIFCustomCoverPath + L".jpg";
-        else if (PathFileExistsW ((SKIFCustomCoverPath + L".ico").c_str()))
-          load_str =               SKIFCustomCoverPath + L".ico";
-        else
-          load_str = name;
-
-        if (
-          SUCCEEDED (
-            DirectX::LoadFromWICFile (
-              load_str.c_str (),
-                DirectX::WIC_FLAGS_FILTER_POINT,
-                  &local_meta, local_img
-            )
-          )
-        )
-        {
-          DirectX::ScratchImage* pImg   =
-                                     &local_img;
-          DirectX::ScratchImage   converted_img;
-
-          // We don't want single-channel icons, so convert to RGBA
-          if (local_meta.format == DXGI_FORMAT_R8_UNORM)
-          {
-            if (
-              SUCCEEDED (
-                DirectX::Convert (
-                  pImg->GetImages   (), pImg->GetImageCount (),
-                  pImg->GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
-                    DirectX::TEX_FILTER_DEFAULT,
-                    DirectX::TEX_THRESHOLD_DEFAULT,
-                      converted_img
-                )
-              )
-            ) { local_meta =  converted_img.GetMetadata ();
-                pImg       = &converted_img; }
-          }
-
-          if (
-            SUCCEEDED (
-              DirectX::CreateTexture (
-                (ID3D11Device *)g_pd3dDevice,
-                  pImg->GetImages (), pImg->GetImageCount (),
-                    local_meta, (ID3D11Resource **)&pLocalTex2D.p
-              )
-            )
-          )
-          {
-            D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       = UINT_MAX;
-            srv_desc.Texture2D.MostDetailedMip =  0;
-
-            if (   pLocalTex2D.p == nullptr ||
-              FAILED (
-                g_pd3dDevice->CreateShaderResourceView (
-                   pLocalTex2D.p, &srv_desc,
-                  &pLibTexSRV.p
-                )
-              )
-            )
-            {
-              pLibTexSRV.p = nullptr;
-            }
-
-            // SRV is holding a reference, this is not needed anymore.
-            pLocalTex2D.Release ();
-          }
-        }
-      };
-
+      SK_RunOnce (
+        //__LoadPatreonTexture (0, pPatTexSRV, L"(patreon.png)")
+        _LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)")
+      );
 
       for ( auto& app : apps )
       {
@@ -1373,25 +1106,30 @@ SKIF_GameManagement_DrawTab (void)
           app.second.names.normal    = app.first;
         }
 
-        // Load Special K's icon from the embedded resource
+        // SKIF
         if ( app.second.id == SKIF_STEAM_APPID )
-          __LoadSKIconTexture ( app.second.id,
+          _LoadLibraryTexture (LibraryTexture::Icon,
+                                app.second.id,
                                 app.second.textures.icon,
-                                                 L"_icon.jpg"
+                                L"_icon.jpg"
         );
 
-        // Load GOG icons from the install folder
+        // GOG
         else  if (app.second.store == "GOG")
-          __LoadGOGLibraryTexture ( app.second.id,
-                                    app.second.textures.icon,
-                                    app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico"
+          _LoadLibraryTexture (LibraryTexture::Icon,
+                                app.second.id,
+                                app.second.textures.icon,
+                                app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico",
+                                &app.second
         );
 
-        // Load all other apps from the librarycache of the Steam client
-        else if (app.second.store != "GOG")
-          __LoadLibraryTexture ( app.second.id,
-                                 app.second.textures.icon,
-                                                  L"_icon.jpg"
+        // STEAM
+        else if (app.second.store == "Steam")
+          _LoadLibraryTexture (LibraryTexture::Icon,
+                                app.second.id,
+                                app.second.textures.icon,
+                                L"_icon.jpg",
+                                &app.second
         );
 
         static auto *pFont =
@@ -1663,7 +1401,7 @@ SKIF_GameManagement_DrawTab (void)
       if (app.second.id == appid)
         pApp = &app.second;
 
-    // Load Special K's boxart from the embedded resource
+    // SKIF
     if ( appid == SKIF_STEAM_APPID )
     {
       LoadLibraryTexture ( LibraryTexture::Cover,
@@ -1672,13 +1410,17 @@ SKIF_GameManagement_DrawTab (void)
                                   L"_library_600x900_x2.jpg" );
     }
 
+    // GOG
     else if ( pApp->store == "GOG" )
     {
-      _LoadGOGLibraryTexture ( appid,
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                             appid,
                                   pTexSRV,
-                                    L"*_glx_vertical_cover.webp" );
+                                    L"*_glx_vertical_cover.webp",
+                                      pApp );
     }
     
+    // STEAM
     else if (pApp->store == "Steam") {
 
       if ( appinfo != nullptr )
@@ -1750,9 +1492,11 @@ SKIF_GameManagement_DrawTab (void)
         load_str_final = L"_library_600x900_x2.jpg";
       }
 
-      _LoadSteamLibraryTexture ( appid,
-                                  pTexSRV,
-                                    load_str_final );
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                             appid,
+                               pTexSRV,
+                                 load_str_final,
+                                   pApp );
     }
   }
 
@@ -1869,7 +1613,6 @@ SKIF_GameManagement_DrawTab (void)
 
       //ImGui::SetNextWindowSize (ImVec2 (0.0f, 0.0f));      
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-      ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.f, 0.f, 0.f, 0.5f));
 
       if (ImGui::BeginPopupModal("KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
       {
@@ -1889,8 +1632,6 @@ SKIF_GameManagement_DrawTab (void)
 
         ImGui::EndPopup ( );
       }
-
-      ImGui::PopStyleColor ( );
     }
 
     if (                       dwLastUpdate != MAXDWORD &&
@@ -2385,7 +2126,7 @@ SKIF_GameManagement_DrawTab (void)
 
   float fOffset =
     ( std::max (f2, f1) - std::min (f2, f1) -
-           ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f;
+           ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale);
 
   static bool deferred_update = false;
 
@@ -2435,7 +2176,7 @@ SKIF_GameManagement_DrawTab (void)
 
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-    ImGui::SetCursorPosY   (fOriginalY + fOffset );
+    ImGui::SetCursorPosY   (fOriginalY + fOffset);
     ImGui::Selectable      ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (2                    );
 
@@ -2822,30 +2563,16 @@ SKIF_GameManagement_DrawTab (void)
                 CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
 
                 // Release current icon
-                //pApp->textures.icon.Release();
+                pApp->textures.icon.Release();
 
-                /*
-                // Load Special K's icon from the embedded resource
-                if ( pApp->id == SKIF_STEAM_APPID )
-                  __LoadSKIconTexture (pApp->id,
+                // Reload the icon
+                LoadLibraryTexture (LibraryTexture::Icon,
+                                      appid,
                                         pApp->textures.icon,
-                                                         L"_icon.jpg"
-                );
-
-                // Load GOG icons from the install folder
-                else  if (pApp->store == "GOG")
-                  __LoadGOGLibraryTexture ( pApp->id,
-                                            pApp->textures.icon,
-                                            pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                );
-
-                // Load all other apps from the librarycache of the Steam client
-                else if (pApp->store != "GOG")
-                  __LoadLibraryTexture ( pApp->id,
-                                         pApp->textures.icon,
-                                                          L"_icon.jpg"
-                );
-                */
+                                         (pApp->store == "GOG")
+                                          ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                                          : L"_icon.jpg",
+                                            pApp );
               }
 
 				      pItem->Release();
@@ -2870,12 +2597,21 @@ SKIF_GameManagement_DrawTab (void)
         {
           targetPath += L"icon";
 
-          DeleteFile((targetPath + L".jpg").c_str());
-          DeleteFile((targetPath + L".ico").c_str());
-          DeleteFile((targetPath + L".png").c_str());
+          DeleteFile ((targetPath + L".jpg").c_str());
+          DeleteFile ((targetPath + L".ico").c_str());
+          DeleteFile ((targetPath + L".png").c_str());
 
-          //update = true;
-          //pApp->textures.icon.Release();
+          // Release current icon
+          pApp->textures.icon.Release();
+
+          // Reload the icon
+          LoadLibraryTexture (LibraryTexture::Icon,
+                                appid,
+                                  pApp->textures.icon,
+                                    (pApp->store == "GOG")
+                                    ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                                    : L"_icon.jpg",
+                                      pApp );
         }
       }
 
