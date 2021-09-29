@@ -341,9 +341,14 @@ LoadLibraryTexture (
       load_str =                SKIFCustomPath +  L".png";
     else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
       load_str =                SKIFCustomPath +  L".jpg";
-    else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+    else if (libTexToLoad == LibraryTexture::Icon  &&
+             PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
+      load_str =                SKIFCustomPath +  L".ico";
+    else if (libTexToLoad == LibraryTexture::Cover &&
+             PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
       load_str =               SteamCustomPath + L"p.png";
-    else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+    else if (libTexToLoad == LibraryTexture::Cover &&
+             PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
       load_str =               SteamCustomPath + L"p.jpg";
     else
       load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
@@ -919,9 +924,14 @@ SKIF_GameManagement_DrawTab (void)
             load_str =                SKIFCustomPath +  L".png";
           else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
             load_str =                SKIFCustomPath +  L".jpg";
-          else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+          else if (libTexToLoad == LibraryTexture::Icon  &&
+                   PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
+            load_str =                SKIFCustomPath +  L".ico";
+          else if (libTexToLoad == LibraryTexture::Cover &&
+                   PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
             load_str =               SteamCustomPath + L"p.png";
-          else if (libTexToLoad == LibraryTexture::Cover && PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+          else if (libTexToLoad == LibraryTexture::Cover &&
+                   PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
             load_str =               SteamCustomPath + L"p.jpg";
           else
             load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
