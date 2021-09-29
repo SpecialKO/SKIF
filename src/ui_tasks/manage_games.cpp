@@ -247,10 +247,10 @@ LoadLibraryTexture (
     appid = pApp->id;
 
   // SKIF
-  if (    appid == SKIF_STEAM_APPID &&
+  if (       appid == SKIF_STEAM_APPID &&
       libTexToLoad != LibraryTexture::Patreon)
   {
-    SKIFCustomPath = SK_FormatStringW(LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -290,7 +290,7 @@ LoadLibraryTexture (
         load_str == L"\0")
     {
       extern std::wstring GOGGalaxy_UserID;
-      load_str = SK_FormatStringW(LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+      load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
 
       HANDLE hFind = INVALID_HANDLE_VALUE;
       WIN32_FIND_DATA ffd;
@@ -329,7 +329,7 @@ LoadLibraryTexture (
       }
     }
 
-    SKIFCustomPath  = SK_FormatStringW(LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
+    SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
     SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
     
     if (libTexToLoad == LibraryTexture::Cover)
@@ -410,7 +410,7 @@ LoadLibraryTexture (
       SUCCEEDED (
         DirectX::CreateTexture (
           (ID3D11Device *)g_pd3dDevice,
-            img.GetImages (), img.GetImageCount (),
+            pImg->GetImages (), pImg->GetImageCount (),
               meta, (ID3D11Resource **)&pTex2D.p
         )
       )
@@ -830,7 +830,7 @@ SKIF_GameManagement_DrawTab (void)
           appid = pApp->id;
 
         // SKIF
-        if (    appid == SKIF_STEAM_APPID &&
+        if (       appid == SKIF_STEAM_APPID &&
             libTexToLoad != LibraryTexture::Patreon)
         {
           SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
@@ -2597,7 +2597,7 @@ SKIF_GameManagement_DrawTab (void)
         std::wstring targetPath = L"";
         
         if (pApp->id == SKIF_STEAM_APPID)
-          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          targetPath = SK_FormatStringW(LR"(%ws\Assets\)",          std::wstring (path_cache.specialk_userdata.path).c_str());
         else if (pApp->store == "GOG")
           targetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
         else
@@ -2606,22 +2606,22 @@ SKIF_GameManagement_DrawTab (void)
         if (PathFileExists(targetPath.c_str()))
         {
           targetPath += L"icon";
-
+          
+          DeleteFile ((targetPath + L".png").c_str());
           DeleteFile ((targetPath + L".jpg").c_str());
           DeleteFile ((targetPath + L".ico").c_str());
-          DeleteFile ((targetPath + L".png").c_str());
 
           // Release current icon
           pApp->textures.icon.Release();
-
+          
           // Reload the icon
           LoadLibraryTexture (LibraryTexture::Icon,
-                                appid,
+                                pApp->id,
                                   pApp->textures.icon,
-                                    (pApp->store == "GOG")
+                                   (pApp->store == "GOG")
                                     ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                     : L"_icon.jpg",
-                                      pApp );
+                                        pApp );
         }
       }
 

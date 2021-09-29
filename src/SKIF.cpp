@@ -4006,7 +4006,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {"Origin",              L"Origin.exe"},
               {"Galaxy",              L"GalaxyClient.exe"},
               {"EA Desktop",          L"EADesktop.exe"},
-              {"Epic Games Launcher", L"EpicGamesLauncher.exe"}
+              {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
+              {"Ubisoft Connect",     L"upc.exe"}
             };
 
             for each (Platform &p in Platforms)
