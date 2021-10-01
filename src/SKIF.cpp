@@ -286,7 +286,10 @@ CHandle hSwapWait  (0);
 int __width  = 0;
 int __height = 0;
 
-float SKIF_ImGui_GlobalDPIScale = 1.0f;
+// Holds current global DPI scaling
+float SKIF_ImGui_GlobalDPIScale      = 1.0f;
+// Holds last frame's DPI scaling
+float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
 
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
@@ -2226,7 +2229,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (! _TranslateAndDispatch ())
         break;
 
+      // Set DPI related variables
       io.FontGlobalScale = 1.0f;
+      SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
 
       // Handling sub-1000px resolutions by rebuilding the font at 11px
       if (SKIF_ImGui_GlobalDPIScale < 1.0f && (! tinyDPIFonts))
@@ -2292,7 +2297,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_vecLargeMode.y += 31.0f * SKIF_ImGui_GlobalDPIScale;
           SKIF_vecLargeMode.y += (SKIF_bDisableTooltips) ?
-                    (ImGui::GetTextLineHeight () * 0.7f) : 0.0f;
+                    (ImGui::GetTextLineHeight () /* * 0.7f */) : 0.0f;
         }
 
         // Fixes weird size difference with this exact combination of settings which only occurs when DPI scaling is disabled
@@ -2372,20 +2377,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         // Rescale the style on DPI changes
-        style.WindowRounding    =          4.0F                                      * SKIF_ImGui_GlobalDPIScale; // style.ScrollbarRounding;
-        style.ChildRounding     = style.WindowRounding;
-        style.TabRounding       = style.WindowRounding;
-        style.FrameRounding     = style.WindowRounding;
-        style.FramePadding      = ImVec2 (SKIF_ImGui_DefaultStyle.FramePadding.x     * SKIF_ImGui_GlobalDPIScale,
-                                          SKIF_ImGui_DefaultStyle.FramePadding.y     * SKIF_ImGui_GlobalDPIScale);
-        style.ItemSpacing       = ImVec2 (SKIF_ImGui_DefaultStyle.ItemSpacing.x      * SKIF_ImGui_GlobalDPIScale,
-                                          SKIF_ImGui_DefaultStyle.ItemSpacing.y      * SKIF_ImGui_GlobalDPIScale);
-        style.ItemInnerSpacing  = ImVec2 (SKIF_ImGui_DefaultStyle.ItemInnerSpacing.x * SKIF_ImGui_GlobalDPIScale,
-                                          SKIF_ImGui_DefaultStyle.ItemInnerSpacing.y * SKIF_ImGui_GlobalDPIScale);
-        style.IndentSpacing     =         SKIF_ImGui_DefaultStyle.IndentSpacing      * SKIF_ImGui_GlobalDPIScale;
-        style.ColumnsMinSpacing =         SKIF_ImGui_DefaultStyle.ColumnsMinSpacing  * SKIF_ImGui_GlobalDPIScale;
-        style.ScrollbarSize     =         SKIF_ImGui_DefaultStyle.ScrollbarSize      * SKIF_ImGui_GlobalDPIScale;
-        // Finish style rescale
+        if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+        {
+          style.WindowPadding                         = SKIF_ImGui_DefaultStyle.WindowPadding                       * SKIF_ImGui_GlobalDPIScale;
+          style.WindowRounding                        = 4.0F                                                        * SKIF_ImGui_GlobalDPIScale;
+          style.WindowMinSize                         = SKIF_ImGui_DefaultStyle.WindowMinSize                       * SKIF_ImGui_GlobalDPIScale;
+          style.ChildRounding                         = style.WindowRounding;
+          style.PopupRounding                         = SKIF_ImGui_DefaultStyle.PopupRounding                       * SKIF_ImGui_GlobalDPIScale;
+          style.FramePadding                          = SKIF_ImGui_DefaultStyle.FramePadding                        * SKIF_ImGui_GlobalDPIScale;
+          style.FrameRounding                         = style.WindowRounding;
+          style.ItemSpacing                           = SKIF_ImGui_DefaultStyle.ItemSpacing                         * SKIF_ImGui_GlobalDPIScale;
+          style.ItemInnerSpacing                      = SKIF_ImGui_DefaultStyle.ItemInnerSpacing                    * SKIF_ImGui_GlobalDPIScale;
+          style.TouchExtraPadding                     = SKIF_ImGui_DefaultStyle.TouchExtraPadding                   * SKIF_ImGui_GlobalDPIScale;
+          style.IndentSpacing                         = SKIF_ImGui_DefaultStyle.IndentSpacing                       * SKIF_ImGui_GlobalDPIScale;
+          style.ColumnsMinSpacing                     = SKIF_ImGui_DefaultStyle.ColumnsMinSpacing                   * SKIF_ImGui_GlobalDPIScale;
+          style.ScrollbarSize                         = SKIF_ImGui_DefaultStyle.ScrollbarSize                       * SKIF_ImGui_GlobalDPIScale;
+          style.ScrollbarRounding                     = SKIF_ImGui_DefaultStyle.ScrollbarRounding                   * SKIF_ImGui_GlobalDPIScale;
+          style.GrabMinSize                           = SKIF_ImGui_DefaultStyle.GrabMinSize                         * SKIF_ImGui_GlobalDPIScale;
+          style.GrabRounding                          = SKIF_ImGui_DefaultStyle.GrabRounding                        * SKIF_ImGui_GlobalDPIScale;
+          style.TabRounding                           = style.WindowRounding;
+          if (style.TabMinWidthForUnselectedCloseButton != FLT_MAX)
+	          style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
+          style.DisplayWindowPadding                  = SKIF_ImGui_DefaultStyle.DisplayWindowPadding                * SKIF_ImGui_GlobalDPIScale;
+          style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
+          style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
+        }
 
 
         ImGuiTabBarFlags flags =

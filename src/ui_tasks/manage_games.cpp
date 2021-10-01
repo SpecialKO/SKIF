@@ -43,6 +43,7 @@ static bool clickedGameLaunch,
 
 extern ID3D11Device* g_pd3dDevice;
 extern float         SKIF_ImGui_GlobalDPIScale;
+extern float         SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string   SKIF_StatusBarHelp;
 extern std::string   SKIF_StatusBarText;
 extern bool          SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
@@ -1176,8 +1177,13 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::GetCursorPosX (                                                  );
 
   // Display cover image
-  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 ( 600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                            900.0F * SKIF_ImGui_GlobalDPIScale ));
+  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                           900.0F * SKIF_ImGui_GlobalDPIScale ),
+                                                   ImVec2 (0,0),
+                                                   ImVec2 (1,1),
+                                                   ImVec4 (1,1,1,1),
+                                 ImGui::GetStyleColorVec4 (ImGuiCol_Border)
+  );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ImGui::OpenPopup ("CoverMenu");
@@ -1329,11 +1335,11 @@ SKIF_GameManagement_DrawTab (void)
   if ( appid == SKIF_STEAM_APPID ) {
     float fY =
     ImGui::GetCursorPosY (                                                  );
-    ImGui::SetCursorPosX (                                    fX            );
-    ImGui::SetCursorPos  (                           ImVec2 ( fX,
-                                                              fY - (204.f * SKIF_ImGui_GlobalDPIScale)) );
+    ImGui::SetCursorPos  (                           ImVec2 ( fX +    1.0f,
+                                                              fY - (204.5f * SKIF_ImGui_GlobalDPIScale)) );
     ImGui::BeginGroup    ();
-    static bool hovered = false;
+    static bool hoveredPatButton  = false,
+                hoveredPatCredits = false;
 
     // Set all button styling to transparent
     ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
@@ -1346,13 +1352,13 @@ SKIF_GameManagement_DrawTab (void)
                                                      ImVec2 (0.f,       0.f),
                                                      ImVec2 (1.f,       1.f),     0,
                                                      ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                           hovered ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
+                                  hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
                                                    : ImVec4 (  .8f,  .8f,  .8f, .66f));
 
     // Restore the custom button styling
     ImGui::PopStyleColor (3);
 
-    hovered =
+    hoveredPatButton =
     ImGui::IsItemHovered (                                                  );
 
     SKIF_ImGui_SetMouseCursorHand ();
@@ -1364,39 +1370,50 @@ SKIF_GameManagement_DrawTab (void)
         L"https://www.patreon.com/Kaldaien"
       );
 
-    ImGui::SameLine           ( );
-    ImGui::ItemSize           (ImVec2 (160.0f * SKIF_ImGui_GlobalDPIScale,
-                                       200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing ()));
-    ImGui::SameLine();
-    ImGui::BeginGroup         ( );
-    //ImGui::SetCursorPosY      (ImGui::GetCursorPosY () + 66.67f);
-    ImGui::PushStyleColor     (ImGuiCol_Text, ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
-    ImGui::TextUnformatted    ("SpecialK Thanks to our Patrons:");
+    ImGui::SetCursorPos  (                           ImVec2 (379.5f * SKIF_ImGui_GlobalDPIScale,
+                                                       fY - (204.0f  * SKIF_ImGui_GlobalDPIScale)) );
 
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
+    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
+                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
+    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
+                                                          200.0f * SKIF_ImGui_GlobalDPIScale), true, ImGuiWindowFlags_NoScrollbar);
 
-    ImGui::PushStyleColor     (ImGuiCol_FrameBg, ImVec4 (0.0f, 0.0f, 0.0f, 0.0f));
-    ImGui::PushStyleColor     (ImGuiCol_Text,    ImVec4 (0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::TextColored        (ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "SpecialK Thanks to our Patrons:");
 
     extern std::string SKIF_GetPatrons (void);
     static std::string patrons_ =
       SKIF_GetPatrons () + '\0';
 
-    ImGui::InputTextMultiline ("###Patrons",patrons_.data (), patrons_.length (),
-                   ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle ().ItemSpacing.x * 3,
-                           200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetTextLineHeightWithSpacing () ),
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    
+    ImGui::PushStyleColor     (ImGuiCol_Text,           ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
+                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                           160.0f * SKIF_ImGui_GlobalDPIScale),
                                     ImGuiInputTextFlags_ReadOnly );
-    ImGui::PopStyleColor (                                                 3);
-    ImGui::EndGroup      (                                                  );
-    ImGui::EndGroup      (                                                  );
+    ImGui::PopStyleColor      (4);
+
+    hoveredPatCredits =
+    ImGui::IsItemActive();
+
+    ImGui::EndChild           ( );
+    ImGui::PopStyleColor      ( );
+    
+    hoveredPatCredits = hoveredPatCredits ||
+    ImGui::IsItemHovered      ( );
+
+    ImGui::EndGroup           ( );
   }
 
 
-  ImGui::EndGroup      (                                                  );
-  ImGui::SameLine      (                                                  );
+  ImGui::EndGroup             ( );
+  ImGui::SameLine             ( );
 
   if (update)
   {
@@ -1527,7 +1544,7 @@ SKIF_GameManagement_DrawTab (void)
 // AppListInset1
 #define _WIDTH (414.0f * SKIF_ImGui_GlobalDPIScale) // std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
   //_WIDTH  (640/2)
-#define _HEIGHT (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x * SKIF_ImGui_GlobalDPIScale) //(float)_WIDTH / (fAspect)
+#define _HEIGHT (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) //(float)_WIDTH / (fAspect)
   //_HEIGHT (360/2)
 
 // AppListInset2
@@ -1705,8 +1722,10 @@ SKIF_GameManagement_DrawTab (void)
         cache.app_id  = pTargetApp->id;
         cache.running = pTargetApp->_status.running;
 
-        cache.service = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo && _inject.pid32) ||
-                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour && _inject.pid64);
+        cache.service = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
+                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) || 
+                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
+                                                                                                             _inject.pid64));
 
         sk_install_state_s& sk_install =
           pTargetApp->specialk.injection;
@@ -2092,7 +2111,7 @@ SKIF_GameManagement_DrawTab (void)
     if (ret)
     {
       if (! ImGui::IsItemVisible    (    )) {
-        ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
+        ImGui::SetScrollHereY       (0.5f);
       }
     }
 
@@ -2253,7 +2272,7 @@ SKIF_GameManagement_DrawTab (void)
           ImGui::ActivateItem (ImGui::GetID ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()));
 
           if (! ImGui::IsItemVisible    (    )) {
-            ImGui::SetScrollHereY       (0.5f * SKIF_ImGui_GlobalDPIScale);
+            ImGui::SetScrollHereY       (0.5f);
           } ImGui::SetKeyboardFocusHere (    );
 
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
@@ -2271,6 +2290,10 @@ SKIF_GameManagement_DrawTab (void)
 
     if (selected)
     {
+      // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
+      if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+        ImGui::SetScrollHereY (0.5f);
+
       if (! update)
       {
         if (std::exchange (deferred_update, false))
@@ -2296,6 +2319,7 @@ SKIF_GameManagement_DrawTab (void)
             ImGui::GetItemRectMin ().x + ImGui::GetWindowContentRegionWidth (),
             ImGui::GetItemRectMax ().y
           );
+
           /*
           if (ImGui::IsItemVisible ())
           {
