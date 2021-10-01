@@ -2778,7 +2778,7 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::SetCursorPosX (
         ImGui::GetCursorPosX  () +
         ImGui::GetColumnWidth () -
-        ImGui::CalcTextSize   ("Disable Special K =>").x -
+        ImGui::CalcTextSize   ("Disable Special K >").x -
         ImGui::GetScrollX     () -
         ImGui::GetStyle       ().ItemSpacing.x * 2
       );

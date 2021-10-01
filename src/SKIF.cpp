@@ -329,6 +329,9 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
     {
       if (! SKIF_bDisableTooltips)
       {
+        /* Disabled as it's not needed any longer since the mouse pos never changes
+             when interfacing with the app any longer. Disabling this also restored
+               original tooltips constrained within the monitor area.
         ImVec2 cursorPos   = (ImGui::IsItemFocused ( )) 
                                 ? ImGui::GetCursorScreenPos ( ) // If the item has keyboard focus, grab the position of the rendering cursor
                                 : ImGui::GetIO ( ).MousePos;    // If the item lacks keyboard focus, grab the position of the mouse cursor
@@ -336,8 +339,9 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
 
         ImGui::SetNextWindowPos (
           ImVec2 ( cursorPos.x + 16      + 4 * (cursorScale - 1),
-                   cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ )
+                   cursorPos.y + 8 ) // 16 + 4 * (cursorScale - 1) )
         );
+        */
 
         ImGui::SetTooltip (
           "%hs", szText.data ()
@@ -561,7 +565,7 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
   font_cfg.MergeMode = true;
 
     SKIF_ImGui_LoadFont (
-    L"Tahoma.ttf",
+     L"Tahoma.ttf",
       fontSize,
         SK_ImGui_GetGlyphRangesDefaultEx ()
   );
@@ -2230,7 +2234,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         break;
 
       // Set DPI related variables
-      io.FontGlobalScale = 1.0f;
+      //io.FontGlobalScale = 1.0f;
       SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
 
       // Handling sub-1000px resolutions by rebuilding the font at 11px
@@ -2402,7 +2406,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
           style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
         }
-
 
         ImGuiTabBarFlags flags =
           ImGuiTabItemFlags_None;
