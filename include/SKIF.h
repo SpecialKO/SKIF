@@ -100,3 +100,13 @@ DWORD64 SKIF_timeGetTimeEx (void);
 const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
+
+enum class PopupState {
+  Closed,
+  Open,
+  Opened
+};
+
+extern PopupState AddGamePopup;
+extern PopupState RemoveGamePopup;
+extern PopupState ModifyGamePopup;

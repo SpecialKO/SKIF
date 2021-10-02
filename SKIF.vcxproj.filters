@@ -79,6 +79,12 @@
     <Filter Include="Source Files\Stores\GOG">
       <UniqueIdentifier>{0431ab36-108a-4471-870f-0a20456bb775}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Stores\SKIF">
+      <UniqueIdentifier>{3163a88e-4319-4f23-bdf9-debfdadf093f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\SKIF">
+      <UniqueIdentifier>{0f7ca7ac-471b-4d48-a331-a04e51d00142}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\targetver.h">
@@ -357,6 +363,9 @@
     <ClInclude Include="include\stores\generic_app.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
+    <ClInclude Include="include\stores\SKIF\custom_library.h">
+      <Filter>Header Files\Stores\SKIF</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -496,6 +505,9 @@
     </ClCompile>
     <ClCompile Include="src\stores\generic_app.cpp">
       <Filter>Source Files\Stores</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\SKIF\custom_library.cpp">
+      <Filter>Source Files\Stores\SKIF</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -281,12 +281,13 @@ private:
 
 bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
-CHandle hSwapWait  (0);
+CHandle hSwapWait  (0);           // Signalled by a waitable swapchain
 
 int __width  = 0;
 int __height = 0;
 
-// Holds current global DPI scaling
+// Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
+// Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
 // Holds last frame's DPI scaling
 float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
@@ -1684,7 +1685,7 @@ SKIF_AddToEnvironmentalPath(void)
       else
         new_env += L";" + currentPath + L";";
 
-      if (RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (new_env.size() + 1) * sizeof(wchar_t)) == ERROR_SUCCESS)
+      if (RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (DWORD)((new_env.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS)
         ret = 1;
       else
         ret = 0;
@@ -3690,7 +3691,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::Spacing          ( );
               ImGui::SameLine         ( );
               ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (1.0f, 1.0f, 1.0f, 1.0f));
-              ImGui::InputTextEx("###QuickLaunch", NULL, "SKIF %COMMAND%", MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+              ImGui::InputTextEx      ("###QuickLaunch", NULL, "SKIF %COMMAND%", MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
               ImGui::PopStyleColor    ( );
               ImGui::TreePop          ( );
 
@@ -3864,10 +3865,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine         ( );
 
             if (ImGui::Selectable   ("Discord"))
-              SKIF_Util_OpenURI     (L"https://discord.com/invite/ER4EDBJPTa");
+              SKIF_Util_OpenURI     (L"https://discord.gg/specialk");
 
             SKIF_ImGui_SetMouseCursorHand ();
-            SKIF_ImGui_SetHoverText ( "https://discord.com/invite/ER4EDBJPTa");
+            SKIF_ImGui_SetHoverText ( "https://discord.gg/specialk");
             ImGui::EndGroup         ( );
 
 
@@ -4124,16 +4125,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           // Ghost
 
-          auto title_len =
-            ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F,
-                                      FLT_MAX, 0.0f,
-                         SKIF_WINDOW_TITLE_A ).x;
+          
 
-          float title_pos =                                     ImGui::GetCursorPos().x +
+          float title_len = ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
+            //ImGui::GetFont ()->CalcTextSizeA ((tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f, SKIF_WINDOW_TITLE_A ).x;
+
+          float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
+            /*
+            ImGui::GetCursorPos().x +
               (
                 (ImGui::GetContentRegionAvail().x - 100.0f * SKIF_ImGui_GlobalDPIScale) - title_len
               )
                                                                                         / 2.0f;
+            */
 
           ImGui::SetCursorPosX (title_pos);
 
@@ -4141,7 +4145,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             7.0f * SKIF_ImGui_GlobalDPIScale
           );
 
-          ImGui::TextColored (ImVec4 (.666f, .666f, .666f, 1.f), SKIF_WINDOW_TITLE_A_EX);
+          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A_EX); // ImVec4 (.666f, .666f, .666f, 1.f)
 
           if (SKIF_bAlwaysShowGhost || (_inject.bCurrentState && SKIF_bEnableDebugMode) )
           {
@@ -4207,6 +4211,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             // End Separation
 
+            if (tab_selected == Injection)
+            {
+              ImVec2 tmpPos = ImGui::GetCursorPos();
+
+              static bool btnHovered = false;
+              ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+              ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
+              ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
+
+              if (btnHovered)
+                ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+              else
+                ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+
+              if (ImGui::Button( ICON_FA_PLUS_SQUARE " Add Game"))
+                AddGamePopup = PopupState::Open;
+
+              btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+              ImGui::PopStyleColor (4);
+
+              ImGui::SetCursorPos(tmpPos);
+            }
+
             auto _StatusPartSize = [&](std::string& part) -> float
             {
               return
@@ -4224,7 +4252,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::GetWindowSize ().x -
                 ( fStatusWidth +
                   fHelpWidth ) -
-              ImGui::GetScrollX () -
+              ImGui::GetCursorPosX () -
               ImGui::GetStyle   ().ItemSpacing.x * 2
             );
 

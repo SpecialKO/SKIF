@@ -78,9 +78,8 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
             if (RegGetValueW(hKey, szSubKey, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
             {
-              app_record_s GOG_record(_wtoi(szData));
+              app_record_s GOG_record (_wtoi(szData));
 
-              GOG_record.id = _wtoi(szData);
               GOG_record.store = "GOG";
               GOG_record.type  = "Game";
               //GOG_record.extended_config.vac.enabled = false;
