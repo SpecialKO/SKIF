@@ -20,6 +20,7 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
+#include <strsafe.h>
 #include <wtypes.h>
 #include <dxgi1_5.h>
 
@@ -1814,6 +1815,88 @@ SK_FindProcessByName (const wchar_t* wszName)
   } while (Process32NextW (hProcessSnap, &pe32));
 
   return none;
+}
+
+//
+// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#resolving-a-shortcut
+// 
+// ResolveIt - Uses the Shell's IShellLink and IPersistFile interfaces 
+//             to retrieve the path and description from an existing shortcut. 
+//
+// Returns the result of calling the member functions of the interfaces. 
+//
+// Parameters:
+// hwnd         - A handle to the parent window. The Shell uses this window to 
+//                display a dialog box if it needs to prompt the user for more 
+//                information while resolving the link.
+// lpszLinkFile - Address of a buffer that contains the path of the link,
+//                including the file name.
+// lpszPath     - Address of a buffer that receives the path of the link target,
+//                including the file name.
+// lpszDesc     - Address of a buffer that receives the description of the 
+//                Shell link, stored in the Comment field of the link
+//                properties.
+
+void
+ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
+{
+  IShellLink* psl;
+
+  ///WCHAR szGotPath[MAX_PATH];
+  WCHAR szArguments[MAX_PATH];
+  WCHAR szTarget  [MAX_PATH];
+  //WIN32_FIND_DATA wfd;
+
+  *lpszTarget    = 0; // Assume failure
+  *lpszArguments = 0; // Assume failure
+
+  CoInitializeEx(nullptr, 0x0);
+
+  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+  // has already been called. 
+
+  if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
+  {
+    IPersistFile* ppf;
+
+    // Get a pointer to the IPersistFile interface. 
+    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
+    {
+      WCHAR wsz[MAX_PATH];
+
+      // Ensure that the string is Unicode. 
+      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
+
+      // Add code here to check return value from MultiByteWideChar 
+      // for success.
+
+      // Load the shortcut.
+      if (SUCCEEDED(ppf->Load(wsz, STGM_READ)))
+      {
+        // Disables the UI and hopefully sets a timeout duration of 10ms,
+        //   since we don't actually care all that much about resolving the target.
+        DWORD flags = MAKELONG(SLR_NO_UI, 10);
+
+        // Resolve the link.
+        if (SUCCEEDED(psl->Resolve(hwnd, flags)))
+        {
+          // Get the link target.
+          if (SUCCEEDED(psl->GetPath(szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
+            StringCbCopy(lpszTarget, iPathBufferSize, szTarget);
+
+          // Get the arguments of the target. 
+          if (SUCCEEDED(psl->GetArguments(szArguments, MAX_PATH)))
+            StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
+        }
+      }
+
+      // Release the pointer to the IPersistFile interface. 
+      ppf->Release();
+    }
+
+    // Release the pointer to the IShellLink interface. 
+    psl->Release();
+  }
 }
 
 bool bKeepWindowAlive  = true,

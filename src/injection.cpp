@@ -43,7 +43,6 @@
 #include <codecvt>
 #include <fstream>
 #include <filesystem>
-#include <strsafe.h>
 #include <regex>
 #include <string>
 #include <sstream>
@@ -838,104 +837,6 @@ CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR l
   return hres;
 }
 
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#resolving-a-shortcut
-// 
-// ResolveIt - Uses the Shell's IShellLink and IPersistFile interfaces 
-//             to retrieve the path and description from an existing shortcut. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-// Parameters:
-// hwnd         - A handle to the parent window. The Shell uses this window to 
-//                display a dialog box if it needs to prompt the user for more 
-//                information while resolving the link.
-// lpszLinkFile - Address of a buffer that contains the path of the link,
-//                including the file name.
-// lpszPath     - Address of a buffer that receives the path of the link target,
-//                including the file name.
-// lpszDesc     - Address of a buffer that receives the description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-HRESULT
-ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszArguments, int iPathBufferSize)
-{
-  HRESULT hres;
-  IShellLink* psl;
-
-  ///WCHAR szGotPath[MAX_PATH];
-  WCHAR szArguments[MAX_PATH];
-  //WIN32_FIND_DATA wfd;
-
-  *lpszArguments = 0; // Assume failure
-
-  CoInitializeEx(nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called. 
-
-  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-  if (SUCCEEDED(hres))
-  {
-    IPersistFile* ppf;
-
-    // Get a pointer to the IPersistFile interface. 
-    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
-
-    if (SUCCEEDED(hres))
-    {
-      WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode. 
-      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
-
-      // Add code here to check return value from MultiByteWideChar 
-      // for success.
-
-      // Load the shortcut. 
-      hres = ppf->Load(wsz, STGM_READ);
-
-      if (SUCCEEDED(hres))
-      {
-        // Disables the UI and hopefully sets a timeout duration of 10ms,
-        //   since we don't actually care all that much about resolving the target.
-        DWORD flags = MAKELONG(SLR_NO_UI, 10);
-
-        // Resolve the link. 
-        hres = psl->Resolve(hwnd, flags);
-
-        if (SUCCEEDED(hres))
-        {
-          // Get the arguments of the target. 
-          hres = psl->GetArguments(szArguments, MAX_PATH);
-
-          if (SUCCEEDED(hres))
-          {
-            hres = StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
-            if (SUCCEEDED(hres))
-            {
-              // Handle success
-            }
-            else
-            {
-              // Handle the error
-            }
-          }
-        }
-      }
-
-      // Release the pointer to the IPersistFile interface. 
-      ppf->Release();
-    }
-
-    // Release the pointer to the IShellLink interface. 
-    psl->Release();
-  }
-  return hres;
-}
-
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
@@ -991,8 +892,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   if ( ! argsChecked && bAutoStartSKIF )
   {
     extern HWND SKIF_hWnd;
+    WCHAR szTarget   [MAX_PATH];
     WCHAR szArguments[MAX_PATH];
-    ResolveIt (SKIF_hWnd, link.c_str(), szArguments, MAX_PATH);
+
+    ResolveIt (SKIF_hWnd, link.c_str(), szTarget, szArguments, MAX_PATH);
     args = szArguments;
     
     bAutoStartService = (args.find (L"START")    != std::wstring::npos);

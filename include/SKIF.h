@@ -101,6 +101,8 @@ const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
 
+void ResolveIt (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+
 enum class PopupState {
   Closed,
   Open,

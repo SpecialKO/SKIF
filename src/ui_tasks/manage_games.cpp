@@ -44,7 +44,6 @@
 #include <codecvt>
 #include <fstream>
 #include <filesystem>
-#include <strsafe.h>
 #include <string>
 #include <sstream>
 
@@ -1298,42 +1297,46 @@ SKIF_GameManagement_DrawTab (void)
 
 	      if (SUCCEEDED(hr))
 	      {
-               pFileOpen->SetFileTypes(1, &fileTypes);
-		      hr = pFileOpen->Show(NULL);
+          IShellItem* psiPictures;
+          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiPictures)))
+          {
+            pFileOpen->SetDefaultFolder(psiPictures);
+            psiPictures->Release();
+          }
+          pFileOpen->SetFileTypes(1, &fileTypes);
 
-		      // Get the file name from the dialog box.
-		      if (SUCCEEDED(hr))
+		      if (SUCCEEDED(pFileOpen->Show(NULL)))
 		      {
 			      IShellItem *pItem;
-			      hr = pFileOpen->GetResult(&pItem);
 
-			      if (SUCCEEDED(hr))
+			      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
 			      {
-				      hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-              std::wstring targetPath = L"";
-              std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
-
-              if (pApp->id == SKIF_STEAM_APPID)
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "SKIF")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "GOG")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "Steam")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-              if (targetPath != L"")
+				      if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
               {
-                std::filesystem::create_directories (targetPath);
-                targetPath += L"cover";
+                std::wstring targetPath = L"";
+                std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
 
-                if (ext == L".jpg")
-                  DeleteFile((targetPath + L".png").c_str());
+                if (pApp->id == SKIF_STEAM_APPID)
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "SKIF")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "GOG")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "Steam")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
-                CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+                if (targetPath != L"")
+                {
+                  std::filesystem::create_directories (targetPath);
+                  targetPath += L"cover";
 
-                update = true;
+                  if (ext == L".jpg")
+                    DeleteFile((targetPath + L".png").c_str());
+
+                  CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+
+                  update = true;
+                }
               }
 
 				      pItem->Release();
@@ -2780,53 +2783,57 @@ Cache=false)";
 
 	      if (SUCCEEDED(hr))
 	      {
-               pFileOpen->SetFileTypes(1, &fileTypes);
-		      hr = pFileOpen->Show(NULL);
+          IShellItem* psiPictures;
+          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiPictures)))
+          {
+            pFileOpen->SetDefaultFolder(psiPictures);
+            psiPictures->Release();
+          }
+          pFileOpen->SetFileTypes(1, &fileTypes);
 
-		      // Get the file name from the dialog box.
-		      if (SUCCEEDED(hr))
+		      if (SUCCEEDED(pFileOpen->Show(NULL)))
 		      {
 			      IShellItem *pItem;
-			      hr = pFileOpen->GetResult(&pItem);
 
-			      if (SUCCEEDED(hr))
+			      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
 			      {
-				      hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-              std::wstring targetPath = L"";
-              std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
-
-              if (pApp->id == SKIF_STEAM_APPID)
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "SKIF")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "GOG")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-              else if (pApp->store == "Steam")
-                targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-              if (targetPath != L"")
+              if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
               {
-                std::filesystem::create_directories (targetPath);
-                targetPath += L"icon";
+                std::wstring targetPath = L"";
+                std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
 
-                DeleteFile ((targetPath + L".png").c_str());
-                DeleteFile ((targetPath + L".jpg").c_str());
-                DeleteFile ((targetPath + L".ico").c_str());
+                if (pApp->id == SKIF_STEAM_APPID)
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "SKIF")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "GOG")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+                else if (pApp->store == "Steam")
+                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
-                CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+                if (targetPath != L"")
+                {
+                  std::filesystem::create_directories (targetPath);
+                  targetPath += L"icon";
 
-                // Release current icon
-                pApp->textures.icon.Release();
+                  DeleteFile ((targetPath + L".png").c_str());
+                  DeleteFile ((targetPath + L".jpg").c_str());
+                  DeleteFile ((targetPath + L".ico").c_str());
 
-                // Reload the icon
-                LoadLibraryTexture (LibraryTexture::Icon,
-                                      appid,
-                                        pApp->textures.icon,
-                                         (pApp->store == "GOG")
-                                          ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                          : L"_icon.jpg",
-                                            pApp );
+                  CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
+
+                  // Release current icon
+                  pApp->textures.icon.Release();
+
+                  // Reload the icon
+                  LoadLibraryTexture (LibraryTexture::Icon,
+                                        appid,
+                                          pApp->textures.icon,
+                                           (pApp->store == "GOG")
+                                            ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                                            : L"_icon.jpg",
+                                              pApp );
+                }
               }
 
 				      pItem->Release();
@@ -3729,6 +3736,7 @@ Cache=false)";
     static char charName     [MAX_PATH],
                 charPath     [MAX_PATH],
                 charArgs     [MAX_PATH];
+    static bool error = false;
     
     ImGui::TreePush    ("");
     
@@ -3738,6 +3746,7 @@ Cache=false)";
 
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
+      extern HWND SKIF_hWnd;
       PWSTR pszFilePath = NULL;
       IFileOpenDialog  *pFileOpen;
       COMDLG_FILTERSPEC fileTypes{ L"Executables", L"*.exe" };
@@ -3748,24 +3757,47 @@ Cache=false)";
 
 	    if (SUCCEEDED(hr))
 	    {
-             pFileOpen->SetFileTypes(1, &fileTypes);
-		    hr = pFileOpen->Show(NULL);
+        IShellItem* psiDocuments;
+        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDocuments)))
+        {
+          pFileOpen->SetDefaultFolder(psiDocuments);
+          psiDocuments->Release();
+        }
+        pFileOpen->SetFileTypes(1, &fileTypes);
+        pFileOpen->SetOptions(FOS_NODEREFERENCELINKS);
 
-		    // Get the file name from the dialog box.
-		    if (SUCCEEDED(hr))
+		    if (SUCCEEDED(pFileOpen->Show(NULL)))
 		    {
 			    IShellItem *pItem;
-			    hr = pFileOpen->GetResult(&pItem);
 
-			    if (SUCCEEDED(hr))
+			    if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
 			    {
-				    pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-            if (pszFilePath != NULL)
+            if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
             {
+              error = false;
               std::filesystem::path p = pszFilePath;
-              strncpy (charName, p.filename().u8string().c_str(), MAX_PATH);
-              strncpy (charPath, p.u8string().c_str(),            MAX_PATH);
+
+              if (p.extension() == L".lnk")
+              {
+                WCHAR szTarget   [MAX_PATH];
+                WCHAR szArguments[MAX_PATH];
+
+                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+
+                std::filesystem::path p2 = szTarget;
+
+                strncpy (charName, p2.replace_extension().filename().u8string().c_str(), MAX_PATH);
+                strncpy (charPath, SK_WideCharToUTF8(szTarget).c_str(),                  MAX_PATH);
+                strncpy (charArgs, SK_WideCharToUTF8(szArguments).c_str(),               MAX_PATH);
+              }
+              else if (p.extension() == L".exe") {
+                strncpy (charName, p.replace_extension().filename().u8string().c_str(),  MAX_PATH);
+                strncpy (charPath, p.u8string().c_str(),                                 MAX_PATH);
+              }
+              else
+              {
+                error = true;
+              }
             }
 
 				    pItem->Release();
@@ -3783,6 +3815,9 @@ Cache=false)";
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
+
+    if (error)
+      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incorrect file type detected! Please select another file.");
     
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
@@ -3925,13 +3960,10 @@ Cache=false)";
 		    if (SUCCEEDED(hr))
 		    {
 			    IShellItem *pItem;
-			    hr = pFileOpen->GetResult(&pItem);
 
-			    if (SUCCEEDED(hr))
+			    if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
 			    {
-				    pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-            if (pszFilePath != NULL)
+            if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
             {
               std::filesystem::path p = pszFilePath;
               strncpy (charPath, p.u8string().c_str(),            MAX_PATH);
