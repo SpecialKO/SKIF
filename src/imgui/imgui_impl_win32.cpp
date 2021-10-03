@@ -570,7 +570,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     else if (hwnd != nullptr && bKeepWindowAlive)
     {
       bKeepWindowAlive = false;
-      SetForegroundWindow(hwnd);
+      SetForegroundWindow (hwnd);
       return 1;
     }
     break;

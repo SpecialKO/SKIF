@@ -1473,7 +1473,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     StrStrIW (lpCmdLine, L"Start")    != NULL;
 
   _Signal.Temporary =
-    StrStrIW (lpCmdLine, L"Temp")    != NULL;
+    StrStrIW (lpCmdLine, L"Temp")     != NULL;
 
   _Signal.Quit =
     StrStrIW (lpCmdLine, L"Quit")     != NULL;
@@ -1492,11 +1492,12 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _Signal.CustomLaunch == false
      )
   {
-    if (! _Signal.Start &&
-        ! _Signal.Stop)
+    if (! _Signal.Start    &&
+        ! _Signal.Stop     &&
+        ! _Signal.Minimize)
     {
-      if (IsIconic        (hwndAlreadyExists))
-        ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
+      //if (IsIconic        (hwndAlreadyExists))
+      //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
 
       PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
 
@@ -4562,7 +4563,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
-      if (! startedMinimized && IsWindowVisible(hWnd))
+      if (! startedMinimized || (SKIF_bCloseToTray && IsWindowVisible(hWnd)))
       {
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
@@ -4640,7 +4641,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }, nullptr, 0x0, nullptr
       );
 
-      while ( IsWindow (hWnd) &&
+      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused () &&
                 WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
@@ -4818,11 +4819,11 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_SKIF_REPOSITION:
+      if (IsIconic (hWnd))
+        ShowWindowAsync (hWnd, SW_RESTORE);
+
       SetForegroundWindow (hWnd);
       SetActiveWindow     (hWnd);
-
-      if (IsIconic(hWnd))
-        ShowWindowAsync (hWnd, SW_RESTORE);
 
       RepositionSKIF = true;
       break;
@@ -4937,7 +4938,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_CLOSE:
-      if (niData.hIcon != 0)
+      if (SKIF_bCloseToTray && niData.hIcon != 0)
       {
         DeleteObject(niData.hIcon);
         niData.hIcon = 0;
@@ -4945,7 +4946,8 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_DESTROY:
-      Shell_NotifyIcon  (NIM_DELETE, &niData);
+      if (SKIF_bCloseToTray)
+        Shell_NotifyIcon  (NIM_DELETE, &niData);
       ::PostQuitMessage (0);
       return 0;
 

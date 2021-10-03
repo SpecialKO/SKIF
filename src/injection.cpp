@@ -882,21 +882,35 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
                                user_startup.path );
 
+  /*
   SK_RunOnce(
     bAutoStartSKIF = PathFileExists(SK_UTF8ToWideChar(link).c_str())
   );
+  */
 
   static bool argsChecked = false;
   static std::wstring args = L"\0";
+  static HKEY hKey;
 
-  if ( ! argsChecked && bAutoStartSKIF )
+  if ( ! argsChecked ) // && bAutoStartSKIF )
   {
-    extern HWND SKIF_hWnd;
-    WCHAR szTarget   [MAX_PATH];
+    //extern HWND SKIF_hWnd;
+    //WCHAR szTarget   [MAX_PATH];
     WCHAR szArguments[MAX_PATH];
 
-    ResolveIt (SKIF_hWnd, link.c_str(), szTarget, szArguments, MAX_PATH);
-    args = szArguments;
+    //ResolveIt (SKIF_hWnd, link.c_str(), szTarget, szArguments, MAX_PATH);
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
+    {
+      DWORD dwSize = sizeof(szArguments) / sizeof(WCHAR);
+      if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K", RRF_RT_REG_SZ, NULL, &szArguments, &dwSize))
+      {
+        bAutoStartSKIF = true;
+        args = szArguments;
+      }
+
+      RegCloseKey (hKey);
+    }
     
     bAutoStartService = (args.find (L"START")    != std::wstring::npos);
     bStartMinimized   = (args.find (L"MINIMIZE") != std::wstring::npos);
@@ -925,20 +939,39 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   if (changes)
   {
-    DeleteFileW(SK_UTF8ToWideChar(link).c_str());
+    DeleteFileW (SK_UTF8ToWideChar(link).c_str());
 
     if (bStartMinimized)
       args = (bAutoStartService) ? L"START MINIMIZE" : L"MINIMIZE";
     else
       args = (bAutoStartService) ? L"START"          : L"";
     
+    /*
     static TCHAR                             szExePath[MAX_PATH];
     GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
+    */
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
+    {
+      if (bAutoStartSKIF)
+      {
+        //CreateLink (szExePath, link.c_str(), args.c_str(), L"Special K Injection Frontend");
+          static TCHAR               szExePath[MAX_PATH];
+          GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
-    if (bAutoStartSKIF)
-     CreateLink (szExePath, link.c_str(), args.c_str(), L"Special K Injection Frontend");
-    else
-      bAutoStartService = bStartMinimized = false;
+          std::wstring wsPath = LR"(")" + std::wstring(szExePath) + LR"(" )" + args;
+
+          RegSetValueExW (hKey, L"Special K", 0, REG_SZ, (LPBYTE)wsPath.data(),
+                                                          (DWORD)wsPath.size() * sizeof(wchar_t));
+      }
+      else
+      {
+        RegDeleteValueW  (hKey, L"Special K");
+
+        bAutoStartService = bStartMinimized = false;
+      }
+
+      RegCloseKey (hKey);
+    }
 
     changes = false;
   }
