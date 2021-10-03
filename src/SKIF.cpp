@@ -2333,6 +2333,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (_Signal.Stop)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
+  bool HiddenFramesContinueRendering = false;
+
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
     auto _TranslateAndDispatch = [&](void) -> bool
@@ -2537,7 +2539,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                            ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
         );
 
-        SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 3);
+        SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
+
+        HiddenFramesContinueRendering = (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems > 0);
 
         // Update current monitors/worksize etc;
         monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
@@ -4641,7 +4645,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }, nullptr, 0x0, nullptr
       );
 
-      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused () &&
+      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused () && ! HiddenFramesContinueRendering &&
                 WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
