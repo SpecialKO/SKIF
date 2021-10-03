@@ -1445,6 +1445,9 @@ SKIF_Debug_DrawUI (void)
           _inject._StoreList   (false);
         }
         
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
+          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
+        
         ImGui::SameLine        ( );
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
                                                                      : ImVec4 (.0f, .0f, .0f, .0f));
@@ -1460,6 +1463,9 @@ SKIF_Debug_DrawUI (void)
           _inject._AddUserList (SK_WideCharToUTF8(proc64.second), true);
           _inject._StoreList   (true);
         }
+        
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
+        SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
 
         ImGui::PopStyleColor   (3);
 
@@ -1525,6 +1531,9 @@ SKIF_Debug_DrawUI (void)
           _inject._AddUserList (SK_WideCharToUTF8(proc32.second), false);
           _inject._StoreList   (false);
         }
+
+        if (! _inject._TestUserList(SK_WideCharToUTF8(proc32.second).c_str(), false))
+          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
         
         ImGui::SameLine        ( );
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
@@ -1541,6 +1550,9 @@ SKIF_Debug_DrawUI (void)
           _inject._AddUserList (SK_WideCharToUTF8(proc32.second), true);
           _inject._StoreList   (true);
         }
+
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
+          SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
 
         ImGui::PopStyleColor   (3);
         
@@ -1576,6 +1588,7 @@ SKIF_Debug_DrawUI (void)
       ImGui::EndChildFrame ();
     }
 
+#if 0
     if (ImGui::CollapsingHeader ("Windows Nt Handle/Object Monitor", ImGuiTreeNodeFlags_AllowItemOverlap))
     {
       ImGui::PushStyleColor (ImGuiCol_Button, ImVec4 (.5f, .5f, .5f, 1.f));
@@ -1914,6 +1927,7 @@ SKIF_Debug_DrawUI (void)
         ImGui::PopFont  ();
       }
     }
+#endif
 
 #if 0
     if (SK_Inject_GetRecord != nullptr)

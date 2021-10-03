@@ -560,7 +560,14 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   case WM_CLOSE:
     extern bool bKeepWindowAlive;
-    if (hwnd != nullptr && bKeepWindowAlive)
+    extern bool bKeepProcessAlive;
+    extern bool SKIF_bCloseToTray;
+    if (SKIF_bCloseToTray)
+    {
+      bKeepProcessAlive = false;
+      return 1;
+    }
+    else if (hwnd != nullptr && bKeepWindowAlive)
     {
       bKeepWindowAlive = false;
       SetForegroundWindow(hwnd);

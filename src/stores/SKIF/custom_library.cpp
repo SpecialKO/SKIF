@@ -49,6 +49,10 @@ int SKIF_AddCustomAppID (
   std::wstring exe         = std::wstring(p.c_str()),
                exeFileName = std::wstring(p.filename().c_str()),
                installDir  = std::wstring(p.parent_path().c_str());
+  
+  // Strip null terminators
+  name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
+  args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
 
   if (RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS)
   {
@@ -146,11 +150,14 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
                installDir  = std::wstring(p.parent_path().c_str());
 
   std::wstring key = SK_FormatStringW(LR"(SOFTWARE\Kaldaien\Special K\Games\%lu)", pApp->id);
+  
+  // Strip null terminators
+  name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
+  args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
 
   if (RegOpenKeyExW (HKEY_CURRENT_USER, key.c_str(), 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
   {
-
-    std::wstring wsAppID = std::to_wstring(pApp->id);
+    std::wstring wsAppID = std::to_wstring (pApp->id);
 
     if (ERROR_SUCCESS != RegSetKeyValue (hKey, NULL, L"Name",          REG_SZ,    (LPBYTE) name       .data ( ),
                                                                                    (DWORD) name       .size ( ) * sizeof(wchar_t)))

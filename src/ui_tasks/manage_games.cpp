@@ -753,14 +753,19 @@ SKIF_GameManagement_DrawTab (void)
     SK_Steam_GetInstalledAppIDs (void);
   */
 
-  static std::vector <AppId_t> appids =
-    SK_Steam_GetInstalledAppIDs ();
+  static std::vector <AppId_t> appids;
+
+  extern bool SKIF_bDisableSteamLibrary;
 
   auto PopulateAppRecords = [&](void) ->
     std::vector <std::pair <std::string, app_record_s>>
   { std::vector <std::pair <std::string, app_record_s>> ret;
 
     std::set <uint32_t> unique_apps;
+
+    if (! SKIF_bDisableSteamLibrary)
+      appids =
+        SK_Steam_GetInstalledAppIDs ();
 
     for ( auto app : appids )
     {
@@ -802,6 +807,28 @@ SKIF_GameManagement_DrawTab (void)
   static bool     update        = true;
   static uint32_t appid         = SKIF_STEAM_APPID;
   static bool     populated     = false;
+
+  extern bool RepopulateGames;
+
+  if (RepopulateGames)
+  {
+    RepopulateGames = false;
+
+    // Release textures
+    for (auto& app : apps)
+      app.second.textures.icon.Release();
+    pTexSRV.Release();
+
+    // Clear cached lists
+    apps.clear();
+    appids.clear();
+
+    // Reset selection to Special K
+    appid = SKIF_STEAM_APPID;
+    update = true;
+
+    populated       = false;
+  }
 
   if (! populated)
   {
@@ -2889,7 +2916,7 @@ Cache=false)";
         if (pApp->store == "Steam")
           SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
         else
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/icons?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
       }
 
       ImGui::EndGroup   (  );
@@ -3786,13 +3813,13 @@ Cache=false)";
 
                 std::filesystem::path p2 = szTarget;
 
-                strncpy (charName, p2.replace_extension().filename().u8string().c_str(), MAX_PATH);
                 strncpy (charPath, SK_WideCharToUTF8(szTarget).c_str(),                  MAX_PATH);
                 strncpy (charArgs, SK_WideCharToUTF8(szArguments).c_str(),               MAX_PATH);
+                strncpy (charName, p2.replace_extension().filename().u8string().c_str(), MAX_PATH);
               }
               else if (p.extension() == L".exe") {
-                strncpy (charName, p.replace_extension().filename().u8string().c_str(),  MAX_PATH);
                 strncpy (charPath, p.u8string().c_str(),                                 MAX_PATH);
+                strncpy (charName, p.replace_extension().filename().u8string().c_str(),  MAX_PATH);
               }
               else
               {
@@ -3858,6 +3885,7 @@ Cache=false)";
     if (ImGui::Button  ("Add Game", vButtonSize))
     {
       int newAppId = SKIF_AddCustomAppID(&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
+
       if (newAppId > 0)
         InterlockedExchange (&need_sort, 1);
 

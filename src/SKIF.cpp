@@ -53,7 +53,8 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bEnableHDR               = false,
      SKIF_bOpenAtCursorPosition    = false,
      SKIF_bStopOnInjection         = false,
-     SKIF_bAlwaysShowGhost         = false;
+     SKIF_bAlwaysShowGhost         = false,
+     SKIF_bCloseToTray             = false;
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
@@ -64,6 +65,13 @@ std::wstring GOGGalaxy_Path        = L"";
 std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
+
+bool RepopulateGames               = false;
+
+// Tray icon stuff
+#define MY_TRAY_ICON_ID                     0x1234
+#define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150)
+NOTIFYICONDATA niData;
 
 #include <sk_utility/command.h>
 
@@ -1659,16 +1667,33 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 }
 
 bool
-SKIF_AddToEnvironmentalPath(void)
+SKIF_RegisterApp (void)
 {
-  BYTE buffer[4000];
-  DWORD buffsz = sizeof(buffer);
-  HKEY key;
+  HKEY hKey;
+  //BYTE buffer[4000];
+  //DWORD buffsz = sizeof(buffer);
   static int ret = -1;
 
   if (ret != -1)
     return ret;
 
+  if (RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS)
+  {
+    TCHAR               szExePath[MAX_PATH];
+    GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+    std::wstring wsPath = std::wstring(szExePath);
+
+    if (ERROR_SUCCESS == RegSetValueExW(hKey, NULL, 0, REG_SZ, (LPBYTE)wsPath.data(),
+                                                                (DWORD)wsPath.size() * sizeof(wchar_t)))
+      ret = 1;
+    else
+      ret = 0;
+
+    RegCloseKey (hKey);
+  }
+
+  /*
   //HKEY_CURRENT_USER\Environment
   if (RegOpenKeyEx    (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, std::addressof(key)) == 0 &&
       RegQueryValueEx (key, L"Path", nullptr, nullptr, buffer, std::addressof(buffsz)) == 0)
@@ -1700,6 +1725,7 @@ SKIF_AddToEnvironmentalPath(void)
 
     RegCloseKey (key);
   }
+  */
 
   return ret;
 }
@@ -1899,6 +1925,30 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   }
 }
 
+ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
+{
+  ULONGLONG ullVersion = 0;
+  HINSTANCE hinstDll;
+  hinstDll = LoadLibrary(lpszDllName);
+  if (hinstDll)
+  {
+    DLLGETVERSIONPROC pDllGetVersion;
+    pDllGetVersion = (DLLGETVERSIONPROC)GetProcAddress(hinstDll, "DllGetVersion");
+    if (pDllGetVersion)
+    {
+      DLLVERSIONINFO dvi;
+      HRESULT hr;
+      ZeroMemory(&dvi, sizeof(dvi));
+      dvi.cbSize = sizeof(dvi);
+      hr = (*pDllGetVersion)(&dvi);
+      if (SUCCEEDED(hr))
+          ullVersion = MAKEDLLVERULL(dvi.dwMajorVersion, dvi.dwMinorVersion, 0, 0);
+    }
+    FreeLibrary(hinstDll);
+  }
+  return ullVersion;
+}
+
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -1989,6 +2039,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Always Show Ghost)" );
 
+  static auto regKVCloseToTray =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Minimize To Notification Area On Close)" );
+
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
   SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
@@ -2004,6 +2058,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
+  SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -2021,9 +2076,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     L"SKIF", SKIF_DEPLOYED_BUILD
   );
 
-  // Add SKIF to the user's environmental PATH variable
-  //SKIF_AddToEnvironmentalPath ( ); // Disabled pending rewrite to https://docs.microsoft.com/en-us/windows/win32/shell/app-registration
-
   // Check if Controlled Folder Access is enabled
   if (SKIF_hasControlledFolderAccess ( ))
   {
@@ -2038,6 +2090,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
   }
+
+  // Register SKIF in Windows to enable quick launching.
+  SKIF_RegisterApp ( );
 
   // Cache the Special K user data path
   /* This is handled in the injection.cpp constructor instead
@@ -2140,6 +2195,46 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
+
+  // The window has been created but not displayed.
+  // Now we have a parent window to which a notification tray icon can be associated.
+
+  // NOT FINISHED!
+  if (SKIF_bCloseToTray)
+  {
+    ZeroMemory(&niData, sizeof(NOTIFYICONDATA));
+
+    ULONGLONG ullVersion = GetDllVersion(_T("Shell32.dll"));
+    if (ullVersion >= MAKEDLLVERULL(6, 0, 6, 0))
+        niData.cbSize = sizeof(NOTIFYICONDATAW);
+    else if (ullVersion >= MAKEDLLVERULL(6, 0, 0, 0))
+        niData.cbSize = NOTIFYICONDATA_V3_SIZE;
+    else if (ullVersion >= MAKEDLLVERULL(5, 0, 0, 0))
+        niData.cbSize = NOTIFYICONDATA_V2_SIZE;
+    else
+        niData.cbSize = NOTIFYICONDATA_V1_SIZE;
+
+    niData.uID    = MY_TRAY_ICON_ID;
+    niData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP ;
+
+    // Load the icon to be displayed in the notification tray area.
+    niData.hIcon =
+        (HICON)LoadImage(hInstance,
+        MAKEINTRESOURCE(IDI_SKIF),
+        IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON),
+        GetSystemMetrics(SM_CYSMICON),
+        LR_DEFAULTCOLOR);
+
+    niData.hWnd        = hWnd;
+    niData.dwInfoFlags = NIIF_INFO;
+    niData.uTimeout    = 10000;
+    niData.uVersion    = NOTIFYICON_VERSION_4;
+    wcsncpy_s( niData.szInfoTitle, 64, L"Title for balloon", 64);
+    wcsncpy_s(niData.szInfo, 256, L"Body for balloon", 256);
+    niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
+    Shell_NotifyIcon(NIM_ADD, &niData);
+  }
 
   // Show the window
   ShowWindowAsync (hWnd, nCmdShow);
@@ -2601,16 +2696,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
             || bKeepWindowAlive == false
            )
         {
-          if (_inject.bCurrentState && (!SKIF_bDisableExitConfirmation))
+          if (SKIF_bCloseToTray)
           {
-            ImGui::OpenPopup("Confirm Exit");
+            bKeepWindowAlive = true;
+            ShowWindow       (hWnd, SW_HIDE);
+            SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx | WS_EX_NOACTIVATE);
+            UpdateWindow     (hWnd);
           }
           else
           {
-            if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
-              _inject._StartStopInject (true);
+            if (_inject.bCurrentState && (!SKIF_bDisableExitConfirmation))
+            {
+              ImGui::OpenPopup("Confirm Exit");
+            }
+            else
+            {
+              if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+                _inject._StartStopInject (true);
 
-            bKeepProcessAlive = false;
+              bKeepProcessAlive = false;
+            }
           }
         }
 
@@ -2887,11 +2992,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::Spacing       ( );
               ImGui::Spacing       ( );
 
-              ImGui::Text          ("Disable libraries (restart required)");
+              ImGui::Text          ("Disable libraries");
               ImGui::TreePush      ("");
 
               if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
+              {
                 regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
+                RepopulateGames = true;
+              }
 
               SKIF_ImGui_SetHoverTip (
                 "This will prevent SKIF from listing discovered GOG games."
@@ -2902,7 +3010,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SameLine ( );
 
               if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
+              {
                 regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
+                RepopulateGames = true;
+              }
 
               SKIF_ImGui_SetHoverTip (
                 "This will prevent SKIF from listing discovered Steam games."
@@ -2922,7 +3033,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               _DrawHDRConfig       ( );
 
-              if (ImGui::Checkbox ("Debug Mode (" ICON_FA_BUG ")",
+              if ( ImGui::Checkbox (
+                      "Allow Multiple Instances of SKIF",
+                        &SKIF_bAllowMultipleInstances )
+                  )
+              {
+                if (! SKIF_bAllowMultipleInstances)
+                {
+                  // Immediately close out any duplicate instances, they're undesirables
+                  EnumWindows ( []( HWND   hWnd,
+                                    LPARAM lParam ) -> BOOL
+                  {
+                    wchar_t                         wszRealWindowClass [64] = { };
+                    if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+                    {
+                      if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+                      {
+                        if (SKIF_hWnd != hWnd)
+                          PostMessage (  hWnd, WM_QUIT,
+                                          0x0, 0x0  );
+                      }
+                    }
+                    return TRUE;
+                  }, (LPARAM)SKIF_WindowClass);
+                }
+
+                regKVAllowMultipleInstances.putData (
+                  SKIF_bAllowMultipleInstances
+                  );
+              }
+
+              if ( ImGui::Checkbox ( "Always Show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
+                regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
+
+              /* NOT FINISHED YET!
+              if ( ImGui::Checkbox ( "Minimize to notification area on close", &SKIF_bCloseToTray ) )
+                regKVCloseToTray.putData(                                       SKIF_bCloseToTray );
+              */
+
+              if (ImGui::Checkbox ("Show Debug Tab (" ICON_FA_BUG ")",
                                                          &SKIF_bEnableDebugMode))
               {
                 SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
@@ -2934,50 +3083,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
               }
 
-              if (SKIF_bEnableDebugMode)
-              {
-                  SKIF_ImGui_SetHoverTip (
-                    "Halt " ICON_FA_EXCLAMATION_CIRCLE "\n " ICON_FA_ELLIPSIS_H
-                    " Try Not To Catch Fire " ICON_FA_FREE_CODE_CAMP
-                  );
-
-                ImGui::TreePush ("");
-
-                if ( ImGui::Checkbox (
-                       "Allow Multiple Instances of SKIF",
-                         &SKIF_bAllowMultipleInstances )
-                   )
-                {
-                  if (! SKIF_bAllowMultipleInstances)
-                  {
-                    // Immediately close out any duplicate instances, they're undesirables
-                    EnumWindows ( []( HWND   hWnd,
-                                      LPARAM lParam ) -> BOOL
-                    {
-                      wchar_t                         wszRealWindowClass [64] = { };
-                      if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
-                      {
-                        if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
-                        {
-                          if (SKIF_hWnd != hWnd)
-                            PostMessage (  hWnd, WM_QUIT,
-                                            0x0, 0x0  );
-                        }
-                      }
-                      return TRUE;
-                    }, (LPARAM)SKIF_WindowClass);
-                  }
-
-                  regKVAllowMultipleInstances.putData (
-                    SKIF_bAllowMultipleInstances
-                   );
-                }
-
-                if ( ImGui::Checkbox ( "Always show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
-                  regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
-
-                ImGui::TreePop  ( );
-              }
               ImGui::TreePop    ( );
               ImGui::Columns    (1);
             }
@@ -3744,7 +3849,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored      (
               ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_ROCKET "  "
                 "Quick launch Special K for select games through Steam:");
-            if (SKIF_AddToEnvironmentalPath())
+            if (SKIF_RegisterApp())
             {
               ImGui::TextWrapped("Your computer is set up to quickly launch injection through Steam.");
 
@@ -3786,18 +3891,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                     "3 ");
               ImGui::SameLine         ( );
               ImGui::TextWrapped      ("Launch the game as usual through Steam.");
-              ImGui::EndGroup         ( );
-              
-              SKIF_ImGui_Spacing      ( );
-
-              ImGui::BeginGroup       ( );
-              ImGui::Spacing          ( );
-              ImGui::SameLine         ( );
-              ImGui::TextColored      (
-                ImColor::HSV (0.55F, 0.99F, 1.F),
-                                  u8"• ");
-              ImGui::SameLine         ( );
-              ImGui::TextWrapped      ("A one-time restart of the computer may be required.");
               ImGui::EndGroup         ( );
             }
             else {
@@ -4422,7 +4515,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                    25 * SKIF_ImGui_GlobalDPIScale )))
           {
             bKeepWindowAlive = true;
-
             ImGui::CloseCurrentPopup ();
 
             ShowWindow (hWnd, SW_MINIMIZE);
@@ -4470,9 +4562,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
-      if (! startedMinimized)
+      if (! startedMinimized && IsWindowVisible(hWnd))
       {
-
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
         // Update and Render additional Platform Windows
@@ -4762,6 +4853,36 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._LoadList          (true);
       break;
 
+    case WM_SKIF_NOTIFY_ICON:
+      switch (lParam)
+      {
+        case WM_LBUTTONDBLCLK:
+        case WM_LBUTTONUP:
+        {
+          SetForegroundWindow(hWnd);
+          SetActiveWindow(hWnd);
+          
+          DWORD dwStyleEx =
+            SKIF_IsWindows8Point1OrGreater () ? SK_BORDERLESS_WIN8_EX
+                                              : SK_BORDERLESS_EX;
+
+          SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
+          UpdateWindow     (hWnd);
+          ShowWindowAsync  (hWnd, SW_SHOW);
+          break;
+        }
+        case WM_RBUTTONDOWN:
+        case WM_CONTEXTMENU:
+        case NIN_BALLOONHIDE:
+        case NIN_BALLOONSHOW:
+        case NIN_BALLOONTIMEOUT:
+        case NIN_BALLOONUSERCLICK:
+        case NIN_POPUPCLOSE:
+        case NIN_POPUPOPEN:
+          break;
+      }
+      break;
+
     case WM_TIMER:
       switch (wParam)
       {
@@ -4815,7 +4936,16 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
+    case WM_CLOSE:
+      if (niData.hIcon != 0)
+      {
+        DeleteObject(niData.hIcon);
+        niData.hIcon = 0;
+      }
+      break;
+
     case WM_DESTROY:
+      Shell_NotifyIcon  (NIM_DELETE, &niData);
       ::PostQuitMessage (0);
       return 0;
 
