@@ -923,18 +923,32 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   if (ImGui::Checkbox("Start Special K Injection Frontend (SKIF) with Windows", &bAutoStartSKIF))
     changes = true;
 
-  if (bAutoStartSKIF)
+  if (! bAutoStartSKIF)
   {
-    ImGui::TreePush ("");
-    if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
-      changes = true;
+    // Disable buttons
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                            ImGui::GetStyle ().Alpha *
+                              ( (SKIF_IsHDR ()) ? 0.1f
+                                                : 0.5f
+                              )
+    );
+  }
+
+  ImGui::TreePush ("");
+
+  if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
+    changes = true;
     
-    if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
-      changes = true;
+  if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+    changes = true;
 
-    //SKIF_ImGui_SetHoverTip ("This option is currently disabled due to not working properly.");
+  ImGui::TreePop  ( );
 
-    ImGui::TreePop  ( );
+  if (! bAutoStartSKIF)
+  {
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
   }
 
   if (changes)
@@ -1003,6 +1017,23 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   // New approach to the legacy method
   ImGui::BeginGroup ();
 
+  auto _CheckRegistry = [&](void) ->
+    bool
+  {
+    bool ret = false;
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+      if ((ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 32-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)) ||
+          (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 64-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)))
+        ret = true;
+
+      RegCloseKey (hKey);
+    }
+
+    return ret;
+  };
+
   if ( bLogonTaskEnabled || 
         bAutoStartSKIF )
   {
@@ -1016,13 +1047,13 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     );
   }
 
-  static std::wstring Svc32Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc32.exe)", path_cache.specialk_userdata.path),
-                      Svc64Target = SK_FormatStringW(LR"(%ws\Servlet\SKIFsvc64.exe)", path_cache.specialk_userdata.path);
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata.path),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata.path);
 
   static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
                       Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
 
-  static bool dontCare = bAutoStartServiceOnly = PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
+  static bool dontCare = bAutoStartServiceOnly = _CheckRegistry ( ) || PathFileExistsW (SK_UTF8ToWideChar (Svc32Link).c_str());
   
   if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
   {
@@ -1036,8 +1067,23 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                             L"Confirm autostart",
                             MB_YESNO | MB_ICONWARNING) == IDYES)
       {
-        CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
-        CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
+        //CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
+        //CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
+        
+        if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
+        {
+          TCHAR               szExePath[MAX_PATH];
+          GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+          std::wstring wsPath = std::wstring(szExePath);
+
+          RegSetValueExW (hKey, L"Special K 32-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc32Target.data(),
+                                                                                               (DWORD)Svc32Target.size() * sizeof(wchar_t));
+          RegSetValueExW (hKey, L"Special K 64-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc64Target.data(),
+                                                                                               (DWORD)Svc64Target.size() * sizeof(wchar_t));
+
+          RegCloseKey (hKey);
+        }
 
         bAutoStartServiceOnly = ! bAutoStartServiceOnly;
       }
@@ -1050,6 +1096,14 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     else {
       DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
       DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
+        
+      if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
+      {
+        RegDeleteValueW (hKey, L"Special K 32-bit Global Injection Service Host");
+        RegDeleteValueW (hKey, L"Special K 64-bit Global Injection Service Host");
+
+        RegCloseKey (hKey);
+      }
 
       bAutoStartServiceOnly = ! bAutoStartServiceOnly;
     }
@@ -1219,22 +1273,23 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
                  : (root_dir + LR"(\blacklist.ini)").c_str()
   );
 
-  // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
-  if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
-  {
-    // Win10 v1903 (build 18362) added UTF-8 code page:
-    //  https://docs.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
-    list_file.imbue (std::locale("en_US.UTF-8"));
-  }
-  else
-  {
-    // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-    #pragma warning(suppress : 4996)
-    list_file.imbue (std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff>));
-  }
-
   if (list_file.is_open())
   {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    {
+      list_file.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(suppress : 4996)
+      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+
     std::wstring out_text =
       SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
 
@@ -1286,24 +1341,25 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
                  : (root_dir + LR"(blacklist.ini)").c_str()
   );
 
-  // Use UTF-8 for std::wifstream, so the the default C locale (ANSI/ASCII) doesn't get used
-  if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
-  {
-    // Win10 v1903 (build 18362) added UTF-8 code page:
-    //  https://docs.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
-    list_file.imbue (std::locale("en_US.UTF-8"));
-  }
-  else
-  {
-    // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-    #pragma warning(suppress : 4996)
-    list_file.imbue (std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff>));
-  }
-
   std::wstring full_text;
 
   if (list_file.is_open ())
   {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    {
+      list_file.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(suppress : 4996)
+      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+
     std::wstring line;
 
     while (list_file.good ())

@@ -27,6 +27,7 @@
 #include <combaseapi.h>
 #include <comdef.h>
 
+#include <string>
 #include <string_view>
 
 class SK_AutoCOMInit
@@ -78,8 +79,6 @@ void  SKIF_SetHDRWhiteLuma    (float fLuma);
 FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
 BOOL  SKIF_IsHDR              (void);
-
-#include <string>
 
 HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL);
 HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);

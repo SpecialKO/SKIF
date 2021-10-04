@@ -67,6 +67,8 @@ std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
 
 bool RepopulateGames               = false;
+bool  HoverTipActive               = false;
+DWORD HoverTipDuration             = 0;
 
 // Tray icon stuff
 #define MY_TRAY_ICON_ID                     0x1234
@@ -202,28 +204,36 @@ SKIF_IsWindows10OrGreater (void)
   return bResult;
 }
 
+#ifndef NT_SUCCESS
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+#endif
+
 BOOL
 SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
 {
-	NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
-	OSVERSIONINFOEXW osInfo;
+  NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
 
-	*reinterpret_cast<FARPROC*>(&RtlGetVersion) = GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion");
+  OSVERSIONINFOEXW
+    osInfo                     = { };
+    osInfo.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
 
-	if (nullptr != RtlGetVersion)
-	{
-		osInfo.dwOSVersionInfoSize = sizeof osInfo;
-		RtlGetVersion(&osInfo);
+  *reinterpret_cast<FARPROC *>(&RtlGetVersion) =
+    GetProcAddress (GetModuleHandleW (L"ntdll"), "RtlGetVersion");
 
-    if (osInfo.dwMajorVersion < dwMajorVersion ||
-        osInfo.dwMinorVersion < dwMinorVersion ||
-        osInfo.dwBuildNumber  < dwBuildNumber  )
-      return false;
+  if (RtlGetVersion != nullptr)
+  {
+    if (NT_SUCCESS (RtlGetVersion (&osInfo)))
+    {
+      return
+        ( osInfo.dwMajorVersion   >  dwMajorVersion ||
+          ( osInfo.dwMajorVersion == dwMajorVersion &&
+            osInfo.dwMinorVersion >= dwMinorVersion &&
+            osInfo.dwBuildNumber  >= dwBuildNumber  )
+        );
+    }
+  }
 
-    return true;
-	}
-
-  return false;
+  return FALSE;
 }
 
 #include <dwmapi.h>
@@ -352,10 +362,15 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
                    cursorPos.y + 8 ) // 16 + 4 * (cursorScale - 1) )
         );
         */
+        HoverTipActive = true;
 
-        ImGui::SetTooltip (
-          "%hs", szText.data ()
-        );
+        if ( HoverTipDuration == 0)
+          HoverTipDuration = SKIF_timeGetTime ( );
+
+        else if ( HoverTipDuration + 500 < SKIF_timeGetTime() )
+          ImGui::SetTooltip (
+            "%hs", szText.data ()
+          );
       }
 
       else
@@ -411,6 +426,28 @@ SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags ext
   ImGui::PopStyleColor ( );
 
   return ret;
+}
+
+// Difference from regular
+void
+SKIF_ImGui_Columns(int columns_count, const char* id, bool border, bool resizeble = false)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  IM_ASSERT(columns_count >= 1);
+
+  ImGuiColumnsFlags flags = (border ? 0 : ImGuiColumnsFlags_NoBorder);
+  if (! resizeble)
+    flags |= ImGuiColumnsFlags_NoResize;
+  //flags |= ImGuiColumnsFlags_NoPreserveWidths; // NB: Legacy behavior
+  ImGuiColumns* columns = window->DC.CurrentColumns;
+  if (columns != NULL && columns->Count == columns_count && columns->Flags == flags)
+    return;
+
+  if (columns != NULL)
+    ImGui::EndColumns();
+
+  if (columns_count != 1)
+    ImGui::BeginColumns(id, columns_count, flags);
 }
 
 void SKIF_ImGui_BeginTabChildFrame (void)
@@ -2542,6 +2579,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
 
         HiddenFramesContinueRendering = (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems > 0);
+        HoverTipActive = false;
 
         // Update current monitors/worksize etc;
         monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
@@ -2901,10 +2939,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             {
               ImGui::Spacing    ( );
 
-              ImGui::Columns    (2, nullptr, true);
+              SKIF_ImGui_Columns      (2, nullptr, true);
 
               SK_RunOnce(
-                ImGui::SetColumnWidth(0, SKIF_vecCurrentMode.x / 2.0f)
+                ImGui::SetColumnWidth (0, SKIF_vecCurrentMode.x / 2.0f)
               );
 
               if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
@@ -3076,7 +3114,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 regKVCloseToTray.putData(                                       SKIF_bCloseToTray );
               */
 
-              if (ImGui::Checkbox ("Show Debug Tab (" ICON_FA_BUG ")",
+              if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
                                                          &SKIF_bEnableDebugMode))
               {
                 SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
@@ -3763,7 +3801,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             tab_selected = Help;
 
             ImGui::NewLine          ( );
-            ImGui::Columns          (2, nullptr, true);
+            SKIF_ImGui_Columns      (2, nullptr, true);
 
             SK_RunOnce (
               ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
@@ -3773,8 +3811,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
                                       );
 
+            // ImColor::HSV (0.11F, 1.F, 1.F)   // Orange
+            // ImColor::HSV (0.55F, 0.99F, 1.F) // Blue Bullets
+            // ImColor(100, 255, 218); // Teal
+            //ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
+            ImColor colTitle = ImColor(3, 179, 255);
+
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                                      "Beginner's Guide to Special K and SKIF:"
                                       );
 
@@ -3794,7 +3838,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                                      "Getting started with Steam games:");
 
             SKIF_ImGui_Spacing      ( );
@@ -3819,7 +3863,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                                      "Getting started with other games:");
 
             SKIF_ImGui_Spacing      ( );
@@ -3852,7 +3896,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
             
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_ROCKET "  "
+              colTitle, ICON_FA_ROCKET "  "
                 "Quick launch Special K for select games through Steam:");
             if (SKIF_RegisterApp())
             {
@@ -3899,14 +3943,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::EndGroup         ( );
             }
             else {
-              ImGui::TextWrapped("Your computer is not set up to quickly launch injection through Steam. Please move SKIF to Documents\\My Mods\\SpecialK to use this feature.");
+              ImGui::TextWrapped("Your computer is not set up to quickly launch injection through Steam.");
             }
 
             ImGui::NewLine          ( );
             ImGui::NewLine          ( );
 
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                                      ICON_FA_WRENCH "  Compatibility Options:");
 
             SKIF_ImGui_Spacing      ( );
@@ -3925,7 +3969,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::NextColumn       ( ); // Next Column
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                 "About Special K:"    );
 
             SKIF_ImGui_Spacing      ( );
@@ -3941,7 +3985,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                            "About multiplayer games:");
 
             SKIF_ImGui_Spacing      ( );
@@ -3980,7 +4024,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                 "How to inject Special K into games:"
             );
 
@@ -4017,7 +4061,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored      (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                 "Online resources:"   );
             SKIF_ImGui_Spacing      ( );
 
@@ -4139,7 +4183,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::NewLine          ( );
 
             ImGui::TextColored (
-              ImColor::HSV (0.11F, 1.F, 1.F),
+              colTitle,
                 "Status:"
             );
 
@@ -4551,6 +4595,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           );
         windowPos      = ImGui::GetWindowPos ();
 
+        if (! HoverTipActive)
+          HoverTipDuration = 0;
+
         // This allows us to ensure the window gets set within the workspace on the second frame after launch
         SK_RunOnce (
           changedMode = true
@@ -4920,10 +4967,10 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         g_pSwapChain->ResizeBuffers (
           0, (UINT)LOWORD (lParam),
              (UINT)HIWORD (lParam),
-            DXGI_FORMAT_UNKNOWN, (SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                                                     : 0x0) |
-                                       SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                                            : 0x0
+            DXGI_FORMAT_UNKNOWN, ((SKIF_bAllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                                                       : 0x0) |
+                                      ((SKIF_bCanFlipDiscard) ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                                              : 0x0)
         );
         CreateRenderTarget ();
       }

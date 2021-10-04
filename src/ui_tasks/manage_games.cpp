@@ -257,7 +257,8 @@ LoadLibraryTexture (
                SKIFCustomPath,
                SteamCustomPath;
 
-  bool succeeded = false;
+  bool succeeded   = false;
+  bool customAsset = false;
 
   if (pApp != nullptr)
     appid = pApp->id;
@@ -280,9 +281,11 @@ LoadLibraryTexture (
     else if (libTexToLoad == LibraryTexture::Icon &&
              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
+
+    customAsset = (load_str != L"\0");
   }
 
-  // SKIF
+  // SKIF Custom
   else if (pApp != nullptr && pApp->store == "SKIF")
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
@@ -298,7 +301,9 @@ LoadLibraryTexture (
       load_str =               SKIFCustomPath + L".jpg";
     else if (libTexToLoad == LibraryTexture::Icon &&
               PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-      load_str =               SKIFCustomPath + L".ico";
+      load_str =                SKIFCustomPath + L".ico";
+
+    customAsset = (load_str != L"\0");
   }
 
   // GOG
@@ -318,24 +323,31 @@ LoadLibraryTexture (
     else if (libTexToLoad == LibraryTexture::Icon &&
              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
-    else if (libTexToLoad == LibraryTexture::Icon)
-      load_str =               name;
 
-    if (libTexToLoad == LibraryTexture::Cover &&
-        load_str == L"\0")
+    customAsset = (load_str != L"\0");
+
+    if (! customAsset)
     {
-      extern std::wstring GOGGalaxy_UserID;
-      load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
-
-      HANDLE hFind = INVALID_HANDLE_VALUE;
-      WIN32_FIND_DATA ffd;
-
-      hFind = FindFirstFile((load_str + name).c_str(), &ffd);
-
-      if (INVALID_HANDLE_VALUE != hFind)
+      if      (libTexToLoad == LibraryTexture::Icon)
       {
-        load_str += ffd.cFileName;
-        FindClose(hFind);
+        load_str = name;
+      }
+
+      else if (libTexToLoad == LibraryTexture::Cover)
+      {
+        extern std::wstring GOGGalaxy_UserID;
+        load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+
+        HANDLE hFind = INVALID_HANDLE_VALUE;
+        WIN32_FIND_DATA ffd;
+
+        hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+
+        if (INVALID_HANDLE_VALUE != hFind)
+        {
+          load_str += ffd.cFileName;
+          FindClose(hFind);
+        }
       }
     }
   }
@@ -352,12 +364,9 @@ LoadLibraryTexture (
       DWORD dwSize = sizeof(szData);
       PVOID pvData = szData;
 
-      //Allocationg memory for a DWORD value.
-      DWORD dataType;
-
       if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
       {
-        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
+        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
           SteamUserID = *(DWORD*)pvData;
 
         RegCloseKey(hKey);
@@ -379,14 +388,28 @@ LoadLibraryTexture (
     else if (libTexToLoad == LibraryTexture::Icon  &&
              PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
       load_str =                SKIFCustomPath +  L".ico";
-    else if (libTexToLoad == LibraryTexture::Cover &&
-             PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
-      load_str =               SteamCustomPath + L"p.png";
-    else if (libTexToLoad == LibraryTexture::Cover &&
-             PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
-      load_str =               SteamCustomPath + L"p.jpg";
-    else
-      load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+
+    customAsset = (load_str != L"\0");
+
+    if (! customAsset)
+    {
+      if      (libTexToLoad == LibraryTexture::Cover &&
+               PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+        load_str =               SteamCustomPath + L"p.png";
+      else if (libTexToLoad == LibraryTexture::Cover &&
+               PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+        load_str =               SteamCustomPath + L"p.jpg";
+      else
+        load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+    }
+  }
+
+  if (pApp != nullptr)
+  {
+    if      (libTexToLoad == LibraryTexture::Cover)
+      pApp->textures.isCustomCover = customAsset;
+    else if (libTexToLoad == LibraryTexture::Icon)
+      pApp->textures.isCustomIcon  = customAsset;
   }
 
   if (load_str != L"\0" &&
@@ -889,7 +912,8 @@ SKIF_GameManagement_DrawTab (void)
                      SKIFCustomPath,
                      SteamCustomPath;
 
-        bool succeeded = false;
+        bool succeeded   = false;
+        bool customAsset = false;
 
         if (pApp != nullptr)
           appid = pApp->id;
@@ -912,9 +936,11 @@ SKIF_GameManagement_DrawTab (void)
           else if (libTexToLoad == LibraryTexture::Icon &&
                    PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
             load_str =               SKIFCustomPath + L".ico";
+
+          customAsset = (load_str != L"\0");
         }
 
-        // SKIF
+        // SKIF Custom
         else if (pApp != nullptr && pApp->store == "SKIF")
         {
           SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
@@ -929,8 +955,10 @@ SKIF_GameManagement_DrawTab (void)
           else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
             load_str =               SKIFCustomPath + L".jpg";
           else if (libTexToLoad == LibraryTexture::Icon &&
-                   PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-            load_str =               SKIFCustomPath + L".ico";
+                    PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+            load_str =                SKIFCustomPath + L".ico";
+
+          customAsset = (load_str != L"\0");
         }
 
         // GOG
@@ -950,24 +978,31 @@ SKIF_GameManagement_DrawTab (void)
           else if (libTexToLoad == LibraryTexture::Icon &&
                    PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
             load_str =               SKIFCustomPath + L".ico";
-          else if (libTexToLoad == LibraryTexture::Icon)
-            load_str =               name;
 
-          if (libTexToLoad == LibraryTexture::Cover &&
-              load_str == L"\0")
+          customAsset = (load_str != L"\0");
+
+          if (! customAsset)
           {
-            extern std::wstring GOGGalaxy_UserID;
-            load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
-
-            HANDLE hFind = INVALID_HANDLE_VALUE;
-            WIN32_FIND_DATA ffd;
-
-            hFind = FindFirstFile((load_str + name).c_str(), &ffd);
-
-            if (INVALID_HANDLE_VALUE != hFind)
+            if      (libTexToLoad == LibraryTexture::Icon)
             {
-              load_str += ffd.cFileName;
-              FindClose(hFind);
+              load_str = name;
+            }
+
+            else if (libTexToLoad == LibraryTexture::Cover)
+            {
+              extern std::wstring GOGGalaxy_UserID;
+              load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+
+              HANDLE hFind = INVALID_HANDLE_VALUE;
+              WIN32_FIND_DATA ffd;
+
+              hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+
+              if (INVALID_HANDLE_VALUE != hFind)
+              {
+                load_str += ffd.cFileName;
+                FindClose(hFind);
+              }
             }
           }
         }
@@ -984,12 +1019,9 @@ SKIF_GameManagement_DrawTab (void)
             DWORD dwSize = sizeof(szData);
             PVOID pvData = szData;
 
-            //Allocationg memory for a DWORD value.
-            DWORD dataType;
-
             if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
             {
-              if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, &dataType, pvData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
                 SteamUserID = *(DWORD*)pvData;
 
               RegCloseKey(hKey);
@@ -1011,14 +1043,28 @@ SKIF_GameManagement_DrawTab (void)
           else if (libTexToLoad == LibraryTexture::Icon  &&
                    PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
             load_str =                SKIFCustomPath +  L".ico";
-          else if (libTexToLoad == LibraryTexture::Cover &&
-                   PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
-            load_str =               SteamCustomPath + L"p.png";
-          else if (libTexToLoad == LibraryTexture::Cover &&
-                   PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
-            load_str =               SteamCustomPath + L"p.jpg";
-          else
-            load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+
+          customAsset = (load_str != L"\0");
+
+          if (! customAsset)
+          {
+            if      (libTexToLoad == LibraryTexture::Cover &&
+                     PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
+              load_str =               SteamCustomPath + L"p.png";
+            else if (libTexToLoad == LibraryTexture::Cover &&
+                     PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
+              load_str =               SteamCustomPath + L"p.jpg";
+            else
+              load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+          }
+        }
+
+        if (pApp != nullptr)
+        {
+          if      (libTexToLoad == LibraryTexture::Cover)
+            pApp->textures.isCustomCover = customAsset;
+          else if (libTexToLoad == LibraryTexture::Icon)
+            pApp->textures.isCustomIcon  = customAsset;
         }
 
         if (load_str != L"\0" &&
@@ -1299,7 +1345,8 @@ SKIF_GameManagement_DrawTab (void)
       
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      if (pApp->textures.isCustomCover)
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
       ImGui::Separator  (  );
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
       ImGui::PopStyleColor (  );
@@ -1372,46 +1419,63 @@ SKIF_GameManagement_DrawTab (void)
 		      pFileOpen->Release();
 	      }
       }
-
-      if (ImGui::Selectable ("Clear Custom Artwork", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      else
       {
-        std::wstring targetPath = L"";
-        
-        if (pApp->id == SKIF_STEAM_APPID)
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-        else if (pApp->store == "SKIF")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-        else if (pApp->store == "GOG")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-        else if (pApp->store == "Steam")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+        SKIF_ImGui_SetMouseCursorHand ( );
+      }
 
-        if (PathFileExists (targetPath.c_str()))
+      if (pApp->textures.isCustomCover)
+      {
+        if (ImGui::Selectable ("Clear Custom Artwork", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          targetPath += L"cover";
+          std::wstring targetPath = L"";
+        
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "SKIF")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "GOG")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "Steam")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
-          bool d1 = DeleteFile ((targetPath + L".png").c_str()),
-               d2 = DeleteFile ((targetPath + L".jpg").c_str());
-
-          // If any file was removed
-          if (d1 || d2)
+          if (PathFileExists (targetPath.c_str()))
           {
-            // Release current artwork
-            pTexSRV.Release();
+            targetPath += L"cover";
 
-            update = true;
+            bool d1 = DeleteFile ((targetPath + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + L".jpg").c_str());
+
+            // If any file was removed
+            if (d1 || d2)
+            {
+              // Release current artwork
+              pTexSRV.Release();
+
+              update = true;
+            }
           }
+        }
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
         }
       }
 
       ImGui::Separator  (  );
 
+      std::string linkGridDB = (pApp->store == "Steam")
+                             ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", appid)
+                             : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.normal.c_str());
+
       if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        if (pApp->store == "Steam")
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
-        else
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/grids?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(linkGridDB).c_str());
+      }
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (linkGridDB);
       }
 
       ImGui::EndGroup   (  );
@@ -1422,10 +1486,12 @@ SKIF_GameManagement_DrawTab (void)
               ImColor   (255, 255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
-      ImGui::TextColored (
-              ImColor   (255, 255, 255, 255),
-                ICON_FA_UNDO_ALT
-                            );
+
+      if (pApp->textures.isCustomCover)
+        ImGui::TextColored (
+                ImColor   (255, 255, 255, 255),
+                  ICON_FA_UNDO_ALT
+                              );
 
       ImGui::Separator  (  );
 
@@ -1546,32 +1612,25 @@ SKIF_GameManagement_DrawTab (void)
         pApp = &app.second;
 
     // SKIF
-    if ( appid == SKIF_STEAM_APPID )
-    {
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                              SKIF_STEAM_APPID,
-                                pTexSRV,
-                                  L"_library_600x900_x2.jpg" );
-    }
-
     // SKIF Custom
-    else if ( pApp->store == "SKIF" )
-    {
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                             appid,
-                                  pTexSRV,
-                                    L"cover",
-                                      pApp );
-    }
-
     // GOG
-    else if ( pApp->store == "GOG" )
+    if (       appid == SKIF_STEAM_APPID ||
+         pApp->store == "SKIF"           ||
+         pApp->store == "GOG" )
     {
+      std::wstring
+        load_str = L"_library_600x900_x2.jpg";
+
+      if (pApp->store == "SKIF")
+        load_str = L"cover";
+      else if (pApp->store == "GOG")
+        load_str = L"*_glx_vertical_cover.webp";
+
       LoadLibraryTexture ( LibraryTexture::Cover,
-                             appid,
-                                  pTexSRV,
-                                    L"*_glx_vertical_cover.webp",
-                                      pApp );
+                              appid,
+                                pTexSRV,
+                                  load_str,
+                                    pApp );
     }
     
     // STEAM
@@ -2271,7 +2330,8 @@ Cache=false)";
         }
 
         else {
-          SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
+          //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str()); // This is seemingly unreliable
+          SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
           pTargetApp->_status.invalidate();
         }
 
@@ -2785,7 +2845,8 @@ Cache=false)";
 
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      if (pApp->textures.isCustomIcon)
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
       ImGui::Separator  (  );
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
       ImGui::PopStyleColor (  );
@@ -2869,54 +2930,71 @@ Cache=false)";
 		      pFileOpen->Release();
 	      }
       }
-
-      if (ImGui::Selectable ("Clear Custom Icon",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      else
       {
-        std::wstring targetPath = L"";
-        
-        if (pApp->id == SKIF_STEAM_APPID)
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str());
-        else if (pApp->store == "SKIF")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-        else if (pApp->store == "GOG")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-        else if (pApp->store == "Steam")
-          targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+        SKIF_ImGui_SetMouseCursorHand ( );
+      }
 
-        if (PathFileExists(targetPath.c_str()))
+      if (pApp->textures.isCustomIcon)
+      {
+        if (ImGui::Selectable ("Clear Custom Icon",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          targetPath += L"icon";
-          
-          bool d1 = DeleteFile ((targetPath + L".png").c_str()),
-               d2 = DeleteFile ((targetPath + L".jpg").c_str()),
-               d3 = DeleteFile ((targetPath + L".ico").c_str());
+          std::wstring targetPath = L"";
+        
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str());
+          else if (pApp->store == "SKIF")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "GOG")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "Steam")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
 
-          // If any file was removed
-          if (d1 || d2 || d3)
+          if (PathFileExists(targetPath.c_str()))
           {
-            // Release current icon
-            pApp->textures.icon.Release();
+            targetPath += L"icon";
           
-            // Reload the icon
-            LoadLibraryTexture (LibraryTexture::Icon,
-                                  pApp->id,
-                                    pApp->textures.icon,
-                                     (pApp->store == "GOG")
-                                      ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                      : L"_icon.jpg",
-                                          pApp );
+            bool d1 = DeleteFile ((targetPath + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + L".jpg").c_str()),
+                 d3 = DeleteFile ((targetPath + L".ico").c_str());
+
+            // If any file was removed
+            if (d1 || d2 || d3)
+            {
+              // Release current icon
+              pApp->textures.icon.Release();
+          
+              // Reload the icon
+              LoadLibraryTexture (LibraryTexture::Icon,
+                                    pApp->id,
+                                      pApp->textures.icon,
+                                       (pApp->store == "GOG")
+                                        ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                                        : L"_icon.jpg",
+                                            pApp );
+            }
           }
+        }
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
         }
       }
 
       ImGui::Separator();
 
-      if (ImGui::Selectable ("Browse SteamGridDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      std::string linkGridDB = (pApp->store == "Steam")
+                             ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons", appid)
+                             : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.normal.c_str());
+
+      if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        if (pApp->store == "Steam")
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/steam/%lu", appid);
-        else
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"https://www.steamgriddb.com/search/icons?term=%ws", SK_UTF8ToWideChar(pApp->names.normal).c_str());
+        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(linkGridDB).c_str());
+      }
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (linkGridDB);
       }
 
       ImGui::EndGroup   (  );
@@ -2927,10 +3005,12 @@ Cache=false)";
               ImColor   (255, 255, 255, 255).Value,
                 ICON_FA_FILE_IMAGE
                             );
-      ImGui::TextColored (
-              ImColor   (255, 255, 255, 255).Value,
-                ICON_FA_UNDO_ALT
-                            );
+
+      if (pApp->textures.isCustomIcon)
+        ImGui::TextColored (
+                ImColor   (255, 255, 255, 255).Value,
+                  ICON_FA_UNDO_ALT
+                              );
 
       ImGui::Separator   ( );
 
@@ -3341,7 +3421,7 @@ Cache=false)";
           if (! pApp->cloud_enabled)
           {
             ImGui::TextColored ( ImColor::HSV (0.08F, 0.99F, 1.F),
-                                   "Developer forgot to enable Steam auto-cloud (!!)" );
+                                   "Developer forgot to enable Steam Auto-Cloud (!!)" );
           }
 
           bool bCloudSaves = false;
@@ -3510,7 +3590,7 @@ Cache=false)";
 
           ImGui::Separator ( );
 
-          if (ImGui::Selectable ("Delete"))
+          if (ImGui::Selectable ("Remove"))
             RemoveGamePopup = PopupState::Open;
 
           ImGui::EndMenu ( );
@@ -3556,23 +3636,25 @@ Cache=false)";
                                         );
       }
 
-      std::string pcgwLink = 
-        (pApp->store == "GOG") ? "http://www.pcgamingwiki.com/api/gog.php?page=%ws"
-                               : (pApp->store == "Steam") ? "http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
-                                                          : "https://www.pcgamingwiki.com/w/index.php?search=%ws&title=Special%3ASearch";
-      std::string pcgwValue = 
-        (pApp->store == "SKIF") ? pApp->names.normal
-                                : std::to_string (pApp->id);
+      std::wstring pcgwLink = 
+        (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%ws"
+                               : (pApp->store == "Steam") ? L"http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
+                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=%ws&title=Special%3ASearch";
+      std::wstring pcgwValue = 
+        (pApp->store == "SKIF") ? SK_UTF8ToWideChar (pApp->names.normal)
+                                : std::to_wstring   (pApp->id);
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, SK_UTF8ToWideChar(pcgwLink).c_str(), SK_UTF8ToWideChar(pcgwValue).c_str() );
+        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, pcgwLink.c_str(), pcgwValue.c_str() );
       }
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (
-          SK_FormatString ( pcgwLink.c_str(), pcgwValue.c_str() )
+        SKIF_ImGui_SetHoverText       ( 
+          SK_WideCharToUTF8 (
+            SK_FormatStringW ( pcgwLink.c_str(), pcgwValue.c_str() )
+          ).c_str()
         );
       }
 

@@ -107,10 +107,12 @@ struct app_record_s {
 
   struct tex_registry_s {
     d3d11_tex_ref_s icon;
-    d3d11_tex_ref_s logo;
-    d3d11_tex_ref_s hero;
-    d3d11_tex_ref_s header;
-    d3d11_tex_ref_s six_by_nine;
+    //d3d11_tex_ref_s logo;
+    //d3d11_tex_ref_s hero;
+    //d3d11_tex_ref_s header;
+    //d3d11_tex_ref_s six_by_nine;
+    bool            isCustomIcon  = false;
+    bool            isCustomCover = false;
   } textures;
 
   enum class Platform {
