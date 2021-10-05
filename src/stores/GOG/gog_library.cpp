@@ -53,12 +53,10 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
   WCHAR szData[MAX_PATH];
 
   /* Load GOG titles from registry */
-  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\WOW6432Node\GOG.com\Games\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\GOG.com\Games\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
   {
-
     if (RegQueryInfoKeyW(hKey, NULL, NULL, NULL, &dwResult, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
     {
-
       do
       {
         dwSize   = sizeof(szSubKey) / sizeof(WCHAR);
@@ -142,7 +140,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
     // If an item was read, see if we can detect GOG Galaxy as well
     if (dwIndex > 0)
     {
-      if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\WOW6432Node\GOG.com\GalaxyClient\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+      if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\GOG.com\GalaxyClient\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
       {
         dwSize = sizeof(szData) / sizeof(WCHAR);
         if (RegGetValueW(hKey, NULL, L"clientExecutable", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)

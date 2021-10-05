@@ -839,8 +839,9 @@ SKIF_GameManagement_DrawTab (void)
 
     // Release textures
     for (auto& app : apps)
-      app.second.textures.icon.Release();
-    pTexSRV.Release();
+      app.second.textures.icon.p = nullptr;
+
+    pTexSRV.p = nullptr;
 
     // Clear cached lists
     apps.clear();
@@ -887,18 +888,16 @@ SKIF_GameManagement_DrawTab (void)
     SKIF_GetCustomAppIDs (&apps);
 
     // We're going to stream icons in asynchronously on this thread
-    _beginthread ([](LPVOID pUser)->void
+    _beginthread ([](void*)->void // LPVOID pUser
     {
-      auto* pUserTex2D =
-        (CComPtr <ID3D11Texture2D>*)pUser;
+      //auto* pUserTex2D = (CComPtr <ID3D11Texture2D>*)pUser;
 
       CoInitializeEx (nullptr, 0x0);
 
       DirectX::TexMetadata  local_meta = { };
       DirectX::ScratchImage local_img  = { };
 
-      CComPtr <ID3D11Texture2D>& pLocalTex2D =
-                                 *pUserTex2D;
+      //CComPtr <ID3D11Texture2D>& pLocalTex2D = *pUserTex2D;
 
       auto _LoadLibraryTexture =
       [&] (
@@ -1295,7 +1294,7 @@ SKIF_GameManagement_DrawTab (void)
       }
 
       InterlockedExchange (&need_sort, 1);
-    }, 0x0, (void *)&pTex2D);
+    }, 0x0, NULL); //(void *)&pTex2D);
   }
 
   if (! update)
@@ -1371,11 +1370,11 @@ SKIF_GameManagement_DrawTab (void)
 
 	      if (SUCCEEDED(hr))
 	      {
-          IShellItem* psiPictures;
-          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiPictures)))
+          IShellItem* psiDefaultFolder;
+          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
           {
-            pFileOpen->SetDefaultFolder(psiPictures);
-            psiPictures->Release();
+            pFileOpen->SetDefaultFolder(psiDefaultFolder);
+            psiDefaultFolder->Release();
           }
           pFileOpen->SetFileTypes(1, &fileTypes);
 
@@ -1450,7 +1449,7 @@ SKIF_GameManagement_DrawTab (void)
             if (d1 || d2)
             {
               // Release current artwork
-              pTexSRV.Release();
+              pTexSRV.p = nullptr;
 
               update = true;
             }
@@ -1627,10 +1626,10 @@ SKIF_GameManagement_DrawTab (void)
         load_str = L"*_glx_vertical_cover.webp";
 
       LoadLibraryTexture ( LibraryTexture::Cover,
-                              appid,
-                                pTexSRV,
-                                  load_str,
-                                    pApp );
+                             appid,
+                               pTexSRV,
+                                 load_str,
+                                   pApp );
     }
     
     // STEAM
@@ -2262,6 +2261,7 @@ Cache=false)";
                                   : 0.5f));
       }
 
+      // This captures two events -- launching through context menu + large button
       if ( ImGui::ButtonEx (
                   buttonLabel.c_str (),
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
@@ -2271,50 +2271,42 @@ Cache=false)";
            ||
         clickedGameLaunchWoSK )
       {
-        bool isLocalBlacklisted  = false,
-             isGlobalBlacklisted = false;
-
-        // Launch preparations for non-Local installs
+        // Launch preparations for Global
         if (! cache.injection.type._Equal ("Local"))
         {
-          isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
-          isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id)).c_str(), false);
+          bool isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
+               isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id)).c_str (), false);
 
-          // This captures two events -- launching through context menu + large button
           if (! clickedGameLaunchWoSK &&
-              ! _inject.bCurrentState &&
               ! isLocalBlacklisted    &&
               ! isGlobalBlacklisted
              )
           {
-            _inject._StartStopInject (false, true);
+            // name of parent folder
+            std::string  parentFolder     = std::filesystem::path(pTargetApp->launch_configs[0].executable).parent_path().filename().string();
+
+            // Check if the path has been whitelisted, and parentFolder is at least a character in length
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->launch_configs[0].executable).c_str (), true) &&
+                  parentFolder.length () > 0)
+            {
+              // Whitelist path
+              _inject._AddUserList     (parentFolder, true);
+              _inject._StoreList       (true);
+            }
           }
 
+          // Kickstart service if it is currently not running
+          if (! clickedGameLaunchWoSK && ! _inject.bCurrentState )
+            _inject._StartStopInject (false, true);
+
           // Stop the service if the user attempts to launch without SK
-          else if (  clickedGameLaunchWoSK &&
-                    _inject.bCurrentState )
-          {
-            _inject._StartStopInject (true);
-          }
+          else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
+            _inject._StartStopInject   (true);
         }
 
         // Launch game
         if (pTargetApp->store != "Steam")
         {
-          // name of parent folder
-          std::string  parentFolder     = std::filesystem::path(pTargetApp->launch_configs[0].executable).parent_path().filename().string();
-
-          // Check if the path has been whitelisted, and parentFolder is at least a character in length
-          if (
-              ! isLocalBlacklisted  &&
-              ! isGlobalBlacklisted &&
-              ! _inject._TestUserList (SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable).c_str(), true) &&
-                parentFolder.length() > 0)
-          {
-            _inject._AddUserList(parentFolder, true);
-            _inject._StoreList(true);
-          }
-
           SHELLEXECUTEINFOW
           sexi              = { };
           sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -2871,11 +2863,11 @@ Cache=false)";
 
 	      if (SUCCEEDED(hr))
 	      {
-          IShellItem* psiPictures;
-          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiPictures)))
+          IShellItem* psiDefaultFolder;
+          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
           {
-            pFileOpen->SetDefaultFolder(psiPictures);
-            psiPictures->Release();
+            pFileOpen->SetDefaultFolder(psiDefaultFolder);
+            psiDefaultFolder->Release();
           }
           pFileOpen->SetFileTypes(1, &fileTypes);
 
@@ -2911,7 +2903,8 @@ Cache=false)";
                   CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
 
                   // Release current icon
-                  pApp->textures.icon.Release();
+                  if (pApp->textures.icon.p != nullptr)
+                    pApp->textures.icon.p = nullptr;
 
                   // Reload the icon
                   LoadLibraryTexture (LibraryTexture::Icon,
@@ -2962,7 +2955,8 @@ Cache=false)";
             if (d1 || d2 || d3)
             {
               // Release current icon
-              pApp->textures.icon.Release();
+              if (pApp->textures.icon.p != nullptr)
+              pApp->textures.icon.p = nullptr;
           
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
@@ -3248,22 +3242,35 @@ Cache=false)";
           if (clickedGalaxyLaunch ||
               clickedGalaxyLaunchWoSK)
           {
-
+            // Launch preparations for Global
             if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
             {
-              // name of parent folder
-              std::string  parentFolder     = std::filesystem::path(pApp->launch_configs[0].executable).parent_path().filename().string();
+              bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted (pApp->id),
+                   isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath (pApp->id)).c_str (), false);
 
-              // Check if the path has been whitelisted, and parentFolder is at least a character in length
-              if (! _inject._TestUserList (SK_WideCharToUTF8(pApp->launch_configs[0].executable).c_str(), true) && parentFolder.length() > 0)
+              if (! clickedGalaxyLaunchWoSK &&
+                  ! isLocalBlacklisted      &&
+                  ! isGlobalBlacklisted
+                 )
               {
-                _inject._AddUserList(parentFolder, true);
-                _inject._StoreList(true);
+                // name of parent folder
+                std::string  parentFolder     = std::filesystem::path(pApp->launch_configs[0].executable).parent_path().filename().string();
+
+                // Check if the path has been whitelisted, and parentFolder is at least a character in length
+                if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str (), true) &&
+                      parentFolder.length () > 0)
+                {
+                  // Whitelist path
+                  _inject._AddUserList     (parentFolder, true);
+                  _inject._StoreList       (true);
+                }
               }
-            
+
+              // Kickstart service if it is currently not running
               if (clickedGalaxyLaunch && ! _inject.bCurrentState)
                 _inject._StartStopInject (false, true);
 
+              // Stop the service if the user attempts to launch without SK
               else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
                 _inject._StartStopInject (true);
             }
@@ -3788,8 +3795,8 @@ Cache=false)";
         pApp->id = 0;
 
         // Release textures
-        pApp->textures.icon.Release();
-        pTexSRV.Release();
+        pApp->textures.icon.p = nullptr;
+        pTexSRV.p = nullptr;
 
         // Reset selection to Special K
         appid = SKIF_STEAM_APPID;
@@ -3866,11 +3873,11 @@ Cache=false)";
 
 	    if (SUCCEEDED(hr))
 	    {
-        IShellItem* psiDocuments;
-        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDocuments)))
+        IShellItem* psiDefaultFolder;
+        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
         {
-          pFileOpen->SetDefaultFolder(psiDocuments);
-          psiDocuments->Release();
+          pFileOpen->SetDefaultFolder(psiDefaultFolder);
+          psiDefaultFolder->Release();
         }
         pFileOpen->SetFileTypes(1, &fileTypes);
         pFileOpen->SetOptions(FOS_NODEREFERENCELINKS);
@@ -3926,10 +3933,13 @@ Cache=false)";
     ImGui::Text        ("Path");
 
     if (error)
-      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incorrect file type detected! Please select another file.");
-    
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
+    {
+      ImGui::SetCursorPosX (fAddGamePopupX);
+      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incompatible type! Please select another file.");
+    }
+    else {
+      ImGui::NewLine   ( );
+    }
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
@@ -3977,7 +3987,7 @@ Cache=false)";
       strncpy (charArgs, "\0", MAX_PATH);
 
       // Release current cover texture
-      pTexSRV.Release();
+      pTexSRV.p = nullptr;
 
       // Change selection to Special K
       appid = newAppId;
@@ -4032,6 +4042,7 @@ Cache=false)";
     static char charName     [MAX_PATH],
                 charPath     [MAX_PATH],
                 charArgs     [MAX_PATH];
+    static bool error = false;
 
     if (ModifyGamePopup == PopupState::Open)
     {
@@ -4063,11 +4074,15 @@ Cache=false)";
 
 	    if (SUCCEEDED(hr))
 	    {
-             pFileOpen->SetFileTypes(1, &fileTypes);
-		    hr = pFileOpen->Show(NULL);
+        IShellItem* psiDefaultFolder;
+        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+        {
+          pFileOpen->SetDefaultFolder(psiDefaultFolder);
+          psiDefaultFolder->Release();
+        }
+        pFileOpen->SetFileTypes(1, &fileTypes);
 
-		    // Get the file name from the dialog box.
-		    if (SUCCEEDED(hr))
+		    if (SUCCEEDED(pFileOpen->Show(NULL)))
 		    {
 			    IShellItem *pItem;
 
@@ -4075,8 +4090,14 @@ Cache=false)";
 			    {
             if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
             {
+              error = false;
               std::filesystem::path p = pszFilePath;
+
               strncpy (charPath, p.u8string().c_str(),            MAX_PATH);
+            }
+            else
+            {
+              error = true;
             }
 
 				    pItem->Release();
@@ -4094,9 +4115,15 @@ Cache=false)";
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
-    
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
+
+    if (error)
+    {
+      ImGui::SetCursorPosX (fModifyGamePopupX);
+      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incompatible type! Please select another file.");
+    }
+    else {
+      ImGui::NewLine   ( );
+    }
 
     ImGui::SetCursorPosX (fModifyGamePopupX);
 

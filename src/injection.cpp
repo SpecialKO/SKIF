@@ -124,19 +124,24 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   const wchar_t *wszStartStopParams32 =
     currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
                         : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
+  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
 
+#ifdef _WIN64
+  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
+#else
+  GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
+#endif
+  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
+
+#ifdef _WIN64
   const wchar_t *wszStartStopParams64 =
     currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
                         : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
-
-  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
   wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
-
-  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
-  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
 
   GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
+#endif
 
   SHELLEXECUTEINFOW
     sexi              = { };
@@ -156,6 +161,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     sexi.lpParameters = L"";
   }
 
+#ifdef _WIN64
   if ( ShellExecuteExW (&sexi) || currentRunningState )
   {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     sexi.lpFile       = wszStartStopCommand64;
@@ -170,94 +176,10 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     ret =
       ShellExecuteExW (&sexi);
   }
-
-  /* Old implementation -- used a new thread to call ShellExecuteEx
-  unsigned int tid;
-  HANDLE       hThread =
- (HANDLE)
-  _beginthreadex ( nullptr,
-                         0,
-  [](LPVOID lpUser)->unsigned
-  {
-    bool*           _inout = (bool *)lpUser;
-    bool running = *_inout;
-
-    CoInitializeEx ( nullptr,
-      COINIT_APARTMENTTHREADED |
-      COINIT_DISABLE_OLE1DDE
-    );
-
-    const wchar_t *wszStartStopCommand =
-                LR"(rundll32.exe)";
-
-    const wchar_t *wszStartStopParams32 =
-      running ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
-              : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
-
-    const wchar_t *wszStartStopParams64 =
-      running ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
-              : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
-
-    wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
-    wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
-
-    GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
-    PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
-
-    GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
-    PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
-
-    SHELLEXECUTEINFOW
-      sexi              = { };
-      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-      sexi.lpVerb       = L"OPEN";
-      sexi.lpFile       = wszStartStopCommand32;
-      sexi.lpParameters = wszStartStopParams32;
-      sexi.lpDirectory  = L"Servlet";
-      sexi.nShow        = SW_HIDE;
-      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS; // SEE_MASK_NOASYNC, SEE_MASK_ASYNCOK
-
-
-    if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
-    {
-      sexi.lpFile       = LR"(SKIFsvc32.exe)";
-      sexi.lpParameters = L"";
-    }
-
-    if ( ShellExecuteExW (&sexi) || running )
-    {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-      sexi.lpFile       = wszStartStopCommand64;
-      sexi.lpParameters = wszStartStopParams64;
-
-      if (! running && PathFileExistsW(LR"(Servlet\SKIFsvc64.exe)"))
-      {
-        sexi.lpFile       = LR"(SKIFsvc64.exe)";
-        sexi.lpParameters = L"";
-      }
-
-      *_inout =
-        ShellExecuteExW (&sexi);
-    }
-
-    else
-      *_inout = false;
-
-    _endthreadex (0);
-
-    return 0;
-  }, (LPVOID)&_inout, CREATE_SUSPENDED, &tid);
-
-  if (hThread != 0)
-  {
-    ResumeThread        (hThread);
-    WaitForSingleObject (hThread, INFINITE);
-    CloseHandle         (hThread);
-  }
-  */
-
-  // Hack-a-la-Aemony to fix stupid service not stopping properly on exit
-  //Sleep(50);
+#else
+  ret =
+    ShellExecuteExW (&sexi);
+#endif
 
   bPendingState = true;
 
@@ -397,8 +319,13 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   bHasServlet =
     bHasServlet &&
-    PathFileExistsW (L"SpecialK32.dll") &&
+    PathFileExistsW (L"SpecialK32.dll");
+
+#ifdef _WIN64
+  bHasServlet =
+    bHasServlet &&
     PathFileExistsW (L"SpecialK64.dll");
+#endif
 
   // Force a one-time check on launch
   TestServletRunlevel (true);
@@ -481,18 +408,21 @@ extern bool SKIF_bDisableExitConfirmation;
 
 void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
-  wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSelf64);
   PathRemoveFileSpecW (         wszPathToSelf32);
-  PathAppendW         (         wszPathToSelf64, L"SpecialK64.dll");
   PathAppendW         (         wszPathToSelf32, L"SpecialK32.dll");
   SKVer32 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
+
+#ifdef _WIN64
+  wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
+  GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
+  PathRemoveFileSpecW (         wszPathToSelf64);
+  PathAppendW         (         wszPathToSelf64, L"SpecialK64.dll");
   SKVer64 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
+#endif
 }
 
 void
@@ -521,13 +451,21 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // Column 1
   ImGui::BeginGroup      ();
+#ifdef _WIN64
   ImGui::TextUnformatted ( (SKVer32 == SKVer64) ?
             ( "Special K v " + SKVer32 ).c_str () :
               "Special K" );
+#else
+  ImGui::TextUnformatted ( ( "Special K v " + SKVer32 ).c_str () );
+#endif
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted ("Config Root:");
   ImGui::TextUnformatted ("32-bit Service:");
+#ifdef _WIN64
   ImGui::TextUnformatted ("64-bit Service:");
+#else
+  ImGui::NewLine         ();
+#endif
   ImGui::PopStyleColor   ();
   ImGui::ItemSize        (
     ImVec2 ( 140.f * SKIF_ImGui_GlobalDPIScale,
@@ -561,10 +499,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   else
     ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
 
+#ifdef _WIN64
   if (pid64)
     ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
   else
     ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
+#else
+  ImGui::NewLine  ();
+#endif
 
   ImGui::ItemSize ( ImVec2 (
                       100.f * SKIF_ImGui_GlobalDPIScale, 
@@ -580,6 +522,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::NewLine    ();
   ImGui::NewLine    ();
 
+#ifdef _WIN64
   if (SKVer32 != SKVer64)
   {
     ImGui::Text ("( v %s )", SKVer32.c_str ());
@@ -587,6 +530,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
   else
     ImGui::NewLine ();
+#endif
 
   ImGui::EndGroup  ();
 
@@ -743,8 +687,12 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     extern void SKIF_putStopOnInjection(bool in);
 
+#ifdef _WIN64
     if (_inject.SKVer64 >= "21.08.12" &&
         _inject.SKVer32 >= "21.08.12")
+#else
+    if (_inject.SKVer32 >= "21.08.12")
+#endif
     {
       if (ImGui::Checkbox ("Stop on successful injection", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
@@ -841,19 +789,47 @@ void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
   ImGui::BeginGroup ();
-  
-  /*
-  ImGui::Spacing     ();
-  
-  ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
-  ImGui::TextWrapped    (
-    "SKIF and the global injection service can be configured to start automatically with Windows."
-  );
-  ImGui::PopStyleColor  ();
-  
-  ImGui::Spacing ();
-  ImGui::Spacing ();
-  */
+
+  static bool argsChecked = false;
+  static std::wstring args = L"\0";
+  static HKEY hKey;
+
+  auto _CheckRegistry = [&](void) ->
+    bool
+  {
+    bool ret = false;
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+      if ((ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 32-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)) ||
+          (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 64-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)))
+        ret = true;
+
+      RegCloseKey (hKey);
+    }
+
+    return ret;
+  };
+
+  static path_cache_s::win_path_s user_startup  =
+  {            FOLDERID_Startup,
+    L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
+  };
+
+  SK_RunOnce (SKIF_GetFolderPath (&user_startup));
+
+  static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
+                               user_startup.path );
+
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata.path),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata.path);
+
+  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
+                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
+
+  static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
 
   // New method
 
@@ -872,25 +848,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   
   ImGui::BeginGroup  ();
 
-  path_cache_s::win_path_s user_startup  =
-  {            FOLDERID_Startup,
-    L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
-  };
-
-  SKIF_GetFolderPath(&user_startup);
-
-  static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
-                               user_startup.path );
-
   /*
   SK_RunOnce(
     bAutoStartSKIF = PathFileExists(SK_UTF8ToWideChar(link).c_str())
   );
   */
-
-  static bool argsChecked = false;
-  static std::wstring args = L"\0";
-  static HKEY hKey;
 
   if ( ! argsChecked ) // && bAutoStartSKIF )
   {
@@ -1002,135 +964,109 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                              "The difference is that this method autostarts SKIF, and not just the GI service." );
   }
 
-
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
+  extern bool SKIF_bEnableDebugMode;
 
-  /*
   if ( bLogonTaskEnabled     ||
        bAutoStartServiceOnly ||
        SKIF_bEnableDebugMode )
   {
-  */
-  if (bLogonTaskEnabled)
-    _StartAtLogonCtrlLegacy ( );
+
+    if (bLogonTaskEnabled)
+      _StartAtLogonCtrlLegacy ( );
     
-  // New approach to the legacy method
-  ImGui::BeginGroup ();
+    // New approach to the legacy method
+    ImGui::BeginGroup ();
 
-  auto _CheckRegistry = [&](void) ->
-    bool
-  {
-    bool ret = false;
-
-    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    if ( bLogonTaskEnabled || 
+          bAutoStartSKIF )
     {
-      if ((ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 32-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)) ||
-          (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 64-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)))
-        ret = true;
-
-      RegCloseKey (hKey);
+      // Disable button
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
+                              ImGui::GetStyle ().Alpha *
+                                ( (SKIF_IsHDR ()) ? 0.1f
+                                                  : 0.5f
+                                )
+      );
     }
-
-    return ret;
-  };
-
-  if ( bLogonTaskEnabled || 
-        bAutoStartSKIF )
-  {
-    // Disable button
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
-  }
-
-  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata.path),
-                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata.path);
-
-  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
-                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
-
-  static bool dontCare = bAutoStartServiceOnly = _CheckRegistry ( ) || PathFileExistsW (SK_UTF8ToWideChar (Svc32Link).c_str());
   
-  if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
-  {
-    if (! bAutoStartServiceOnly)
+    if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
     {
-      if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
-                            L"\n"
-                            L"Special K Injection Frontend (SKIF) will not autostart.\n"
-                            L"\n"
-                            L"Are you sure you want to proceed?",
-                            L"Confirm autostart",
-                            MB_YESNO | MB_ICONWARNING) == IDYES)
+      if (! bAutoStartServiceOnly)
       {
-        //CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
-        //CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
+        if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
+                              L"\n"
+                              L"Special K Injection Frontend (SKIF) will not autostart.\n"
+                              L"\n"
+                              L"Are you sure you want to proceed?",
+                              L"Confirm autostart",
+                              MB_YESNO | MB_ICONWARNING) == IDYES)
+        {
+          //CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
+          //CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
+        
+          if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
+          {
+            TCHAR               szExePath[MAX_PATH];
+            GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+            std::wstring wsPath = std::wstring(szExePath);
+
+            RegSetValueExW (hKey, L"Special K 32-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc32Target.data(),
+                                                                                                 (DWORD)Svc32Target.size() * sizeof(wchar_t));
+#ifdef _WIN64
+            RegSetValueExW (hKey, L"Special K 64-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc64Target.data(),
+                                                                                                 (DWORD)Svc64Target.size() * sizeof(wchar_t));
+#endif
+            RegCloseKey (hKey);
+          }
+
+          bAutoStartServiceOnly = ! bAutoStartServiceOnly;
+        }
+
+        else {
+          dontCare = ! dontCare;
+        }
+      }
+
+      else {
+        DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
+        DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
         
         if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
         {
-          TCHAR               szExePath[MAX_PATH];
-          GetModuleFileName   (NULL, szExePath, _countof(szExePath));
-
-          std::wstring wsPath = std::wstring(szExePath);
-
-          RegSetValueExW (hKey, L"Special K 32-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc32Target.data(),
-                                                                                               (DWORD)Svc32Target.size() * sizeof(wchar_t));
-          RegSetValueExW (hKey, L"Special K 64-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc64Target.data(),
-                                                                                               (DWORD)Svc64Target.size() * sizeof(wchar_t));
+          RegDeleteValueW (hKey, L"Special K 32-bit Global Injection Service Host");
+          RegDeleteValueW (hKey, L"Special K 64-bit Global Injection Service Host");
 
           RegCloseKey (hKey);
         }
 
         bAutoStartServiceOnly = ! bAutoStartServiceOnly;
       }
+    }
+  
+    SKIF_ImGui_SetHoverTip (
+        "Note that this injection frontend (SKIF) will not start with Windows."
+    );
+  
+    if ( bLogonTaskEnabled || 
+          bAutoStartSKIF )
+    {
+      ImGui::PopStyleVar ();
+      ImGui::PopItemFlag ();
 
-      else {
-        dontCare = ! dontCare;
-      }
+      if (bAutoStartSKIF)
+        SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                  "The difference is that the current method autostarts SKIF, and not just the GI service.");
+      else
+        SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                  "The difference is that this method does not require elevated privileges." );
     }
 
-    else {
-      DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
-      DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
-        
-      if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
-      {
-        RegDeleteValueW (hKey, L"Special K 32-bit Global Injection Service Host");
-        RegDeleteValueW (hKey, L"Special K 64-bit Global Injection Service Host");
+    ImGui::EndGroup      ();
 
-        RegCloseKey (hKey);
-      }
-
-      bAutoStartServiceOnly = ! bAutoStartServiceOnly;
-    }
   }
-  
-  SKIF_ImGui_SetHoverTip (
-      "Note that this injection frontend (SKIF) will not start with Windows."
-  );
-  
-  if ( bLogonTaskEnabled || 
-        bAutoStartSKIF )
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-
-    if (bAutoStartSKIF)
-      SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
-                                "The difference is that the current method autostarts SKIF, and not just the GI service.");
-    else
-      SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
-                                "The difference is that this method does not require elevated privileges." );
-  }
-
-  ImGui::EndGroup      ();
-  /*
-  }
-  */
 
   ImGui::EndGroup      ( );
 }

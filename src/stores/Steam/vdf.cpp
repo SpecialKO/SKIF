@@ -40,10 +40,18 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
 
   if (fData != nullptr)
   {
+#ifdef _WIN64
     _fseeki64 (fData, 0, SEEK_END);
+#else
+    fseek     (fData, 0, SEEK_END);
+#endif
     size_t
     size =
+#ifdef _WIN64
     _ftelli64 (fData);
+#else
+    ftell     (fData);
+#endif
     rewind    (fData);
 
     _data.resize (size);

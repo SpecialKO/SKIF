@@ -885,12 +885,19 @@ SKIF_GetPatrons (void)
   if (fPatrons != nullptr)
   {
     std::string out;
-
+#ifdef _WIN64
     _fseeki64 (fPatrons, 0, SEEK_END);
+#else
+    fseek     (fPatrons, 0, SEEK_END);
+#endif
 
     size_t size =
       gsl::narrow_cast <size_t> (
+#ifdef _WIN64
       _ftelli64 (fPatrons)      );
+#else
+      ftell     (fPatrons)      );
+#endif
     rewind      (fPatrons);
 
     out.resize (size);
@@ -1545,14 +1552,22 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       FILE          *pid;
       const wchar_t *wszFile;
       DWORD_PTR      x = 0;
-    } _32 { nullptr, LR"(Servlet\SpecialK32.pid)" },
-      _64 { nullptr, LR"(Servlet\SpecialK64.pid)" };
+    };
+    
+    injection_probe_s _32 { nullptr, LR"(Servlet\SpecialK32.pid)" };
+#ifdef _WIN64
+    injection_probe_s _64 { nullptr, LR"(Servlet\SpecialK64.pid)" };
+#endif
 
     if (_Signal.Stop || _Signal.Quit)
     {
       if (_Signal.Stop)
       {
+#ifdef _WIN64
         for ( auto probe : { _32, _64 } )
+#else
+        for ( auto probe : { _32 } )
+#endif
         {
           do {
             probe.pid =
@@ -1579,7 +1594,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     if (_Signal.Start)
     {
+#ifdef _WIN64
       for ( auto probe : { _32, _64 } )
+#else
+      for ( auto probe : { _32 } )
+#endif
       {
         do {
           probe.pid =
@@ -2815,8 +2834,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               regKVFirstLaunch.putData(SKIF_bFirstLaunch);
             }
 
-            if (tab_selected != Injection)
-              _inject._RefreshSKDLLVersions();
+            //if (tab_selected != Injection)
+              //_inject._RefreshSKDLLVersions ();
 
             tab_selected = Injection;
 
@@ -2929,7 +2948,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               driverBinaryPath    = _CheckDriver (driverStatus);
               driverStatusPending =               driverStatus;
 
-              _inject._RefreshSKDLLVersions ();
+              //_inject._RefreshSKDLLVersions ();
             }
 
             tab_selected = Settings;
@@ -3289,10 +3308,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 );
               }
 
-              ImGui::Spacing  ();
-              ImGui::Spacing  ();
+              ImGui::EndGroup();
 
-              ImGui::EndGroup    ();
+#ifdef _WIN64
+              ImGui::Spacing  ();
+              ImGui::Spacing  ();
 
               ImGui::Separator   ();
 
@@ -3467,6 +3487,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               }
 
               ImGui::EndGroup ();
+#endif
             }
 
             ImGui::Spacing ();
@@ -4246,7 +4267,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             static DWORD dwLastRefresh = 0;
             static Platform Platforms[] = {
               {"32-bit Service",      L"SKIFsvc32.exe"},
+#ifdef _WIN64
               {"64-bit Service",      L"SKIFsvc64.exe"},
+#endif
               {"Steam",               L"steam.exe"},
               {"Origin",              L"Origin.exe"},
               {"Galaxy",              L"GalaxyClient.exe"},
@@ -4312,6 +4335,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::EndTabItem       ( );
           }
 
+#ifdef _WIN64
           bool debugSelected =       SKIF_bEnableDebugMode &&
             ImGui::BeginTabItem     (ICON_FA_BUG " Debug", nullptr, flags);
 
@@ -4347,10 +4371,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
             }
           }
+#endif
 
           // Ghost
-
-          
 
           float title_len = ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
             //ImGui::GetFont ()->CalcTextSizeA ((tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f, SKIF_WINDOW_TITLE_A ).x;
