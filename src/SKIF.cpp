@@ -4798,7 +4798,6 @@ bool CreateDeviceD3D (HWND hWnd)
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
-  sd.BufferCount                        =  3 ;
   sd.BufferCount                        =  
                           SKIF_bCanFlip ?  3
                                         :  2 ;

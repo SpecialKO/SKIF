@@ -3021,6 +3021,30 @@ Cache=false)";
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );
 
+  if (! ImGui::IsAnyPopupOpen   ( ) &&
+      ! ImGui::IsAnyItemHovered ( ) &&
+        ImGui::IsItemClicked    (ImGuiMouseButton_Right))
+  {
+    ImGui::OpenPopup      ("GameListEmptySpaceMenu");
+  }
+
+  if (ImGui::BeginPopup   ("GameListEmptySpaceMenu"))
+  {
+    ImVec2 iconPos = ImGui::GetCursorPos();
+    bool dontCare = false;
+
+    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PLUS_SQUARE).x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine       ( );
+
+    if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      AddGamePopup = PopupState::Open;
+
+    ImGui::SetCursorPos   (iconPos);
+    ImGui::Text           (ICON_FA_PLUS_SQUARE);
+    ImGui::EndPopup       ( );
+  }
+
   // Applies hover text on the whole AppListInset1
   //if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
     //SKIF_ImGui_SetHoverText ("Right click for more options");
