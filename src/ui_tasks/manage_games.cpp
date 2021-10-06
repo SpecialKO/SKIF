@@ -1364,6 +1364,8 @@ SKIF_GameManagement_DrawTab (void)
 
 	      PWSTR pszFilePath = NULL;
 
+        CoInitializeEx (nullptr, 0x0);
+
 	      // Create the FileOpenDialog object.
 	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
 		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
@@ -2857,6 +2859,8 @@ Cache=false)";
 
 	      PWSTR pszFilePath = NULL;
 
+        CoInitializeEx (nullptr, 0x0);
+
 	      // Create the FileOpenDialog object.
 	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
 		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
@@ -3891,6 +3895,8 @@ Cache=false)";
       IFileOpenDialog  *pFileOpen;
       COMDLG_FILTERSPEC fileTypes{ L"Executables", L"*.exe" };
 
+      CoInitializeEx (nullptr, 0x0);
+
 	    // Create the FileOpenDialog object.
 	    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
 		                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
@@ -4091,6 +4097,8 @@ Cache=false)";
       PWSTR pszFilePath = NULL;
       IFileOpenDialog  *pFileOpen;
       COMDLG_FILTERSPEC fileTypes{ L"Executables", L"*.exe" };
+
+      CoInitializeEx (nullptr, 0x0);
 
 	    // Create the FileOpenDialog object.
 	    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,

@@ -96,16 +96,17 @@ SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
     FindCloseChangeNotification (hChangeNotification);
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
+void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
 {
   extern HWND    SKIF_hWnd;
   extern CHandle hInjectAck;
-  bool ret = false;
 
+  // Close any existing handles
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+  hInjectAck.Close();
 
-  if (autoStop && ! currentRunningState && hInjectAck.m_h <= 0)
+  // Create a new handle if requested
+  if (newState && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
       CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
@@ -117,6 +118,16 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
               (TIMERPROC) NULL
     );
   }
+}
+
+bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
+{
+  extern HWND    SKIF_hWnd;
+  bool ret = false;
+
+  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+
+  _ToggleOnDemand (autoStop);
 
   const wchar_t *wszStartStopCommand =
               LR"(rundll32.exe)";
@@ -737,7 +748,7 @@ CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR l
   HRESULT hres;
   IShellLink* psl;
 
-  CoInitializeEx(nullptr, 0x0);
+  CoInitializeEx (nullptr, 0x0);
 
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
@@ -1152,6 +1163,8 @@ InitializeJumpList (void);
 HRESULT
 SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
+  CoInitializeEx (nullptr, 0x0);
+
   CComPtr <ITaskbarList3> taskbar;
   if ( SUCCEEDED (
          CoCreateInstance ( CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER,
@@ -1379,6 +1392,8 @@ void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
 void
 SKIF_InjectionContext::_InitializeJumpList (void)
 {
+  CoInitializeEx (nullptr, 0x0);
+
   HRESULT                            hres;
 
   CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list

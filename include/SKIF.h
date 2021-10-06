@@ -30,6 +30,9 @@
 #include <string>
 #include <string_view>
 
+// This file is included mostly everywhere else, so lets define using ImGui's math operators here.
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 class SK_AutoCOMInit
 {
 public:

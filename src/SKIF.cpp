@@ -1831,6 +1831,9 @@ static auto regKVDisableStopOnInjection =
 void SKIF_putStopOnInjection (bool in)
 {
   regKVDisableStopOnInjection.putData(!in);
+
+  if (_inject.bCurrentState)
+    _inject._ToggleOnDemand (in);
 }
 
 #include <Tlhelp32.h>
@@ -1933,11 +1936,9 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   *lpszTarget    = 0; // Assume failure
   *lpszArguments = 0; // Assume failure
 
-  CoInitializeEx(nullptr, 0x0);
+  CoInitializeEx (nullptr, 0x0);
 
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called. 
-
+  // Get a pointer to the IShellLink interface.
   if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
     IPersistFile* ppf;
@@ -4967,7 +4968,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
           // If we have a refresh pending, check for a new state
           if (wParam == IDT_REFRESH_PENDING)
-            _inject.TestServletRunlevel(true);
+            _inject.TestServletRunlevel (true);
 
           // SKIF is focused -- eat my NULL and don't redraw at all!
           if (SKIF_ImGui_IsFocused ( ))
