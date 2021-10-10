@@ -59,12 +59,12 @@ PopupState AddGamePopup    = PopupState::Closed;
 PopupState RemoveGamePopup = PopupState::Closed;
 PopupState ModifyGamePopup = PopupState::Closed;
 
-extern ID3D11Device* g_pd3dDevice;
-extern float         SKIF_ImGui_GlobalDPIScale;
-extern float         SKIF_ImGui_GlobalDPIScale_Last;
-extern std::string   SKIF_StatusBarHelp;
-extern std::string   SKIF_StatusBarText;
-extern bool          SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+extern float           SKIF_ImGui_GlobalDPIScale;
+extern float           SKIF_ImGui_GlobalDPIScale_Last;
+extern std::string     SKIF_StatusBarHelp;
+extern std::string     SKIF_StatusBarText;
+extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
 
@@ -310,7 +310,7 @@ LoadLibraryTexture (
   else if (pApp != nullptr && pApp->store == "GOG")
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-    
+
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
     else
@@ -356,26 +356,24 @@ LoadLibraryTexture (
   else if (pApp != nullptr && pApp->store == "Steam")
   {
     static unsigned long SteamUserID = 0;
-     
+
     if (SteamUserID == 0)
     {
-      HKEY hKey;
-      WCHAR szData[255];
-      DWORD dwSize = sizeof(szData);
-      PVOID pvData = szData;
+      WCHAR                    szData [255] = { };
+      DWORD   dwSize = sizeof (szData);
+      PVOID   pvData =         szData;
+      CRegKey hKey ((HKEY)0);
 
-      if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+      if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
       {
-        if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+        if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
           SteamUserID = *(DWORD*)pvData;
-
-        RegCloseKey(hKey);
       }
     }
 
     SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
     SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
-    
+
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
     else
@@ -464,10 +462,18 @@ LoadLibraryTexture (
           pImg = &converted_img; }
     }
 
+    auto pDevice =
+      SKIF_D3D11_GetDevice ();
+
+    if (! pDevice)
+      return;
+
+    pTex2D = nullptr;
+
     if (
       SUCCEEDED (
         DirectX::CreateTexture (
-          (ID3D11Device *)g_pd3dDevice,
+          pDevice,
             pImg->GetImages (), pImg->GetImageCount (),
               meta, (ID3D11Resource **)&pTex2D.p
         )
@@ -481,20 +487,24 @@ LoadLibraryTexture (
         srv_desc.Texture2D.MipLevels       = UINT_MAX;
         srv_desc.Texture2D.MostDetailedMip =  0;
 
+        CComPtr <ID3D11ShaderResourceView>
+            pOrigTexSRV (pLibTexSRV.p);
+                         pLibTexSRV = nullptr;
+
       if (    pTex2D.p == nullptr ||
         FAILED (
-          g_pd3dDevice->CreateShaderResourceView (
+          pDevice->CreateShaderResourceView (
               pTex2D.p, &srv_desc,
             &pLibTexSRV.p
           )
         )
       )
       {
-        pLibTexSRV.p = nullptr;
+        pLibTexSRV = pOrigTexSRV;
       }
 
       // SRV is holding a reference, this is not needed anymore.
-      pTex2D.Release ();
+      pTex2D = nullptr;
     }
   }
 };
@@ -528,10 +538,18 @@ SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
 
         DirectX::PremultiplyAlpha (*img.GetImage (0,0,0), DirectX::TEX_PMALPHA_DEFAULT, pm_img);
 
+        auto pDevice =
+          SKIF_D3D11_GetDevice ();
+
+        if (! pDevice)
+          return;
+
+        pTex2D = nullptr;
+
         if (
           SUCCEEDED (
             DirectX::CreateTexture (
-              (ID3D11Device *)g_pd3dDevice,
+              pDevice,
                 pm_img.GetImages (), pm_img.GetImageCount (),
                   meta, (ID3D11Resource **)&pTex2D.p
             )
@@ -545,20 +563,24 @@ SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
             srv_desc.Texture2D.MipLevels       =  1;
             srv_desc.Texture2D.MostDetailedMip =  0;
 
+          CComPtr <ID3D11ShaderResourceView>
+            pOrigTexSRV (pTexSRV.p);
+                         pTexSRV = nullptr;
+
           if (   pTex2D.p == nullptr ||
             FAILED (
-              g_pd3dDevice->CreateShaderResourceView (
+              pDevice->CreateShaderResourceView (
                  pTex2D.p, &srv_desc,
                 &pTexSRV.p
               )
             )
           )
           {
-            pTexSRV.p = nullptr;
+            pTexSRV = pOrigTexSRV;
           }
 
           // SRV is holding a reference, this is not needed anymore.
-          pTex2D.Release ();
+          pTex2D = nullptr;
         }
       }
     }
@@ -601,130 +623,131 @@ using   app_ptr_t = app_entry_t const*;
 class Trie
 {
 public:
-	bool  isLeaf                = false;
+  bool  isLeaf                = false;
   Trie* character [CHAR_SIZE] = {   };
 
-	// Constructor
-	Trie (void)
-	{
-		this->isLeaf = false;
+  // Constructor
+  Trie (void)
+  {
+    this->isLeaf = false;
 
-		for (int i = 0; i < CHAR_SIZE; i++)
-			this->character [i] = nullptr;
-	}
+    for (int i = 0; i < CHAR_SIZE; i++)
+      this->character [i] = nullptr;
+  }
 
-	void insert       (        const std::string&);
-	bool deletion     (Trie*&, const std::string&);
-	bool search       (        const std::string&);
-	bool haveChildren (Trie const*);
+  void insert       (        const std::string&);
+  bool deletion     (Trie*&, const std::string&);
+  bool search       (        const std::string&);
+  bool haveChildren (Trie const*);
 };
 
 // Iterative function to insert a key in the Trie
 void
 Trie::insert (const std::string& key)
 {
-	// start from root node
-	Trie* curr = this;
-	for (size_t i = 0; i < key.length (); i++)
-	{
-		// create a new node if path doesn't exists
-		if (curr->character [key [i]] == nullptr)
-			  curr->character [key [i]]  = new Trie ();
+  // start from root node
+  Trie* curr = this;
+  for (size_t i = 0; i < key.length (); i++)
+  {
+    // create a new node if path doesn't exists
+    if (curr->character [key [i]] == nullptr)
+        curr->character [key [i]]  = new Trie ();
 
-		// go to next node
-		curr = curr->character [key [i]];
-	}
+    // go to next node
+    curr = curr->character [key [i]];
+  }
 
-	// mark current node as leaf
-	curr->isLeaf = true;
+  // mark current node as leaf
+  curr->isLeaf = true;
 }
 
 // Iterative function to search a key in Trie. It returns true
 // if the key is found in the Trie, else it returns false
 bool Trie::search (const std::string& key)
 {
-	Trie* curr = this;
-	for (size_t i = 0; i < key.length(); i++)
-	{
-		// go to next node
-		curr = curr->character[key[i]];
+  Trie* curr = this;
+  for (size_t i = 0; i < key.length (); i++)
+  {
+    // go to next node
+    curr = curr->character [key [i]];
 
-		// if string is invalid (reached end of path in Trie)
-		if (curr == nullptr)
-			return false;
-	}
+    // if string is invalid (reached end of path in Trie)
+    if (curr == nullptr)
+      return false;
+  }
 
-	// if current node is a leaf and we have reached the
-	// end of the string, return true
-	return curr->isLeaf;
+  // if current node is a leaf and we have reached the
+  // end of the string, return true
+  return curr->isLeaf;
 }
 
 // returns true if given node has any children
-bool Trie::haveChildren(Trie const* curr)
+bool Trie::haveChildren (Trie const* curr)
 {
-	for (int i = 0; i < CHAR_SIZE; i++)
-		if (curr->character[i])
-			return true;	// child found
+  for (int i = 0; i < CHAR_SIZE; i++)
+    if (curr->character [i])
+      return true;  // child found
 
-	return false;
+  return false;
 }
 
 // Recursive function to delete a key in the Trie
 bool Trie::deletion (Trie*& curr, const std::string& key)
 {
-	// return if Trie is empty
-	if (curr == nullptr)
-		return false;
+  // return if Trie is empty
+  if (curr == nullptr)
+    return false;
 
-	// if we have not reached the end of the key
-	if (key.length())
-	{
-		// recur for the node corresponding to next character in the key
-		// and if it returns true, delete current node (if it is non-leaf)
+  // if we have not reached the end of the key
+  if (key.length ())
+  {
+    // recur for the node corresponding to next character in the key
+    // and if it returns true, delete current node (if it is non-leaf)
 
-		if (curr != nullptr &&
-			curr->character[key[0]] != nullptr &&
-			deletion(curr->character[key[0]], key.substr(1)) &&
-			curr->isLeaf == false)
-		{
-			if (!haveChildren(curr))
-			{
-				delete curr;
-				curr = nullptr;
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-	}
+    if (        curr                      != nullptr       &&
+                curr->character [key [0]] != nullptr       &&
+      deletion (curr->character [key [0]], key.substr (1)) &&
+                curr->isLeaf == false)
+    {
+      if (! haveChildren (curr))
+      {
+        delete curr;
+        curr = nullptr;
+        return true;
+      }
 
-	// if we have reached the end of the key
-	if (key.length() == 0 && curr->isLeaf)
-	{
-		// if current node is a leaf node and don't have any children
-		if (!haveChildren(curr))
-		{
-			// delete current node
-			delete curr;
-			curr = nullptr;
+      else {
+        return false;
+      }
+    }
+  }
 
-			// delete non-leaf parent nodes
-			return true;
-		}
+  // if we have reached the end of the key
+  if (key.length () == 0 && curr->isLeaf)
+  {
+    // if current node is a leaf node and don't have any children
+    if (! haveChildren (curr))
+    {
+      // delete current node
+      delete curr;
+      curr = nullptr;
 
-		// if current node is a leaf node and have children
-		else
-		{
-			// mark current node as non-leaf node (DON'T DELETE IT)
-			curr->isLeaf = false;
+      // delete non-leaf parent nodes
+      return true;
+    }
 
-			// don't delete its parent nodes
-			return false;
-		}
-	}
+    // if current node is a leaf node and have children
+    else
+    {
+      // mark current node as non-leaf node (DON'T DELETE IT)
+      curr->isLeaf = false;
 
-	return false;
+      // don't delete its parent nodes
+      return false;
+    }
+  }
+
+  return false;
 }
 
 uint32_t manual_selection = 0;
@@ -786,7 +809,7 @@ SKIF_GameManagement_DrawTab (void)
 
     std::set <uint32_t> unique_apps;
 
-    if (SKIF_bDisableSteamLibrary)
+    if ( SKIF_bDisableSteamLibrary )
       return ret;
 
     appids =
@@ -841,25 +864,25 @@ SKIF_GameManagement_DrawTab (void)
 
     // Release textures
     for (auto& app : apps)
-      app.second.textures.icon.p = nullptr;
+      IUnknown_AtomicRelease ((void **)&app.second.textures.icon.p);
 
-    pTexSRV.p = nullptr;
+    pTexSRV = nullptr;
 
     // Clear cached lists
-    apps.clear();
-    appids.clear();
+    apps.clear   ();
+    appids.clear ();
 
     // Reset selection to Special K
-    appid = SKIF_STEAM_APPID;
-    update = true;
+    appid     = SKIF_STEAM_APPID;
+    update    = true;
 
-    populated       = false;
+    populated = false;
   }
 
   if (! populated)
   {
-    populated      = true;
-    apps           = PopulateAppRecords ();
+    populated = true;
+    apps      = PopulateAppRecords ();
 
     for (auto& app : apps)
       if (app.second.id == SKIF_STEAM_APPID)
@@ -882,7 +905,8 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     // Load GOG titles from registry
-    extern bool SKIF_bDisableGOGLibrary;
+    extern bool
+          SKIF_bDisableGOGLibrary;
     if (! SKIF_bDisableGOGLibrary)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
@@ -966,7 +990,7 @@ SKIF_GameManagement_DrawTab (void)
         else if (pApp != nullptr && pApp->store == "GOG")
         {
           SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-    
+
           if (libTexToLoad == LibraryTexture::Cover)
             SKIFCustomPath += L"cover";
           else
@@ -994,15 +1018,15 @@ SKIF_GameManagement_DrawTab (void)
               extern std::wstring GOGGalaxy_UserID;
               load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
 
-              HANDLE hFind = INVALID_HANDLE_VALUE;
-              WIN32_FIND_DATA ffd;
-
-              hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+              WIN32_FIND_DATA ffd   = { };
+              HANDLE          hFind =
+                FindFirstFile ((load_str + name).c_str (), &ffd);
 
               if (INVALID_HANDLE_VALUE != hFind)
               {
                 load_str += ffd.cFileName;
-                FindClose(hFind);
+
+                FindClose (hFind);
               }
             }
           }
@@ -1012,26 +1036,24 @@ SKIF_GameManagement_DrawTab (void)
         else if (pApp != nullptr && pApp->store == "Steam")
         {
           static unsigned long SteamUserID = 0;
-     
+
           if (SteamUserID == 0)
           {
-            HKEY hKey;
-            WCHAR szData[255];
-            DWORD dwSize = sizeof(szData);
-            PVOID pvData = szData;
+            WCHAR                    szData [255] = { };
+            DWORD   dwSize = sizeof (szData);
+            PVOID   pvData =         szData;
+            CRegKey hKey ((HKEY)0);
 
-            if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+            if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
             {
-              if (RegGetValueW(hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
                 SteamUserID = *(DWORD*)pvData;
-
-              RegCloseKey(hKey);
             }
           }
 
           SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
           SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
-    
+
           if (libTexToLoad == LibraryTexture::Cover)
             SKIFCustomPath += L"cover";
           else
@@ -1120,11 +1142,19 @@ SKIF_GameManagement_DrawTab (void)
                 pImg = &converted_img; }
           }
 
+          auto pDevice =
+            SKIF_D3D11_GetDevice ();
+
+          if (! pDevice)
+            return;
+
+          pTex2D = nullptr;
+
           if (
             SUCCEEDED (
               DirectX::CreateTexture (
-                (ID3D11Device *)g_pd3dDevice,
-                  pImg->GetImages (), pImg->GetImageCount (),
+                pDevice, pImg->GetImages     (),
+                         pImg->GetImageCount (),
                     meta, (ID3D11Resource **)&pTex2D.p
               )
             )
@@ -1137,20 +1167,24 @@ SKIF_GameManagement_DrawTab (void)
               srv_desc.Texture2D.MipLevels       = UINT_MAX;
               srv_desc.Texture2D.MostDetailedMip =  0;
 
+            CComPtr <ID3D11ShaderResourceView>
+              pOrigTexSRV (pLibTexSRV.p);
+                           pLibTexSRV = nullptr;
+
             if (    pTex2D.p == nullptr ||
               FAILED (
-                g_pd3dDevice->CreateShaderResourceView (
+                pDevice->CreateShaderResourceView (
                     pTex2D.p, &srv_desc,
                   &pLibTexSRV.p
                 )
               )
             )
             {
-              pLibTexSRV.p = nullptr;
+              pLibTexSRV = pOrigTexSRV;
             }
 
             // SRV is holding a reference, this is not needed anymore.
-            pTex2D.Release ();
+            pTex2D = nullptr;
           }
         }
       };
@@ -1341,39 +1375,39 @@ SKIF_GameManagement_DrawTab (void)
     {
       // Column 1: Icons
 
-      ImGui::BeginGroup     ( );
+      ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
-      
-      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomCover)
-        ImGui::ItemSize     (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::Separator      (  );
-      ImGui::PopStyleColor  (  );
-      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::Separator  (  );
+      ImGui::PopStyleColor (  );
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
 
-      ImGui::EndGroup       (  );
+      ImGui::EndGroup   (  );
 
-      ImGui::SameLine       (  );
+      ImGui::SameLine   (  );
 
       // Column 2: Items
       ImGui::BeginGroup (  );
       bool dontCare = false;
       if (ImGui::Selectable ("Set Custom Artwork",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-	      IFileOpenDialog  *pFileOpen;
+        IFileOpenDialog  *pFileOpen;
         COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png" };
 
-	      PWSTR pszFilePath = NULL;
+        PWSTR pszFilePath = NULL;
 
         CoInitializeEx (nullptr, 0x0);
 
-	      // Create the FileOpenDialog object.
-	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+        // Create the FileOpenDialog object.
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                        IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
-	      if (SUCCEEDED(hr))
-	      {
+        if (SUCCEEDED(hr))
+        {
           IShellItem* psiDefaultFolder;
           if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
           {
@@ -1382,13 +1416,13 @@ SKIF_GameManagement_DrawTab (void)
           }
           pFileOpen->SetFileTypes(1, &fileTypes);
 
-		      if (SUCCEEDED(pFileOpen->Show(NULL)))
-		      {
-			      IShellItem *pItem;
+          if (SUCCEEDED(pFileOpen->Show(NULL)))
+          {
+            IShellItem *pItem;
 
-			      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-			      {
-				      if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
+            if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+            {
+              if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
               {
                 std::wstring targetPath = L"";
                 std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
@@ -1416,11 +1450,11 @@ SKIF_GameManagement_DrawTab (void)
                 }
               }
 
-				      pItem->Release();
-			      }
-		      }
-		      pFileOpen->Release();
-	      }
+              pItem->Release();
+            }
+          }
+          pFileOpen->Release();
+        }
       }
       else
       {
@@ -1432,7 +1466,7 @@ SKIF_GameManagement_DrawTab (void)
         if (ImGui::Selectable ("Clear Custom Artwork", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           std::wstring targetPath = L"";
-        
+
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "SKIF")
@@ -1453,7 +1487,7 @@ SKIF_GameManagement_DrawTab (void)
             if (d1 || d2)
             {
               // Release current artwork
-              pTexSRV.p = nullptr;
+              pTexSRV = nullptr;
 
               update = true;
             }
@@ -1523,7 +1557,7 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
     ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
 
-    bool        clicked = 
+    bool        clicked =
     ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
                                                              200.0F * SKIF_ImGui_GlobalDPIScale),
                                                      ImVec2 (0.f,       0.f),
@@ -1565,7 +1599,7 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::SameLine           ( );
     ImGui::Spacing            ( );
     ImGui::SameLine           ( );
-    
+
     ImGui::PushStyleColor     (ImGuiCol_Text,           ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
     ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
     ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
@@ -1581,7 +1615,7 @@ SKIF_GameManagement_DrawTab (void)
 
     ImGui::EndChild           ( );
     ImGui::PopStyleColor      ( );
-    
+
     hoveredPatCredits = hoveredPatCredits ||
     ImGui::IsItemHovered      ( );
 
@@ -1635,7 +1669,7 @@ SKIF_GameManagement_DrawTab (void)
                                  load_str,
                                    pApp );
     }
-    
+
     // STEAM
     else if (pApp->store == "Steam") {
 
@@ -1827,7 +1861,7 @@ SKIF_GameManagement_DrawTab (void)
       //           cursorPos.y + 8 /* 16 + 4 * (cursorScale - 1) */ )
       //);
 
-      //ImGui::SetNextWindowSize (ImVec2 (0.0f, 0.0f));      
+      //ImGui::SetNextWindowSize (ImVec2 (0.0f, 0.0f));
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal("KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
@@ -1915,7 +1949,7 @@ SKIF_GameManagement_DrawTab (void)
         cache.running = pTargetApp->_status.running;
 
         cache.service = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
-                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) || 
+                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
                         (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
                                                                                                              _inject.pid64));
 
@@ -2082,11 +2116,11 @@ SKIF_GameManagement_DrawTab (void)
         SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
         //SKIF_ImGui_SetHoverTip        ("Open the config file");
 
-        
+
         if ( ! ImGui::IsPopupOpen ("ConfigFileMenu") &&
                ImGui::IsItemClicked (ImGuiMouseButton_Right))
           ImGui::OpenPopup      ("ConfigFileMenu");
-        
+
         if (ImGui::BeginPopup ("ConfigFileMenu"))
         {
           ImGui::TextColored (
@@ -2174,7 +2208,7 @@ Cache=false)";
                                 );
 
       quickServiceHover = ImGui::IsItemHovered ();
-      
+
       if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
               ImGui::IsItemClicked (ImGuiMouseButton_Right))
         ImGui::OpenPopup ("ServiceMenu");
@@ -2336,7 +2370,7 @@ Cache=false)";
 
       if (pTargetApp->_status.running)
         ImGui::PopStyleVar ();
-      
+
       if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
           ! openedGameContextMenu)
       {
@@ -2351,7 +2385,7 @@ Cache=false)";
 
   static
     app_record_s *pApp = nullptr;
-  
+
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( _WIDTH2,
@@ -2442,7 +2476,7 @@ Cache=false)";
 
     // If not game, skip
   //if (app.second.type != "Game")
-  //  continue; // This doesn't work since its reliant on loading the manifest, which is only done when an item is actually selected    
+  //  continue; // This doesn't work since its reliant on loading the manifest, which is only done when an item is actually selected
 
     bool selected = (appid == app.second.id);
     bool change   = false;
@@ -2627,7 +2661,7 @@ Cache=false)";
       pApp = &app.second;
     }
   }
-  
+
   float fOriginalY =
     ImGui::GetCursorPosY ( );
 
@@ -2706,7 +2740,7 @@ Cache=false)";
         { pApp->specialk.injection.injection.bitness, InjectionPoint::OpenGL,  L"OpenGL32", L"" },
         { pApp->specialk.injection.injection.bitness, InjectionPoint::DInput8, L"dinput8",  L"" }
       };
-      
+
       // Assume Global 32-bit if we don't know otherwise
       bool bIs64Bit =
         ( pApp->specialk.injection.injection.bitness ==
@@ -2828,7 +2862,7 @@ Cache=false)";
     }
   }
 
-  
+
 
   if (ImGui::BeginPopup ("IconMenu"))
   {
@@ -2836,39 +2870,39 @@ Cache=false)";
     {
       // Column 1: Icons
 
-      ImGui::BeginGroup     ( );
+      ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
 
-      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomIcon)
-        ImGui::ItemSize     (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::Separator      (  );
-      ImGui::PopStyleColor  (  );
-      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::Separator  (  );
+      ImGui::PopStyleColor (  );
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
 
-      ImGui::EndGroup       (  );
+      ImGui::EndGroup   (  );
 
-      ImGui::SameLine       (  );
+      ImGui::SameLine   (  );
 
       // Column 2: Items
       ImGui::BeginGroup (  );
       bool dontCare = false;
       if (ImGui::Selectable ("Set Custom Icon",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-	      IFileOpenDialog  *pFileOpen;
+        IFileOpenDialog  *pFileOpen;
         COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png;*.ico" };
 
-	      PWSTR pszFilePath = NULL;
+        PWSTR pszFilePath = NULL;
 
         CoInitializeEx (nullptr, 0x0);
 
-	      // Create the FileOpenDialog object.
-	      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-		                    IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+        // Create the FileOpenDialog object.
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                        IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
-	      if (SUCCEEDED(hr))
-	      {
+        if (SUCCEEDED(hr))
+        {
           IShellItem* psiDefaultFolder;
           if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
           {
@@ -2877,12 +2911,12 @@ Cache=false)";
           }
           pFileOpen->SetFileTypes(1, &fileTypes);
 
-		      if (SUCCEEDED(pFileOpen->Show(NULL)))
-		      {
-			      IShellItem *pItem;
+          if (SUCCEEDED(pFileOpen->Show(NULL)))
+          {
+            IShellItem *pItem;
 
-			      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-			      {
+            if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+            {
               if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
               {
                 std::wstring targetPath = L"";
@@ -2923,11 +2957,11 @@ Cache=false)";
                 }
               }
 
-				      pItem->Release();
-			      }
-		      }
-		      pFileOpen->Release();
-	      }
+              pItem->Release();
+            }
+          }
+          pFileOpen->Release();
+        }
       }
       else
       {
@@ -2939,7 +2973,7 @@ Cache=false)";
         if (ImGui::Selectable ("Clear Custom Icon",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           std::wstring targetPath = L"";
-        
+
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str());
           else if (pApp->store == "SKIF")
@@ -2952,7 +2986,7 @@ Cache=false)";
           if (PathFileExists(targetPath.c_str()))
           {
             targetPath += L"icon";
-          
+
             bool d1 = DeleteFile ((targetPath + L".png").c_str()),
                  d2 = DeleteFile ((targetPath + L".jpg").c_str()),
                  d3 = DeleteFile ((targetPath + L".ico").c_str());
@@ -2963,7 +2997,7 @@ Cache=false)";
               // Release current icon
               if (pApp->textures.icon.p != nullptr)
               pApp->textures.icon.p = nullptr;
-          
+
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
@@ -3037,7 +3071,7 @@ Cache=false)";
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu"))
   {
     bool dontCare = false;
-
+    
     ImGui::BeginGroup     ( );
     ImVec2 iconPos = ImGui::GetCursorPos();
     ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PLUS_SQUARE).x, ImGui::GetTextLineHeight()));
@@ -3050,20 +3084,19 @@ Cache=false)";
     ImGui::SameLine       ( );
 
     ImGui::BeginGroup     ( );
-    if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
-      AddGamePopup = PopupState::Open;
+     if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+       AddGamePopup = PopupState::Open;
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
     if (ImGui::Selectable ("Refresh",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
       RepopulateGames = true;
     ImGui::EndGroup       ( );
-    
+
     ImGui::SetCursorPos   (iconPos);
     ImGui::Text           (ICON_FA_PLUS_SQUARE);
     ImGui::Separator      ( );
     ImGui::Text           (ICON_FA_REDO);
-
     ImGui::EndPopup       ( );
   }
 
@@ -3182,7 +3215,7 @@ Cache=false)";
           ImGui::GetCursorPosY () +
           ImGui::GetStyle      ().ItemSpacing.y / 2.0f
         );
-      
+
         if ( ImGui::BeginMenu ("Disable Special K") )
         {
           for ( auto& launch : pApp->launch_configs )
@@ -3206,7 +3239,7 @@ Cache=false)";
   ImGui::EndGroup     (                  );
   ImGui::EndChild     (                  );
   ImGui::EndGroup     (                  );
-  
+
   if (openedGameContextMenu)
   {
     ImGui::OpenPopup    ("GameContextMenu");
@@ -3262,7 +3295,7 @@ Cache=false)";
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
                 clickedGalaxyLaunch = true;
-              
+
               ImGui::PushStyleColor ( ImGuiCol_Text,
                 (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f));
 
@@ -3346,21 +3379,21 @@ Cache=false)";
       // Special K is selected -- relevant show quick links
       else
       {
-        ImGui::BeginGroup     ( );
-        ImVec2 iconPos = ImGui::GetCursorPos ( );
+        ImGui::BeginGroup  ( );
+        ImVec2 iconPos = ImGui::GetCursorPos();
 
-        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_OPEN).x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_OPEN).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
         ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-        ImGui::Separator      (  );
-        ImGui::PopStyleColor  (  );
-        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
+        ImGui::Separator  (  );
+        ImGui::PopStyleColor (  );
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
 
-        ImGui::EndGroup       (  );
-        ImGui::SameLine       (  );
-        ImGui::BeginGroup     (  );
+        ImGui::EndGroup   (  );
+        ImGui::SameLine   (  );
+        ImGui::BeginGroup (  );
         bool dontCare = false;
 
         if (ImGui::Selectable ("Wiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
@@ -3414,7 +3447,7 @@ Cache=false)";
         ImGui::EndGroup   ( );
 
         ImGui::SetCursorPos(iconPos);
-        
+
         ImGui::TextColored (
                ImColor   (24, 118, 210, 255).Value,
                  ICON_FA_BOOK_OPEN
@@ -3666,7 +3699,7 @@ Cache=false)";
       {
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
       }
-      
+
       else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
@@ -3689,11 +3722,11 @@ Cache=false)";
                                         );
       }
 
-      std::wstring pcgwLink = 
+      std::wstring pcgwLink =
         (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%ws"
                                : (pApp->store == "Steam") ? L"http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
                                                           : L"https://www.pcgamingwiki.com/w/index.php?search=%ws&title=Special%3ASearch";
-      std::wstring pcgwValue = 
+      std::wstring pcgwValue =
         (pApp->store == "SKIF") ? SK_UTF8ToWideChar (pApp->names.normal)
                                 : std::to_wstring   (pApp->id);
 
@@ -3704,7 +3737,7 @@ Cache=false)";
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       ( 
+        SKIF_ImGui_SetHoverText       (
           SK_WideCharToUTF8 (
             SK_FormatStringW ( pcgwLink.c_str(), pcgwValue.c_str() )
           ).c_str()
@@ -3777,14 +3810,14 @@ Cache=false)";
                ImColor   (200, 200, 200, 255).Value,
                  ICON_FA_TOOLS
                            );
-      
+
       if (pApp->store == "GOG")
       {
         ImGui::TextColored (
          ImColor   (155, 89, 182, 255).Value,
            ICON_FA_DATABASE );
       }
-      
+
       else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
@@ -3814,7 +3847,7 @@ Cache=false)";
     RemoveGamePopup = PopupState::Opened;
   }
 
-  
+
   float fRemoveGamePopupWidth = 360.0f * SKIF_ImGui_GlobalDPIScale;
   ImGui::SetNextWindowSize (ImVec2 (fRemoveGamePopupWidth, 0.0f));
 
@@ -3825,12 +3858,12 @@ Cache=false)";
     SKIF_ImGui_Spacing ( );
 
     ImGui::Text        ("Do you want to remove this game from SKIF?");
-    
+
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
 
     ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-    
+
     ImGui::SetCursorPosX (fRemoveGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     if (ImGui::Button  ("Yes", vButtonSize))
@@ -3842,7 +3875,7 @@ Cache=false)";
 
         // Release textures
         pApp->textures.icon.p = nullptr;
-        pTexSRV.p = nullptr;
+        pTexSRV = nullptr;
 
         // Reset selection to Special K
         appid = SKIF_STEAM_APPID;
@@ -3858,7 +3891,7 @@ Cache=false)";
     }
 
     ImGui::SameLine    ( );
-    
+
     ImGui::SetCursorPosX (fRemoveGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     if (ImGui::Button  ("No", vButtonSize))
@@ -3866,7 +3899,7 @@ Cache=false)";
       RemoveGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );
     }
-    
+
     SKIF_ImGui_Spacing ( );
 
     ImGui::TreePop     ( );
@@ -3899,9 +3932,9 @@ Cache=false)";
                 charPath     [MAX_PATH],
                 charArgs     [MAX_PATH];
     static bool error = false;
-    
+
     ImGui::TreePush    ("");
-    
+
     SKIF_ImGui_Spacing ( );
 
     ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
@@ -3915,12 +3948,12 @@ Cache=false)";
 
       CoInitializeEx (nullptr, 0x0);
 
-	    // Create the FileOpenDialog object.
-	    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-		                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+      // Create the FileOpenDialog object.
+      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                      IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
-	    if (SUCCEEDED(hr))
-	    {
+      if (SUCCEEDED(hr))
+      {
         IShellItem* psiDefaultFolder;
         if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
         {
@@ -3930,12 +3963,12 @@ Cache=false)";
         pFileOpen->SetFileTypes(1, &fileTypes);
         pFileOpen->SetOptions(FOS_NODEREFERENCELINKS);
 
-		    if (SUCCEEDED(pFileOpen->Show(NULL)))
-		    {
-			    IShellItem *pItem;
+        if (SUCCEEDED(pFileOpen->Show(NULL)))
+        {
+          IShellItem *pItem;
 
-			    if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-			    {
+          if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+          {
             if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
             {
               error = false;
@@ -3946,11 +3979,11 @@ Cache=false)";
                 WCHAR szTarget   [MAX_PATH];
                 WCHAR szArguments[MAX_PATH];
 
-                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,        MAX_PATH);
+                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
 
                 std::filesystem::path p2 = szTarget;
                 std::wstring productName = SKIF_GetProductName (p2.c_str());
-
+                
                 strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
                 strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               MAX_PATH);
                 strncpy (charName, (productName != L"")
@@ -3971,11 +4004,11 @@ Cache=false)";
               }
             }
 
-				    pItem->Release();
-			    }
-		    }
-		    pFileOpen->Release();
-	    }
+            pItem->Release();
+          }
+        }
+        pFileOpen->Release();
+      }
     }
     ImGui::SameLine    ( );
 
@@ -4007,15 +4040,15 @@ Cache=false)";
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, MAX_PATH, ImVec2(0,0), ImGuiInputTextFlags_None);
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
-    
+
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
-    
+
     ImGui::SetCursorPosX (fAddGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
-    
+
     bool disabled = false;
 
-    if ((charName[0] == '\0' || std::isspace(charName[0])) || 
+    if ((charName[0] == '\0' || std::isspace(charName[0])) ||
         (charPath[0] == '\0' || std::isspace(charPath[0])))
       disabled = true;
 
@@ -4042,7 +4075,7 @@ Cache=false)";
       strncpy (charArgs, "\0", MAX_PATH);
 
       // Release current cover texture
-      pTexSRV.p = nullptr;
+      pTexSRV = nullptr;
 
       // Change selection to Special K
       appid = newAppId;
@@ -4055,7 +4088,7 @@ Cache=false)";
       AddGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );
     }
-    
+
     if (disabled)
     {
       ImGui::PopItemFlag ( );
@@ -4063,7 +4096,7 @@ Cache=false)";
     }
 
     ImGui::SameLine    ( );
-    
+
     ImGui::SetCursorPosX (fAddGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     if (ImGui::Button  ("Cancel", vButtonSize))
@@ -4076,7 +4109,7 @@ Cache=false)";
       AddGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );
     }
-    
+
     SKIF_ImGui_Spacing ( );
 
     ImGui::TreePop     ( );
@@ -4110,9 +4143,9 @@ Cache=false)";
 
       ModifyGamePopup = PopupState::Opened;
     }
-    
+
     ImGui::TreePush    ("");
-    
+
     SKIF_ImGui_Spacing ( );
 
     ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
@@ -4125,12 +4158,12 @@ Cache=false)";
 
       CoInitializeEx (nullptr, 0x0);
 
-	    // Create the FileOpenDialog object.
-	    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-		                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+      // Create the FileOpenDialog object.
+      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                      IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
-	    if (SUCCEEDED(hr))
-	    {
+      if (SUCCEEDED(hr))
+      {
         IShellItem* psiDefaultFolder;
         if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
         {
@@ -4139,12 +4172,12 @@ Cache=false)";
         }
         pFileOpen->SetFileTypes(1, &fileTypes);
 
-		    if (SUCCEEDED(pFileOpen->Show(NULL)))
-		    {
-			    IShellItem *pItem;
+        if (SUCCEEDED(pFileOpen->Show(NULL)))
+        {
+          IShellItem *pItem;
 
-			    if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-			    {
+          if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+          {
             if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
             {
               error = false;
@@ -4157,11 +4190,11 @@ Cache=false)";
               error = true;
             }
 
-				    pItem->Release();
-			    }
-		    }
-		    pFileOpen->Release();
-	    }
+            pItem->Release();
+          }
+        }
+        pFileOpen->Release();
+      }
     }
     ImGui::SameLine    ( );
 
@@ -4193,15 +4226,15 @@ Cache=false)";
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, MAX_PATH, ImVec2(0,0), ImGuiInputTextFlags_None);
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
-    
+
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
-    
+
     ImGui::SetCursorPosX (fModifyGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
-    
+
     bool disabled = false;
 
-    if ((charName[0] == '\0' || std::isspace(charName[0])) || 
+    if ((charName[0] == '\0' || std::isspace(charName[0])) ||
         (charPath[0] == '\0' || std::isspace(charPath[0])))
       disabled = true;
 
@@ -4253,7 +4286,7 @@ Cache=false)";
                 break;
               }
             }
-            
+
             std::string trie_builder;
 
             for ( const char c : all_upper)
@@ -4275,7 +4308,7 @@ Cache=false)";
         strncpy (charArgs, "\0", MAX_PATH);
 
         update = true;
-        
+
         ModifyGamePopup = PopupState::Closed;
         ImGui::CloseCurrentPopup();
       }
@@ -4288,7 +4321,7 @@ Cache=false)";
     }
 
     ImGui::SameLine    ( );
-    
+
     ImGui::SetCursorPosX (fModifyGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     if (ImGui::Button  ("Cancel", vButtonSize))
@@ -4301,7 +4334,7 @@ Cache=false)";
       ModifyGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );
     }
-    
+
     SKIF_ImGui_Spacing ( );
 
     ImGui::TreePop     ( );

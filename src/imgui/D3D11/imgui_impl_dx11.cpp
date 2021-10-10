@@ -1052,20 +1052,20 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.SampleDesc.Quality = 0;
 
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swap_desc.BufferCount  = 
+  swap_desc.BufferCount  =
            SKIF_bCanFlip ? 3
                          : 2;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
-  swap_desc.SwapEffect   = 
+  swap_desc.SwapEffect   =
     SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
                          : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
                                          : DXGI_SWAP_EFFECT_DISCARD;
-  swap_desc.Flags = 
+  swap_desc.Flags =
     SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                          : 0x0;
 
-  swap_desc.Flags |= 
+  swap_desc.Flags |=
       SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
                          : 0x0;
 
@@ -1299,25 +1299,25 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   if (data->WaitHandle)
   {
-    CComQIPtr <IDXGISwapChain3> 
+    CComQIPtr <IDXGISwapChain3>
       pSwap3 (data->SwapChain);
-  
+
     DWORD dwWaitState =
       WaitForSingleObject (data->WaitHandle, INFINITE);
-    
+
     if (dwWaitState == WAIT_OBJECT_0)
     {
       DXGI_PRESENT_PARAMETERS                                 pparams = { };
-      pSwap3->Present1 ( Interval, SKIF_bAllowTearing ?
-                           DXGI_PRESENT_ALLOW_TEARING : 0x0, &pparams );
+      pSwap3->Present1 ( Interval, DXGI_PRESENT_RESTART | (SKIF_bAllowTearing ?
+                           DXGI_PRESENT_ALLOW_TEARING : 0x0), &pparams );
       data->PresentCount++;
     }
   }
-  
+
   else
   {
-    data->SwapChain->Present ( Interval, SKIF_bAllowTearing ?
-                                 DXGI_PRESENT_ALLOW_TEARING : 0x0 );
+    data->SwapChain->Present ( Interval, DXGI_PRESENT_RESTART | (SKIF_bAllowTearing ?
+                                 DXGI_PRESENT_ALLOW_TEARING : 0x0) );
     data->PresentCount++;
   }
 }

@@ -52,9 +52,6 @@
     <Filter Include="Header Files\ImGui\Backends\D3D11">
       <UniqueIdentifier>{444c152e-6991-45d2-acb5-69bb839615ac}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\ImGui\Backends\D3D12">
-      <UniqueIdentifier>{98d00adb-6822-42d4-a269-d37dd46007f8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Config">
       <UniqueIdentifier>{640440ea-60dc-4dc4-ac3b-e429b4279aa1}</UniqueIdentifier>
     </Filter>
@@ -278,9 +275,6 @@
     </ClInclude>
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
       <Filter>Header Files\ImGui\Backends\D3D11</Filter>
-    </ClInclude>
-    <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h">
-      <Filter>Header Files\ImGui\Backends\D3D12</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\library.h">
       <Filter>Header Files\Stores\Steam</Filter>

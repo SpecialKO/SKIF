@@ -297,7 +297,6 @@
     <ClInclude Include="include\font_awesome.h" />
     <ClInclude Include="include\fsutil.h" />
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
-    <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
     <ClInclude Include="include\imgui\imgui_impl_win32.h" />

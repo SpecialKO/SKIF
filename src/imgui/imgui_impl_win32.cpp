@@ -1265,13 +1265,13 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 
   /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
   *    over to ImGuiConfigFlags_DpiEnableScaleFonts
-  
+
   ImGuiStyle default_style =
     SKIF_ImGui_DefaultStyle;
 
   ImGuiStyle &style =
     ImGui::GetStyle ();
-  
+
   if (SKIF_bDPIScaling)
   {
     //default_style.WindowPadding    = ImVec2(0, 0);
