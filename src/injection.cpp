@@ -705,14 +705,16 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (_inject.SKVer32 >= "21.08.12")
 #endif
     {
-      if (ImGui::Checkbox ("Stop on successful injection", &SKIF_bStopOnInjection))
+      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+
+      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
+                              "when Special K is injected into a whitelisted game.");
     }
 
     else {
       ImGui::TextColored  (ImColor::HSV (0.11F, 1.F, 1.F), "Auto-stop is not available due to Special K being outdated.");
-      SKIF_ImGui_SetHoverTip ("The \"stop on successful injection\" feature"
-                             "\nrequires Special K v21.08.12 or newer.");
+      SKIF_ImGui_SetHoverTip ("The feature requires Special K v21.08.12 or newer.");
     }
   }
 
@@ -1157,13 +1159,10 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
   ImGui::EndGroup      ();
 }
 
-void
-InitializeJumpList (void);
-
 HRESULT
 SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
-  CoInitializeEx (nullptr, 0x0);
+  //CoInitializeEx (nullptr, 0x0); // Breaks overlay on start
 
   CComPtr <ITaskbarList3> taskbar;
   if ( SUCCEEDED (
@@ -1172,21 +1171,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
      ) )
   {
     extern HWND SKIF_hWnd;
-
-    //HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF));
     HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIFON));
-
-    /*
-    SHSTOCKICONINFO
-      sii        = {          };
-      sii.cbSize = sizeof (sii);
-
-    if ( SUCCEEDED (
-           SHGetStockIconInfo ( SIID_INFO,
-                                  SHGSI_ICON | SHGSI_LARGEICON,
-                                    &sii )
-       ) )
-    */
 
     if (hIcon != NULL)
     {
@@ -1195,11 +1180,8 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
       else
         taskbar->SetOverlayIcon (SKIF_hWnd, NULL, NULL);
 
-      //DestroyIcon (sii.hIcon);
       DestroyIcon (hIcon);
-
       bTaskbarOverlayIcon = show;
-
       return S_OK;
     }
   }
@@ -1337,15 +1319,24 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
   }
 }
 
-bool SKIF_InjectionContext::_TestUserList(const char* wszExecutable, bool whitelist_)
+bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
 {
   if (  whitelist_ && *whitelist == '\0' ||
       ! whitelist_ && *blacklist == '\0')
     return false;
 
-  if (  whitelist_ && StrStrIA(wszExecutable, "SteamApps") != NULL ||
-      ! whitelist_ && StrStrIA(wszExecutable, "GameBar")   != NULL ||
-      ! whitelist_ && StrStrIA(wszExecutable, "Launcher")  != NULL )
+  if (  whitelist_ && StrStrIA (szExecutable, "SteamApps") != NULL ||
+      ! whitelist_ && StrStrIA (szExecutable, "GameBar"  ) != NULL /* ||
+      ! whitelist_ && StrStrIA(szExecutable, "Launcher") != NULL */ )
+    return true;
+
+  // Check if the executable filename has "launcher" in it:
+  // TODO: Confirm this shit works!
+  char     szExecutableCopy [MAX_PATH] = { };
+  strncpy (szExecutableCopy, szExecutable, MAX_PATH);
+  PathStripPathA (szExecutableCopy);
+
+  if (! whitelist_ && StrStrIA (szExecutableCopy, "Launcher") != NULL )
     return true;
 
   std::istringstream iss(  (whitelist_)
@@ -1356,7 +1347,7 @@ bool SKIF_InjectionContext::_TestUserList(const char* wszExecutable, bool whitel
   {
     std::regex regexp (line, std::regex_constants::icase);
 
-    if (std::regex_search(wszExecutable, regexp))
+    if (std::regex_search(szExecutable, regexp))
       return true;
   }
 
@@ -1394,8 +1385,6 @@ SKIF_InjectionContext::_InitializeJumpList (void)
 {
   CoInitializeEx (nullptr, 0x0);
 
-  HRESULT                            hres;
-
   CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
   CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
@@ -1405,20 +1394,16 @@ SKIF_InjectionContext::_InitializeJumpList (void)
 
   TCHAR                                    szExePath[MAX_PATH];
   GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
-
-  hres = pDestList.CoCreateInstance(CLSID_DestinationList);                     // Create a jump list COM object.
-
-  if     (SUCCEEDED(hres))
+       
+  // Create a jump list COM object.
+  if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
   {
     pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS(&pRemovedItems));
 
-    hres = pObjColl.CoCreateInstance(CLSID_EnumerableObjectCollection);
-
-    if   (SUCCEEDED(hres))
+    if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
     {
       // Task #1: Start Injection
-      hres = pLink.CoCreateInstance (CLSID_ShellLink);
-      if (SUCCEEDED(hres))
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 
@@ -1436,8 +1421,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       }
 
       // Task #2: Start Injection (stop on inject)
-      hres = pLink.CoCreateInstance (CLSID_ShellLink);
-      if (SUCCEEDED(hres))
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 
@@ -1456,8 +1440,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       }
 
       // Task #3: Stop Injection
-      hres = pLink.CoCreateInstance (CLSID_ShellLink);
-      if (SUCCEEDED(hres))
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 

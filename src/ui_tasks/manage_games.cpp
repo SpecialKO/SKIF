@@ -786,9 +786,11 @@ SKIF_GameManagement_DrawTab (void)
 
     std::set <uint32_t> unique_apps;
 
-    if (! SKIF_bDisableSteamLibrary)
-      appids =
-        SK_Steam_GetInstalledAppIDs ();
+    if (SKIF_bDisableSteamLibrary)
+      return ret;
+
+    appids =
+      SK_Steam_GetInstalledAppIDs ();
 
     for ( auto app : appids )
     {
@@ -1339,20 +1341,20 @@ SKIF_GameManagement_DrawTab (void)
     {
       // Column 1: Icons
 
-      ImGui::BeginGroup  ( );
+      ImGui::BeginGroup     ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
       
-      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomCover)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
-      ImGui::Separator  (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
-      ImGui::PopStyleColor (  );
+        ImGui::ItemSize     (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+      ImGui::Separator      (  );
+      ImGui::PopStyleColor  (  );
+      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
 
-      ImGui::EndGroup   (  );
+      ImGui::EndGroup       (  );
 
-      ImGui::SameLine   (  );
+      ImGui::SameLine       (  );
 
       // Column 2: Items
       ImGui::BeginGroup (  );
@@ -2834,20 +2836,20 @@ Cache=false)";
     {
       // Column 1: Icons
 
-      ImGui::BeginGroup  ( );
+      ImGui::BeginGroup     ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
 
-      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomIcon)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
-      ImGui::Separator  (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
-      ImGui::PopStyleColor (  );
+        ImGui::ItemSize     (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+      ImGui::Separator      (  );
+      ImGui::PopStyleColor  (  );
+      ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
 
-      ImGui::EndGroup   (  );
+      ImGui::EndGroup       (  );
 
-      ImGui::SameLine   (  );
+      ImGui::SameLine       (  );
 
       // Column 2: Items
       ImGui::BeginGroup (  );
@@ -3034,18 +3036,34 @@ Cache=false)";
 
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu"))
   {
-    ImVec2 iconPos = ImGui::GetCursorPos();
     bool dontCare = false;
 
-    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::BeginGroup     ( );
+    ImVec2 iconPos = ImGui::GetCursorPos();
     ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PLUS_SQUARE).x, ImGui::GetTextLineHeight()));
+    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::Separator      ( );
+    ImGui::PopStyleColor  ( );
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_REDO).x, ImGui::GetTextLineHeight()));
+    ImGui::EndGroup       ( );
+
     ImGui::SameLine       ( );
 
+    ImGui::BeginGroup     ( );
     if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       AddGamePopup = PopupState::Open;
-
+    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::Separator      ( );
+    ImGui::PopStyleColor  ( );
+    if (ImGui::Selectable ("Refresh",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      RepopulateGames = true;
+    ImGui::EndGroup       ( );
+    
     ImGui::SetCursorPos   (iconPos);
     ImGui::Text           (ICON_FA_PLUS_SQUARE);
+    ImGui::Separator      ( );
+    ImGui::Text           (ICON_FA_REDO);
+
     ImGui::EndPopup       ( );
   }
 
@@ -3328,21 +3346,21 @@ Cache=false)";
       // Special K is selected -- relevant show quick links
       else
       {
-        ImGui::BeginGroup  ( );
-        ImVec2 iconPos = ImGui::GetCursorPos();
+        ImGui::BeginGroup     ( );
+        ImVec2 iconPos = ImGui::GetCursorPos ( );
 
+        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_OPEN).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
         ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_OPEN).x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
-        ImGui::Separator  (  );
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
-        ImGui::PopStyleColor (  );
+        ImGui::Separator      (  );
+        ImGui::PopStyleColor  (  );
+        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
 
-        ImGui::EndGroup   (  );
-        ImGui::SameLine   (  );
-        ImGui::BeginGroup (  );
+        ImGui::EndGroup       (  );
+        ImGui::SameLine       (  );
+        ImGui::BeginGroup     (  );
         bool dontCare = false;
 
         if (ImGui::Selectable ("Wiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
@@ -3928,17 +3946,24 @@ Cache=false)";
                 WCHAR szTarget   [MAX_PATH];
                 WCHAR szArguments[MAX_PATH];
 
-                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,        MAX_PATH);
 
                 std::filesystem::path p2 = szTarget;
+                std::wstring productName = SKIF_GetProductName (p2.c_str());
 
-                strncpy (charPath, SK_WideCharToUTF8(szTarget).c_str(),                  MAX_PATH);
-                strncpy (charArgs, SK_WideCharToUTF8(szArguments).c_str(),               MAX_PATH);
-                strncpy (charName, p2.replace_extension().filename().u8string().c_str(), MAX_PATH);
+                strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
+                strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               MAX_PATH);
+                strncpy (charName, (productName != L"")
+                                   ? SK_WideCharToUTF8 (productName).c_str()
+                                   : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
               }
               else if (p.extension() == L".exe") {
-                strncpy (charPath, p.u8string().c_str(),                                 MAX_PATH);
-                strncpy (charName, p.replace_extension().filename().u8string().c_str(),  MAX_PATH);
+                std::wstring productName = SKIF_GetProductName (p.c_str());
+
+                strncpy (charPath, p.u8string().c_str(),                                  MAX_PATH);
+                strncpy (charName, (productName != L"")
+                                   ? SK_WideCharToUTF8 (productName).c_str()
+                                   : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
               }
               else
               {

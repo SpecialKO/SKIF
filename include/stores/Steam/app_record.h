@@ -163,7 +163,7 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
-    std::wstring store;          // Used by GOG -- getExecutableFullPath
+    std::wstring store = L"Steam"; // Used by getExecutableFullPath
     std::wstring executable;
     std::wstring description;
     std::wstring launch_options; // Used by GOG

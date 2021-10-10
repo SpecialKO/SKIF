@@ -177,7 +177,7 @@ SK_Steam_GetInstalledAppIDs (void)
   if (! steam_lib_paths)
     return apps;
 
-  bool bHasSpecialK = false;
+  //bool bHasSpecialK = false;
 
   if (steam_libs != 0)
   {
@@ -203,14 +203,15 @@ SK_Steam_GetInstalledAppIDs (void)
         {
           apps.push_back (appid);
 
-          if (appid == 1157970)
-            bHasSpecialK = true;
+          //if (appid == 1157970)
+          //  bHasSpecialK = true;
         }
       }
     }
   }
 
-  if ( false ) // ! bHasSpecialK)
+#if 0
+  if ( ! bHasSpecialK )
   {
     wchar_t wszManifestDir [MAX_PATH + 2] = { };
 
@@ -276,6 +277,7 @@ SK_Steam_GetInstalledAppIDs (void)
       fclose (fAppManifest);
     }
   }
+#endif
 
   return apps;
 }
@@ -385,11 +387,9 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 const wchar_t*
 SK_GetSteamDir (void)
 {
-  extern bool SKIF_bDisableSteamLibrary;
-
   static wchar_t
        wszSteamPath [MAX_PATH + 2] = { };
-  if (*wszSteamPath == L'\0' && ! SKIF_bDisableSteamLibrary)
+  if (*wszSteamPath == L'\0')
   {
     // Don't keep querying the registry if Steam is not installed   
     wszSteamPath [0] = L'?';

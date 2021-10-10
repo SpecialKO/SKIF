@@ -162,7 +162,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport; // We can set io.MouseHoveredViewport correctly (optional, not easy)
   io.BackendPlatformName = "imgui_impl_win32";
 
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
   // Our mouse update function expect PlatformHandle to be filled for the main viewport

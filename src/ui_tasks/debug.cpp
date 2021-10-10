@@ -1378,11 +1378,6 @@ SKIF_Debug_DrawUI (void)
 
     if (active_listing)
     {
-      ImGui::BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                               ImGui::GetContentRegionAvail ().y / 1.3f), ImGuiWindowFlags_AlwaysVerticalScrollbar |
-                                                                                          ImGuiWindowFlags_NoBackground);
-      
-      ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 ( 20.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Actions");
@@ -1408,6 +1403,9 @@ SKIF_Debug_DrawUI (void)
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Details");
 
       ImGui::Separator   ( );
+
+      SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                                   ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
 
       if (executables_64.size() == 0 && executables_32.size() == 0)
         ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "Special K is currently not injected in any process.");

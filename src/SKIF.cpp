@@ -2112,7 +2112,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFirstLaunch             =   regKVFirstLaunch.getData             ( );
   SKIF_bAllowMultipleInstances  =   regKVAllowMultipleInstances.getData  ( );
   SKIF_bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
-  SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
+//SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
@@ -2968,16 +2968,53 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
                 regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
 
-              if (ImGui::Checkbox("When closing SKIF allow the global injector to remain active",
+              if ( ImGui::Checkbox ( "When closing SKIF allow the global injector to remain active",
                                                      &SKIF_bAllowBackgroundService))
                 regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
 
+              if ( ImGui::Checkbox (
+                      "Allow Multiple Instances of SKIF",
+                        &SKIF_bAllowMultipleInstances )
+                  )
+              {
+                if (! SKIF_bAllowMultipleInstances)
+                {
+                  // Immediately close out any duplicate instances, they're undesirables
+                  EnumWindows ( []( HWND   hWnd,
+                                    LPARAM lParam ) -> BOOL
+                  {
+                    wchar_t                         wszRealWindowClass [64] = { };
+                    if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+                    {
+                      if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+                      {
+                        if (SKIF_hWnd != hWnd)
+                          PostMessage (  hWnd, WM_QUIT,
+                                          0x0, 0x0  );
+                      }
+                    }
+                    return TRUE;
+                  }, (LPARAM)SKIF_WindowClass);
+                }
+
+                regKVAllowMultipleInstances.putData (
+                  SKIF_bAllowMultipleInstances
+                  );
+              }
+
+              if ( ImGui::Checkbox ( "Always Show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
+                regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
+
+              SKIF_ImGui_SetHoverTip    ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.\n"
+                                         "This otherwise only appears when with debug mode and the service running.");
+
               _inject._StartAtLogonCtrl ( );
 
-              ImGui::Spacing       ( );
-              ImGui::Spacing       ( );
+              ImGui::NextColumn    ( );
 
-              ImGui::Text          ("Disable UI elements");
+              // New column
+
+              ImGui::Text          ("Disable UI elements:");
               ImGui::TreePush      ("");
 
               if (ImGui::Checkbox ("Exit prompt  ",
@@ -3055,7 +3092,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::Spacing       ( );
               ImGui::Spacing       ( );
 
-              ImGui::Text          ("Disable libraries");
+              ImGui::Text          ("Hide games from selected platforms:");
               ImGui::TreePush      ("");
 
               if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
@@ -3063,10 +3100,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
                 RepopulateGames = true;
               }
-
-              SKIF_ImGui_SetHoverTip (
-                "This will prevent SKIF from listing discovered GOG games."
-              );
 
               ImGui::SameLine ( );
               ImGui::Spacing  ( );
@@ -3078,56 +3111,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 RepopulateGames = true;
               }
 
-              SKIF_ImGui_SetHoverTip (
-                "This will prevent SKIF from listing discovered Steam games."
-              );
-
               ImGui::TreePop       ( );
 
-              ImGui::NextColumn    ( );
+              ImGui::Spacing       ( );
+              ImGui::Spacing       ( );
 
-              // New column
+              ImGui::NewLine       ( );
 
-              ImGui::Text          ("Experimental SKIF features");
+              ImGui::Text          ("Experimental SKIF features:");
               ImGui::TreePush      ("");
 
+              /* HRD was only needed for screenshot viewing
               if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
                 regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
 
               _DrawHDRConfig       ( );
-
-              if ( ImGui::Checkbox (
-                      "Allow Multiple Instances of SKIF",
-                        &SKIF_bAllowMultipleInstances )
-                  )
-              {
-                if (! SKIF_bAllowMultipleInstances)
-                {
-                  // Immediately close out any duplicate instances, they're undesirables
-                  EnumWindows ( []( HWND   hWnd,
-                                    LPARAM lParam ) -> BOOL
-                  {
-                    wchar_t                         wszRealWindowClass [64] = { };
-                    if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
-                    {
-                      if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
-                      {
-                        if (SKIF_hWnd != hWnd)
-                          PostMessage (  hWnd, WM_QUIT,
-                                          0x0, 0x0  );
-                      }
-                    }
-                    return TRUE;
-                  }, (LPARAM)SKIF_WindowClass);
-                }
-
-                regKVAllowMultipleInstances.putData (
-                  SKIF_bAllowMultipleInstances
-                  );
-              }
-
-              if ( ImGui::Checkbox ( "Always Show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
-                regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
+              */
 
               /* NOT FINISHED YET!
               if ( ImGui::Checkbox ( "Minimize to notification area on close", &SKIF_bCloseToTray ) )
@@ -4650,8 +4649,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      if ( SKIF_ImGui_IsFocused ( ))
+      if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
+      {
         startedMinimized = false;
+        if (SKIF_bOpenAtCursorPosition)
+          RepositionSKIF = true;
+      }
 
       UINT Interval =
         SKIF_bAllowTearing ? 0
@@ -4792,7 +4795,7 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_IsWindows10OrGreater      () != FALSE;
 
   // Overrides
-//SKIF_bAllowTearing          = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
+SKIF_bAllowTearing          = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
 //SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
 //SKIF_bCanFlip               = FALSE; // Flip Sequential
 

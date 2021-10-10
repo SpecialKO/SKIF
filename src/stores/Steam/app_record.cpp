@@ -13,14 +13,14 @@ app_launch_config_s::getExecutableFullPath (int32_t appid)
 {
   std::wstring exec_path = L"";
 
-  if (store == L"GOG")
-    exec_path = executable;
-
-  else {
+  if (store == L"Steam") {
     exec_path = SK_UseManifestToGetInstallDir (appid);
     exec_path.append (L"\\");
     exec_path.append (executable);
   }
+
+  else
+    exec_path = executable;
 
   if (PathFileExistsW (exec_path.c_str ()))
     return exec_path;
@@ -398,7 +398,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   if ( dwTimeLastChecked <= app_record_s::client_state_s::_TimeLastNotified )
   {
-    if (SKIF_Steam_UpdateAppState (pApp))
+    if (pApp->store != "Steam" || SKIF_Steam_UpdateAppState(pApp))
       dwTimeLastChecked = dwTimeNow + _RefreshInterval;
     else
       invalidate ();
