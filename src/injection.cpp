@@ -129,6 +129,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   _ToggleOnDemand (autoStop);
 
+#if 0
   const wchar_t *wszStartStopCommand =
               LR"(rundll32.exe)";
 
@@ -136,15 +137,10 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
                         : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
   wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
-
-#ifdef _WIN64
   GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
-#else
-  GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
-#endif
+  //GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
   PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
 
-#ifdef _WIN64
   const wchar_t *wszStartStopParams64 =
     currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
                         : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
@@ -158,31 +154,18 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = wszStartStopCommand32;
-    sexi.lpParameters = wszStartStopParams32;
+    sexi.lpFile       = LR"(SKIFsvc32.exe)";
+    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
     sexi.lpDirectory  = L"Servlet";
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS; // SEE_MASK_NOASYNC, SEE_MASK_ASYNCOK
-
-
-  if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
-  {
-    sexi.lpFile       = LR"(SKIFsvc32.exe)";
-    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
-  }
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
 #ifdef _WIN64
   if ( ShellExecuteExW (&sexi) || currentRunningState )
   {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-    sexi.lpFile       = wszStartStopCommand64;
-    sexi.lpParameters = wszStartStopParams64;
-
-    if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc64.exe)"))
-    {
-      sexi.lpFile       = LR"(SKIFsvc64.exe)";
-      sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
-    }
+    sexi.lpFile       = LR"(SKIFsvc64.exe)";
+    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
 
     ret =
       ShellExecuteExW (&sexi);
@@ -240,6 +223,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
+
+  if (! bLogonTaskEnabled)
+    DeleteFile (LR"(Servlet\task_inject.bat)");
 
   struct updated_file_s {
     const wchar_t* wszFileName;
