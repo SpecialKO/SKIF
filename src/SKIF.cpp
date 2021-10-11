@@ -2871,66 +2871,74 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      cbBufSize {},
                                      dwError;
 
-            // Reset the current status to not installed.
-            _status = NotInstalled;
+            static DWORD dwLastRefresh = SKIF_timeGetTime();
 
-            // Get a handle to the SCM database.
-            schSCManager =
-              OpenSCManager (
-                nullptr,             // local computer
-                nullptr,             // servicesActive database
-                STANDARD_RIGHTS_READ // enumerate services
-              );
-
-            if (nullptr != schSCManager)
+            // Refresh once every 500 ms
+            if (dwLastRefresh + 500 < SKIF_timeGetTime())
             {
-              // Get a handle to the service.
-              svcWinRing0 =
-                OpenService (
-                  schSCManager,        // SCM database
-                  L"WinRing0_1_2_0",   // name of service
-                  SERVICE_QUERY_CONFIG // query config
+              dwLastRefresh = SKIF_timeGetTime();
+
+              // Reset the current status to not installed.
+              _status = NotInstalled;
+
+              // Get a handle to the SCM database.
+              schSCManager =
+                OpenSCManager (
+                  nullptr,             // local computer
+                  nullptr,             // servicesActive database
+                  STANDARD_RIGHTS_READ // enumerate services
                 );
 
-              if (nullptr != svcWinRing0)
+              if (nullptr != schSCManager)
               {
-                // Attempt to get the configuration information to get an idea of what buffer size is required.
-                if (! QueryServiceConfig (
-                        svcWinRing0,
-                          nullptr, 0,
-                            &dwBytesNeeded )
-                   )
+                // Get a handle to the service.
+                svcWinRing0 =
+                  OpenService (
+                    schSCManager,        // SCM database
+                    L"WinRing0_1_2_0",   // name of service
+                    SERVICE_QUERY_CONFIG // query config
+                  );
+
+                if (nullptr != svcWinRing0)
                 {
-                  dwError =
-                    GetLastError ();
-
-                  if (ERROR_INSUFFICIENT_BUFFER == dwError)
+                  // Attempt to get the configuration information to get an idea of what buffer size is required.
+                  if (! QueryServiceConfig (
+                          svcWinRing0,
+                            nullptr, 0,
+                              &dwBytesNeeded )
+                     )
                   {
-                    cbBufSize = dwBytesNeeded;
-                    lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
+                    dwError =
+                      GetLastError ();
 
-                    // Get the configuration information with the necessary buffer size.
-                    if ( QueryServiceConfig (
-                           svcWinRing0,
-                             lpsc, cbBufSize,
-                               &dwBytesNeeded )
-                       )
+                    if (ERROR_INSUFFICIENT_BUFFER == dwError)
                     {
-                      // Store the binary path of the installed driver.
-                      binaryPath = std::wstring (lpsc->lpBinaryPathName);
+                      cbBufSize = dwBytesNeeded;
+                      lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
 
-                      // Check if 'SpecialK' can be found in the path.
-                      if (binaryPath.find (L"SpecialK") != std::wstring::npos)
-                        _status = Installed; // SK driver installed
-                      else
-                        _status = OtherDriverInstalled; // Other driver installed
+                      // Get the configuration information with the necessary buffer size.
+                      if ( QueryServiceConfig (
+                             svcWinRing0,
+                               lpsc, cbBufSize,
+                                 &dwBytesNeeded )
+                         )
+                      {
+                        // Store the binary path of the installed driver.
+                        binaryPath = std::wstring (lpsc->lpBinaryPathName);
+
+                        // Check if 'SpecialK' can be found in the path.
+                        if (binaryPath.find (L"SpecialK") != std::wstring::npos)
+                          _status = Installed; // SK driver installed
+                        else
+                          _status = OtherDriverInstalled; // Other driver installed
+                      }
+                      LocalFree (lpsc);
                     }
-                    LocalFree (lpsc);
                   }
+                  CloseServiceHandle (svcWinRing0);
                 }
-                CloseServiceHandle (svcWinRing0);
+                CloseServiceHandle (schSCManager);
               }
-              CloseServiceHandle (schSCManager);
             }
 
             return binaryPath;
@@ -3352,12 +3360,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ();
 
             static std::string btnDriverLabel;
-            const wchar_t* wszDriverTaskCmd = L"";
+            static std::wstring wszDriverTaskCmd;
 
             static bool requiredFiles =
-              PathFileExistsW (LR"(Servlet\driver_install.bat)")   &&
               PathFileExistsW (LR"(Servlet\driver_install.ps1)")   &&
-              PathFileExistsW (LR"(Servlet\driver_uninstall.bat)") &&
               PathFileExistsW (LR"(Servlet\driver_uninstall.ps1)");
 
             // Missing required files
@@ -3377,7 +3383,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Driver is installed
             else if (driverStatus == Installed)
             {
-              wszDriverTaskCmd = LR"(Servlet\driver_uninstall.bat)";
+              wszDriverTaskCmd = (LR"(-ExecutionPolicy Bypass -File ")" + std::filesystem::current_path().wstring() + LR"(\Servlet\driver_uninstall.ps1")");
               btnDriverLabel   = ICON_FA_SHIELD_ALT " Uninstall Driver";
               ImGui::TextColored (ImColor::HSV (0.3F, 0.99F, 1.F), "Installed");
             }
@@ -3391,7 +3397,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             // Driver is not installed
             else {
-              wszDriverTaskCmd = LR"(Servlet\driver_install.bat)";
+              wszDriverTaskCmd = (LR"(-ExecutionPolicy Bypass -File ")" + std::filesystem::current_path().wstring() + LR"(\Servlet\driver_install.ps1")");
               btnDriverLabel   = ICON_FA_SHIELD_ALT " Install Driver";
               ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "Not Installed");
             }
@@ -3428,8 +3434,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (
                 ShellExecuteW (
                   nullptr, L"runas",
-                    wszDriverTaskCmd,
-                      nullptr, nullptr,
+                    L"powershell",
+                      wszDriverTaskCmd.c_str(), nullptr,
                         SW_HIDE
                 ) > (HINSTANCE)32 )
               {
