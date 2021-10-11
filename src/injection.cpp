@@ -1095,66 +1095,24 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
 {
   ImGui::BeginGroup ();
   
-  static bool requiredFiles =
-    PathFileExistsW (LR"(Servlet\enable_logon.bat)" ) &&
-    PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
-    PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
-  //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
-
-  if (! requiredFiles  || 
-        bAutoStartSKIF ||
-        bAutoStartServiceOnly)
+  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_SHIELD_ALT, &bLogonTaskEnabled))
   {
-    // Disable button
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
-  }
-  
-  if (ImGui::Checkbox ("Start Global Injection Service At Logon (legacy) " ICON_FA_SHIELD_ALT, &bLogonTaskEnabled))
-  {
-    const wchar_t* wszLogonTaskCmd =
-      (bLogonTaskEnabled ?
-        LR"(Servlet\enable_logon.bat)" :
-        LR"(Servlet\disable_logon.bat)");
-  
     if (
       ShellExecuteW (
         nullptr, L"runas",
-          wszLogonTaskCmd,
-            nullptr, nullptr,
-              SW_HIDE ) < (HINSTANCE)32 )
+          L"SCHTASKS",
+            LR"(/delete /tn "SK_InjectLogon" /f)", nullptr,
+              SW_HIDE ) > (HINSTANCE)32 )
     {
+      DeleteFile (LR"(Servlet\SpecialK.LogOn)");
+      DeleteFile (LR"(Servlet\task_inject.bat)");
+    }
+    else
       bLogonTaskEnabled =
         ! bLogonTaskEnabled;
-    }
   }
   
-  SKIF_ImGui_SetHoverTip (
-      "Administrative privileges are required on the system to toggle this."
-    "\nNote that this injection frontend (SKIF) will not start with Windows."
-  );
-  
-  if (! requiredFiles  ||
-        bAutoStartSKIF ||
-        bAutoStartServiceOnly)
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-  
-    ImGui::SameLine    ();
-
-    if (! requiredFiles)
-      ImGui::TextColored(ImColor::HSV(0.11F, 1.F, 1.F),
-        "Option is unavailable as one or more of the required files are missing.");
-    else
-      SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
-                               "The difference is that this legacy method just starts the GI service, and not SKIF." );
-  }
+  SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
 
   ImGui::EndGroup      ();
 }
