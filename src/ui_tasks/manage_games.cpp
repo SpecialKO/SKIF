@@ -249,9 +249,9 @@ LoadLibraryTexture (
         const std::wstring&                 name,
         app_record_s*                       pApp = nullptr)
 {
-  static CComPtr <ID3D11Texture2D> pTex2D;
-  static DirectX::TexMetadata        meta = { };
-  static DirectX::ScratchImage        img = { };
+  CComPtr <ID3D11Texture2D> pTex2D;
+  DirectX::TexMetadata        meta = { };
+  DirectX::ScratchImage        img = { };
 
   std::wstring load_str = L"\0",
                SKIFCustomPath,
@@ -914,284 +914,13 @@ SKIF_GameManagement_DrawTab (void)
     SKIF_GetCustomAppIDs (&apps);
 
     // We're going to stream icons in asynchronously on this thread
-    _beginthread ([](void*)->void // LPVOID pUser
+    _beginthread ([](void*)->void
     {
-      //auto* pUserTex2D = (CComPtr <ID3D11Texture2D>*)pUser;
-
       CoInitializeEx (nullptr, 0x0);
-
-      DirectX::TexMetadata  local_meta = { };
-      DirectX::ScratchImage local_img  = { };
-
-      //CComPtr <ID3D11Texture2D>& pLocalTex2D = *pUserTex2D;
-
-      auto _LoadLibraryTexture =
-      [&] (
-              LibraryTexture                      libTexToLoad,
-              uint32_t                            appid,
-              CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
-              const std::wstring&                 name,
-              app_record_s*                       pApp = nullptr)
-      {
-        std::wstring load_str = L"\0",
-                     SKIFCustomPath,
-                     SteamCustomPath;
-
-        bool succeeded   = false;
-        bool customAsset = false;
-
-        if (pApp != nullptr)
-          appid = pApp->id;
-
-        // SKIF
-        if (       appid == SKIF_STEAM_APPID &&
-            libTexToLoad != LibraryTexture::Patreon)
-        {
-          SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", std::wstring(path_cache.specialk_userdata.path).c_str());
-
-          if (libTexToLoad == LibraryTexture::Cover)
-            SKIFCustomPath += L"cover";
-          else
-            SKIFCustomPath += L"icon";
-
-          if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-            load_str =               SKIFCustomPath + L".png";
-          else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-            load_str =               SKIFCustomPath + L".jpg";
-          else if (libTexToLoad == LibraryTexture::Icon &&
-                   PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-            load_str =               SKIFCustomPath + L".ico";
-
-          customAsset = (load_str != L"\0");
-        }
-
-        // SKIF Custom
-        else if (pApp != nullptr && pApp->store == "SKIF")
-        {
-          SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
-
-          if (libTexToLoad == LibraryTexture::Cover)
-            SKIFCustomPath += L"cover";
-          else
-            SKIFCustomPath += L"icon";
-
-          if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-            load_str =               SKIFCustomPath + L".png";
-          else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-            load_str =               SKIFCustomPath + L".jpg";
-          else if (libTexToLoad == LibraryTexture::Icon &&
-                    PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-            load_str =                SKIFCustomPath + L".ico";
-
-          customAsset = (load_str != L"\0");
-        }
-
-        // GOG
-        else if (pApp != nullptr && pApp->store == "GOG")
-        {
-          SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-          if (libTexToLoad == LibraryTexture::Cover)
-            SKIFCustomPath += L"cover";
-          else
-            SKIFCustomPath += L"icon";
-
-          if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-            load_str =               SKIFCustomPath + L".png";
-          else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-            load_str =               SKIFCustomPath + L".jpg";
-          else if (libTexToLoad == LibraryTexture::Icon &&
-                   PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-            load_str =               SKIFCustomPath + L".ico";
-
-          customAsset = (load_str != L"\0");
-
-          if (! customAsset)
-          {
-            if      (libTexToLoad == LibraryTexture::Icon)
-            {
-              load_str = name;
-            }
-
-            else if (libTexToLoad == LibraryTexture::Cover)
-            {
-              extern std::wstring GOGGalaxy_UserID;
-              load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
-
-              WIN32_FIND_DATA ffd   = { };
-              HANDLE          hFind =
-                FindFirstFile ((load_str + name).c_str (), &ffd);
-
-              if (INVALID_HANDLE_VALUE != hFind)
-              {
-                load_str += ffd.cFileName;
-
-                FindClose (hFind);
-              }
-            }
-          }
-        }
-
-        // STEAM
-        else if (pApp != nullptr && pApp->store == "Steam")
-        {
-          static unsigned long SteamUserID = 0;
-
-          if (SteamUserID == 0)
-          {
-            WCHAR                    szData [255] = { };
-            DWORD   dwSize = sizeof (szData);
-            PVOID   pvData =         szData;
-            CRegKey hKey ((HKEY)0);
-
-            if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
-            {
-              if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-                SteamUserID = *(DWORD*)pvData;
-            }
-          }
-
-          SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
-          SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
-
-          if (libTexToLoad == LibraryTexture::Cover)
-            SKIFCustomPath += L"cover";
-          else
-            SKIFCustomPath += L"icon";
-
-          if      (PathFileExistsW (( SKIFCustomPath +  L".png").c_str()))
-            load_str =                SKIFCustomPath +  L".png";
-          else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
-            load_str =                SKIFCustomPath +  L".jpg";
-          else if (libTexToLoad == LibraryTexture::Icon  &&
-                   PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
-            load_str =                SKIFCustomPath +  L".ico";
-
-          customAsset = (load_str != L"\0");
-
-          if (! customAsset)
-          {
-            if      (libTexToLoad == LibraryTexture::Cover &&
-                     PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
-              load_str =               SteamCustomPath + L"p.png";
-            else if (libTexToLoad == LibraryTexture::Cover &&
-                     PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
-              load_str =               SteamCustomPath + L"p.jpg";
-            else
-              load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
-          }
-        }
-
-        if (pApp != nullptr)
-        {
-          if      (libTexToLoad == LibraryTexture::Cover)
-            pApp->textures.isCustomCover = customAsset;
-          else if (libTexToLoad == LibraryTexture::Icon)
-            pApp->textures.isCustomIcon  = customAsset;
-        }
-
-        if (load_str != L"\0" &&
-            SUCCEEDED(
-              DirectX::LoadFromWICFile (
-                load_str.c_str (),
-                  DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
-                    &meta, img
-              )
-            )
-          )
-        {
-          succeeded = true;
-        }
-
-        else if (appid == SKIF_STEAM_APPID)
-        {
-          if (SUCCEEDED(
-                DirectX::LoadFromWICMemory(
-                  (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
-                  (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? sizeof(sk_boxart_png) : sizeof(patreon_png),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      &meta, img
-                )
-              )
-            )
-          {
-            succeeded = true;
-          }
-        }
-
-        if (succeeded)
-        {
-          DirectX::ScratchImage* pImg   =
-                                      &img;
-          DirectX::ScratchImage   converted_img;
-
-          // We don't want single-channel icons, so convert to RGBA
-          if (meta.format == DXGI_FORMAT_R8_UNORM)
-          {
-            if (
-              SUCCEEDED (
-                DirectX::Convert (
-                  img.GetImages   (), img.GetImageCount (),
-                  img.GetMetadata (), DXGI_FORMAT_R8G8B8A8_UNORM,
-                    DirectX::TEX_FILTER_DEFAULT,
-                    DirectX::TEX_THRESHOLD_DEFAULT,
-                      converted_img
-                )
-              )
-            ) { meta =  converted_img.GetMetadata ();
-                pImg = &converted_img; }
-          }
-
-          auto pDevice =
-            SKIF_D3D11_GetDevice ();
-
-          if (! pDevice)
-            return;
-
-          pTex2D = nullptr;
-
-          if (
-            SUCCEEDED (
-              DirectX::CreateTexture (
-                pDevice, pImg->GetImages     (),
-                         pImg->GetImageCount (),
-                    meta, (ID3D11Resource **)&pTex2D.p
-              )
-            )
-          )
-          {
-            D3D11_SHADER_RESOURCE_VIEW_DESC
-              srv_desc                           = { };
-              srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-              srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-              srv_desc.Texture2D.MipLevels       = UINT_MAX;
-              srv_desc.Texture2D.MostDetailedMip =  0;
-
-            CComPtr <ID3D11ShaderResourceView>
-              pOrigTexSRV (pLibTexSRV.p);
-                           pLibTexSRV = nullptr;
-
-            if (    pTex2D.p == nullptr ||
-              FAILED (
-                pDevice->CreateShaderResourceView (
-                    pTex2D.p, &srv_desc,
-                  &pLibTexSRV.p
-                )
-              )
-            )
-            {
-              pLibTexSRV = pOrigTexSRV;
-            }
-
-            // SRV is holding a reference, this is not needed anymore.
-            pTex2D = nullptr;
-          }
-        }
-      };
 
       SK_RunOnce (
         //__LoadPatreonTexture (0, pPatTexSRV, L"(patreon.png)")
-        _LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)")
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)")
       );
 
       for ( auto& app : apps )
@@ -1283,7 +1012,7 @@ SKIF_GameManagement_DrawTab (void)
 
         // SKIF
         if ( app.second.id == SKIF_STEAM_APPID )
-          _LoadLibraryTexture (LibraryTexture::Icon,
+          LoadLibraryTexture (LibraryTexture::Icon,
                                 app.second.id,
                                 app.second.textures.icon,
                                 L"_icon.jpg",
@@ -1292,7 +1021,7 @@ SKIF_GameManagement_DrawTab (void)
 
         // SKIF Custom
         else  if (app.second.store == "SKIF")
-          _LoadLibraryTexture (LibraryTexture::Icon,
+          LoadLibraryTexture (LibraryTexture::Icon,
                                 app.second.id,
                                 app.second.textures.icon,
                                 L"icon",
@@ -1301,7 +1030,7 @@ SKIF_GameManagement_DrawTab (void)
 
         // GOG
         else  if (app.second.store == "GOG")
-          _LoadLibraryTexture (LibraryTexture::Icon,
+          LoadLibraryTexture (LibraryTexture::Icon,
                                 app.second.id,
                                 app.second.textures.icon,
                                 app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico",
@@ -1310,7 +1039,7 @@ SKIF_GameManagement_DrawTab (void)
 
         // STEAM
         else if (app.second.store == "Steam")
-          _LoadLibraryTexture (LibraryTexture::Icon,
+          LoadLibraryTexture (LibraryTexture::Icon,
                                 app.second.id,
                                 app.second.textures.icon,
                                 L"_icon.jpg",
@@ -1330,7 +1059,7 @@ SKIF_GameManagement_DrawTab (void)
       }
 
       InterlockedExchange (&need_sort, 1);
-    }, 0x0, NULL); //(void *)&pTex2D);
+    }, 0x0, NULL);
   }
 
   if (! update)
@@ -1395,65 +1124,33 @@ SKIF_GameManagement_DrawTab (void)
       bool dontCare = false;
       if (ImGui::Selectable ("Set Custom Artwork",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        IFileOpenDialog  *pFileOpen;
-        COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png" };
-
-        PWSTR pszFilePath = NULL;
-
-        CoInitializeEx (nullptr, 0x0);
-
-        // Create the FileOpenDialog object.
-        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                        IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-        if (SUCCEEDED(hr))
+        LPWSTR pwszFilePath = NULL;
+        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
-          IShellItem* psiDefaultFolder;
-          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+          std::wstring targetPath = L"";
+          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
+
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "SKIF")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "GOG")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "Steam")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+          if (targetPath != L"")
           {
-            pFileOpen->SetDefaultFolder(psiDefaultFolder);
-            psiDefaultFolder->Release();
+            std::filesystem::create_directories (targetPath);
+            targetPath += L"cover";
+
+            if (ext == L".jpg")
+              DeleteFile((targetPath + L".png").c_str());
+
+            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
+
+            update = true;
           }
-          pFileOpen->SetFileTypes(1, &fileTypes);
-
-          if (SUCCEEDED(pFileOpen->Show(NULL)))
-          {
-            IShellItem *pItem;
-
-            if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-            {
-              if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
-              {
-                std::wstring targetPath = L"";
-                std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
-
-                if (pApp->id == SKIF_STEAM_APPID)
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "SKIF")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "GOG")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "Steam")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-                if (targetPath != L"")
-                {
-                  std::filesystem::create_directories (targetPath);
-                  targetPath += L"cover";
-
-                  if (ext == L".jpg")
-                    DeleteFile((targetPath + L".png").c_str());
-
-                  CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
-
-                  update = true;
-                }
-              }
-
-              pItem->Release();
-            }
-          }
-          pFileOpen->Release();
         }
       }
       else
@@ -2890,77 +2587,45 @@ Cache=false)";
       bool dontCare = false;
       if (ImGui::Selectable ("Set Custom Icon",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        IFileOpenDialog  *pFileOpen;
-        COMDLG_FILTERSPEC fileTypes{ L"Images", L"*.jpg;*.png;*.ico" };
-
-        PWSTR pszFilePath = NULL;
-
-        CoInitializeEx (nullptr, 0x0);
-
-        // Create the FileOpenDialog object.
-        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                        IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-        if (SUCCEEDED(hr))
+        LPWSTR pwszFilePath = NULL;
+        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png;*.ico" }, 1, _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
-          IShellItem* psiDefaultFolder;
-          if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Pictures, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+          std::wstring targetPath = L"";
+          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
+
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "SKIF")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "GOG")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "Steam")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+
+          if (targetPath != L"")
           {
-            pFileOpen->SetDefaultFolder(psiDefaultFolder);
-            psiDefaultFolder->Release();
+            std::filesystem::create_directories (targetPath);
+            targetPath += L"icon";
+
+            DeleteFile ((targetPath + L".png").c_str());
+            DeleteFile ((targetPath + L".jpg").c_str());
+            DeleteFile ((targetPath + L".ico").c_str());
+
+            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
+
+            // Release current icon
+            if (pApp->textures.icon.p != nullptr)
+              pApp->textures.icon.p = nullptr;
+
+            // Reload the icon
+            LoadLibraryTexture (LibraryTexture::Icon,
+                                  appid,
+                                    pApp->textures.icon,
+                                      (pApp->store == "GOG")
+                                      ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
+                                      : L"_icon.jpg",
+                                        pApp );
           }
-          pFileOpen->SetFileTypes(1, &fileTypes);
-
-          if (SUCCEEDED(pFileOpen->Show(NULL)))
-          {
-            IShellItem *pItem;
-
-            if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-            {
-              if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
-              {
-                std::wstring targetPath = L"";
-                std::wstring ext        = std::filesystem::path(pszFilePath).extension().wstring();
-
-                if (pApp->id == SKIF_STEAM_APPID)
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "SKIF")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "GOG")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-                else if (pApp->store == "Steam")
-                  targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
-
-                if (targetPath != L"")
-                {
-                  std::filesystem::create_directories (targetPath);
-                  targetPath += L"icon";
-
-                  DeleteFile ((targetPath + L".png").c_str());
-                  DeleteFile ((targetPath + L".jpg").c_str());
-                  DeleteFile ((targetPath + L".ico").c_str());
-
-                  CopyFile(pszFilePath, (targetPath + ext).c_str(), false);
-
-                  // Release current icon
-                  if (pApp->textures.icon.p != nullptr)
-                    pApp->textures.icon.p = nullptr;
-
-                  // Reload the icon
-                  LoadLibraryTexture (LibraryTexture::Icon,
-                                        appid,
-                                          pApp->textures.icon,
-                                           (pApp->store == "GOG")
-                                            ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                            : L"_icon.jpg",
-                                              pApp );
-                }
-              }
-
-              pItem->Release();
-            }
-          }
-          pFileOpen->Release();
         }
       }
       else
@@ -3942,72 +3607,45 @@ Cache=false)";
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
       extern HWND SKIF_hWnd;
-      PWSTR pszFilePath = NULL;
-      IFileOpenDialog  *pFileOpen;
-      COMDLG_FILTERSPEC fileTypes{ L"Executables", L"*.exe" };
 
-      CoInitializeEx (nullptr, 0x0);
-
-      // Create the FileOpenDialog object.
-      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                      IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-      if (SUCCEEDED(hr))
+      LPWSTR pwszFilePath = NULL;
+      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, _FILEOPENDIALOGOPTIONS::FOS_NODEREFERENCELINKS))
       {
-        IShellItem* psiDefaultFolder;
-        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+        error = false;
+        std::filesystem::path p = pwszFilePath;
+
+        if (p.extension() == L".lnk")
         {
-          pFileOpen->SetDefaultFolder(psiDefaultFolder);
-          psiDefaultFolder->Release();
+          WCHAR szTarget   [MAX_PATH];
+          WCHAR szArguments[MAX_PATH];
+
+          ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+
+          std::filesystem::path p2 = szTarget;
+          std::wstring productName = SKIF_GetProductName (p2.c_str());
+          
+          strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
+          strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               MAX_PATH);
+          strncpy (charName, (productName != L"")
+                              ? SK_WideCharToUTF8 (productName).c_str()
+                              : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
         }
-        pFileOpen->SetFileTypes(1, &fileTypes);
-        pFileOpen->SetOptions(FOS_NODEREFERENCELINKS);
+        else if (p.extension() == L".exe") {
+          std::wstring productName = SKIF_GetProductName (p.c_str());
 
-        if (SUCCEEDED(pFileOpen->Show(NULL)))
-        {
-          IShellItem *pItem;
-
-          if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-          {
-            if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
-            {
-              error = false;
-              std::filesystem::path p = pszFilePath;
-
-              if (p.extension() == L".lnk")
-              {
-                WCHAR szTarget   [MAX_PATH];
-                WCHAR szArguments[MAX_PATH];
-
-                ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
-
-                std::filesystem::path p2 = szTarget;
-                std::wstring productName = SKIF_GetProductName (p2.c_str());
-                
-                strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
-                strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               MAX_PATH);
-                strncpy (charName, (productName != L"")
-                                   ? SK_WideCharToUTF8 (productName).c_str()
-                                   : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
-              }
-              else if (p.extension() == L".exe") {
-                std::wstring productName = SKIF_GetProductName (p.c_str());
-
-                strncpy (charPath, p.u8string().c_str(),                                  MAX_PATH);
-                strncpy (charName, (productName != L"")
-                                   ? SK_WideCharToUTF8 (productName).c_str()
-                                   : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
-              }
-              else
-              {
-                error = true;
-              }
-            }
-
-            pItem->Release();
-          }
+          strncpy (charPath, p.u8string().c_str(),                                  MAX_PATH);
+          strncpy (charName, (productName != L"")
+                              ? SK_WideCharToUTF8 (productName).c_str()
+                              : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
         }
-        pFileOpen->Release();
+        else {
+          error = true;
+          strncpy (charPath, "\0", MAX_PATH);
+        }
+      }
+      else {
+        error = true;
+        strncpy (charPath, "\0", MAX_PATH);
       }
     }
     ImGui::SameLine    ( );
@@ -4102,6 +3740,7 @@ Cache=false)";
     if (ImGui::Button  ("Cancel", vButtonSize))
     {
       // Clear variables
+      error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", MAX_PATH);
@@ -4152,48 +3791,15 @@ Cache=false)";
 
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
-      PWSTR pszFilePath = NULL;
-      IFileOpenDialog  *pFileOpen;
-      COMDLG_FILTERSPEC fileTypes{ L"Executables", L"*.exe" };
-
-      CoInitializeEx (nullptr, 0x0);
-
-      // Create the FileOpenDialog object.
-      HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                      IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-      if (SUCCEEDED(hr))
+      LPWSTR pwszFilePath = NULL;
+      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1))
       {
-        IShellItem* psiDefaultFolder;
-        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_StartMenu, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
-        {
-          pFileOpen->SetDefaultFolder(psiDefaultFolder);
-          psiDefaultFolder->Release();
-        }
-        pFileOpen->SetFileTypes(1, &fileTypes);
-
-        if (SUCCEEDED(pFileOpen->Show(NULL)))
-        {
-          IShellItem *pItem;
-
-          if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
-          {
-            if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
-            {
-              error = false;
-              std::filesystem::path p = pszFilePath;
-
-              strncpy (charPath, p.u8string().c_str(),            MAX_PATH);
-            }
-            else
-            {
-              error = true;
-            }
-
-            pItem->Release();
-          }
-        }
-        pFileOpen->Release();
+        error = false;
+        strncpy (charPath, std::filesystem::path(pwszFilePath).u8string().c_str(), MAX_PATH);
+      }
+      else {
+        error = true;
+        strncpy (charPath, "\0", MAX_PATH);
       }
     }
     ImGui::SameLine    ( );

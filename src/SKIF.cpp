@@ -2396,6 +2396,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
+    static UINT uiLastMsg = 0x0;
     auto _TranslateAndDispatch = [&](void) -> bool
     {
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
@@ -2406,6 +2407,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
+
+        uiLastMsg = msg.message;
       }
 
       return
@@ -2440,9 +2443,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     };
 
     DWORD dwWait =
-      MsgWaitForMultipleObjects (
-                      //(hSwapWait.m_h != 0) ? 1
-                                           0,//: 0,
+      MsgWaitForMultipleObjects (              0,
+	                      //(hSwapWait.m_h != 0) ? 1
+                                             //: 0,
                                 hWaitStates, TRUE,
                                    INFINITE, QS_ALLINPUT );
 
@@ -4626,32 +4629,56 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input
     ImGui::Render ();
 
-    bool bRefresh =
-      SKIF_ImGui_IsFocused (); // Low-latency if in focus
 
-    // Throttled against DWM VBLANK if another app has focus
-    if (! bRefresh)
+    bool bRefresh   = true;
+    bool bDwmTiming = false;
+
+    float fDwmPeriod = 6.0f;
+
+    DWM_TIMING_INFO dwm_timing = { };
+                    dwm_timing.cbSize = sizeof (DWM_TIMING_INFO);
+
+    if (SUCCEEDED (SK_DWM_GetCompositionTimingInfo (&dwm_timing)))
     {
-      DWM_TIMING_INFO dwm_timing = { };
-                      dwm_timing.cbSize = sizeof (DWM_TIMING_INFO);
+      bDwmTiming = true;
+      fDwmPeriod =
+        1000.0f / ( static_cast <float> (dwm_timing.rateRefresh.uiNumerator) /
+                    static_cast <float> (dwm_timing.rateRefresh.uiDenominator) );
+    }
 
-      if (SUCCEEDED (SK_DWM_GetCompositionTimingInfo (&dwm_timing)))
+    const auto uiMinMousePeriod =
+      SKIF_ImGui_IsFocused () ? static_cast <UINT> (fDwmPeriod * 0.5f)
+                              : static_cast <UINT> (fDwmPeriod * 2.5f);
+
+    if (uiLastMsg == WM_MOUSEMOVE)
+    {
+      static UINT
+          uiLastMove = 0;
+      if (uiLastMove > SKIF_timeGetTime () - uiMinMousePeriod)
       {
-        static QPC_TIME             dwmLastVBlank = 0;
-
-        if (dwm_timing.qpcVBlank <= dwmLastVBlank)
-          bRefresh = false;
-
-        if (bRefresh && hSwapWait.m_h != 0)
-        {
-          // Wait on SwapChain
-          bRefresh =
-            (WaitForSingleObject (hSwapWait.m_h, 0) != WAIT_TIMEOUT);
-        }
-
-        if (bRefresh)
-          dwmLastVBlank = dwm_timing.qpcVBlank;
+        bRefresh = false;
       }
+
+      else
+        uiLastMove = SKIF_timeGetTime ();
+    }
+
+    if (bDwmTiming)
+    {
+      static QPC_TIME             dwmLastVBlank = 0;
+
+      if (dwm_timing.qpcVBlank <= dwmLastVBlank)
+        bRefresh = false;
+
+      if (bRefresh && hSwapWait.m_h != 0)
+      {
+        // Wait on SwapChain
+        bRefresh =
+          (WaitForSingleObject (hSwapWait.m_h, 0) != WAIT_TIMEOUT);
+      }
+
+      if (bRefresh)
+        dwmLastVBlank = dwm_timing.qpcVBlank;
     }
 
     // First message always draws
