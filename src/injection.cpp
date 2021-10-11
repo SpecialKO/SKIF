@@ -169,7 +169,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc32.exe)"))
   {
     sexi.lpFile       = LR"(SKIFsvc32.exe)";
-    sexi.lpParameters = L"";
+    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
   }
 
 #ifdef _WIN64
@@ -181,7 +181,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     if (! currentRunningState && PathFileExistsW(LR"(Servlet\SKIFsvc64.exe)"))
     {
       sexi.lpFile       = LR"(SKIFsvc64.exe)";
-      sexi.lpParameters = L"";
+      sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
     }
 
     ret =
