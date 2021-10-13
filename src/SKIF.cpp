@@ -58,7 +58,6 @@ bool SKIF_bDisableDPIScaling       = false,
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
-HMODULE hModSK64                   = NULL;
 
 // GOG Galaxy stuff
 std::wstring GOGGalaxy_Path        = L"";
@@ -104,6 +103,9 @@ extern        SK_ICommandProcessor*
 #include <regex>
 
 #pragma comment (lib, "wininet.lib")
+
+HMODULE hModSKIF     = nullptr;
+HMODULE hModSpecialK = nullptr;
 
 std::filesystem::path orgWorkingDirectory;
 
@@ -1639,6 +1641,10 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (_Signal.Quit || (! _Signal._Disowned))
        ExitProcess (0x0);
   }
+  else if (_Signal.Quit)
+  {
+    ExitProcess (0x0);
+  }
 
   if (_Signal.CustomLaunch)
   {
@@ -1684,12 +1690,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       if (! isLocalBlacklisted &&
           ! isGlobalBlacklisted)
       {
-        // Check if the path has been whitelisted, and parentFolder is at least a character in length
-        if (! _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), true) && parentFolder.length() > 0)
-        {
-          _inject._AddUserList(parentFolder, true);
-          _inject._StoreList(true);
-        }
+        // Whitelist the path if it haven't been already
+        _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
 
         if (hwndAlreadyExists != 0)
           SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
@@ -1698,7 +1700,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         {
           bExitOnInjection = true;
           _inject._StartStopInject (false, true);
-          _inject.bOnDemandInject = true;
         }
       }
 
@@ -1936,7 +1937,7 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   *lpszTarget    = 0; // Assume failure
   *lpszArguments = 0; // Assume failure
 
-  CoInitializeEx (nullptr, 0x0);
+  //CoInitializeEx (nullptr, 0x0);
 
   // Get a pointer to the IShellLink interface.
   if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
@@ -2007,6 +2008,55 @@ ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
   return ullVersion;
 }
 
+std::wstring SKIF_GetLastError (void)
+{
+  LPWSTR messageBuffer = nullptr;
+
+  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL, GetLastError ( ), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+
+  std::wstring message (messageBuffer, size);
+  LocalFree (messageBuffer);
+
+  return message;
+}
+
+void SKIF_Initialize (void)
+{
+  static bool isInitalized = false;
+
+  if (! isInitalized)
+  {
+    CoInitializeEx (nullptr, 0x0);
+
+    hModSKIF =
+      GetModuleHandleW (nullptr);
+
+    wchar_t             wszPath
+     [MAX_PATH + 2] = { };
+    GetCurrentDirectoryW (
+      MAX_PATH,         wszPath);
+    SK_Generate8Dot3   (wszPath);
+    GetModuleFileNameW (hModSKIF,
+                        wszPath,
+      MAX_PATH                 );
+    SK_Generate8Dot3   (wszPath);
+
+    // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
+    // Store the original working directory in a variable, since it's used by custom launch, for example.
+    orgWorkingDirectory = std::filesystem::current_path();
+
+    // Let's change the current working directory to the folder of the executable itself.
+    std::filesystem::current_path (
+      std::filesystem::path (wszPath).remove_filename ()
+    );
+
+    CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
+
+    isInitalized = true;
+  }
+}
+
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -2035,7 +2085,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
  (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
  "GetSystemMetricsForDpi");
 
-  CoInitializeEx (nullptr, 0x0);
+  //CoInitializeEx (nullptr, 0x0);
 
   WindowsCursorSize =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Microsoft\Accessibility\)",
@@ -2171,15 +2221,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   snprintf (szAppID, 15, "%li",          app_id);
   */
 
-  HMODULE hModSelf =
-    GetModuleHandleW (nullptr);
-
   // Create application window
   WNDCLASSEX wc =
   { sizeof (WNDCLASSEX),
             CS_CLASSDC, WndProc,
             0L,         0L,
-    hModSelf, nullptr,  nullptr,
+    hModSKIF, nullptr,  nullptr,
               nullptr,  nullptr,
     _T ("SK_Injection_Frontend"),
               nullptr          };
@@ -2237,7 +2284,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   HDC   hDC   =
     GetWindowDC (hWnd);
   HICON hIcon =
-    LoadIcon (hModSelf, MAKEINTRESOURCE (IDI_SKIF));
+    LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
   InitializeConditionVariable (&SKIF_IsFocused);
   InitializeConditionVariable (&SKIF_IsNotFocused);
@@ -2459,12 +2506,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       hInjectAck.Close ();
       _inject._StartStopInject (true);
+    }
 
-      if (bExitOnInjection)
-      {
-        bExitOnInjection = false;
-        PostMessage (hWnd, WM_QUIT, 0, 0);
-      }
+    // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
+    if (bExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
+    {
+      bExitOnInjection = false;
+      PostMessage (hWnd, WM_QUIT, 0, 0);
     }
 
     if (! _TranslateAndDispatch ())
@@ -2740,6 +2788,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         regKVSmallMode.putData (  SKIF_bSmallMode);
 
         changedMode = true;
+
+        // If the user changed mode, cancel the exit action.
+        /* TODO: Fix CustomLaunch creating timers on SKIF_hWnd = 0,
+         * causing SKIF to be unable to close them later if switched out from the mode.
+        if (bExitOnInjection)
+          bExitOnInjection = false;
+        */
       }
 
       ImGui::SameLine ();
@@ -4336,7 +4391,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-#ifdef _WIN64
+//#ifdef _WIN64
         bool debugSelected =       SKIF_bEnableDebugMode &&
           ImGui::BeginTabItem     (ICON_FA_BUG " Debug", nullptr, flags);
 
@@ -4364,15 +4419,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         else {
-          if (SKIF_bEnableDebugMode && hModSK64 != 0)
+          if (SKIF_bEnableDebugMode && hModSpecialK != 0)
           {
-            FreeLibrary (hModSK64);
-            hModSK64 = NULL;
+            FreeLibrary (hModSpecialK);
+            hModSpecialK = nullptr;
 
             KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
           }
         }
-#endif
+//#endif
 
         // Ghost
 
@@ -4607,11 +4662,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::EndPopup ();
       }
 
-      // Uses a Directory Watch signal, so this is cheap; do it once every frame
-      _inject.TestServletRunlevel ( );
-
+      // Uses a Directory Watch signal, so this is cheap; do it once every frame.
+      _inject.TestServletRunlevel       ();
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
-        _inject._SetTaskbarOverlay(_inject.bCurrentState);
+        _inject._SetTaskbarOverlay      (_inject.bCurrentState);
 
       monitor_extent =
         ImGui::GetWindowAllowedExtentRect (
@@ -4997,12 +5051,12 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_START:
-      if (! _inject.bPendingState && ! _inject.bCurrentState)
+      if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false);
       break;
 
     case WM_SKIF_TEMPSTART:
-      if (! _inject.bPendingState && ! _inject.bCurrentState)
+      if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
       break;
 
@@ -5011,7 +5065,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_CUSTOMLAUNCH:
-      if (! _inject.bCurrentState)
+      if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
 
       // Reload the whitelist as it might have been changed
@@ -5056,9 +5110,14 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_DEBUG:
       //OutputDebugString(L"Tick\n");
 
-          // If we have a refresh pending, check for a new state
-          if (wParam == IDT_REFRESH_PENDING)
-            _inject.TestServletRunlevel (true);
+          if (wParam == IDT_REFRESH_DEBUG)
+            OutputDebugString(L"Debug tick\n");
+          else if (wParam == IDT_REFRESH_ONDEMAND)
+            OutputDebugString(L"OnDemand tick\n");
+          else if (wParam == IDT_REFRESH_PENDING)
+            OutputDebugString(L"Pending tick\n");
+          else
+            OutputDebugString(L"Unknown tick\n");
 
           // SKIF is focused -- eat my NULL and don't redraw at all!
           if (SKIF_ImGui_IsFocused ( ))
@@ -5067,6 +5126,11 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             PostMessage(hWnd, WM_NULL, 0x0, 0x0);
             return 1;
           }
+
+          // If we have a refresh pending, check for a new state (when we're unfocused) -- replaced with transition logic in TestServletRunLevel
+          //else if (wParam == IDT_REFRESH_PENDING) {
+          //    _inject.TestServletRunlevel (true);
+          //}
 
         //OutputDebugString(L"Tale\n");
           return 0;

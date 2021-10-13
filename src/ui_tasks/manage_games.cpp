@@ -1698,7 +1698,7 @@ SKIF_GameManagement_DrawTab (void)
             if ( _inject.bHasServlet )
             {
               cache.injection.type         = "Global";
-              cache.injection.status.text  =
+              cache.injection.status.text  = 
                          (cache.service)   ? "Service Running"
                                            : "Service Stopped";
 
@@ -1897,12 +1897,16 @@ Cache=false)";
       static bool quickServiceHover = false;
 
       ImGui::TextColored      (
-        (quickServiceHover) ? cache.injection.status.color_hover
-                            : cache.injection.status.color,
-        cache.injection.status.text.empty () ?
-                                    "      " : "( %s )",
-        cache.injection.status.text.c_str ()
-                                );
+        (_inject.isPending()) ? ImColor(3, 179, 255)
+                              : (quickServiceHover) ? cache.injection.status.color_hover
+                                                    : cache.injection.status.color,
+        cache.injection.status.text.empty () ? "      "
+                                             : "( %s )",
+        (_inject.isPending()) ? (_inject.runState == SKIF_InjectionContext::RunningState::Starting)
+                                ? "Starting..."
+                                : "Stopping..."
+                              : cache.injection.status.text.c_str ()
+      );
 
       quickServiceHover = ImGui::IsItemHovered ();
 
@@ -1930,7 +1934,7 @@ Cache=false)";
         ImGui::EndPopup ( );
       }
 
-      if (cache.injection.type._Equal ("Global"))
+      if (cache.injection.type._Equal ("Global") && ! _inject.isPending())
       {
         if (ImGui::IsItemClicked ())
         {
@@ -2009,25 +2013,17 @@ Cache=false)";
         // Launch preparations for Global
         if (! cache.injection.type._Equal ("Local"))
         {
+          std::string fullPath    = SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id));
           bool isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
-               isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id)).c_str (), false);
+               isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
 
           if (! clickedGameLaunchWoSK &&
               ! isLocalBlacklisted    &&
               ! isGlobalBlacklisted
              )
           {
-            // name of parent folder
-            std::string  parentFolder     = std::filesystem::path(pTargetApp->launch_configs[0].executable).parent_path().filename().string();
-
-            // Check if the path has been whitelisted, and parentFolder is at least a character in length
-            if (! _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->launch_configs[0].executable).c_str (), true) &&
-                  parentFolder.length () > 0)
-            {
-              // Whitelist path
-              _inject._AddUserList     (parentFolder, true);
-              _inject._StoreList       (true);
-            }
+            // Whitelist the path if it haven't been already
+            _inject._WhitelistBasedOnPath (fullPath);
           }
 
           // Kickstart service if it is currently not running
@@ -2989,25 +2985,17 @@ Cache=false)";
             // Launch preparations for Global
             if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
             {
+              std::string fullPath = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id));
               bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted (pApp->id),
-                   isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath (pApp->id)).c_str (), false);
+                   isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
 
               if (! clickedGalaxyLaunchWoSK &&
                   ! isLocalBlacklisted      &&
                   ! isGlobalBlacklisted
                  )
               {
-                // name of parent folder
-                std::string  parentFolder     = std::filesystem::path(pApp->launch_configs[0].executable).parent_path().filename().string();
-
-                // Check if the path has been whitelisted, and parentFolder is at least a character in length
-                if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str (), true) &&
-                      parentFolder.length () > 0)
-                {
-                  // Whitelist path
-                  _inject._AddUserList     (parentFolder, true);
-                  _inject._StoreList       (true);
-                }
+                // Whitelist the path if it haven't been already
+                _inject._WhitelistBasedOnPath (fullPath);
               }
 
               // Kickstart service if it is currently not running
@@ -3769,6 +3757,7 @@ Cache=false)";
     static char charName     [MAX_PATH],
                 charPath     [MAX_PATH],
                 charArgs     [MAX_PATH];
+                //charProfile  [MAX_PATH];
     static bool error = false;
 
     if (ModifyGamePopup == PopupState::Open)
@@ -3779,6 +3768,7 @@ Cache=false)";
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), MAX_PATH);
+      //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", path_cache.specialk_userdata.path, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
 
       ModifyGamePopup = PopupState::Opened;
     }

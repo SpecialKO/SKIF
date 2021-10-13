@@ -30,15 +30,15 @@
 struct SKIF_InjectionContext {
   SKIF_InjectionContext (void);
 
-  HMODULE hModSelf          = nullptr;
-
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
 
+  DWORD   dwLastRefresh     = 0;
+  DWORD   dwLastSignaled    = 0;
+
   bool    bHasServlet       = false;
   bool    bHasUpdatedFiles  = false;
-  bool    bLogonTaskEnabled = false;
-  bool    bHasServletTasks  = false;
+  bool    bLogonTaskEnabled = false; // Obsolete
   
   bool    bAutoStartSKIF    = false;
   bool    bAutoStartService = false;
@@ -46,17 +46,23 @@ struct SKIF_InjectionContext {
 
   bool    bAutoStartServiceOnly = false;
 
-  bool    running           = false; // Obsolete
-  bool    run_lvl_changed   = false; // Obsolete
-
   bool    bOnDemandInject   = false;
   
-  bool    bCurrentState     = false; // Replaced running
-  bool    bPendingState     = false; // Indicates we're expecting a new state -- sorta replaced run_lvl_changed
+  bool    bCurrentState     = false;
   bool    bTaskbarOverlayIcon = false;
 
   int     pid32             = 0,
           pid64             = 0;
+
+  enum RunningState
+  {
+    Stopped  = 0,
+    Started  = 1,
+    Stopping = 2,
+    Starting = 3
+  } runState;
+
+  bool isPending (void);
 
   struct pid_file_watch_s {
     const wchar_t* wszPidFilename;
@@ -97,5 +103,6 @@ struct SKIF_InjectionContext {
   void    _LoadList               (bool whitelist_);
   bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
   void    _AddUserList            (std::string pattern,       bool whitelist_);
+  void    _WhitelistBasedOnPath   (std::string fullPath);
 
 } extern _inject;

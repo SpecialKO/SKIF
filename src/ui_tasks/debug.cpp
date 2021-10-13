@@ -76,7 +76,7 @@ struct SK_InjectionRecord_s
   } process;
 
   struct {
-    ULONG64      frames                    =  0ULL;
+    ULONG64    frames                    =  0ULL;
     SK_RenderAPI api                       = SK_RenderAPI::Reserved;
     bool         fullscreen                = false;
     bool         dpi_aware                 = false;
@@ -321,8 +321,13 @@ typedef struct _SK_SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX
 
     struct
     {
+#ifdef _WIN64
       DWORD   ProcessId;
       DWORD   ThreadId; // ?? ( What are the upper-bits for anyway ? )
+#else
+      WORD    ProcessId;
+      WORD    ThreadId; // ?? ( What are the upper-bits for anyway ? )
+#endif
     };
   };
 
@@ -997,23 +1002,27 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
 HRESULT
 SKIF_Debug_DrawUI (void)
 {
-  extern HMODULE hModSK64;
+  extern HMODULE hModSpecialK;
   extern float   SKIF_ImGui_GlobalDPIScale;
   
-  if (hModSK64 == NULL)
-    hModSK64 = LoadLibraryW (L"SpecialK64.dll");
+  if (hModSpecialK == nullptr)
+#ifdef _WIN64
+    hModSpecialK = LoadLibraryW (L"SpecialK64.dll");
+#else
+    hModSpecialK = LoadLibraryW (L"SpecialK32.dll");
+#endif
 
    SKX_GetInjectedPIDs_pfn
    SKX_GetInjectedPIDs     =
-  (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSK64,
+  (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
   "SKX_GetInjectedPIDs");
 
    SK_Inject_GetRecord     =
-  (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSK64,
+  (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
   "SK_Inject_GetRecord");
 
    SK_Inject_AuditRecord     =
-  (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSK64,
+  (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
   "SK_Inject_AuditRecord");
 
    static bool active_listing = true;
@@ -1076,7 +1085,11 @@ SKIF_Debug_DrawUI (void)
     extern void
       SKIF_ImGui_SetHoverTip(const std::string_view& szText);
 
+#ifdef _WIN64
     if (ImGui::CollapsingHeader("Active 64-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
+#else
+    if (ImGui::CollapsingHeader("Active 32-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
+#endif
     {
       ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), " %s", "PID");
       ImGui::SameLine    ( );
@@ -1103,14 +1116,22 @@ SKIF_Debug_DrawUI (void)
       ImGui::Separator   ( );
 
       if (num_pids == 0)
+#ifdef _WIN64
         ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "64-bit Special K is currently not active in any injected process.");
+#else
+        ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "32-bit Special K is currently not active in any injected process.");
+#endif
 
       while (num_pids > 0)
       {
         DWORD dwPID =
               dwPIDs [--num_pids];
 
+#ifdef _WIN64
         _Active64.emplace (dwPID);
+#else
+        _Active32.emplace (dwPID);
+#endif
 
         auto *pRecord =
           SK_Inject_GetRecord (dwPID);
@@ -1125,13 +1146,21 @@ SKIF_Debug_DrawUI (void)
           pretty_str_hover = "Steam";
         }
         else if (pRecord->platform.uwp_full_name[0] != L'\0' ||
+#ifdef _WIN64
                  SKIF_Debug_IsXboxApp(tooltips_64[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
+#else
+                 SKIF_Debug_IsXboxApp(tooltips_32[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
+#endif
         {
           pretty_str       = ICON_FA_XBOX;
           pretty_str_hover = "Xbox";
         }
 
+#ifdef _WIN64
         if (executables_64.count (dwPID))
+#else
+        if (executables_32.count (dwPID))
+#endif
         {
           ImGui::Text     (" %i", pRecord->process.id);
           ImGui::SameLine ( );
@@ -1215,11 +1244,6 @@ SKIF_Debug_DrawUI (void)
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
 
-          /*
-          if (handleTableInformationEx->Handles[i].ObjectTypeIndex != Event &&
-              handleTableInformationEx->Handles[i].ObjectTypeIndex != EventAlternate &&
-              handleTableInformationEx->Handles[i].ObjectTypeIndex != EventWin81)
-          */
           // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
           if (FoundEvent == 0x0)
           {
@@ -1341,9 +1365,9 @@ SKIF_Debug_DrawUI (void)
       }
 
       executables_64.clear ();
+      executables_32.clear ();
          policies_64.clear ();
          policies_32.clear ();
-      executables_32.clear ();
 
       if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
       {
@@ -1965,11 +1989,6 @@ SKIF_Debug_DrawUI (void)
     }
 #endif
   }
-
-  /*
-  if (hModSK64 != 0)
-    FreeLibrary (hModSK64);
-  */
 
   return
     S_OK;

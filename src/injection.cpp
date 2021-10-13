@@ -73,6 +73,9 @@ SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
 
 SKIF_InjectionContext::pid_directory_watch_s::pid_directory_watch_s (void)
 {
+  // This actually runs first out of the whole executable, so initialize core components.
+  SKIF_Initialize ( );
+
   GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
   PathAppendW          (           wszDirectory, L"Servlet" );
 
@@ -120,6 +123,14 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   }
 }
 
+bool SKIF_InjectionContext::isPending(void)
+{
+  if (runState == Starting || runState == Stopping)
+    return true;
+  else
+    return false;
+}
+
 bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
 {
   extern HWND    SKIF_hWnd;
@@ -127,7 +138,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
-  _ToggleOnDemand (autoStop);
+  _ToggleOnDemand ((! currentRunningState) ? autoStop : false);
 
 #if 0
   const wchar_t *wszStartStopCommand =
@@ -163,7 +174,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
 #ifdef _WIN64
   if ( ShellExecuteExW (&sexi) || currentRunningState )
-  {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
+  {
+    // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     sexi.lpFile       = LR"(SKIFsvc64.exe)";
     sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
 
@@ -175,7 +187,11 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     ShellExecuteExW (&sexi);
 #endif
 
-  bPendingState = true;
+  //bPendingState = pending32 = pending64 = true;
+  if (currentRunningState)
+    runState = RunningState::Stopping;
+  else
+    runState = RunningState::Starting;
 
   SetTimer (SKIF_hWnd,
             IDT_REFRESH_PENDING,
@@ -183,49 +199,32 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
             (TIMERPROC) NULL
   );
 
+  dwLastRefresh = SKIF_timeGetTime();
+
   return ret;
 };
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
 {
-  hModSelf =
-    GetModuleHandleW (nullptr);
-
-  wchar_t             wszPath
-   [MAX_PATH + 2] = { };
-  GetCurrentDirectoryW (
-    MAX_PATH,         wszPath);
-  SK_Generate8Dot3   (wszPath);
-  GetModuleFileNameW (hModSelf,
-                      wszPath,
-    MAX_PATH                 );
-  SK_Generate8Dot3   (wszPath);
-
-  // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
-  extern std::filesystem::path orgWorkingDirectory;
-
-  // Store the original working directory in a variable, since it's used by custom launch, for example.
-  orgWorkingDirectory = std::filesystem::current_path();
-
-  // Let's change the current working directory to the folder of the executable itself.
-  std::filesystem::current_path (
-    std::filesystem::path (wszPath).remove_filename ()
-  );
+  bHasServlet =
+    PathFileExistsW  (L"Servlet");
 
   // Cache the Special K user data path
   SKIF_GetFolderPath (&path_cache.specialk_userdata);
   PathAppendW (        path_cache.specialk_userdata.path,
                          LR"(My Mods\SpecialK)"  );
 
-  bHasServlet =
-    PathFileExistsW  (L"Servlet") ||
-    CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the folder if it does not exist
-
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
 
   if (! bLogonTaskEnabled)
     DeleteFile (LR"(Servlet\task_inject.bat)");
+
+  // Attempt to remove .old files, if any exists
+  DeleteFile (L"SpecialK32.old");
+#ifdef _WIN64
+  DeleteFile (L"SpecialK64.old");
+#endif
 
   struct updated_file_s {
     const wchar_t* wszFileName;
@@ -326,6 +325,10 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   // Force a one-time check on launch
   TestServletRunlevel (true);
+  
+  // Force the overlay to update itself as well
+  //   (this is required we're not transitioning away from a pending state) 
+  _SetTaskbarOverlay (bCurrentState);
 
   // Load the whitelist and blacklist
   _LoadList  (true);
@@ -335,16 +338,21 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 void
 SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  // Perform a forced check on each frame if we're performing a quick launch action
-  if (bOnDemandInject)
+  // Perform a forced check if we are transitioning from one state to another
+  if (runState == Starting || runState == Stopping)
     forcedCheck = true;
 
-  bool prevState = bCurrentState;
+  if (dir_watch.isSignaled())
+    dwLastSignaled = SKIF_timeGetTime();
 
-  if (dir_watch.isSignaled () || forcedCheck)
+  if ((dwLastSignaled > NULL && dwLastSignaled + 500 < SKIF_timeGetTime()) || (forcedCheck && dwLastRefresh + 500 < SKIF_timeGetTime()))
   {
+    dwLastRefresh = SKIF_timeGetTime();
+    dwLastSignaled = NULL;
+
     for ( auto& record : records )
     {
+      // If we currently assume the service is not running, check if it's running
       if (                 *record.pPid == 0 &&
            PathFileExistsW (record.wszPidFilename) )
       {
@@ -359,18 +367,18 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 
           if (count != 1)
                *record.pPid = 0;
-        } else *record.pPid = 0;
+        }
+        else {
+          *record.pPid = 0;
+        }
       }
 
-      SetLastError(NO_ERROR);
-
       // Verify the claimed PID is still running...
+      SetLastError(NO_ERROR);
       CHandle hProcess (
-          *record.pPid != 0 ?
-           OpenProcess ( PROCESS_QUERY_INFORMATION, FALSE,
-                           *record.pPid )
-                            : INVALID_HANDLE_VALUE
-                       );
+                (*record.pPid != 0)
+                              ? OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, *record.pPid)
+                              : NULL);
 
       // If the PID is not running, delete the file.
       //  Do not delete it if we get access denied, as it means the PID is running outside of our security context
@@ -380,21 +388,32 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
                     *record.pPid = 0;
       }
     }
-
-    bCurrentState =
-      ( pid32 || pid64 );
-
-    if (bCurrentState != prevState || forcedCheck)
+    
+    // If we're transitioning away from a pending state
+#ifdef _WIN64
+    if (runState == Starting &&   pid32 &&   pid64 ||
+        runState == Stopping && ! pid32 && ! pid64)
     {
-      _SetTaskbarOverlay (bCurrentState);
-
-      if (bPendingState)
+      if (pid32 && pid64)
+#else
+    if (runState == Starting &&   pid32 ||
+        runState == Stopping && ! pid32)
+    {
+      if (pid32)
+#endif
       {
-        bPendingState = false;
-
-        extern HWND SKIF_hWnd;
-        KillTimer(SKIF_hWnd, IDT_REFRESH_PENDING);
+        bCurrentState = true;
+        runState = Started;
       }
+      else {
+        bCurrentState = false;
+        runState = Stopped;
+      }
+
+      _SetTaskbarOverlay (bCurrentState);
+        
+      extern HWND SKIF_hWnd;
+      KillTimer  (SKIF_hWnd, IDT_REFRESH_PENDING);
     }
   }
 };
@@ -574,7 +593,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     );
   }
     
-  if (! bPendingState)
+  if (runState == Started || runState == Stopped)
   {
     const char *szStartStopLabel =
       bCurrentState ?  "Stop Service###GlobalStartStop"  :
@@ -583,38 +602,38 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
       _StartStopInject (bCurrentState, SKIF_bStopOnInjection);
-    
-    if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-      ImGui::OpenPopup ("ServiceMenu");
-
-    if (ImGui::BeginPopup ("ServiceMenu"))
-    {
-      ImGui::TextColored (
-        ImColor::HSV (0.11F, 1.F, 1.F),
-          "Troubleshooting:"
-      );
-
-      ImGui::Separator ( );
-
-      if (ImGui::Selectable("Force Start Service"))
-        _StartStopInject (false, SKIF_bStopOnInjection);
-
-      if (ImGui::Selectable("Force Stop Service"))
-        _StartStopInject (true);
-
-      ImGui::EndPopup ( );
-    }
   }
 
   else
-    ImGui::ButtonEx (bCurrentState ? "Stopping...###GlobalStartStop" :
-                                     "Starting...###GlobalStartStop",
+    ImGui::ButtonEx (runState == Stopping ? "Stopping...###GlobalStartStop" :
+                                            "Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
 
   if ( ! bCurrentState && SKIF_bDisableExitConfirmation)
       SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
+    
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ImGui::OpenPopup ("ServiceMenu");
+
+  if (ImGui::BeginPopup ("ServiceMenu"))
+  {
+    ImGui::TextColored (
+      ImColor::HSV (0.11F, 1.F, 1.F),
+        "Troubleshooting:"
+    );
+
+    ImGui::Separator ( );
+
+    if (ImGui::Selectable("Force Start Service"))
+      _StartStopInject (false, SKIF_bStopOnInjection);
+
+    if (ImGui::Selectable("Force Stop Service"))
+      _StartStopInject (true);
+
+    ImGui::EndPopup ( );
+  }
 
   if ( ! bHasServlet )
   {
@@ -736,7 +755,7 @@ CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR l
   HRESULT hres;
   IShellLink* psl;
 
-  CoInitializeEx (nullptr, 0x0);
+  //CoInitializeEx (nullptr, 0x0);
 
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
@@ -1114,8 +1133,8 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
                               IID_ITaskbarList3, (void **)&taskbar.p)
      ) )
   {
-    extern HWND SKIF_hWnd;
-    HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIFON));
+    extern HWND    SKIF_hWnd;
+    HICON hIcon = LoadIcon(hModSKIF, MAKEINTRESOURCE(IDI_SKIFON));
 
     if (hIcon != NULL)
     {
@@ -1276,12 +1295,14 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
 
   // Check if the executable filename has "launcher" in it:
   // TODO: Confirm this shit works!
+  /*
   char     szExecutableCopy [MAX_PATH] = { };
   strncpy (szExecutableCopy, szExecutable, MAX_PATH);
   PathStripPathA (szExecutableCopy);
 
   if (! whitelist_ && StrStrIA (szExecutableCopy, "Launcher") != NULL )
     return true;
+  */
 
   std::istringstream iss(  (whitelist_)
                           ? whitelist
@@ -1316,6 +1337,40 @@ void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
   }
 }
 
+void SKIF_InjectionContext::_WhitelistBasedOnPath(std::string fullPath)
+{
+  // Check if the path has been whitelisted
+  if (! _inject._TestUserList (fullPath.c_str(), true))
+  {
+    // name of parent folder
+    std::filesystem::path exePath = std::filesystem::path(fullPath);
+    std::string whitelistPattern;
+
+    // Does a parent folder exist?
+    if (exePath.has_parent_path() && exePath.parent_path().has_filename())
+    {
+      // Does another parent folder one level up exist? If so, add it to the pattern
+      if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
+        whitelistPattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
+
+      // Add the name of the parent folder to the pattern
+      whitelistPattern += exePath.parent_path().filename().string();
+
+      // If this is an Unreal Engine 4 game, add the executable as well
+      if (whitelistPattern == R"(Binaries\\Win64)" || whitelistPattern == R"(Binaries\\Win32)")
+        whitelistPattern += R"(\\)" + exePath.filename().string();
+    }
+    else {
+      // Add the executable to the pattern if all else fails
+      whitelistPattern = std::filesystem::path(fullPath).filename().string();
+    }
+
+    // Whitelist path
+    _inject._AddUserList (whitelistPattern, true);
+    _inject._StoreList   (true);
+  }
+}
+
 // Header Files for Jump List features
 #include <objectarray.h>
 #include <shobjidl.h>
@@ -1327,7 +1382,7 @@ void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
 void
 SKIF_InjectionContext::_InitializeJumpList (void)
 {
-  CoInitializeEx (nullptr, 0x0);
+  //CoInitializeEx (nullptr, 0x0);
 
   CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
   CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
@@ -1364,17 +1419,17 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink      .Release         ( );
       }
 
-      // Task #2: Start Injection (stop on inject)
+      // Task #2: Start Injection (with auto stop)
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"TEMP START");                            // Set the arguments  
+        pLink     ->SetArguments    (L"Temp Start");                            // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
-        pLink     ->SetDescription  (L"Starts the global injection service\n"
-                                     L"and stops on successful injection.");    // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Start Injection (with autostop)", &pv);
+        pLink     ->SetDescription  (L"Starts the global injection service and\n"
+                                     L"automatically stops it after injection.");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Injection (with auto stop)", &pv);
         pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
         PropVariantClear                                (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1389,10 +1444,28 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"STOP");                                  // Set the arguments  
+        pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
         pLink     ->SetDescription  (L"Stops the global injection service");    // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Stop Injection", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #4: Exit
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Quit");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+      //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Exit", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
         PropVariantClear                               (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store

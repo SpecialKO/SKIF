@@ -71,6 +71,11 @@ private:
   bool  success_    = false;
 };
 
+extern HMODULE hModSKIF;
+extern HMODULE hModSpecialK;
+void SKIF_Initialize                (void);
+std::wstring SKIF_GetLastError      (void);
+
 BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);
 BOOL SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
