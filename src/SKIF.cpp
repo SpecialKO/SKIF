@@ -5110,6 +5110,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_DEBUG:
       //OutputDebugString(L"Tick\n");
 
+          /*
           if (wParam == IDT_REFRESH_DEBUG)
             OutputDebugString(L"Debug tick\n");
           else if (wParam == IDT_REFRESH_ONDEMAND)
@@ -5118,6 +5119,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             OutputDebugString(L"Pending tick\n");
           else
             OutputDebugString(L"Unknown tick\n");
+          */
 
           // SKIF is focused -- eat my NULL and don't redraw at all!
           if (SKIF_ImGui_IsFocused ( ))

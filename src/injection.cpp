@@ -161,6 +161,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
 #endif
 
+  //HANDLE h32, h64;
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -169,8 +171,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
     sexi.lpDirectory  = L"Servlet";
     sexi.nShow        = SW_HIDE;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
                         SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+    //sexi.hProcess     = &h32;
 
 #ifdef _WIN64
   if ( ShellExecuteExW (&sexi) || currentRunningState )
@@ -178,6 +181,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     sexi.lpFile       = LR"(SKIFsvc64.exe)";
     sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
+    //sexi.hProcess     = &h64;
 
     ret =
       ShellExecuteExW (&sexi);
@@ -325,9 +329,11 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   // Force a one-time check on launch
   TestServletRunlevel (true);
+
+  // Update bCurrentState to reflect the run level
+  bCurrentState = (pid32 || pid64);
   
   // Force the overlay to update itself as well
-  //   (this is required we're not transitioning away from a pending state) 
   _SetTaskbarOverlay (bCurrentState);
 
   // Load the whitelist and blacklist
@@ -368,24 +374,35 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
           if (count != 1)
                *record.pPid = 0;
         }
-        else {
-          *record.pPid = 0;
-        }
       }
 
       // Verify the claimed PID is still running...
-      SetLastError(NO_ERROR);
+      SetLastError (NO_ERROR);
       CHandle hProcess (
                 (*record.pPid != 0)
                               ? OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, *record.pPid)
                               : NULL);
 
-      // If the PID is not running, delete the file.
-      //  Do not delete it if we get access denied, as it means the PID is running outside of our security context
-      if ((intptr_t)hProcess.m_h <= 0 && GetLastError() != ERROR_ACCESS_DENIED)
+      bool accessDenied =
+        GetLastError ( ) == ERROR_ACCESS_DENIED;
+
+      if (! accessDenied)
       {
-        DeleteFileW (record.wszPidFilename);
-                    *record.pPid = 0;
+        // Get exit code to filter out zombie processes
+        DWORD dwExitCode = 0;
+        GetExitCodeProcess(hProcess, &dwExitCode);
+
+        //OutputDebugString(L"dwExitCode: ");
+        //OutputDebugString(std::to_wstring(dwExitCode).c_str());
+        //OutputDebugString(L"\n");
+
+        // If the PID is not running, delete the file.
+        //  Do not delete it if we get access denied, as it means the PID is running outside of our security context
+        if (dwExitCode != STILL_ACTIVE)
+        {
+          DeleteFileW (record.wszPidFilename);
+                      *record.pPid = 0;
+        }
       }
     }
     
