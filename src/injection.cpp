@@ -337,7 +337,8 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 void
 SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  static DWORD dwFailed = NULL;
+  static DWORD dwFailed   = NULL;
+  static bool  triedToFix = false;
 
   // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
   if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_timeGetTime())
@@ -392,6 +393,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         }
       }
     }
+
+    extern void SKIF_CreateNotifyTooltip(std::wstring message, std::wstring title = L"");
+    extern bool SKIF_bStopOnInjection;
     
     // If we are transitioning away from a pending state
 #ifdef _WIN64
@@ -406,13 +410,18 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       if (pid32)
 #endif
       {
+        SKIF_CreateNotifyTooltip(L"Special K is now being injected into your games!", L"Service started");
         bCurrentState = true;
         runState = Started;
       }
       else {
+        SKIF_CreateNotifyTooltip (L"Special K will no longer be injected into games.", L"Service stopped");
         bCurrentState = false;
         runState = Stopped;
       }
+
+      dwFailed   = NULL;
+      triedToFix = false;
 
       _SetTaskbarOverlay (bCurrentState);
         
@@ -440,26 +449,28 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       bCurrentState = false;
     }
     // If SKIF seems stuck in a starting transition, attempt to forcefully start the service again after 5000ms
-    else if (runState == Starting)
+    else if (runState == Starting && ! triedToFix)
     {
       if (dwFailed == NULL)
         dwFailed = SKIF_timeGetTime();
 
       if (dwFailed + 5000 < SKIF_timeGetTime())
       {
+        triedToFix = true;
         dwFailed = NULL;
         extern bool SKIF_bStopOnInjection;
         _StartStopInject (false, SKIF_bStopOnInjection);
       }
     }
     // If SKIF seems stuck in a stopping transition, attempt to forcefully stop the service again after 5000ms
-    else if (runState == Stopping)
+    else if (runState == Stopping && ! triedToFix)
     {
       if (dwFailed == NULL)
         dwFailed = SKIF_timeGetTime();
 
       if (dwFailed + 5000 < SKIF_timeGetTime())
       {
+        triedToFix = true;
         dwFailed = NULL;
         extern bool SKIF_bStopOnInjection;
         _StartStopInject (true);

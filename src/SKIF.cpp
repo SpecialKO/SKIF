@@ -1493,6 +1493,7 @@ struct SKIF_Signals {
   BOOL _Disowned     = FALSE;
 } _Signal;
 
+constexpr UINT WM_SKIF_TRAYRESTORE   = WM_USER + 0x4099;
 constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x4098;
 constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x4097;
 constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
@@ -1545,8 +1546,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       //if (IsIconic        (hwndAlreadyExists))
       //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
 
-      PostMessage         (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
-
+      if (SKIF_bCloseToTray)
+      {
+        PostMessage (hwndAlreadyExists, WM_SKIF_TRAYRESTORE, 0x0, 0x0);
+      } 
+      else {
+        PostMessage (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
+      }
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
@@ -1984,28 +1990,33 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   }
 }
 
-ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
+void SKIF_CreateNotifyIcon (void)
 {
-  ULONGLONG ullVersion = 0;
-  HINSTANCE hinstDll;
-  hinstDll = LoadLibrary(lpszDllName);
-  if (hinstDll)
+  ZeroMemory (&niData, sizeof (NOTIFYICONDATA));
+  niData.cbSize      = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)	
+  niData.uID         = MY_TRAY_ICON_ID;
+  niData.uFlags      = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
+  niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
+  niData.hWnd        = SKIF_hWnd;
+  niData.uVersion    = NOTIFYICON_VERSION_4;
+  wcsncpy_s (niData.szTip,      128, L"Special K Injection Frontend",   128);
+
+  niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
+
+  Shell_NotifyIcon (NIM_ADD, &niData);
+}
+
+void SKIF_CreateNotifyTooltip (std::wstring message, std::wstring title = L"")
+{
+  if (! SKIF_ImGui_IsFocused())
   {
-    DLLGETVERSIONPROC pDllGetVersion;
-    pDllGetVersion = (DLLGETVERSIONPROC)GetProcAddress(hinstDll, "DllGetVersion");
-    if (pDllGetVersion)
-    {
-      DLLVERSIONINFO dvi;
-      HRESULT hr;
-      ZeroMemory(&dvi, sizeof(dvi));
-      dvi.cbSize = sizeof(dvi);
-      hr = (*pDllGetVersion)(&dvi);
-      if (SUCCEEDED(hr))
-          ullVersion = MAKEDLLVERULL(dvi.dwMajorVersion, dvi.dwMinorVersion, 0, 0);
-    }
-    FreeLibrary(hinstDll);
+    niData.uFlags = NIF_INFO;
+    niData.dwInfoFlags = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME; //NIIF_INFO;
+    wcsncpy_s(niData.szInfoTitle, 64, title.c_str(), 64);
+    wcsncpy_s(niData.szInfo, 256, message.c_str(), 256);
+
+    Shell_NotifyIcon (NIM_MODIFY, &niData);
   }
-  return ullVersion;
 }
 
 std::wstring SKIF_GetLastError (void)
@@ -2309,38 +2320,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // NOT FINISHED!
   if (SKIF_bCloseToTray)
   {
-    ZeroMemory(&niData, sizeof(NOTIFYICONDATA));
-
-    ULONGLONG ullVersion = GetDllVersion(_T("Shell32.dll"));
-    if (ullVersion >= MAKEDLLVERULL(6, 0, 6, 0))
-        niData.cbSize = sizeof(NOTIFYICONDATAW);
-    else if (ullVersion >= MAKEDLLVERULL(6, 0, 0, 0))
-        niData.cbSize = NOTIFYICONDATA_V3_SIZE;
-    else if (ullVersion >= MAKEDLLVERULL(5, 0, 0, 0))
-        niData.cbSize = NOTIFYICONDATA_V2_SIZE;
-    else
-        niData.cbSize = NOTIFYICONDATA_V1_SIZE;
-
-    niData.uID    = MY_TRAY_ICON_ID;
-    niData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP ;
-
-    // Load the icon to be displayed in the notification tray area.
-    niData.hIcon =
-        (HICON)LoadImage(hInstance,
-        MAKEINTRESOURCE(IDI_SKIF),
-        IMAGE_ICON,
-        GetSystemMetrics(SM_CXSMICON),
-        GetSystemMetrics(SM_CYSMICON),
-        LR_DEFAULTCOLOR);
-
-    niData.hWnd        = hWnd;
-    niData.dwInfoFlags = NIIF_INFO;
-    niData.uTimeout    = 10000;
-    niData.uVersion    = NOTIFYICON_VERSION_4;
-    wcsncpy_s( niData.szInfoTitle, 64, L"Title for balloon", 64);
-    wcsncpy_s(niData.szInfo, 256, L"Body for balloon", 256);
-    niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
-    Shell_NotifyIcon(NIM_ADD, &niData);
+    SKIF_CreateNotifyIcon();
   }
 
   // Show the window
@@ -2789,6 +2769,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         changedMode = true;
 
+        // Hide the window for the 3 following frames as ImGui determines the sizes of items etc.
+        //   This prevent flashing and elements appearing too large during those frames.
+        ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+
         // If the user changed mode, cancel the exit action.
         /* TODO: Fix CustomLaunch creating timers on SKIF_hWnd = 0,
          * causing SKIF to be unable to close them later if switched out from the mode.
@@ -2815,9 +2799,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_bCloseToTray)
         {
           bKeepWindowAlive = true;
+          ShowWindow       (hWnd, SW_MINIMIZE);
           ShowWindow       (hWnd, SW_HIDE);
-          SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx | WS_EX_NOACTIVATE);
+          //SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx | WS_EX_NOACTIVATE);
           UpdateWindow     (hWnd);
+
         }
         else
         {
@@ -3186,10 +3172,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _DrawHDRConfig       ( );
             */
 
-            /* NOT FINISHED YET!
+            // NOT FINISHED YET!
             if ( ImGui::Checkbox ( "Minimize to notification area on close", &SKIF_bCloseToTray ) )
               regKVCloseToTray.putData(                                       SKIF_bCloseToTray );
-            */
 
             if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
                                                        &SKIF_bEnableDebugMode))
@@ -4664,6 +4649,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.
       _inject.TestServletRunlevel       ();
+
+      // Ensure the taskbar overlay icon always shows the correct state
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
         _inject._SetTaskbarOverlay      (_inject.bCurrentState);
 
@@ -5072,24 +5059,25 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._LoadList          (true);
       break;
 
+    case WM_SKIF_TRAYRESTORE:
+      SetForegroundWindow (hWnd);
+      SetActiveWindow     (hWnd);
+      UpdateWindow        (hWnd);
+      ShowWindow          (hWnd, SW_SHOW);
+      ShowWindow          (hWnd, SW_RESTORE);
+      break;
+
     case WM_SKIF_NOTIFY_ICON:
       switch (lParam)
       {
         case WM_LBUTTONDBLCLK:
         case WM_LBUTTONUP:
-        {
-          SetForegroundWindow(hWnd);
-          SetActiveWindow(hWnd);
-
-          DWORD dwStyleEx =
-            SKIF_IsWindows8Point1OrGreater () ? SK_BORDERLESS_WIN8_EX
-                                              : SK_BORDERLESS_EX;
-
-          SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
-          UpdateWindow     (hWnd);
-          ShowWindowAsync  (hWnd, SW_SHOW);
+          SetForegroundWindow (hWnd);
+          SetActiveWindow     (hWnd);
+          UpdateWindow        (hWnd);
+          ShowWindow          (hWnd, SW_SHOW);
+          ShowWindow          (hWnd, SW_RESTORE);
           break;
-        }
         case WM_RBUTTONDOWN:
         case WM_CONTEXTMENU:
         case NIN_BALLOONHIDE:
