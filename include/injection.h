@@ -33,7 +33,6 @@ struct SKIF_InjectionContext {
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
 
-  DWORD   dwLastRefresh     = 0;
   DWORD   dwLastSignaled    = 0;
 
   bool    bHasServlet       = false;

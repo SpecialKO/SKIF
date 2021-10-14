@@ -191,7 +191,6 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     ShellExecuteExW (&sexi);
 #endif
 
-  //bPendingState = pending32 = pending64 = true;
   if (currentRunningState)
     runState = RunningState::Stopping;
   else
@@ -203,7 +202,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
             (TIMERPROC) NULL
   );
 
-  dwLastRefresh = SKIF_timeGetTime();
+  dwLastSignaled = SKIF_timeGetTime();
 
   return ret;
 };
@@ -289,9 +288,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   if (updates_pending > 0)
   {
-    //if (TestServletRunlevel (run_lvl_changed))
-    //  _StartStopInject (true);
-
     for ( auto& file : updated_files )
     {
       FILE* fPID =
@@ -313,9 +309,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
       file.shuffleLockedFiles ();
     }
   }
-
-  //running =
-    //TestServletRunlevel (run_lvl_changed);
 
   bHasServlet =
     bHasServlet &&
@@ -344,17 +337,15 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 void
 SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  // Perform a forced check if we are transitioning from one state to another
-  if (runState == Starting || runState == Stopping)
+  static DWORD dwFailed = NULL;
+
+  // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
+  if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_timeGetTime())
     forcedCheck = true;
 
-  if (dir_watch.isSignaled())
-    dwLastSignaled = SKIF_timeGetTime();
-
-  if ((dwLastSignaled > NULL && dwLastSignaled + 500 < SKIF_timeGetTime()) || (forcedCheck && dwLastRefresh + 500 < SKIF_timeGetTime()))
+  if (dir_watch.isSignaled() || forcedCheck)
   {
-    dwLastRefresh = SKIF_timeGetTime();
-    dwLastSignaled = NULL;
+    dwLastSignaled = SKIF_timeGetTime();
 
     for ( auto& record : records )
     {
@@ -386,18 +377,14 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       bool accessDenied =
         GetLastError ( ) == ERROR_ACCESS_DENIED;
 
+      // Do not continue it if we get access denied, as it means the PID is running outside of our security context
       if (! accessDenied)
       {
         // Get exit code to filter out zombie processes
         DWORD dwExitCode = 0;
         GetExitCodeProcess(hProcess, &dwExitCode);
 
-        //OutputDebugString(L"dwExitCode: ");
-        //OutputDebugString(std::to_wstring(dwExitCode).c_str());
-        //OutputDebugString(L"\n");
-
-        // If the PID is not running, delete the file.
-        //  Do not delete it if we get access denied, as it means the PID is running outside of our security context
+        // If the PID is not active (it is either terminated or a zombie process), delete the file.
         if (dwExitCode != STILL_ACTIVE)
         {
           DeleteFileW (record.wszPidFilename);
@@ -406,7 +393,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       }
     }
     
-    // If we're transitioning away from a pending state
+    // If we are transitioning away from a pending state
 #ifdef _WIN64
     if (runState == Starting &&   pid32 &&   pid64 ||
         runState == Stopping && ! pid32 && ! pid64)
@@ -431,6 +418,55 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         
       extern HWND SKIF_hWnd;
       KillTimer  (SKIF_hWnd, IDT_REFRESH_PENDING);
+    }
+    // Switch the state over if the service has been
+    //   toggled in the background through another method
+#if _WIN64
+    else if (runState == Stopped &&   pid32 &&   pid64)
+#else
+    else if (runState == Stopped &&   pid32)
+#endif
+    {
+      runState = Started;
+      bCurrentState = true;
+    }
+#if _WIN64
+    else if (runState == Started && ! pid32 && ! pid64)
+#else
+    else if (runState == Stopped && ! pid32)
+#endif
+    {
+      runState = Stopped;
+      bCurrentState = false;
+    }
+    // If SKIF seems stuck in a starting transition, attempt to forcefully start the service again after 5000ms
+    else if (runState == Starting)
+    {
+      if (dwFailed == NULL)
+        dwFailed = SKIF_timeGetTime();
+
+      if (dwFailed + 5000 < SKIF_timeGetTime())
+      {
+        dwFailed = NULL;
+        extern bool SKIF_bStopOnInjection;
+        _StartStopInject (false, SKIF_bStopOnInjection);
+      }
+    }
+    // If SKIF seems stuck in a stopping transition, attempt to forcefully stop the service again after 5000ms
+    else if (runState == Stopping)
+    {
+      if (dwFailed == NULL)
+        dwFailed = SKIF_timeGetTime();
+
+      if (dwFailed + 5000 < SKIF_timeGetTime())
+      {
+        dwFailed = NULL;
+        extern bool SKIF_bStopOnInjection;
+        _StartStopInject (true);
+      }
+    }
+    else {
+      dwFailed = NULL;
     }
   }
 };
