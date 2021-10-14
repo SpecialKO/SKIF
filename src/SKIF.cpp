@@ -2318,7 +2318,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Now we have a parent window to which a notification tray icon can be associated.
 
   // NOT FINISHED!
-  if (SKIF_bCloseToTray)
+  //if (SKIF_bCloseToTray)
   {
     SKIF_CreateNotifyIcon();
   }
@@ -4845,6 +4845,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   CleanupDeviceD3D          (    );
 
+  Shell_NotifyIcon          (NIM_DELETE, &niData);
+  DeleteObject              (niData.hIcon);
+  niData.hIcon               = 0;
+
   if (hDC != 0)
     ReleaseDC               (hWnd, hDC);
   DestroyWindow             (hWnd);
@@ -5156,16 +5160,16 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_CLOSE:
-      if (SKIF_bCloseToTray && niData.hIcon != 0)
+      //if (SKIF_bCloseToTray && niData.hIcon != 0)
       {
-        DeleteObject(niData.hIcon);
-        niData.hIcon = 0;
+        //DeleteObject(niData.hIcon);
+        //niData.hIcon = 0;
       }
       break;
 
     case WM_DESTROY:
-      if (SKIF_bCloseToTray)
-        Shell_NotifyIcon  (NIM_DELETE, &niData);
+      //if (SKIF_bCloseToTray)
+        //Shell_NotifyIcon  (NIM_DELETE, &niData);
       ::PostQuitMessage (0);
       return 0;
 
