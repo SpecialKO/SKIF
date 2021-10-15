@@ -410,12 +410,18 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       if (pid32)
 #endif
       {
-        SKIF_CreateNotifyTooltip(L"Special K is now being injected into your games!", L"Service started");
+        if (SKIF_bStopOnInjection)
+          SKIF_CreateNotifyTooltip (L"Special K is waiting for the game to launch...",   L"Service started");
+        else
+          SKIF_CreateNotifyTooltip (L"Special K is now being injected into your games!", L"Service started");
         bCurrentState = true;
         runState = Started;
       }
       else {
-        SKIF_CreateNotifyTooltip (L"Special K will no longer be injected into games.", L"Service stopped");
+        if (SKIF_bStopOnInjection)
+          SKIF_CreateNotifyTooltip (L"Special K has now been injected into your game!",  L"Service stopped");
+        else
+          SKIF_CreateNotifyTooltip (L"Special K will no longer be injected into games.", L"Service stopped");
         bCurrentState = false;
         runState = Stopped;
       }
@@ -458,7 +464,6 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       {
         triedToFix = true;
         dwFailed = NULL;
-        extern bool SKIF_bStopOnInjection;
         _StartStopInject (false, SKIF_bStopOnInjection);
       }
     }
@@ -472,7 +477,6 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       {
         triedToFix = true;
         dwFailed = NULL;
-        extern bool SKIF_bStopOnInjection;
         _StartStopInject (true);
       }
     }

@@ -69,10 +69,15 @@ bool RepopulateGames               = false;
 bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
 
-// Tray icon stuff
-#define MY_TRAY_ICON_ID                     0x1234
+// Notification icon stuff
+#define SKIF_NOTIFY_ICON                    0x1330
+#define SKIF_NOTIFY_EXIT                    0x1331
+#define SKIF_NOTIFY_START                   0x1332
+#define SKIF_NOTIFY_STOP                    0x1333
+#define SKIF_NOTIFY_STARTWITHSTOP           0x1334
 #define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150)
 NOTIFYICONDATA niData;
+HMENU hMenu;
 
 #include <sk_utility/command.h>
 
@@ -1488,14 +1493,14 @@ struct SKIF_Signals {
   BOOL Quit          = FALSE;
   BOOL Minimize      = FALSE;
   BOOL Restore       =  TRUE;
-  BOOL CustomLaunch  = FALSE;
+  BOOL QuickLaunch   = FALSE;
 
   BOOL _Disowned     = FALSE;
 } _Signal;
 
 constexpr UINT WM_SKIF_TRAYRESTORE   = WM_USER + 0x4099;
 constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x4098;
-constexpr UINT WM_SKIF_CUSTOMLAUNCH  = WM_USER + 0x4097;
+constexpr UINT WM_SKIF_QUICKLAUNCH   = WM_USER + 0x4097;
 constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
@@ -1528,7 +1533,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Minimize =
     StrStrIW (lpCmdLine, L"Minimize") != NULL;
 
-  _Signal.CustomLaunch =
+  _Signal.QuickLaunch =
     StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   if (  hwndAlreadyExists != 0 && (
@@ -1536,7 +1541,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                                    _Signal.Stop || _Signal.Start ||
                                    _Signal.Quit || _Signal.Minimize
                                   ) &&
-        _Signal.CustomLaunch == false
+        _Signal.QuickLaunch == false
      )
   {
     if (! _Signal.Start    &&
@@ -1547,12 +1552,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
 
       if (SKIF_bCloseToTray)
-      {
         PostMessage (hwndAlreadyExists, WM_SKIF_TRAYRESTORE, 0x0, 0x0);
-      } 
-      else {
+      else
         PostMessage (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
-      }
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
@@ -1652,7 +1654,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     ExitProcess (0x0);
   }
 
-  if (_Signal.CustomLaunch)
+  if (_Signal.QuickLaunch)
   {
     // Display in small mode
     SKIF_bSmallMode = true;
@@ -1700,7 +1702,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
 
         if (hwndAlreadyExists != 0)
-          SendMessage(hwndAlreadyExists, WM_SKIF_CUSTOMLAUNCH, 0x0, 0x0);
+          SendMessage(hwndAlreadyExists, WM_SKIF_QUICKLAUNCH, 0x0, 0x0);
 
         else if (! _inject.bCurrentState)
         {
@@ -1994,7 +1996,7 @@ void SKIF_CreateNotifyIcon (void)
 {
   ZeroMemory (&niData, sizeof (NOTIFYICONDATA));
   niData.cbSize      = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)	
-  niData.uID         = MY_TRAY_ICON_ID;
+  niData.uID         = SKIF_NOTIFY_ICON;
   niData.uFlags      = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
   niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
   niData.hWnd        = SKIF_hWnd;
@@ -2008,7 +2010,7 @@ void SKIF_CreateNotifyIcon (void)
 
 void SKIF_CreateNotifyTooltip (std::wstring message, std::wstring title = L"")
 {
-  if (! SKIF_ImGui_IsFocused())
+  if (! SKIF_ImGui_IsFocused() || bExitOnInjection)
   {
     niData.uFlags = NIF_INFO;
     niData.dwInfoFlags = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME; //NIIF_INFO;
@@ -2017,6 +2019,28 @@ void SKIF_CreateNotifyTooltip (std::wstring message, std::wstring title = L"")
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
   }
+}
+
+void SKIF_ShowNotifyMenu(void)
+{
+  // Get current mouse position.
+  POINT curPoint;
+  GetCursorPos(&curPoint);
+
+  // should SetForegroundWindow according
+  // to original poster so the popup shows on top
+  SetForegroundWindow(SKIF_hWnd);
+
+  // TrackPopupMenu blocks the app until TrackPopupMenu returns
+  UINT clicked = TrackPopupMenu(
+    hMenu,
+    0,
+    curPoint.x,
+    curPoint.y,
+    0,
+    SKIF_hWnd,
+    NULL
+  );
 }
 
 std::wstring SKIF_GetLastError (void)
@@ -2321,6 +2345,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //if (SKIF_bCloseToTray)
   {
     SKIF_CreateNotifyIcon();
+
+    hMenu = CreatePopupMenu();
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_START,         L"Start Injection");
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_STOP,          L"Stop Injection");
+    AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
   }
 
   // Show the window
@@ -2491,8 +2522,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
     if (bExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
-      bExitOnInjection = false;
-      PostMessage (hWnd, WM_QUIT, 0, 0);
+      static DWORD dwExitDelay = SKIF_timeGetTime();
+      static int iDuration = -1;
+
+      if (iDuration == -1)
+      {
+        HKEY    hKey;
+        DWORD32 dwData  = 0;
+        DWORD   dwSize  = sizeof (DWORD32);
+
+        if (RegOpenKeyW (HKEY_CURRENT_USER, LR"(Control Panel\Accessibility\)", &hKey) == ERROR_SUCCESS)
+        {
+          iDuration = (RegGetValueW(hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
+          RegCloseKey(hKey);
+        }
+        else {
+          iDuration = 5;
+        }
+      }
+      // MessageDuration * 2 seconds delay to allow Windows to send both notifications properly
+      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_timeGetTime())
+      {
+        bExitOnInjection = false;
+        PostMessage(hWnd, WM_QUIT, 0, 0);
+      }
     }
 
     if (! _TranslateAndDispatch ())
@@ -2774,7 +2827,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
 
         // If the user changed mode, cancel the exit action.
-        /* TODO: Fix CustomLaunch creating timers on SKIF_hWnd = 0,
+        /* TODO: Fix QuickLaunch creating timers on SKIF_hWnd = 0,
          * causing SKIF to be unable to close them later if switched out from the mode.
         if (bExitOnInjection)
           bExitOnInjection = false;
@@ -5055,7 +5108,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject   (true);
       break;
 
-    case WM_SKIF_CUSTOMLAUNCH:
+    case WM_SKIF_QUICKLAUNCH:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
 
@@ -5075,6 +5128,8 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (lParam)
       {
         case WM_LBUTTONDBLCLK:
+          RepositionSKIF = true;
+          break;
         case WM_LBUTTONUP:
           SetForegroundWindow (hWnd);
           SetActiveWindow     (hWnd);
@@ -5084,6 +5139,8 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         case WM_RBUTTONDOWN:
         case WM_CONTEXTMENU:
+          SKIF_ShowNotifyMenu();
+          break;
         case NIN_BALLOONHIDE:
         case NIN_BALLOONSHOW:
         case NIN_BALLOONTIMEOUT:
@@ -5157,19 +5214,28 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           return 0;
         }
       }
-      break;
-
-    case WM_CLOSE:
-      //if (SKIF_bCloseToTray && niData.hIcon != 0)
+      switch (LOWORD(wParam))
       {
-        //DeleteObject(niData.hIcon);
-        //niData.hIcon = 0;
+        case SKIF_NOTIFY_START:
+          PostMessage (hWnd, WM_SKIF_START, 0, 0);
+          break;
+        case SKIF_NOTIFY_STARTWITHSTOP:
+          PostMessage (hWnd, WM_SKIF_TEMPSTART, 0, 0);
+          break;
+        case SKIF_NOTIFY_STOP:
+          PostMessage (hWnd, WM_SKIF_STOP, 0, 0);
+          break;
+        case SKIF_NOTIFY_EXIT:
+          PostMessage (hWnd, WM_CLOSE, 0, 0);
+          break;
       }
       break;
 
+    case WM_CLOSE:
+      // Already handled in ImGui_ImplWin32_WndProcHandler
+      break;
+
     case WM_DESTROY:
-      //if (SKIF_bCloseToTray)
-        //Shell_NotifyIcon  (NIM_DELETE, &niData);
       ::PostQuitMessage (0);
       return 0;
 
