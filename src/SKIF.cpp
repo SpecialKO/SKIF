@@ -34,7 +34,6 @@ int WindowsCursorSize = 1;
 bool RepositionSKIF   = false;
 bool tinyDPIFonts     = false;
 bool startedMinimized = false;
-int RenderAdditionalFrames = 0;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
@@ -125,7 +124,7 @@ static GetSystemMetricsForDpi_pfn
                         WS_SYSMENU )
 
 #define SK_BORDERLESS_EX      ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE )
-#define SK_BORDERLESS_WIN8_EX ( SK_BORDERLESS_EX | WS_EX_NOREDIRECTIONBITMAP )
+//#define SK_BORDERLESS_WIN8_EX ( SK_BORDERLESS_EX | WS_EX_NOREDIRECTIONBITMAP ) // We don't support Win8.0 or older
 
 #define SK_FULLSCREEN_X(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CXFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CXFULLSCREEN)
 #define SK_FULLSCREEN_Y(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CYFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CYFULLSCREEN)
@@ -2097,13 +2096,13 @@ void SKIF_CreateUpdateNotifyMenu (void)
 
 void SKIF_CreateNotifyIcon (void)
 {
-  ZeroMemory (&niData, sizeof (NOTIFYICONDATA));
-  niData.cbSize      = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)	
-  niData.uID         = SKIF_NOTIFY_ICON;
-  niData.uFlags      = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
-  niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
-  niData.hWnd        = SKIF_Notify_hWnd;
-  niData.uVersion    = NOTIFYICON_VERSION_4;
+  ZeroMemory (&niData,  sizeof (NOTIFYICONDATA));
+  niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)	
+  niData.uID          = SKIF_NOTIFY_ICON;
+  niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
+  niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
+  niData.hWnd         = SKIF_Notify_hWnd;
+  niData.uVersion     = NOTIFYICON_VERSION_4;
   wcsncpy_s (niData.szTip,      128, L"Special K Injection Frontend",   128);
 
   niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
@@ -2114,7 +2113,7 @@ void SKIF_CreateNotifyIcon (void)
 void SKIF_UpdateNotifyIcon (void)
 {
   niData.uFlags      = NIF_ICON;
-  if (_inject.bTaskbarOverlayIcon)
+  if (_inject.bCurrentState)
     niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIFONNOTIFY));
   else
     niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
@@ -2128,12 +2127,12 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
       SKIF_iNotifications == 2 && ! SKIF_ImGui_IsFocused() // When Unfocused
     )
   {
-    niData.uFlags = NIF_INFO;
-    niData.dwInfoFlags = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME; //NIIF_INFO;
+    niData.uFlags       = NIF_INFO;
+    niData.dwInfoFlags  = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME;
     wcsncpy_s(niData.szInfoTitle, 64, title.c_str(), 64);
     wcsncpy_s(niData.szInfo, 256, message.c_str(), 256);
 
-    Shell_NotifyIcon(NIM_MODIFY, &niData);
+    Shell_NotifyIcon (NIM_MODIFY, &niData);
   }
 }
 
@@ -2338,11 +2337,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
+  // First round
   if (_Signal.Minimize)
     nCmdShow = SW_SHOWMINNOACTIVE;
 
+  if (nCmdShow == SW_SHOWMINNOACTIVE && SKIF_bCloseToTray)
+    nCmdShow = SW_HIDE;
+
+  // Second round
   if (nCmdShow == SW_SHOWMINNOACTIVE)
     startedMinimized = true;
+  else if (nCmdShow == SW_HIDE)
+    startedMinimized = SKIF_isTrayed = true;
 
   // Check for updates
   SKIF_VersionCtl.CheckForUpdates (
@@ -2401,7 +2407,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
-  // Create application window
+  // Create invisible notify window (for the traybar icon and notification toasts)
   WNDCLASSEX wcNotify =
   { sizeof (WNDCLASSEX),
             CS_CLASSDC, SKIF_Notify_WndProc,
@@ -2417,15 +2423,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   DWORD dwStyle   = SK_BORDERLESS,
-        dwStyleEx =
-    SKIF_IsWindows8Point1OrGreater () ? SK_BORDERLESS_WIN8_EX
-                                      : SK_BORDERLESS_EX;
+        dwStyleEx = SK_BORDERLESS_EX;
 
   if (nCmdShow != SW_SHOWMINNOACTIVE &&
       nCmdShow != SW_SHOWNOACTIVATE  &&
       nCmdShow != SW_SHOWNA          &&
       nCmdShow != SW_HIDE)
     dwStyleEx &= ~WS_EX_NOACTIVATE;
+
+  if (SKIF_isTrayed)
+    dwStyle &= ~WS_VISIBLE;
 
   HMONITOR hMonitor =
     MonitorFromWindow (hWndOrigForeground, MONITOR_DEFAULTTONEAREST);
@@ -2461,13 +2468,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
 
   SKIF_Notify_hWnd      =
-    CreateWindowExW (                      WS_EX_NOACTIVATE,
+    CreateWindowExW (                                             WS_EX_NOACTIVATE,
       wcNotify.lpszClassName, _T("SK Injection Frontend Notify"), WS_ICONIC,
-      0,
-      0,
-                   0, 0,
+                         0, 0,
+                         0, 0,
                    nullptr, nullptr,
-              wcNotify.hInstance, nullptr
+        wcNotify.hInstance, nullptr
     );
 
   HWND  hWnd  = SKIF_hWnd;
@@ -2496,13 +2502,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // The window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
 
-  // NOT FINISHED!
   SKIF_CreateNotifyIcon       ();
   SKIF_CreateUpdateNotifyMenu ();
 
   // Show the window
-  ShowWindowAsync (hWnd, nCmdShow);
-  UpdateWindow    (hWnd);
+  if (! SKIF_isTrayed)
+  {
+    ShowWindowAsync (hWnd, nCmdShow);
+    UpdateWindow    (hWnd);
+  }
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -3218,7 +3226,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
 
             if ( ImGui::Checkbox (
-                    "Allow Multiple Instances of SKIF",
+                    "Allow multiple instances of SKIF",
                       &SKIF_bAllowMultipleInstances )
                 )
             {
@@ -3247,7 +3255,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 );
             }
 
-            if ( ImGui::Checkbox ( "Always Show Shelly the Ghost",           &SKIF_bAlwaysShowGhost ) )
+            if ( ImGui::Checkbox ( "Always show Shelly the ghost",           &SKIF_bAlwaysShowGhost ) )
               regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
 
             SKIF_ImGui_SetHoverTip    ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.\n"
@@ -3365,7 +3373,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Text          ("Experimental SKIF features");
             ImGui::TreePush      ("");
 
-            if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
+            if (ImGui::Checkbox ("Enable debug mode (" ICON_FA_BUG ")",
                                                        &SKIF_bEnableDebugMode))
             {
               SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
@@ -3387,7 +3395,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
               regKVCloseToTray.putData(                                                SKIF_bCloseToTray );
 
-            ImGui::Text("Show Notifications: ");
+            ImGui::Text("Show notifications: ");
             ImGui::TreePush ("");
             if (ImGui::RadioButton ("Never", &SKIF_iNotifications, 0))
               regKVNotifications.putData(SKIF_iNotifications);
@@ -4879,7 +4887,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui::Render ();
 
 
-    bool bRefresh   = true;
+    bool bRefresh   = (SKIF_isTrayed) ? false : true;
     bool bDwmTiming = false;
 
     float fDwmPeriod = 6.0f;
@@ -4938,7 +4946,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
-      if (! startedMinimized || (SKIF_isTrayed && IsWindowVisible(hWnd)))
+      if (! startedMinimized && ! SKIF_isTrayed)
       {
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
@@ -4965,17 +4973,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING
                          : 0x0;
 
-    RenderAdditionalFrames = (RenderAdditionalFrames - 1 <= 0) ? 0 : RenderAdditionalFrames;
-
-    if (RenderAdditionalFrames)
-      bRefresh = true;
-
     if (bRefresh)
     {
       if (FAILED (g_pSwapChain->Present (Interval, Flags)))
         break;
-
-      RenderAdditionalFrames--;
     }
 
     _UpdateOcclusionStatus (hDC);
@@ -5030,7 +5031,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }, nullptr, 0x0, nullptr
       );
 
-      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering && ! RenderAdditionalFrames &&
+      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
                 WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
@@ -5265,22 +5266,24 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_RESTORE:
-      if (! SKIF_isTrayed && ! IsIconic(hWnd))
+      if (! SKIF_isTrayed && ! IsIconic (hWnd))
         RepositionSKIF = true;
 
       if (SKIF_isTrayed)
       {
         SKIF_isTrayed               = false;
         _inject.bTaskbarOverlayIcon = false;
-        ShowWindow        (hWnd, SW_SHOW);
+        ShowWindowAsync (hWnd, SW_SHOW);
+        //ShowWindowAsync (hWnd, SW_RESTORE);
       }
 
-      if (IsIconic (hWnd))
-        ShowWindow        (hWnd, SW_RESTORE);
+      ShowWindowAsync     (hWnd, SW_RESTORE);
 
       UpdateWindow        (hWnd);
+
       SetForegroundWindow (hWnd);
       SetActiveWindow     (hWnd);
+
       break;
 
     case WM_TIMER:
@@ -5387,16 +5390,8 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (lParam)
       {
         case WM_LBUTTONDBLCLK:
-          RepositionSKIF              = true;
-          break;
         case WM_LBUTTONUP:
-          SKIF_isTrayed               = false;
-          _inject.bTaskbarOverlayIcon = false;
-          ShowWindow          (SKIF_hWnd, SW_SHOW);
-          ShowWindow          (SKIF_hWnd, SW_RESTORE);
-          SetForegroundWindow (SKIF_hWnd);
-          SetActiveWindow     (SKIF_hWnd);
-          UpdateWindow        (SKIF_hWnd);
+          PostMessage (SKIF_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
           break;
         case WM_RBUTTONDOWN:
         case WM_CONTEXTMENU:

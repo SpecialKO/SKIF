@@ -615,10 +615,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   {
 
   case WM_CLOSE:
-    extern bool bKeepWindowAlive;
     extern bool bKeepProcessAlive;
     extern bool SKIF_bAllowBackgroundService;
-    extern bool SKIF_isTrayed;
     //extern SKIF_InjectionContext _inject;
 
     // Handle attempt to close the window
@@ -631,23 +629,11 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       bKeepProcessAlive = false;
 
       PostMessage (hwnd, WM_QUIT, 0, 0);
-
-      /* Only needed if the Exit Prompt was being used:
-      bKeepWindowAlive              = false;
-      if (SKIF_isTrayed)
-      {
-        SKIF_isTrayed               = false;
-        _inject.bTaskbarOverlayIcon = false;
-        ShowWindow        (hwnd, SW_SHOW);
-      }
-      if (IsIconic        (hwnd))
-        ShowWindow        (hwnd, SW_RESTORE);
-      UpdateWindow        (hwnd);
-      */
       return 1;
     }
 
     // Handle second attempt to close the window, by defaulting as if the exit prompt was disabled
+    /*
     else if (hwnd != nullptr && ! bKeepWindowAlive)
     {
       if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService)
@@ -656,6 +642,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       bKeepProcessAlive = false;
       return 1;
     }
+    */
     break;
 
   case WM_SETFOCUS:

@@ -395,9 +395,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       }
     }
 
-    extern void SKIF_CreateNotifyToast(std::wstring message, std::wstring title = L"");
+    extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
+    extern void SKIF_UpdateNotifyIcon (void);
     extern CHandle hInjectAck;
-    extern int RenderAdditionalFrames;
 
     // If we are transitioning away from a pending state
 #ifdef _WIN64
@@ -412,28 +412,34 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       if (pid32)
 #endif
       {
+        bCurrentState     = true;
+        runState          = Started;
+
+        SKIF_UpdateNotifyIcon ( );
+
         if (bAckInj)
           SKIF_CreateNotifyToast (L"Special K is waiting for the game to launch...",   L"Service started");
         else
           SKIF_CreateNotifyToast (L"Special K is now being injected into your games!", L"Service started");
-        bCurrentState     = true;
-        runState          = Started;
       }
       else
       {
-        if (bAckInjSignaled)
-          SKIF_CreateNotifyToast (L"Special K has now been injected into your game!",  L"Service stopped");
-        else
-          SKIF_CreateNotifyToast (L"Special K will no longer be injected into games.", L"Service stopped");
         bCurrentState     = false;
         bAckInj           = false;
         bAckInjSignaled   = false;
         runState          = Stopped;
+
+        SKIF_UpdateNotifyIcon ( );
+
+        if (bAckInjSignaled)
+          SKIF_CreateNotifyToast (L"Special K has now been injected into your game!",  L"Service stopped");
+        else
+          SKIF_CreateNotifyToast (L"Special K will no longer be injected into games.", L"Service stopped");
       }
 
       dwFailed   = NULL;
       triedToFix = false;
-
+      
       _SetTaskbarOverlay (bCurrentState);
         
       extern HWND SKIF_hWnd;
@@ -963,7 +969,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   static bool changes = false;
 
-  if (ImGui::Checkbox("Start Special K Injection Frontend (SKIF) with Windows", &bAutoStartSKIF))
+  if (ImGui::Checkbox("Start SKIF with Windows", &bAutoStartSKIF))
     changes = true;
 
   if (! bAutoStartSKIF)
@@ -975,10 +981,14 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::TreePush ("");
 
-  if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
+  extern bool SKIF_bCloseToTray;
+
+  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the global injection service as well", &bAutoStartService))
     changes = true;
     
-  if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+
+  if (ImGui::Checkbox((SKIF_bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized in notification area" :
+                                            " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized", &bStartMinimized))
     changes = true;
 
   ImGui::TreePop  ( );
@@ -1062,7 +1072,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
   
-    if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
+    if (ImGui::Checkbox ("Start the global injection service with Windows", &dontCare))
     {
       if (! bAutoStartServiceOnly)
       {
@@ -1201,9 +1211,6 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
       DestroyIcon (hIcon);
       bTaskbarOverlayIcon = show;
-
-      extern void SKIF_UpdateNotifyIcon (void);
-      SKIF_UpdateNotifyIcon ( );
 
       return S_OK;
     }
