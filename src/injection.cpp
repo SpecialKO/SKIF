@@ -138,6 +138,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
+  bAckInj = (! currentRunningState) ? autoStop : bAckInj;
   _ToggleOnDemand ((! currentRunningState) ? autoStop : false);
 
 #if 0
@@ -327,7 +328,7 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   bCurrentState = (pid32 || pid64);
   
   // Force the overlay to update itself as well
-  _SetTaskbarOverlay (bCurrentState);
+  //_SetTaskbarOverlay (bCurrentState);
 
   // Load the whitelist and blacklist
   _LoadList  (true);
@@ -394,9 +395,10 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       }
     }
 
-    extern void SKIF_CreateNotifyTooltip(std::wstring message, std::wstring title = L"");
-    extern bool SKIF_bStopOnInjection;
-    
+    extern void SKIF_CreateNotifyToast(std::wstring message, std::wstring title = L"");
+    extern CHandle hInjectAck;
+    extern int RenderAdditionalFrames;
+
     // If we are transitioning away from a pending state
 #ifdef _WIN64
     if (runState == Starting &&   pid32 &&   pid64 ||
@@ -410,20 +412,23 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       if (pid32)
 #endif
       {
-        if (SKIF_bStopOnInjection)
-          SKIF_CreateNotifyTooltip (L"Special K is waiting for the game to launch...",   L"Service started");
+        if (bAckInj)
+          SKIF_CreateNotifyToast (L"Special K is waiting for the game to launch...",   L"Service started");
         else
-          SKIF_CreateNotifyTooltip (L"Special K is now being injected into your games!", L"Service started");
-        bCurrentState = true;
-        runState = Started;
+          SKIF_CreateNotifyToast (L"Special K is now being injected into your games!", L"Service started");
+        bCurrentState     = true;
+        runState          = Started;
       }
-      else {
-        if (SKIF_bStopOnInjection)
-          SKIF_CreateNotifyTooltip (L"Special K has now been injected into your game!",  L"Service stopped");
+      else
+      {
+        if (bAckInjSignaled)
+          SKIF_CreateNotifyToast (L"Special K has now been injected into your game!",  L"Service stopped");
         else
-          SKIF_CreateNotifyTooltip (L"Special K will no longer be injected into games.", L"Service stopped");
-        bCurrentState = false;
-        runState = Stopped;
+          SKIF_CreateNotifyToast (L"Special K will no longer be injected into games.", L"Service stopped");
+        bCurrentState     = false;
+        bAckInj           = false;
+        bAckInjSignaled   = false;
+        runState          = Stopped;
       }
 
       dwFailed   = NULL;
@@ -464,7 +469,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       {
         triedToFix = true;
         dwFailed = NULL;
-        _StartStopInject (false, SKIF_bStopOnInjection);
+        _StartStopInject (false, bAckInj);
       }
     }
     // If SKIF seems stuck in a stopping transition, attempt to forcefully stop the service again after 5000ms
@@ -653,12 +658,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if ( ! bHasServlet )
   {
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                           ImGui::GetStyle ().Alpha *
-                             ( (SKIF_IsHDR ()) ? 0.1f
-                                               : 0.5f
-                             )
-    );
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
   }
     
   if (runState == Started || runState == Stopped)
@@ -924,12 +924,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     // Disable button
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
   }
   
   ImGui::BeginGroup  ();
@@ -975,12 +970,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     // Disable buttons
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
   }
 
   ImGui::TreePush ("");
@@ -1069,12 +1059,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     {
       // Disable button
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                              ImGui::GetStyle ().Alpha *
-                                ( (SKIF_IsHDR ()) ? 0.1f
-                                                  : 0.5f
-                                )
-      );
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
   
     if (ImGui::Checkbox ("Start Global Injection Service with Windows", &dontCare))
@@ -1195,6 +1180,9 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
   //CoInitializeEx (nullptr, 0x0); // Breaks overlay on start
 
+  extern void SKIF_CreateUpdateNotifyMenu (void);
+  SKIF_CreateUpdateNotifyMenu ( );
+
   CComPtr <ITaskbarList3> taskbar;
   if ( SUCCEEDED (
          CoCreateInstance ( CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER,
@@ -1213,10 +1201,13 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
       DestroyIcon (hIcon);
       bTaskbarOverlayIcon = show;
+
+      extern void SKIF_UpdateNotifyIcon (void);
+      SKIF_UpdateNotifyIcon ( );
+
       return S_OK;
     }
   }
-
   bTaskbarOverlayIcon = false;
   return E_UNEXPECTED;
 }
@@ -1475,7 +1466,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"START");                                 // Set the arguments  
+        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
         pLink     ->SetDescription  (L"Starts the global injection service");   // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Injection", &pv);

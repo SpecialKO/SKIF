@@ -84,9 +84,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Header Files\DXTex</Filter>
     </ClInclude>
@@ -282,9 +279,6 @@
     <ClInclude Include="include\stores\generic_library.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
-    <ClInclude Include="include\version.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\sk_config\ini.h">
       <Filter>Header Files\Config</Filter>
     </ClInclude>
@@ -348,9 +342,6 @@
     <ClInclude Include="include\sk_utility\command.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\GOG\gog_library.h">
       <Filter>Header Files\Stores\GOG</Filter>
     </ClInclude>
@@ -359,6 +350,15 @@
     </ClInclude>
     <ClInclude Include="include\stores\SKIF\custom_library.h">
       <Filter>Header Files\Stores\SKIF</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="version.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -517,6 +517,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="SKIF_off.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SKIF_on_notify.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

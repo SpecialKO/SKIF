@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "resource.h"
+#include "../resource.h"
 
 #include <combaseapi.h>
 #include <comdef.h>

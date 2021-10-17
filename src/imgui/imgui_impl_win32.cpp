@@ -18,6 +18,10 @@
 #include <XInput.h>
 #include <tchar.h>
 #include <limits>
+#include <array>
+
+auto constexpr XUSER_INDEXES =
+  std::array <DWORD, 4> { 0, 1, 2, 3 };
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -48,7 +52,11 @@ static INT64                g_Time = 0;
 static bool                 g_Focused = true;
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
-static bool                 g_HasGamepad = false;
+static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
+struct {
+  XINPUT_STATE  last_state = {         };
+  LARGE_INTEGER last_qpc   = { 0, 0ULL };
+} static                    g_GamepadHistory [XUSER_MAX_COUNT];
 static bool                 g_WantUpdateHasGamepad = true;
 static bool                 g_WantUpdateMonitors = true;
 
@@ -422,19 +430,66 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   if (g_WantUpdateHasGamepad && ( ImGui_XInputGetCapabilities != nullptr ))
   {
     XINPUT_CAPABILITIES caps;
-    g_HasGamepad           = ( ImGui_XInputGetCapabilities (0, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS );
+
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx] = ( ImGui_XInputGetCapabilities (idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS );
+    }
+
     g_WantUpdateHasGamepad = false;
   }
 
   else if (ImGui_XInputGetCapabilities == nullptr)
-    g_HasGamepad = false;
+  {
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx] = false;
+    }
+  }
 
   XINPUT_STATE xinput_state = { };
 
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
 
-  if (g_HasGamepad && ImGui_XInputGetState (0, &xinput_state) == ERROR_SUCCESS)
+  for ( auto idx : XUSER_INDEXES )
   {
+    if ( g_HasGamepad [idx] && ImGui_XInputGetState (idx, &xinput_state) == ERROR_SUCCESS )
+    {
+      if ( xinput_state.dwPacketNumber != g_GamepadHistory [idx].last_state.dwPacketNumber )
+      {
+                                  g_GamepadHistory [idx].last_state = xinput_state;
+        QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+      }
+    }
+
+    else
+    {
+      g_GamepadHistory [idx].last_qpc.QuadPart = 0;
+    }
+  }
+
+  struct {
+    LARGE_INTEGER qpc  = { 0, 0ULL };
+    DWORD         slot =    INFINITE;
+  } newest;
+
+  for ( auto idx : XUSER_INDEXES )
+  {
+    auto qpc =
+      g_GamepadHistory [idx].last_qpc.QuadPart;
+
+    if ( qpc > newest.qpc.QuadPart )
+    {
+      newest.slot         = idx;
+      newest.qpc.QuadPart = qpc;
+    }
+  }
+
+  if (newest.slot != INFINITE)
+  {
+    xinput_state =
+      g_GamepadHistory [newest.slot].last_state;
+
     const XINPUT_GAMEPAD &gamepad =
       xinput_state.Gamepad;
 
@@ -465,14 +520,15 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
 
-  return                 g_HasGamepad ?
-          xinput_state.dwPacketNumber : 0;
+  return     newest.slot != INFINITE ?
+         xinput_state.dwPacketNumber : 0;
 }
 
 INT64 current_time;
 INT64 current_time_ms;
 
 #include <algorithm>
+#include <injection.h>
 
 void
 ImGui_ImplWin32_NewFrame (void)
@@ -561,16 +617,43 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   case WM_CLOSE:
     extern bool bKeepWindowAlive;
     extern bool bKeepProcessAlive;
-    extern bool SKIF_bCloseToTray;
-    if (SKIF_bCloseToTray)
+    extern bool SKIF_bAllowBackgroundService;
+    extern bool SKIF_isTrayed;
+    //extern SKIF_InjectionContext _inject;
+
+    // Handle attempt to close the window
+    if (hwnd != nullptr)
     {
+      // Handle the service before we exit
+      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+        _inject._StartStopInject (true);
+
       bKeepProcessAlive = false;
+
+      PostMessage (hwnd, WM_QUIT, 0, 0);
+
+      /* Only needed if the Exit Prompt was being used:
+      bKeepWindowAlive              = false;
+      if (SKIF_isTrayed)
+      {
+        SKIF_isTrayed               = false;
+        _inject.bTaskbarOverlayIcon = false;
+        ShowWindow        (hwnd, SW_SHOW);
+      }
+      if (IsIconic        (hwnd))
+        ShowWindow        (hwnd, SW_RESTORE);
+      UpdateWindow        (hwnd);
+      */
       return 1;
     }
-    else if (hwnd != nullptr && bKeepWindowAlive)
+
+    // Handle second attempt to close the window, by defaulting as if the exit prompt was disabled
+    else if (hwnd != nullptr && ! bKeepWindowAlive)
     {
-      bKeepWindowAlive = false;
-      SetForegroundWindow (hwnd);
+      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService)
+        _inject._StartStopInject (true);
+
+      bKeepProcessAlive = false;
       return 1;
     }
     break;
@@ -659,8 +742,30 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       return 1;
     return 0;
   case WM_DEVICECHANGE:
-    if ((UINT)wParam == DBT_DEVNODES_CHANGED)
-      g_WantUpdateHasGamepad = true;
+    switch (wParam)
+    {
+      case DBT_DEVICEARRIVAL:
+      case DBT_DEVICEREMOVECOMPLETE:
+      {
+        DEV_BROADCAST_HDR* pDevHdr =
+          (DEV_BROADCAST_HDR *)lParam;
+
+        if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+        {
+          DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
+            (DEV_BROADCAST_DEVICEINTERFACE_W *)pDevHdr;
+
+          static constexpr GUID GUID_DEVINTERFACE_HID =
+            { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+
+          if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
+          {
+            g_WantUpdateHasGamepad = true;
+          }
+        }
+      } break;
+    }
+
     return 0;
   case WM_DISPLAYCHANGE:
     g_WantUpdateMonitors = true;
@@ -1389,7 +1494,7 @@ ImGui_ImplWin32_UpdateMonitors_EnumFunc (HMONITOR monitor, HDC, LPRECT, LPARAM)
   return TRUE;
 }
 
-#include "resource.h"
+#include "../resource.h"
 
 static void
 ImGui_ImplWin32_UpdateMonitors (void)

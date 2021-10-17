@@ -307,7 +307,6 @@
     <ClInclude Include="include\injection.h" />
     <ClInclude Include="include\install_utils.h" />
     <ClInclude Include="include\patreon.png.h" />
-    <ClInclude Include="include\resource.h" />
     <ClInclude Include="include\shaders\imgui_pix.h" />
     <ClInclude Include="include\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
@@ -327,7 +326,6 @@
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\ui_tasks\manage_games.h" />
-    <ClInclude Include="include\version.h" />
     <ClInclude Include="include\vfs.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
@@ -373,7 +371,9 @@
     <ClInclude Include="steam\steam_api_flat.h" />
     <ClInclude Include="steam\steam_api_internal.h" />
     <ClInclude Include="steam\steam_gameserver.h" />
-    <ClInclude Include="include\targetver.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\stores\generic_app.cpp" />
@@ -620,6 +620,7 @@
     <Image Include="SKIF.ico" />
     <Image Include="SKIF_on.ico" />
     <Image Include="SKIF_off.ico" />
+    <Image Include="SKIF_on_notify.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DirectXTex\DirectXTex.inl" />

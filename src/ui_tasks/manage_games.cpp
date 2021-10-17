@@ -1994,10 +1994,7 @@ Cache=false)";
       {
           buttonLabel = "Running...";
           buttonFlags = ImGuiButtonFlags_Disabled;
-          ImGui::PushStyleVar ( ImGuiStyleVar_Alpha,
-              ImGui::GetStyle ().Alpha *
-                 ((SKIF_IsHDR ()) ? 0.1f
-                                  : 0.5f));
+          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
       }
 
       // This captures two events -- launching through context menu + large button
@@ -3681,11 +3678,7 @@ Cache=false)";
     if (disabled)
     {
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                      ImGui::GetStyle ().Alpha *
-                          ((SKIF_IsHDR ()) ? 0.1f
-                                          : 0.5f)
-      );
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
 
     if (ImGui::Button  ("Add Game", vButtonSize))
@@ -3837,11 +3830,7 @@ Cache=false)";
     if (disabled)
     {
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                      ImGui::GetStyle ().Alpha *
-                          ((SKIF_IsHDR ()) ? 0.1f
-                                          : 0.5f)
-      );
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
 
     if (ImGui::Button  ("Update", vButtonSize))

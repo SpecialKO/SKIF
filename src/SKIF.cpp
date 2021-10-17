@@ -34,13 +34,15 @@ int WindowsCursorSize = 1;
 bool RepositionSKIF   = false;
 bool tinyDPIFonts     = false;
 bool startedMinimized = false;
+int RenderAdditionalFrames = 0;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
+int  SKIF_iNotifications           = 2;
 bool SKIF_bDisableDPIScaling       = false,
-     SKIF_bDisableExitConfirmation = false,
+     SKIF_bDisableExitConfirmation = true,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
      SKIF_bDisableSteamLibrary     = false,
@@ -65,7 +67,7 @@ std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
 
-bool RepopulateGames               = false;
+bool  RepopulateGames              = false;
 bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
 
@@ -76,6 +78,7 @@ DWORD HoverTipDuration             = 0;
 #define SKIF_NOTIFY_STOP                    0x1333
 #define SKIF_NOTIFY_STARTWITHSTOP           0x1334
 #define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150)
+bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
 HMENU hMenu;
 
@@ -88,7 +91,7 @@ extern        SK_ICommandProcessor*
 
 #include <stores/Steam/library.h>
 
-#include "version.h"
+#include "../version.h"
 #include <injection.h>
 #include <font_awesome.h>
 
@@ -291,6 +294,8 @@ void CleanupRenderTarget       (void);
 void ResizeSwapChain           (HWND hWnd, int width, int height);
 LRESULT WINAPI
      WndProc                   (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI
+     SKIF_Notify_WndProc       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 class SKIF_AutoWndClass {
 public:
@@ -321,6 +326,7 @@ float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
 HWND        SKIF_hWnd          =  0;
+HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 CONDITION_VARIABLE SKIF_IsNotFocused = { };
@@ -698,6 +704,80 @@ namespace SKIF
       };
 
     public:
+      bool hasData (void)
+      {
+        auto _GetValue =
+        [&]( _Tp*     pVal,
+               DWORD* pLen = nullptr ) ->
+        LSTATUS
+        {
+          LSTATUS lStat =
+            RegGetValueW ( _desc.hKey,
+                             _desc.wszSubKey,
+                               _desc.wszKeyValue,
+                               _desc.dwFlags,
+                                 &_desc.dwType,
+                                   pVal, pLen );
+
+          return lStat;
+        };
+
+        auto _SizeofData =
+        [&](void) ->
+        DWORD
+        {
+          DWORD len = 0;
+
+          if ( ERROR_SUCCESS ==
+                 _GetValue ( nullptr, &len )
+             ) return len;
+
+          return 0;
+        };
+
+        _Tp   out;
+        DWORD dwOutLen;
+
+        auto type_idx =
+          std::type_index (typeid (_Tp));
+
+        //if ( type_idx == std::type_index (typeid (std::wstring)) )
+        //{
+        //  std::wstring _out;
+        //
+        //  _out.resize (_SizeofData () + 1);
+        //
+        //  if ( ERROR_SUCCESS !=
+        //         _GetValue   (_out.data ()) ) out = _Tp ();
+        //
+        //  return out;
+        //}
+
+        if ( type_idx == std::type_index (typeid (bool)) )
+        {
+          _desc.dwType = REG_BINARY;
+              dwOutLen = sizeof (bool);
+        }
+
+        if ( type_idx == std::type_index (typeid (int)) )
+        {
+          _desc.dwType = REG_DWORD;
+              dwOutLen = sizeof (int);
+        }
+
+        if ( type_idx == std::type_index (typeid (float)) )
+        {
+          _desc.dwFlags = RRF_RT_REG_BINARY;
+          _desc.dwType  = REG_BINARY;
+               dwOutLen = sizeof (float);
+        }
+
+        if ( ERROR_SUCCESS !=
+               _GetValue (&out, &dwOutLen) ) return false;
+
+        return true;
+      };
+
       _Tp getData (void)
       {
         auto _GetValue =
@@ -1498,12 +1578,11 @@ struct SKIF_Signals {
   BOOL _Disowned     = FALSE;
 } _Signal;
 
-constexpr UINT WM_SKIF_TRAYRESTORE   = WM_USER + 0x4099;
-constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x4098;
-constexpr UINT WM_SKIF_QUICKLAUNCH   = WM_USER + 0x4097;
-constexpr UINT WM_SKIF_REPOSITION    = WM_USER + 0x4096;
-constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
+constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
+constexpr UINT WM_SKIF_QUICKLAUNCH   = WM_USER + 0x1026;
+constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
+constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
 constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 
 const wchar_t* SKIF_WindowClass =
@@ -1518,14 +1597,14 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 
-  _Signal.Stop =
-    StrStrIW (lpCmdLine, L"Stop")     != NULL;
-
   _Signal.Start =
     StrStrIW (lpCmdLine, L"Start")    != NULL;
 
   _Signal.Temporary =
     StrStrIW (lpCmdLine, L"Temp")     != NULL;
+
+  _Signal.Stop =
+    StrStrIW (lpCmdLine, L"Stop")     != NULL;
 
   _Signal.Quit =
     StrStrIW (lpCmdLine, L"Quit")     != NULL;
@@ -1544,17 +1623,17 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _Signal.QuickLaunch == false
      )
   {
-    if (! _Signal.Start    &&
-        ! _Signal.Stop     &&
-        ! _Signal.Minimize)
+    if (! _Signal.Start     &&
+        ! _Signal.Temporary &&
+        ! _Signal.Stop      &&
+        ! _Signal.Quit      &&
+        ! _Signal.Minimize  &&
+        ! _Signal.QuickLaunch)
     {
       //if (IsIconic        (hwndAlreadyExists))
       //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
-
-      if (SKIF_bCloseToTray)
-        PostMessage (hwndAlreadyExists, WM_SKIF_TRAYRESTORE, 0x0, 0x0);
-      else
-        PostMessage (hwndAlreadyExists, WM_SKIF_REPOSITION, 0x0, 0x0);
+      
+      PostMessage (hwndAlreadyExists, WM_SKIF_RESTORE, 0x0, 0x0);
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
@@ -1598,7 +1677,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       }
 
       if (_Signal.Quit)
-        PostMessage ( hwndAlreadyExists, WM_QUIT,
+        PostMessage ( hwndAlreadyExists, WM_CLOSE, // WM_QUIT
                                     0x0, 0x0 );
     }
 
@@ -1992,6 +2071,30 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   }
 }
 
+void SKIF_CreateUpdateNotifyMenu (void)
+{
+  if (hMenu != NULL)
+    DestroyMenu (hMenu);
+
+  bool svcRunning         = false,
+       svcRunningAutoStop = false,
+       svcStopped         = false;
+
+  if (_inject.bCurrentState      && hInjectAck.m_h <= 0)
+    svcRunning         = true;
+  else if (_inject.bCurrentState && hInjectAck.m_h != 0)
+    svcRunningAutoStop = true;
+  else
+    svcStopped         = true;
+
+  hMenu = CreatePopupMenu ( );
+  AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Injection");
+  AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
+  AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Injection");
+  AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
+  AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
+}
+
 void SKIF_CreateNotifyIcon (void)
 {
   ZeroMemory (&niData, sizeof (NOTIFYICONDATA));
@@ -1999,7 +2102,7 @@ void SKIF_CreateNotifyIcon (void)
   niData.uID         = SKIF_NOTIFY_ICON;
   niData.uFlags      = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
   niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
-  niData.hWnd        = SKIF_hWnd;
+  niData.hWnd        = SKIF_Notify_hWnd;
   niData.uVersion    = NOTIFYICON_VERSION_4;
   wcsncpy_s (niData.szTip,      128, L"Special K Injection Frontend",   128);
 
@@ -2008,39 +2111,59 @@ void SKIF_CreateNotifyIcon (void)
   Shell_NotifyIcon (NIM_ADD, &niData);
 }
 
-void SKIF_CreateNotifyTooltip (std::wstring message, std::wstring title = L"")
+void SKIF_UpdateNotifyIcon (void)
 {
-  if (! SKIF_ImGui_IsFocused() || bExitOnInjection)
+  niData.uFlags      = NIF_ICON;
+  if (_inject.bTaskbarOverlayIcon)
+    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIFONNOTIFY));
+  else
+    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
+
+  Shell_NotifyIcon (NIM_MODIFY, &niData);
+}
+
+void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
+{
+  if (SKIF_iNotifications == 1 || // Always
+      SKIF_iNotifications == 2 && ! SKIF_ImGui_IsFocused() // When Unfocused
+    )
   {
     niData.uFlags = NIF_INFO;
     niData.dwInfoFlags = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME; //NIIF_INFO;
     wcsncpy_s(niData.szInfoTitle, 64, title.c_str(), 64);
     wcsncpy_s(niData.szInfo, 256, message.c_str(), 256);
 
-    Shell_NotifyIcon (NIM_MODIFY, &niData);
+    Shell_NotifyIcon(NIM_MODIFY, &niData);
   }
 }
 
-void SKIF_ShowNotifyMenu(void)
+void SKIF_ShowNotifyMenu (void)
 {
   // Get current mouse position.
   POINT curPoint;
-  GetCursorPos(&curPoint);
+  GetCursorPos (&curPoint);
 
-  // should SetForegroundWindow according
-  // to original poster so the popup shows on top
-  SetForegroundWindow(SKIF_hWnd);
+  // To display a context menu for a notification icon, the current window must be the foreground window
+  // before the application calls TrackPopupMenu or TrackPopupMenuEx. Otherwise, the menu will not disappear
+  // when the user clicks outside of the menu or the window that created the menu (if it is visible).
+  SetForegroundWindow (SKIF_Notify_hWnd);
 
   // TrackPopupMenu blocks the app until TrackPopupMenu returns
-  UINT clicked = TrackPopupMenu(
+  TrackPopupMenu (
     hMenu,
-    0,
+    TPM_RIGHTBUTTON,
     curPoint.x,
     curPoint.y,
     0,
-    SKIF_hWnd,
+    SKIF_Notify_hWnd,
     NULL
   );
+
+  // However, when the current window is the foreground window, the second time this menu is displayed,
+  // it appears and then immediately disappears. To correct this, you must force a task switch to the
+  // application that called TrackPopupMenu. This is done by posting a benign message to the window or
+  // thread, as shown in the following code sample:
+  PostMessage (SKIF_Notify_hWnd, WM_NULL, 0, 0);
 }
 
 std::wstring SKIF_GetLastError (void)
@@ -2186,8 +2309,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
 
+  static auto regKVNotifications =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Notifications)" );
+
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
-  SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
+//SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
   SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
   SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
@@ -2202,6 +2329,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
+
+  if ( regKVNotifications.hasData() )
+    SKIF_iNotifications           =   regKVNotifications.getData         ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -2271,6 +2401,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
+  // Create application window
+  WNDCLASSEX wcNotify =
+  { sizeof (WNDCLASSEX),
+            CS_CLASSDC, SKIF_Notify_WndProc,
+            0L,         0L,
+        NULL, nullptr,  nullptr,
+              nullptr,  nullptr,
+    _T ("SK_Injection_Frontend_Notify"),
+              nullptr          };
+
+  if (! ::RegisterClassEx (&wcNotify))
+  {
+    return 0;
+  }
+
   DWORD dwStyle   = SK_BORDERLESS,
         dwStyleEx =
     SKIF_IsWindows8Point1OrGreater () ? SK_BORDERLESS_WIN8_EX
@@ -2315,6 +2460,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
               wc.hInstance, nullptr
     );
 
+  SKIF_Notify_hWnd      =
+    CreateWindowExW (                      WS_EX_NOACTIVATE,
+      wcNotify.lpszClassName, _T("SK Injection Frontend Notify"), WS_ICONIC,
+      0,
+      0,
+                   0, 0,
+                   nullptr, nullptr,
+              wcNotify.hInstance, nullptr
+    );
+
   HWND  hWnd  = SKIF_hWnd;
   HDC   hDC   =
     GetWindowDC (hWnd);
@@ -2342,17 +2497,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Now we have a parent window to which a notification tray icon can be associated.
 
   // NOT FINISHED!
-  //if (SKIF_bCloseToTray)
-  {
-    SKIF_CreateNotifyIcon();
-
-    hMenu = CreatePopupMenu();
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_START,         L"Start Injection");
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_STOP,          L"Stop Injection");
-    AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
-  }
+  SKIF_CreateNotifyIcon       ();
+  SKIF_CreateUpdateNotifyMenu ();
 
   // Show the window
   ShowWindowAsync (hWnd, nCmdShow);
@@ -2544,7 +2690,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (dwExitDelay + iDuration * 2 * 1000 < SKIF_timeGetTime())
       {
         bExitOnInjection = false;
-        PostMessage(hWnd, WM_QUIT, 0, 0);
+        PostMessage (hWnd, WM_QUIT, 0, 0);
       }
     }
 
@@ -2849,18 +2995,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
           || bKeepWindowAlive == false
          )
       {
-        if (SKIF_bCloseToTray)
+        if (SKIF_bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
         {
           bKeepWindowAlive = true;
           ShowWindow       (hWnd, SW_MINIMIZE);
           ShowWindow       (hWnd, SW_HIDE);
-          //SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx | WS_EX_NOACTIVATE);
           UpdateWindow     (hWnd);
-
+          SKIF_isTrayed    = true;
         }
         else
         {
-          if (_inject.bCurrentState && (!SKIF_bDisableExitConfirmation))
+          if (_inject.bCurrentState && ! SKIF_bDisableExitConfirmation)
           {
             ImGui::OpenPopup("Confirm Exit");
           }
@@ -3068,7 +3213,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
               regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
 
-            if (ImGui::Checkbox("When closing SKIF allow the global injector to remain active",
+            if (ImGui::Checkbox("Do not stop the global injection service when closing SKIF",
                                                    &SKIF_bAllowBackgroundService))
               regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
 
@@ -3117,6 +3262,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Text          ("Disable UI elements");
             ImGui::TreePush      ("");
 
+            /*
             if (ImGui::Checkbox ("Exit prompt  ",
                                                    &SKIF_bDisableExitConfirmation))
               regKVDisableExitConfirmation.putData (SKIF_bDisableExitConfirmation);
@@ -3133,6 +3279,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine ( );
             ImGui::Spacing  ( );
             ImGui::SameLine ( );
+            */
 
             if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
               regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
@@ -3218,17 +3365,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Text          ("Experimental SKIF features");
             ImGui::TreePush      ("");
 
-            /* HDR was only needed for screenshot viewing
-            if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
-              regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
-
-            _DrawHDRConfig       ( );
-            */
-
-            // NOT FINISHED YET!
-            if ( ImGui::Checkbox ( "Minimize to notification area on close", &SKIF_bCloseToTray ) )
-              regKVCloseToTray.putData(                                       SKIF_bCloseToTray );
-
             if (ImGui::Checkbox ("Enable Debug Mode (" ICON_FA_BUG ")",
                                                        &SKIF_bEnableDebugMode))
             {
@@ -3240,6 +3376,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
               );
               regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
             }
+
+            /* HDR was only needed for screenshot viewing
+            if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
+              regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
+
+            _DrawHDRConfig       ( );
+            */
+
+            if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
+              regKVCloseToTray.putData(                                                SKIF_bCloseToTray );
+
+            ImGui::Text("Show Notifications: ");
+            ImGui::TreePush ("");
+            if (ImGui::RadioButton ("Never", &SKIF_iNotifications, 0))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::SameLine ( );
+            if (ImGui::RadioButton ("Always", &SKIF_iNotifications, 1))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::SameLine ( );
+            if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::TreePop  ( );
 
             ImGui::TreePop    ( );
             ImGui::Columns    (1);
@@ -3361,11 +3519,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (pfuState != Missing)
             {
               ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-              ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                              ImGui::GetStyle ().Alpha *
-                                 ((SKIF_IsHDR ()) ? 0.1f
-                                                  : 0.5f)
-              );
+              ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
             }
 
             std::string btnPfuLabel = (pfuState == Granted) ?                                ICON_FA_CHECK " Permissions granted!" // Granted
@@ -3506,11 +3660,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   OtherDriverInstalled == driverStatus )
             {
               ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-              ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                              ImGui::GetStyle ().Alpha *
-                                 ((SKIF_IsHDR ()) ? 0.1f
-                                                  : 0.5f)
-              );
+              ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
             }
 
             // Show button
@@ -3827,10 +3977,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (bDisabled)
             {
               ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-              ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                              ImGui::GetStyle ().Alpha *
-                                 ((SKIF_IsHDR ()) ? 0.1f
-                                                  : 0.5f));
+              ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
             }
 
             // Hotkey: Ctrl+S
@@ -4629,9 +4776,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     : 350.0f * SKIF_ImGui_GlobalDPIScale,
                    0.0f )
       );
+      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Confirm Exit", nullptr,
                                      ImGuiWindowFlags_NoResize |
+                                     ImGuiWindowFlags_NoMove |
                                      ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
@@ -4789,7 +4938,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
-      if (! startedMinimized || (SKIF_bCloseToTray && IsWindowVisible(hWnd)))
+      if (! startedMinimized || (SKIF_isTrayed && IsWindowVisible(hWnd)))
       {
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
@@ -4816,10 +4965,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING
                          : 0x0;
 
+    RenderAdditionalFrames = (RenderAdditionalFrames - 1 <= 0) ? 0 : RenderAdditionalFrames;
+
+    if (RenderAdditionalFrames)
+      bRefresh = true;
+
     if (bRefresh)
     {
       if (FAILED (g_pSwapChain->Present (Interval, Flags)))
         break;
+
+      RenderAdditionalFrames--;
     }
 
     _UpdateOcclusionStatus (hDC);
@@ -4874,7 +5030,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }, nullptr, 0x0, nullptr
       );
 
-      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused () && ! HiddenFramesContinueRendering &&
+      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering && ! RenderAdditionalFrames &&
                 WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
@@ -4901,6 +5057,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   Shell_NotifyIcon          (NIM_DELETE, &niData);
   DeleteObject              (niData.hIcon);
   niData.hIcon               = 0;
+  DestroyWindow             (SKIF_Notify_hWnd);
 
   if (hDC != 0)
     ReleaseDC               (hWnd, hDC);
@@ -4908,6 +5065,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   ImGui::DestroyContext     (    );
 
+  SKIF_Notify_hWnd = 0;
   SKIF_hWnd = 0;
        hWnd = 0;
 
@@ -5080,16 +5238,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
-    case WM_SKIF_REPOSITION:
-      if (IsIconic (hWnd))
-        ShowWindowAsync (hWnd, SW_RESTORE);
-
-      SetForegroundWindow (hWnd);
-      SetActiveWindow     (hWnd);
-
-      RepositionSKIF = true;
-      break;
-
     case WM_SKIF_MINIMIZE:
       ShowWindowAsync (hWnd, SW_MINIMIZE);
       break;
@@ -5116,39 +5264,23 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._LoadList          (true);
       break;
 
-    case WM_SKIF_TRAYRESTORE:
+    case WM_SKIF_RESTORE:
+      if (! SKIF_isTrayed && ! IsIconic(hWnd))
+        RepositionSKIF = true;
+
+      if (SKIF_isTrayed)
+      {
+        SKIF_isTrayed               = false;
+        _inject.bTaskbarOverlayIcon = false;
+        ShowWindow        (hWnd, SW_SHOW);
+      }
+
+      if (IsIconic (hWnd))
+        ShowWindow        (hWnd, SW_RESTORE);
+
+      UpdateWindow        (hWnd);
       SetForegroundWindow (hWnd);
       SetActiveWindow     (hWnd);
-      UpdateWindow        (hWnd);
-      ShowWindow          (hWnd, SW_SHOW);
-      ShowWindow          (hWnd, SW_RESTORE);
-      break;
-
-    case WM_SKIF_NOTIFY_ICON:
-      switch (lParam)
-      {
-        case WM_LBUTTONDBLCLK:
-          RepositionSKIF = true;
-          break;
-        case WM_LBUTTONUP:
-          SetForegroundWindow (hWnd);
-          SetActiveWindow     (hWnd);
-          UpdateWindow        (hWnd);
-          ShowWindow          (hWnd, SW_SHOW);
-          ShowWindow          (hWnd, SW_RESTORE);
-          break;
-        case WM_RBUTTONDOWN:
-        case WM_CONTEXTMENU:
-          SKIF_ShowNotifyMenu();
-          break;
-        case NIN_BALLOONHIDE:
-        case NIN_BALLOONSHOW:
-        case NIN_BALLOONTIMEOUT:
-        case NIN_BALLOONUSERCLICK:
-        case NIN_POPUPCLOSE:
-        case NIN_POPUPOPEN:
-          break;
-      }
       break;
 
     case WM_TIMER:
@@ -5214,21 +5346,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           return 0;
         }
       }
-      switch (LOWORD(wParam))
-      {
-        case SKIF_NOTIFY_START:
-          PostMessage (hWnd, WM_SKIF_START, 0, 0);
-          break;
-        case SKIF_NOTIFY_STARTWITHSTOP:
-          PostMessage (hWnd, WM_SKIF_TEMPSTART, 0, 0);
-          break;
-        case SKIF_NOTIFY_STOP:
-          PostMessage (hWnd, WM_SKIF_STOP, 0, 0);
-          break;
-        case SKIF_NOTIFY_EXIT:
-          PostMessage (hWnd, WM_CLOSE, 0, 0);
-          break;
-      }
       break;
 
     case WM_CLOSE:
@@ -5255,6 +5372,63 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
+  }
+  return
+    ::DefWindowProc (hWnd, msg, wParam, lParam);
+}
+
+LRESULT
+WINAPI
+SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  switch (msg)
+  {
+    case WM_SKIF_NOTIFY_ICON:
+      switch (lParam)
+      {
+        case WM_LBUTTONDBLCLK:
+          RepositionSKIF              = true;
+          break;
+        case WM_LBUTTONUP:
+          SKIF_isTrayed               = false;
+          _inject.bTaskbarOverlayIcon = false;
+          ShowWindow          (SKIF_hWnd, SW_SHOW);
+          ShowWindow          (SKIF_hWnd, SW_RESTORE);
+          SetForegroundWindow (SKIF_hWnd);
+          SetActiveWindow     (SKIF_hWnd);
+          UpdateWindow        (SKIF_hWnd);
+          break;
+        case WM_RBUTTONDOWN:
+        case WM_CONTEXTMENU:
+          SKIF_ShowNotifyMenu();
+          break;
+        case NIN_BALLOONHIDE:
+        case NIN_BALLOONSHOW:
+        case NIN_BALLOONTIMEOUT:
+        case NIN_BALLOONUSERCLICK:
+        case NIN_POPUPCLOSE:
+        case NIN_POPUPOPEN:
+          break;
+      }
+      break;
+
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case SKIF_NOTIFY_START:
+          PostMessage (SKIF_hWnd, WM_SKIF_START, 0, 0);
+          break;
+        case SKIF_NOTIFY_STARTWITHSTOP:
+          PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
+          break;
+        case SKIF_NOTIFY_STOP:
+          PostMessage (SKIF_hWnd, WM_SKIF_STOP, 0, 0);
+          break;
+        case SKIF_NOTIFY_EXIT:
+          PostMessage (SKIF_hWnd, WM_CLOSE, 0, 0);
+          break;
+      }
+      break;
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);

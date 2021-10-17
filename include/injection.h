@@ -45,9 +45,9 @@ struct SKIF_InjectionContext {
 
   bool    bAutoStartServiceOnly = false;
 
-  bool    bOnDemandInject   = false;
-  
-  bool    bCurrentState     = false;
+  bool    bCurrentState       = false;
+  bool    bAckInj             = false;
+  bool    bAckInjSignaled     = false;
   bool    bTaskbarOverlayIcon = false;
 
   int     pid32             = 0,
