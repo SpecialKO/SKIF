@@ -1395,10 +1395,83 @@ SKIF_Debug_DrawUI (void)
       }
     }
 
-    std::string header_title = SK_FormatString ( "%s Active Process Monitoring###ActiveProcessMonitoring", ((active_listing) ? ICON_FA_TOGGLE_ON
+    static std::pair <DWORD, std::wstring> static_proc = { 0, L"" };
+
+    auto _ProcessMenu = [&](std::pair <const DWORD,  std::wstring> proc) -> void
+    {
+      static bool opened = false;
+      static bool openedWithAltMethod = false;
+
+      bool _GamePadRightClick =
+        ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
+                                        ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
+                                              ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
+
+      static constexpr float _LONG_INTERVAL = .15f;
+
+      bool _NavLongActivate =
+        ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
+                                        ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+
+      if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
+           _GamePadRightClick                            ||
+           _NavLongActivate)
+      {
+        ImGui::OpenPopup ("ProcessMenu");
+
+        if (_GamePadRightClick || _NavLongActivate)
+          openedWithAltMethod = true;
+      }
+
+      if (openedWithAltMethod)
+        ImGui::SetNextWindowPos (ImGui::GetCursorScreenPos() + ImVec2 (250.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+
+      if (ImGui::BeginPopup     ("ProcessMenu"))
+      {
+        if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
+        {
+          if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
+          {
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), false))
+            {
+              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), false);
+              _inject._StoreList        (false);
+            }
+          }
+
+          if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
+          {
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), true))
+            {
+              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), true);
+              _inject._StoreList        (true);
+            }
+          }
+
+          ImGui::EndMenu ( );
+        }
+
+        ImGui::Separator ( );
+
+        if (ImGui::Selectable  (ICON_FA_WINDOW_CLOSE " End task"))
+        {
+          static_proc = { proc.first, proc.second };
+          // Strip all null terminator \0 characters from the string
+          static_proc.second.erase (std::find (static_proc.second.begin ( ), static_proc.second.end ( ), '\0'), static_proc.second.end ( ));
+        }
+
+        ImGui::EndPopup        ( );
+      }
+      else {
+        openedWithAltMethod = false;
+      }
+    };
+
+    static DWORD hoveredPID = 0;
+    std::string  header_title = SK_FormatString ( "%s Active Process Monitoring###ActiveProcessMonitoring", ((active_listing) ? ICON_FA_TOGGLE_ON
                                                                           : ICON_FA_TOGGLE_OFF));
 
-    active_listing = ImGui::CollapsingHeader(header_title.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+    active_listing = ImGui::CollapsingHeader (header_title.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
     if (active_listing)
     {
@@ -1458,6 +1531,13 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PushID (proc64.first);
 
+        ImVec2 curPos = ImGui::GetCursorPos ( );
+        ImGui::Selectable   ("", (hoveredPID == proc64.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+        _ProcessMenu (proc64);
+        if (ImGui::IsItemHovered ( ))
+          hoveredPID = proc64.first;
+        ImGui::SetCursorPos (curPos);
+
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
 
@@ -1474,7 +1554,7 @@ SKIF_Debug_DrawUI (void)
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
                                                                      : ImVec4 (.0f, .0f, .0f, .0f));
 
-        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question64");    
+        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question64");
         ImGui::SameLine        ( );
 
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
@@ -1490,31 +1570,33 @@ SKIF_Debug_DrawUI (void)
         SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
 
         ImGui::PopStyleColor   (3);
+        
+        ImVec4 colText = (hoveredPID == proc64.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
 
         ImGui::SameLine        ( );        
         ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%i", proc64.first);
+        ImGui::TextColored     (colText, "%i", proc64.first);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "  %s", pretty_str.c_str());
+        ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
         SKIF_ImGui_SetHoverTip (pretty_str_hover);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "64-bit");
+        ImGui::TextColored     (colText, "%s", "64-bit");
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
-                                                               : ImVec4 (.8f, .8f, .8f, 1.f),
+                                                               : colText,
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", details_64[proc64.first].c_str());
+        ImGui::TextColored     (colText, "%s", details_64[proc64.first].c_str());
         if (strlen (details_64[proc64.first].c_str()) > 73)
           SKIF_ImGui_SetHoverTip (details_64[proc64.first]);
 
@@ -1544,6 +1626,13 @@ SKIF_Debug_DrawUI (void)
         }
 
         ImGui::PushID (proc32.first);
+
+        ImVec2 curPos = ImGui::GetCursorPos ( );
+        ImGui::Selectable   ("", (hoveredPID == proc32.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+        _ProcessMenu (proc32);
+        if (ImGui::IsItemHovered ( ))
+          hoveredPID = proc32.first;
+        ImGui::SetCursorPos (curPos);
 
         ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
@@ -1578,36 +1667,91 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PopStyleColor   (3);
         
+        ImVec4 colText = (hoveredPID == proc32.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
+
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%i", proc32.first);
+        ImGui::TextColored     (colText, "%i", proc32.first);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "  %s", pretty_str.c_str());
+        ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
         SKIF_ImGui_SetHoverTip (pretty_str_hover);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "32-bit");
+        ImGui::TextColored     (colText, "%s", "32-bit");
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
-                                                               : ImVec4 (.8f, .8f, .8f, 1.f),
+                                                               : colText,
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", details_32[proc32.first].c_str());
+        ImGui::TextColored     (colText, "%s", details_32[proc32.first].c_str());
         if (strlen (details_32[proc32.first].c_str()) > 73)
           SKIF_ImGui_SetHoverTip (details_32[proc32.first]);
 
         ImGui::PopID  ( );
       }
       ImGui::EndChildFrame ();
+    }
+    
+    // Confirm prompt
+
+    if (static_proc.first != 0)
+    {
+      ImGui::OpenPopup         ("SKIF Task Manager");
+
+      ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+      if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr,
+                                      ImGuiWindowFlags_NoResize |
+                                      ImGuiWindowFlags_NoMove |
+                                      ImGuiWindowFlags_AlwaysAutoResize )
+          )
+      {
+
+        ImGui::Text        ("Do you want to end");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), SK_WideCharToUTF8(static_proc.second).c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("?");
+        SKIF_ImGui_Spacing ( );
+        ImGui::TextWrapped ("If an open program is associated with this process, it will close and you will lose any unsaved data. "
+                            "If you end a system process, it might result in system instability. Are you sure you want to continue?");
+
+        SKIF_ImGui_Spacing ( );
+
+        ImGui::SetCursorPos (ImGui::GetCursorPos() + ImVec2(170.0f, 0));
+
+        if (ImGui::Button ("End Process", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+                                                              25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          SK_TerminatePID (static_proc.first, 0x0);
+
+          static_proc = { 0, L"" };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        ImGui::SameLine ( );
+        ImGui::Spacing  ( );
+        ImGui::SameLine ( );
+
+        if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                               25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          static_proc = { 0, L"" };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        ImGui::EndPopup ( );
+      }
     }
 
 #if 0

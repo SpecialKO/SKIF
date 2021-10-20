@@ -321,11 +321,13 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     PathFileExistsW (L"SpecialK64.dll");
 #endif
 
+  runState = RunningState::Stopped;
+
   // Force a one-time check on launch
-  TestServletRunlevel (true);
+  //TestServletRunlevel (true);
 
   // Update bCurrentState to reflect the run level
-  bCurrentState = (pid32 || pid64);
+  //bCurrentState = (pid32 || pid64);
   
   // Force the overlay to update itself as well
   //_SetTaskbarOverlay (bCurrentState);
@@ -396,7 +398,6 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     }
 
     extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
-    extern void SKIF_UpdateNotifyIcon (void);
     extern CHandle hInjectAck;
 
     // If we are transitioning away from a pending state
@@ -415,8 +416,6 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         bCurrentState     = true;
         runState          = Started;
 
-        SKIF_UpdateNotifyIcon ( );
-
         if (bAckInj)
           SKIF_CreateNotifyToast (L"Special K is waiting for the game to launch...",   L"Service started");
         else
@@ -425,16 +424,15 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       else
       {
         bCurrentState     = false;
-        bAckInj           = false;
-        bAckInjSignaled   = false;
         runState          = Stopped;
-
-        SKIF_UpdateNotifyIcon ( );
 
         if (bAckInjSignaled)
           SKIF_CreateNotifyToast (L"Special K has now been injected into your game!",  L"Service stopped");
         else
           SKIF_CreateNotifyToast (L"Special K will no longer be injected into games.", L"Service stopped");
+
+        bAckInj = false;
+        bAckInjSignaled = false;
       }
 
       dwFailed   = NULL;
@@ -455,6 +453,8 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     {
       runState = Started;
       bCurrentState = true;
+
+      _SetTaskbarOverlay (bCurrentState);
     }
 #if _WIN64
     else if (runState == Started && ! pid32 && ! pid64)
@@ -464,6 +464,8 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     {
       runState = Stopped;
       bCurrentState = false;
+
+      _SetTaskbarOverlay (bCurrentState);
     }
     // If SKIF seems stuck in a starting transition, attempt to forcefully start the service again after 5000ms
     else if (runState == Starting && ! triedToFix)
@@ -1004,9 +1006,9 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     DeleteFileW (SK_UTF8ToWideChar(link).c_str());
 
     if (bStartMinimized)
-      args = (bAutoStartService) ? L"START MINIMIZE" : L"MINIMIZE";
+      args = (bAutoStartService) ? L"Start Minimize" : L"Minimize";
     else
-      args = (bAutoStartService) ? L"START"          : L"";
+      args = (bAutoStartService) ? L"Start"          : L"";
     
     /*
     static TCHAR                             szExePath[MAX_PATH];
@@ -1191,7 +1193,9 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
   //CoInitializeEx (nullptr, 0x0); // Breaks overlay on start
 
   extern void SKIF_CreateUpdateNotifyMenu (void);
-  SKIF_CreateUpdateNotifyMenu ( );
+  extern void SKIF_UpdateNotifyIcon       (void);
+  SKIF_CreateUpdateNotifyMenu             (    );
+  SKIF_UpdateNotifyIcon                   (    );
 
   CComPtr <ITaskbarList3> taskbar;
   if ( SUCCEEDED (
@@ -1215,6 +1219,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
       return S_OK;
     }
   }
+
   bTaskbarOverlayIcon = false;
   return E_UNEXPECTED;
 }

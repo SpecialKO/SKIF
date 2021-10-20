@@ -1636,93 +1636,23 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
-    struct injection_probe_s {
-      FILE          *pid;
-      const wchar_t *wszFile;
-      DWORD_PTR      x = 0;
-    };
+    if (_Signal.Stop)
+      PostMessage (hwndAlreadyExists, WM_SKIF_STOP, 0x0, 0x0);
 
-    injection_probe_s _32 { nullptr, LR"(Servlet\SpecialK32.pid)" };
-#ifdef _WIN64
-    injection_probe_s _64 { nullptr, LR"(Servlet\SpecialK64.pid)" };
-#endif
-
-    if (_Signal.Stop || _Signal.Quit)
-    {
-      if (_Signal.Stop)
-      {
-#ifdef _WIN64
-        for ( auto probe : { _32, _64 } )
-#else
-        for ( auto probe : { _32 } )
-#endif
-        {
-          do {
-            probe.pid =
-              _wfopen (probe.wszFile, L"r");
-
-            if (probe.pid != nullptr)
-            {
-              fclose (probe.pid);
-
-                SendMessageTimeout (
-                  hwndAlreadyExists, WM_SKIF_STOP,
-                                0x0, 0x0, 0x0,
-                                       2, &probe.x
-                                   );
-            }
-          } while (probe.pid != nullptr);
-        }
-      }
-
-      if (_Signal.Quit)
-        PostMessage ( hwndAlreadyExists, WM_CLOSE, // WM_QUIT
-                                    0x0, 0x0 );
-    }
+    if (_Signal.Quit)
+      PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
 
     if (_Signal.Start)
-    {
-#ifdef _WIN64
-      for ( auto probe : { _32, _64 } )
-#else
-      for ( auto probe : { _32 } )
-#endif
-      {
-        do {
-          probe.pid =
-            _wfopen (probe.wszFile, L"r");
-
-          if (probe.pid == nullptr)
-          {
-            SendMessageTimeout (
-              hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART
-                                                     : WM_SKIF_START,
-                            0x0, 0x0, 0x0,
-                                   2, &probe.x
-                               );
-          }
-
-          else
-          {
-            fclose (probe.pid);
-            break;
-          }
-        } while (probe.pid == nullptr);
-      }
-    }
-
+      PostMessage (hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
+    
     if (_Signal.Minimize)
-    {
-      SendMessageTimeout (
-        hwndAlreadyExists, WM_SKIF_MINIMIZE,
-                      0x0, 0x0, 0x0,
-                             2, &_32.x
-                         );
-    }
+      PostMessage (hwndAlreadyExists, WM_SKIF_MINIMIZE, 0x0, 0x0);
 
-    if (IsIconic        (hWndOrigForeground))
-      ShowWindow        (hWndOrigForeground, SW_SHOWNA);
-    SetForegroundWindow (hWndOrigForeground);
+    else {
+      if (IsIconic        (hWndOrigForeground))
+        ShowWindow        (hWndOrigForeground, SW_SHOWNA);
+      SetForegroundWindow (hWndOrigForeground);
+    }
 
     if (_Signal.Quit || (! _Signal._Disowned))
        ExitProcess (0x0);
@@ -1780,7 +1710,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
 
         if (hwndAlreadyExists != 0)
-          SendMessage(hwndAlreadyExists, WM_SKIF_QUICKLAUNCH, 0x0, 0x0);
+          SendMessage (hwndAlreadyExists, WM_SKIF_QUICKLAUNCH, 0x0, 0x0);
 
         else if (! _inject.bCurrentState)
         {
@@ -2108,15 +2038,16 @@ void SKIF_CreateNotifyIcon (void)
   niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
 
   Shell_NotifyIcon (NIM_ADD, &niData);
+  //Shell_NotifyIcon (NIM_SETVERSION, &niData); // Breaks shit, lol
 }
 
 void SKIF_UpdateNotifyIcon (void)
 {
-  niData.uFlags      = NIF_ICON;
+  niData.uFlags        = NIF_ICON;
   if (_inject.bCurrentState)
-    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIFONNOTIFY));
+    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY));
   else
-    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
+    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
   Shell_NotifyIcon (NIM_MODIFY, &niData);
 }
@@ -2134,35 +2065,6 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
   }
-}
-
-void SKIF_ShowNotifyMenu (void)
-{
-  // Get current mouse position.
-  POINT curPoint;
-  GetCursorPos (&curPoint);
-
-  // To display a context menu for a notification icon, the current window must be the foreground window
-  // before the application calls TrackPopupMenu or TrackPopupMenuEx. Otherwise, the menu will not disappear
-  // when the user clicks outside of the menu or the window that created the menu (if it is visible).
-  SetForegroundWindow (SKIF_Notify_hWnd);
-
-  // TrackPopupMenu blocks the app until TrackPopupMenu returns
-  TrackPopupMenu (
-    hMenu,
-    TPM_RIGHTBUTTON,
-    curPoint.x,
-    curPoint.y,
-    0,
-    SKIF_Notify_hWnd,
-    NULL
-  );
-
-  // However, when the current window is the foreground window, the second time this menu is displayed,
-  // it appears and then immediately disappears. To correct this, you must force a task switch to the
-  // application that called TrackPopupMenu. This is done by posting a benign message to the window or
-  // thread, as shown in the following code sample:
-  PostMessage (SKIF_Notify_hWnd, WM_NULL, 0, 0);
 }
 
 std::wstring SKIF_GetLastError (void)
@@ -2501,7 +2403,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // The window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
-
   SKIF_CreateNotifyIcon       ();
   SKIF_CreateUpdateNotifyMenu ();
 
@@ -2599,12 +2500,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //   but no running instance existed to service it yet...
   _Signal._Disowned = TRUE;
 
-  if      (_Signal.Start)
-    SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
-  else if (_Signal.Stop)
+  if      (_Signal.Start || _Signal.Stop)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
   bool HiddenFramesContinueRendering = false;
+
+  // Force a one-time check before we enter the main loop
+  _inject.TestServletRunlevel (true);
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
@@ -2670,6 +2572,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         WaitForSingleObject (hInjectAck.m_h,   0) == WAIT_OBJECT_0)
     {
       hInjectAck.Close ();
+      _inject.bAckInjSignaled = true;
       _inject._StartStopInject (true);
     }
 
@@ -3028,8 +2931,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       ImGui::PopStyleVar ();
-
-      if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
+      
+      if (SKIF_bCloseToTray)
+        SKIF_ImGui_SetHoverTip ("SKIF will minimize to the notification area");
+      else if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
         SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
 
       ImGui::SetCursorPos (topCursorPos);
@@ -4784,7 +4689,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     : 350.0f * SKIF_ImGui_GlobalDPIScale,
                    0.0f )
       );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Confirm Exit", nullptr,
                                      ImGuiWindowFlags_NoResize |
@@ -5240,7 +5145,17 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_SKIF_MINIMIZE:
-      ShowWindowAsync (hWnd, SW_MINIMIZE);
+      if (SKIF_bCloseToTray && ! SKIF_isTrayed)
+      {
+        ShowWindow       (hWnd, SW_MINIMIZE);
+        ShowWindow       (hWnd, SW_HIDE);
+        UpdateWindow     (hWnd);
+        SKIF_isTrayed    = true;
+      }
+
+      else if (! SKIF_bCloseToTray) {
+        ShowWindowAsync (hWnd, SW_MINIMIZE);
+      }
       break;
 
     case WM_SKIF_START:
@@ -5266,24 +5181,22 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_RESTORE:
+      _inject.bTaskbarOverlayIcon = false;
+
       if (! SKIF_isTrayed && ! IsIconic (hWnd))
         RepositionSKIF = true;
 
       if (SKIF_isTrayed)
       {
         SKIF_isTrayed               = false;
-        _inject.bTaskbarOverlayIcon = false;
         ShowWindowAsync (hWnd, SW_SHOW);
-        //ShowWindowAsync (hWnd, SW_RESTORE);
       }
 
       ShowWindowAsync     (hWnd, SW_RESTORE);
-
       UpdateWindow        (hWnd);
 
       SetForegroundWindow (hWnd);
       SetActiveWindow     (hWnd);
-
       break;
 
     case WM_TIMER:
@@ -5292,7 +5205,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
         case IDT_REFRESH_DEBUG:
-      //OutputDebugString(L"Tick\n");
+        //OutputDebugString(L"Tick\n");
 
           /*
           if (wParam == IDT_REFRESH_DEBUG)
@@ -5308,8 +5221,8 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           // SKIF is focused -- eat my NULL and don't redraw at all!
           if (SKIF_ImGui_IsFocused ( ))
           {
-          //OutputDebugString(L"Tock\n");
-            PostMessage(hWnd, WM_NULL, 0x0, 0x0);
+            //OutputDebugString (L"Tock\n");
+            PostMessage (hWnd, WM_NULL, 0x0, 0x0);
             return 1;
           }
 
@@ -5392,11 +5305,35 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_LBUTTONDBLCLK:
         case WM_LBUTTONUP:
           PostMessage (SKIF_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
-          break;
-        case WM_RBUTTONDOWN:
+          return 0;
+        case WM_RBUTTONUP:
         case WM_CONTEXTMENU:
-          SKIF_ShowNotifyMenu();
-          break;
+          // Get current mouse position.
+          POINT curPoint;
+          GetCursorPos (&curPoint);
+
+          // To display a context menu for a notification icon, the current window must be the foreground window
+          // before the application calls TrackPopupMenu or TrackPopupMenuEx. Otherwise, the menu will not disappear
+          // when the user clicks outside of the menu or the window that created the menu (if it is visible).
+          SetForegroundWindow (hWnd);
+
+          // TrackPopupMenu blocks the app until TrackPopupMenu returns
+          TrackPopupMenu (
+            hMenu,
+            TPM_RIGHTBUTTON,
+            curPoint.x,
+            curPoint.y,
+            0,
+            hWnd,
+            NULL
+          );
+
+          // However, when the current window is the foreground window, the second time this menu is displayed,
+          // it appears and then immediately disappears. To correct this, you must force a task switch to the
+          // application that called TrackPopupMenu. This is done by posting a benign message to the window or
+          // thread, as shown in the following code sample:
+          PostMessage (hWnd, WM_NULL, 0, 0);
+          return 0;
         case NIN_BALLOONHIDE:
         case NIN_BALLOONSHOW:
         case NIN_BALLOONTIMEOUT:
