@@ -184,7 +184,7 @@ SK_Steam_GetInstalledAppIDs (void)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-      wsprintf ( wszManifestDir,
+      swprintf ( wszManifestDir,
                    LR"(%s\steamapps)",
                (wchar_t *)steam_lib_paths [i] );
 
@@ -217,7 +217,7 @@ SK_Steam_GetInstalledAppIDs (void)
 
     for (int i = 0; i < steam_libs; i++)
     {
-      wsprintf ( wszManifestDir,
+      swprintf ( wszManifestDir,
                    LR"(%s\steamapps)",
                (wchar_t *)steam_lib_paths [i] );
 
@@ -296,7 +296,7 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifest [MAX_PATH + 2] = { };
-      wsprintf ( wszManifest,
+      swprintf ( wszManifest,
                    LR"(%s\steamapps\appmanifest_%u.acf)",
                (wchar_t *)steam_lib_paths [i],
                             appid );

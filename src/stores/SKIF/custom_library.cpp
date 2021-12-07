@@ -200,6 +200,8 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
   WCHAR   szSubKey[MAX_PATH];
   WCHAR   szData  [MAX_PATH];
 
+  extern uint32_t SelectNewSKIFGame;
+
   /* Load custom titles from registry */
   if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
   {
@@ -227,7 +229,16 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
 
             dwSize = sizeof(szData) / sizeof (WCHAR);
             if (RegGetValueW (hKey, szSubKey, L"Name", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+            {
               record.names.normal = SK_WideCharToUTF8 (szData);
+
+              // Strip null terminators
+              record.names.normal.erase(std::find(record.names.normal.begin(), record.names.normal.end(), '\0'), record.names.normal.end());
+
+              // Add (recently added) at the end of a newly added game
+              if (SelectNewSKIFGame == record.id)
+                record.names.normal = record.names.normal + " (recently added)";
+            }
 
             dwSize = sizeof (szData) / sizeof (WCHAR);
             if (RegGetValueW (hKey, szSubKey, L"InstallDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)

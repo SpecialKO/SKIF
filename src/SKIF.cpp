@@ -33,6 +33,10 @@ const int SKIF_STEAM_APPID = 1157970;
 int WindowsCursorSize = 1;
 bool RepositionSKIF   = false;
 bool tinyDPIFonts     = false;
+bool invalidateFonts  = false;
+bool failedLoadFonts  = false;
+bool failedLoadFontsPrompt = false;
+DWORD invalidatedFonts = 0;
 bool startedMinimized = false;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
@@ -55,7 +59,14 @@ bool SKIF_bDisableDPIScaling       = false,
      SKIF_bOpenAtCursorPosition    = false,
      SKIF_bStopOnInjection         = false,
      SKIF_bAlwaysShowGhost         = false,
-     SKIF_bCloseToTray             = false;
+     SKIF_bCloseToTray             = false,
+     SKIF_bFontChineseSimplified   = false,
+     SKIF_bFontChineseAll          = false,
+     SKIF_bFontCyrillic            = false,
+     SKIF_bFontJapanese            = false,
+     SKIF_bFontKorean              = false,
+     SKIF_bFontThai                = false,
+     SKIF_bFontVietnamese          = false;
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
@@ -66,7 +77,10 @@ std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
 
-bool  RepopulateGames              = false;
+DWORD    RepopulateGamesWasSet     = 0;
+bool     RepopulateGames           = false;
+uint32_t SelectNewSKIFGame         = 0;
+
 bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
 
@@ -80,6 +94,20 @@ DWORD HoverTipDuration             = 0;
 bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
 HMENU hMenu;
+
+// Cmd line argument stuff
+struct SKIF_Signals {
+  BOOL Stop          = FALSE;
+  BOOL Start         = FALSE;
+  BOOL Temporary     = FALSE;
+  BOOL Quit          = FALSE;
+  BOOL Minimize      = FALSE;
+  BOOL Restore       =  TRUE;
+  BOOL QuickLaunch   = FALSE;
+  BOOL AddSKIFGame   = FALSE;
+
+  BOOL _Disowned     = FALSE;
+} _Signal;
 
 #include <sk_utility/command.h>
 
@@ -495,6 +523,21 @@ SK_ImGui_GetGlyphRangesDefaultEx (void)
 }
 
 const ImWchar*
+SK_ImGui_GetGlyphRangesKorean (void)
+{
+  static const ImWchar ranges[] =
+  {
+      0x0020, 0x00FF, // Basic Latin + Latin Supplement
+      0x3131, 0x3163, // Korean alphabets
+//#ifdef _WIN64
+      0xAC00, 0xD7A3, // Korean characters (Hangul syllables) -- should not be included on 32-bit OSes due to system limitations
+//#endif
+      0,
+  };
+  return &ranges[0];
+}
+
+const ImWchar*
 SK_ImGui_GetGlyphRangesFontAwesome (void)
 {
   static const ImWchar ranges [] =
@@ -623,12 +666,49 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
   font_cfg           = {  };
   font_cfg.MergeMode = true;
 
-    SKIF_ImGui_LoadFont (
-     L"Tahoma.ttf",
-      fontSize,
-        SK_ImGui_GetGlyphRangesDefaultEx ()
-  );
+  // Core character set
+  SKIF_ImGui_LoadFont     (L"Tahoma.ttf",   fontSize,  SK_ImGui_GetGlyphRangesDefaultEx               ()           );
 
+  // Load extended character sets when SKIF is not used as a launcher
+  if (! _Signal.QuickLaunch)
+  {
+    // Cyrillic character set
+    if (SKIF_bFontCyrillic)
+      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesCyrillic                (), &font_cfg);
+  
+    // Japanese character set
+    // Load before Chinese to not overwrite the Japanese font
+    if (SKIF_bFontJapanese)
+    {
+      if (SKIF_IsWindows10OrGreater ( ))
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      else
+        SKIF_ImGui_LoadFont (L"Yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+    }
+
+    // Simplified Chinese character set
+    // Also includes almost alll of the Japanese characters except for some Kanjis
+    if (SKIF_bFontChineseSimplified)
+      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
+    
+    // All Chinese character sets
+    if (SKIF_bFontChineseAll)
+      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseFull             (), &font_cfg);
+
+    // Korean character set
+    // On 32-bit builds this does not include Hangul syllables due to system limitaitons
+    if (SKIF_bFontKorean)
+      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, SK_ImGui_GetGlyphRangesKorean                   (), &font_cfg);
+
+    // Thai character set
+    if (SKIF_bFontThai)
+      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesThai                    (), &font_cfg);
+
+    // Vietnamese character set
+    if (SKIF_bFontVietnamese)
+      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
+  }
+  
   skif_fs::path fontDir
           (path_cache.specialk_userdata.
            path);
@@ -1565,21 +1645,10 @@ ImGuiStyle SKIF_ImGui_DefaultStyle;
 
 HWND hWndOrigForeground;
 
-struct SKIF_Signals {
-  BOOL Stop          = FALSE;
-  BOOL Start         = FALSE;
-  BOOL Temporary     = FALSE;
-  BOOL Quit          = FALSE;
-  BOOL Minimize      = FALSE;
-  BOOL Restore       =  TRUE;
-  BOOL QuickLaunch   = FALSE;
-
-  BOOL _Disowned     = FALSE;
-} _Signal;
-
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
 constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
 constexpr UINT WM_SKIF_QUICKLAUNCH   = WM_USER + 0x1026;
+constexpr UINT WM_SKIF_REFRESHGAMES  = WM_USER + 0x1027;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
 constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
@@ -1589,6 +1658,7 @@ const wchar_t* SKIF_WindowClass =
 
 #include <sstream>
 #include <cwctype>
+#include <stores/Steam/app_record.h>
 
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
@@ -1611,6 +1681,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Minimize =
     StrStrIW (lpCmdLine, L"Minimize") != NULL;
 
+  _Signal.AddSKIFGame =
+    StrStrIW (lpCmdLine, L"AddGame=") != NULL;
+
   _Signal.QuickLaunch =
     StrStrIW (lpCmdLine, L".exe")     != NULL;
 
@@ -1619,7 +1692,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                                    _Signal.Stop || _Signal.Start ||
                                    _Signal.Quit || _Signal.Minimize
                                   ) &&
-        _Signal.QuickLaunch == false
+        _Signal.QuickLaunch == false &&
+        _Signal.AddSKIFGame == false
      )
   {
     if (! _Signal.Start     &&
@@ -1657,12 +1731,129 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (_Signal.Quit || (! _Signal._Disowned))
        ExitProcess (0x0);
   }
+
   else if (_Signal.Quit)
   {
     ExitProcess (0x0);
   }
 
-  if (_Signal.QuickLaunch)
+  // Handle adding custom game
+  if (_Signal.AddSKIFGame)
+  {
+    // O:\WindowsApps\DevolverDigital.MyFriendPedroWin10_1.0.6.0_x64__6kzv4j18v0c96\MyFriendPedro.exe
+
+    char charName     [MAX_PATH],
+         charPath     [MAX_PATH],
+         charArgs     [MAX_PATH];
+
+    std::wstring cmdLine        = std::wstring(lpCmdLine);
+    std::wstring cmdLineArgs    = cmdLine;
+
+    // Transform to lowercase
+    std::wstring cmdLineLower   = cmdLine;
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+
+    std::wstring splitPos1Lower = L"addgame="; // Start split
+    std::wstring splitEXELower  = L".exe";     // Stop split (exe)
+    std::wstring splitLNKLower  = L".lnk";     // Stop split (lnk)
+
+    // Exclude anything before "addgame=", if any
+    cmdLine = cmdLine.substr(cmdLineLower.find(splitPos1Lower) + splitPos1Lower.length());
+
+    // First position is a space -- skip that one
+    if (cmdLine.find(L" ") == 0)
+      cmdLine = cmdLine.substr(1);
+
+    // First position is a quotation mark -- we need to strip those
+    if (cmdLine.find(L"\"") == 0)
+      cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
+
+    // Update lowercase
+    cmdLineLower   = cmdLine;
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+
+    // If .exe is part of the string
+    if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
+    {
+      // Extract proxied arguments, if any
+      cmdLineArgs = cmdLine.substr(cmdLineLower.find(splitEXELower) + splitEXELower.length());
+
+      // Exclude anything past ".exe"
+      cmdLine = cmdLine.substr(0, cmdLineLower.find(splitEXELower) + splitEXELower.length());
+    }
+
+    // If .lnk is part of the string
+    else if (cmdLineLower.find(splitLNKLower) != std::wstring::npos)
+    {
+      // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
+      cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
+      
+      WCHAR szTarget   [MAX_PATH];
+      WCHAR szArguments[MAX_PATH];
+
+      ResolveIt (SKIF_hWnd, SK_WideCharToUTF8(cmdLine).c_str(), szTarget, szArguments, MAX_PATH);
+
+      cmdLine     = std::wstring(szTarget);
+      cmdLineArgs = std::wstring(szArguments);
+    }
+
+    // Clear var if no valid path was found
+    else {
+      cmdLine.clear();
+    }
+
+    // Only proceed if we have an actual valid path
+    if (cmdLine.length() > 0)
+    {
+      // First position of the arguments is a space -- skip that one
+      if (cmdLineArgs.find(L" ") == 0)
+        cmdLineArgs = cmdLineArgs.substr(1);
+
+      /*
+      OutputDebugString(L"Extracted path: ");
+      OutputDebugString(cmdLine.c_str());
+      OutputDebugString(L"\n");
+
+      OutputDebugString(L"Extracted args: ");
+      OutputDebugString(cmdLineArgs.c_str());
+      OutputDebugString(L"\n");
+      */
+
+      extern std::wstring SKIF_GetProductName    (const wchar_t* wszName);
+      extern int          SKIF_AddCustomAppID    (std::vector<std::pair<std::string, app_record_s>>* apps,
+                                                  std::wstring name, std::wstring path, std::wstring args);
+      extern
+        std::vector <
+          std::pair < std::string, app_record_s >
+                    > apps;
+
+      std::filesystem::path p = cmdLine;
+      std::wstring productName = SKIF_GetProductName (p.c_str());
+
+      strncpy (charPath, p.u8string().c_str(),                                   MAX_PATH);
+      strncpy (charName, (productName != L"")
+                          ? SK_WideCharToUTF8 (productName).c_str()
+                          : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+      strncpy (charArgs, SK_WideCharToUTF8(cmdLineArgs).c_str(),                 MAX_PATH);
+
+      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
+    
+      // If a running instance of SKIF already exists, terminate this one as it has served its purpose
+      if (SelectNewSKIFGame > 0 && hwndAlreadyExists != 0)
+      {
+        SendMessage (hwndAlreadyExists, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
+        ExitProcess (0x0);
+      }
+    }
+
+    // Terminate the process if given a non-valid string
+    else {
+      ExitProcess(0x0);
+    }
+  }
+  
+  // Handle quick launching
+  else if (_Signal.QuickLaunch)
   {
     // Display in small mode
     SKIF_bSmallMode = true;
@@ -2000,6 +2191,79 @@ ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArgument
   }
 }
 
+//
+// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
+// 
+// CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
+//              to create and store a shortcut to the specified object. 
+//
+// Returns the result of calling the member functions of the interfaces. 
+//
+// Parameters:
+// lpszPathObj  - Address of a buffer that contains the path of the object,
+//                including the file name.
+// lpszPathLink - Address of a buffer that contains the path where the 
+//                Shell link is to be stored, including the file name.
+// lpszDesc     - Address of a buffer that contains a description of the 
+//                Shell link, stored in the Comment field of the link
+//                properties.
+
+bool
+CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs, LPCWSTR lpszWorkDir, LPCWSTR lpszDesc, LPCWSTR lpszIconLocation, int iIcon)
+{
+  bool ret = false;
+  IShellLink* psl;
+
+  //CoInitializeEx (nullptr, 0x0);
+
+  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+  // has already been called.
+
+  if (SUCCEEDED (CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
+  {
+    IPersistFile* ppf;
+
+    // Set the specifics of the shortcut. 
+    psl->SetPath               (lpszTarget);
+
+    if (wcscmp(lpszWorkDir, L"\0") == 0) // lpszWorkDir == L"\0"
+      psl->SetWorkingDirectory (std::filesystem::path(lpszTarget).parent_path().c_str());
+    else
+      psl->SetWorkingDirectory (lpszWorkDir);
+
+    if (wcscmp(lpszArgs, L"\0") != 0) // lpszArgs != L"\0"
+      psl->SetArguments          (lpszArgs);
+
+    if (wcscmp(lpszDesc, L"\0") != 0) // lpszDesc != L"\0"
+      psl->SetDescription      (lpszDesc);
+
+    if (wcscmp(lpszIconLocation, L"\0") != 0) // (lpszIconLocation != L"\0")
+      psl->SetIconLocation     (lpszIconLocation, iIcon);
+
+    // Query IShellLink for the IPersistFile interface, used for saving the 
+    // shortcut in persistent storage. 
+    //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+
+    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
+    {
+
+      //WCHAR wsz[MAX_PATH];
+
+      // Ensure that the string is Unicode. 
+      //MultiByteToWideChar (CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
+
+      // Save the link by calling IPersistFile::Save. 
+      if (SUCCEEDED (ppf->Save(lpszPathLink, FALSE)))
+        ret = true;
+
+      ppf->Release();
+    }
+    psl->Release();
+  }
+
+  return ret;
+}
+
 void SKIF_CreateUpdateNotifyMenu (void)
 {
   if (hMenu != NULL)
@@ -2111,6 +2375,19 @@ void SKIF_Initialize (void)
     );
 
     CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
+    
+    if (path_cache.my_documents.path [0] == 0)
+    {
+      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
+                    SK_GetSteamDir (),      _TRUNCATE );
+
+      SKIF_GetFolderPath ( &path_cache.my_documents       );
+      SKIF_GetFolderPath ( &path_cache.app_data_local     );
+      SKIF_GetFolderPath ( &path_cache.app_data_local_low );
+      SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
+      SKIF_GetFolderPath ( &path_cache.win_saved_games    );
+      SKIF_GetFolderPath ( &path_cache.desktop            );
+    }
 
     isInitalized = true;
   }
@@ -2210,6 +2487,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
 
+  static auto regKVFontChineseSimplified =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Chinese Simplified Characters)" );
+
+  static auto regKVFontChineseAll =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Chinese All Characters)" );
+
+  static auto regKVFontCyrillic =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Cyrillic Characters)" );
+
+  static auto regKVFontJapanese =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Japanese Characters)" );
+
+  static auto regKVFontKorean =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Korean Characters)" );
+
+  static auto regKVFontThai =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Thai Characters)" );
+
+  static auto regKVFontVietnamese =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Load Vietnamese Characters)" );
+
   static auto regKVNotifications =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
@@ -2230,6 +2535,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
+  SKIF_bFontChineseSimplified   =   regKVFontChineseSimplified.getData   ( );
+  SKIF_bFontChineseAll          =   regKVFontChineseAll.getData          ( );
+  SKIF_bFontCyrillic            =   regKVFontCyrillic.getData            ( );
+  SKIF_bFontJapanese            =   regKVFontJapanese.getData            ( );
+  SKIF_bFontKorean              =   regKVFontKorean.getData              ( );
+  SKIF_bFontThai                =   regKVFontThai.getData                ( );
+  SKIF_bFontVietnamese          =   regKVFontVietnamese.getData          ( );
 
   if ( regKVNotifications.hasData() )
     SKIF_iNotifications           =   regKVNotifications.getData         ( );
@@ -2598,7 +2910,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
       // MessageDuration * 2 seconds delay to allow Windows to send both notifications properly
-      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_timeGetTime())
+      // If notifications are disabled, exit immediately
+      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_timeGetTime() || SKIF_iNotifications == 0)
       {
         bExitOnInjection = false;
         PostMessage (hWnd, WM_QUIT, 0, 0);
@@ -2620,6 +2933,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       tinyDPIFonts = true;
+      invalidatedFonts = SKIF_timeGetTime();
     }
 
     else if (SKIF_ImGui_GlobalDPIScale >= 1.0f && tinyDPIFonts)
@@ -2629,6 +2943,44 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       tinyDPIFonts = false;
+      invalidatedFonts = SKIF_timeGetTime();
+    }
+
+    else if (invalidateFonts)
+    {
+      SKIF_ImGui_InitFonts ();
+      ImGui::GetIO ().Fonts->Build ();
+      ImGui_ImplDX11_InvalidateDeviceObjects ();
+
+      invalidateFonts = false;
+      invalidatedFonts = SKIF_timeGetTime();
+    }
+    
+    // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
+    else if (failedLoadFonts)
+    {
+      SKIF_bFontChineseSimplified = false;
+      SKIF_bFontChineseAll        = false;
+      SKIF_bFontCyrillic          = false;
+      SKIF_bFontJapanese          = false;
+      SKIF_bFontKorean            = false;
+      SKIF_bFontThai              = false;
+      SKIF_bFontVietnamese        = false;
+
+      regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
+      regKVFontChineseAll       .putData (SKIF_bFontChineseAll);
+      regKVFontCyrillic         .putData (SKIF_bFontCyrillic);
+      regKVFontJapanese         .putData (SKIF_bFontJapanese);
+      regKVFontKorean           .putData (SKIF_bFontKorean);
+      regKVFontThai             .putData (SKIF_bFontThai);
+      regKVFontVietnamese       .putData (SKIF_bFontVietnamese);
+      
+      SKIF_ImGui_InitFonts ();
+      ImGui::GetIO ().Fonts->Build ();
+      ImGui_ImplDX11_InvalidateDeviceObjects ();
+
+      failedLoadFonts = false;
+      failedLoadFontsPrompt = true;
     }
 
     // Start the Dear ImGui frame
@@ -2883,11 +3235,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //   This prevent flashing and elements appearing too large during those frames.
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
 
-        // If the user changed mode, cancel the exit action.
         /* TODO: Fix QuickLaunch creating timers on SKIF_hWnd = 0,
          * causing SKIF to be unable to close them later if switched out from the mode.
+        
+        // If the user changed mode, cancel the exit action.
         if (bExitOnInjection)
           bExitOnInjection = false;
+
+        // Be sure to load all extended character sets when changing mode
+        if (_Signal.QuickLaunch)
+          invalidateFonts = true;
+
         */
       }
 
@@ -3125,6 +3483,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
               regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
+            
+            if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
+              regKVCloseToTray.putData(                                                SKIF_bCloseToTray );
 
             if (ImGui::Checkbox("Do not stop the global injection service when closing SKIF",
                                                    &SKIF_bAllowBackgroundService))
@@ -3168,9 +3529,48 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             _inject._StartAtLogonCtrl ( );
 
+            ImGui::Spacing       ( );
+            ImGui::Spacing       ( );
+
+            ImGui::Text          ("Hide games from select platforms");
+            ImGui::TreePush      ("");
+
+            if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
+            {
+              regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
+              RepopulateGames = true;
+            }
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
+            if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
+            {
+              regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
+              RepopulateGames = true;
+            }
+
+            ImGui::TreePop       ( );
+
             ImGui::NextColumn    ( );
 
             // New column
+
+            ImGui::Text("Show notifications: ");
+            ImGui::TreePush ("");
+            if (ImGui::RadioButton ("Never", &SKIF_iNotifications, 0))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::SameLine ( );
+            if (ImGui::RadioButton ("Always", &SKIF_iNotifications, 1))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::SameLine ( );
+            if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
+              regKVNotifications.putData(SKIF_iNotifications);
+            ImGui::TreePop  ( );
+
+            ImGui::Spacing       ( );
+            ImGui::Spacing       ( );
 
             ImGui::Text          ("Disable UI elements");
             ImGui::TreePush      ("");
@@ -3252,24 +3652,102 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing       ( );
             ImGui::Spacing       ( );
 
-            ImGui::Text          ("Hide games from select platforms");
+            ImGui::Text          ("Enable extended character sets (" ICON_FA_EXCLAMATION_TRIANGLE ")");
+
+            SKIF_ImGui_SetHoverTip ("Can noticeably slow down the launch time of SKIF.");
+
             ImGui::TreePush      ("");
 
-            if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
+            // First column
+            ImGui::BeginGroup ( );
+
+            if (ImGui::Checkbox      ("Chinese (Simplified)", &SKIF_bFontChineseSimplified))
             {
-              regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
-              RepopulateGames = true;
+              SKIF_bFontChineseAll = false;
+              regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
+              regKVFontChineseAll.putData        (SKIF_bFontChineseAll);
+              invalidateFonts = true;
             }
+
+            if (ImGui::Checkbox      ("Japanese", &SKIF_bFontJapanese))
+            {
+              regKVFontJapanese.putData (SKIF_bFontJapanese);
+              invalidateFonts = true;
+            }
+
+            if (ImGui::Checkbox      ("Vietnamese", &SKIF_bFontVietnamese))
+            {
+              regKVFontVietnamese.putData (SKIF_bFontVietnamese);
+              invalidateFonts = true;
+            }
+
+            ImGui::EndGroup ( );
 
             ImGui::SameLine ( );
             ImGui::Spacing  ( );
             ImGui::SameLine ( );
 
-            if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
+            // Second column
+            ImGui::BeginGroup ( );
+
+/*
+#ifndef _WIN64
+            ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+#endif
+*/
+
+            if (ImGui::Checkbox      ("Chinese (All)", &SKIF_bFontChineseAll))
             {
-              regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
-              RepopulateGames = true;
+              SKIF_bFontChineseSimplified = false;
+              regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
+              regKVFontChineseAll.putData        (SKIF_bFontChineseAll);
+              invalidateFonts = true;
             }
+
+/*
+#ifndef _WIN64
+            ImGui::PopStyleVar ( );
+            ImGui::PopItemFlag ( );
+            
+            SKIF_ImGui_SetHoverTip ("Not included in 32-bit SKIF due to system limitations.");
+#endif
+*/
+
+            if (ImGui::Checkbox      ("Korean", &SKIF_bFontKorean))
+            {
+              regKVFontKorean.putData (SKIF_bFontKorean);
+              invalidateFonts = true;
+            }
+
+/*
+#ifndef _WIN64
+            SKIF_ImGui_SetHoverTip ("32-bit SKIF does not include Hangul syllables due to system limitations.");
+#endif
+*/
+
+            ImGui::EndGroup      ( );
+
+            ImGui::SameLine      ( );
+            ImGui::Spacing       ( );
+            ImGui::SameLine      ( );
+
+            // Third column
+            ImGui::BeginGroup    ( );
+
+            if (ImGui::Checkbox      ("Cyrillic", &SKIF_bFontCyrillic))
+            {
+              regKVFontCyrillic.putData   (SKIF_bFontCyrillic);
+              invalidateFonts = true;
+            }
+
+            if (ImGui::Checkbox      ("Thai", &SKIF_bFontThai))
+            {
+              regKVFontThai.putData (SKIF_bFontThai);
+              invalidateFonts = true;
+            }
+
+            ImGui::EndGroup      ( );
 
             ImGui::TreePop       ( );
 
@@ -3296,21 +3774,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             _DrawHDRConfig       ( );
             */
-
-            if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
-              regKVCloseToTray.putData(                                                SKIF_bCloseToTray );
-
-            ImGui::Text("Show notifications: ");
-            ImGui::TreePush ("");
-            if (ImGui::RadioButton ("Never", &SKIF_iNotifications, 0))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::SameLine ( );
-            if (ImGui::RadioButton ("Always", &SKIF_iNotifications, 1))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::SameLine ( );
-            if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::TreePop  ( );
 
             ImGui::TreePop    ( );
             ImGui::Columns    (1);
@@ -4682,6 +5145,46 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
 
+      // Font warning
+      if (failedLoadFontsPrompt && ! HiddenFramesContinueRendering)
+      {
+        failedLoadFontsPrompt = false;
+
+        ImGui::OpenPopup ("###FailedFontsPopup");
+      }
+      
+
+      float ffailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
+      ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
+
+      if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+      {
+        ImGui::TreePush    ("");
+
+        SKIF_ImGui_Spacing ( );
+
+        ImGui::TextWrapped ("The selected character sets failed to load due to system limitations and have been reset.");
+        ImGui::NewLine     ( );
+        ImGui::TextWrapped ("Please limit the selection to only the most essential.");
+
+        SKIF_ImGui_Spacing ( );
+        SKIF_ImGui_Spacing ( );
+
+        ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+
+        ImGui::SetCursorPosX (ffailedLoadFontsWidth / 2 - vButtonSize.x / 2);
+
+        if (ImGui::Button  ("OK", vButtonSize))
+          ImGui::CloseCurrentPopup ( );
+
+        SKIF_ImGui_Spacing ( );
+
+        ImGui::TreePop     ( );
+
+        ImGui::EndPopup ( );
+      }
+
+
       // Confirm Exit prompt
       ImGui::SetNextWindowSize (
         ImVec2 ( (SKIF_bAllowBackgroundService)
@@ -4782,6 +5285,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SK_RunOnce (
         changedMode = true
       );
+
+      // This allows us to compact the working set on launch
+      SK_RunOnce (
+        invalidatedFonts = SKIF_timeGetTime ( )
+      );
+
+      if (invalidatedFonts > 0 &&
+          invalidatedFonts + 500 < SKIF_timeGetTime())
+      {
+        SKIF_Util_CompactWorkingSet ();
+        invalidatedFonts = 0;
+      }
 
       ImGui::End ();
     }
@@ -5060,8 +5575,9 @@ bool CreateDeviceD3D (HWND hWnd)
 
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
-                    featureLevelArray [2] = {
-    D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0
+                    featureLevelArray [4] = {
+    D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
   SKIF_D3D11CreateDeviceAndSwapChain =
@@ -5172,6 +5688,18 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject   (true);
       break;
 
+    case WM_SKIF_REFRESHGAMES:
+      RepopulateGamesWasSet = SKIF_timeGetTime();
+      RepopulateGames = true;
+      SelectNewSKIFGame = (uint32_t)wParam;
+
+      SetTimer (SKIF_hWnd,
+          IDT_REFRESH_GAMES,
+          16,
+          (TIMERPROC) NULL
+      );
+      break;
+
     case WM_SKIF_QUICKLAUNCH:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
@@ -5205,7 +5733,17 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
         case IDT_REFRESH_DEBUG:
+        case IDT_REFRESH_GAMES:
         //OutputDebugString(L"Tick\n");
+
+          if (wParam == IDT_REFRESH_GAMES && RepopulateGamesWasSet != 0)
+          {
+            if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_timeGetTime())
+            {
+              RepopulateGamesWasSet = 0;
+              KillTimer  (SKIF_hWnd, IDT_REFRESH_GAMES);
+            }
+          }
 
           /*
           if (wParam == IDT_REFRESH_DEBUG)

@@ -55,9 +55,15 @@ static bool clickedGameLaunch,
             clickedGalaxyLaunchWoSK = false,
             openedGameContextMenu   = false;
 
+PopupState ServiceMenu     = PopupState::Closed;
+
 PopupState AddGamePopup    = PopupState::Closed;
 PopupState RemoveGamePopup = PopupState::Closed;
 PopupState ModifyGamePopup = PopupState::Closed;
+PopupState ConfirmPopup    = PopupState::Closed;
+
+std::string confirmPopupTitle;
+std::string confirmPopupText;
 
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -1198,9 +1204,13 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::Separator  (  );
 
+      // Strip (recently added) from the game name
+      std::string name = pApp->names.normal;
+      name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+
       std::string linkGridDB = (pApp->store == "Steam")
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", appid)
-                             : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.normal.c_str());
+                             : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
 
       if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -1912,27 +1922,7 @@ Cache=false)";
 
       if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
               ImGui::IsItemClicked (ImGuiMouseButton_Right))
-        ImGui::OpenPopup ("ServiceMenu");
-
-      if (ImGui::BeginPopup ("ServiceMenu"))
-      {
-        ImGui::TextColored (
-          ImColor::HSV (0.11F, 1.F, 1.F),
-            "Troubleshooting:"
-        );
-
-        ImGui::Separator ( );
-
-        extern bool SKIF_bStopOnInjection;
-
-        if (ImGui::Selectable("Force Start Service"))
-          _inject._StartStopInject (false, SKIF_bStopOnInjection);
-
-        if (ImGui::Selectable("Force Stop Service"))
-          _inject._StartStopInject (true);
-
-        ImGui::EndPopup ( );
-      }
+        ServiceMenu = PopupState::Open;
 
       if (cache.injection.type._Equal ("Global") && ! _inject.isPending())
       {
@@ -2675,9 +2665,13 @@ Cache=false)";
 
       ImGui::Separator();
 
+      // Strip (recently added) from the game name
+      std::string name = pApp->names.normal;
+      name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+
       std::string linkGridDB = (pApp->store == "Steam")
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons", appid)
-                             : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.normal.c_str());
+                             : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", name.c_str());
 
       if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -2785,7 +2779,7 @@ Cache=false)";
     if (pApp->extended_config.vac.enabled == 1)
     {
         SKIF_StatusBarText = "Warning: ";
-        SKIF_StatusBarHelp = "Injection Disabled for VAC Protected Game";
+        SKIF_StatusBarHelp = "VAC protected game - Injection is not recommended!";
     }
 
     if (! pApp->launch_configs.empty ())
@@ -2812,38 +2806,53 @@ Cache=false)";
       [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
       void
       {
+        /*
         if (pApp->extended_config.vac.enabled == 1)
         {
           launch_cfg.setBlacklisted (pApp->id, true);
         }
+        */
 
         bool blacklist =
           launch_cfg.isBlacklisted (pApp->id);
+          //|| _inject._TestUserList(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)).c_str(), false);
 
         char          szButtonLabel [256] = { };
         if (menu)
+        {
           sprintf_s ( szButtonLabel, 255,
                         " for \"%ws\"###DisableLaunch%d",
                           launch_cfg.description.empty ()
                             ? launch_cfg.executable .c_str ()
                             : launch_cfg.description.c_str (),
                           launch_cfg.id);
+          
+          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+            launch_cfg.setBlacklisted (pApp->id, blacklist);
+
+          SKIF_ImGui_SetHoverText (
+                      SK_FormatString (
+                        menu
+                          ? R"(%ws    )"
+                          : R"(%ws)",
+                        launch_cfg.executable.c_str  ()
+                      ).c_str ()
+          );
+        }
         else
+        {
           sprintf_s ( szButtonLabel, 255,
                         " Disable Special K###DisableLaunch%d",
                           launch_cfg.id );
-
-        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-          launch_cfg.setBlacklisted (pApp->id, blacklist);
-
-        SKIF_ImGui_SetHoverText (
-                    SK_FormatString (
-                      menu
-                        ? R"(%ws    )"
-                        : R"(%ws)",
-                      launch_cfg.executable.c_str  ()
-                    ).c_str ()
-        );
+          
+          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+            launch_cfg.setBlacklisted (pApp->id, blacklist);
+         
+          /*
+          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+            _inject._BlacklistBasedOnPath(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)));
+          */
+        }
       };
 
       // Set horizontal position
@@ -2897,6 +2906,54 @@ Cache=false)";
   ImGui::EndGroup     (                  );
   ImGui::EndChild     (                  );
   ImGui::EndGroup     (                  );
+
+
+
+  if (ServiceMenu == PopupState::Open)
+  {
+    ImGui::OpenPopup ("ServiceMenu");
+    ServiceMenu = PopupState::Closed;
+  }
+
+  if (ImGui::BeginPopup ("ServiceMenu"))
+  {
+    ImGui::TextColored (
+      ImColor::HSV (0.11F, 1.F, 1.F),
+        "Troubleshooting:"
+    );
+
+    ImGui::Separator ( );
+
+    extern bool SKIF_bStopOnInjection;
+
+    if (ImGui::Selectable("Force Start Service"))
+      _inject._StartStopInject (false, SKIF_bStopOnInjection);
+
+    if (ImGui::Selectable("Force Stop Service"))
+      _inject._StartStopInject (true);
+    
+    extern void SKIF_putStopOnInjection(bool in);
+
+#ifdef _WIN64
+    if (_inject.SKVer64 >= "21.08.12" &&
+      _inject.SKVer32 >= "21.08.12")
+#else
+    if (_inject.SKVer32 >= "21.08.12")
+#endif
+    {
+      ImGui::Separator ( );
+
+      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
+        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+
+      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
+                              "when Special K is injected into a whitelisted game.");
+    }
+
+    ImGui::EndPopup ( );
+  }
+
+
 
   if (openedGameContextMenu)
   {
@@ -3175,7 +3232,7 @@ Cache=false)";
               wchar_t sel_path [MAX_PATH    ] = { };
               char    label    [MAX_PATH * 2] = { };
 
-              wsprintf ( sel_path, L"%ws",
+              swprintf ( sel_path, L"%ws",
                            cloud.second.evaluated_dir.c_str () );
 
               sprintf ( label, "%ws###CloudUFS.%d", sel_path,
@@ -3314,20 +3371,63 @@ Cache=false)";
         }
       }
 
-      // Custom SKIF game
-      if (pApp->store == "SKIF")
+      // Manage [Custom] Game
+      if (pApp->store == "SKIF" || pApp->store == "GOG")
       {
         ImGui::Separator ( );
 
-        if (ImGui::BeginMenu ("Manage Custom Game"))
+        if (ImGui::BeginMenu ("Manage"))
         {
-          if (ImGui::Selectable ("Properties"))
-            ModifyGamePopup = PopupState::Open;
+          if (pApp->store == "SKIF")
+          {
+            if (ImGui::Selectable ("Properties"))
+              ModifyGamePopup = PopupState::Open;
 
-          ImGui::Separator ( );
+            ImGui::Separator ( );
+          }
 
-          if (ImGui::Selectable ("Remove"))
-            RemoveGamePopup = PopupState::Open;
+          if (ImGui::Selectable ("Create shortcut"))
+          {
+            const std::string forbidden = "\\/:?\"<>|";
+            std::string name = pApp->names.normal;
+
+            // Strip (recently added) from the desktop shortcuts
+            name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+
+            // Strip invalid filename characters
+            std::transform(name.begin(), name.end(), name.begin(), [&forbidden](char c) { return forbidden.find(c) != std::string::npos ? ' ' : c; });
+
+            // Remove double spaces
+            name = std::regex_replace(name, std::regex(R"(  )"), " ");
+
+            std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
+            std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(appid).c_str(), pApp->launch_configs[0].launch_options.c_str());
+            wchar_t wszPath[MAX_PATH + 2] = { };
+            GetModuleFileNameW (hModSKIF, wszPath, MAX_PATH);
+
+            confirmPopupTitle = "Create Shortcut";
+
+            if (CreateLink (
+                linkPath.c_str(),
+                wszPath,
+                linkArgs.c_str(),
+                pApp->launch_configs[0].working_dir.c_str(),
+                SK_UTF8ToWideChar(name).c_str(),
+                pApp->launch_configs[0].getExecutableFullPath(appid).c_str()
+                )
+              )
+              confirmPopupText = "A desktop shortcut has been created.";
+            else
+              confirmPopupText = "Failed to create a desktop shortcut!";
+
+            ConfirmPopup = PopupState::Open;
+          }
+
+          if (pApp->store == "SKIF")
+          {
+            if (ImGui::Selectable ("Remove"))
+              RemoveGamePopup = PopupState::Open;
+          }
 
           ImGui::EndMenu ( );
         }
@@ -3488,6 +3588,44 @@ Cache=false)";
     }
 
     ImGui::EndPopup ();
+  }
+
+
+  if (ConfirmPopup == PopupState::Open)
+  {
+    ImGui::OpenPopup("###ConfirmPopup");
+    ConfirmPopup = PopupState::Opened;
+  }
+
+  float fConfirmPopupWidth = ImGui::CalcTextSize(confirmPopupText.c_str()).x + 60.0f * SKIF_ImGui_GlobalDPIScale;
+  ImGui::SetNextWindowSize (ImVec2 (fConfirmPopupWidth, 0.0f));
+
+  if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    ImGui::TreePush    ("");
+
+    SKIF_ImGui_Spacing ( );
+
+    ImGui::Text        (confirmPopupText.c_str());
+
+    SKIF_ImGui_Spacing ( );
+    SKIF_ImGui_Spacing ( );
+
+    ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+
+    ImGui::SetCursorPosX (fConfirmPopupWidth / 2 - vButtonSize.x / 2);
+
+    if (ImGui::Button  ("OK", vButtonSize))
+    {
+      confirmPopupText = "";
+      ImGui::CloseCurrentPopup ( );
+    }
+
+    SKIF_ImGui_Spacing ( );
+
+    ImGui::TreePop     ( );
+
+    ImGui::EndPopup ( );
   }
 
 
@@ -3696,7 +3834,7 @@ Cache=false)";
       // Release current cover texture
       pTexSRV = nullptr;
 
-      // Change selection to Special K
+      // Change selection to the new game
       appid = newAppId;
       for (auto& app : apps)
         if (app.second.id == appid && app.second.store == "SKIF")
@@ -3925,6 +4063,24 @@ Cache=false)";
     ImGui::TreePop     ( );
 
     ImGui::EndPopup    ( );
+  }
+
+  extern uint32_t SelectNewSKIFGame;
+
+  if (SelectNewSKIFGame > 0)
+  {
+    // Release current cover texture
+    pTexSRV = nullptr;
+
+    // Change selection to the new game
+    appid = SelectNewSKIFGame;
+    for (auto& app : apps)
+      if (app.second.id == appid && app.second.store == "SKIF")
+        pApp = &app.second;
+
+    update = true;
+
+    SelectNewSKIFGame = 0;
   }
 }
 

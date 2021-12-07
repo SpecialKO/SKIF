@@ -417,9 +417,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         runState          = Started;
 
         if (bAckInj)
-          SKIF_CreateNotifyToast (L"Special K is waiting for the game to launch...",   L"Service started");
+          SKIF_CreateNotifyToast (L"Please launch a game to continue.",            L"Special K is ready to be injected into your game!");
         else
-          SKIF_CreateNotifyToast (L"Special K is now being injected into your games!", L"Service started");
+          SKIF_CreateNotifyToast (L"The global injection service was started.",    L"Special K is now being injected into games!");
       }
       else
       {
@@ -427,9 +427,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         runState          = Stopped;
 
         if (bAckInjSignaled)
-          SKIF_CreateNotifyToast (L"Special K has now been injected into your game!",  L"Service stopped");
+          SKIF_CreateNotifyToast (L"Press Ctrl + Shift + Backspace while in-game.", L"Special K has been injected into your game!");
         else
-          SKIF_CreateNotifyToast (L"Special K will no longer be injected into games.", L"Service stopped");
+          SKIF_CreateNotifyToast (L"The global injection service was stopped.",    L"Special K will no longer be injected into games.");
 
         bAckInj = false;
         bAckInjSignaled = false;
@@ -691,25 +691,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
     
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-    ImGui::OpenPopup ("ServiceMenu");
-
-  if (ImGui::BeginPopup ("ServiceMenu"))
-  {
-    ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F),
-        "Troubleshooting:"
-    );
-
-    ImGui::Separator ( );
-
-    if (ImGui::Selectable("Force Start Service"))
-      _StartStopInject (false, SKIF_bStopOnInjection);
-
-    if (ImGui::Selectable("Force Stop Service"))
-      _StartStopInject (true);
-
-    ImGui::EndPopup ( );
-  }
+    ServiceMenu = PopupState::Open;
 
   if ( ! bHasServlet )
   {
@@ -808,77 +790,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   fBottomDist = ImGui::GetItemRectSize().y;
 };
 
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
-// 
-// CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
-//              to create and store a shortcut to the specified object. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-// Parameters:
-// lpszPathObj  - Address of a buffer that contains the path of the object,
-//                including the file name.
-// lpszPathLink - Address of a buffer that contains the path where the 
-//                Shell link is to be stored, including the file name.
-// lpszDesc     - Address of a buffer that contains a description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-HRESULT
-CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR lpszDesc)
-{
-  HRESULT hres;
-  IShellLink* psl;
-
-  //CoInitializeEx (nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called.
-  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-  if (SUCCEEDED(hres))
-  {
-    IPersistFile* ppf;
-
-    // Set the path to the shortcut target and add the description. 
-    psl->SetPath(lpszPathObj);
-    psl->SetWorkingDirectory(std::filesystem::path(lpszPathObj).parent_path().c_str());
-    psl->SetArguments(lpszArgs);
-    psl->SetDescription(lpszDesc);
-
-    // Query IShellLink for the IPersistFile interface, used for saving the 
-    // shortcut in persistent storage. 
-    //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
-
-    if (SUCCEEDED(hres))
-    {
-
-      WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode. 
-      MultiByteToWideChar(CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
-
-      // Save the link by calling IPersistFile::Save. 
-      hres = ppf->Save(wsz, FALSE);
-      if (SUCCEEDED(hres))
-      {
-        // Handle success
-        // Despite succeeding, this throws an error...?
-      }
-      else
-      {
-        // Handle the error
-      }
-
-      ppf->Release();
-    }
-    psl->Release();
-  }
-  return hres;
-}
-
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
@@ -963,8 +874,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       RegCloseKey (hKey);
     }
     
-    bAutoStartService = (args.find (L"START")    != std::wstring::npos);
-    bStartMinimized   = (args.find (L"MINIMIZE") != std::wstring::npos);
+    bAutoStartService = (args.find (L"Start")    != std::wstring::npos);
+    bStartMinimized   = (args.find (L"Minimize") != std::wstring::npos);
   }
 
   argsChecked = true;
@@ -1018,7 +929,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     {
       if (bAutoStartSKIF)
       {
-        //CreateLink (szExePath, link.c_str(), args.c_str(), L"Special K Injection Frontend");
           static TCHAR               szExePath[MAX_PATH];
           GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
@@ -1086,9 +996,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                               L"Confirm autostart",
                               MB_YESNO | MB_ICONWARNING) == IDYES)
         {
-          //CreateLink (Svc32Target.c_str(), Svc32Link.c_str(), NULL, L"Special K 32-bit Global Injection Service Host");
-          //CreateLink (Svc64Target.c_str(), Svc64Link.c_str(), NULL, L"Special K 64-bit Global Injection Service Host");
-        
           if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
           {
             TCHAR               szExePath[MAX_PATH];
@@ -1439,6 +1346,40 @@ void SKIF_InjectionContext::_WhitelistBasedOnPath(std::string fullPath)
     // Whitelist path
     _inject._AddUserList (whitelistPattern, true);
     _inject._StoreList   (true);
+  }
+}
+
+void SKIF_InjectionContext::_BlacklistBasedOnPath(std::string fullPath)
+{
+  // Check if the path has been blacklisted
+  if (! _inject._TestUserList (fullPath.c_str(), false))
+  {
+    // name of parent folder
+    std::filesystem::path exePath = std::filesystem::path(fullPath);
+    std::string pattern;
+
+    // Does a parent folder exist?
+    if (exePath.has_parent_path() && exePath.parent_path().has_filename())
+    {
+      // Does another parent folder one level up exist? If so, add it to the pattern
+      if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
+        pattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
+
+      // Add the name of the parent folder to the pattern
+      pattern += exePath.parent_path().filename().string();
+
+      // If this is an Unreal Engine 4 game, add the executable as well
+      if (pattern == R"(Binaries\\Win64)" || pattern == R"(Binaries\\Win32)")
+        pattern += R"(\\)" + exePath.filename().string();
+    }
+    else {
+      // Add the executable to the pattern if all else fails
+      pattern = std::filesystem::path(fullPath).filename().string();
+    }
+
+    // Whitelist path
+    _inject._AddUserList (pattern, false);
+    _inject._StoreList   (false);
   }
 }
 

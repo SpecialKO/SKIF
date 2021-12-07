@@ -77,6 +77,10 @@ struct path_cache_s {
   {            FOLDERID_Documents,
     L"%USERPROFILE%\\My Documents"
   };
+  win_path_s desktop            =
+  {         FOLDERID_Desktop,
+    L"%USERPROFILE%\\Desktop"
+  };
   wchar_t steam_install [MAX_PATH] = { };
 } extern path_cache;
 

@@ -732,6 +732,41 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
   io.Fonts->GetTexDataAsRGBA32 ( &pixels,
                 &width,&height );
 
+  D3D_FEATURE_LEVEL  featureLevel =
+    g_pd3dDevice->GetFeatureLevel ();
+
+  extern bool failedLoadFonts;
+
+  switch (featureLevel)
+  {
+    case D3D_FEATURE_LEVEL_10_0:
+    case D3D_FEATURE_LEVEL_10_1:
+      if (width > 8192 || height > 8192) // Warn User
+        failedLoadFonts = true;
+      width  = std::min (8192, width);
+      height = std::min (8192, height);
+      // Max Texture Resolution = 8192x8192
+      break;
+    case D3D_FEATURE_LEVEL_11_0:
+    case D3D_FEATURE_LEVEL_11_1:
+      if (width > 16384 || height > 16384) // Warn User
+        failedLoadFonts = true;
+      width  = std::min (16384, width);
+      height = std::min (16384, height);
+      // Max Texture Resolution = 16384X16384
+      break;
+  }
+  
+  /*
+  OutputDebugString (L"Texture size: ");
+  OutputDebugString (std::to_wstring(width).c_str());
+  OutputDebugString (L"x");
+  OutputDebugString (std::to_wstring(height).c_str());
+  OutputDebugString (L"\n");
+  */
+
+  //MessageBox(NULL, (L"Texture size: " + std::to_wstring(width) + L"x" + std::to_wstring(height)).c_str(), L"Texture Size:", MB_OK | MB_ICONINFORMATION);
+
   // Upload texture to graphics system
   {
     D3D11_TEXTURE2D_DESC

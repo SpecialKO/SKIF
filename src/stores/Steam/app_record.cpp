@@ -119,7 +119,7 @@ app_launch_config_s::setBlacklisted ( int32_t appid,
 
       if (fBlacklist != nullptr)
       {
-        fputws (L"Dummy!", fBlacklist);
+        fputws ((L"Dummy! ID: " + std::to_wstring(appid) + L"\n").c_str(), fBlacklist);
         fclose (           fBlacklist);
 
         return _Blacklist (blacklist);

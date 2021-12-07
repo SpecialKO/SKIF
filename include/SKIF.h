@@ -112,8 +112,10 @@ DWORD64 SKIF_timeGetTimeEx (void);
 const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
+const UINT_PTR IDT_REFRESH_GAMES    = 1340;
 
-void ResolveIt (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+void ResolveIt  (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+bool CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
 
 enum class PopupState {
   Closed,
@@ -121,6 +123,9 @@ enum class PopupState {
   Opened
 };
 
+extern PopupState ServiceMenu;
+
 extern PopupState AddGamePopup;
 extern PopupState RemoveGamePopup;
 extern PopupState ModifyGamePopup;
+extern PopupState ConfirmPopup;

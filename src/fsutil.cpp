@@ -234,7 +234,7 @@ SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
   [&] (void)->HRESULT
   {
     wchar_t wszCurrentDir [MAX_PATH + 2] = { };
-    GetCurrentDirectoryW  (MAX_PATH, wszCurrentDir);
+    GetCurrentDirectoryW         (MAX_PATH, wszCurrentDir);
 
     dir = wszCurrentDir;
 

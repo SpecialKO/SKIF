@@ -245,18 +245,6 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
         //pAppRecord != nullptr      &&
           pAppRecord->launch_configs.empty ();
 
-        if (path_cache.my_documents.path [0] == 0)
-        {
-          wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                        SK_GetSteamDir (),      _TRUNCATE );
-
-          SKIF_GetFolderPath ( &path_cache.my_documents       );
-          SKIF_GetFolderPath ( &path_cache.app_data_local     );
-          SKIF_GetFolderPath ( &path_cache.app_data_local_low );
-          SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
-          SKIF_GetFolderPath ( &path_cache.win_saved_games    );
-        }
-
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (appid);
 
