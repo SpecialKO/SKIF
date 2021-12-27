@@ -236,6 +236,7 @@ SKIF_Util_OpenURI_Threaded (
 #include <sk_icon.jpg.h>
 #include <sk_boxart.png.h>
 #include <fsutil.h>
+#include <stores/EGS/egs_library.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -295,6 +296,27 @@ LoadLibraryTexture (
   else if (pApp != nullptr && pApp->store == "SKIF")
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
+
+    if (libTexToLoad == LibraryTexture::Cover)
+      SKIFCustomPath += L"cover";
+    else
+      SKIFCustomPath += L"icon";
+
+    if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+      load_str =               SKIFCustomPath + L".png";
+    else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =               SKIFCustomPath + L".jpg";
+    else if (libTexToLoad == LibraryTexture::Icon &&
+              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+      load_str =                SKIFCustomPath + L".ico";
+
+    customAsset = (load_str != L"\0");
+  }
+
+  // EGS
+  else if (pApp != nullptr && pApp->store == "EGS")
+  {
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -849,7 +871,7 @@ SKIF_GameManagement_DrawTab (void)
       []( const app_entry_t& a,
           const app_entry_t& b ) -> int
       {
-        return a.second.names.all_upper.compare (
+        return a.second.names.all_upper.compare(
                b.second.names.all_upper
         ) < 0;
       }
@@ -857,6 +879,9 @@ SKIF_GameManagement_DrawTab (void)
 
     sort_changed = true;
   }
+
+  extern int  SKIF_iLastSelected;
+  extern bool SKIF_bRememberLastSelected;
 
   static bool     update        = true;
   static uint32_t appid         = SKIF_STEAM_APPID;
@@ -878,8 +903,10 @@ SKIF_GameManagement_DrawTab (void)
     apps.clear   ();
     appids.clear ();
 
-    // Reset selection to Special K
-    appid     = SKIF_STEAM_APPID;
+    // Reset selection to Special K, but only if set to something else than -1
+    if (appid != 0)
+      appid     = SKIF_STEAM_APPID;
+
     update    = true;
 
     populated = false;
@@ -916,8 +943,25 @@ SKIF_GameManagement_DrawTab (void)
     if (! SKIF_bDisableGOGLibrary)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
+    // Load EGS titles from disk
+    extern bool
+          SKIF_bDisableEGSLibrary;
+    if (! SKIF_bDisableEGSLibrary)
+      SKIF_EGS_GetInstalledAppIDs (&apps);
+
     // Load custom SKIF titles from registry
     SKIF_GetCustomAppIDs (&apps);
+
+    // Set to last selected if it can be found
+    if (appid == SKIF_STEAM_APPID)
+    {
+      for (auto& app : apps)
+        if (app.second.id == SKIF_iLastSelected)
+        {
+          appid = SKIF_iLastSelected;
+          update = true;
+        }
+    }
 
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](void*)->void
@@ -962,7 +1006,12 @@ SKIF_GameManagement_DrawTab (void)
           }
 
           // Strip null terminators
-          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
+          //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
+
+					// Strip game names from special symbols and null terminators
+					char chars[] = u8"©®™\0";
+					for (unsigned int i = 0; i < strlen(chars); ++i)
+            app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
         }
 
         // Corrupted app manifest / not known to Steam client; SKIP!
@@ -1027,6 +1076,15 @@ SKIF_GameManagement_DrawTab (void)
 
         // SKIF Custom
         else  if (app.second.store == "SKIF")
+          LoadLibraryTexture (LibraryTexture::Icon,
+                                app.second.id,
+                                app.second.textures.icon,
+                                L"icon",
+                                &app.second
+        );
+
+        // EGS
+        else  if (app.second.store == "EGS")
           LoadLibraryTexture (LibraryTexture::Icon,
                                 app.second.id,
                                 app.second.textures.icon,
@@ -1140,6 +1198,8 @@ SKIF_GameManagement_DrawTab (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "EGS")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -1174,6 +1234,8 @@ SKIF_GameManagement_DrawTab (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "EGS")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -1357,15 +1419,17 @@ SKIF_GameManagement_DrawTab (void)
 
     // SKIF
     // SKIF Custom
+    // EGS
     // GOG
     if (       appid == SKIF_STEAM_APPID ||
          pApp->store == "SKIF"           ||
+         pApp->store == "EGS"            ||
          pApp->store == "GOG" )
     {
       std::wstring
         load_str = L"_library_600x900_x2.jpg";
 
-      if (pApp->store == "SKIF")
+      if (pApp->store == "SKIF" || pApp->store == "EGS")
         load_str = L"cover";
       else if (pApp->store == "GOG")
         load_str = L"*_glx_vertical_cover.webp";
@@ -1609,7 +1673,8 @@ SKIF_GameManagement_DrawTab (void)
 
   if (AddGamePopup    == PopupState::Closed &&
       ModifyGamePopup == PopupState::Closed &&
-      RemoveGamePopup == PopupState::Closed)
+      RemoveGamePopup == PopupState::Closed &&
+      ! io.KeyCtrl)
     _HandleKeyboardInput ();
 
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
@@ -1638,26 +1703,29 @@ SKIF_GameManagement_DrawTab (void)
           std::string version;   // Converted to utf-8 from utf-16
           std::string full_path; // Converted to utf-8 from utf-16
         } dll;
-        AppId_t     app_id  = 0;
-        DWORD       running = 0;
-        bool        service = false;
+        AppId_t     app_id   = 0;
+        DWORD       running  = 0;
+        bool        service  = false;
+        bool        autostop = false;
       } static cache;
 
-      if (         cache.service != _inject.bCurrentState  ||
-                   cache.running != pTargetApp->_status.running)
+      if (         cache.service  != _inject.bCurrentState  ||
+                   cache.running  != pTargetApp->_status.running ||
+                   cache.autostop != _inject.bAckInj
+         )
       {
         cache.app_id = 0;
       }
 
-      if (pTargetApp->id              != cache.app_id ||
-          pTargetApp->_status.running != cache.running )
+      if (pTargetApp->id != cache.app_id)
       {
-        cache.app_id  = pTargetApp->id;
-        cache.running = pTargetApp->_status.running;
+        cache.app_id   = pTargetApp->id;
+        cache.running  = pTargetApp->_status.running;
+        cache.autostop = _inject.bAckInj;
 
-        cache.service = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
-                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
-                        (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
+        cache.service  = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
+                         (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
+                         (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
                                                                                                              _inject.pid64));
 
         sk_install_state_s& sk_install =
@@ -1709,8 +1777,8 @@ SKIF_GameManagement_DrawTab (void)
             {
               cache.injection.type         = "Global";
               cache.injection.status.text  = 
-                         (cache.service)   ? "Service Running"
-                                           : "Service Stopped";
+                         (cache.service)   ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
+                                           : "Stopped";
 
               cache.injection.status.color =
                          (cache.service)   ? ImColor ( 53, 255,   3)  // HSV (0.3F,  0.99F, 1.F)
@@ -1911,7 +1979,7 @@ Cache=false)";
                               : (quickServiceHover) ? cache.injection.status.color_hover
                                                     : cache.injection.status.color,
         cache.injection.status.text.empty () ? "      "
-                                             : "( %s )",
+                                             : "%s",
         (_inject.isPending()) ? (_inject.runState == SKIF_InjectionContext::RunningState::Starting)
                                 ? "Starting..."
                                 : "Stopping..."
@@ -1944,7 +2012,7 @@ Cache=false)";
       if (! cache.dll.shorthand.empty ())
       {
         ImGui::Text           (cache.dll.version.empty () ? "      "
-                                                          : "( v %s )",
+                                                          : "v %s",
                                cache.dll.version.c_str ());
       }
       ImGui::EndGroup         ();
@@ -2023,7 +2091,7 @@ Cache=false)";
         }
 
         // Launch game
-        if (pTargetApp->store != "Steam")
+        if (pTargetApp->store != "Steam" && pTargetApp->store != "EGS")
         {
           SHELLEXECUTEINFOW
           sexi              = { };
@@ -2037,6 +2105,12 @@ Cache=false)";
                               SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
           ShellExecuteExW (&sexi);
+        }
+
+        else if (pTargetApp->store == "EGS")
+        {
+          // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+          SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pTargetApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
         }
 
         else {
@@ -2246,6 +2320,7 @@ Cache=false)";
 
       appid      = app.second.id;
       selected   = true;
+      SKIF_iLastSelected = appid;
 
       if (update)
       {
@@ -2379,6 +2454,8 @@ Cache=false)";
 
   // Stop populating the whole list
 
+  // This ensures the next block gets run when launching SKIF with a last selected item
+  SK_RunOnce (update = true);
 
   if (update && pApp != nullptr)
   {
@@ -2392,8 +2469,7 @@ Cache=false)";
     }
 #endif
 
-    // Handle GOG games
-
+    // Handle GOG, EGS, and SKIF Custom games
     if (pApp->store != "Steam")
     {
       DWORD dwBinaryType = MAXDWORD;
@@ -2580,6 +2656,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "EGS")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -2626,6 +2704,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           std::wstring (path_cache.specialk_userdata.path).c_str());
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
+          else if (pApp->store == "EGS")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -2782,7 +2862,9 @@ Cache=false)";
         SKIF_StatusBarHelp = "VAC protected game - Injection is not recommended!";
     }
 
-    if (! pApp->launch_configs.empty ())
+    if (  pApp->specialk.injection.injection.type != InjectionType::Local &&
+        ! pApp->launch_configs.empty ()
+       )
     {
       ImGui::SetCursorPosY (
         ImGui::GetWindowHeight () - fBottomDist -
@@ -3475,10 +3557,10 @@ Cache=false)";
       std::wstring pcgwLink =
         (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%ws"
                                : (pApp->store == "Steam") ? L"http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
-                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=%ws&title=Special%3ASearch";
+                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=%ws";
       std::wstring pcgwValue =
         (pApp->store == "SKIF") ? SK_UTF8ToWideChar (pApp->names.normal)
-                                : std::to_wstring   (pApp->id);
+                                : (pApp->store == "EGS") ? SK_UTF8ToWideChar(pApp->names.normal) : std::to_wstring(pApp->id);
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -3718,7 +3800,7 @@ Cache=false)";
 
     static char charName     [MAX_PATH],
                 charPath     [MAX_PATH],
-                charArgs     [MAX_PATH];
+                charArgs     [500];
     static bool error = false;
 
     ImGui::TreePush    ("");
@@ -3748,7 +3830,7 @@ Cache=false)";
           std::wstring productName = SKIF_GetProductName (p2.c_str());
           
           strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
-          strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               MAX_PATH);
+          strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               500);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
@@ -3798,7 +3880,7 @@ Cache=false)";
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, MAX_PATH, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -3829,7 +3911,7 @@ Cache=false)";
       // Clear variables
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", MAX_PATH);
+      strncpy (charArgs, "\0", 500);
 
       // Release current cover texture
       pTexSRV = nullptr;
@@ -3862,7 +3944,7 @@ Cache=false)";
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", MAX_PATH);
+      strncpy (charArgs, "\0", 500);
 
       AddGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );
@@ -3887,7 +3969,7 @@ Cache=false)";
   {
     static char charName     [MAX_PATH],
                 charPath     [MAX_PATH],
-                charArgs     [MAX_PATH];
+                charArgs     [500];
                 //charProfile  [MAX_PATH];
     static bool error = false;
 
@@ -3898,7 +3980,7 @@ Cache=false)";
 
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str(), MAX_PATH);
-      strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), MAX_PATH);
+      strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), 500);
       //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", path_cache.specialk_userdata.path, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
 
       ModifyGamePopup = PopupState::Opened;
@@ -3950,7 +4032,7 @@ Cache=false)";
 
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, MAX_PATH, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -4028,7 +4110,7 @@ Cache=false)";
         // Clear variables
         strncpy (charName, "\0", MAX_PATH);
         strncpy (charPath, "\0", MAX_PATH);
-        strncpy (charArgs, "\0", MAX_PATH);
+        strncpy (charArgs, "\0", 500);
 
         update = true;
 
@@ -4052,7 +4134,7 @@ Cache=false)";
       // Clear variables
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", MAX_PATH);
+      strncpy (charArgs, "\0", 500);
 
       ModifyGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );

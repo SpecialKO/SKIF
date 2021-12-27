@@ -84,6 +84,7 @@ struct app_record_s {
   std::wstring install_dir;
   std::string  type  =  "Game";  // TODO: Proper enum
   std::string  store = "Steam";  // maybe enum?
+  std::string  EGS_InternalAppName = "";
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
@@ -166,7 +167,7 @@ struct app_record_s {
     std::wstring store = L"Steam"; // Used by getExecutableFullPath
     std::wstring executable;
     std::wstring description;
-    std::wstring launch_options; // Used by GOG
+    std::wstring launch_options; // Used by GOG and EGS
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring type;

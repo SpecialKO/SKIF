@@ -1714,8 +1714,8 @@ ImFontAtlas::ImFontAtlas()
     Locked = false;
     Flags = ImFontAtlasFlags_None;
     TexID = (ImTextureID)NULL;
-    TexDesiredWidth = 0;
-    TexGlyphPadding = 8;
+    TexDesiredWidth = 8192;
+    TexGlyphPadding = 1;
 
     TexPixelsAlpha8 = NULL;
     TexPixelsRGBA32 = NULL;

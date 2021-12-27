@@ -720,110 +720,187 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 ////sb.Apply (ctx, _CaptureMask);
 }
 
+#include <exception>
+
+class SK_ComException : public
+       std::exception
+{
+public:
+  SK_ComException (
+    HRESULT hr
+  ) : __hr (hr) { }
+
+  const char*
+  what (void) const override
+  {
+    static char
+      s_str [64] = { };
+
+    sprintf_s (
+      s_str, "Failure with HRESULT of %08X",
+                    (int)__hr
+              );
+    return
+      s_str;
+  }
+
+private:
+  HRESULT
+    __hr;
+};
+
+inline void
+ThrowIfFailed (HRESULT hr)
+{
+  if (SUCCEEDED (hr))
+    return;
+
+  throw
+    SK_ComException (hr);
+}
+
 static void ImGui_ImplDX11_CreateFontsTexture (void)
 {
-  // Build texture atlas
-  ImGuiIO &io =
-    ImGui::GetIO ();
-
-  unsigned char *pixels;
-           int   width, height;
-
-  io.Fonts->GetTexDataAsRGBA32 ( &pixels,
-                &width,&height );
-
-  D3D_FEATURE_LEVEL  featureLevel =
-    g_pd3dDevice->GetFeatureLevel ();
-
-  extern bool failedLoadFonts;
-
-  switch (featureLevel)
+  auto _BuildForSlot = [&](UINT slot) -> void
   {
-    case D3D_FEATURE_LEVEL_10_0:
-    case D3D_FEATURE_LEVEL_10_1:
+    auto pDev = g_pd3dDevice;
+
+    // Build texture atlas
+    ImGuiIO& io (
+      ImGui::GetIO ()
+    );
+
+    unsigned char* pixels = nullptr;
+    int            width  = 0,
+                   height = 0;
+
+    io.Fonts->GetTexDataAsAlpha8 ( &pixels,
+                                   &width, &height );
+
+    D3D_FEATURE_LEVEL  featureLevel =
+      pDev->GetFeatureLevel ();
+
+    extern bool failedLoadFonts;
+
+    switch (featureLevel)
+    {
+      case D3D_FEATURE_LEVEL_10_0:
+      case D3D_FEATURE_LEVEL_10_1:
       if (width > 8192 || height > 8192) // Warn User
         failedLoadFonts = true;
-      width  = std::min (8192, width);
-      height = std::min (8192, height);
-      // Max Texture Resolution = 8192x8192
-      break;
-    case D3D_FEATURE_LEVEL_11_0:
-    case D3D_FEATURE_LEVEL_11_1:
+        width  = std::min (8192, width);
+        height = std::min (8192, height);
+        // Max Texture Resolution = 8192x8192
+        break;
+      case D3D_FEATURE_LEVEL_11_0:
+      case D3D_FEATURE_LEVEL_11_1:
       if (width > 16384 || height > 16384) // Warn User
         failedLoadFonts = true;
-      width  = std::min (16384, width);
-      height = std::min (16384, height);
-      // Max Texture Resolution = 16384X16384
-      break;
-  }
-  
-  /*
-  OutputDebugString (L"Texture size: ");
-  OutputDebugString (std::to_wstring(width).c_str());
-  OutputDebugString (L"x");
-  OutputDebugString (std::to_wstring(height).c_str());
-  OutputDebugString (L"\n");
-  */
+        width  = std::min (16384, width);
+        height = std::min (16384, height);
+        // Max Texture Resolution = 16384X16384
+        break;
+    }
 
-  //MessageBox(NULL, (L"Texture size: " + std::to_wstring(width) + L"x" + std::to_wstring(height)).c_str(), L"Texture Size:", MB_OK | MB_ICONINFORMATION);
-
-  // Upload texture to graphics system
-  {
+    // Upload texture to graphics system
     D3D11_TEXTURE2D_DESC
-    tex_desc                  = { };
-    tex_desc.Width            = width;
-    tex_desc.Height           = height;
-    tex_desc.MipLevels        = 1;
-    tex_desc.ArraySize        = 1;
-    tex_desc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM;
-    tex_desc.SampleDesc.Count = 1;
-    tex_desc.Usage            = D3D11_USAGE_DEFAULT;
-    tex_desc.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
-    tex_desc.CPUAccessFlags   = 0;
+      staging_desc                  = { };
+      staging_desc.Width            = width;
+      staging_desc.Height           = height;
+      staging_desc.MipLevels        = 1;
+      staging_desc.ArraySize        = 1;
+      staging_desc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM;
+      staging_desc.SampleDesc.Count = 1;
+      staging_desc.Usage            = D3D11_USAGE_STAGING;
+      staging_desc.BindFlags        = 0;
+      staging_desc.CPUAccessFlags   = D3D11_CPU_ACCESS_WRITE;
 
-    CComPtr <ID3D11Texture2D> pTexture;
+    D3D11_TEXTURE2D_DESC
+      tex_desc                      = staging_desc;
+      tex_desc.Usage                = D3D11_USAGE_DEFAULT;
+      tex_desc.BindFlags            = D3D11_BIND_SHADER_RESOURCE;
+      tex_desc.CPUAccessFlags       = 0;
 
-    D3D11_SUBRESOURCE_DATA
-    subResource                  = { };
-    subResource.pSysMem          = pixels;
-    subResource.SysMemPitch      = tex_desc.Width * 4;
-    subResource.SysMemSlicePitch = 0;
+    CComPtr <ID3D11Texture2D>       pStagingTexture = nullptr;
+    CComPtr <ID3D11Texture2D>       pFontTexture    = nullptr;
 
-    g_pd3dDevice->CreateTexture2D ( &tex_desc,
-        &subResource, &pTexture.p );
+    ThrowIfFailed (
+      pDev->CreateTexture2D ( &staging_desc, nullptr,
+                                     &pStagingTexture.p ));
+    ThrowIfFailed (
+      pDev->CreateTexture2D ( &tex_desc,     nullptr,
+                                     &pFontTexture.p ));
+
+    CComPtr   <ID3D11DeviceContext> pDevCtx;
+    pDev->GetImmediateContext     (&pDevCtx);
+
+    D3D11_MAPPED_SUBRESOURCE
+          mapped_tex = { };
+
+    ThrowIfFailed (
+      pDevCtx->Map ( pStagingTexture.p, 0, D3D11_MAP_WRITE, 0,
+                     &mapped_tex ));
+
+    for (int y = 0; y < height; y++)
+    {
+      ImU32  *pDst =
+        (ImU32 *)((uintptr_t)mapped_tex.pData +
+                             mapped_tex.RowPitch * y);
+      ImU8   *pSrc =              pixels + width * y;
+
+      for (int x = 0; x < width; x++)
+      {
+        *pDst++ =
+          IM_COL32 (255, 255, 255, (ImU32)(*pSrc++));
+      }
+    }
+
+    pDevCtx->Unmap        ( pStagingTexture, 0 );
+    pDevCtx->CopyResource (    pFontTexture,
+                            pStagingTexture    );
 
     // Create texture view
     D3D11_SHADER_RESOURCE_VIEW_DESC
-    srvDesc                           = { };
-    srvDesc.Format                    = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels       = tex_desc.MipLevels;
-    srvDesc.Texture2D.MostDetailedMip = 0;
+      srvDesc = { };
+      srvDesc.Format                    = DXGI_FORMAT_R8G8B8A8_UNORM;
+      srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+      srvDesc.Texture2D.MipLevels       = tex_desc.MipLevels;
+      srvDesc.Texture2D.MostDetailedMip = 0;
 
-    g_pd3dDevice->CreateShaderResourceView ( pTexture,
-             &srvDesc, &g_pFontTextureView );
+    ThrowIfFailed (
+      pDev->CreateShaderResourceView ( pFontTexture, &srvDesc,
+                                    &g_pFontTextureView.p ));
+
+    // Store our identifier
+    io.Fonts->TexID =
+      g_pFontTextureView;
+
+    // Create texture sampler
+    D3D11_SAMPLER_DESC
+      sampler_desc                    = { };
+      sampler_desc.Filter             = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+      sampler_desc.AddressU           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.AddressV           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.AddressW           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.MipLODBias         = 0.f;
+      sampler_desc.ComparisonFunc     = D3D11_COMPARISON_NEVER;
+      sampler_desc.MinLOD             = 0.f;
+      sampler_desc.MaxLOD             = 0.f;
+
+    ThrowIfFailed (
+      pDev->CreateSamplerState ( &sampler_desc,
+                         &g_pFontSampler.p ));
+
+    io.Fonts->ClearTexData ();
+  };
+
+  try
+  {
+    _BuildForSlot (0);
   }
 
-  // Store our identifier
-  io.Fonts->TexID =
-    (ImTextureID)g_pFontTextureView;
-
-  // Create texture sampler
+  catch (const SK_ComException&)
   {
-    D3D11_SAMPLER_DESC
-    desc                = { };
-    desc.Filter         = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    desc.AddressU       = D3D11_TEXTURE_ADDRESS_CLAMP;
-    desc.AddressV       = D3D11_TEXTURE_ADDRESS_CLAMP;
-    desc.AddressW       = D3D11_TEXTURE_ADDRESS_CLAMP;
-    desc.MipLODBias     = 0.f;
-    desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-    desc.MinLOD         = 0.f;
-    desc.MaxLOD         = 0.f;
-
-    g_pd3dDevice->CreateSamplerState (
-      &desc, &g_pFontSampler
-    );
   }
 }
 

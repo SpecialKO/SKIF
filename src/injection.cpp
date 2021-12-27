@@ -104,6 +104,9 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   extern HWND    SKIF_hWnd;
   extern CHandle hInjectAck;
 
+  // Set to its current new state
+  bAckInj = newState;
+
   // Close any existing handles
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   hInjectAck.Close();
@@ -138,8 +141,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
-  bAckInj = (! currentRunningState) ? autoStop : bAckInj;
-  _ToggleOnDemand ((! currentRunningState) ? autoStop : false);
+  _ToggleOnDemand ((! currentRunningState) ? autoStop : bAckInj);
 
 #if 0
   const wchar_t *wszStartStopCommand =
@@ -417,9 +419,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         runState          = Started;
 
         if (bAckInj)
-          SKIF_CreateNotifyToast (L"Please launch a game to continue.",            L"Special K is ready to be injected into your game!");
+          SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
         else
-          SKIF_CreateNotifyToast (L"The global injection service was started.",    L"Special K is now being injected into games!");
+          SKIF_CreateNotifyToast (L"The global injection service was started.",     L"Special K is now being injected into games!");
       }
       else
       {
@@ -429,7 +431,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         if (bAckInjSignaled)
           SKIF_CreateNotifyToast (L"Press Ctrl + Shift + Backspace while in-game.", L"Special K has been injected into your game!");
         else
-          SKIF_CreateNotifyToast (L"The global injection service was stopped.",    L"Special K will no longer be injected into games.");
+          SKIF_CreateNotifyToast (L"The global injection service was stopped.",     L"Special K will no longer be injected into games.");
 
         bAckInj = false;
         bAckInjSignaled = false;
@@ -591,16 +593,20 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
   // 32-bit/64-bit Services
-  if (pid32)
+  if (pid32 && bAckInj)
+    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+  else if (pid32)
     ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
+    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
 
 #ifdef _WIN64
-  if (pid64)
+  if (pid64 && bAckInj)
+    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+  else if (pid64)
     ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
+    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
 #else
   ImGui::NewLine  ();
 #endif
@@ -1262,14 +1268,14 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
 
 bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
 {
-  if (  whitelist_ && *whitelist == '\0' ||
-      ! whitelist_ && *blacklist == '\0')
-    return false;
-
   if (  whitelist_ && StrStrIA (szExecutable, "SteamApps") != NULL ||
       ! whitelist_ && StrStrIA (szExecutable, "GameBar"  ) != NULL /* ||
       ! whitelist_ && StrStrIA(szExecutable, "Launcher") != NULL */ )
     return true;
+
+  if (  whitelist_ && *whitelist == '\0' ||
+      ! whitelist_ && *blacklist == '\0')
+    return false;
 
   // Check if the executable filename has "launcher" in it:
   // TODO: Confirm this shit works!
@@ -1304,14 +1310,15 @@ void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
     if (*whitelist == '\0')
       snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, pattern.c_str());
     else
-      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, ("|" + pattern).c_str());
+      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, ("\n" + pattern).c_str());
   }
 
-  else {
+  else
+  {
     if (*blacklist == '\0')
       snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, pattern.c_str());
     else
-      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("|" + pattern).c_str());
+      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("\n" + pattern).c_str());
   }
 }
 
@@ -1335,10 +1342,15 @@ void SKIF_InjectionContext::_WhitelistBasedOnPath(std::string fullPath)
       whitelistPattern += exePath.parent_path().filename().string();
 
       // If this is an Unreal Engine 4 game, add the executable as well
-      if (whitelistPattern == R"(Binaries\\Win64)" || whitelistPattern == R"(Binaries\\Win32)")
+      if ( whitelistPattern == R"(Binaries\\Win64)"
+        || whitelistPattern == R"(x64)"
+        || whitelistPattern == R"(Binaries\\Win32)"
+        || whitelistPattern == R"(x86)"
+        )
         whitelistPattern += R"(\\)" + exePath.filename().string();
     }
-    else {
+    else
+    {
       // Add the executable to the pattern if all else fails
       whitelistPattern = std::filesystem::path(fullPath).filename().string();
     }

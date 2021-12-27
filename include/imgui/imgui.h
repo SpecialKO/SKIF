@@ -1078,6 +1078,7 @@ enum ImGuiKey_
     ImGuiKey_X,                 // for text edit CTRL+X: cut
     ImGuiKey_Y,                 // for text edit CTRL+Y: redo
     ImGuiKey_Z,                 // for text edit CTRL+Z: undo
+    ImGuiKey_F11,               // SKIF: for use toggling between modes
     ImGuiKey_COUNT
 };
 

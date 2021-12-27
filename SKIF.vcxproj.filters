@@ -82,6 +82,12 @@
     <Filter Include="Header Files\Stores\SKIF">
       <UniqueIdentifier>{0f7ca7ac-471b-4d48-a331-a04e51d00142}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\EGS">
+      <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\EGS">
+      <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTex\BC.h">
@@ -360,6 +366,12 @@
     <ClInclude Include="version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\EGS\egs_library.h">
+      <Filter>Header Files\Stores\EGS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -502,6 +514,9 @@
     </ClCompile>
     <ClCompile Include="src\stores\SKIF\custom_library.cpp">
       <Filter>Source Files\Stores\SKIF</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\EGS\egs_library.cpp">
+      <Filter>Source Files\Stores\EGS</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

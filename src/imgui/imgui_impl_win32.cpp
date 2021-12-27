@@ -204,6 +204,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.KeyMap [ImGuiKey_X]           = 'X';
   io.KeyMap [ImGuiKey_Y]           = 'Y';
   io.KeyMap [ImGuiKey_Z]           = 'Z';
+  io.KeyMap [ImGuiKey_F11]         = VK_F11;
 
   ImGui_ImplWin32_InitXInput (hwnd);
 

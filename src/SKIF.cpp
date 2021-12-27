@@ -43,12 +43,15 @@ bool startedMinimized = false;
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
-int  SKIF_iNotifications           = 2;
-bool SKIF_bDisableDPIScaling       = false,
+int  SKIF_iNotifications           = 2,
+     SKIF_iLastSelected            = SKIF_STEAM_APPID;
+bool SKIF_bRememberLastSelected    = false,
+     SKIF_bDisableDPIScaling       = false,
      SKIF_bDisableExitConfirmation = true,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
      SKIF_bDisableSteamLibrary     = false,
+     SKIF_bDisableEGSLibrary       = false,
      SKIF_bDisableGOGLibrary       = false,
      SKIF_bSmallMode               = false,
      SKIF_bFirstLaunch             = false,
@@ -1744,7 +1747,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     char charName     [MAX_PATH],
          charPath     [MAX_PATH],
-         charArgs     [MAX_PATH];
+         charArgs     [500];
 
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring cmdLineArgs    = cmdLine;
@@ -1834,7 +1837,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       strncpy (charName, (productName != L"")
                           ? SK_WideCharToUTF8 (productName).c_str()
                           : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
-      strncpy (charArgs, SK_WideCharToUTF8(cmdLineArgs).c_str(),                 MAX_PATH);
+      strncpy (charArgs, SK_WideCharToUTF8(cmdLineArgs).c_str(),                 500);
 
       SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
     
@@ -2427,6 +2430,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Microsoft\Accessibility\)",
                          LR"(CursorSize)" ).getData ();
 
+  static auto regKVRememberLastSelected =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Remember Last Selected)" );
+
+  static auto regKVLastSelected =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Last Selected)" );
+
   static auto regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
@@ -2454,6 +2465,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static auto regKVDisableGOGLibrary =
     SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
       LR"(Disable GOG Library)");
+
+  static auto regKVDisableEGSLibrary =
+    SKIF_MakeRegKeyB(LR"(SOFTWARE\Kaldaien\Special K\)",
+      LR"(Disable EGS Library)");
 
   static auto regKVSmallMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -2519,11 +2534,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
 
+
+  SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
 //SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
   SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
   SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
+  SKIF_bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
   SKIF_bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
   SKIF_bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
   SKIF_bSmallMode               =   regKVSmallMode.getData               ( );
@@ -2545,6 +2563,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if ( regKVNotifications.hasData() )
     SKIF_iNotifications           =   regKVNotifications.getData         ( );
+
+  if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
+    SKIF_iLastSelected            =   regKVLastSelected.getData          ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -3098,16 +3119,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
           monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
         MoveWindow (SKIF_hWnd, (int)monitor->MainPos.x, (int)monitor->MainPos.y, 0, 0, false);
 
+      float fDpiScaleFactor =
+        ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
+
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
       if ( RepositionSKIF )
       {
         RepositionSKIF = false;
-      } else if ( monitor->WorkSize.y < SKIF_hLargeMode && ImGui::GetFrameCount() > 1)
+      } else if ( monitor->WorkSize.y / fDpiScaleFactor < ((float)SKIF_hLargeMode + 40.0f) && ImGui::GetFrameCount () > 1)
       {
-        SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y - 100.0f) / SKIF_hLargeMode;
+        SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y / fDpiScaleFactor) / ((float)SKIF_hLargeMode / fDpiScaleFactor + 40.0f / fDpiScaleFactor);
       } else {
-        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? (ImGui::GetCurrentWindow ()->Viewport->DpiScale <= 2.0f) ? ImGui::GetCurrentWindow ()->Viewport->DpiScale : 2.0f : 1.0f;
-        /////SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
       }
 
       // Rescale the style on DPI changes
@@ -3219,7 +3242,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
       );
 
-      if (ImGui::Button ( (SKIF_bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
+      if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
+           (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f)         ||
+            ImGui::Button ( (SKIF_bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
                                             : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
@@ -3251,7 +3276,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if ( ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
+      if ( (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f) ||
+            ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                              0.0f ) ) )
       {
         ShowWindow (hWnd, SW_MINIMIZE);
@@ -3259,7 +3285,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if ( ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
+      if ( (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
+            ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                           0.0f ) )
           || bKeepWindowAlive == false
          )
@@ -3521,6 +3548,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 );
             }
 
+            if ( ImGui::Checkbox ( "Remember last selected game",            &SKIF_bRememberLastSelected ) )
+              regKVRememberLastSelected.putData(                              SKIF_bRememberLastSelected );
+
             if ( ImGui::Checkbox ( "Always show Shelly the ghost",           &SKIF_bAlwaysShowGhost ) )
               regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
 
@@ -3548,6 +3578,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
             {
               regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
+              RepopulateGames = true;
+            }
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
+            if (ImGui::Checkbox        ("Epic Games Store", &SKIF_bDisableEGSLibrary))
+            {
+              regKVDisableEGSLibrary.putData   (SKIF_bDisableEGSLibrary);
               RepopulateGames = true;
             }
 
@@ -3594,6 +3634,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine ( );
             */
 
+            if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
+            {
+              io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+
+              if (SKIF_bDisableDPIScaling)
+                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
+
+              regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
+            }
+
+            SKIF_ImGui_SetHoverTip (
+              "This application will appear smaller on HiDPI monitors."
+            );
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
             if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
               regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
 
@@ -3615,24 +3673,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
               "Combining this with disabled UI tooltips will hide all context based information or tips."
             );
 
-            ImGui::SameLine ( );
-            ImGui::Spacing  ( );
-            ImGui::SameLine ( );
-
-            if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
-            {
-              io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
-
-              if (SKIF_bDisableDPIScaling)
-                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
-
-              regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
-            }
-
-            SKIF_ImGui_SetHoverTip (
-              "This application will appear smaller on HiDPI monitors."
-            );
-
             if (SKIF_bDisableTooltips &&
                 SKIF_bDisableStatusBar)
             {
@@ -3642,7 +3682,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::TextColored    (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
               ImGui::SameLine       ( );
               ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
-              ImGui::TextWrapped    ("Both tooltips and status bar are disabled; context based information or tips will not appear!");
+              ImGui::TextWrapped    ("Context based information or tips will not appear!");
               ImGui::PopStyleColor  ( );
               ImGui::EndGroup       ( );
             }
@@ -4936,7 +4976,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SameLine         ( );
               ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_TIMES " ");
               ImGui::SameLine        ( );
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is not running.").c_str());
+              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
             }
 
             if (p.ProcessName == L"SKIFsvc64.exe")
@@ -5466,6 +5506,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  regKVLastSelected.putData(SKIF_iLastSelected);
+
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
@@ -5825,7 +5867,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                            SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
       }
       break;
-
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);
