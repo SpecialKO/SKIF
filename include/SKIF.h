@@ -22,12 +22,19 @@
 
 #pragma once
 
-#include "resource.h"
+#include "../resource.h"
 
 #include <combaseapi.h>
 #include <comdef.h>
 
+#include <string>
 #include <string_view>
+
+// This file is included mostly everywhere else, so lets define using ImGui's math operators here.
+#define IMGUI_DEFINE_MATH_OPERATORS
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 class SK_AutoCOMInit
 {
@@ -64,29 +71,34 @@ private:
   bool  success_    = false;
 };
 
+extern HMODULE hModSKIF;
+extern HMODULE hModSpecialK;
+void SKIF_Initialize                (void);
+std::wstring SKIF_GetLastError      (void);
+
 BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);
+BOOL SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 
 bool SKIF_ImGui_IsHoverable        (void);
 void SKIF_ImGui_SetMouseCursorHand (void);
 void SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
 void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
 void SKIF_ImGui_Spacing            (float multiplier = 0.25f);
+bool SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);
 
 void  SKIF_SetHDRWhiteLuma    (float fLuma);
 FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
 BOOL  SKIF_IsHDR              (void);
 
-#include <string>
-
 HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL);
 HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);
 
 HINSTANCE SKIF_Util_ExplorePath_Formatted (                const wchar_t* const wszFmt, ...);
 HINSTANCE SKIF_Util_OpenURI_Formatted     (DWORD dwAction, const wchar_t* const wszFmt, ...);
+void      SKIF_Util_OpenURI_Threaded      (                const LPCWSTR path);
 
-extern float sk_global_ctl_x;
 extern float fAspect;
 extern float fBottomDist;
 
@@ -96,3 +108,24 @@ extern CreateDXGIFactory1_pfn
 
 DWORD   SKIF_timeGetTime   (void);
 DWORD64 SKIF_timeGetTimeEx (void);
+
+const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
+const UINT_PTR IDT_REFRESH_PENDING  = 1338;
+const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
+const UINT_PTR IDT_REFRESH_GAMES    = 1340;
+
+void ResolveIt  (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+bool CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
+
+enum class PopupState {
+  Closed,
+  Open,
+  Opened
+};
+
+extern PopupState ServiceMenu;
+
+extern PopupState AddGamePopup;
+extern PopupState RemoveGamePopup;
+extern PopupState ModifyGamePopup;
+extern PopupState ConfirmPopup;

@@ -18,6 +18,10 @@
 #include <XInput.h>
 #include <tchar.h>
 #include <limits>
+#include <array>
+
+auto constexpr XUSER_INDEXES =
+  std::array <DWORD, 4> { 0, 1, 2, 3 };
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -48,7 +52,11 @@ static INT64                g_Time = 0;
 static bool                 g_Focused = true;
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
-static bool                 g_HasGamepad = false;
+static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
+struct {
+  XINPUT_STATE  last_state = {         };
+  LARGE_INTEGER last_qpc   = { 0, 0ULL };
+} static                    g_GamepadHistory [XUSER_MAX_COUNT];
 static bool                 g_WantUpdateHasGamepad = true;
 static bool                 g_WantUpdateMonitors = true;
 
@@ -162,7 +170,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport; // We can set io.MouseHoveredViewport correctly (optional, not easy)
   io.BackendPlatformName = "imgui_impl_win32";
 
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
   // Our mouse update function expect PlatformHandle to be filled for the main viewport
@@ -196,6 +204,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.KeyMap [ImGuiKey_X]           = 'X';
   io.KeyMap [ImGuiKey_Y]           = 'Y';
   io.KeyMap [ImGuiKey_Z]           = 'Z';
+  io.KeyMap [ImGuiKey_F11]         = VK_F11;
 
   ImGui_ImplWin32_InitXInput (hwnd);
 
@@ -265,7 +274,7 @@ ImGui_ImplWin32_UpdateMousePos (void)
 
   // Set OS mouse position if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
   // (When multi-viewports are enabled, all imgui positions are same as OS positions)
-  if (io.WantSetMousePos && g_Focused)
+  if (io.WantSetMousePos && g_Focused && io.ConfigFlags & ImGuiConfigFlags_NavEnableSetMousePos)
   {
     POINT pos = {
       (int)io.MousePos.x,
@@ -422,19 +431,66 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   if (g_WantUpdateHasGamepad && ( ImGui_XInputGetCapabilities != nullptr ))
   {
     XINPUT_CAPABILITIES caps;
-    g_HasGamepad           = ( ImGui_XInputGetCapabilities (0, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS );
+
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx] = ( ImGui_XInputGetCapabilities (idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS );
+    }
+
     g_WantUpdateHasGamepad = false;
   }
 
   else if (ImGui_XInputGetCapabilities == nullptr)
-    g_HasGamepad = false;
+  {
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx] = false;
+    }
+  }
 
   XINPUT_STATE xinput_state = { };
 
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
 
-  if (g_HasGamepad && ImGui_XInputGetState (0, &xinput_state) == ERROR_SUCCESS)
+  for ( auto idx : XUSER_INDEXES )
   {
+    if ( g_HasGamepad [idx] && ImGui_XInputGetState (idx, &xinput_state) == ERROR_SUCCESS )
+    {
+      if ( xinput_state.dwPacketNumber != g_GamepadHistory [idx].last_state.dwPacketNumber )
+      {
+                                  g_GamepadHistory [idx].last_state = xinput_state;
+        QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+      }
+    }
+
+    else
+    {
+      g_GamepadHistory [idx].last_qpc.QuadPart = 0;
+    }
+  }
+
+  struct {
+    LARGE_INTEGER qpc  = { 0, 0ULL };
+    DWORD         slot =    INFINITE;
+  } newest;
+
+  for ( auto idx : XUSER_INDEXES )
+  {
+    auto qpc =
+      g_GamepadHistory [idx].last_qpc.QuadPart;
+
+    if ( qpc > newest.qpc.QuadPart )
+    {
+      newest.slot         = idx;
+      newest.qpc.QuadPart = qpc;
+    }
+  }
+
+  if (newest.slot != INFINITE)
+  {
+    xinput_state =
+      g_GamepadHistory [newest.slot].last_state;
+
     const XINPUT_GAMEPAD &gamepad =
       xinput_state.Gamepad;
 
@@ -465,14 +521,15 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
 
-  return                 g_HasGamepad ?
-          xinput_state.dwPacketNumber : 0;
+  return     newest.slot != INFINITE ?
+         xinput_state.dwPacketNumber : 0;
 }
 
 INT64 current_time;
 INT64 current_time_ms;
 
 #include <algorithm>
+#include <injection.h>
 
 void
 ImGui_ImplWin32_NewFrame (void)
@@ -559,13 +616,34 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   {
 
   case WM_CLOSE:
-    extern bool bKeepWindowAlive;
-    if (hwnd != nullptr && bKeepWindowAlive)
+    extern bool bKeepProcessAlive;
+    extern bool SKIF_bAllowBackgroundService;
+    //extern SKIF_InjectionContext _inject;
+
+    // Handle attempt to close the window
+    if (hwnd != nullptr)
     {
-      bKeepWindowAlive = false;
-      SetForegroundWindow(hwnd);
+      // Handle the service before we exit
+      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+        _inject._StartStopInject (true);
+
+      bKeepProcessAlive = false;
+
+      PostMessage (hwnd, WM_QUIT, 0, 0);
       return 1;
     }
+
+    // Handle second attempt to close the window, by defaulting as if the exit prompt was disabled
+    /*
+    else if (hwnd != nullptr && ! bKeepWindowAlive)
+    {
+      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService)
+        _inject._StartStopInject (true);
+
+      bKeepProcessAlive = false;
+      return 1;
+    }
+    */
     break;
 
   case WM_SETFOCUS:
@@ -584,6 +662,15 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
+
+      // Kill mouse capture on focus lost
+      io.MouseDown [0] = false;
+      io.MouseDown [1] = false;
+      io.MouseDown [2] = false;
+      io.MouseDown [3] = false;
+      io.MouseDown [4] = false;
+      if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
+        ::ReleaseCapture ( );
     }
     return 0;
     break;
@@ -634,10 +721,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     if (wParam < 256 && g_Focused)
       io.KeysDown [wParam] = 0;
     return 0;
-  case WM_SYSCOMMAND:
-    if (wParam == SC_MINIMIZE)
-    
-    return 0;
   case WM_CHAR:
       // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
     io.AddInputCharacter ((unsigned int)wParam);
@@ -647,8 +730,30 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       return 1;
     return 0;
   case WM_DEVICECHANGE:
-    if ((UINT)wParam == DBT_DEVNODES_CHANGED)
-      g_WantUpdateHasGamepad = true;
+    switch (wParam)
+    {
+      case DBT_DEVICEARRIVAL:
+      case DBT_DEVICEREMOVECOMPLETE:
+      {
+        DEV_BROADCAST_HDR* pDevHdr =
+          (DEV_BROADCAST_HDR *)lParam;
+
+        if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+        {
+          DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
+            (DEV_BROADCAST_DEVICEINTERFACE_W *)pDevHdr;
+
+          static constexpr GUID GUID_DEVINTERFACE_HID =
+            { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+
+          if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
+          {
+            g_WantUpdateHasGamepad = true;
+          }
+        }
+      } break;
+    }
+
     return 0;
   case WM_DISPLAYCHANGE:
     g_WantUpdateMonitors = true;
@@ -1253,13 +1358,13 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 
   /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
   *    over to ImGuiConfigFlags_DpiEnableScaleFonts
-  
+
   ImGuiStyle default_style =
     SKIF_ImGui_DefaultStyle;
 
   ImGuiStyle &style =
     ImGui::GetStyle ();
-  
+
   if (SKIF_bDPIScaling)
   {
     //default_style.WindowPadding    = ImVec2(0, 0);
@@ -1377,7 +1482,7 @@ ImGui_ImplWin32_UpdateMonitors_EnumFunc (HMONITOR monitor, HDC, LPRECT, LPARAM)
   return TRUE;
 }
 
-#include "resource.h"
+#include "../resource.h"
 
 static void
 ImGui_ImplWin32_UpdateMonitors (void)

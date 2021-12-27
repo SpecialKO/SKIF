@@ -52,9 +52,6 @@
     <Filter Include="Header Files\ImGui\Backends\D3D11">
       <UniqueIdentifier>{444c152e-6991-45d2-acb5-69bb839615ac}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\ImGui\Backends\D3D12">
-      <UniqueIdentifier>{98d00adb-6822-42d4-a269-d37dd46007f8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Config">
       <UniqueIdentifier>{640440ea-60dc-4dc4-ac3b-e429b4279aa1}</UniqueIdentifier>
     </Filter>
@@ -73,14 +70,26 @@
     <Filter Include="Source Files\Utility">
       <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\GOG">
+      <UniqueIdentifier>{a63d70cf-002b-4ddc-ac7f-410bfab95f2b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\GOG">
+      <UniqueIdentifier>{0431ab36-108a-4471-870f-0a20456bb775}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\SKIF">
+      <UniqueIdentifier>{3163a88e-4319-4f23-bdf9-debfdadf093f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\SKIF">
+      <UniqueIdentifier>{0f7ca7ac-471b-4d48-a331-a04e51d00142}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\EGS">
+      <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\EGS">
+      <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Header Files\DXTex</Filter>
     </ClInclude>
@@ -270,17 +279,11 @@
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
       <Filter>Header Files\ImGui\Backends\D3D11</Filter>
     </ClInclude>
-    <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h">
-      <Filter>Header Files\ImGui\Backends\D3D12</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\Steam\library.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\generic_library.h">
       <Filter>Header Files\Stores</Filter>
-    </ClInclude>
-    <ClInclude Include="include\version.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\sk_config\ini.h">
       <Filter>Header Files\Config</Filter>
@@ -344,6 +347,30 @@
     </ClInclude>
     <ClInclude Include="include\sk_utility\command.h">
       <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\GOG\gog_library.h">
+      <Filter>Header Files\Stores\GOG</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\generic_app.h">
+      <Filter>Header Files\Stores</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\SKIF\custom_library.h">
+      <Filter>Header Files\Stores\SKIF</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\EGS\egs_library.h">
+      <Filter>Header Files\Stores\EGS</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -479,6 +506,18 @@
     <ClCompile Include="src\ui_tasks\display_mgmt.cpp">
       <Filter>Source Files\UI Tasks</Filter>
     </ClCompile>
+    <ClCompile Include="src\stores\GOG\gog_library.cpp">
+      <Filter>Source Files\Stores\GOG</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\generic_app.cpp">
+      <Filter>Source Files\Stores</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\SKIF\custom_library.cpp">
+      <Filter>Source Files\Stores\SKIF</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\EGS\egs_library.cpp">
+      <Filter>Source Files\Stores\EGS</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SKIF.rc">
@@ -487,6 +526,15 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="SKIF.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SKIF_on.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SKIF_off.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SKIF_on_notify.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

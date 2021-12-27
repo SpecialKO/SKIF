@@ -74,5 +74,8 @@ using ConfigType =
 std::wstring
 SKIF_GetSpecialKDLLVersion (const wchar_t* wszName);
 
+std::wstring
+SKIF_GetProductName        (const wchar_t* wszName);
+
 sk_install_state_s
 SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid);

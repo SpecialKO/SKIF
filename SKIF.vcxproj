@@ -29,28 +29,28 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -74,21 +74,25 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Special K\</OutDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <TargetName>$(ProjectName)32</TargetName>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Special K\</OutDir>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK\</OutDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>F:\Aemony\Documents\My Mods\SpecialK\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -137,7 +141,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WIN7;_CRT_SECURE_NO_WARNINGS;NOMINMAX;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WIN7;_CRT_SECURE_NO_WARNINGS;NOMINMAX;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)\include</AdditionalIncludeDirectories>
       <CompileAsManaged>false</CompileAsManaged>
@@ -161,6 +165,7 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -173,6 +178,9 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>false</DataExecutionPrevention>
     </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -204,7 +212,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /Zf -d2RecomputeAddrTaken- %(AdditionalOptions)</AdditionalOptions>
       <CreateHotpatchableImage>true</CreateHotpatchableImage>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -220,6 +228,7 @@
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+      <AdditionalManifestFiles>appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -230,7 +239,7 @@
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WINBLUE;_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING;_CRT_SECURE_NO_WARNINGS;NOMINMAX;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN7_PLATFORM_UPDATE;_WIN32_WINNT=_WIN32_WINNT_WINBLUE;_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING;_CRT_SECURE_NO_WARNINGS;NOMINMAX;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -252,7 +261,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalOptions>/Ob3 /Zf %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /Zf -d2RecomputeAddrTaken- %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -268,7 +277,11 @@
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+      <AdditionalManifestFiles>appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTex\BC.h" />
@@ -279,13 +292,15 @@
     <ClInclude Include="DirectXTex\DirectXTexP.h" />
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="include\json.hpp" />
+    <ClInclude Include="include\stores\EGS\egs_library.h" />
+    <ClInclude Include="include\stores\generic_app.h" />
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
     <ClInclude Include="include\font_awesome.h" />
     <ClInclude Include="include\fsutil.h" />
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
-    <ClInclude Include="include\imgui\D3D12\imgui_impl_dx12.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
     <ClInclude Include="include\imgui\imgui_impl_win32.h" />
@@ -305,6 +320,8 @@
     <ClInclude Include="include\sk_utility\command.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
+    <ClInclude Include="include\stores\GOG\gog_library.h" />
+    <ClInclude Include="include\stores\SKIF\custom_library.h" />
     <ClInclude Include="include\stores\Steam\achievements.h" />
     <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
@@ -313,9 +330,7 @@
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\ui_tasks\manage_games.h" />
-    <ClInclude Include="include\version.h" />
     <ClInclude Include="include\vfs.h" />
-    <ClInclude Include="Resource.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
     <ClInclude Include="steam\isteamappticket.h" />
@@ -360,9 +375,13 @@
     <ClInclude Include="steam\steam_api_flat.h" />
     <ClInclude Include="steam\steam_api_internal.h" />
     <ClInclude Include="steam\steam_gameserver.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\stores\EGS\egs_library.cpp" />
+    <ClCompile Include="src\stores\generic_app.cpp" />
     <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">
       <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
@@ -585,6 +604,8 @@
     <ClCompile Include="src\SKIF.cpp" />
     <ClCompile Include="src\sk_config\ini.cpp" />
     <ClCompile Include="src\sk_utility\utility.cpp" />
+    <ClCompile Include="src\stores\GOG\gog_library.cpp" />
+    <ClCompile Include="src\stores\SKIF\custom_library.cpp" />
     <ClCompile Include="src\stores\Steam\apps_list.cpp" />
     <ClCompile Include="src\stores\Steam\app_record.cpp" />
     <ClCompile Include="src\stores\Steam\asset_fetch.cpp" />
@@ -602,6 +623,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="SKIF.ico" />
+    <Image Include="SKIF_on.ico" />
+    <Image Include="SKIF_off.ico" />
+    <Image Include="SKIF_on_notify.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DirectXTex\DirectXTex.inl" />
@@ -613,9 +637,9 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</EnableDebuggingInformation>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">imgui_ps_bytecode</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\include\shaders\imgui_pix.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -624,6 +648,12 @@
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\include\shaders\imgui_pix.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="src\imgui_vtx_shader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
@@ -631,9 +661,9 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</EnableDebuggingInformation>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\include\shaders\imgui_vtx.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\include\shaders\imgui_vtx.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -642,6 +672,12 @@
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">imgui_vs_bytecode</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">imgui_vs_bytecode</VariableName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

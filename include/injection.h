@@ -27,31 +27,41 @@
 #include <array>
 #include <string>
 
-// Move somewhere else please
-extern float sk_global_ctl_x;
-extern bool  SKIF_ServiceRunning;
-
 struct SKIF_InjectionContext {
   SKIF_InjectionContext (void);
 
-  HMODULE hModSelf          = nullptr;
+  char    whitelist[MAX_PATH * 16 * 2] = { };
+  char    blacklist[MAX_PATH * 16 * 2] = { };
+
+  DWORD   dwLastSignaled    = 0;
 
   bool    bHasServlet       = false;
   bool    bHasUpdatedFiles  = false;
-  bool    bLogonTaskEnabled = false;
-  bool    bHasServletTasks  = false;
+  bool    bLogonTaskEnabled = false; // Obsolete
   
   bool    bAutoStartSKIF    = false;
   bool    bAutoStartService = false;
   bool    bStartMinimized   = false;
 
-  bool    bOnDemandInject   = false;
+  bool    bAutoStartServiceOnly = false;
 
-  bool    running           = false;
+  bool    bCurrentState       = false;
+  bool    bAckInj             = false;
+  bool    bAckInjSignaled     = false;
+  bool    bTaskbarOverlayIcon = false;
+
   int     pid32             = 0,
           pid64             = 0;
 
-  bool    run_lvl_changed   = false;
+  enum RunningState
+  {
+    Stopped  = 0,
+    Started  = 1,
+    Stopping = 2,
+    Starting = 3
+  } runState;
+
+  bool isPending (void);
 
   struct pid_file_watch_s {
     const wchar_t* wszPidFilename;
@@ -61,6 +71,7 @@ struct SKIF_InjectionContext {
 
   struct pid_directory_watch_s
   {
+    pid_directory_watch_s  (void);
     ~pid_directory_watch_s (void);
 
     bool isSignaled (void);
@@ -76,11 +87,22 @@ struct SKIF_InjectionContext {
   std::string SKVer32 = "";
   std::string SKVer64 = "";
 
-  bool    _StartStopInject      (bool running_);
+  bool    _StartStopInject        (bool running_, bool autoStop = false);
 
-  bool     TestServletRunlevel  (bool& changed_state);
-  void    _RefreshSKDLLVersions (void);
-  bool    _GlobalInjectionCtl   (void);
-  void    _StartAtLogonCtrl     (void);
-  HRESULT _SetTaskbarOverlay    (bool show);
+  void     TestServletRunlevel    (bool forcedCheck = false);
+  void    _RefreshSKDLLVersions   (void);
+  void    _GlobalInjectionCtl     (void);
+  void    _StartAtLogonCtrl       (void);
+  void    _StartAtLogonCtrlLegacy (void);
+  HRESULT _SetTaskbarOverlay      (bool show);
+  void    _InitializeJumpList     (void);
+  void    _ToggleOnDemand         (bool newState);
+
+  bool    _StoreList              (bool whitelist_);
+  void    _LoadList               (bool whitelist_);
+  bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
+  void    _AddUserList            (std::string pattern,       bool whitelist_);
+  void    _WhitelistBasedOnPath   (std::string fullPath);
+  void    _BlacklistBasedOnPath   (std::string fullPath);
+
 } extern _inject;

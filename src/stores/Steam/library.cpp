@@ -166,9 +166,6 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   return found;
 }
 
-int
-SK_Steam_GetLibraries (steam_library_t** ppLibraries);
-
 std::vector <AppId_t>
 SK_Steam_GetInstalledAppIDs (void)
 {
@@ -180,14 +177,14 @@ SK_Steam_GetInstalledAppIDs (void)
   if (! steam_lib_paths)
     return apps;
 
-  bool bHasSpecialK = false;
+  //bool bHasSpecialK = false;
 
   if (steam_libs != 0)
   {
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-      wsprintf ( wszManifestDir,
+      swprintf ( wszManifestDir,
                    LR"(%s\steamapps)",
                (wchar_t *)steam_lib_paths [i] );
 
@@ -206,20 +203,21 @@ SK_Steam_GetInstalledAppIDs (void)
         {
           apps.push_back (appid);
 
-          if (appid == 1157970)
-            bHasSpecialK = true;
+          //if (appid == 1157970)
+          //  bHasSpecialK = true;
         }
       }
     }
   }
 
-  if ( false ) // ! bHasSpecialK)
+#if 0
+  if ( ! bHasSpecialK )
   {
     wchar_t wszManifestDir [MAX_PATH + 2] = { };
 
     for (int i = 0; i < steam_libs; i++)
     {
-      wsprintf ( wszManifestDir,
+      swprintf ( wszManifestDir,
                    LR"(%s\steamapps)",
                (wchar_t *)steam_lib_paths [i] );
 
@@ -279,6 +277,7 @@ SK_Steam_GetInstalledAppIDs (void)
       fclose (fAppManifest);
     }
   }
+#endif
 
   return apps;
 }
@@ -297,7 +296,7 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifest [MAX_PATH + 2] = { };
-      wsprintf ( wszManifest,
+      swprintf ( wszManifest,
                    LR"(%s\steamapps\appmanifest_%u.acf)",
                (wchar_t *)steam_lib_paths [i],
                             appid );
@@ -388,11 +387,9 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 const wchar_t*
 SK_GetSteamDir (void)
 {
-  extern bool SKIF_bDisableSteamLibrary;
-
   static wchar_t
        wszSteamPath [MAX_PATH + 2] = { };
-  if (*wszSteamPath == L'\0' && ! SKIF_bDisableSteamLibrary)
+  if (*wszSteamPath == L'\0')
   {
     // Don't keep querying the registry if Steam is not installed   
     wszSteamPath [0] = L'?';

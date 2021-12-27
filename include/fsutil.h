@@ -77,6 +77,10 @@ struct path_cache_s {
   {            FOLDERID_Documents,
     L"%USERPROFILE%\\My Documents"
   };
+  win_path_s desktop            =
+  {         FOLDERID_Desktop,
+    L"%USERPROFILE%\\Desktop"
+  };
   wchar_t steam_install [MAX_PATH] = { };
 } extern path_cache;
 
@@ -90,3 +94,6 @@ SK_GetFontsDir (void);
 
 void
 SKIF_GetFolderPath (path_cache_s::win_path_s* path);
+
+bool
+SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, _FILEOPENDIALOGOPTIONS dialogOptions = FOS_PATHMUSTEXIST, const GUID defaultFolder = FOLDERID_StartMenu);

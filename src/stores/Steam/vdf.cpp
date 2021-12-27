@@ -24,6 +24,7 @@
 #include <stores/Steam/apps_list.h>
 
 #include <fsutil.h>
+#include <regex>
 
 const int SKIF_STEAM_APPID = 1157970;
 
@@ -39,10 +40,18 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
 
   if (fData != nullptr)
   {
+#ifdef _WIN64
     _fseeki64 (fData, 0, SEEK_END);
+#else
+    fseek     (fData, 0, SEEK_END);
+#endif
     size_t
     size =
+#ifdef _WIN64
     _ftelli64 (fData);
+#else
+    ftell     (fData);
+#endif
     rewind    (fData);
 
     _data.resize (size);
@@ -236,20 +245,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
         //pAppRecord != nullptr      &&
           pAppRecord->launch_configs.empty ();
 
-        if (path_cache.my_documents.path [0] == 0)
-        {
-          wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                        SK_GetSteamDir (),      _TRUNCATE );
-
-          SKIF_GetFolderPath ( &path_cache.my_documents       );
-          SKIF_GetFolderPath ( &path_cache.app_data_local     );
-          SKIF_GetFolderPath ( &path_cache.app_data_local_low );
-          SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
-          SKIF_GetFolderPath ( &path_cache.win_saved_games    );
-        }
-
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (appid);
+
+        // Strip double backslashes characters from the string
+        pAppRecord->install_dir = std::regex_replace(pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
 
         for (auto& finished_section : section.finished_sections)
         {
@@ -284,6 +284,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
               if (pVac->enabled == -1)
                 pVac->enabled = false;
             }
+            
+            else if (pAppRecord->extended_config.vac.enabled == -1)
+              pAppRecord->extended_config.vac.enabled = false;
 
             auto _ParseOSArch =
             [&](appinfo_s::section_s::_kv_pair& kv) ->

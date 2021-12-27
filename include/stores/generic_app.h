@@ -1,29 +1,6 @@
-//
-// Copyright 2020-2021 Andon "Kaldaien" Coleman
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-//
-
 #pragma once
 
 #include <stores/generic_library.h>
-#include <stores/Steam/library.h>
 
 #include <map>
 #include <string>
@@ -42,6 +19,7 @@ using d3d11_tex_ref_s =
             tex_ref_s <ID3D11ShaderResourceView>;
 
 #include <d3d11.h>
+#include <set>
 
 template <>
 struct tex_ref_s <ID3D11ShaderResourceView> :
@@ -75,19 +53,19 @@ private:
   D3D11_TEXTURE2D_DESC texDesc = { };
 };
 
-
-struct app_record_s {
-  app_record_s (uint32_t id_) : id (id_) { };
+struct generic_app {
+  generic_app (uint32_t id_) : id (id_) { };
+  virtual void loadIconTexture  (void);
+  virtual void loadCoverTexture (void);
 
   uint32_t     id;
   bool         cloud_enabled = true; // hidecloudui=false
   std::wstring install_dir;
-  std::string  type  =  "Game";  // TODO: Proper enum
-  std::string  store = "Steam";  // maybe enum?
-  std::string  EGS_InternalAppName = "";
+  std::string  type;  // TODO: Proper enum
+  std::string  store; // maybe enum?
 
   struct client_state_s {
-    bool refresh    (app_record_s *pApp);
+    bool refresh    (generic_app *pApp);
 
     DWORD running   = 0;
     DWORD installed = 0;
@@ -108,12 +86,10 @@ struct app_record_s {
 
   struct tex_registry_s {
     d3d11_tex_ref_s icon;
-    //d3d11_tex_ref_s logo;
-    //d3d11_tex_ref_s hero;
-    //d3d11_tex_ref_s header;
-    //d3d11_tex_ref_s six_by_nine;
-    bool            isCustomIcon  = false;
-    bool            isCustomCover = false;
+    d3d11_tex_ref_s logo;
+    d3d11_tex_ref_s hero;
+    d3d11_tex_ref_s header;
+    d3d11_tex_ref_s six_by_nine;
   } textures;
 
   enum class Platform {
@@ -164,10 +140,10 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
-    std::wstring store = L"Steam"; // Used by getExecutableFullPath
+    std::wstring store;          // Used by GOG -- getExecutableFullPath
     std::wstring executable;
     std::wstring description;
-    std::wstring launch_options; // Used by GOG and EGS
+    std::wstring launch_options; // Used by GOG
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring type;
@@ -194,7 +170,7 @@ struct app_record_s {
   };
 
   struct branch_record_s {
-    app_record_s *parent;
+    generic_app  *parent;
     std::wstring  description;
     uint32_t      build_id;
     uint32_t      pwd_required;

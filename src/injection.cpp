@@ -39,38 +39,19 @@
 #include <array>
 #include <vector>
 #include <iostream>
+#include <locale>
+#include <codecvt>
+#include <fstream>
 #include <filesystem>
-#include <strsafe.h>
-
-float sk_global_ctl_x;
-bool  SKIF_ServiceRunning;
+#include <regex>
+#include <string>
+#include <sstream>
 
 SKIF_InjectionContext _inject;
 
 bool
 SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
 {
-  if (wszDirectory [0] == L'\0')
-  {
-    GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
-    PathAppendW          (           wszDirectory, L"Servlet" );
-
-    hChangeNotification =
-      FindFirstChangeNotificationW (
-        wszDirectory, FALSE,
-          FILE_NOTIFY_CHANGE_FILE_NAME
-      );
-
-    if (hChangeNotification != INVALID_HANDLE_VALUE)
-    {
-      FindNextChangeNotification (
-        hChangeNotification
-      );
-    }
-
-    return true;
-  }
-
   bool bRet = false;
 
   if (hChangeNotification != INVALID_HANDLE_VALUE)
@@ -90,119 +71,166 @@ SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
   return bRet;
 }
 
+SKIF_InjectionContext::pid_directory_watch_s::pid_directory_watch_s (void)
+{
+  // This actually runs first out of the whole executable, so initialize core components.
+  SKIF_Initialize ( );
+
+  GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
+  PathAppendW          (           wszDirectory, L"Servlet" );
+
+  hChangeNotification =
+    FindFirstChangeNotificationW (
+      wszDirectory, FALSE,
+        FILE_NOTIFY_CHANGE_FILE_NAME
+    );
+
+  if (hChangeNotification != INVALID_HANDLE_VALUE)
+  {
+    FindNextChangeNotification (
+      hChangeNotification
+    );
+  }
+}
+
 SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
 {
   if (      hChangeNotification != INVALID_HANDLE_VALUE)
     FindCloseChangeNotification (hChangeNotification);
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool running_)
+void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
 {
-  bool         _inout = running_;
+  extern HWND    SKIF_hWnd;
+  extern CHandle hInjectAck;
 
-  unsigned int tid;
-  HANDLE       hThread =
- (HANDLE)
-  _beginthreadex ( nullptr,
-                         0,
-  [](LPVOID lpUser)->unsigned
+  // Set to its current new state
+  bAckInj = newState;
+
+  // Close any existing handles
+  KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
+  hInjectAck.Close();
+
+  // Create a new handle if requested
+  if (newState && hInjectAck.m_h <= 0)
   {
-    bool*           _inout = (bool *)lpUser;
-    bool running = *_inout;
-
-    CoInitializeEx ( nullptr,
-      COINIT_APARTMENTTHREADED |
-      COINIT_DISABLE_OLE1DDE
+    hInjectAck.Attach (
+      CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
     );
 
-    const wchar_t *wszStartStopCommand =
-                LR"(rundll32.exe)";
-
-    const wchar_t *wszStartStopParams32 =
-      running ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
-              : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
-
-    const wchar_t *wszStartStopParams64 =
-      running ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
-              : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
-
-    wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
-    wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
-
-    GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
-    PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
-
-    GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
-    PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
-
-    SHELLEXECUTEINFOW
-      sexi              = { };
-      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-      sexi.lpVerb       = L"OPEN";
-      sexi.lpFile       = wszStartStopCommand32;
-      sexi.lpParameters = wszStartStopParams32;
-      sexi.lpDirectory  = L"Servlet";
-      sexi.nShow        = SW_HIDE;
-      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-    if ( ShellExecuteExW (&sexi) || running )
-    {  // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-      sexi.lpFile       = wszStartStopCommand64;
-      sexi.lpParameters = wszStartStopParams64;
-
-      *_inout =
-        ShellExecuteExW (&sexi);
-    }
-
-    else
-      *_inout = false;
-
-    _endthreadex (0);
-
-    return 0;
-  }, (LPVOID)&_inout, CREATE_SUSPENDED, &tid);
-
-  if (hThread != 0)
-  {
-    ResumeThread        (hThread);
-    WaitForSingleObject (hThread, INFINITE);
-    CloseHandle         (hThread);
+    SetTimer (SKIF_hWnd,
+              IDT_REFRESH_ONDEMAND,
+              500,
+              (TIMERPROC) NULL
+    );
   }
+}
 
-  // Hack-a-la-Aemony to fix stupid service not stopping properly after subsequent SKIF launches
-  Sleep(50);
+bool SKIF_InjectionContext::isPending(void)
+{
+  if (runState == Starting || runState == Stopping)
+    return true;
+  else
+    return false;
+}
 
-  return _inout;
+bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
+{
+  extern HWND    SKIF_hWnd;
+  bool ret = false;
+
+  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+
+  _ToggleOnDemand ((! currentRunningState) ? autoStop : bAckInj);
+
+#if 0
+  const wchar_t *wszStartStopCommand =
+              LR"(rundll32.exe)";
+
+  const wchar_t *wszStartStopParams32 =
+    currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
+  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
+  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
+  //GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
+  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
+
+  const wchar_t *wszStartStopParams64 =
+    currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
+  wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
+
+  GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
+  PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
+#endif
+
+  //HANDLE h32, h64;
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = LR"(SKIFsvc32.exe)";
+    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
+    sexi.lpDirectory  = L"Servlet";
+    sexi.nShow        = SW_HIDE;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+    //sexi.hProcess     = &h32;
+
+#ifdef _WIN64
+  if ( ShellExecuteExW (&sexi) || currentRunningState )
+  {
+    // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
+    sexi.lpFile       = LR"(SKIFsvc64.exe)";
+    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
+    //sexi.hProcess     = &h64;
+
+    ret =
+      ShellExecuteExW (&sexi);
+  }
+#else
+  ret =
+    ShellExecuteExW (&sexi);
+#endif
+
+  if (currentRunningState)
+    runState = RunningState::Stopping;
+  else
+    runState = RunningState::Starting;
+
+  SetTimer (SKIF_hWnd,
+            IDT_REFRESH_PENDING,
+            500,
+            (TIMERPROC) NULL
+  );
+
+  dwLastSignaled = SKIF_timeGetTime();
+
+  return ret;
 };
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
 {
-  hModSelf =
-    GetModuleHandleW (nullptr);
-
-  wchar_t             wszPath
-   [MAX_PATH + 2] = { };
-  GetCurrentDirectoryW (
-    MAX_PATH,         wszPath);
-  SK_Generate8Dot3   (wszPath);
-  GetModuleFileNameW (hModSelf,
-                      wszPath,
-    MAX_PATH                 );
-  SK_Generate8Dot3   (wszPath);
-
-  // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
-  // Let's change that to the folder of the executable itself.
-  std::filesystem::current_path (
-    std::filesystem::path (wszPath).remove_filename ()
-  );
-
   bHasServlet =
-    PathFileExistsW  (L"Servlet") ||
-    CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the folder if it does not exist
+    PathFileExistsW  (L"Servlet");
+
+  // Cache the Special K user data path
+  SKIF_GetFolderPath (&path_cache.specialk_userdata);
+  PathAppendW (        path_cache.specialk_userdata.path,
+                         LR"(My Mods\SpecialK)"  );
 
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
+
+  if (! bLogonTaskEnabled)
+    DeleteFile (LR"(Servlet\task_inject.bat)");
+
+  // Attempt to remove .old files, if any exists
+  DeleteFile (L"SpecialK32.old");
+#ifdef _WIN64
+  DeleteFile (L"SpecialK64.old");
+#endif
 
   struct updated_file_s {
     const wchar_t* wszFileName;
@@ -263,9 +291,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   if (updates_pending > 0)
   {
-    if (TestServletRunlevel (run_lvl_changed))
-      _StartStopInject (true);
-
     for ( auto& file : updated_files )
     {
       FILE* fPID =
@@ -288,26 +313,49 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     }
   }
 
-  running =
-    TestServletRunlevel (run_lvl_changed);
-
   bHasServlet =
     bHasServlet &&
-    PathFileExistsW (L"SpecialK32.dll") &&
+    PathFileExistsW (L"SpecialK32.dll");
+
+#ifdef _WIN64
+  bHasServlet =
+    bHasServlet &&
     PathFileExistsW (L"SpecialK64.dll");
+#endif
+
+  runState = RunningState::Stopped;
+
+  // Force a one-time check on launch
+  //TestServletRunlevel (true);
+
+  // Update bCurrentState to reflect the run level
+  //bCurrentState = (pid32 || pid64);
+  
+  // Force the overlay to update itself as well
+  //_SetTaskbarOverlay (bCurrentState);
+
+  // Load the whitelist and blacklist
+  _LoadList  (true);
+  _LoadList (false);
 }
 
-bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
+void
+SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
-  static bool ret    = false;
-  static bool oldRet = false;
-  oldRet = ret;
-  ret = running;
+  static DWORD dwFailed   = NULL;
+  static bool  triedToFix = false;
 
-  if (true)//dir_watch.isSignaled ())
+  // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
+  if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_timeGetTime())
+    forcedCheck = true;
+
+  if (dir_watch.isSignaled() || forcedCheck)
   {
+    dwLastSignaled = SKIF_timeGetTime();
+
     for ( auto& record : records )
     {
+      // If we currently assume the service is not running, check if it's running
       if (                 *record.pPid == 0 &&
            PathFileExistsW (record.wszPidFilename) )
       {
@@ -322,35 +370,135 @@ bool SKIF_InjectionContext::TestServletRunlevel (bool& changed_state)
 
           if (count != 1)
                *record.pPid = 0;
-        } else *record.pPid = 0;
+        }
       }
 
       // Verify the claimed PID is still running...
+      SetLastError (NO_ERROR);
       CHandle hProcess (
-          *record.pPid != 0 ?
-           OpenProcess ( PROCESS_QUERY_INFORMATION, FALSE,
-                           *record.pPid )
-                            : INVALID_HANDLE_VALUE
-                       );
+                (*record.pPid != 0)
+                              ? OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, *record.pPid)
+                              : NULL);
 
-      // Nope, delete the PID file.
-      if ((intptr_t)hProcess.m_h <= 0)
+      bool accessDenied =
+        GetLastError ( ) == ERROR_ACCESS_DENIED;
+
+      // Do not continue it if we get access denied, as it means the PID is running outside of our security context
+      if (! accessDenied)
       {
-        DeleteFileW (record.wszPidFilename);
-                    *record.pPid = 0;
+        // Get exit code to filter out zombie processes
+        DWORD dwExitCode = 0;
+        GetExitCodeProcess(hProcess, &dwExitCode);
+
+        // If the PID is not active (it is either terminated or a zombie process), delete the file.
+        if (dwExitCode != STILL_ACTIVE)
+        {
+          DeleteFileW (record.wszPidFilename);
+                      *record.pPid = 0;
+        }
       }
     }
 
-    ret =
-      ( pid32 || pid64 );
+    extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
+    extern CHandle hInjectAck;
 
-    changed_state = true;
+    // If we are transitioning away from a pending state
+#ifdef _WIN64
+    if (runState == Starting &&   pid32 &&   pid64 ||
+        runState == Stopping && ! pid32 && ! pid64)
+    {
+      if (pid32 && pid64)
+#else
+    if (runState == Starting &&   pid32 ||
+        runState == Stopping && ! pid32)
+    {
+      if (pid32)
+#endif
+      {
+        bCurrentState     = true;
+        runState          = Started;
 
-    if (oldRet != ret)
-      _SetTaskbarOverlay (ret);
+        if (bAckInj)
+          SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
+        else
+          SKIF_CreateNotifyToast (L"The global injection service was started.",     L"Special K is now being injected into games!");
+      }
+      else
+      {
+        bCurrentState     = false;
+        runState          = Stopped;
+
+        if (bAckInjSignaled)
+          SKIF_CreateNotifyToast (L"Press Ctrl + Shift + Backspace while in-game.", L"Special K has been injected into your game!");
+        else
+          SKIF_CreateNotifyToast (L"The global injection service was stopped.",     L"Special K will no longer be injected into games.");
+
+        bAckInj = false;
+        bAckInjSignaled = false;
+      }
+
+      dwFailed   = NULL;
+      triedToFix = false;
+      
+      _SetTaskbarOverlay (bCurrentState);
+        
+      extern HWND SKIF_hWnd;
+      KillTimer  (SKIF_hWnd, IDT_REFRESH_PENDING);
+    }
+    // Switch the state over if the service has been
+    //   toggled in the background through another method
+#if _WIN64
+    else if (runState == Stopped &&   pid32 &&   pid64)
+#else
+    else if (runState == Stopped &&   pid32)
+#endif
+    {
+      runState = Started;
+      bCurrentState = true;
+
+      _SetTaskbarOverlay (bCurrentState);
+    }
+#if _WIN64
+    else if (runState == Started && ! pid32 && ! pid64)
+#else
+    else if (runState == Stopped && ! pid32)
+#endif
+    {
+      runState = Stopped;
+      bCurrentState = false;
+
+      _SetTaskbarOverlay (bCurrentState);
+    }
+    // If SKIF seems stuck in a starting transition, attempt to forcefully start the service again after 5000ms
+    else if (runState == Starting && ! triedToFix)
+    {
+      if (dwFailed == NULL)
+        dwFailed = SKIF_timeGetTime();
+
+      if (dwFailed + 5000 < SKIF_timeGetTime())
+      {
+        triedToFix = true;
+        dwFailed = NULL;
+        _StartStopInject (false, bAckInj);
+      }
+    }
+    // If SKIF seems stuck in a stopping transition, attempt to forcefully stop the service again after 5000ms
+    else if (runState == Stopping && ! triedToFix)
+    {
+      if (dwFailed == NULL)
+        dwFailed = SKIF_timeGetTime();
+
+      if (dwFailed + 5000 < SKIF_timeGetTime())
+      {
+        triedToFix = true;
+        dwFailed = NULL;
+        _StartStopInject (true);
+      }
+    }
+    else {
+      dwFailed = NULL;
+    }
   }
-
-  return ret;
 };
 
 extern bool SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
@@ -359,27 +507,31 @@ extern bool SKIF_bDisableExitConfirmation;
 
 void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
-  wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSelf64);
   PathRemoveFileSpecW (         wszPathToSelf32);
-  PathAppendW         (         wszPathToSelf64, L"SpecialK64.dll");
   PathAppendW         (         wszPathToSelf32, L"SpecialK32.dll");
   SKVer32 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
+
+#ifdef _WIN64
+  wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
+  GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
+  PathRemoveFileSpecW (         wszPathToSelf64);
+  PathAppendW         (         wszPathToSelf64, L"SpecialK64.dll");
   SKVer64 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
+#endif
 }
 
-bool
+void
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
+  extern bool  SKIF_bStopOnInjection;
 
-  running =
-    TestServletRunlevel (run_lvl_changed);
+  //running =
+    //TestServletRunlevel (run_lvl_changed);
 
   // Injection Summary
   auto frame_id =
@@ -398,13 +550,21 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // Column 1
   ImGui::BeginGroup      ();
+#ifdef _WIN64
   ImGui::TextUnformatted ( (SKVer32 == SKVer64) ?
             ( "Special K v " + SKVer32 ).c_str () :
               "Special K" );
+#else
+  ImGui::TextUnformatted ( ( "Special K v " + SKVer32 ).c_str () );
+#endif
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted ("Config Root:");
   ImGui::TextUnformatted ("32-bit Service:");
+#ifdef _WIN64
   ImGui::TextUnformatted ("64-bit Service:");
+#else
+  ImGui::NewLine         ();
+#endif
   ImGui::PopStyleColor   ();
   ImGui::ItemSize        (
     ImVec2 ( 140.f * SKIF_ImGui_GlobalDPIScale,
@@ -430,20 +590,26 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   SKIF_ImGui_SetHoverText       (
     SK_WideCharToUTF8 (root_dir).c_str ()
   );
-  SKIF_ImGui_SetHoverTip        (
-    "Open the config root folder"
-  );
+  //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
   // 32-bit/64-bit Services
-  if (pid32)
+  if (pid32 && bAckInj)
+    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+  else if (pid32)
     ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
+    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
 
-  if (pid64)
+#ifdef _WIN64
+  if (pid64 && bAckInj)
+    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+  else if (pid64)
     ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Not Running");
+    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
+#else
+  ImGui::NewLine  ();
+#endif
 
   ImGui::ItemSize ( ImVec2 (
                       100.f * SKIF_ImGui_GlobalDPIScale, 
@@ -459,6 +625,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::NewLine    ();
   ImGui::NewLine    ();
 
+#ifdef _WIN64
   if (SKVer32 != SKVer64)
   {
     ImGui::Text ("( v %s )", SKVer32.c_str ());
@@ -466,6 +633,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
   else
     ImGui::NewLine ();
+#endif
 
   ImGui::EndGroup  ();
 
@@ -504,41 +672,32 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if ( ! bHasServlet )
   {
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                           ImGui::GetStyle ().Alpha *
-                             ( (SKIF_IsHDR ()) ? 0.1f
-                                               : 0.5f
-                             )
-    );
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
   }
     
-  if (run_lvl_changed)
+  if (runState == Started || runState == Stopped)
   {
-    static HRESULT hr0 =
-      _SetTaskbarOverlay (running);
-
     const char *szStartStopLabel =
-      running ?  "Stop Service###GlobalStartStop"  :
-                "Start Service###GlobalStartStop";
+      bCurrentState ?  "Stop Service###GlobalStartStop"  :
+                       "Start Service###GlobalStartStop";
 
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
-    {
-      _StartStopInject (running);
-
-      run_lvl_changed = false;
-    }
+      _StartStopInject (bCurrentState, SKIF_bStopOnInjection);
   }
 
   else
-    ImGui::ButtonEx (running ? "Stopping...###GlobalStartStop" :
-                               "Starting...###GlobalStartStop",
+    ImGui::ButtonEx (runState == Stopping ? "Stopping...###GlobalStartStop" :
+                                            "Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
 
-  if ( ! running && SKIF_bDisableExitConfirmation)
+  if ( ! bCurrentState && SKIF_bDisableExitConfirmation)
       SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
+    
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ServiceMenu = PopupState::Open;
 
   if ( ! bHasServlet )
   {
@@ -553,18 +712,28 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   // Tips 'n Tricks
   auto frame_id3 =
     ImGui::GetID ("###Global_Injection_TipsNTricks");
+  
+  ImGui::SetCursorPosY (
+    ImGui::GetWindowHeight () - fBottomDist -
+    ImGui::GetStyle        ().ItemSpacing.y
+  );
+
+  ImGui::Separator     ( );
 
   SKIF_ImGui_BeginChildFrame ( frame_id3,
-                                 ImVec2 ( 0.0f,
-                                          2.0f * ImGui::GetTextLineHeightWithSpacing () ),
-                                   ImGuiWindowFlags_NavFlattened      |
-                                   ImGuiWindowFlags_NoScrollbar       |
-                                   ImGuiWindowFlags_NoScrollWithMouse |
-                                   ImGuiWindowFlags_NoBackground
+                                ImVec2 (ImGui::GetContentRegionAvail ().x,
+                              std::max (ImGui::GetContentRegionAvail ().y,
+                                        ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                       )),
+                                ImGuiWindowFlags_NavFlattened      |
+                                ImGuiWindowFlags_NoScrollbar       |
+                                ImGuiWindowFlags_NoScrollWithMouse |
+                                ImGuiWindowFlags_NoBackground
   );
 
   if ( bHasServlet )
   {
+    /*
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
@@ -594,406 +763,750 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (ImGui::IsItemClicked ())
       SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    */
+
+    extern void SKIF_putStopOnInjection(bool in);
+
+#ifdef _WIN64
+    if (_inject.SKVer64 >= "21.08.12" &&
+        _inject.SKVer32 >= "21.08.12")
+#else
+    if (_inject.SKVer32 >= "21.08.12")
+#endif
+    {
+      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
+        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+
+      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
+                              "when Special K is injected into a whitelisted game.");
+    }
+
+    else {
+      ImGui::TextColored  (ImColor::HSV (0.11F, 1.F, 1.F), "Auto-stop is not available due to Special K being outdated.");
+      SKIF_ImGui_SetHoverTip ("The feature requires Special K v21.08.12 or newer.");
+    }
   }
 
   else {
-    ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
-    ImGui::TextWrapped    (
-      "Global injection service is unavailable as one or more of the required files are missing."
-    );
-    ImGui::PopStyleColor  ();
+    ImGui::TextColored    (ImColor::HSV (0.11F, 1.F, 1.F), "Global injection is unavailable due to missing files.");
   }
 
   ImGui::EndChildFrame ();
 
-  SKIF_ServiceRunning = running;
-
-  return running;
+  fBottomDist = ImGui::GetItemRectSize().y;
 };
-
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
-// 
-// CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
-//              to create and store a shortcut to the specified object. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-// Parameters:
-// lpszPathObj  - Address of a buffer that contains the path of the object,
-//                including the file name.
-// lpszPathLink - Address of a buffer that contains the path where the 
-//                Shell link is to be stored, including the file name.
-// lpszDesc     - Address of a buffer that contains a description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-HRESULT
-CreateLink(LPCWSTR lpszPathObj, LPCSTR lpszPathLink, LPCWSTR lpszArgs, LPCWSTR lpszDesc)
-{
-  HRESULT hres;
-  IShellLink* psl;
-
-  CoInitializeEx(nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called.
-  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-  if (SUCCEEDED(hres))
-  {
-    IPersistFile* ppf;
-
-    // Set the path to the shortcut target and add the description. 
-    psl->SetPath(lpszPathObj);
-    psl->SetArguments(lpszArgs);
-    psl->SetDescription(lpszDesc);
-
-    // Query IShellLink for the IPersistFile interface, used for saving the 
-    // shortcut in persistent storage. 
-    //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
-
-    if (SUCCEEDED(hres))
-    {
-
-      WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode. 
-      MultiByteToWideChar(CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
-
-      // Save the link by calling IPersistFile::Save. 
-      hres = ppf->Save(wsz, FALSE);
-      if (SUCCEEDED(hres))
-      {
-        // Handle success
-        // Despite succeeding, this throws an error...?
-      }
-      else
-      {
-        // Handle the error
-      }
-
-      ppf->Release();
-    }
-    psl->Release();
-  }
-  return hres;
-}
-
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#resolving-a-shortcut
-// 
-// ResolveIt - Uses the Shell's IShellLink and IPersistFile interfaces 
-//             to retrieve the path and description from an existing shortcut. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-// Parameters:
-// hwnd         - A handle to the parent window. The Shell uses this window to 
-//                display a dialog box if it needs to prompt the user for more 
-//                information while resolving the link.
-// lpszLinkFile - Address of a buffer that contains the path of the link,
-//                including the file name.
-// lpszPath     - Address of a buffer that receives the path of the link target, including the file name.
-// lpszDesc     - Address of a buffer that receives the description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-HRESULT
-ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszArguments, int iPathBufferSize)
-{
-  HRESULT hres;
-  IShellLink* psl;
-
-  WCHAR szGotPath[MAX_PATH];
-  WCHAR szArguments[MAX_PATH];
-  WIN32_FIND_DATA wfd;
-
-  *lpszArguments = 0; // Assume failure
-
-  CoInitializeEx(nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called. 
-
-  hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-  if (SUCCEEDED(hres))
-  {
-    IPersistFile* ppf;
-
-    // Get a pointer to the IPersistFile interface. 
-    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
-
-    if (SUCCEEDED(hres))
-    {
-      WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode. 
-      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
-
-      // Add code here to check return value from MultiByteWideChar 
-      // for success.
-
-      // Load the shortcut. 
-      hres = ppf->Load(wsz, STGM_READ);
-
-      if (SUCCEEDED(hres))
-      {
-        // Resolve the link. 
-        hres = psl->Resolve(hwnd, 0);
-
-        if (SUCCEEDED(hres))
-        {
-          // Get the path to the link target. 
-          hres = psl->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
-
-          if (SUCCEEDED(hres))
-          {
-            // Get the arguments of the target. 
-            hres = psl->GetArguments(szArguments, MAX_PATH);
-
-            if (SUCCEEDED(hres))
-            {
-              hres = StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
-              if (SUCCEEDED(hres))
-              {
-                // Handle success
-              }
-              else
-              {
-                // Handle the error
-              }
-            }
-          }
-        }
-      }
-
-      // Release the pointer to the IPersistFile interface. 
-      ppf->Release();
-    }
-
-    // Release the pointer to the IShellLink interface. 
-    psl->Release();
-  }
-  return hres;
-}
 
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
   ImGui::BeginGroup ();
-  
-  static bool requiredFiles =
-    PathFileExistsW (LR"(Servlet\enable_logon.bat)" ) &&
-    PathFileExistsW (LR"(Servlet\disable_logon.bat)") && 
-    PathFileExistsW (LR"(Servlet\task_inject.bat)"  );
-  //PathFileExistsW (LR"(Servlet\task_eject.bat)"); // Not actually required for StartAtLogon feature
-  
-  ImGui::Spacing     ();
-  
-  ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
-  ImGui::TextWrapped    (
-    "SKIF and the global injection service can be configured to start automatically with Windows."
-  );
-  ImGui::PopStyleColor  ();
-  
-  ImGui::Spacing ();
-  ImGui::Spacing ();
 
-  // New method
+  static bool argsChecked = false;
+  static std::wstring args = L"\0";
+  static HKEY hKey;
 
-  if (bLogonTaskEnabled)
+  auto _CheckRegistry = [&](void) ->
+    bool
   {
-    // Disable button
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                            ImGui::GetStyle ().Alpha *
-                              ( (SKIF_IsHDR ()) ? 0.1f
-                                                : 0.5f
-                              )
-    );
-  }
-  
-  ImGui::BeginGroup  ();
+    bool ret = false;
 
-  path_cache_s::win_path_s user_startup  =
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+      if ((ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 32-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)) ||
+          (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K 64-bit Global Injection Service Host", RRF_RT_REG_SZ, NULL, NULL, NULL)))
+        ret = true;
+
+      RegCloseKey (hKey);
+    }
+
+    return ret;
+  };
+
+  static path_cache_s::win_path_s user_startup  =
   {            FOLDERID_Startup,
     L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
   };
 
-  SKIF_GetFolderPath(&user_startup);
-
-  static std::wstring target = SK_FormatStringW ( LR"(%ws\SKIF.exe)",
-                               path_cache.specialk_userdata.path );
+  SK_RunOnce (SKIF_GetFolderPath (&user_startup));
 
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
                                user_startup.path );
 
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata.path),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata.path);
+
+  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
+                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
+
+  static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
+
+  // New method
+
+  if (bLogonTaskEnabled ||
+      bAutoStartServiceOnly)
+  {
+    // Disable button
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+  }
+  
+  ImGui::BeginGroup  ();
+
+  /*
   SK_RunOnce(
     bAutoStartSKIF = PathFileExists(SK_UTF8ToWideChar(link).c_str())
   );
+  */
 
-  static bool argsChecked = false;
-  static std::wstring args = L"\0";
-
-  if ( ! argsChecked && bAutoStartSKIF )
+  if ( ! argsChecked ) // && bAutoStartSKIF )
   {
-    extern HWND SKIF_hWnd;
+    //extern HWND SKIF_hWnd;
+    //WCHAR szTarget   [MAX_PATH];
     WCHAR szArguments[MAX_PATH];
-    SK_RunOnce(ResolveIt(SKIF_hWnd, link.c_str(), szArguments, MAX_PATH));
-    args = szArguments;
-    
-    bAutoStartService = (args.find(L"START")    != std::wstring::npos);
-    bStartMinimized   = (args.find(L"MINIMIZE") != std::wstring::npos);
 
-    argsChecked = true;
+    //ResolveIt (SKIF_hWnd, link.c_str(), szTarget, szArguments, MAX_PATH);
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
+    {
+      DWORD dwSize = sizeof(szArguments) / sizeof(WCHAR);
+      if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"Special K", RRF_RT_REG_SZ, NULL, &szArguments, &dwSize))
+      {
+        bAutoStartSKIF = true;
+        args = szArguments;
+      }
+
+      RegCloseKey (hKey);
+    }
+    
+    bAutoStartService = (args.find (L"Start")    != std::wstring::npos);
+    bStartMinimized   = (args.find (L"Minimize") != std::wstring::npos);
   }
+
+  argsChecked = true;
 
   static bool changes = false;
 
-  if (ImGui::Checkbox(" Start with Windows", &bAutoStartSKIF))
+  if (ImGui::Checkbox("Start SKIF with Windows", &bAutoStartSKIF))
     changes = true;
 
-  if (bAutoStartSKIF)
+  if (! bAutoStartSKIF)
   {
-    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
-    if (ImGui::Checkbox(" " ICON_FA_PLAY " Autostart global injection service", &bAutoStartService))
-      changes = true;
+    // Disable buttons
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+  }
 
-    /* Disabled for now
-    ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine(); ImGui::Spacing(); ImGui::SameLine();
-    if (ImGui::Checkbox(" " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
-      changes = true;
-    */
+  ImGui::TreePush ("");
+
+  extern bool SKIF_bCloseToTray;
+
+  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the global injection service as well", &bAutoStartService))
+    changes = true;
+    
+
+  if (ImGui::Checkbox((SKIF_bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized in notification area" :
+                                            " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized", &bStartMinimized))
+    changes = true;
+
+  ImGui::TreePop  ( );
+
+  if (! bAutoStartSKIF)
+  {
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
   }
 
   if (changes)
   {
-    DeleteFileW(SK_UTF8ToWideChar(link).c_str());
+    DeleteFileW (SK_UTF8ToWideChar(link).c_str());
 
     if (bStartMinimized)
-      args = (bAutoStartService) ? L"START MINIMIZE" : L"STOP MINIMIZE";
+      args = (bAutoStartService) ? L"Start Minimize" : L"Minimize";
     else
-      args = (bAutoStartService) ? L"START"          : L"";
+      args = (bAutoStartService) ? L"Start"          : L"";
+    
+    /*
+    static TCHAR                             szExePath[MAX_PATH];
+    GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
+    */
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
+    {
+      if (bAutoStartSKIF)
+      {
+          static TCHAR               szExePath[MAX_PATH];
+          GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
-    if (bAutoStartSKIF)
-     CreateLink(target.c_str(), link.c_str(), args.c_str(), L"Special K Injection Frontend");
-    else
-      bAutoStartService = bStartMinimized = false;
+          std::wstring wsPath = LR"(")" + std::wstring(szExePath) + LR"(" )" + args;
+
+          RegSetValueExW (hKey, L"Special K", 0, REG_SZ, (LPBYTE)wsPath.data(),
+                                                          (DWORD)wsPath.size() * sizeof(wchar_t));
+      }
+      else
+      {
+        RegDeleteValueW  (hKey, L"Special K");
+
+        bAutoStartService = bStartMinimized = false;
+      }
+
+      RegCloseKey (hKey);
+    }
 
     changes = false;
   }
 
   ImGui::EndGroup    ();
   
-  if (bLogonTaskEnabled)
+  if (bLogonTaskEnabled ||
+      bAutoStartServiceOnly)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
-  
-    ImGui::SameLine    ();
-  
-    ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                            "Please disable the obsolete autostart method !"
-    );
+
+    SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
+                             "The difference is that this method autostarts SKIF, and not just the GI service." );
   }
 
+  // Legacy method, only appear if it is actually enabled or debug mode is enabled
+  extern bool SKIF_bEnableDebugMode;
 
-  // Obsolete method, only appear if it is actually enabled
-
-  if (bLogonTaskEnabled)
+  if ( bLogonTaskEnabled     ||
+       bAutoStartServiceOnly ||
+       SKIF_bEnableDebugMode )
   {
-    if (! requiredFiles)
+
+    if (bLogonTaskEnabled)
+      _StartAtLogonCtrlLegacy ( );
+    
+    // New approach to the legacy method
+    ImGui::BeginGroup ();
+
+    if ( bLogonTaskEnabled || 
+          bAutoStartSKIF )
     {
       // Disable button
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha,
-                             ImGui::GetStyle ().Alpha *
-                               ( (SKIF_IsHDR ()) ? 0.1f
-                                                 : 0.5f
-                               )
-      );
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
   
-    if (ImGui::Checkbox (" " ICON_FA_SHIELD_ALT " Start At Logon (obsolete)", &bLogonTaskEnabled))
+    if (ImGui::Checkbox ("Start the global injection service with Windows", &dontCare))
     {
-      const wchar_t* wszLogonTaskCmd =
-        (bLogonTaskEnabled ?
-          LR"(Servlet\enable_logon.bat)" :
-          LR"(Servlet\disable_logon.bat)");
-  
-      if (
-        ShellExecuteW (
-          nullptr, L"runas",
-            wszLogonTaskCmd,
-              nullptr, nullptr,
-                SW_HIDE ) < (HINSTANCE)32 )
+      if (! bAutoStartServiceOnly)
       {
-        bLogonTaskEnabled =
-          ! bLogonTaskEnabled;
+        if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
+                              L"\n"
+                              L"Special K Injection Frontend (SKIF) will not autostart.\n"
+                              L"\n"
+                              L"Are you sure you want to proceed?",
+                              L"Confirm autostart",
+                              MB_YESNO | MB_ICONWARNING) == IDYES)
+        {
+          if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
+          {
+            TCHAR               szExePath[MAX_PATH];
+            GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+            std::wstring wsPath = std::wstring(szExePath);
+
+            RegSetValueExW (hKey, L"Special K 32-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc32Target.data(),
+                                                                                                 (DWORD)Svc32Target.size() * sizeof(wchar_t));
+#ifdef _WIN64
+            RegSetValueExW (hKey, L"Special K 64-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc64Target.data(),
+                                                                                                 (DWORD)Svc64Target.size() * sizeof(wchar_t));
+#endif
+            RegCloseKey (hKey);
+          }
+
+          bAutoStartServiceOnly = ! bAutoStartServiceOnly;
+        }
+
+        else {
+          dontCare = ! dontCare;
+        }
+      }
+
+      else {
+        DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
+        DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
+        
+        if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
+        {
+          RegDeleteValueW (hKey, L"Special K 32-bit Global Injection Service Host");
+          RegDeleteValueW (hKey, L"Special K 64-bit Global Injection Service Host");
+
+          RegCloseKey (hKey);
+        }
+
+        bAutoStartServiceOnly = ! bAutoStartServiceOnly;
       }
     }
   
     SKIF_ImGui_SetHoverTip (
-      "Administrative privileges are required on the system to toggle this."
+        "Note that this injection frontend (SKIF) will not start with Windows."
     );
   
-    if (! requiredFiles)
+    if ( bLogonTaskEnabled || 
+          bAutoStartSKIF )
     {
       ImGui::PopStyleVar ();
       ImGui::PopItemFlag ();
-  
-      ImGui::SameLine    ();
-  
-      ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                             "Option is unavailable as one or more of the required files are missing."
-      );
+
+      if (bAutoStartSKIF)
+        SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                  "The difference is that the current method autostarts SKIF, and not just the GI service.");
+      else
+        SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                  "The difference is that this method does not require elevated privileges." );
     }
+
+    ImGui::EndGroup      ();
+
   }
+
+  ImGui::EndGroup      ( );
+}
+
+/* Legacy option
+* 
+* Autostarts the global injection service on logon.
+* SKIF will not start alongside the background service!
+* 
+*/
+void
+SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
+{
+  ImGui::BeginGroup ();
+  
+  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_SHIELD_ALT, &bLogonTaskEnabled))
+  {
+    if (
+      ShellExecuteW (
+        nullptr, L"runas",
+          L"SCHTASKS",
+            LR"(/delete /tn "SK_InjectLogon" /f)", nullptr,
+              SW_HIDE ) > (HINSTANCE)32 )
+    {
+      DeleteFile (LR"(Servlet\SpecialK.LogOn)");
+      DeleteFile (LR"(Servlet\task_inject.bat)");
+    }
+    else
+      bLogonTaskEnabled =
+        ! bLogonTaskEnabled;
+  }
+  
+  SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
 
   ImGui::EndGroup      ();
 }
 
-void
-InitializeJumpList (void);
-
 HRESULT
 SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
+  //CoInitializeEx (nullptr, 0x0); // Breaks overlay on start
+
+  extern void SKIF_CreateUpdateNotifyMenu (void);
+  extern void SKIF_UpdateNotifyIcon       (void);
+  SKIF_CreateUpdateNotifyMenu             (    );
+  SKIF_UpdateNotifyIcon                   (    );
+
   CComPtr <ITaskbarList3> taskbar;
   if ( SUCCEEDED (
          CoCreateInstance ( CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER,
                               IID_ITaskbarList3, (void **)&taskbar.p)
      ) )
   {
-    extern HWND SKIF_hWnd;
+    extern HWND    SKIF_hWnd;
+    HICON hIcon = LoadIcon(hModSKIF, MAKEINTRESOURCE(IDI_SKIFON));
 
-    //HICON hIcon = LoadIcon(hModSelf, MAKEINTRESOURCE(IDI_SKIF));
-
-    SHSTOCKICONINFO
-      sii        = {          };
-      sii.cbSize = sizeof (sii);
-
-    if ( SUCCEEDED (
-           SHGetStockIconInfo ( SIID_INFO,
-                                  SHGSI_ICON | SHGSI_LARGEICON,
-                                    &sii )
-       ) )
+    if (hIcon != NULL)
     {
       if (show)
-        taskbar->SetOverlayIcon (SKIF_hWnd, sii.hIcon, L"Global injection service is running.");
+        taskbar->SetOverlayIcon (SKIF_hWnd, hIcon, L"Global injection service is running.");
       else
         taskbar->SetOverlayIcon (SKIF_hWnd, NULL, NULL);
 
-      DestroyIcon (sii.hIcon);
-    }
+      DestroyIcon (hIcon);
+      bTaskbarOverlayIcon = show;
 
-    return S_OK;
+      return S_OK;
+    }
   }
 
+  bTaskbarOverlayIcon = false;
   return E_UNEXPECTED;
+}
+
+bool SKIF_InjectionContext::_StoreList(bool whitelist_)
+{
+  bool ret = false;
+  static std::wstring root_dir =
+           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+
+  // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
+  std::filesystem::create_directories (root_dir.c_str ());
+
+  std::wofstream list_file(
+    (whitelist_) ? (root_dir + LR"(\whitelist.ini)").c_str()
+                 : (root_dir + LR"(\blacklist.ini)").c_str()
+  );
+
+  if (list_file.is_open())
+  {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    {
+      list_file.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(suppress : 4996)
+      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+
+    std::wstring out_text =
+      SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
+
+    // Strip all null terminator \0 characters from the string
+    out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
+
+    // Strip all double (or more) newline characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n\n+)"),   L"\n");
+
+    // Strip double pipe characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\|)"),    L"|");
+
+    // Strip pipe characters at the end of a line from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\n)"),    L"\n");
+
+    // Strip trailing pipe characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|+$)"),    L"");
+
+    // Strip trailing newline characters from the string
+    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n+$)"),    L"");
+
+    list_file.write(out_text.c_str(),
+      out_text.length());
+
+    if (list_file.good())
+    {
+      // Update the internal variable with the manipulated string
+      if (whitelist_)
+        snprintf(whitelist, sizeof whitelist, "%s", SK_WideCharToUTF8(out_text).c_str());
+      else
+        snprintf(blacklist, sizeof blacklist, "%s", SK_WideCharToUTF8(out_text).c_str());
+
+      ret = true;
+    }
+
+    list_file.close();
+  }
+
+  return ret;
+}
+
+void SKIF_InjectionContext::_LoadList(bool whitelist_)
+{
+  static std::wstring root_dir =
+           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+
+  std::wifstream list_file(
+    (whitelist_) ? (root_dir + LR"(whitelist.ini)").c_str()
+                 : (root_dir + LR"(blacklist.ini)").c_str()
+  );
+
+  std::wstring full_text;
+
+  if (list_file.is_open ())
+  {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    {
+      list_file.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(suppress : 4996)
+      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+
+    std::wstring line;
+
+    while (list_file.good ())
+    {
+      std::getline (list_file, line);
+
+      // Skip blank lines, since they would match everything....
+      for (const auto& it : line)
+      {
+        if (iswalpha(it) != 0)
+        {
+          full_text += line + L'\n';
+          break;
+        }
+      }
+    }
+
+    if (full_text.length() > 0)
+      full_text.resize (full_text.length () - 1);
+
+    list_file.close ();
+
+    strcpy ( (whitelist_) ? whitelist : blacklist,
+                SK_WideCharToUTF8 (full_text).c_str ()
+    );
+  }
+}
+
+bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
+{
+  if (  whitelist_ && StrStrIA (szExecutable, "SteamApps") != NULL ||
+      ! whitelist_ && StrStrIA (szExecutable, "GameBar"  ) != NULL /* ||
+      ! whitelist_ && StrStrIA(szExecutable, "Launcher") != NULL */ )
+    return true;
+
+  if (  whitelist_ && *whitelist == '\0' ||
+      ! whitelist_ && *blacklist == '\0')
+    return false;
+
+  // Check if the executable filename has "launcher" in it:
+  // TODO: Confirm this shit works!
+  /*
+  char     szExecutableCopy [MAX_PATH] = { };
+  strncpy (szExecutableCopy, szExecutable, MAX_PATH);
+  PathStripPathA (szExecutableCopy);
+
+  if (! whitelist_ && StrStrIA (szExecutableCopy, "Launcher") != NULL )
+    return true;
+  */
+
+  std::istringstream iss(  (whitelist_)
+                          ? whitelist
+                          : blacklist);
+
+  for (std::string line; std::getline(iss, line); )
+  {
+    std::regex regexp (line, std::regex_constants::icase);
+
+    if (std::regex_search(szExecutable, regexp))
+      return true;
+  }
+
+  return false;
+}
+
+void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
+{
+  if (whitelist_)
+  {
+    if (*whitelist == '\0')
+      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, pattern.c_str());
+    else
+      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, ("\n" + pattern).c_str());
+  }
+
+  else
+  {
+    if (*blacklist == '\0')
+      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, pattern.c_str());
+    else
+      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("\n" + pattern).c_str());
+  }
+}
+
+void SKIF_InjectionContext::_WhitelistBasedOnPath(std::string fullPath)
+{
+  // Check if the path has been whitelisted
+  if (! _inject._TestUserList (fullPath.c_str(), true))
+  {
+    // name of parent folder
+    std::filesystem::path exePath = std::filesystem::path(fullPath);
+    std::string whitelistPattern;
+
+    // Does a parent folder exist?
+    if (exePath.has_parent_path() && exePath.parent_path().has_filename())
+    {
+      // Does another parent folder one level up exist? If so, add it to the pattern
+      if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
+        whitelistPattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
+
+      // Add the name of the parent folder to the pattern
+      whitelistPattern += exePath.parent_path().filename().string();
+
+      // If this is an Unreal Engine 4 game, add the executable as well
+      if ( whitelistPattern == R"(Binaries\\Win64)"
+        || whitelistPattern == R"(x64)"
+        || whitelistPattern == R"(Binaries\\Win32)"
+        || whitelistPattern == R"(x86)"
+        )
+        whitelistPattern += R"(\\)" + exePath.filename().string();
+    }
+    else
+    {
+      // Add the executable to the pattern if all else fails
+      whitelistPattern = std::filesystem::path(fullPath).filename().string();
+    }
+
+    // Whitelist path
+    _inject._AddUserList (whitelistPattern, true);
+    _inject._StoreList   (true);
+  }
+}
+
+void SKIF_InjectionContext::_BlacklistBasedOnPath(std::string fullPath)
+{
+  // Check if the path has been blacklisted
+  if (! _inject._TestUserList (fullPath.c_str(), false))
+  {
+    // name of parent folder
+    std::filesystem::path exePath = std::filesystem::path(fullPath);
+    std::string pattern;
+
+    // Does a parent folder exist?
+    if (exePath.has_parent_path() && exePath.parent_path().has_filename())
+    {
+      // Does another parent folder one level up exist? If so, add it to the pattern
+      if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
+        pattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
+
+      // Add the name of the parent folder to the pattern
+      pattern += exePath.parent_path().filename().string();
+
+      // If this is an Unreal Engine 4 game, add the executable as well
+      if (pattern == R"(Binaries\\Win64)" || pattern == R"(Binaries\\Win32)")
+        pattern += R"(\\)" + exePath.filename().string();
+    }
+    else {
+      // Add the executable to the pattern if all else fails
+      pattern = std::filesystem::path(fullPath).filename().string();
+    }
+
+    // Whitelist path
+    _inject._AddUserList (pattern, false);
+    _inject._StoreList   (false);
+  }
+}
+
+// Header Files for Jump List features
+#include <objectarray.h>
+#include <shobjidl.h>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <knownfolders.h>
+#include <shlobj.h>
+
+void
+SKIF_InjectionContext::_InitializeJumpList (void)
+{
+  //CoInitializeEx (nullptr, 0x0);
+
+  CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
+  CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
+  CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
+  CComPtr <IObjectArray>             pRemovedItems;                             // Not actually used since we don't carry custom destinations
+  PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
+  UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
+
+  TCHAR                                    szExePath[MAX_PATH];
+  GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
+       
+  // Create a jump list COM object.
+  if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
+  {
+    pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS(&pRemovedItems));
+
+    if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
+    {
+      // Task #1: Start Injection
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the global injection service");   // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Injection", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #2: Start Injection (with auto stop)
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Temp Start");                            // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the global injection service and\n"
+                                     L"automatically stops it after injection.");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Injection (with auto stop)", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #3: Stop Injection
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Stops the global injection service");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Stop Injection", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #4: Exit
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Quit");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+      //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Exit", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      CComQIPtr <IObjectArray>       pTasksArray = pObjColl;                    // Get an IObjectArray interface for AddUserTasks.
+      pDestList   ->AddUserTasks    (pTasksArray);                              // Add the tasks to the jump list.
+      pDestList   ->CommitList      ( );                                        // Save the jump list.
+      pTasksArray  .Release         ( );
+
+      pObjColl     .Release         ( );
+    }
+    pDestList      .Release         ( );
+  }
 }
 
 #if 0

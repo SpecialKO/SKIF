@@ -2,9 +2,11 @@
 // Microsoft Visual C++ generated include file.
 // Used by SKIF.rc
 //
-#define IDC_MYICON                      2
 #define IDD_SKIF_DIALOG                 102
 #define IDI_SKIF                        107
+#define IDI_SKIFON                      108
+#define IDI_SKIFOFF                     109
+#define IDI_SKIFONNOTIFY                110
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
 
@@ -16,6 +18,6 @@
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
 #define _APS_NEXT_CONTROL_VALUE         1000
-#define _APS_NEXT_SYMED_VALUE           110
+#define _APS_NEXT_SYMED_VALUE           111
 #endif
 #endif

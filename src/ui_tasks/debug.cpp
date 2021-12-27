@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright 2021 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -76,7 +76,7 @@ struct SK_InjectionRecord_s
   } process;
 
   struct {
-    ULONG64      frames                    =  0ULL;
+    ULONG64    frames                    =  0ULL;
     SK_RenderAPI api                       = SK_RenderAPI::Reserved;
     bool         fullscreen                = false;
     bool         dpi_aware                 = false;
@@ -255,7 +255,9 @@ enum _SK_NTDLL_HANDLE_TYPE
   Thread                = 0x8,
   UserApcReserve        = 0xA,
   IoCompletionReserve   = 0xB,
-  Event                 = 0x12,
+  EventWin81            = 0xC,  // TODO: Fix whatever is going on here -- on Windows 8.1  it's 0xC  (12) ?
+  EventAlternate        = 0x10, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
+  Event                 = 0x12, // TODO: Fix whatever is going on here -- on some systems it's 0x10 (16), and on other 0x12 (18) ?
   Mutant                = 0x13,
   Semaphore             = 0x15,
   Timer                 = 0x16,
@@ -274,6 +276,8 @@ enum _SK_NTDLL_HANDLE_TYPE
   DxgkSharedSyncObject  = 0x40,
   DxgkCompositionObject = 0x45,
 };
+
+static USHORT FoundEvent = 0x0;
 
 enum _SK_NTDLL_HANDLE_OBJ_ATTRIB
 {
@@ -317,8 +321,13 @@ typedef struct _SK_SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX
 
     struct
     {
+#ifdef _WIN64
       DWORD   ProcessId;
       DWORD   ThreadId; // ?? ( What are the upper-bits for anyway ? )
+#else
+      WORD    ProcessId;
+      WORD    ThreadId; // ?? ( What are the upper-bits for anyway ? )
+#endif
     };
   };
 
@@ -380,6 +389,7 @@ volatile LONG SKIF_PresentIdx    =   0;
 
 #include <injection.h>
 #include <sk_utility/command.h>
+#include <imgui/imgui_internal.h>
 
 extern SKIF_InjectionContext _inject;
 
@@ -438,8 +448,8 @@ struct SKIF_Console : SK_IVariableListener
     ScrollToBottom = false;
 
     AddLog (
-      "[Status] Global Injection Status: %s", _inject.running ? "Active"
-                                                              : "Inactive" );
+      "[Status] Global Injection Status: %s", _inject.bCurrentState ? "Active"
+                                                                    : "Inactive" );
   }
 
   ~SKIF_Console (void)
@@ -621,10 +631,11 @@ struct SKIF_Console : SK_IVariableListener
       ImGuiInputTextFlags_CallbackCompletion |
       ImGuiInputTextFlags_CallbackHistory;
 
-    if ( ImGui::InputText (
-           "Console Input###InputBuf",
+    if ( ImGui::InputTextEx (
+           "Console###InputBuf",
+           "Type Help or click Tab to show available commands...",
                             InputBuf,
-              IM_ARRAYSIZE (InputBuf), input_text_flags,
+              IM_ARRAYSIZE (InputBuf), ImVec2(0.0f, 0.0f), input_text_flags,
                 &TextEditCallbackStub, (void *)this
          )
        )
@@ -708,18 +719,16 @@ struct SKIF_Console : SK_IVariableListener
 
     else if (Stricmp (command_line, "Start") == 0)
     {
-      if (! _inject.running)
+      if (! _inject.bCurrentState)
       {
+        extern bool SKIF_bStopOnInjection;
+
         AddLog ("Starting Injection... ");
 
-        bool success =
-          _inject._StartStopInject (_inject.running);
-
-        AddLog ( success ? "[Success] Started" :
-                           "[Failure] Not Running" );
+        AddLog ( _inject._StartStopInject (_inject.bCurrentState, SKIF_bStopOnInjection)
+                         ? "[Success] Started"
+                         : "[Failure] Not Running" );
         AddLog ("\n");
-
-        if (success) _inject.running = true;
       }
 
       else
@@ -730,18 +739,14 @@ struct SKIF_Console : SK_IVariableListener
 
     else if (Stricmp (command_line, "Stop") == 0)
     {
-      if (_inject.running)
+      if (_inject.bCurrentState)
       {
         AddLog ("Stopping Injection... ");
 
-        bool success =
-          _inject._StartStopInject (_inject.running);
-
-        AddLog ( success ? "[Success] Stopped" :
-                           "[Failure] Still Running" );
+        AddLog ( _inject._StartStopInject (_inject.bCurrentState)
+                         ? "[Success] Stopped"
+                         : "[Failure] Still Running" );
         AddLog ("\n");
-
-        if (success) _inject.running = false;
       }
 
       else
@@ -958,27 +963,69 @@ SK_Inject_AuditRecord = nullptr;
 SK_Inject_GetRecord_pfn
 SK_Inject_GetRecord   = nullptr;
 
+// Some string manipulation to assume whether a process is an Xbox app or not
+bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
+{
+  // Does the string contain "WindowsApps" ?
+  bool xbox_app = (path.find("WindowsApps") != std::string::npos);
+
+  // If the string does not contain "WindowsApps", do some string manipulation and assumptions
+  if (!xbox_app && path.length() > 0)
+  {
+    // \Device\HarddiskVolume21\Hades.exe
+
+    std::string p1 = R"(\Device\HarddiskVolume)";
+    if (path.find(p1) != std::string::npos)
+      path.erase(path.find(p1), p1.length());
+
+    // 21\Hades.exe
+
+    std::string p2 = R"(\)" + processName;
+    if (path.find(p2) != std::string::npos)
+      path.erase(path.find(p2), p2.length());
+
+    // 21
+
+    if (strlen(path.c_str()) < 3) // 0 - 99
+      xbox_app = true;
+  }
+
+  return xbox_app;
+}
+
+// Some string manipulation to assume whether a process is a Steam app or not
+bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
+{
+  return (path.find("SteamApps") != std::string::npos);
+}
+
 HRESULT
 SKIF_Debug_DrawUI (void)
 {
-  HMODULE hModSK64 =
-    LoadLibraryW (L"SpecialK64.dll");
-
-  if (! hModSK64)
-    return E_NOT_VALID_STATE;
+  extern HMODULE hModSpecialK;
+  extern float   SKIF_ImGui_GlobalDPIScale;
+  
+  if (hModSpecialK == nullptr)
+#ifdef _WIN64
+    hModSpecialK = LoadLibraryW (L"SpecialK64.dll");
+#else
+    hModSpecialK = LoadLibraryW (L"SpecialK32.dll");
+#endif
 
    SKX_GetInjectedPIDs_pfn
    SKX_GetInjectedPIDs     =
-  (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSK64,
+  (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
   "SKX_GetInjectedPIDs");
 
    SK_Inject_GetRecord     =
-  (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSK64,
+  (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
   "SK_Inject_GetRecord");
 
    SK_Inject_AuditRecord     =
-  (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSK64,
+  (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
   "SK_Inject_AuditRecord");
+
+   static bool active_listing = true;
 
   if (SKX_GetInjectedPIDs != nullptr)
   {
@@ -1004,11 +1051,13 @@ SKIF_Debug_DrawUI (void)
     std::set <DWORD> _Used64;
 
     static std::map <DWORD,  std::wstring> executables_64;
+    static std::map <DWORD,  std::wstring> executables_32;
     static std::map <DWORD, inject_policy>    policies_64;
+    static std::map <DWORD, inject_policy>    policies_32;
     static std::map <DWORD,   std::string>    tooltips_64;
     static std::map <DWORD,   std::string>    tooltips_32;
-    static std::map <DWORD, inject_policy>    policies_32;
-    static std::map <DWORD,  std::wstring> executables_32;
+    static std::map <DWORD,   std::string>     details_64;
+    static std::map <DWORD,   std::string>     details_32;
 
 
     static           DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
@@ -1016,34 +1065,6 @@ SKIF_Debug_DrawUI (void)
       SKX_GetInjectedPIDs (dwPIDs, MAX_INJECTED_PROCS);
   
     static DWORD dwMonitored = 0;
-
-    while (num_pids > 0)
-    {
-      DWORD dwPID =
-            dwPIDs [--num_pids];
-
-      _Active64.emplace (dwPID);
-
-      auto *pRecord =
-        SK_Inject_GetRecord (dwPID);
-
-      std::string pretty_str =
-        pRecord->platform.steam_appid != 0x0   ?
-                        ICON_FA_STEAM_SYMBOL                   :
-                  pRecord->platform.uwp_full_name [0] != L'\0' ?
-                        ICON_FA_WINDOWS                        :
-                        ICON_FA_MINUS_SQUARE;
-
-      if (executables_64.count (dwPID))
-      {
-        ImGui::Text ( "%s (%ws)\t\t" ICON_FA_QUOTE_LEFT
-                          "%ws"      ICON_FA_QUOTE_RIGHT,
-                            pretty_str.c_str (),
-          executables_64       [dwPID].c_str (),
-           SK_Inject_GetRecord (dwPID)->process.win_title
-                    );
-      }
-    }
 
     ImGui::Separator (                   );
     console.Draw     ("Prototype Console");
@@ -1061,30 +1082,121 @@ SKIF_Debug_DrawUI (void)
     static std::string handle_dump;
     static std::string standby_list;
 
-    static bool active_listing = true;
-    
-    ImGui::PushStyleColor (ImGuiCol_Button, active_listing ? ImVec4 (0.1f, 0.2f, 0.9f, 1.f)
-                                                           : ImVec4 (0.2f, 0.2f, 0.1f, 1.f));
-    bool clicked =
-      ImGui::SmallButton (
-         SK_FormatString ( "%s Active Process Monitoring", active_listing ? ICON_FA_TOGGLE_ON
-                                                                          : ICON_FA_TOGGLE_OFF ).c_str () );
-    ImGui::PopStyleColor ();
+    extern void
+      SKIF_ImGui_SetHoverTip(const std::string_view& szText);
 
-    if (clicked)
+#ifdef _WIN64
+    if (ImGui::CollapsingHeader("Active 64-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
+#else
+    if (ImGui::CollapsingHeader("Active 32-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
+#endif
     {
-      active_listing =
-        ! active_listing;
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), " %s", "PID");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 ( 55.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Type");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Process Name");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Steam ID");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Window Title");
+    //ImGui::SameLine    ( );
+    //ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+    //ImGui::SameLine    ( );
+    //ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
+
+      ImGui::Separator   ( );
+
+      if (num_pids == 0)
+#ifdef _WIN64
+        ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "64-bit Special K is currently not active in any injected process.");
+#else
+        ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "32-bit Special K is currently not active in any injected process.");
+#endif
+
+      while (num_pids > 0)
+      {
+        DWORD dwPID =
+              dwPIDs [--num_pids];
+
+#ifdef _WIN64
+        _Active64.emplace (dwPID);
+#else
+        _Active32.emplace (dwPID);
+#endif
+
+        auto *pRecord =
+          SK_Inject_GetRecord (dwPID);
+
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
+
+        if (pRecord->platform.steam_appid != 0x0 &&
+            pRecord->platform.steam_appid != INT_MAX)
+        {
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
+        }
+        else if (pRecord->platform.uwp_full_name[0] != L'\0' ||
+#ifdef _WIN64
+                 SKIF_Debug_IsXboxApp(tooltips_64[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
+#else
+                 SKIF_Debug_IsXboxApp(tooltips_32[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
+#endif
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
+
+#ifdef _WIN64
+        if (executables_64.count (dwPID))
+#else
+        if (executables_32.count (dwPID))
+#endif
+        {
+          ImGui::Text     (" %i", pRecord->process.id);
+          ImGui::SameLine ( );
+          ImGui::ItemSize (ImVec2 ( 60.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::SameLine ( );
+          ImGui::Text     (" %s", pretty_str.c_str());
+          SKIF_ImGui_SetHoverTip (pretty_str_hover);
+          ImGui::SameLine ( );
+          ImGui::ItemSize (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::SameLine ( );
+          ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.name).c_str());
+        //SKIF_ImGui_SetHoverTip (tooltips_64[dwPID]);
+          ImGui::SameLine ( );
+          ImGui::ItemSize (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::SameLine ( );
+          ImGui::Text     ("%d", pRecord->platform.steam_appid);
+          ImGui::SameLine ( );
+          ImGui::ItemSize (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+          ImGui::SameLine ( );
+          ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.win_title).c_str());
+        //ImGui::SameLine ( );
+        //ImGui::ItemSize (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
+        //ImGui::SameLine ( );
+        //ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->platform.uwp_full_name).c_str());
+        }
+      }
+
+      SKIF_ImGui_Spacing ( );
     }
 
-    extern void
-    SKIF_ImGui_SetHoverTip (const std::string_view& szText);
+    extern bool SKIF_ImGui_IsFocused (void);
 
     static DWORD
          dwLastRefresh = 0;
-    if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing )
+    if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
     {    dwLastRefresh       = SKIF_timeGetTime ();
-
       standby_list.clear ();
       _Standby32.clear   ();
       _Standby64.clear   ();
@@ -1127,13 +1239,26 @@ SKIF_Debug_DrawUI (void)
 
         for ( unsigned int i = 0;
                            i < handleTableInformationEx->NumberOfHandles;
-                         ++i )
+                           i++)
         {
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
 
-          if (handleTableInformationEx->Handles [i].ObjectTypeIndex != Event)
+          // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
+          if (FoundEvent == 0x0)
+          {
+            if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 0xA ||  // 0xA  == 10 -- prev. 12
+                handleTableInformationEx->Handles[i].ObjectTypeIndex > 0x14)   // 0x14 == 20 -- prev. 18
+            {
+              continue;
+            }
+          }
+
+          // When we know what event type to look for, skip all other
+          else if (FoundEvent != handleTableInformationEx->Handles[i].ObjectTypeIndex)
+          {
             continue;
+          }
 
           handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
                .emplace_back (handleTableInformationEx->Handles [i]);
@@ -1198,6 +1323,13 @@ SKIF_Debug_DrawUI (void)
                                             : L"";
             }
 
+            if (FoundEvent == 0x0 && (std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown64") ||
+                                      std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown32") ))
+            {
+              //FoundEvent = handle.ObjectTypeIndex;
+              //console.AddLog("Found Event Type: 0x%x (%u)", FoundEvent, FoundEvent);
+            }
+
             CloseHandle (hDupHandle);
 
             if ( std::wstring::npos !=
@@ -1205,8 +1337,7 @@ SKIF_Debug_DrawUI (void)
                 && _Used64.emplace (dwProcId).second ) {
                 _Standby64.emplace_back (
                   standby_record_s {
-                   SK_FormatString ( "%ws",
-                    wszProcessName ),
+                   SK_WideCharToUTF8 (wszProcessName),
                     wszProcessName, dwProcId } ), 
                     PathStripPathW (
                       _Standby64.back ().
@@ -1219,8 +1350,7 @@ SKIF_Debug_DrawUI (void)
                 && _Used32.emplace (dwProcId).second ) {
                 _Standby32.emplace_back (
                   standby_record_s {
-                   SK_FormatString ( "%ws",
-                    wszProcessName ),
+                   SK_WideCharToUTF8 (wszProcessName),
                     wszProcessName, dwProcId } ), 
                     PathStripPathW (
                       _Standby32.back ().
@@ -1235,44 +1365,147 @@ SKIF_Debug_DrawUI (void)
       }
 
       executables_64.clear ();
+      executables_32.clear ();
          policies_64.clear ();
          policies_32.clear ();
-      executables_32.clear ();
 
       if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
-      { executables_64 [proc.pid]     =     proc.filename;
+      {
+        executables_64 [proc.pid]     =     proc.filename;
         tooltips_64    [proc.pid]     =     proc.name;
 
-        if (::StrStrIA    (proc.name.c_str (), "SteamApps") != nullptr)
-        {     policies_64 [proc.pid] = Whitelist; }
-        else {
-        if (::StrStrIA    (proc.name.c_str (), "GameBar"  ) != nullptr||
-            ::StrStrIA    (proc.name.c_str (), "Launcher" ) != nullptr)
-              policies_64 [proc.pid] = Blacklist;
-         else policies_64 [proc.pid] = DontCare;
-        }
+        if      (_inject._TestUserList     (proc.name.c_str(), false))
+          policies_64  [proc.pid]     =     Blacklist;
+        else if (_inject._TestUserList     (proc.name.c_str(),  true))
+          policies_64  [proc.pid]     =     Whitelist;
+        else
+          policies_64  [proc.pid]     =     DontCare;
       }
 
       if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
       { executables_32 [proc.pid]     =     proc.filename;
         tooltips_32    [proc.pid]     =     proc.name;
 
-        if (::StrStrIA    (proc.name.c_str (), "SteamApps") != nullptr)
-        {     policies_32 [proc.pid] = Whitelist; }
-        else {
-        if (::StrStrIA    (proc.name.c_str (), "GameBar"  ) != nullptr||
-            ::StrStrIA    (proc.name.c_str (), "Launcher" ) != nullptr)
-              policies_32 [proc.pid] = Blacklist;
-         else policies_32 [proc.pid] = DontCare;
-        }
+        if      (_inject._TestUserList     (proc.name.c_str(), false))
+          policies_32  [proc.pid]     =     Blacklist;
+        else if (_inject._TestUserList     (proc.name.c_str(),  true))
+          policies_32  [proc.pid]     =     Whitelist;
+        else
+          policies_32  [proc.pid]     =     DontCare;
       }
     }
 
+    static std::pair <DWORD, std::wstring> static_proc = { 0, L"" };
+
+    auto _ProcessMenu = [&](std::pair <const DWORD,  std::wstring> proc) -> void
+    {
+      static bool opened = false;
+      static bool openedWithAltMethod = false;
+
+      bool _GamePadRightClick =
+        ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
+                                        ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
+                                              ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
+
+      static constexpr float _LONG_INTERVAL = .15f;
+
+      bool _NavLongActivate =
+        ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
+                                        ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+
+      if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
+           _GamePadRightClick                            ||
+           _NavLongActivate)
+      {
+        ImGui::OpenPopup ("ProcessMenu");
+
+        if (_GamePadRightClick || _NavLongActivate)
+          openedWithAltMethod = true;
+      }
+
+      if (openedWithAltMethod)
+        ImGui::SetNextWindowPos (ImGui::GetCursorScreenPos() + ImVec2 (250.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+
+      if (ImGui::BeginPopup     ("ProcessMenu"))
+      {
+        if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
+        {
+          if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
+          {
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), false))
+            {
+              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), false);
+              _inject._StoreList        (false);
+            }
+          }
+
+          if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
+          {
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), true))
+            {
+              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), true);
+              _inject._StoreList        (true);
+            }
+          }
+
+          ImGui::EndMenu ( );
+        }
+
+        ImGui::Separator ( );
+
+        if (ImGui::Selectable  (ICON_FA_WINDOW_CLOSE " End task"))
+        {
+          static_proc = { proc.first, proc.second };
+          // Strip all null terminator \0 characters from the string
+          static_proc.second.erase (std::find (static_proc.second.begin ( ), static_proc.second.end ( ), '\0'), static_proc.second.end ( ));
+        }
+
+        ImGui::EndPopup        ( );
+      }
+      else {
+        openedWithAltMethod = false;
+      }
+    };
+
+    static DWORD hoveredPID = 0;
+    std::string  header_title = SK_FormatString ( "%s Active Process Monitoring###ActiveProcessMonitoring", ((active_listing) ? ICON_FA_TOGGLE_ON
+                                                                          : ICON_FA_TOGGLE_OFF));
+
+    active_listing = ImGui::CollapsingHeader (header_title.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
     if (active_listing)
     {
-      ImGui::BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                               ImGui::GetContentRegionAvail ().y / 1.3f), ImGuiWindowFlags_AlwaysVerticalScrollbar |
-                                                                                        /*ImGuiWindowFlags_NoBackground*/0x0);
+      ImGui::ItemSize    (ImVec2 ( 20.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Actions");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "PID");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Type");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Arch");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Process Name");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Details");
+
+      ImGui::Separator   ( );
+
+      SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                                   ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+
+      if (executables_64.size() == 0 && executables_32.size() == 0)
+        ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "Special K is currently not injected in any process.");
 
       for ( auto& proc64 : executables_64 )
       {
@@ -1281,25 +1514,93 @@ SKIF_Debug_DrawUI (void)
 
         inject_policy policy =
           policies_64 [proc64.first];
+        
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
+        
+        if (StrStrIA(tooltips_64[proc64.first].c_str(), "SteamApps") != NULL)
+        {
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
+        }
+        else if (SKIF_Debug_IsXboxApp(tooltips_64[proc64.first], SK_WideCharToUTF8(proc64.second)))
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
 
         ImGui::PushID (proc64.first);
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
-                                                                    : ImVec4 (.1f, .1f, .1f, .5f) );
-        ImGui::SmallButton (ICON_FA_BAN      "###Ban64");      ImGui::SameLine ();
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
-                                                                    : ImVec4 (.0f, .0f, .0f, .0f) );
-        ImGui::SmallButton (ICON_FA_QUESTION_CIRCLE"###Question64"); ImGui::SameLine ();
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
-                                                                    : ImVec4 (.1f, .1f, .1f, .5f) );
-        ImGui::SmallButton (ICON_FA_CHECK    "###Check64");    ImGui::SameLine ();
 
-        ImGui::PushStyleColor ( ImGuiCol_Text,
-                             _Active64.count (proc64.first) ? ImVec4 ( .2f, 1.f, .2f, 1.f )
-                                                            : ImVec4 ( .8f, .8f, .8f, 1.f ) );
-        ImGui::Text   ("%ws",                 proc64.second.c_str ());
-        ImGui::PopStyleColor   (4);
+        ImVec2 curPos = ImGui::GetCursorPos ( );
+        ImGui::Selectable   ("", (hoveredPID == proc64.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+        _ProcessMenu (proc64);
+        if (ImGui::IsItemHovered ( ))
+          hoveredPID = proc64.first;
+        ImGui::SetCursorPos (curPos);
+
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
+                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
+
+        if (ImGui::SmallButton (ICON_FA_BAN      "###Ban64")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
+        {
+          _inject._AddUserList (SK_WideCharToUTF8(proc64.second), false);
+          _inject._StoreList   (false);
+        }
+        
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
+          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
+        
+        ImGui::SameLine        ( );
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
+                                                                     : ImVec4 (.0f, .0f, .0f, .0f));
+
+        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question64");
+        ImGui::SameLine        ( );
+
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
+                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
+        
+        if (ImGui::SmallButton (ICON_FA_CHECK    "###Check64") && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
+        {
+          _inject._AddUserList (SK_WideCharToUTF8(proc64.second), true);
+          _inject._StoreList   (true);
+        }
+        
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
+        SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
+
+        ImGui::PopStyleColor   (3);
+        
+        ImVec4 colText = (hoveredPID == proc64.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
+
+        ImGui::SameLine        ( );        
+        ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%i", proc64.first);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
+        SKIF_ImGui_SetHoverTip (pretty_str_hover);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", "64-bit");
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
+                                                               : colText,
+                                             "%s", SK_WideCharToUTF8(proc64.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
-        ImGui::PopID  ();
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", details_64[proc64.first].c_str());
+        if (strlen (details_64[proc64.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (details_64[proc64.first]);
+
+        ImGui::PopID  ( );
       }
 
       for ( auto& proc32 : executables_32 )
@@ -1309,27 +1610,151 @@ SKIF_Debug_DrawUI (void)
 
         inject_policy policy =
           policies_32 [proc32.first];
+        
+        std::string pretty_str       = ICON_FA_WINDOWS,
+                    pretty_str_hover = "Windows";
+
+        if (StrStrIA(tooltips_32[proc32.first].c_str(), "SteamApps") != NULL)
+        {
+          pretty_str       = ICON_FA_STEAM;
+          pretty_str_hover = "Steam";
+        }
+        else if (SKIF_Debug_IsXboxApp(tooltips_32[proc32.first], SK_WideCharToUTF8(proc32.second)))
+        {
+          pretty_str       = ICON_FA_XBOX;
+          pretty_str_hover = "Xbox";
+        }
 
         ImGui::PushID (proc32.first);
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
-                                                                    : ImVec4 (.1f, .1f, .1f, .5f) );
-        ImGui::SmallButton (ICON_FA_BAN      "###Ban32");      ImGui::SameLine ();
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
-                                                                    : ImVec4 (.0f, .0f, .0f, .0f) );
-        ImGui::SmallButton (ICON_FA_QUESTION_CIRCLE"###Question32"); ImGui::SameLine ();
-        ImGui::PushStyleColor (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
-                                                                    : ImVec4 (.1f, .1f, .1f, .5f) );
-        ImGui::SmallButton (ICON_FA_CHECK    "###Check32");    ImGui::SameLine ();
 
-        ImGui::PushStyleColor ( ImGuiCol_Text,                        ImVec4 ( .8f, .8f, .8f, 1.f ) );
-        ImGui::Text   ("%ws",                proc32.second.c_str ());
+        ImVec2 curPos = ImGui::GetCursorPos ( );
+        ImGui::Selectable   ("", (hoveredPID == proc32.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+        _ProcessMenu (proc32);
+        if (ImGui::IsItemHovered ( ))
+          hoveredPID = proc32.first;
+        ImGui::SetCursorPos (curPos);
+
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
+                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
+
+        if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
+        {
+          _inject._AddUserList (SK_WideCharToUTF8(proc32.second), false);
+          _inject._StoreList   (false);
+        }
+
+        if (! _inject._TestUserList(SK_WideCharToUTF8(proc32.second).c_str(), false))
+          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
+        
+        ImGui::SameLine        ( );
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
+                                                                     : ImVec4 (.0f, .0f, .0f, .0f));
+
+        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question32");    
+        ImGui::SameLine        ( );
+
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
+                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
+        
+        if (ImGui::SmallButton (ICON_FA_CHECK    "###Check32") && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
+        {
+          _inject._AddUserList (SK_WideCharToUTF8(proc32.second), true);
+          _inject._StoreList   (true);
+        }
+
+        if (! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
+          SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
+
         ImGui::PopStyleColor   (3);
+        
+        ImVec4 colText = (hoveredPID == proc32.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
+
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%i", proc32.first);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
+        SKIF_ImGui_SetHoverTip (pretty_str_hover);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", "32-bit");
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
+                                                               : colText,
+                                             "%s", SK_WideCharToUTF8(proc32.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
-        ImGui::PopID  ();
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", details_32[proc32.first].c_str());
+        if (strlen (details_32[proc32.first].c_str()) > 73)
+          SKIF_ImGui_SetHoverTip (details_32[proc32.first]);
+
+        ImGui::PopID  ( );
       }
       ImGui::EndChildFrame ();
     }
+    
+    // Confirm prompt
 
+    if (static_proc.first != 0)
+    {
+      ImGui::OpenPopup         ("SKIF Task Manager");
+
+      ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+      if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr,
+                                      ImGuiWindowFlags_NoResize |
+                                      ImGuiWindowFlags_NoMove |
+                                      ImGuiWindowFlags_AlwaysAutoResize )
+          )
+      {
+
+        ImGui::Text        ("Do you want to end");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), SK_WideCharToUTF8(static_proc.second).c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("?");
+        SKIF_ImGui_Spacing ( );
+        ImGui::TextWrapped ("If an open program is associated with this process, it will close and you will lose any unsaved data. "
+                            "If you end a system process, it might result in system instability. Are you sure you want to continue?");
+
+        SKIF_ImGui_Spacing ( );
+
+        ImGui::SetCursorPos (ImGui::GetCursorPos() + ImVec2(170.0f, 0));
+
+        if (ImGui::Button ("End Process", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+                                                              25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          SK_TerminatePID (static_proc.first, 0x0);
+
+          static_proc = { 0, L"" };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        ImGui::SameLine ( );
+        ImGui::Spacing  ( );
+        ImGui::SameLine ( );
+
+        if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                               25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          static_proc = { 0, L"" };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        ImGui::EndPopup ( );
+      }
+    }
+
+#if 0
     if (ImGui::CollapsingHeader ("Windows Nt Handle/Object Monitor", ImGuiTreeNodeFlags_AllowItemOverlap))
     {
       ImGui::PushStyleColor (ImGuiCol_Button, ImVec4 (.5f, .5f, .5f, 1.f));
@@ -1358,7 +1783,6 @@ SKIF_Debug_DrawUI (void)
                 handle_info_buffer.data (),
                 handle_info_size,
                &handle_info_size     );
-        
         } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
         
         if (NT_SUCCESS (ntStatusHandles))
@@ -1409,7 +1833,7 @@ SKIF_Debug_DrawUI (void)
                                  " Process %lu (%ws):\n"
                                  " ------------\n\n",
                                          dwProcId, wszProcessName);
-        
+
             for ( auto& handle : handles.second )
             {
               auto hHandleSrc = handle.Handle;
@@ -1438,7 +1862,7 @@ SKIF_Debug_DrawUI (void)
               if (! NT_SUCCESS (ntStat)) continue;
         
               std::wstring handle_name = L"";
-        
+
               if (handle.ObjectTypeIndex != File)
               {
                 ULONG      _ObjectNameLen (64);
@@ -1669,6 +2093,7 @@ SKIF_Debug_DrawUI (void)
         ImGui::PopFont  ();
       }
     }
+#endif
 
 #if 0
     if (SK_Inject_GetRecord != nullptr)
@@ -1708,9 +2133,6 @@ SKIF_Debug_DrawUI (void)
     }
 #endif
   }
-
-  if (hModSK64 != 0)
-    FreeLibrary (hModSK64);
 
   return
     S_OK;

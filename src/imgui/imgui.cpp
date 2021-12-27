@@ -5302,9 +5302,10 @@ static ImGuiWindow* GetWindowForTitleAndMenuHeight(ImGuiWindow* window)
     return (window->DockNodeAsHost && window->DockNodeAsHost->VisibleWindow) ? window->DockNodeAsHost->VisibleWindow : window;
 }
 
-static ImVec2 CalcWindowSizeAfterConstraint(ImGuiWindow* window, ImVec2 new_size)
+static ImVec2 CalcWindowSizeAfterConstraint(ImGuiWindow* window, const ImVec2& size_desired)
 {
     ImGuiContext& g = *GImGui;
+    ImVec2 new_size = size_desired;
     if (g.NextWindowData.Flags & ImGuiNextWindowDataFlags_HasSizeConstraint)
     {
         // Using -1,-1 on either X/Y axis to preserve the current size.
@@ -9945,6 +9946,8 @@ static const char* GetFallbackWindowNameForWindowingList(ImGuiWindow* window)
     return "(Untitled)";
 }
 
+#include <string>
+
 // Overlay displayed when using CTRL+TAB. Called by EndFrame().
 void ImGui::NavUpdateWindowingOverlay()
 {
@@ -9956,9 +9959,23 @@ void ImGui::NavUpdateWindowingOverlay()
 
     if (g.NavWindowingListWindow == NULL)
         g.NavWindowingListWindow = FindWindowByName("###NavWindowingList");
+
     ImGuiViewportP* viewport = /*g.NavWindow ? g.NavWindow->Viewport :*/ (ImGuiViewportP*)GetMainViewport();
+    
     SetNextWindowSizeConstraints(ImVec2(viewport->Size.x * 0.20f, viewport->Size.y * 0.20f), ImVec2(FLT_MAX, FLT_MAX));
-    SetNextWindowPos(viewport->Pos + viewport->Size * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    //SetNextWindowPos(viewport->Pos + viewport->Size * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f)); // BROKEN (has no Size)
+
+    // Custom implementation to center the CTRL+Tab NavWindowingList window
+    ImRect rectMonitor;
+    for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
+    {
+      const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
+      rectMonitor = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
+      if (rectMonitor.Contains(viewport->Pos))
+        break;
+    }
+    SetNextWindowPos(rectMonitor.GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+
     PushStyleVar(ImGuiStyleVar_WindowPadding, g.Style.WindowPadding * 2.0f);
     Begin("###NavWindowingList", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
     for (int n = g.WindowsFocusOrder.Size - 1; n >= 0; n--)

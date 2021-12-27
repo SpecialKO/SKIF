@@ -11,11 +11,16 @@ using app_branch_record_s =
 std::wstring
 app_launch_config_s::getExecutableFullPath (int32_t appid)
 {
-  std::wstring exec_path =
-    SK_UseManifestToGetInstallDir (appid);
+  std::wstring exec_path = L"";
 
-  exec_path.append (L"\\");
-  exec_path.append (executable);
+  if (store == L"Steam") {
+    exec_path = SK_UseManifestToGetInstallDir (appid);
+    exec_path.append (L"\\");
+    exec_path.append (executable);
+  }
+
+  else
+    exec_path = executable;
 
   if (PathFileExistsW (exec_path.c_str ()))
     return exec_path;
@@ -114,7 +119,7 @@ app_launch_config_s::setBlacklisted ( int32_t appid,
 
       if (fBlacklist != nullptr)
       {
-        fputws (L"Dummy!", fBlacklist);
+        fputws ((L"Dummy! ID: " + std::to_wstring(appid) + L"\n").c_str(), fBlacklist);
         fclose (           fBlacklist);
 
         return _Blacklist (blacklist);
@@ -167,14 +172,23 @@ app_branch_record_s::getTimeAsCStr (void) const
 
   FileTimeToSystemTime ( &ftBranchTime, &stBranchTime );
 
+  /* Old method
   GetDateFormat (LOCALE_USER_DEFAULT, DATE_AUTOLAYOUT,
     &stBranchTime, nullptr, wszSystemTime, 63);
   GetTimeFormat (LOCALE_USER_DEFAULT, TIME_NOSECONDS,
     &stBranchTime, nullptr, wszSystemDate, 63);
+  */
 
-  StringCchCatW (wszBranchTime, 127, wszSystemTime);
-  StringCchCatW (wszBranchTime, 127, L"  ");
+  // New method -- Uses Ex functions since Microsoft recommends this
+  // DATE_SHORTDATE solves | character in the date format caused by LTR / RTL markers that ImGui cannot handle properly
+  GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
+    &stBranchTime, NULL, wszSystemDate, 63, NULL);
+  GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
+    &stBranchTime, NULL, wszSystemTime, 63);
+
   StringCchCatW (wszBranchTime, 127, wszSystemDate);
+  StringCchCatW (wszBranchTime, 127, L" ");
+  StringCchCatW (wszBranchTime, 127, wszSystemTime);
 
   const_cast <std::string&> (time_string) =
     SK_WideCharToUTF8 (wszBranchTime);
@@ -384,7 +398,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   if ( dwTimeLastChecked <= app_record_s::client_state_s::_TimeLastNotified )
   {
-    if (SKIF_Steam_UpdateAppState (pApp))
+    if (pApp->store != "Steam" || SKIF_Steam_UpdateAppState(pApp))
       dwTimeLastChecked = dwTimeNow + _RefreshInterval;
     else
       invalidate ();

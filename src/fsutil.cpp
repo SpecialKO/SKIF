@@ -234,7 +234,7 @@ SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
   [&] (void)->HRESULT
   {
     wchar_t wszCurrentDir [MAX_PATH + 2] = { };
-    GetCurrentDirectoryW  (MAX_PATH, wszCurrentDir);
+    GetCurrentDirectoryW         (MAX_PATH, wszCurrentDir);
 
     dir = wszCurrentDir;
 
@@ -337,4 +337,40 @@ SK_GetFontsDir (void)
 
   return
     path_cache.fonts.path;
+}
+
+bool
+SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, _FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder)
+{
+  bool success = false;
+  IFileOpenDialog  *pFileOpen;
+
+  if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen))))
+  {
+    IShellItem* psiDefaultFolder;
+    if (SUCCEEDED(SHGetKnownFolderItem(defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+    {
+      pFileOpen->SetDefaultFolder(psiDefaultFolder);
+      psiDefaultFolder->Release();
+    }
+    pFileOpen->SetFileTypes (cFileTypes, &fileTypes);
+    pFileOpen->SetOptions   (dialogOptions);
+
+    if (SUCCEEDED(pFileOpen->Show(NULL)))
+    {
+      IShellItem *pItem;
+
+      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+      {
+        if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, pszPath)))
+          success = true;
+
+        pItem->Release();
+      }
+    }
+    pFileOpen->Release();
+  }
+
+  return success;
 }
