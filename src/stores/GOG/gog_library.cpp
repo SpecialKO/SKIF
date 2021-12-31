@@ -15,16 +15,16 @@ Each key have a bunch of values with some basic data of the game, its location, 
 
 Registry values and the data they contain:
 
-	exe					 				-- Full path to game executable
-	exeFile			 				-- Filename of game executable
-	gameID				 			-- App ID of the game
-	gameName			 			-- Title of the game
-	launchCommand 			-- Default launch full path and parameter of the game
-	launchParam	 				-- Default launch parameter of the game
-	path								-- Path to the game folder
-	productID						-- Same as App ID of the game ?
-	uninstallCommand		-- Full path to the uninstaller of the game
-	workingDir					-- Working directory of the game
+    exe                     -- Full path to game executable
+    exeFile                 -- Filename of game executable
+    gameID                  -- App ID of the game
+    gameName                -- Title of the game
+    launchCommand           -- Default launch full path and parameter of the game
+    launchParam             -- Default launch parameter of the game
+    path                    -- Path to the game folder
+    productID               -- Same as App ID of the game ?
+    uninstallCommand        -- Full path to the uninstaller of the game
+    workingDir              -- Working directory of the game
 
 There are more values, but they aren't listed here.
 
@@ -32,8 +32,8 @@ There are more values, but they aren't listed here.
 GOG Galaxy Custom Default Launch Option:
 To launch a game using the Galaxy user's customized launch option,
 it's enough to launch the game through Galaxy like the start menu shortcuts does, like this:
-		
-	"D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+    "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
 
 */
 
@@ -43,11 +43,10 @@ struct gog_app : generic_app {
 };
 */
 
-
 void
 SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
-	HKEY hKey;
+  HKEY  hKey;
   DWORD dwIndex = 0, dwResult, dwSize;
   WCHAR szSubKey[MAX_PATH];
   WCHAR szData[MAX_PATH];

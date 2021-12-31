@@ -323,6 +323,7 @@
     <ClInclude Include="include\stores\GOG\gog_library.h" />
     <ClInclude Include="include\stores\SKIF\custom_library.h" />
     <ClInclude Include="include\stores\Steam\achievements.h" />
+    <ClInclude Include="include\stores\Steam\apps_ignore.h" />
     <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
     <ClInclude Include="include\stores\Steam\asset_fetch.h" />

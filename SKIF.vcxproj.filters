@@ -372,6 +372,9 @@
     <ClInclude Include="include\stores\EGS\egs_library.h">
       <Filter>Header Files\Stores\EGS</Filter>
     </ClInclude>
+    <ClInclude Include="include\stores\Steam\apps_ignore.h">
+      <Filter>Header Files\Stores\Steam</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">

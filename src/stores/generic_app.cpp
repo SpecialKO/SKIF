@@ -3,10 +3,10 @@
 
 void generic_app::loadIconTexture(void)
 {
-	// Not implemented
+    // Not implemented
 }
 
 void generic_app::loadCoverTexture(void)
 {
-	// Not implemented
+    // Not implemented
 }

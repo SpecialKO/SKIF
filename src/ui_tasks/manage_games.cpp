@@ -47,6 +47,8 @@
 #include <string>
 #include <sstream>
 
+#include <stores/Steam/apps_ignore.h>
+
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
 static bool clickedGameLaunch,
@@ -316,7 +318,8 @@ LoadLibraryTexture (
   // EGS
   else if (pApp != nullptr && pApp->store == "EGS")
   {
-    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
+    std::wstring EGSAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+    SKIFCustomPath = std::wstring(EGSAssetPath);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -332,6 +335,16 @@ LoadLibraryTexture (
       load_str =                SKIFCustomPath + L".ico";
 
     customAsset = (load_str != L"\0");
+
+    if (! customAsset)
+    {
+      if      (libTexToLoad == LibraryTexture::Cover &&
+               PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
+        load_str =               EGSAssetPath + L"OfferImageTall.jpg";
+      else if (libTexToLoad == LibraryTexture::Icon &&
+               PathFileExistsW ((EGSAssetPath + L"ProductLogo.jpg").c_str()))
+        load_str =               EGSAssetPath + L"ProductLogo.jpg";
+    }
   }
 
   // GOG
@@ -793,6 +806,10 @@ SKIF_GameManagement_DrawTab (void)
 
   static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
+  static ImVec2                             vecTex2D;
+
+  static ImVec2 vecCoverUv0 = ImVec2 (0, 0), 
+                vecCoverUv1 = ImVec2 (1, 1);
 
   static DirectX::TexMetadata     meta = { };
   static DirectX::ScratchImage    img  = { };
@@ -848,6 +865,9 @@ SKIF_GameManagement_DrawTab (void)
       // Skip Steamworks Common Redists
       if (app == 228980) continue;
 
+      // Skip IDs related to apps, DLCs, music, and tools (including Special K for now)
+      if (std::find(std::begin(steam_apps_ignorable), std::end(steam_apps_ignorable), app) != std::end(steam_apps_ignorable)) continue;
+
       if (unique_apps.emplace (app).second)
       {
         // Opening the manifests to read the names is a
@@ -880,14 +900,18 @@ SKIF_GameManagement_DrawTab (void)
     sort_changed = true;
   }
 
-  extern int  SKIF_iLastSelected;
-  extern bool SKIF_bRememberLastSelected;
+  extern int SKIF_iLastSelected;
 
   static bool     update        = true;
   static uint32_t appid         = SKIF_STEAM_APPID;
   static bool     populated     = false;
 
   extern bool RepopulateGames;
+  extern bool SKIF_bDisableEGSLibrary;
+  extern bool SKIF_bDisableGOGLibrary;
+
+  if (! SKIF_bDisableEGSLibrary && skif_egs_dir_watch.isSignaled ( ))
+    RepopulateGames = true;
 
   if (RepopulateGames)
   {
@@ -938,14 +962,10 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     // Load GOG titles from registry
-    extern bool
-          SKIF_bDisableGOGLibrary;
     if (! SKIF_bDisableGOGLibrary)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
     // Load EGS titles from disk
-    extern bool
-          SKIF_bDisableEGSLibrary;
     if (! SKIF_bDisableEGSLibrary)
       SKIF_EGS_GetInstalledAppIDs (&apps);
 
@@ -1008,9 +1028,9 @@ SKIF_GameManagement_DrawTab (void)
           // Strip null terminators
           //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
 
-					// Strip game names from special symbols and null terminators
-					char chars[] = u8"©®™\0";
-					for (unsigned int i = 0; i < strlen(chars); ++i)
+          // Strip game names from special symbols and null terminators
+          char chars[] = u8"©®™\0";
+          for (unsigned int i = 0; i < strlen(chars); ++i)
             app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
         }
 
@@ -1146,8 +1166,8 @@ SKIF_GameManagement_DrawTab (void)
   // Display cover image
   ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
                                                            900.0F * SKIF_ImGui_GlobalDPIScale ),
-                                                   ImVec2 (0,0),
-                                                   ImVec2 (1,1),
+                                                   vecCoverUv0,
+                                                   vecCoverUv1,
                                                    ImVec4 (1,1,1,1),
                                  ImGui::GetStyleColorVec4 (ImGuiCol_Border)
   );
@@ -1173,7 +1193,7 @@ SKIF_GameManagement_DrawTab (void)
 
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomCover)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)       .x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
       ImGui::PopStyleColor (  );
@@ -1199,7 +1219,7 @@ SKIF_GameManagement_DrawTab (void)
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -1235,7 +1255,7 @@ SKIF_GameManagement_DrawTab (void)
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -1419,11 +1439,9 @@ SKIF_GameManagement_DrawTab (void)
 
     // SKIF
     // SKIF Custom
-    // EGS
     // GOG
-    if (       appid == SKIF_STEAM_APPID ||
-         pApp->store == "SKIF"           ||
-         pApp->store == "EGS"            ||
+    if ( appid == SKIF_STEAM_APPID ||
+         pApp->store == "SKIF"     ||
          pApp->store == "GOG" )
     {
       std::wstring
@@ -1441,8 +1459,31 @@ SKIF_GameManagement_DrawTab (void)
                                    pApp );
     }
 
+    // EGS
+    else if ( pApp->store == "EGS" )
+    {
+      std::wstring load_str (
+        SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str())
+      );
+
+      std::wstring load_str_2x
+                  (load_str);
+
+      if ( ! PathFileExistsW (load_str.   c_str ()) )
+      {
+        SKIF_EGS_IdentifyAsset (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+      }
+
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                             appid,
+                               pTexSRV,
+                                 load_str,
+                                   pApp );
+    }
+
     // STEAM
-    else if (pApp->store == "Steam") {
+    else if (pApp->store == "Steam")
+    {
 
       if ( appinfo != nullptr )
       {
@@ -1470,7 +1511,7 @@ SKIF_GameManagement_DrawTab (void)
 
       // If 600x900 exists but 600x900_x2 cannot be found
       if (   PathFileExistsW (load_str.   c_str ()) &&
-          ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+         ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
       {
         // Load the metadata from 600x900
         if (
@@ -1518,6 +1559,33 @@ SKIF_GameManagement_DrawTab (void)
                                pTexSRV,
                                  load_str_final,
                                    pApp );
+    }
+
+    // Update vecTex2D with the size of the cover
+    if (pTexSRV != nullptr)
+    {
+      ID3D11Texture2D* texture2d = nullptr;
+      pTexSRV->GetResource(reinterpret_cast<ID3D11Resource**>(&texture2d));
+
+      D3D11_TEXTURE2D_DESC desc;
+      texture2d->GetDesc(&desc);
+      vecTex2D.x = static_cast<float>(desc.Width);
+      vecTex2D.y = static_cast<float>(desc.Height);
+
+      texture2d->Release();
+
+      // Special handling for EGS covers -- disabled since it crops the title on some covers
+      if (vecTex2D.x == 1200.f && vecTex2D.y == 1600.f)
+      {
+        vecCoverUv0.x = 0.0625;
+        vecCoverUv1.x = 0.9375;
+      }
+    }
+    else {
+      vecTex2D.x = 0;
+      vecTex2D.y = 0;
+      vecCoverUv0.x = 0;
+      vecCoverUv1.x = 1;
     }
   }
 
@@ -2065,58 +2133,68 @@ Cache=false)";
            ||
         clickedGameLaunchWoSK )
       {
-        // Launch preparations for Global
-        if (! cache.injection.type._Equal ("Local"))
+
+        if (  pTargetApp->store != "Steam" && pTargetApp->store != "EGS" &&
+            ! PathFileExists(pTargetApp->launch_configs[0].executable.c_str()))
         {
-          std::string fullPath    = SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id));
-          bool isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
-               isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
-
-          if (! clickedGameLaunchWoSK &&
-              ! isLocalBlacklisted    &&
-              ! isGlobalBlacklisted
-             )
-          {
-            // Whitelist the path if it haven't been already
-            _inject._WhitelistBasedOnPath (fullPath);
-          }
-
-          // Kickstart service if it is currently not running
-          if (! clickedGameLaunchWoSK && ! _inject.bCurrentState )
-            _inject._StartStopInject (false, true);
-
-          // Stop the service if the user attempts to launch without SK
-          else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
-            _inject._StartStopInject   (true);
-        }
-
-        // Launch game
-        if (pTargetApp->store != "Steam" && pTargetApp->store != "EGS")
-        {
-          SHELLEXECUTEINFOW
-          sexi              = { };
-          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-          sexi.lpVerb       = L"OPEN";
-          sexi.lpFile       = pTargetApp->launch_configs[0].executable    .c_str();
-          sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
-          sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
-          sexi.nShow        = SW_SHOWDEFAULT;
-          sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                              SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-          ShellExecuteExW (&sexi);
-        }
-
-        else if (pTargetApp->store == "EGS")
-        {
-          // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-          SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pTargetApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
+          confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable);
+          ConfirmPopup     = PopupState::Open;
         }
 
         else {
-          //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str()); // This is seemingly unreliable
-          SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
-          pTargetApp->_status.invalidate();
+          // Launch preparations for Global
+          if (! cache.injection.type._Equal ("Local"))
+          {
+            std::string fullPath    = SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id));
+            bool isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
+                 isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
+
+            if (! clickedGameLaunchWoSK &&
+                ! isLocalBlacklisted    &&
+                ! isGlobalBlacklisted
+               )
+            {
+              // Whitelist the path if it haven't been already
+              _inject._WhitelistBasedOnPath (fullPath);
+            }
+
+            // Kickstart service if it is currently not running
+            if (! clickedGameLaunchWoSK && ! _inject.bCurrentState )
+              _inject._StartStopInject (false, true);
+
+            // Stop the service if the user attempts to launch without SK
+            else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
+              _inject._StartStopInject   (true);
+          }
+
+          // Launch game
+          if (pTargetApp->store != "Steam" && pTargetApp->store != "EGS")
+          {
+            SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = pTargetApp->launch_configs[0].executable    .c_str();
+            sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
+            sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
+            sexi.nShow        = SW_SHOWDEFAULT;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                                SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+            ShellExecuteExW (&sexi);
+          }
+
+          else if (pTargetApp->store == "EGS")
+          {
+            // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+            SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pTargetApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
+          }
+
+          else {
+            //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str()); // This is seemingly unreliable
+            SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
+            pTargetApp->_status.invalidate();
+          }
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -2657,7 +2735,7 @@ Cache=false)";
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")
@@ -2705,7 +2783,7 @@ Cache=false)";
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_InternalAppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   std::wstring (path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    std::wstring (path_cache.specialk_userdata.path).c_str(), appid);
           else if (pApp->store == "Steam")

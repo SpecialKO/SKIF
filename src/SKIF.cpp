@@ -2294,7 +2294,7 @@ void SKIF_CreateUpdateNotifyMenu (void)
 void SKIF_CreateNotifyIcon (void)
 {
   ZeroMemory (&niData,  sizeof (NOTIFYICONDATA));
-  niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)	
+  niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)
   niData.uID          = SKIF_NOTIFY_ICON;
   niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
   niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
@@ -2562,10 +2562,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFontVietnamese          =   regKVFontVietnamese.getData          ( );
 
   if ( regKVNotifications.hasData() )
-    SKIF_iNotifications           =   regKVNotifications.getData         ( );
+    SKIF_iNotifications         =   regKVNotifications.getData           ( );
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
-    SKIF_iLastSelected            =   regKVLastSelected.getData          ( );
+    SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
 
   hWndOrigForeground =
     GetForegroundWindow ();
@@ -2891,10 +2891,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     DWORD dwWait =
       MsgWaitForMultipleObjects (              0,
-	                      //(hSwapWait.m_h != 0) ? 1
-                                             //: 0,
-                                hWaitStates, TRUE,
-                                   INFINITE, QS_ALLINPUT );
+                                //(hSwapWait.m_h != 0) ? 1
+                                                    //: 0,
+                                      hWaitStates, TRUE,
+                                          INFINITE, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
     //
@@ -3154,7 +3154,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         style.GrabRounding                          = SKIF_ImGui_DefaultStyle.GrabRounding                        * SKIF_ImGui_GlobalDPIScale;
         style.TabRounding                           = style.WindowRounding;
         if (style.TabMinWidthForUnselectedCloseButton != FLT_MAX)
-	        style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
+          style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
         style.DisplayWindowPadding                  = SKIF_ImGui_DefaultStyle.DisplayWindowPadding                * SKIF_ImGui_GlobalDPIScale;
         style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
         style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;

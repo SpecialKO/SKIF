@@ -84,7 +84,10 @@ struct app_record_s {
   std::wstring install_dir;
   std::string  type  =  "Game";  // TODO: Proper enum
   std::string  store = "Steam";  // maybe enum?
-  std::string  EGS_InternalAppName = "";
+  std::string  EGS_CatalogNamespace = "";
+  std::string  EGS_CatalogItemId = "";
+  std::string  EGS_AppName = "";
+  std::string  EGS_DisplayName = "";
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);

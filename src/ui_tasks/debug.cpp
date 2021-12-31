@@ -289,7 +289,7 @@ enum _SK_NTDLL_HANDLE_OBJ_ATTRIB
   OpenLink                    = 0x00000100L,
   KernelHandle                = 0x00000200L,
   ForceAccessCheck            = 0x00000400L,
-  IgnoreImpersonatedDevicemap	= 0x00000800L,
+  IgnoreImpersonatedDevicemap = 0x00000800L,
 
   // Other, less commonly defined, attribs
   Protected /* Close = ..? */ = 0x00000001L,
