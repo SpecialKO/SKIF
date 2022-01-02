@@ -4300,7 +4300,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_Spacing ();
 
             white_edited |=
-              ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps",
+              ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps\nEpic Games\\\\\nGOG Galaxy\\\\Games\nOrigin Games\\\\",
                                      _inject.whitelist, MAX_PATH * 16 - 1,
                                        ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                                 150 * SKIF_ImGui_GlobalDPIScale ),
@@ -4309,8 +4309,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (*_inject.whitelist == '\0')
             {
               SKIF_ImGui_SetHoverTip (
-                "SteamApps is the pattern used internally to enable Special K for all Steam games."
-                "\nIt is presented here solely as an example of how a potential pattern might look like."
+                "These are the patterns used internally to enable Special K for these specific platforms."
+                "\nThey are presented here solely as examples of how a potential pattern might look like."
               );
             }
 
@@ -4350,7 +4350,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             }
 
             SKIF_ImGui_SetHoverTip (
-              "Whitelists games on most platforms, such as Epic Games, Origin, Uplay, etc."
+              "Whitelists games on most platforms, such as Uplay, as"
+              "\nmost of them have 'games' in the full path somewhere."
             );
 
             if (ImGui::Selectable ("WindowsApps"))

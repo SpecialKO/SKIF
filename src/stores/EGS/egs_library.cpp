@@ -84,19 +84,21 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         if (entry.is_directory() == false &&
             entry.path().extension().string() == ".item" )
         {
-          // Read file to JSON object
-          std::ifstream file(entry.path().string());
-          nlohmann::json app;
-          file >> app;
+          std::ifstream file(entry.path());
+          nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
           file.close();
 
           // Parse file
-          //OutputDebugString(SK_UTF8ToWideChar(app.dump()).c_str());
+          //OutputDebugString(SK_UTF8ToWideChar(jf.dump()).c_str());
           //OutputDebugString(L"\n");
+
+          // Abort if we're dealing with a broken manifest
+          if (jf.is_discarded ( ))
+            continue;
 
           bool isGame = false;
 
-          for (auto& categories : app["AppCategories"])
+          for (auto& categories : jf["AppCategories"])
           {
             if (categories.dump() == R"("games")")
               isGame = true;
@@ -106,45 +108,45 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           {
             hasGames = true;
 
-            app_record_s EGS_record(app.at("InstallSize"));
+            app_record_s EGS_record (jf.at ("InstallSize"));
 
-            EGS_record.store = "EGS";
-            EGS_record.type = "Game";
-            EGS_record._status.installed = true;
-            EGS_record.install_dir = SK_UTF8ToWideChar(app.at("InstallLocation"));
+            EGS_record.store                = "EGS";
+            EGS_record.type                 = "Game";
+            EGS_record._status.installed    = true;
+            EGS_record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
             EGS_record.install_dir.erase(std::find(EGS_record.install_dir.begin(), EGS_record.install_dir.end(), '\0'), EGS_record.install_dir.end());
 
-            EGS_record.names.normal = app.at("DisplayName");
+            EGS_record.names.normal         = jf.at ("DisplayName");
 
-            EGS_record.names.all_upper = EGS_record.names.normal;
+            EGS_record.names.all_upper      = EGS_record.names.normal;
             std::for_each(EGS_record.names.all_upper.begin(), EGS_record.names.all_upper.end(), ::toupper);
 
             app_record_s::launch_config_s lc;
-            lc.id = 0;
-            lc.store = L"EGS";
-            lc.executable = EGS_record.install_dir + L"\\" + SK_UTF8ToWideChar(app.at("LaunchExecutable"));
+            lc.id                           = 0;
+            lc.store                        = L"EGS";
+            lc.executable                   = EGS_record.install_dir + L"\\" + SK_UTF8ToWideChar(jf.at("LaunchExecutable"));
             //lc.executable.erase(std::find(lc.executable.begin(), lc.executable.end(), '\0'), lc.executable.end());
 
             //OutputDebugString(lc.executable.c_str());
             //OutputDebugString(L"\n");
 
-            lc.working_dir = EGS_record.install_dir;
+            lc.working_dir                  = EGS_record.install_dir;
             //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
 
-            std::string CatalogNamespace = app.at("CatalogNamespace"),
-                        CatalogItemId = app.at("CatalogItemId"),
-                        AppName = app.at("AppName");
+            std::string CatalogNamespace    = jf.at("CatalogNamespace"),
+                        CatalogItemId       = jf.at("CatalogItemId"),
+                        AppName             = jf.at("AppName");
 
             // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
             lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
             lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
 
-            EGS_record.launch_configs[0] = lc;
+            EGS_record.launch_configs[0]    = lc;
 
             EGS_record.EGS_CatalogNamespace = CatalogNamespace;
-            EGS_record.EGS_CatalogItemId = CatalogItemId;
-            EGS_record.EGS_AppName = AppName;
-            EGS_record.EGS_DisplayName = EGS_record.names.normal;
+            EGS_record.EGS_CatalogItemId    = CatalogItemId;
+            EGS_record.EGS_AppName          = AppName;
+            EGS_record.EGS_DisplayName      = EGS_record.names.normal;
 
             EGS_record.specialk.profile_dir = lc.executable;
             EGS_record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
@@ -265,7 +267,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
       nlohmann::json jf = nlohmann::json::parse(fileOffer, nullptr, false);
       fileOffer.close();
 
-      if (jf.is_discarded ( ) )
+      if (jf.is_discarded ( ))
       {
         DeleteFile(targetPath.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
       }

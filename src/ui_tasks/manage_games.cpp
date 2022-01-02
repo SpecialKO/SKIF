@@ -1561,6 +1561,11 @@ SKIF_GameManagement_DrawTab (void)
                                    pApp );
     }
 
+    // Reset variables
+    vecTex2D    = ImVec2 (600.f, 900.f);
+    vecCoverUv0 = ImVec2 (0.f, 0.f); // Top left corner
+    vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
+
     // Update vecTex2D with the size of the cover
     if (pTexSRV != nullptr)
     {
@@ -1574,18 +1579,44 @@ SKIF_GameManagement_DrawTab (void)
 
       texture2d->Release();
 
-      // Special handling for EGS covers -- disabled since it crops the title on some covers
-      if (vecTex2D.x == 1200.f && vecTex2D.y == 1600.f)
+      ImVec2 diff = ImVec2(0.0f, 0.0f);
+
+      // Crop wider aspect ratios by their width
+      if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
       {
-        vecCoverUv0.x = 0.0625;
-        vecCoverUv1.x = 0.9375;
+        float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
+        diff.x = (600.0f / newWidth);
+        diff.x -= 1.0f;
+        diff.x /= 2;
+
+        vecCoverUv0.x = 0.f - diff.x;
+        vecCoverUv1.x = 1.f + diff.x;
       }
-    }
-    else {
-      vecTex2D.x = 0;
-      vecTex2D.y = 0;
-      vecCoverUv0.x = 0;
-      vecCoverUv1.x = 1;
+
+      // Crop thinner aspect ratios by their height
+      else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
+      {
+        float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
+        diff.y = (900.0f / newHeight);
+        diff.y -= 1.0f;
+        diff.y /= 2;
+
+        vecCoverUv0.y = 0.f - diff.y;
+        vecCoverUv1.y = 1.f + diff.y;
+      }
+      /*
+      OutputDebugString(L"diffX: ");
+      OutputDebugString((std::to_wstring(diff.x) + L"x" + std::to_wstring(diff.y)).c_str());
+      OutputDebugString(L"\n");
+
+      OutputDebugString(L"uv0: ");
+      OutputDebugString((std::to_wstring(vecCoverUv0.x) + L"x" + std::to_wstring(vecCoverUv0.y)).c_str());
+      OutputDebugString(L"\n");
+
+      OutputDebugString(L"uv1: ");
+      OutputDebugString((std::to_wstring(vecCoverUv1.x) + L"x" + std::to_wstring(vecCoverUv1.y)).c_str());
+      OutputDebugString(L"\n");
+      */
     }
   }
 

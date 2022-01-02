@@ -1268,10 +1268,22 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
 
 bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
 {
-  if (  whitelist_ && StrStrIA (szExecutable, "SteamApps") != NULL ||
-      ! whitelist_ && StrStrIA (szExecutable, "GameBar"  ) != NULL /* ||
-      ! whitelist_ && StrStrIA(szExecutable, "Launcher") != NULL */ )
-    return true;
+  // Simplified variant of the internal whitelisting that SK performs
+  if (whitelist_)
+  {
+    if (StrStrIA (szExecutable, R"(SteamApps)")        != NULL ||
+        StrStrIA (szExecutable, R"(Epic Games\)")      != NULL ||
+        StrStrIA (szExecutable, R"(GOG Galaxy\Games)") != NULL ||
+        StrStrIA (szExecutable, R"(Origin Games\)")    != NULL  )
+      return true;
+  }
+
+  // Simplified variant of the internal blacklisting that SK performs
+  else {
+    if (StrStrIA(szExecutable, "GameBar")              != NULL/* ||
+        StrStrIA(szExecutable, "Launcher")             != NULL */ )
+      return true;
+  }
 
   if (  whitelist_ && *whitelist == '\0' ||
       ! whitelist_ && *blacklist == '\0')
