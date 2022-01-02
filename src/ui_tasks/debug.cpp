@@ -390,6 +390,7 @@ volatile LONG SKIF_PresentIdx    =   0;
 #include <injection.h>
 #include <sk_utility/command.h>
 #include <imgui/imgui_internal.h>
+#include "../../version.h"
 
 extern SKIF_InjectionContext _inject;
 
@@ -1103,7 +1104,8 @@ SKIF_Debug_DrawUI (void)
       ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
                               );
 
-    ImGui::TextWrapped ( "This tab allows users to easily identify (and if necessary terminate) processes that Special K is injected into.");
+    ImGui::Text             ( "This tab allows users to easily identify (and if necessary terminate) processes that");
+    ImGui::Text             ( "Special K is injected into.");
 
     SKIF_ImGui_Spacing      ( );
 
@@ -1111,16 +1113,23 @@ SKIF_Debug_DrawUI (void)
     ImGui::SameLine         ( );
 
 #ifdef _WIN64
-    ImGui::TextWrapped      ("'Active 64-bit Global Injections' lists processes where Special K is currently active in, meaning the process is whitelisted and SK has detected the use of a render API.");
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active 64-bit Global Injections");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("lists processes where Special K is currently active in,");
 #else
-    ImGui::TextWrapped      ("'Active 32-bit Global Injections' lists processes where Special K is currently active in, meaning the process is whitelisted and SK has detected the use of a render API.");
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active 32-bit Global Injections");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("lists processes where Special K is currently active in,");
 #endif
+    ImGui::Text             ("meaning the process is whitelisted and SK has detected the use of a render API.");
 
     SKIF_ImGui_Spacing      ( );
 
     ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("'Active Process Monitoring' lists all currently injected processes.");
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active Process Monitoring");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("lists all currently injected processes.");
 
     ImGui::PopStyleColor    ( );
 
@@ -1134,27 +1143,30 @@ SKIF_Debug_DrawUI (void)
     SKIF_ImGui_Spacing      ( );
 
     extern bool SKIF_bStopOnInjection;
-    
-    if (ImGui::Button ("Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
+
+    ImGui::TreePush   ( );
+
+    if (ImGui::Button ( ICON_FA_PLAY " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
                                                        30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject (false, SKIF_bStopOnInjection);
 
-    ImGui::SameLine ( );
+    ImGui::SameLine   ( );
 
-    if (ImGui::Button ("Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
+    if (ImGui::Button ( ICON_FA_STOP " Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
                                                        30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject(true);
+
+    ImGui::TreePop    ( );
 
     extern void SKIF_putStopOnInjection(bool in);
 
 #ifdef _WIN64
-    if (_inject.SKVer64 >= "21.08.12" &&
-      _inject.SKVer32 >= "21.08.12")
+    if ( _inject.SKVer64 >= "21.08.12" &&
+         _inject.SKVer32 >= "21.08.12" )
 #else
-    if (_inject.SKVer32 >= "21.08.12")
+    if ( _inject.SKVer32 >= "21.08.12" )
 #endif
     {
-
       SKIF_ImGui_Spacing      ( );
 
       if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
@@ -1174,6 +1186,57 @@ SKIF_Debug_DrawUI (void)
     SKIF_ImGui_Spacing      ( );
 
     SKIF_UI_DrawPlatformStatus ( );
+
+    ImGui::NewLine          ( );
+
+    ImGui::TextColored (
+      colTitle,
+        "Versions:"
+    );
+
+    SKIF_ImGui_Spacing      ( );
+    
+    ImGui::PushStyleColor   (
+      ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
+                              );
+
+    ImGui::BeginGroup       ( );
+
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 32-bit");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer32.c_str());
+
+#ifdef _WIN64
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 64-bit");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer64.c_str());
+#endif
+    
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Frontend (SKIF)");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    SKIF_VERSION_STR_A " (" __DATE__ ")");
+
+    ImGui::EndGroup         ( );
+
+    ImGui::PopStyleColor    ( );
 
     ImGui::Columns          (1);
 

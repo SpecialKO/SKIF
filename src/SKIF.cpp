@@ -44,6 +44,7 @@ bool startedMinimized = false;
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
 int  SKIF_iNotifications           = 2,
+     SKIF_iGhostVisibility         = 0,
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
      SKIF_bDisableDPIScaling       = false,
@@ -61,7 +62,6 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bEnableHDR               = false,
      SKIF_bOpenAtCursorPosition    = false,
      SKIF_bStopOnInjection         = false,
-     SKIF_bAlwaysShowGhost         = false,
      SKIF_bCloseToTray             = false,
      SKIF_bFontChineseSimplified   = false,
      SKIF_bFontChineseAll          = false,
@@ -2321,8 +2321,8 @@ void SKIF_UpdateNotifyIcon (void)
 
 void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 {
-  if (SKIF_iNotifications == 1 || // Always
-      SKIF_iNotifications == 2 && ! SKIF_ImGui_IsFocused() // When Unfocused
+  if ( SKIF_iNotifications == 1 ||                           // Always
+      (SKIF_iNotifications == 2 && ! SKIF_ImGui_IsFocused()) // When Unfocused
     )
   {
     niData.uFlags       = NIF_INFO;
@@ -2356,16 +2356,16 @@ void SKIF_UI_DrawPlatformStatus (void)
   static bool isSKIFAdmin = IsUserAnAdmin();
   if (isSKIFAdmin)
   {
-    ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImColor (255, 204, 0), "SKIF is running as an administrator!");
+    ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), "SKIF is running as an administrator!");
     SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
                               "Please restart the global injector service and SKIF as a regular user.");
   }
   else {
     ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running with normal privileges.");
+    ImGui::TextColored     (ImColor (144, 238, 144), "SKIF is running with normal privileges.");
     SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
                               "into system processes nor games running as an administrator.");
   }
@@ -2430,9 +2430,9 @@ void SKIF_UI_DrawPlatformStatus (void)
 
       if (p.isAdmin)
       {
-        ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE " ");
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImColor (255, 204, 0), (p.Name + " is running as an administrator!").c_str() );
+        ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), (p.Name + " is running as an administrator!").c_str() );
 
         if (isSKIFAdmin)
           SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
@@ -2656,6 +2656,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
 
+  static auto regKVGhostVisibility =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Ghost Visibility)" );
+
 
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
@@ -2673,7 +2677,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
-  SKIF_bAlwaysShowGhost         =   regKVAlwaysShowGhost.getData         ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
   SKIF_bFontChineseSimplified   =   regKVFontChineseSimplified.getData   ( );
   SKIF_bFontChineseAll          =   regKVFontChineseAll.getData          ( );
@@ -2685,6 +2688,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if ( regKVNotifications.hasData() )
     SKIF_iNotifications         =   regKVNotifications.getData           ( );
+
+  if ( regKVGhostVisibility.hasData() )
+    SKIF_iGhostVisibility       =   regKVGhostVisibility.getData         ( );
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
@@ -3658,7 +3664,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             tab_changeTo = None;
 
           // SKIF Options
-          if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
+          if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
           {
             ImGui::Spacing    ( );
 
@@ -3668,15 +3674,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SetColumnWidth (0, SKIF_vecCurrentMode.x / 2.0f)
             );
 
-            if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
-              regKVOpenAtCursorPosition.putData(                                         SKIF_bOpenAtCursorPosition );
+            if ( ImGui::Checkbox ( "Remember the last selected game",         &SKIF_bRememberLastSelected ) )
+              regKVRememberLastSelected.putData (                              SKIF_bRememberLastSelected );
             
             if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
-              regKVCloseToTray.putData(                                                SKIF_bCloseToTray );
+              regKVCloseToTray.putData (                                                SKIF_bCloseToTray );
 
             if (ImGui::Checkbox("Do not stop the global injection service when closing SKIF",
                                                    &SKIF_bAllowBackgroundService))
-              regKVAllowBackgroundService.putData  (SKIF_bAllowBackgroundService);
+              regKVAllowBackgroundService.putData ( SKIF_bAllowBackgroundService);
+
+            if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
+              regKVOpenAtCursorPosition.putData (                                         SKIF_bOpenAtCursorPosition );
 
             if ( ImGui::Checkbox (
                     "Allow multiple instances of SKIF",
@@ -3707,15 +3716,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 SKIF_bAllowMultipleInstances
                 );
             }
-
-            if ( ImGui::Checkbox ( "Remember last selected game",            &SKIF_bRememberLastSelected ) )
-              regKVRememberLastSelected.putData(                              SKIF_bRememberLastSelected );
-
-            if ( ImGui::Checkbox ( "Always show Shelly the ghost",           &SKIF_bAlwaysShowGhost ) )
-              regKVAlwaysShowGhost.putData(                                   SKIF_bAlwaysShowGhost );
-
-            SKIF_ImGui_SetHoverTip    ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.\n"
-                                        "This otherwise only appears when with debug mode and the service running.");
 
             _inject._StartAtLogonCtrl ( );
 
@@ -3757,17 +3757,38 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             // New column
 
-            ImGui::Text("Show notifications: ");
-            ImGui::TreePush ("");
-            if (ImGui::RadioButton ("Never", &SKIF_iNotifications, 0))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::SameLine ( );
-            if (ImGui::RadioButton ("Always", &SKIF_iNotifications, 1))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::SameLine ( );
+            ImGui::Text            ("Show Windows notifications");
+            ImGui::SameLine        ( );
+            ImGui::TextColored     (ImColor::HSV(0.55F, 0.99F, 1.F), ICON_FA_QUESTION_CIRCLE);
+            SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
+            ImGui::TreePush        ("SKIF_iNotifications");
+            if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
+              regKVNotifications.putData (             SKIF_iNotifications);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
+              regKVNotifications.putData (             SKIF_iNotifications);
+            ImGui::SameLine        ( );
             if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
-              regKVNotifications.putData(SKIF_iNotifications);
-            ImGui::TreePop  ( );
+              regKVNotifications.putData (             SKIF_iNotifications);
+            ImGui::TreePop         ( );
+
+            ImGui::Spacing       ( );
+            ImGui::Spacing       ( );
+
+            ImGui::Text            ("Show Shelly the Ghost");
+            ImGui::SameLine        ( );
+            ImGui::TextColored     (ImColor::HSV(0.55F, 0.99F, 1.F), ICON_FA_QUESTION_CIRCLE);
+            SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
+            ImGui::TreePush        ("SKIF_iGhostVisibility");
+            if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::TreePop         ( );
 
             ImGui::Spacing       ( );
             ImGui::Spacing       ( );
@@ -3839,11 +3860,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::BeginGroup     ( );
               ImGui::Spacing        ( );
               ImGui::SameLine       ( );
-              ImGui::TextColored    (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+              ImGui::TextColored    (ImColor::HSV (0.55F, 0.99F, 1.F), ICON_FA_EXCLAMATION_CIRCLE);
               ImGui::SameLine       ( );
-              ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.68F, 0.68F, 0.68F, 1.0f));
-              ImGui::TextWrapped    ("Context based information or tips will not appear!");
-              ImGui::PopStyleColor  ( );
+              ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
               ImGui::EndGroup       ( );
             }
 
@@ -3852,9 +3871,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing       ( );
             ImGui::Spacing       ( );
 
-            ImGui::Text          ("Enable extended character sets (" ICON_FA_EXCLAMATION_TRIANGLE ")");
-
-            SKIF_ImGui_SetHoverTip ("Can noticeably slow down the launch time of SKIF.");
+            ImGui::Text          ("Enable extended character sets");
+            ImGui::SameLine      ( );
+            ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE);
+            SKIF_ImGui_SetHoverTip ("Too many enabled can noticeably slow down the launch time of SKIF.");
 
             ImGui::TreePush      ("");
 
@@ -3951,6 +3971,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::TreePop       ( );
 
+            /* Irrelevant -- hide by default
             ImGui::NewLine       ( );
 
             ImGui::Text          ("Oudated SKIF features");
@@ -3968,6 +3989,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
             }
 
+            ImGui::TreePop    ( );
+            */
+
             /* HDR was only needed for screenshot viewing
             if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
               regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
@@ -3975,7 +3999,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _DrawHDRConfig       ( );
             */
 
-            ImGui::TreePop    ( );
             ImGui::Columns    (1);
           }
 
@@ -3983,7 +4006,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing ();
 
 
-          if (ImGui::CollapsingHeader ("Advanced Monitoring"))
+          if (ImGui::CollapsingHeader ("Advanced Monitoring###SKIF_SettingsHeader-2"))
           {
             // PresentMon prerequisites
             ImGui::BeginGroup  ();
@@ -4146,7 +4169,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored (ImColor::HSV ( 0.3F, 0.99F, 1.F), "Good:");
 
             ImGui::TreePush    ();
-
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Independent Flip");
@@ -4164,14 +4186,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
             */
-
             ImGui::TreePop     ();
 
 
             ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), "Bad:");
 
             ImGui::TreePush    ();
-
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Flip");
@@ -4187,7 +4207,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Copy with CPU GDI");
-
             ImGui::TreePop     ();
 
             ImGui::TreePop     ();
@@ -4372,7 +4391,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing ();
 
           // Whitelist/Blacklist
-          if (ImGui::CollapsingHeader ("Whitelist / Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
+          if (ImGui::CollapsingHeader ("Whitelist / Blacklist###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
           {
             static bool white_edited = false,
                         black_edited = false,
@@ -4829,10 +4848,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
-
+          
+          ImGui::TextColored      (ImColor(186, 59, 61, 255), ICON_FA_ROCKET);
+          ImGui::SameLine         ( );
           ImGui::TextColored      (
-            colTitle, ICON_FA_ROCKET "  "
-              "Quick launch Special K for specific games through Steam:");
+            colTitle,
+              "Quick launch Special K for select games through Steam:");
           if (SKIF_RegisterApp())
           {
             ImGui::TextWrapped("Your computer is set up to quickly launch injection through Steam.");
@@ -4883,10 +4904,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
-
-          ImGui::TextColored      (
-            colTitle,
-                                   ICON_FA_WRENCH "  Compatibility Options:");
+          
+          ImGui::TextColored      (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_WRENCH);
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (colTitle, "Compatibility Options:");
 
           SKIF_ImGui_Spacing      ( );
 
@@ -5154,7 +5175,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A_EX); // ImVec4 (.666f, .666f, .666f, 1.f)
 
-        if (SKIF_bAlwaysShowGhost || (_inject.bCurrentState && SKIF_bEnableDebugMode) )
+        if (                          SKIF_iGhostVisibility == 1 ||
+            (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
         {
           ImGui::SameLine(); // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
 

@@ -799,8 +799,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
-  ImGui::BeginGroup ();
-
   static bool argsChecked = false;
   static std::wstring args = L"\0";
   static HKEY hKey;
@@ -969,11 +967,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   }
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
-  extern bool SKIF_bEnableDebugMode;
+  //extern bool SKIF_bEnableDebugMode;
 
   if ( bLogonTaskEnabled     ||
-       bAutoStartServiceOnly ||
-       SKIF_bEnableDebugMode )
+       bAutoStartServiceOnly/* ||
+       SKIF_bEnableDebugMode*/ )
   {
 
     if (bLogonTaskEnabled)
@@ -1063,8 +1061,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     ImGui::EndGroup      ();
 
   }
-
-  ImGui::EndGroup      ( );
 }
 
 /* Legacy option
