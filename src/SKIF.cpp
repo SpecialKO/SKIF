@@ -2347,6 +2347,128 @@ std::wstring SKIF_GetLastError (void)
   return message;
 }
 
+void SKIF_UI_DrawPlatformStatus (void)
+{
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+
+  static bool isSKIFAdmin = IsUserAnAdmin();
+  if (isSKIFAdmin)
+  {
+    ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImColor (255, 204, 0), "SKIF is running as an administrator!");
+    SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                              "Please restart the global injector service and SKIF as a regular user.");
+  }
+  else {
+    ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running with normal privileges.");
+    SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
+                              "into system processes nor games running as an administrator.");
+  }
+
+  ImGui::EndGroup         ( );
+
+  struct Platform {
+    std::string     Name;
+    std::wstring    ProcessName;
+    DWORD           ProcessID   = 0,
+                    PreviousPID = 0;
+    bool            isRunning   = false,
+                    isAdmin     = false;
+
+    Platform (std::string n, std::wstring pn)
+    {
+      Name        =  n;
+      ProcessName = pn;
+      Refresh ( );
+    }
+
+    void Refresh (void)
+    {
+      PROCESSENTRY32W pe = SK_FindProcessByName (ProcessName.c_str());
+      ProcessID = pe.th32ProcessID;
+
+      if (ProcessID != PreviousPID)
+      {
+        PreviousPID = ProcessID;
+        isRunning   = (ProcessID > 0);
+
+        if (isRunning)
+          isAdmin = SK_IsProcessAdmin (pe);
+      }
+    }
+  };
+
+  static DWORD dwLastRefresh = 0;
+  static Platform Platforms[] = {
+    {"32-bit Service",      L"SKIFsvc32.exe"},
+#ifdef _WIN64
+    {"64-bit Service",      L"SKIFsvc64.exe"},
+#endif
+    {"Steam",               L"steam.exe"},
+    {"Origin",              L"Origin.exe"},
+    {"Galaxy",              L"GalaxyClient.exe"},
+    {"EA Desktop",          L"EADesktop.exe"},
+    {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
+    {"Ubisoft Connect",     L"upc.exe"}
+  };
+
+  for each (Platform &p in Platforms)
+  {
+    if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
+        p.Refresh ( ); // Timer has expired, refresh
+
+    if (p.isRunning)
+    {
+      ImGui::BeginGroup       ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+
+      if (p.isAdmin)
+      {
+        ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImColor (255, 204, 0), (p.Name + " is running as an administrator!").c_str() );
+
+        if (isSKIFAdmin)
+          SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
+                                    "Please restart both as a normal user.").c_str());
+        else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+          SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                                    "Please restart the global injector service and SKIF as a regular user.");
+        else
+          SKIF_ImGui_SetHoverTip ( ("Running elevated will prevent injection into these games.\n"
+                                    "Please restart " + p.Name + " as a normal user.").c_str());
+      }
+      else {
+        ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImColor (144, 238, 144), (p.Name + " is running.").c_str());
+      }
+
+      ImGui::EndGroup          ( );
+    }
+    else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+    {
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_TIMES " ");
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
+    }
+
+    if (p.ProcessName == L"SKIFsvc64.exe")
+      ImGui::NewLine           ( );
+  }
+
+  if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
+        dwLastRefresh        = SKIF_timeGetTime (); // Set timer for next refresh
+}
+
 void SKIF_Initialize (void)
 {
   static bool isInitalized = false;
@@ -3048,13 +3170,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if ( ! SKIF_bDisableStatusBar )
       {
         SKIF_vecLargeMode.y += 31.0f * SKIF_ImGui_GlobalDPIScale;
-        SKIF_vecLargeMode.y += (SKIF_bDisableTooltips) ?
-                  (ImGui::GetTextLineHeight () /* * 0.7f */) : 0.0f;
+        SKIF_vecLargeMode.y += (SKIF_bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
       }
-
-      // Fixes weird size difference with this exact combination of settings which only occurs when DPI scaling is disabled
-      if ((! SKIF_bDisableStatusBar) && SKIF_bDisableTooltips && SKIF_bDisableDPIScaling)
-        SKIF_vecLargeMode.y += 6.0f;
 
       SKIF_vecCurrentMode  =
                     (SKIF_bSmallMode) ? SKIF_vecSmallMode
@@ -3160,9 +3277,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
       }
 
-      ImGuiTabBarFlags flags =
-        ImGuiTabItemFlags_None;
-
       FLOAT SKIF_GetHDRWhiteLuma (void);
       void  SKIF_SetHDRWhiteLuma (FLOAT);
 
@@ -3218,11 +3332,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
       };
 
       enum _Selection {
+        None,
         Injection,
         Settings,
         Help,
         Debug
-      } static tab_selected = Injection;
+      } static tab_selected = Injection, tab_changeTo = None;
+
+      static ImGuiTabBarFlags flagsInjection =
+                ImGuiTabItemFlags_None,
+                              flagsHelp =
+                ImGuiTabItemFlags_None;
 
       SK_RunOnce (
         _inject._RefreshSKDLLVersions ()
@@ -3357,14 +3477,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyResizeDown |
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
-        if (ImGui::BeginTabItem (ICON_FA_SYRINGE " Injection"))
+
+        if (ImGui::BeginTabItem (ICON_FA_GAMEPAD " Library", nullptr, (tab_changeTo == Injection) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
-          /* TODO: Fix mouse pos changing on launch in manage_games.cpp before enabling this! */
-          if (!SKIF_bFirstLaunch)
+          if (! SKIF_bFirstLaunch)
           {
             // Select the Help tab on first launch
-            SKIF_bFirstLaunch = !SKIF_bFirstLaunch;
-            flags = ImGuiTabItemFlags_SetSelected;
+            SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
+            tab_changeTo = Help;
 
             // Store in the registry so this only occur once.
             regKVFirstLaunch.putData(SKIF_bFirstLaunch);
@@ -3374,6 +3494,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //_inject._RefreshSKDLLVersions ();
 
           tab_selected = Injection;
+          if (tab_changeTo == Injection)
+            tab_changeTo = None;
 
           extern void SKIF_GameManagement_DrawTab(void);
           SKIF_GameManagement_DrawTab();
@@ -3381,7 +3503,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem ();
         }
 
-        if (ImGui::BeginTabItem (ICON_FA_COG " Settings"))
+
+        if (ImGui::BeginTabItem (ICON_FA_TASKS " Monitor", nullptr, (tab_changeTo == Debug) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        {
+          SKIF_ImGui_BeginTabChildFrame ();
+
+          if (tab_selected != Debug)
+          {
+            SetTimer (SKIF_hWnd,
+                      IDT_REFRESH_DEBUG,
+                      500,
+                      (TIMERPROC)NULL
+            );
+          }
+
+          tab_selected = Debug;
+          if (tab_changeTo == Debug)
+            tab_changeTo = None;
+
+          extern HRESULT
+            SKIF_Debug_DrawUI (void);
+            SKIF_Debug_DrawUI (    );
+
+          ImGui::EndChildFrame    ( );
+          ImGui::EndTabItem       ( );
+        }
+
+        // Unload the SpecialK DLL file if the tab is not selected
+        else if (hModSpecialK != 0)
+        {
+          FreeLibrary (hModSpecialK);
+          hModSpecialK = nullptr;
+
+          KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
+        }
+
+
+        if (ImGui::BeginTabItem (ICON_FA_COG " Settings", nullptr, (tab_changeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -3496,6 +3654,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
 
           tab_selected = Settings;
+          if (tab_changeTo == Settings)
+            tab_changeTo = None;
 
           // SKIF Options
           if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")", ImGuiTreeNodeFlags_DefaultOpen))
@@ -3793,10 +3953,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::NewLine       ( );
 
-            ImGui::Text          ("Experimental SKIF features");
+            ImGui::Text          ("Oudated SKIF features");
             ImGui::TreePush      ("");
 
-            if (ImGui::Checkbox ("Enable debug mode (" ICON_FA_BUG ")",
+            if (ImGui::Checkbox ("Show classic autostart method (" ICON_FA_BUG ")",
                                                        &SKIF_bEnableDebugMode))
             {
               SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
@@ -3840,6 +4000,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing     ();
             ImGui::Spacing     ();
 
+            SKIF_ImGui_Columns      (2, nullptr, true);
+
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
                                 "Tell at a glance whether:"
             );
@@ -3849,31 +4011,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"?!");
             ImGui::SameLine    ();
-            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                "DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed."
-            );
+            ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
+            ImGui::TextWrapped ("DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed.");
+            ImGui::PopStyleColor ();
             ImGui::EndGroup    ();
 
-            SKIF_ImGui_SetHoverTip("Appears as 'Hardware [Composed]: Independent Flip'");
+            SKIF_ImGui_SetHoverTip("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'");
             SKIF_ImGui_SetMouseCursorHand ();
-            SKIF_ImGui_SetHoverText       ("https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/for-best-performance--use-dxgi-flip-model#directflip");
+            SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
 
             if (ImGui::IsItemClicked      ())
-              SKIF_Util_OpenURI           (L"https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/for-best-performance--use-dxgi-flip-model#directflip");
+              SKIF_Util_OpenURI           (L"https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
 
             ImGui::BeginGroup  ();
             ImGui::Spacing     ();
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"?!");
             ImGui::SameLine    ();
-            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                "Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it."
-            );
+            ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
+            ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
+            ImGui::PopStyleColor ();
             ImGui::EndGroup    ();
 
             SKIF_ImGui_SetHoverTip(
                                 "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'"
-                                "\nFSO appears as 'Hardware [Composed]: Independent Flip'"
+                                "\nFSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'"
             );
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
@@ -3886,12 +4048,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"? ");
             ImGui::SameLine    ();
-            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F),
-                                "The game is running in a suboptimal presentation mode."
-            );
+            ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f));
+            ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
+            ImGui::PopStyleColor ();
             ImGui::EndGroup    ();
 
-            SKIF_ImGui_SetHoverTip("Appears as 'Composed: [Flip|Copy with GPU GDI|Copy with CPU GDI|Composition Atlas]'");
+            SKIF_ImGui_SetHoverTip("Appears as 'Composed: Flip', 'Composed: Composition Atlas',"
+                                   "\n'Composed: Copy with CPU GDI', or 'Composed: Copy with GPU GDI'");
 
             ImGui::Spacing();
             ImGui::Spacing();
@@ -3974,7 +4137,62 @@ wWinMain ( _In_     HINSTANCE hInstance,
               );
             }
 
-            ImGui::EndGroup();
+            ImGui::EndGroup ();
+
+            ImGui::NextColumn  ();
+
+            ImGui::TreePush    ();
+            
+            ImGui::TextColored (ImColor::HSV ( 0.3F, 0.99F, 1.F), "Good:");
+
+            ImGui::TreePush    ();
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Independent Flip");
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware Composed: Independent Flip");
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Flip");
+
+            /* Extremely uncommon so currently not included in the list
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
+            */
+
+            ImGui::TreePop     ();
+
+
+            ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), "Bad:");
+
+            ImGui::TreePush    ();
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Flip");
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Composition Atlas");
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Copy with GPU GDI");
+
+            ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+            ImGui::SameLine    ();
+            ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Composed: Copy with CPU GDI");
+
+            ImGui::TreePop     ();
+
+            ImGui::TreePop     ();
+
+            ImGui::Columns     (1);
 
 #ifdef _WIN64
             ImGui::Spacing  ();
@@ -4154,7 +4372,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing ();
 
           // Whitelist/Blacklist
-          if (ImGui::CollapsingHeader ("Whitelist/Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
+          if (ImGui::CollapsingHeader ("Whitelist / Blacklist", ImGuiTreeNodeFlags_DefaultOpen))
           {
             static bool white_edited = false,
                         black_edited = false,
@@ -4469,15 +4687,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        bool helpSelected =
-          ImGui::BeginTabItem     (ICON_FA_QUESTION_CIRCLE " Help",
-                                                           nullptr, flags);
 
-        if (helpSelected)
+        if (ImGui::BeginTabItem (ICON_FA_INFO_CIRCLE " About", nullptr, (tab_changeTo == Help) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
           tab_selected = Help;
+          if (tab_changeTo == Help)
+            tab_changeTo = None;
 
           ImGui::NewLine          ( );
           SKIF_ImGui_Columns      (2, nullptr, true);
@@ -4498,27 +4715,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TextColored      (
             colTitle,
-                                   "Beginner's Guide to Special K and SKIF:"
+                                   "Beginner's Guide to Special K (SK) and its Injection Frontend (SKIF):"
                                     );
 
           SKIF_ImGui_Spacing      ( );
 
-          ImGui::TextWrapped      ("You are looking at the 'Special K Injection Frontend', commonly referred to as 'SKIF'.\n\n"
-                                   "SKIF is used to start and stop Special K's 'Global Injection Service', "
+          ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend, commonly referred to as 'SKIF'.\n\n"
+                                   "SKIF is used to manage Special K's global injection service, "
                                    "which injects Special K's features into games as they start (and even games that are already running). "
                                    "The tool also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
 
           ImGui::NewLine          ( );
 
-          ImGui::TextWrapped      ("Global injection will inject Special K into most games, however Special K only activates itself in Steam-based software by default. "
-                                   "To use Special K in a non-Steam application, consult the Whitelist / Blacklist section of '" ICON_FA_COG " Settings'.");
+          ImGui::Text             ("Global injection will inject Special K into most games, however Special K only activates");
+          ImGui::Text             ("itself in games from Epic Games Store, GOG Galaxy, Steam, Origin, and Ubisoft Connect");
+          ImGui::Text             ("by default. Of these only the first three platforms are supported by the");
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (ImColor (255, 255, 255), ICON_FA_GAMEPAD " Library");
+          SKIF_ImGui_SetMouseCursorHand ( );
+          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
+          ImGui::SameLine         ( );
+          ImGui::Text             ("tab");
+          ImGui::Text             ("while Origin and Ubisoft Connect games must be manually added to the list.");
+
+          /*
+          ImGui::TextWrapped      ("Global injection will inject Special K into most games, however Special K only activates itself in games from "
+                                   "Epic Games Store, GOG Galaxy, Steam, Origin, and Ubisoft Connect by default. Of these only the first three platforms "
+                                   "are supported by the " ICON_FA_GAMEPAD " Library tab while Origin and Ubisoft Connect games must be manually added to the list.");
+          
+          SKIF_ImGui_Spacing      ( );
+
+          ImGui::TextWrapped      ("Consult the Whitelist / Blacklist section of the " ICON_FA_COG " Settings tab to manage Special K in more detail.");
+          */
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
 
           ImGui::TextColored      (
             colTitle,
-                                   "Getting started with Steam games:");
+                                   "Getting started with Epic, GOG, or Steam games:");
 
           SKIF_ImGui_Spacing      ( );
 
@@ -4528,7 +4763,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImColor::HSV (0.55F, 0.99F, 1.F),
                                 "1 ");
           ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Go to the '" ICON_FA_SYRINGE " Injection' tab.");
+          ImGui::Text             ("Go to the ");
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (ImColor (255, 255, 255), ICON_FA_GAMEPAD " Library");
+          SKIF_ImGui_SetMouseCursorHand ( );
+          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
+          ImGui::SameLine         ( );
+          ImGui::Text             ("tab.");
 
           ImGui::Spacing          ( );
           ImGui::SameLine         ( );
@@ -4536,7 +4777,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImColor::HSV (0.55F, 0.99F, 1.F),
                                 "2 ");
           ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Select and launch the Steam game.");
+          ImGui::TextWrapped      ("Select and launch the game.");
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
@@ -4553,7 +4794,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImColor::HSV (0.55F, 0.99F, 1.F),
                                 "1 ");
           ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Start the 'Global Injection Service' using the '" ICON_FA_SYRINGE " Injection' tab, selecting 'Special K', and pressing 'Start Service'.");
+          ImGui::Text             ("Go to the ");
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (ImColor (255, 255, 255), ICON_FA_GAMEPAD " Library");
+          SKIF_ImGui_SetMouseCursorHand ( );
+          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
+          ImGui::SameLine         ( );
+          ImGui::Text             ("tab.");
 
           ImGui::Spacing          ( );
           ImGui::SameLine         ( );
@@ -4561,7 +4808,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImColor::HSV (0.55F, 0.99F, 1.F),
                                 "2 ");
           ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Whitelist the game using the '" ICON_FA_COG " Settings' tab and typing a game's folder or executable in the '" ICON_FA_PLUS_CIRCLE " Whitelist Patterns' section.");
+          ImGui::Text             ("Click on ");
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (ImColor (255, 255, 255), ICON_FA_PLUS_SQUARE " Add Game");
+          SKIF_ImGui_SetMouseCursorHand ( );
+          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+            AddGamePopup = PopupState::Open;
+            tab_changeTo = Injection;
+          }
+          ImGui::SameLine         ( );
+          ImGui::Text             ("to add the game to the list.");
 
           ImGui::Spacing          ( );
           ImGui::SameLine         ( );
@@ -4569,14 +4825,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImColor::HSV (0.55F, 0.99F, 1.F),
                                 "3 ");
           ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Launch the game as usual.");
+          ImGui::TextWrapped      ("Launch the game.");
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
 
           ImGui::TextColored      (
             colTitle, ICON_FA_ROCKET "  "
-              "Quick launch Special K for select games through Steam:");
+              "Quick launch Special K for specific games through Steam:");
           if (SKIF_RegisterApp())
           {
             ImGui::TextWrapped("Your computer is set up to quickly launch injection through Steam.");
@@ -4868,168 +5124,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_ImGui_Spacing      ( );
 
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-
-          static bool isSKIFAdmin = IsUserAnAdmin();
-          if (isSKIFAdmin)
-          {
-            ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
-            ImGui::SameLine        ( );
-            ImGui::TextColored     (ImColor (255, 204, 0), "SKIF is running as an administrator!");
-            SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                     "Please restart the global injector service and SKIF as a regular user.");
-          }
-          else {
-            ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
-            ImGui::SameLine        ( );
-            ImGui::TextColored     (ImColor(144, 238, 144), "SKIF is running with normal privileges.");
-            SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
-                                     "into system processes nor games running as an administrator.");
-          }
-
-          ImGui::EndGroup         ( );
-
-          struct Platform {
-            std::string     Name;
-            std::wstring    ProcessName;
-            DWORD           ProcessID   = 0,
-                            PreviousPID = 0;
-            bool            isRunning   = false,
-                            isAdmin     = false;
-
-            Platform (std::string n, std::wstring pn)
-            {
-              Name        =  n;
-              ProcessName = pn;
-              Refresh ( );
-            }
-
-            void Refresh (void)
-            {
-              PROCESSENTRY32W pe = SK_FindProcessByName (ProcessName.c_str());
-              ProcessID = pe.th32ProcessID;
-
-              if (ProcessID != PreviousPID)
-              {
-                PreviousPID = ProcessID;
-                isRunning   = (ProcessID > 0);
-
-                if (isRunning)
-                  isAdmin = SK_IsProcessAdmin (pe);
-              }
-            }
-          };
-
-          static DWORD dwLastRefresh = 0;
-          static Platform Platforms[] = {
-            {"32-bit Service",      L"SKIFsvc32.exe"},
-#ifdef _WIN64
-            {"64-bit Service",      L"SKIFsvc64.exe"},
-#endif
-            {"Steam",               L"steam.exe"},
-            {"Origin",              L"Origin.exe"},
-            {"Galaxy",              L"GalaxyClient.exe"},
-            {"EA Desktop",          L"EADesktop.exe"},
-            {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
-            {"Ubisoft Connect",     L"upc.exe"}
-          };
-
-          for each (Platform &p in Platforms)
-          {
-            if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
-                p.Refresh ( ); // Timer has expired, refresh
-
-            if (p.isRunning)
-            {
-              ImGui::BeginGroup       ( );
-              ImGui::Spacing          ( );
-              ImGui::SameLine         ( );
-
-              if (p.isAdmin)
-              {
-                ImGui::TextColored     (ImColor (255, 204, 0), ICON_FA_EXCLAMATION_TRIANGLE " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (255, 204, 0), (p.Name + " is running as an administrator!").c_str() );
-
-                if (isSKIFAdmin)
-                  SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
-                                            "Please restart both as a normal user.").c_str());
-                else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
-                  SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                           "Please restart the global injector service and SKIF as a regular user.");
-                else
-                  SKIF_ImGui_SetHoverTip ( ("Running elevated will prevent injection into these games.\n"
-                                            "Please restart " + p.Name + " as a normal user.").c_str());
-              }
-              else {
-                ImGui::TextColored     (ImColor (144, 238, 144), ICON_FA_CHECK " ");
-                ImGui::SameLine        ( );
-                ImGui::TextColored     (ImColor (144, 238, 144), (p.Name + " is running.").c_str());
-              }
-
-              ImGui::EndGroup          ( );
-            }
-            else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
-            {
-              ImGui::Spacing          ( );
-              ImGui::SameLine         ( );
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_TIMES " ");
-              ImGui::SameLine        ( );
-              ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
-            }
-
-            if (p.ProcessName == L"SKIFsvc64.exe")
-              ImGui::NewLine           ( );
-          }
-
-          if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
-               dwLastRefresh        = SKIF_timeGetTime (); // Set timer for next refresh
+          SKIF_UI_DrawPlatformStatus ( );
 
           ImGui::Columns          (1);
 
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
         }
-
-//#ifdef _WIN64
-        bool debugSelected =       SKIF_bEnableDebugMode &&
-          ImGui::BeginTabItem     (ICON_FA_BUG " Debug", nullptr, flags);
-
-        if (debugSelected)
-        {
-          SKIF_ImGui_BeginTabChildFrame ();
-
-          if (tab_selected != Debug)
-          {
-            SetTimer (SKIF_hWnd,
-                      IDT_REFRESH_DEBUG,
-                      500,
-                      (TIMERPROC)NULL
-            );
-          }
-
-          tab_selected = Debug;
-
-          extern HRESULT
-            SKIF_Debug_DrawUI (void);
-            SKIF_Debug_DrawUI (    );
-
-          ImGui::EndChildFrame    ( );
-          ImGui::EndTabItem       ( );
-        }
-
-        else {
-          if (SKIF_bEnableDebugMode && hModSpecialK != 0)
-          {
-            FreeLibrary (hModSpecialK);
-            hModSpecialK = nullptr;
-
-            KillTimer(SKIF_hWnd, IDT_REFRESH_DEBUG);
-          }
-        }
-//#endif
 
         // Ghost
 
@@ -5105,84 +5206,90 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::EndGroup             ( );
 
       // Status Bar at the bottom
-      if ( ! SKIF_bSmallMode )
+      if ( ! SKIF_bSmallMode        &&
+           ! SKIF_bDisableStatusBar )
       {
-        ImVec2 currPos =
-          ImGui::GetCursorPos ();
+        // This counteracts math performed on SKIF_vecLargeMode.y at the beginning of the frame
+        float statusBarY = ImGui::GetWindowSize().y;
+              statusBarY -= 31.0f * SKIF_ImGui_GlobalDPIScale;
+              statusBarY -= (SKIF_bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+        ImGui::SetCursorPosY (statusBarY);
 
-        if ( ! SKIF_bDisableStatusBar )
+        ImGui::Separator    (       );
+
+        // End Separation
+
+        // Begin Add Game
+        ImVec2 tmpPos = ImGui::GetCursorPos();
+
+        static bool btnHovered = false;
+        ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+        ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
+        ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
+
+        if (btnHovered)
+          ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+        else
+          ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+
+        if (ImGui::Button( ICON_FA_PLUS_SQUARE " Add Game"))
         {
-          ImGui::SetCursorPos (currPos);
-          ImGui::Separator    (       );
-
-          // End Separation
-
-          if (tab_selected == Injection)
-          {
-            ImVec2 tmpPos = ImGui::GetCursorPos();
-
-            static bool btnHovered = false;
-            ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
-            ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
-            ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
-
-            if (btnHovered)
-              ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(1, 1, 1, 1));
-            else
-              ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-
-            if (ImGui::Button( ICON_FA_PLUS_SQUARE " Add Game"))
-              AddGamePopup = PopupState::Open;
-
-            btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
-
-            ImGui::PopStyleColor (4);
-
-            ImGui::SetCursorPos(tmpPos);
-          }
-
-          auto _StatusPartSize = [&](std::string& part) -> float
-          {
-            return
-              part.empty () ?
-                       0.0f : ImGui::CalcTextSize (
-                                              part.c_str ()
-                                                  ).x;
-          };
-
-          float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
-                fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
-
-          ImGui::SetCursorPosX (
-            ImGui::GetCursorPosX () +
-            ImGui::GetWindowSize ().x -
-              ( fStatusWidth +
-                fHelpWidth ) -
-            ImGui::GetCursorPosX () -
-            ImGui::GetStyle   ().ItemSpacing.x * 2
-          );
-
-          ImGui::SetCursorPosY ( ImGui::GetCursorPosY     () +
-                                 ImGui::GetTextLineHeight () / 4.0f );
-
-          ImGui::TextColored ( ImColor::HSV (0.0f, 0.0f, 0.75f),
-                                 "%s", SKIF_StatusBarText.c_str ()
-          );
-
-          if (! SKIF_StatusBarHelp.empty ())
-          {
-            ImGui::SameLine ();
-            ImGui::SetCursorPosX (
-              ImGui::GetCursorPosX () -
-              ImGui::GetStyle      ().ItemSpacing.x
-            );
-            ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
-          }
-
-          // Clear the status every frame, it's mostly used for mouse hover tooltips.
-          SKIF_StatusBarText.clear ();
-          SKIF_StatusBarHelp.clear ();
+          AddGamePopup = PopupState::Open;
+          if (tab_selected != Injection)
+            tab_changeTo = Injection;
         }
+
+        btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+        ImGui::PopStyleColor (4);
+
+        ImGui::SetCursorPos(tmpPos);
+        // End Add Game
+
+        // Begin Status Bar Text
+        auto _StatusPartSize = [&](std::string& part) -> float
+        {
+          return
+            part.empty () ?
+                      0.0f : ImGui::CalcTextSize (
+                                            part.c_str ()
+                                                ).x;
+        };
+
+        float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
+              fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
+
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX () +
+          ImGui::GetWindowSize ().x -
+            ( fStatusWidth +
+              fHelpWidth ) -
+          ImGui::GetCursorPosX () -
+          ImGui::GetStyle   ().ItemSpacing.x * 2
+        );
+
+        ImGui::SetCursorPosY ( ImGui::GetCursorPosY     () +
+                                ImGui::GetTextLineHeight () / 4.0f );
+
+        ImGui::TextColored ( ImColor::HSV (0.0f, 0.0f, 0.75f),
+                                "%s", SKIF_StatusBarText.c_str ()
+        );
+
+        if (! SKIF_StatusBarHelp.empty ())
+        {
+          ImGui::SameLine ();
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX () -
+            ImGui::GetStyle      ().ItemSpacing.x
+          );
+          ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
+        }
+
+        // Clear the status every frame, it's mostly used for mouse hover tooltips.
+        SKIF_StatusBarText.clear ();
+        SKIF_StatusBarHelp.clear ();
+
+        // End Status Bar Text
       }
 
 

@@ -3890,7 +3890,7 @@ Cache=false)";
   if (AddGamePopup == PopupState::Open)
   {
     ImGui::OpenPopup("###AddGamePopup");
-    AddGamePopup = PopupState::Opened;
+    //AddGamePopup = PopupState::Opened; // Disabled to allow quick link from the About tab to function
   }
 
   float fAddGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;

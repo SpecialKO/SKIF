@@ -87,6 +87,8 @@ void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrid
 void SKIF_ImGui_Spacing            (float multiplier = 0.25f);
 bool SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);
 
+void SKIF_UI_DrawPlatformStatus    (void);
+
 void  SKIF_SetHDRWhiteLuma    (float fLuma);
 FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);

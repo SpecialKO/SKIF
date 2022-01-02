@@ -1066,8 +1066,119 @@ SKIF_Debug_DrawUI (void)
   
     static DWORD dwMonitored = 0;
 
+    /*
     ImGui::Separator (                   );
     console.Draw     ("Prototype Console");
+    ImGui::Separator (                   );
+    */
+    
+    extern void
+      SKIF_ImGui_Columns         (int columns_count, const char* id, bool border, bool resizeble = false);
+    extern void
+      SKIF_UI_DrawPlatformStatus (void);
+
+    ImGui::NewLine          ( );
+
+    ImColor colTitle = ImColor(3, 179, 255);
+
+    SKIF_ImGui_Columns      (2, nullptr, true);
+
+    SK_RunOnce (
+      ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
+    );
+
+    ImGui::TextColored      (
+      colTitle,
+                              "Description:"
+                              );
+
+    // ImColor::HSV (0.11F, 1.F, 1.F)   // Orange
+    // ImColor::HSV (0.55F, 0.99F, 1.F) // Blue Bullets
+    // ImColor(100, 255, 218); // Teal
+    //ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::PushStyleColor   (
+      ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
+                              );
+
+    ImGui::TextWrapped ( "This tab allows users to easily identify (and if necessary terminate) processes that Special K is injected into.");
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::SameLine         ( );
+
+#ifdef _WIN64
+    ImGui::TextWrapped      ("'Active 64-bit Global Injections' lists processes where Special K is currently active in, meaning the process is whitelisted and SK has detected the use of a render API.");
+#else
+    ImGui::TextWrapped      ("'Active 32-bit Global Injections' lists processes where Special K is currently active in, meaning the process is whitelisted and SK has detected the use of a render API.");
+#endif
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::SameLine         ( );
+    ImGui::TextWrapped      ("'Active Process Monitoring' lists all currently injected processes.");
+
+    ImGui::PopStyleColor    ( );
+
+    ImGui::NewLine          ( );
+    
+    ImGui::TextColored      (
+      colTitle,
+                              "Toggle Service Status:"
+                              );
+
+    SKIF_ImGui_Spacing      ( );
+
+    extern bool SKIF_bStopOnInjection;
+    
+    if (ImGui::Button ("Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
+                                                       30.0f * SKIF_ImGui_GlobalDPIScale )))
+      _inject._StartStopInject (false, SKIF_bStopOnInjection);
+
+    ImGui::SameLine ( );
+
+    if (ImGui::Button ("Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
+                                                       30.0f * SKIF_ImGui_GlobalDPIScale )))
+      _inject._StartStopInject(true);
+
+    extern void SKIF_putStopOnInjection(bool in);
+
+#ifdef _WIN64
+    if (_inject.SKVer64 >= "21.08.12" &&
+      _inject.SKVer32 >= "21.08.12")
+#else
+    if (_inject.SKVer32 >= "21.08.12")
+#endif
+    {
+
+      SKIF_ImGui_Spacing      ( );
+
+      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
+        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+
+      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
+                              "when Special K is injected into a whitelisted game.");
+    }
+
+    ImGui::NextColumn       ( ); // Next Column
+
+    ImGui::TextColored (
+      colTitle,
+        "Status:"
+    );
+
+    SKIF_ImGui_Spacing      ( );
+
+    SKIF_UI_DrawPlatformStatus ( );
+
+    ImGui::Columns          (1);
+
+    ImGui::NewLine          ( );
+
     ImGui::Separator (                   );
 
     static
@@ -1509,9 +1620,6 @@ SKIF_Debug_DrawUI (void)
 
       for ( auto& proc64 : executables_64 )
       {
-        if (proc64.second.find (L"rundll32") != std::wstring::npos)
-          continue;
-
         inject_policy policy =
           policies_64 [proc64.first];
         
@@ -1605,9 +1713,6 @@ SKIF_Debug_DrawUI (void)
 
       for ( auto& proc32 : executables_32 )
       {
-        if (proc32.second.find (L"rundll32") != std::wstring::npos)
-          continue;
-
         inject_policy policy =
           policies_32 [proc32.first];
         
