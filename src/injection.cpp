@@ -419,11 +419,13 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 
 void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 {
+  /*
   // Attempt to remove .old files, if any exists
   DeleteFile (L"SpecialK32.old");
 #ifdef _WIN64
   DeleteFile (L"SpecialK64.old");
 #endif
+*/
 
   struct updated_file_s {
     const wchar_t* wszFileName;
@@ -449,6 +451,23 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         PathFileExistsW (wszNewFile);
     }
 
+    void cleanOldFiles (void) const {
+      HANDLE hFind = INVALID_HANDLE_VALUE;
+      WIN32_FIND_DATA ffd;
+
+      hFind = FindFirstFile(L"*.old", &ffd);
+
+      if (INVALID_HANDLE_VALUE != hFind)
+      {
+        DeleteFile (ffd.cFileName);
+
+        while (FindNextFile(hFind, &ffd))
+          DeleteFile (ffd.cFileName);
+
+        FindClose (hFind);
+      }
+    }
+
     // In rare cases, SK's DLLs may be stuck in a rogue app and we cannot
     //   release the lock on them. We need to move the files out of the way.
     bool shuffleLockedFiles (void) const {
@@ -460,11 +479,12 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
       combineParts (wszOldFile, wszFileName, L".old");
       combineParts (wszIOFile,  wszFileName, wszRealExt);
 
+      // Attempt to rename existing file to .old
       if (! MoveFileExW ( wszIOFile,  wszOldFile,
-                    MOVEFILE_REPLACE_EXISTING |
-                    MOVEFILE_WRITE_THROUGH ))
+                          MOVEFILE_REPLACE_EXISTING |
+                          MOVEFILE_WRITE_THROUGH ))
       {
-        // If we cannot replace the existing .old, do an additional dance and 
+        // If we cannot replace the existing .old, do an additional twirl and add today's date and time to it
         wchar_t    wszSystemTime [64]  = { };
         wchar_t    wszSystemDate [64]  = { };
         wchar_t    wszCombinTime [128] = { };
@@ -478,19 +498,17 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         StringCchCatW (wszCombinTime, 127, L"_");
         StringCchCatW (wszCombinTime, 127, wszSystemTime);
 
-        std::wstring wstr = std::wstring (wszCombinTime);
-        
         extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
+        
+        std::wstring wsAltFile = std::wstring (wszFileName) + L"_" + SKIF_StripInvalidFilenameChars (wszCombinTime) + L".old";
 
-        wstr = std::wstring (wszFileName) + L"_" + SKIF_StripInvalidFilenameChars (wstr) + L".old";
-
-        MoveFileExW ( wszIOFile, wstr.c_str(),
-                    MOVEFILE_REPLACE_EXISTING |
-                    MOVEFILE_WRITE_THROUGH );
-        // Mark as remove on next boot
-        MoveFileExW ( wstr.c_str(), NULL,
-                    MOVEFILE_DELAY_UNTIL_REBOOT );
+        // Rename it to the new "DLLName_Datestamp_Timestamp.old" name
+        MoveFileExW ( wszIOFile, wsAltFile.c_str(),
+                      MOVEFILE_REPLACE_EXISTING |
+                      MOVEFILE_WRITE_THROUGH );
       }
+
+      // Move new file into place
       MoveFileExW ( wszNewFile, wszIOFile,
                     MOVEFILE_REPLACE_EXISTING |
                     MOVEFILE_WRITE_THROUGH );
@@ -527,9 +545,13 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
   int updates_pending = 0;
 
   for ( const auto& file : updated_files )
-    if ( file.isNewer () )
+  {
+    file.cleanOldFiles ();
+
+    if ( file.isNewer  () )
       file.dance ();
       //++updates_pending;
+  }
 
   /*
   if (updates_pending > 0)

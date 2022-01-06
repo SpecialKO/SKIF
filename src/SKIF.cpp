@@ -3807,7 +3807,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          if (tab_selected != Debug)
+          if (tab_selected != Debug) // hModSpecialK == nullptr
           {
             SetTimer (SKIF_hWnd,
                       IDT_REFRESH_DEBUG,
@@ -5842,6 +5842,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static skif_directory_watch_s root_folder;
       if (root_folder.isSignaled (std::filesystem::current_path ( )))
       {
+        // If the Special K DLL file is currently loaded, unload it
+        if (hModSpecialK != 0)
+        {
+          FreeLibrary (hModSpecialK);
+          hModSpecialK = nullptr;
+        }
+
         _inject._DanceOfTheDLLFiles     ();
         _inject._RefreshSKDLLVersions   ();
       }
