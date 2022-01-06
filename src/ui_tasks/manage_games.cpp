@@ -142,7 +142,8 @@ SKIF_Util_ExplorePath_Formatted (
 HINSTANCE
 SKIF_Util_OpenURI (
   const std::wstring_view& path,
-               DWORD       dwAction )
+               DWORD       dwAction,
+               LPCWSTR     verb)
 {
   //return
     //ShellExecuteW ( nullptr, L"OPEN",
@@ -152,7 +153,7 @@ SKIF_Util_OpenURI (
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
+    sexi.lpVerb       = verb;
     sexi.lpFile       = path.data ();
     sexi.nShow        = dwAction;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI |
@@ -1980,7 +1981,7 @@ SKIF_GameManagement_DrawTab (void)
           );
           */
 
-          SKIF_Util_OpenURI (SK_UTF8ToWideChar(cache.config.full_path).c_str(), SW_SHOWNORMAL);
+          SKIF_Util_OpenURI (SK_UTF8ToWideChar(cache.config.full_path).c_str(), SW_SHOWNORMAL, L"EDIT");
 
           /* Cannot handle special characters such as (c), (r), etc
           SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs", cache.config.full_path.c_str ());
@@ -2368,7 +2369,7 @@ Cache=false)";
                   ? ImColor::HSV (0.6f, .6f, 1.f) :
       ( app.second._status.running  != 0x0 )
                   ? ImColor::HSV (0.3f, 1.f, 1.f) :
-                    ImColor::HSV (0.0f, 0.f, 1.f);
+                    ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
@@ -2377,15 +2378,27 @@ Cache=false)";
     ImGui::Selectable      ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (2                    );
 
-    if ( ImGui::IsItemHovered        () &&
-         ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) )
+    static DWORD timeClicked = 0;
+
+    if ( ImGui::IsItemHovered ( ) )
     {
-      if ( pApp     != nullptr          &&
-           pApp->id != SKIF_STEAM_APPID &&
-         ! pApp->_status.running
-        )
+      if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
+           timeClicked != 0 )
       {
-        clickedGameLaunch = true;
+        timeClicked = 0;
+
+        if ( pApp     != nullptr          &&
+             pApp->id != SKIF_STEAM_APPID &&
+           ! pApp->_status.running
+          )
+        {
+          clickedGameLaunch = true;
+        }
+      }
+      
+      else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
+      {
+        timeClicked = SKIF_timeGetTime ( );
       }
     }
 
@@ -2433,9 +2446,11 @@ Cache=false)";
 
       if (update)
       {
+        timeClicked = SKIF_timeGetTime ( );
+
         app.second._status.invalidate ();
 
-        if (! ImGui::IsMouseDown(ImGuiMouseButton_Right))
+        if (! ImGui::IsMouseDown (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
           ImGui::ActivateItem (ImGui::GetID ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()));
@@ -3579,17 +3594,22 @@ Cache=false)";
 
           if (ImGui::Selectable ("Create shortcut"))
           {
-            const std::string forbidden = "\\/:?\"<>|";
             std::string name = pApp->names.normal;
 
             // Strip (recently added) from the desktop shortcuts
             name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
 
+            /* Old method
             // Strip invalid filename characters
-            std::transform(name.begin(), name.end(), name.begin(), [&forbidden](char c) { return forbidden.find(c) != std::string::npos ? ' ' : c; });
+            //const std::string forbidden = "\\/:?\"<>|";
+            //std::transform(name.begin(), name.end(), name.begin(), [&forbidden](char c) { return forbidden.find(c) != std::string::npos ? ' ' : c; });
 
             // Remove double spaces
-            name = std::regex_replace(name, std::regex(R"(  )"), " ");
+            //name = std::regex_replace(name, std::regex(R"(  )"), " ");
+            */
+
+            extern std::string SKIF_StripInvalidFilenameChars (std::string);
+            name = SKIF_StripInvalidFilenameChars (name);
 
             std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
             std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(appid).c_str(), pApp->launch_configs[0].launch_options.c_str());

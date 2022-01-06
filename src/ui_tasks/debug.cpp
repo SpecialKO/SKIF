@@ -1080,8 +1080,6 @@ SKIF_Debug_DrawUI (void)
 
     ImGui::NewLine          ( );
 
-    ImColor colTitle = ImColor(3, 179, 255);
-
     SKIF_ImGui_Columns      (2, nullptr, true);
 
     SK_RunOnce (
@@ -1089,7 +1087,7 @@ SKIF_Debug_DrawUI (void)
     );
 
     ImGui::TextColored      (
-      colTitle,
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                               "Description:"
                               );
 
@@ -1136,7 +1134,7 @@ SKIF_Debug_DrawUI (void)
     ImGui::NewLine          ( );
     
     ImGui::TextColored      (
-      colTitle,
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                               "Toggle Service Status:"
                               );
 
@@ -1146,15 +1144,19 @@ SKIF_Debug_DrawUI (void)
 
     ImGui::TreePush   ( );
 
+    ImGui::PushStyleColor (ImGuiCol_Text, ImColor (144, 238, 144).Value);
     if (ImGui::Button ( ICON_FA_PLAY " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
                                                        30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject (false, SKIF_bStopOnInjection);
+    ImGui::PopStyleColor ( );
 
     ImGui::SameLine   ( );
-
+    
+    ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
     if (ImGui::Button ( ICON_FA_STOP " Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
                                                        30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject(true);
+    ImGui::PopStyleColor ( );
 
     ImGui::TreePop    ( );
 
@@ -1179,7 +1181,7 @@ SKIF_Debug_DrawUI (void)
     ImGui::NextColumn       ( ); // Next Column
 
     ImGui::TextColored (
-      colTitle,
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Status:"
     );
 
@@ -1190,7 +1192,7 @@ SKIF_Debug_DrawUI (void)
     ImGui::NewLine          ( );
 
     ImGui::TextColored (
-      colTitle,
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Versions:"
     );
 
@@ -1207,10 +1209,6 @@ SKIF_Debug_DrawUI (void)
     ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 32-bit");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer32.c_str());
 
 #ifdef _WIN64
     ImGui::Spacing          ( );
@@ -1218,10 +1216,6 @@ SKIF_Debug_DrawUI (void)
     ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 64-bit");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer64.c_str());
 #endif
     
     ImGui::Spacing          ( );
@@ -1229,8 +1223,24 @@ SKIF_Debug_DrawUI (void)
     ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Frontend (SKIF)");
+
+    ImGui::EndGroup         ( );
     ImGui::SameLine         ( );
+    ImGui::BeginGroup       ( );
+    
     ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer32.c_str());
+
+#ifdef _WIN64
+    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer64.c_str());
+#endif
+    
+    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
+    ImGui::SameLine         ( );
+    ImGui::ItemSize         (ImVec2 (0.0f, ImGui::GetTextLineHeight ()));
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    SKIF_VERSION_STR_A " (" __DATE__ ")");
 

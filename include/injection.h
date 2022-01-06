@@ -90,6 +90,7 @@ struct SKIF_InjectionContext {
   bool    _StartStopInject        (bool running_, bool autoStop = false);
 
   void     TestServletRunlevel    (bool forcedCheck = false);
+  void    _DanceOfTheDLLFiles     (void);
   void    _RefreshSKDLLVersions   (void);
   void    _GlobalInjectionCtl     (void);
   void    _StartAtLogonCtrl       (void);

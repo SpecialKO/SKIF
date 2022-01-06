@@ -46,6 +46,7 @@
 #include <regex>
 #include <string>
 #include <sstream>
+#include <strsafe.h>
 
 SKIF_InjectionContext _inject;
 
@@ -141,7 +142,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
-  _ToggleOnDemand ((! currentRunningState) ? autoStop : bAckInj);
+  _ToggleOnDemand ( (! currentRunningState && autoStop) );
 
 #if 0
   const wchar_t *wszStartStopCommand =
@@ -226,92 +227,7 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   if (! bLogonTaskEnabled)
     DeleteFile (LR"(Servlet\task_inject.bat)");
 
-  // Attempt to remove .old files, if any exists
-  DeleteFile (L"SpecialK32.old");
-#ifdef _WIN64
-  DeleteFile (L"SpecialK64.old");
-#endif
-
-  struct updated_file_s {
-    const wchar_t* wszFileName;
-    const wchar_t* wszRealExt;
-    const wchar_t* wszPIDFile;
-
-    const wchar_t*
-      combineParts ( wchar_t* wszInOut,
-               const wchar_t* wszName,
-               const wchar_t* wszExt ) const {
-      StrCatW           (wszInOut, wszName);
-      PathAddExtensionW (wszInOut, wszExt );
-
-      return wszInOut;
-    }
-
-    bool isNewer (void) const {
-      wchar_t        wszNewFile [MAX_PATH] = { };
-      combineParts ( wszNewFile, wszFileName,
-                      L".new" );
-
-      return
-        PathFileExistsW (wszNewFile);
-    }
-
-    // In rare cases, SK's DLLs may be stuck in a rogue app and we cannot
-    //   release the lock on them. We need to move the files out of the way.
-    bool shuffleLockedFiles (void) const {
-      wchar_t wszNewFile [MAX_PATH] = { },
-              wszOldFile [MAX_PATH] = { },
-              wszIOFile  [MAX_PATH] = { };
-
-      combineParts (wszNewFile, wszFileName, L".new");
-      combineParts (wszOldFile, wszFileName, L".old");
-      combineParts (wszIOFile,  wszFileName, wszRealExt);
-
-      MoveFileExW ( wszIOFile,  wszOldFile,
-                    MOVEFILE_REPLACE_EXISTING |
-                    MOVEFILE_WRITE_THROUGH );
-      MoveFileExW ( wszNewFile, wszIOFile,
-                    MOVEFILE_REPLACE_EXISTING |
-                    MOVEFILE_WRITE_THROUGH );
-
-      return true;
-    }
-  };
-
-  std::vector <updated_file_s>
-               updated_files =
-    { { L"SpecialK64", L".dll", LR"(Servlet\SpecialK64.pid)" },
-      { L"SpecialK32", L".dll", LR"(Servlet\SpecialK32.pid)" } };
-
-  int updates_pending = 0;
-
-  for ( const auto& file : updated_files )
-    if ( file.isNewer () )
-      ++updates_pending;
-
-  if (updates_pending > 0)
-  {
-    for ( auto& file : updated_files )
-    {
-      FILE* fPID =
-        _wfopen ( file.wszPIDFile, L"r" );
-
-      if (fPID != nullptr)
-      {
-        int pid   = 0;
-        int count =
-          fwscanf (fPID, L"%li", &pid);
-        fclose    (fPID);
-
-        DeleteFileW (file.wszPIDFile);
-
-        if (count == 1 &&  pid != 0)
-          SK_TerminatePID (pid, 0x0);
-      }
-
-      file.shuffleLockedFiles ();
-    }
-  }
+  _DanceOfTheDLLFiles ( );
 
   bHasServlet =
     bHasServlet &&
@@ -501,8 +417,149 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
   }
 };
 
-extern bool SKIF_ImGui_BeginChildFrame(ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern std::wstring SKIF_GetSpecialKDLLVersion(const wchar_t*);
+void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
+{
+  // Attempt to remove .old files, if any exists
+  DeleteFile (L"SpecialK32.old");
+#ifdef _WIN64
+  DeleteFile (L"SpecialK64.old");
+#endif
+
+  struct updated_file_s {
+    const wchar_t* wszFileName;
+    const wchar_t* wszRealExt;
+    const wchar_t* wszPIDFile;
+
+    const wchar_t*
+      combineParts ( wchar_t* wszInOut,
+               const wchar_t* wszName,
+               const wchar_t* wszExt ) const {
+      StrCatW           (wszInOut, wszName);
+      PathAddExtensionW (wszInOut, wszExt );
+
+      return wszInOut;
+    }
+
+    bool isNewer (void) const {
+      wchar_t        wszNewFile [MAX_PATH] = { };
+      combineParts ( wszNewFile, wszFileName,
+                      L".new" );
+
+      return
+        PathFileExistsW (wszNewFile);
+    }
+
+    // In rare cases, SK's DLLs may be stuck in a rogue app and we cannot
+    //   release the lock on them. We need to move the files out of the way.
+    bool shuffleLockedFiles (void) const {
+      wchar_t wszNewFile [MAX_PATH] = { },
+              wszOldFile [MAX_PATH] = { },
+              wszIOFile  [MAX_PATH] = { };
+
+      combineParts (wszNewFile, wszFileName, L".new");
+      combineParts (wszOldFile, wszFileName, L".old");
+      combineParts (wszIOFile,  wszFileName, wszRealExt);
+
+      if (! MoveFileExW ( wszIOFile,  wszOldFile,
+                    MOVEFILE_REPLACE_EXISTING |
+                    MOVEFILE_WRITE_THROUGH ))
+      {
+        // If we cannot replace the existing .old, do an additional dance and 
+        wchar_t    wszSystemTime [64]  = { };
+        wchar_t    wszSystemDate [64]  = { };
+        wchar_t    wszCombinTime [128] = { };
+        
+        GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
+          NULL, NULL, wszSystemDate, 63, NULL);
+        GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
+          NULL, NULL, wszSystemTime, 63);
+
+        StringCchCatW (wszCombinTime, 127, wszSystemDate);
+        StringCchCatW (wszCombinTime, 127, L"_");
+        StringCchCatW (wszCombinTime, 127, wszSystemTime);
+
+        std::wstring wstr = std::wstring (wszCombinTime);
+        
+        extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
+
+        wstr = std::wstring (wszFileName) + L"_" + SKIF_StripInvalidFilenameChars (wstr) + L".old";
+
+        MoveFileExW ( wszIOFile, wstr.c_str(),
+                    MOVEFILE_REPLACE_EXISTING |
+                    MOVEFILE_WRITE_THROUGH );
+        // Mark as remove on next boot
+        MoveFileExW ( wstr.c_str(), NULL,
+                    MOVEFILE_DELAY_UNTIL_REBOOT );
+      }
+      MoveFileExW ( wszNewFile, wszIOFile,
+                    MOVEFILE_REPLACE_EXISTING |
+                    MOVEFILE_WRITE_THROUGH );
+
+      return true;
+    }
+
+    void dance (void) const {
+      FILE* fPID =
+        _wfopen ( wszPIDFile, L"r" );
+
+      if (fPID != nullptr)
+      {
+        int pid   = 0;
+        int count =
+          fwscanf (fPID, L"%li", &pid);
+        fclose    (fPID);
+
+        DeleteFileW (wszPIDFile);
+
+        if (count == 1 &&  pid != 0)
+          SK_TerminatePID (pid, 0x0);
+      }
+
+      shuffleLockedFiles ();
+    }
+  };
+
+  std::vector <updated_file_s>
+               updated_files =
+    { { L"SpecialK64", L".dll", LR"(Servlet\SpecialK64.pid)" },
+      { L"SpecialK32", L".dll", LR"(Servlet\SpecialK32.pid)" } };
+
+  int updates_pending = 0;
+
+  for ( const auto& file : updated_files )
+    if ( file.isNewer () )
+      file.dance ();
+      //++updates_pending;
+
+  /*
+  if (updates_pending > 0)
+  {
+    for ( auto& file : updated_files )
+    {
+      FILE* fPID =
+        _wfopen ( file.wszPIDFile, L"r" );
+
+      if (fPID != nullptr)
+      {
+        int pid   = 0;
+        int count =
+          fwscanf (fPID, L"%li", &pid);
+        fclose    (fPID);
+
+        DeleteFileW (file.wszPIDFile);
+
+        if (count == 1 &&  pid != 0)
+          SK_TerminatePID (pid, 0x0);
+      }
+
+      file.shuffleLockedFiles ();
+    }
+  }
+  */
+}
+
+extern bool SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
 extern bool SKIF_bDisableExitConfirmation;
 
 void SKIF_InjectionContext::_RefreshSKDLLVersions (void)

@@ -1220,6 +1220,13 @@ enum ImGuiCol_
     ImGuiCol_NavWindowingHighlight, // Highlight window when using CTRL+TAB
     ImGuiCol_NavWindowingDimBg,     // Darken/colorize entire screen behind the CTRL+TAB window list, when active
     ImGuiCol_ModalWindowDimBg,      // Darken/colorize entire screen behind a modal window, when one is active
+
+    // Custom
+    ImGuiCol_SKIF_TextBase,
+    ImGuiCol_SKIF_TextCaption,
+    ImGuiCol_SKIF_TextGameTitle,
+
+    // Count
     ImGuiCol_COUNT
 
     // Obsolete names (will be removed)

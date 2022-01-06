@@ -92,8 +92,12 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           //OutputDebugString(SK_UTF8ToWideChar(jf.dump()).c_str());
           //OutputDebugString(L"\n");
 
-          // Abort if we're dealing with a broken manifest
+          // Skip if we're dealing with a broken manifest
           if (jf.is_discarded ( ))
+            continue;
+
+          // Skip if the install location does not exist
+          if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
             continue;
 
           bool isGame = false;
@@ -148,14 +152,26 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
             EGS_record.EGS_AppName          = AppName;
             EGS_record.EGS_DisplayName      = EGS_record.names.normal;
 
-            EGS_record.specialk.profile_dir = lc.executable;
+            EGS_record.specialk.profile_dir = SK_UTF8ToWideChar (EGS_record.EGS_DisplayName);
             EGS_record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 
-
+            // Strip invalid filename characters
+            extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
+            EGS_record.specialk.profile_dir = SKIF_StripInvalidFilenameChars (EGS_record.specialk.profile_dir);
+            
             std::pair <std::string, app_record_s>
               EGS(EGS_record.names.normal, EGS_record);
 
             apps->emplace_back(EGS);
+
+            // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
+            std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(AppName).c_str());
+
+            // Create necessary directories if they do not exist
+            std::filesystem::create_directories (AppCacheDir);
+
+            // Copy manifest to AppCache directory
+            CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
           }
         }
       }

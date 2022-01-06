@@ -94,7 +94,7 @@ FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
 BOOL  SKIF_IsHDR              (void);
 
-HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL);
+HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN");
 HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);
 
 HINSTANCE SKIF_Util_ExplorePath_Formatted (                const wchar_t* const wszFmt, ...);
@@ -118,6 +118,15 @@ const UINT_PTR IDT_REFRESH_GAMES    = 1340;
 
 void ResolveIt  (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
 bool CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
+
+struct skif_directory_watch_s
+{
+  ~skif_directory_watch_s (void);
+
+  bool isSignaled (std::wstring path);
+
+  HANDLE hChangeNotification = INVALID_HANDLE_VALUE;
+};
 
 enum class PopupState {
   Closed,
