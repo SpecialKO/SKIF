@@ -391,6 +391,7 @@ volatile LONG SKIF_PresentIdx    =   0;
 #include <sk_utility/command.h>
 #include <imgui/imgui_internal.h>
 #include "../../version.h"
+#include <fsutil.h>
 
 extern SKIF_InjectionContext _inject;
 
@@ -1145,20 +1146,18 @@ SKIF_Debug_DrawUI (void)
     ImGui::TreePush   ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImColor (144, 238, 144).Value);
-    if (ImGui::Button ( ICON_FA_PLAY " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                                       30.0f * SKIF_ImGui_GlobalDPIScale )))
+    if (ImGui::Button ( ICON_FA_TOGGLE_ON " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
+                                                              30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject (false, SKIF_bStopOnInjection);
     ImGui::PopStyleColor ( );
 
     ImGui::SameLine   ( );
     
     ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
-    if (ImGui::Button ( ICON_FA_STOP " Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                                       30.0f * SKIF_ImGui_GlobalDPIScale )))
+    if (ImGui::Button (ICON_FA_TOGGLE_OFF " Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
+                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject(true);
     ImGui::PopStyleColor ( );
-
-    ImGui::TreePop    ( );
 
     extern void SKIF_putStopOnInjection(bool in);
 
@@ -1176,7 +1175,32 @@ SKIF_Debug_DrawUI (void)
 
       SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
                               "when Special K is injected into a whitelisted game.");
+
+      ImGui::SameLine         ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
     }
+
+    extern bool SKIF_ImGui_IconButton (ImGuiID id, const char* icon, const char* label, const ImVec4 & colIcon);
+    
+    if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Config Root", ImColor(255, 207, 72)))
+      SKIF_Util_ExplorePath (path_cache.specialk_userdata.path);
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       (
+      SK_WideCharToUTF8 (path_cache.specialk_userdata.path).c_str ()
+    );
+
+    ImGui::TreePop    ( );
+
+    /*
+    ImGui::BeginChildFrame (0x97848, ImVec2 (150.0f, ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale), ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::TextColored (ImColor (255, 207, 72), ICON_FA_FOLDER_OPEN);
+    ImGui::SameLine    ( );
+    static bool thing;
+    ImGui::Selectable ("Config Root", thing,  ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_SpanAvailWidth);
+    ImGui::EndChildFrame ();
+    */
 
     ImGui::NextColumn       ( ); // Next Column
 

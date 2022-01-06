@@ -165,7 +165,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
             apps->emplace_back(EGS);
 
             // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
-            std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(AppName).c_str());
+            std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
 
             // Create necessary directories if they do not exist
             std::filesystem::create_directories (AppCacheDir);
@@ -188,7 +188,7 @@ void SKIF_EGS_GetCatalogNamespaces (bool forceUpdate)
 {
   if (SKIF_EGS_JSON_CatalogNamespaces == NULL || forceUpdate)
   {
-    std::wstring root = SK_FormatStringW(LR"(%ws\Assets\EGS\)", std::wstring(path_cache.specialk_userdata.path).c_str());
+    std::wstring root = SK_FormatStringW(LR"(%ws\Assets\EGS\)", path_cache.specialk_userdata.path);
     std::wstring path = root + LR"(cache\namespaces.json)";
 
     // Create necessary directories if they do not exist
@@ -270,8 +270,8 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
       //OutputDebugString(offerID.c_str());
       //OutputDebugString(L"\n");
 
-      std::wstring targetPath      = SK_FormatStringW(LR"(%ws\Assets\EGS\cache\offers\%ws.json)", std::wstring(path_cache.specialk_userdata.path).c_str(), offerID.c_str());
-      std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", std::wstring(path_cache.specialk_userdata.path).c_str(), SK_UTF8ToWideChar(AppName).c_str());
+      std::wstring targetPath      = SK_FormatStringW(LR"(%ws\Assets\EGS\cache\offers\%ws.json)", path_cache.specialk_userdata.path, offerID.c_str());
+      std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
 
       // Download offer JSON
       if (! PathFileExists (targetPath.c_str()))

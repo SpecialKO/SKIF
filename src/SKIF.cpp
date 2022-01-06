@@ -45,7 +45,8 @@ extern void SKIF_ProcessCommandLine (const char* szCmd);
 
 int  SKIF_iNotifications           = 2,
      SKIF_iGhostVisibility         = 0,
-     SKIF_iStyle                   = 0,
+     SKIF_iStyle                   = 0;
+uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
      SKIF_bDisableDPIScaling       = false,
@@ -507,6 +508,29 @@ void SKIF_ImGui_BeginTabChildFrame (void)
         ImGuiWindowFlags_NavFlattened |
         ImGuiWindowFlags_NoBackground
   );
+}
+
+bool SKIF_ImGui_IconButton (ImGuiID id, const char* icon, const char* label, const ImVec4& colIcon)
+{
+  bool ret   = false;
+
+  ImGui::BeginChildFrame (id, ImVec2 (ImGui::CalcTextSize(icon)  .x +
+                                           ImGui::CalcTextSize(label) .x +
+                                           ImGui::CalcTextSize("    ").x,
+                                           ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+  );
+
+  ImVec2 iconPos = ImGui::GetCursorPos ( );
+  ImGui::ItemSize      (ImVec2 (ImGui::CalcTextSize (icon) .x, ImGui::GetTextLineHeightWithSpacing()));
+  ImGui::SameLine      ( );
+  ImGui::Selectable    (label, &ret,  ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_SpanAvailWidth);
+  ImGui::SetCursorPos  (iconPos);
+  ImGui::TextColored   (ImColor (255, 207, 72), ICON_FA_FOLDER_OPEN);
+
+  ImGui::EndChildFrame ( );
+
+  return ret;
 }
 
 const ImWchar*
@@ -2661,9 +2685,10 @@ void SKIF_UI_DrawPlatformStatus (void)
     {
       ImGui::Spacing          ( );
       ImGui::SameLine         ( );
-      ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_TIMES " ");
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
+      ImGui::ItemSize         (ImVec2 (ImGui::CalcTextSize (ICON_FA_CHECK " ") .x, ImGui::GetTextLineHeight()));
+      //ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_MINUS " ");
+      ImGui::SameLine         ( );
+      ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
     }
 
     if (p.ProcessName == L"SKIFsvc64.exe")
@@ -3216,8 +3241,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     style.FrameBorderSize = 0.0F;
   }
   else {
-    style.TabBorderSize   = 1.0F;
-    style.FrameBorderSize = 1.0F;
+    style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
+    style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
   }
 
   // Setup Platform/Renderer bindings
@@ -3310,12 +3335,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       hInjectAck.m_h
     };
 
-    DWORD dwWait =
-      MsgWaitForMultipleObjects (              0,
-                                //(hSwapWait.m_h != 0) ? 1
-                                                    //: 0,
-                                      hWaitStates, TRUE,
-                                          INFINITE, QS_ALLINPUT );
+    //DWORD dwWait =
+    MsgWaitForMultipleObjects (              0,
+                              //(hSwapWait.m_h != 0) ? 1
+                                                  //: 0,
+                                    hWaitStates, TRUE,
+                                        INFINITE, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
     //
@@ -3574,6 +3599,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         style.DisplayWindowPadding                  = SKIF_ImGui_DefaultStyle.DisplayWindowPadding                * SKIF_ImGui_GlobalDPIScale;
         style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
         style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
+
+        // These are not a part of the default style so need to assign them separately
+        if (! SKIF_bDisableBorders)
+        {
+          style.TabBorderSize                       = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
+          style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
+        }
       }
 
       FLOAT SKIF_GetHDRWhiteLuma (void);
@@ -4166,8 +4198,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 style.FrameBorderSize = 0.0F;
               }
               else {
-                style.TabBorderSize   = 1.0F;
-                style.FrameBorderSize = 1.0F;
+                style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
+                style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
               }
             }
 

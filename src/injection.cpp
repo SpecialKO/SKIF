@@ -542,7 +542,7 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
     { { L"SpecialK64", L".dll", LR"(Servlet\SpecialK64.pid)" },
       { L"SpecialK32", L".dll", LR"(Servlet\SpecialK32.pid)" } };
 
-  int updates_pending = 0;
+  //int updates_pending = 0;
 
   for ( const auto& file : updated_files )
   {
@@ -657,17 +657,18 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::NewLine         ();
 
   // Config Root
-  static std::wstring root_dir =
-    std::wstring (path_cache.specialk_userdata.path);
+  //static std::wstring root_dir =
+  //  path_cache.specialk_userdata.path;
 
   if (ImGui::Selectable ("Centralized"))
   {
-    SKIF_Util_OpenURI (root_dir);
+    SKIF_Util_ExplorePath (path_cache.specialk_userdata.path);
+    //SKIF_Util_OpenURI (root_dir);
   }
 
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText       (
-    SK_WideCharToUTF8 (root_dir).c_str ()
+    SK_WideCharToUTF8 (path_cache.specialk_userdata.path).c_str ()
   );
   //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
@@ -757,8 +758,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if (runState == Started || runState == Stopped)
   {
     const char *szStartStopLabel =
-      bCurrentState ?  "Stop Service###GlobalStartStop"  :
-                       "Start Service###GlobalStartStop";
+      bCurrentState ?  ICON_FA_TOGGLE_ON  "  Service###GlobalStartStop"  :
+                       ICON_FA_TOGGLE_OFF "  Service###GlobalStartStop";
 
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
@@ -766,8 +767,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   else
-    ImGui::ButtonEx (runState == Stopping ? "Stopping...###GlobalStartStop" :
-                                            "Starting...###GlobalStartStop",
+    ImGui::ButtonEx (runState == Stopping ? ICON_FA_TOGGLE_ON  "  Stopping...###GlobalStartStop" :
+                                            ICON_FA_TOGGLE_OFF "  Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );

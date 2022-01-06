@@ -8,7 +8,7 @@
 bool SKIF_RemoveCustomAppID (uint32_t appid)
 {
   std::wstring SKIFRegistryKey = SK_FormatStringW (LR"(SOFTWARE\Kaldaien\Special K\Games\%i\)", appid);
-  std::wstring SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", std::wstring(path_cache.specialk_userdata.path).c_str(), appid);
+  std::wstring SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata.path, appid);
   SKIFCustomPath += L"\0\0";
 
   SHFILEOPSTRUCTW fileOps{};
