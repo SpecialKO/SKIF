@@ -1225,6 +1225,10 @@ enum ImGuiCol_
     ImGuiCol_SKIF_TextBase,
     ImGuiCol_SKIF_TextCaption,
     ImGuiCol_SKIF_TextGameTitle,
+    ImGuiCol_SKIF_Success,          // Green
+    ImGuiCol_SKIF_Warning,          // Orange
+    ImGuiCol_SKIF_Failure,          // Red
+    ImGuiCol_SKIF_Info,             // Blue
 
     // Count
     ImGuiCol_COUNT

@@ -8,19 +8,12 @@
 #include <string>
 #include <json.hpp>
 
+extern void  SKIF_GetWebResource (std::wstring url, std::wstring_view destination);
+
 static nlohmann::json SKIF_EGS_JSON_CatalogNamespaces = NULL;
 
 void         SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps);
 void         SKIF_EGS_GetCatalogNamespaces (bool forceUpdate = false); // Populates SKIF_EGS_JSON_CatalogNamespaces
-
-struct skif_get_asset_t {
-  wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
-  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH] = { };
-  wchar_t wszLocalPath[MAX_PATH + 2] = { };
-};
-
-DWORD WINAPI SKIF_EGS_FetchAsset  (skif_get_asset_t* get);
-void         SKIF_EGS_GetWebAsset (std::wstring url, std::wstring_view   path);
 void         SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName);
 
 static std::wstring SKIF_EGS_AppDataPath;

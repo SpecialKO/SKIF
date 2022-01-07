@@ -817,7 +817,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "? ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "? ");
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F),
                                                           "The service injects Special K into most user processes."
@@ -830,7 +830,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     (); ImGui::SameLine ();
-    ImGui::TextColored (ImColor::HSV (0.55F, 0.99F, 1.F), "?!");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "?!");
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), 
                                                           "Stop the service before playing a multiplayer game."

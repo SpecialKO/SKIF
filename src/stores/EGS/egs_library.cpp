@@ -197,7 +197,7 @@ void SKIF_EGS_GetCatalogNamespaces (bool forceUpdate)
     // Download namespaces.json if it does not exist or if we're forcing an update
     if (! PathFileExists(path.c_str()) || forceUpdate)
     {
-      SKIF_EGS_GetWebAsset (L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/namespaces.json", path);
+      SKIF_GetWebResource (L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/namespaces.json", path);
     }
     else {
       WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
@@ -226,7 +226,7 @@ void SKIF_EGS_GetCatalogNamespaces (bool forceUpdate)
           // Compare with system time, and if system time is later (1), then update the local cache
           if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
           {
-            SKIF_EGS_GetWebAsset(L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/namespaces.json", path);
+            SKIF_GetWebResource (L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/namespaces.json", path);
           }
         }
       }
@@ -258,7 +258,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
     */
 
     // Force an update of the file if it lacks the expected namespace we're looking for
-    if (SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace].is_null())
+    if (SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace].is_null ())
       SKIF_EGS_GetCatalogNamespaces (true);
 
     for (auto& offer : SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace])
@@ -276,7 +276,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
       // Download offer JSON
       if (! PathFileExists (targetPath.c_str()))
       {
-        SKIF_EGS_GetWebAsset (SK_FormatStringW (L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/offers/%ws.json", offerID.c_str()), targetPath);
+        SKIF_GetWebResource (SK_FormatStringW (L"https://raw.githubusercontent.com/srdrabx/offers-tracker/master/database/offers/%ws.json", offerID.c_str()), targetPath);
       }
 
       std::ifstream fileOffer(targetPath);
@@ -325,7 +325,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
               // Download a downscaled copy of the cover
               //assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
-              SKIF_EGS_GetWebAsset (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+              SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
 
               assetDownloaded = true;
             }
@@ -337,7 +337,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
               OutputDebugString(SK_UTF8ToWideChar(image["url"]).c_str());
               OutputDebugString(L"\n");
 
-              SKIF_EGS_GetWebAsset(SK_UTF8ToWideChar(image["url"]), targetAssetPath + L"ProductLogo.jpg");
+              SKIF_GetWebResource (SK_UTF8ToWideChar(image["url"]), targetAssetPath + L"ProductLogo.jpg");
             }
             */
           }
@@ -350,243 +350,6 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
     }
   }
 }
-
-
-DWORD
-WINAPI
-SKIF_EGS_FetchAsset (skif_get_asset_t* get)
-{
-  ULONG ulTimeout = 5000UL;
-
-  PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
-  HINTERNET hInetHTTPGetReq  = nullptr,
-            hInetHost        = nullptr,
-  hInetRoot                  =
-    InternetOpen (
-      L"Special K - Asset Crawler",
-        INTERNET_OPEN_TYPE_DIRECT,
-          nullptr, nullptr,
-            0x00
-    );
-
-  // (Cleanup On Error)
-  auto CLEANUP = [&](bool clean = false) ->
-  DWORD
-  {
-    if (! clean)
-    {
-      DWORD dwLastError =
-           GetLastError ();
-
-      OutputDebugStringW (
-        ( std::wstring (L"WinInet Failure (") +
-              std::to_wstring (dwLastError)   +
-          std::wstring (L"): ")               +
-                 _com_error   (dwLastError).ErrorMessage ()
-        ).c_str ()
-      );
-    }
-
-    if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
-    if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
-    if (hInetRoot       != nullptr) InternetCloseHandle (hInetRoot);
-
-    skif_get_asset_t* to_delete = nullptr;
-    std::swap   (get,   to_delete);
-    delete              to_delete;
-
-    return 0;
-  };
-
-  if (hInetRoot == nullptr)
-    return CLEANUP ();
-
-  DWORD_PTR dwInetCtx = 0;
-
-  hInetHost =
-    InternetConnect ( hInetRoot,
-                        get->wszHostName,
-                          INTERNET_DEFAULT_HTTP_PORT,
-                            nullptr, nullptr,
-                              INTERNET_SERVICE_HTTP,
-                                0x00,
-                                  (DWORD_PTR)&dwInetCtx );
-
-  if (hInetHost == nullptr)
-  {
-    return CLEANUP ();
-  }
-
-  hInetHTTPGetReq =
-    HttpOpenRequest ( hInetHost,
-                        nullptr,
-                          get->wszHostPath,
-                            L"HTTP/1.1",
-                              nullptr,
-                                rgpszAcceptTypes,
-                                                                    INTERNET_FLAG_IGNORE_CERT_DATE_INVALID |
-                                  INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
-                                  INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
-                                    (DWORD_PTR)&dwInetCtx );
-
-
-  // Wait 2500 msecs for a dead connection, then give up
-  //
-  InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
-                         &ulTimeout,    sizeof (ULONG) );
-
-  if (hInetHTTPGetReq == nullptr)
-  {
-    return CLEANUP ();
-  }
-
-  if ( HttpSendRequestW ( hInetHTTPGetReq,
-                            nullptr,
-                              0,
-                                nullptr,
-                                  0 ) )
-  {
-    DWORD dwStatusCode        = 0;
-    DWORD dwStatusCode_Len    = sizeof (DWORD);
-
-    DWORD dwContentLength     = 0;
-    DWORD dwContentLength_Len = sizeof (DWORD);
-    DWORD dwSizeAvailable;
-
-    HttpQueryInfo ( hInetHTTPGetReq,
-                     HTTP_QUERY_STATUS_CODE |
-                     HTTP_QUERY_FLAG_NUMBER,
-                       &dwStatusCode,
-                         &dwStatusCode_Len,
-                           nullptr );
-
-    if (dwStatusCode == 200)
-    {
-      HttpQueryInfo ( hInetHTTPGetReq,
-                        HTTP_QUERY_CONTENT_LENGTH |
-                        HTTP_QUERY_FLAG_NUMBER,
-                          &dwContentLength,
-                            &dwContentLength_Len,
-                              nullptr );
-
-      std::vector <char> http_chunk;
-      std::vector <char> concat_buffer;
-
-      while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
-                                             &dwSizeAvailable,
-                                               0x00, NULL )
-        )
-      {
-        if (dwSizeAvailable > 0)
-        {
-          DWORD dwSizeRead = 0;
-
-          if (http_chunk.size () < dwSizeAvailable)
-              http_chunk.resize   (dwSizeAvailable);
-
-          if ( InternetReadFile ( hInetHTTPGetReq,
-                                    http_chunk.data (),
-                                      dwSizeAvailable,
-                                        &dwSizeRead )
-             )
-          {
-            if (dwSizeRead == 0)
-              break;
-
-            concat_buffer.insert ( concat_buffer.cend   (),
-                                    http_chunk.cbegin   (),
-                                      http_chunk.cbegin () + dwSizeRead );
-
-            if (dwSizeRead < dwSizeAvailable)
-              break;
-          }
-        }
-
-        else
-          break;
-      }
-
-      FILE *fOut =
-        _wfopen ( get->wszLocalPath, L"wb+" );
-
-      if (fOut != nullptr)
-      {
-        fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
-        fclose (fOut);
-      }
-    }
-  }
-
-  CLEANUP (true);
-
-  return 1;
-}
-
-void
-SKIF_EGS_GetWebAsset (std::wstring url, std::wstring_view destination)
-{
-  auto* get =
-    new skif_get_asset_t { };
-
-  URL_COMPONENTSW urlcomps = { };
-
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
-
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
-
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
-
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
-  {
-    wcsncpy ( get->wszLocalPath,
-                           destination.data (),
-                       MAX_PATH );
-
-    SKIF_EGS_FetchAsset (get);
-  }
-}
-
-void
-SKIF_EGS_GetWebAssetThreaded (std::wstring url, std::wstring_view destination)
-{
-  auto* get =
-    new skif_get_asset_t { };
-
-  URL_COMPONENTSW urlcomps = { };
-
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
-
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
-
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
-
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
-  {
-    wcsncpy ( get->wszLocalPath,
-                           destination.data (),
-                       MAX_PATH );
-
-    _beginthreadex (
-       nullptr, 0, (_beginthreadex_proc_type)SKIF_EGS_FetchAsset,
-           get, 0x0, nullptr
-                   );
-  }
-}
-
 
 
 bool

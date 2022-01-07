@@ -394,6 +394,7 @@ volatile LONG SKIF_PresentIdx    =   0;
 #include <fsutil.h>
 
 extern SKIF_InjectionContext _inject;
+extern void SKIF_ImGui_Spacing (float multiplier = 0.25f);
 
 struct SKIF_Console : SK_IVariableListener
 {
@@ -1075,11 +1076,15 @@ SKIF_Debug_DrawUI (void)
     */
     
     extern void
-      SKIF_ImGui_Columns         (int columns_count, const char* id, bool border, bool resizeble = false);
+      SKIF_ImGui_Columns           (int columns_count, const char* id, bool border, bool resizeble = false);
     extern void
-      SKIF_UI_DrawPlatformStatus (void);
+      SKIF_UI_DrawPlatformStatus   (void);
+    extern void
+      SKIF_UI_DrawComponentVersion (void);
 
-    ImGui::NewLine          ( );
+    //ImGui::NewLine          ( );
+
+    SKIF_ImGui_Spacing();
 
     SKIF_ImGui_Columns      (2, nullptr, true);
 
@@ -1087,57 +1092,64 @@ SKIF_Debug_DrawUI (void)
       ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
     );
 
+    /*
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                               "Description:"
                               );
 
     // ImColor::HSV (0.11F, 1.F, 1.F)   // Orange
-    // ImColor::HSV (0.55F, 0.99F, 1.F) // Blue Bullets
+    // ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) // Blue Bullets
     // ImColor(100, 255, 218); // Teal
     //ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
 
     SKIF_ImGui_Spacing      ( );
+    */
+    
 
     ImGui::PushStyleColor   (
-      ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
                               );
 
-    ImGui::Text             ( "This tab allows users to easily identify (and if necessary terminate) processes that");
-    ImGui::Text             ( "Special K is injected into.");
+    ImGui::TextWrapped      ("Use the below lists to identify injected processes. While many processes may be listed"
+                             " only whitelisted ones using a render API will see Special K active. Remaning processes"
+                             " has it inert and can be ignored unless an issue is being experienced."
+    );
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
     ImGui::SameLine         ( );
 
 #ifdef _WIN64
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active 64-bit Global Injections");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "Active 64-bit Global Injections");
     ImGui::SameLine         ( );
-    ImGui::Text             ("lists processes where Special K is currently active in,");
+    ImGui::Text             ("lists processes where Special K is currently active.");
 #else
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active 32-bit Global Injections");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "Active 32-bit Global Injections");
     ImGui::SameLine         ( );
-    ImGui::Text             ("lists processes where Special K is currently active in,");
+    ImGui::Text             ("lists processes where Special K is currently active.");
 #endif
-    ImGui::Text             ("meaning the process is whitelisted and SK has detected the use of a render API.");
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
     ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f), "Active Process Monitoring");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "Processes");
     ImGui::SameLine         ( );
-    ImGui::Text             ("lists all currently injected processes.");
-
-    ImGui::PopStyleColor    ( );
+    ImGui::Text             ("lists all currently injected processes, both inert and active.");
 
     ImGui::NewLine          ( );
     
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                              "Toggle Service Status:"
+                              "Toggle Service:"
                               );
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::TextWrapped      ("A forced stop of the service may sometime help in case of an issue,"
+                             " even if the service is not running.");
 
     SKIF_ImGui_Spacing      ( );
 
@@ -1145,7 +1157,7 @@ SKIF_Debug_DrawUI (void)
 
     ImGui::TreePush   ( );
 
-    ImGui::PushStyleColor (ImGuiCol_Text, ImColor (144, 238, 144).Value);
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
     if (ImGui::Button ( ICON_FA_TOGGLE_ON " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
                                                               30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject (false, SKIF_bStopOnInjection);
@@ -1181,7 +1193,7 @@ SKIF_Debug_DrawUI (void)
       ImGui::SameLine         ( );
     }
 
-    extern bool SKIF_ImGui_IconButton (ImGuiID id, const char* icon, const char* label, const ImVec4 & colIcon);
+    extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
     
     if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Config Root", ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath (path_cache.specialk_userdata.path);
@@ -1202,6 +1214,8 @@ SKIF_Debug_DrawUI (void)
     ImGui::EndChildFrame ();
     */
 
+    ImGui::PopStyleColor    ( );
+
     ImGui::NextColumn       ( ); // Next Column
 
     ImGui::TextColored (
@@ -1217,7 +1231,7 @@ SKIF_Debug_DrawUI (void)
 
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Versions:"
+        "Components:"
     );
 
     SKIF_ImGui_Spacing      ( );
@@ -1226,57 +1240,16 @@ SKIF_Debug_DrawUI (void)
       ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
                               );
 
-    ImGui::BeginGroup       ( );
-
-    ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 32-bit");
-
-#ifdef _WIN64
-    ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Special K 64-bit");
-#endif
-    
-    ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor::HSV (0.55F, 0.99F, 1.F), u8"• ");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    "Frontend (SKIF)");
-
-    ImGui::EndGroup         ( );
-    ImGui::SameLine         ( );
-    ImGui::BeginGroup       ( );
-    
-    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer32.c_str());
-
-#ifdef _WIN64
-    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    _inject.SKVer64.c_str());
-#endif
-    
-    ImGui::TextColored      (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "v");
-    ImGui::SameLine         ( );
-    ImGui::ItemSize         (ImVec2 (0.0f, ImGui::GetTextLineHeight ()));
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (ImColor(1.0f, 1.0f, 1.0f, 1.0f),    SKIF_VERSION_STR_A " (" __DATE__ ")");
-
-    ImGui::EndGroup         ( );
+    SKIF_UI_DrawComponentVersion ();
 
     ImGui::PopStyleColor    ( );
 
     ImGui::Columns          (1);
 
-    ImGui::NewLine          ( );
+    ImGui::Spacing          ( );
+    ImGui::Spacing          ( );
 
-    ImGui::Separator (                   );
+    //ImGui::Separator      ( );
 
     static
       std::once_flag init_ntdll;
@@ -1299,35 +1272,45 @@ SKIF_Debug_DrawUI (void)
     if (ImGui::CollapsingHeader("Active 32-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
 #endif
     {
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), " %s", "PID");
+      ImGui::PushStyleColor (
+        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                              );
+
+      ImGui::Text        (" %s", "PID");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 ( 55.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Type");
+      ImGui::Text        ("%s", "Type");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Process Name");
+      ImGui::Text        ("%s", "Process Name");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Steam ID");
+      ImGui::Text        ("%s", "Steam ID");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "Window Title");
+      ImGui::Text        ("%s", "Window Title");
     //ImGui::SameLine    ( );
     //ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
     //ImGui::SameLine    ( );
-    //ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f ), "%s", "UWP Package Name");
+    //ImGui::Text        ("%s", "UWP Package Name");
+      
+      ImGui::PopStyleColor  ( );
 
-      ImGui::Separator   ( );
+      ImGui::Separator      ( );
+
+      ImGui::PushStyleColor (
+        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                              );
 
       if (num_pids == 0)
 #ifdef _WIN64
-        ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "64-bit Special K is currently not active in any injected process.");
+        ImGui::Text        ("64-bit Special K is currently not active in any injected process.");
 #else
-        ImGui::TextColored (ImVec4 ( .8f, .8f, .8f, 1.f ), "32-bit Special K is currently not active in any injected process.");
+        ImGui::Text        ("32-bit Special K is currently not active in any injected process.");
 #endif
 
       while (num_pids > 0)
@@ -1396,7 +1379,9 @@ SKIF_Debug_DrawUI (void)
         }
       }
 
-      SKIF_ImGui_Spacing ( );
+      ImGui::PopStyleColor ( );
+
+      SKIF_ImGui_Spacing   ( );
     }
 
     extern bool SKIF_ImGui_IsFocused (void);
@@ -1675,45 +1660,56 @@ SKIF_Debug_DrawUI (void)
       }
     };
 
-    static DWORD hoveredPID = 0;
-    std::string  header_title = SK_FormatString ( "%s Active Process Monitoring###ActiveProcessMonitoring", ((active_listing) ? ICON_FA_TOGGLE_ON
-                                                                          : ICON_FA_TOGGLE_OFF));
+    ImGui::Spacing          ( );
+    ImGui::Spacing          ( );
 
-    active_listing = ImGui::CollapsingHeader (header_title.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+    static DWORD hoveredPID = 0;
+
+    active_listing = ImGui::CollapsingHeader ("Processes###ActiveProcessMonitoring", ImGuiTreeNodeFlags_DefaultOpen);
 
     if (active_listing)
     {
+      ImGui::PushStyleColor (
+        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                              );
+
       ImGui::ItemSize    (ImVec2 ( 20.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Actions");
+      ImGui::Text        ("%s", "Actions");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "PID");
+      ImGui::Text        ("%s", "PID");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Type");
+      ImGui::Text        ("%s", "Type");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Arch");
+      ImGui::Text        ("%s", "Arch");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Process Name");
+      ImGui::Text        ("%s", "Process Name");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "%s", "Details");
+      ImGui::Text        ("%s", "Details");
+
+      ImGui::PopStyleColor ( );
 
       ImGui::Separator   ( );
 
       SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
                                                    ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+      
+      ImGui::PushStyleColor (
+        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                              );
 
       if (executables_64.size() == 0 && executables_32.size() == 0)
-        ImGui::TextColored (ImVec4 (.8f, .8f, .8f, 1.f), "Special K is currently not injected in any process.");
+        ImGui::Text ("Special K is currently not injected in any process.");
 
       for ( auto& proc64 : executables_64 )
       {
@@ -1743,7 +1739,7 @@ SKIF_Debug_DrawUI (void)
           hoveredPID = proc64.first;
         ImGui::SetCursorPos (curPos);
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban64")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
@@ -1756,13 +1752,13 @@ SKIF_Debug_DrawUI (void)
           SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
         
         ImGui::SameLine        ( );
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.0f, .0f, .0f, .0f));
 
         ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question64");
         ImGui::SameLine        ( );
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check64") && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
@@ -1776,7 +1772,7 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PopStyleColor   (3);
         
-        ImVec4 colText = (hoveredPID == proc64.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
+        ImVec4 colText = (hoveredPID == proc64.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase);
 
         ImGui::SameLine        ( );        
         ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
@@ -1794,7 +1790,7 @@ SKIF_Debug_DrawUI (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (_Active64.count (proc64.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
+        ImGui::TextColored     (_Active64.count (proc64.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
                                                                : colText,
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
@@ -1836,7 +1832,7 @@ SKIF_Debug_DrawUI (void)
           hoveredPID = proc32.first;
         ImGui::SetCursorPos (curPos);
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImVec4 (.9f, .1f, .1f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
@@ -1849,13 +1845,13 @@ SKIF_Debug_DrawUI (void)
           SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
         
         ImGui::SameLine        ( );
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImVec4 (.8f, .7f, .0f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.0f, .0f, .0f, .0f));
 
         ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question32");    
         ImGui::SameLine        ( );
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImVec4 (.1f, .9f, .1f, 1.f)
+        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                                                                      : ImVec4 (.1f, .1f, .1f, .5f));
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check32") && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
@@ -1869,7 +1865,7 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PopStyleColor   (3);
         
-        ImVec4 colText = (hoveredPID == proc32.first) ? ImVec4 (1.f, 1.f, 1.f, 1.f) : ImVec4 (.8f, .8f, .8f, 1.f);
+        ImVec4 colText = (hoveredPID == proc32.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase);
 
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
@@ -1887,7 +1883,7 @@ SKIF_Debug_DrawUI (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (_Active32.count (proc32.first) ? ImVec4 (.2f, 1.f, .2f, 1.f)
+        ImGui::TextColored     (_Active32.count (proc32.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
                                                                : colText,
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
@@ -1900,7 +1896,13 @@ SKIF_Debug_DrawUI (void)
 
         ImGui::PopID  ( );
       }
-      ImGui::EndChildFrame ();
+
+      if (! ImGui::IsAnyItemHovered ( ))
+        hoveredPID = 0;
+
+      ImGui::PopStyleColor ( );
+
+      ImGui::EndChildFrame ( );
     }
     
     // Confirm prompt
