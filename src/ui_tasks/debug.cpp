@@ -1158,7 +1158,7 @@ SKIF_Debug_DrawUI (void)
     ImGui::TreePush   ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
-    if (ImGui::Button ( ICON_FA_TOGGLE_ON " Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
+    if (ImGui::Button ( ICON_FA_TOGGLE_ON "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
                                                               30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject (false, SKIF_bStopOnInjection);
     ImGui::PopStyleColor ( );
@@ -1166,7 +1166,7 @@ SKIF_Debug_DrawUI (void)
     ImGui::SameLine   ( );
     
     ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
-    if (ImGui::Button (ICON_FA_TOGGLE_OFF " Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
+    if (ImGui::Button (ICON_FA_TOGGLE_OFF "  Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
                                                              30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject(true);
     ImGui::PopStyleColor ( );

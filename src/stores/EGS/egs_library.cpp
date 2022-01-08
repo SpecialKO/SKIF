@@ -176,10 +176,12 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         }
       }
 
+      /*
       if (hasGames)
       {
         SKIF_EGS_GetCatalogNamespaces ( );
       }
+      */
     }
   }
 }
@@ -346,6 +348,50 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
           if (assetDownloaded)
             break;
         }
+      }
+    }
+  }
+}
+
+void SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
+{
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
+  std::filesystem::create_directories(targetAssetPath);
+
+  // Download JSON for the offered games/edition/base
+  if (! PathFileExists ((targetAssetPath + L"offer.json").c_str()))
+  {
+    std::wstring query = SK_FormatStringW(
+      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"6e7c4dd0177150eb9a47d624be221929582df8648e7ec271c821838ff4ee148e"}})",
+      SK_UTF8ToWideChar(CatalogNamespace).c_str()
+    );
+
+    SKIF_GetWebResource (query, targetAssetPath + L"offer.json");
+  }
+  
+  std::ifstream fileOffer(targetAssetPath + L"offer.json");
+  nlohmann::json jf = nlohmann::json::parse(fileOffer, nullptr, false);
+  fileOffer.close();
+
+  if (jf.is_discarded ( ))
+  {
+    DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+  }
+  else
+  {
+    bool assetDownloaded = false;
+
+    for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
+    {
+      if (image["type"].dump() == R"("OfferImageTall")" && ! PathFileExists ((targetAssetPath + L"OfferImageTall.jpg").c_str()))
+      {
+        // Convert the URL value to a regular string
+        std::string assetUrl = image["url"];
+
+        // Download a downscaled copy of the cover
+        //assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+
+        SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
       }
     }
   }

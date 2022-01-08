@@ -259,7 +259,9 @@ LoadLibraryTexture (
         uint32_t                            appid,
         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        app_record_s*                       pApp = nullptr)
+        app_record_s*                       pApp = nullptr,
+        ImVec2&                             vCoverUv0 = ImVec2(0,0),
+        ImVec2&                             vCoverUv1 = ImVec2(0,0))
 {
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
@@ -344,9 +346,9 @@ LoadLibraryTexture (
       if      (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
         load_str =               EGSAssetPath + L"OfferImageTall.jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW ((EGSAssetPath + L"ProductLogo.jpg").c_str()))
-        load_str =               EGSAssetPath + L"ProductLogo.jpg";
+      //else if (libTexToLoad == LibraryTexture::Icon &&
+      //         PathFileExistsW ((EGSAssetPath + L"ProductLogo.jpg").c_str()))
+      //  load_str =               EGSAssetPath + L"ProductLogo.jpg";
     }
   }
 
@@ -484,7 +486,7 @@ LoadLibraryTexture (
     }
   }
 
-  // Push the existing texture to a stack to be released after the frame 
+  // Push the existing texture to a stack to be released after the frame
   if (pLibTexSRV.p != nullptr)
   {
     extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
@@ -497,6 +499,42 @@ LoadLibraryTexture (
     DirectX::ScratchImage* pImg   =
                                 &img;
     DirectX::ScratchImage   converted_img;
+
+    // Start aspect ratio
+    vCoverUv0 = ImVec2(0.f, 0.f); // Top left corner
+    vCoverUv1 = ImVec2(1.f, 1.f); // Bottom right corner
+    ImVec2 vecTex2D = ImVec2(600.f, 900.f);
+
+    vecTex2D.x = static_cast<float>(meta.width);
+    vecTex2D.y = static_cast<float>(meta.height);
+
+    ImVec2 diff = ImVec2(0.0f, 0.0f);
+
+    // Crop wider aspect ratios by their width
+    if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
+    {
+      float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
+      diff.x = (600.0f / newWidth);
+      diff.x -= 1.0f;
+      diff.x /= 2;
+
+      vCoverUv0.x = 0.f - diff.x;
+      vCoverUv1.x = 1.f + diff.x;
+    }
+
+    // Crop thinner aspect ratios by their height
+    else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
+    {
+      float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
+      diff.y = (900.0f / newHeight);
+      diff.y -= 1.0f;
+      diff.y /= 2;
+
+      vCoverUv1.y = 0.f - diff.y;
+      vCoverUv1.y = 1.f + diff.y;
+    }
+
+    // End aspect ratio
 
     // We don't want single-channel icons, so convert to RGBA
     if (meta.format == DXGI_FORMAT_R8_UNORM)
@@ -821,7 +859,7 @@ SKIF_GameManagement_DrawTab (void)
 
   static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-  static ImVec2                             vecTex2D;
+  //static ImVec2                             vecTex2D;
 
   static ImVec2 vecCoverUv0 = ImVec2 (0, 0), 
                 vecCoverUv1 = ImVec2 (1, 1);
@@ -896,6 +934,7 @@ SKIF_GameManagement_DrawTab (void)
     return ret;
   };
 
+  static volatile LONG cover_thread = 0;
   static volatile LONG need_sort    = 0;
   bool                 sort_changed = false;
 
@@ -1144,6 +1183,13 @@ SKIF_GameManagement_DrawTab (void)
   static int   tmpSKIF_iDimCovers = SKIF_iDimCovers;
   const  float fTintMin = 0.75f;
   static float fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
+  
+  static
+    app_record_s* pApp = nullptr;
+
+  for (auto& app : apps)
+    if (app.second.id == appid)
+      pApp = &app.second;
 
   // Apply changes when the selected game changes
   if (update)
@@ -1193,12 +1239,12 @@ SKIF_GameManagement_DrawTab (void)
 
   if (ImGui::BeginPopup ("CoverMenu"))
   {
-    static
-      app_record_s* pApp = nullptr;
+    //static
+     // app_record_s* pApp = nullptr;
 
-    for (auto& app : apps)
-      if (app.second.id == appid)
-        pApp = &app.second;
+    //for (auto& app : apps)
+    //  if (app.second.id == appid)
+    //    pApp = &app.second;
 
     if (pApp != nullptr)
     {
@@ -1449,6 +1495,137 @@ SKIF_GameManagement_DrawTab (void)
 
     update  = false;
 
+    if (! sort_changed && ! InterlockedCompareExchange(&cover_thread, 1, 0))
+    {
+      // We're going to stream the cover in asynchronously on this thread
+      _beginthread([](void*)->void
+      {
+        CoInitializeEx(nullptr, 0x0);
+
+        std::wstring load_str;
+
+        // SKIF
+        // SKIF Custom
+        // GOG
+        if ( appid == SKIF_STEAM_APPID ||
+              pApp->store == "SKIF"     ||
+              pApp->store == "GOG" )
+        {
+          load_str = L"_library_600x900_x2.jpg";
+
+          if (pApp->store == "SKIF" || pApp->store == "EGS")
+            load_str = L"cover";
+          else if (pApp->store == "GOG")
+            load_str = L"*_glx_vertical_cover.webp";
+        }
+
+        // EGS
+        else if ( pApp->store == "EGS" )
+        {
+          load_str = 
+            SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+
+          if ( ! PathFileExistsW (load_str.   c_str ()) )
+          {
+            SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+          }
+        }
+
+        // STEAM
+        else if (pApp->store == "Steam")
+        {
+
+          if ( appinfo != nullptr )
+          {
+            skValveDataFile::appinfo_s *pAppInfo =
+              appinfo->getAppInfo ( appid, nullptr );
+
+            DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
+          }
+
+          std::wstring load_str_2x (
+            SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata.path, appid)
+          );
+
+          std::filesystem::create_directories (load_str_2x);
+
+          load_str_2x += L"library_600x900_x2.jpg";
+      
+          load_str = SK_GetSteamDir ();
+
+          load_str   += LR"(/appcache/librarycache/)" +
+            std::to_wstring (appid)                   +
+                                    L"_library_600x900.jpg";
+
+          std::wstring load_str_final = load_str;
+          //std::wstring load_str_final = L"_library_600x900.jpg";
+
+          // If 600x900 exists but 600x900_x2 cannot be found
+          if (   PathFileExistsW (load_str.   c_str ()) &&
+              ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+          {
+            // Load the metadata from 600x900
+            if (
+              SUCCEEDED (
+              DirectX::GetMetadataFromWICFile (
+                load_str.c_str (),
+                  DirectX::WIC_FLAGS_FILTER_POINT,
+                    meta
+                )
+              )
+            )
+            {
+              // If the image is in reality 300x450, which indicates a real cover,
+              //   download the real 600x900 cover and store it in _x2
+              if (meta.width  == 300 &&
+                  meta.height == 450)
+              {
+                SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+                load_str_final = load_str_2x;
+                //load_str_final = L"_library_600x900_x2.jpg";
+              }
+            }
+          }
+
+          // If 600x900_x2 exists, check the last modified time stamps
+          else {
+            WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
+
+            if (GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
+                GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
+            {
+              // If 600x900 has been edited after 600_900_x2,
+              //   download new copy of the 600_900_x2 cover
+              if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+              {
+                DeleteFile (load_str_2x.c_str());
+                SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+              }
+            }
+
+            load_str_final = load_str_2x;
+            //load_str_final = L"_library_600x900_x2.jpg";
+          }
+
+          load_str = load_str_final;
+        }
+
+        //vecCoverUv0 = ImVec2 (0.f, 0.f); // Top left corner
+        //vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
+    
+        LoadLibraryTexture ( LibraryTexture::Cover,
+                                appid,
+                                  pTexSRV,
+                                    load_str,
+                                      pApp,
+                                       vecCoverUv0,
+                                        vecCoverUv1);
+
+        InterlockedExchange(&cover_thread, 0);
+      }, 0x0, NULL);
+    }
+
+    /*
     static
       app_record_s* pApp = nullptr;
 
@@ -1484,7 +1661,8 @@ SKIF_GameManagement_DrawTab (void)
 
       if ( ! PathFileExistsW (load_str.   c_str ()) )
       {
-        SKIF_EGS_IdentifyAsset (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+        //SKIF_EGS_IdentifyAsset (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+        SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
       }
     }
 
@@ -1509,15 +1687,6 @@ SKIF_GameManagement_DrawTab (void)
       load_str_2x += L"library_600x900_x2.jpg";
       
       load_str = SK_GetSteamDir ();
-
-      /*
-      std::wstring load_str
-                  (load_str_2x);
-
-      load_str_2x += LR"(/appcache/librarycache/)" +
-        std::to_wstring  (appid)                   +
-                                L"_library_600x900_x2.jpg";
-      */
 
       load_str   += LR"(/appcache/librarycache/)" +
         std::to_wstring (appid)                   +
@@ -1581,8 +1750,10 @@ SKIF_GameManagement_DrawTab (void)
                               pTexSRV,
                                 load_str,
                                   pApp );
+    */
 
     // Reset variables
+    /*
     vecTex2D    = ImVec2 (600.f, 900.f);
     vecCoverUv0 = ImVec2 (0.f, 0.f); // Top left corner
     vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
@@ -1628,6 +1799,7 @@ SKIF_GameManagement_DrawTab (void)
         }
       }
     }
+    */
   }
 
   /*
@@ -2256,8 +2428,6 @@ Cache=false)";
     return 0.0f;
   };
 
-  static
-    app_record_s *pApp = nullptr;
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
