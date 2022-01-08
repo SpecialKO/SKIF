@@ -48,6 +48,7 @@
 #include <sstream>
 
 #include <stores/Steam/apps_ignore.h>
+#include <concurrent_queue.h>
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -76,6 +77,10 @@ extern void SKIF_ImGui_Spacing (float multiplier = 0.25f);
 CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
+
+// Texture related locks to prevent driver crashes
+concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
+std::mutex SKIF_TextureLock;
 
 HINSTANCE
 SKIF_Util_ExplorePath (
@@ -531,9 +536,12 @@ LoadLibraryTexture (
         srv_desc.Texture2D.MipLevels       = UINT_MAX;
         srv_desc.Texture2D.MostDetailedMip =  0;
 
+        //if (pLibTexSRV.p != nullptr)
+        //  SKIF_ResourcesToFree.push (pLibTexSRV);
+
         CComPtr <ID3D11ShaderResourceView>
             pOrigTexSRV (pLibTexSRV.p);
-                         pLibTexSRV = nullptr;
+                         pLibTexSRV = nullptr; // Crashes on Intel
 
       if (    pTex2D.p == nullptr ||
         FAILED (
@@ -553,6 +561,7 @@ LoadLibraryTexture (
   }
 };
 
+/*
 void
 SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
 {
@@ -653,6 +662,7 @@ SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
     ImGui::End        ();
   }
 }
+*/
 
 using app_entry_t =
         std::pair < std::string,
@@ -801,10 +811,21 @@ Trie labels;
 void
 SKIF_GameManagement_DrawTab (void)
 {
-
+  /*
   if (! sshot_file.empty ())
   {
     SKIF_GameManagement_ShowScreenshot (sshot_file);
+  }
+  */
+
+  // Release any leftover resources from last frame
+  IUnknown* pResource = nullptr;
+  while (! SKIF_ResourcesToFree.empty ())
+  {
+    if (SKIF_ResourcesToFree.try_pop (pResource))
+    {
+      pResource->Release ();
+    }
   }
 
   static CComPtr <ID3D11Texture2D>          pTex2D;
@@ -905,9 +926,9 @@ SKIF_GameManagement_DrawTab (void)
 
   extern uint32_t SKIF_iLastSelected;
 
-  static bool     update        = true;
-  static uint32_t appid         = SKIF_STEAM_APPID;
-  static bool     populated     = false;
+  static bool     update         = true;
+  static uint32_t appid          = SKIF_STEAM_APPID;
+  static bool     populated      = false;
 
   extern bool RepopulateGames;
   extern bool SKIF_bDisableEGSLibrary;
@@ -921,10 +942,10 @@ SKIF_GameManagement_DrawTab (void)
     RepopulateGames = false;
 
     // Release textures
-    for (auto& app : apps)
-      IUnknown_AtomicRelease ((void **)&app.second.textures.icon.p);
+    //for (auto& app : apps)
+      //IUnknown_AtomicRelease ((void **)&app.second.textures.icon.p);
 
-    pTexSRV = nullptr;
+    //Disabled for test: pTexSRV = nullptr;
 
     // Clear cached lists
     apps.clear   ();
@@ -992,7 +1013,6 @@ SKIF_GameManagement_DrawTab (void)
       CoInitializeEx (nullptr, 0x0);
 
       SK_RunOnce (
-        //__LoadPatreonTexture (0, pPatTexSRV, L"(patreon.png)")
         LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)")
       );
 
@@ -1088,50 +1108,24 @@ SKIF_GameManagement_DrawTab (void)
           app.second.names.normal    = app.first;
         }
 
-        // SKIF
-        if ( app.second.id == SKIF_STEAM_APPID )
-          LoadLibraryTexture (LibraryTexture::Icon,
-                                app.second.id,
-                                app.second.textures.icon,
-                                L"_icon.jpg",
-                                &app.second
-        );
+        std::wstring load_str;
+        
+        if (app.second.id == SKIF_STEAM_APPID) // SKIF
+          load_str = L"_icon.jpg";
+        else  if (app.second.store == "SKIF")  // SKIF Custom
+          load_str = L"icon";
+        else  if (app.second.store == "EGS")   // EGS
+          load_str = L"icon";
+        else  if (app.second.store == "GOG")   // GOG
+          load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
+        else if (app.second.store == "Steam")  // STEAM
+          load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), app.second.id); //L"_icon.jpg"
 
-        // SKIF Custom
-        else  if (app.second.store == "SKIF")
-          LoadLibraryTexture (LibraryTexture::Icon,
-                                app.second.id,
-                                app.second.textures.icon,
-                                L"icon",
-                                &app.second
-        );
-
-        // EGS
-        else  if (app.second.store == "EGS")
-          LoadLibraryTexture (LibraryTexture::Icon,
-                                app.second.id,
-                                app.second.textures.icon,
-                                L"icon",
-                                &app.second
-        );
-
-        // GOG
-        else  if (app.second.store == "GOG")
-          LoadLibraryTexture (LibraryTexture::Icon,
-                                app.second.id,
-                                app.second.textures.icon,
-                                app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico",
-                                &app.second
-        );
-
-        // STEAM
-        else if (app.second.store == "Steam")
-          LoadLibraryTexture (LibraryTexture::Icon,
-                                app.second.id,
-                                app.second.textures.icon,
-                                SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), app.second.id), //L"_icon.jpg",
-                                &app.second
-        );
+        LoadLibraryTexture ( LibraryTexture::Icon,
+                               app.second.id,
+                                 app.second.textures.icon,
+                                   load_str,
+                                     &app.second );
 
         static auto *pFont =
           ImGui::GetFont ();
@@ -1155,25 +1149,88 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_LibraryAssets_CheckForUpdates (true);
   }
 
+  extern int   SKIF_iDimCovers;
+  static int   tmpSKIF_iDimCovers = SKIF_iDimCovers;
+  const  float fTintMin = 0.75f;
+  static float fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
+
+  // Apply changes when the selected game changes
   if (update)
   {
-    pTex2D  = nullptr;
-    pTexSRV = nullptr;
+    // Release any current texture
+    if (pTex2D.p != nullptr)
+      pTex2D  = nullptr;
+    if (pTexSRV.p != nullptr)
+      pTexSRV = nullptr;
+
+    fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
   }
 
+  // Apply changes when the SKIF_iDimCovers var have been changed in the Settings tab
+  else if (tmpSKIF_iDimCovers != SKIF_iDimCovers)
+  {
+    fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
+
+    tmpSKIF_iDimCovers = SKIF_iDimCovers;
+  }
 
   ImGui::BeginGroup    (                                                  );
   float fX =
   ImGui::GetCursorPosX (                                                  );
 
   // Display cover image
-  ImGui::Image         ((ImTextureID)pTexSRV.p,    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                           900.0F * SKIF_ImGui_GlobalDPIScale ),
-                                                   vecCoverUv0,
-                                                   vecCoverUv1,
-                                                   ImVec4 (1,1,1,1),
-                                 ImGui::GetStyleColorVec4 (ImGuiCol_Border)
-  );
+  {
+    std::lock_guard<std::mutex> lk(SKIF_TextureLock);
+    ImGui::Image         ((ImTextureID)pTexSRV.p,
+                                                      ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                              900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                      vecCoverUv0, // Top Left coordinates
+                                                      vecCoverUv1, // Bottom Right coordinates
+                                                      (appid == SKIF_STEAM_APPID) 
+                                                      ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
+                                                      : ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
+                                    ImGui::GetStyleColorVec4 (ImGuiCol_Border) // Border
+    );
+  }
+
+  // Fix clear bug for custom SKIF games that has no fallback cover
+  /*
+  else {
+    ImVec2 size = ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                          900.0F * SKIF_ImGui_GlobalDPIScale);
+
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+
+    if (! window->SkipItems)
+    {
+      ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+
+      ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
+      if (border_col.w > 0.0f)
+        bb.Max += ImVec2(2, 2);
+      ImGui::ItemSize(bb);
+      if (ImGui::ItemAdd(bb, 0))
+      {
+        if (border_col.w > 0.0f)
+        {
+          window->DrawList->AddRect(bb.Min, bb.Max, ImGui::GetColorU32(border_col), 0.0f);
+        }
+      }
+    }
+  }
+  */
+
+  if (SKIF_iDimCovers == 2)
+  {
+    if (ImGui::IsItemHovered() && fTint < 1.0f)
+    {
+      fTint = fTint + 0.01f;
+    }
+    else if (fTint > fTintMin)
+    {
+      fTint = fTint - 0.01f;
+    }
+  }
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ImGui::OpenPopup ("CoverMenu");
@@ -1274,10 +1331,9 @@ SKIF_GameManagement_DrawTab (void)
             // If any file was removed
             if (d1 || d2)
             {
-              // Release current artwork
-              pTexSRV = nullptr;
-
-              update = true;
+              update  = true;
+              //pTex2D  = nullptr;
+              //pTexSRV = nullptr;
             }
           }
         }
@@ -1437,7 +1493,7 @@ SKIF_GameManagement_DrawTab (void)
 
   if (update)
   {
-    SKIF_GameManagement_ShowScreenshot (L"");
+    //SKIF_GameManagement_ShowScreenshot (L"");
 
     update  = false;
 
@@ -1448,6 +1504,8 @@ SKIF_GameManagement_DrawTab (void)
       if (app.second.id == appid)
         pApp = &app.second;
 
+    std::wstring load_str;
+
     // SKIF
     // SKIF Custom
     // GOG
@@ -1455,27 +1513,19 @@ SKIF_GameManagement_DrawTab (void)
          pApp->store == "SKIF"     ||
          pApp->store == "GOG" )
     {
-      std::wstring
-        load_str = L"_library_600x900_x2.jpg";
+      load_str = L"_library_600x900_x2.jpg";
 
       if (pApp->store == "SKIF" || pApp->store == "EGS")
         load_str = L"cover";
       else if (pApp->store == "GOG")
         load_str = L"*_glx_vertical_cover.webp";
-
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                             appid,
-                               pTexSRV,
-                                 load_str,
-                                   pApp );
     }
 
     // EGS
     else if ( pApp->store == "EGS" )
     {
-      std::wstring load_str (
-        SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str())
-      );
+      load_str = 
+        SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
 
       std::wstring load_str_2x
                   (load_str);
@@ -1484,12 +1534,6 @@ SKIF_GameManagement_DrawTab (void)
       {
         SKIF_EGS_IdentifyAsset (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
       }
-
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                             appid,
-                               pTexSRV,
-                                 load_str,
-                                   pApp );
     }
 
     // STEAM
@@ -1512,9 +1556,7 @@ SKIF_GameManagement_DrawTab (void)
 
       load_str_2x += L"library_600x900_x2.jpg";
       
-      std::wstring load_str (
-        SK_GetSteamDir ()
-      );
+      load_str = SK_GetSteamDir ();
 
       /*
       std::wstring load_str
@@ -1579,16 +1621,15 @@ SKIF_GameManagement_DrawTab (void)
         //load_str_final = L"_library_600x900_x2.jpg";
       }
 
-      /*
-      OutputDebugString ((L"load_str: "       + load_str       + L"\n").c_str());
-      OutputDebugString ((L"load_str_2x: "    + load_str_2x    + L"\n").c_str());
-      OutputDebugString ((L"load_str_final: " + load_str_final + L"\n").c_str());
-      */
-
+      load_str = load_str_final;
+    }
+    
+    {
+      std::lock_guard<std::mutex> lk(SKIF_TextureLock);
       LoadLibraryTexture ( LibraryTexture::Cover,
                              appid,
                                pTexSRV,
-                                 load_str_final,
+                                 load_str,
                                    pApp );
     }
 
@@ -1600,54 +1641,43 @@ SKIF_GameManagement_DrawTab (void)
     // Update vecTex2D with the size of the cover
     if (pTexSRV != nullptr)
     {
-      ID3D11Texture2D* texture2d = nullptr;
-      pTexSRV->GetResource(reinterpret_cast<ID3D11Resource**>(&texture2d));
+      pTexSRV->GetResource(reinterpret_cast<ID3D11Resource**>(&pTex2D.p));
 
-      D3D11_TEXTURE2D_DESC desc;
-      texture2d->GetDesc(&desc);
-      vecTex2D.x = static_cast<float>(desc.Width);
-      vecTex2D.y = static_cast<float>(desc.Height);
-
-      texture2d->Release();
-
-      ImVec2 diff = ImVec2(0.0f, 0.0f);
-
-      // Crop wider aspect ratios by their width
-      if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
+      if (pTex2D != nullptr)
       {
-        float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
-        diff.x = (600.0f / newWidth);
-        diff.x -= 1.0f;
-        diff.x /= 2;
+        D3D11_TEXTURE2D_DESC desc;
+        pTex2D->GetDesc(&desc);
+        vecTex2D.x = static_cast<float>(desc.Width);
+        vecTex2D.y = static_cast<float>(desc.Height);
 
-        vecCoverUv0.x = 0.f - diff.x;
-        vecCoverUv1.x = 1.f + diff.x;
+        pTex2D.Release();
+
+        ImVec2 diff = ImVec2(0.0f, 0.0f);
+
+        // Crop wider aspect ratios by their width
+        if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
+        {
+          float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
+          diff.x = (600.0f / newWidth);
+          diff.x -= 1.0f;
+          diff.x /= 2;
+
+          vecCoverUv0.x = 0.f - diff.x;
+          vecCoverUv1.x = 1.f + diff.x;
+        }
+
+        // Crop thinner aspect ratios by their height
+        else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
+        {
+          float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
+          diff.y = (900.0f / newHeight);
+          diff.y -= 1.0f;
+          diff.y /= 2;
+
+          vecCoverUv0.y = 0.f - diff.y;
+          vecCoverUv1.y = 1.f + diff.y;
+        }
       }
-
-      // Crop thinner aspect ratios by their height
-      else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
-      {
-        float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
-        diff.y = (900.0f / newHeight);
-        diff.y -= 1.0f;
-        diff.y /= 2;
-
-        vecCoverUv0.y = 0.f - diff.y;
-        vecCoverUv1.y = 1.f + diff.y;
-      }
-      /*
-      OutputDebugString(L"diffX: ");
-      OutputDebugString((std::to_wstring(diff.x) + L"x" + std::to_wstring(diff.y)).c_str());
-      OutputDebugString(L"\n");
-
-      OutputDebugString(L"uv0: ");
-      OutputDebugString((std::to_wstring(vecCoverUv0.x) + L"x" + std::to_wstring(vecCoverUv0.y)).c_str());
-      OutputDebugString(L"\n");
-
-      OutputDebugString(L"uv1: ");
-      OutputDebugString((std::to_wstring(vecCoverUv1.x) + L"x" + std::to_wstring(vecCoverUv1.y)).c_str());
-      OutputDebugString(L"\n");
-      */
     }
   }
 
@@ -2829,8 +2859,9 @@ Cache=false)";
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
 
             // Release current icon
-            if (pApp->textures.icon.p != nullptr)
-              pApp->textures.icon.p = nullptr;
+            //if (pApp->textures.icon.p != nullptr)
+            //  pApp->textures.icon.p = nullptr;
+            //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
 
             // Reload the icon
             LoadLibraryTexture (LibraryTexture::Icon,
@@ -2877,8 +2908,9 @@ Cache=false)";
             if (d1 || d2 || d3)
             {
               // Release current icon
-              if (pApp->textures.icon.p != nullptr)
-              pApp->textures.icon.p = nullptr;
+              //if (pApp->textures.icon.p != nullptr)
+              //  pApp->textures.icon.p = nullptr;
+              //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
 
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
@@ -3417,6 +3449,7 @@ Cache=false)";
                                     (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
         ImGui::Separator  ( );
 
+      /*
       if (! pApp->specialk.screenshots.empty ())
       {
         if (ImGui::BeginMenu ("Screenshots"))
@@ -3437,6 +3470,7 @@ Cache=false)";
           ImGui::EndMenu ();
         }
       }
+      */
 
       if (! pApp->cloud_saves.empty ())
       {
@@ -3903,8 +3937,8 @@ Cache=false)";
         pApp->id = 0;
 
         // Release textures
-        pApp->textures.icon.p = nullptr;
-        pTexSRV = nullptr;
+        //pApp->textures.icon.p = nullptr;
+        //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
 
         // Reset selection to Special K
         appid = SKIF_STEAM_APPID;
@@ -4071,9 +4105,6 @@ Cache=false)";
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
-
-      // Release current cover texture
-      pTexSRV = nullptr;
 
       // Change selection to the new game
       appid = newAppId;
@@ -4310,9 +4341,6 @@ Cache=false)";
 
   if (SelectNewSKIFGame > 0)
   {
-    // Release current cover texture
-    pTexSRV = nullptr;
-
     // Change selection to the new game
     appid = SelectNewSKIFGame;
     for (auto& app : apps)

@@ -45,7 +45,8 @@ extern void SKIF_ProcessCommandLine (const char* szCmd);
 
 int  SKIF_iNotifications           = 2,
      SKIF_iGhostVisibility         = 0,
-     SKIF_iStyle                   = 0;
+     SKIF_iStyle                   = 0,
+     SKIF_iDimCovers               = 0;
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -3381,6 +3382,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Style)" );
 
+  static auto regKVDimCovers =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Dim Covers)" );
+
 
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
@@ -3416,6 +3421,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if ( regKVStyle.hasData() )
     SKIF_iStyle                 =   regKVStyle.getData                   ( );
+
+  if ( regKVDimCovers.hasData() )
+    SKIF_iDimCovers             =   regKVDimCovers.getData               ( );
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
@@ -4633,6 +4641,27 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
 
           ImGui::TreePop       ( );
+
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
+            
+          ImGui::TextColored     (ImColor::HSV(0.55F, 0.99F, 1.F), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Dim game covers by 25%%:"
+          );
+          ImGui::TreePush        ("SKIF_iDimCovers");
+          if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::TreePop         ( );
 
           ImGui::Spacing       ( );
           ImGui::Spacing       ( );
@@ -6448,7 +6477,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         invalidatedFonts = 0;
       }
 
-      ImGui::End ();
+      ImGui::End();
     }
 
     SK_RunOnce (_inject._InitializeJumpList ( ));
