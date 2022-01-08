@@ -78,6 +78,12 @@ CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
 
+std::atomic<int> textureLoadQueueLength{ 0 };
+
+int getTextureLoadQueuePos() {
+  return textureLoadQueueLength.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
 HINSTANCE
 SKIF_Util_ExplorePath (
   const std::wstring_view& path )
@@ -934,7 +940,7 @@ SKIF_GameManagement_DrawTab (void)
     return ret;
   };
 
-  static volatile LONG cover_thread = 0;
+//static volatile LONG cover_thread = 0;
   static volatile LONG need_sort    = 0;
   bool                 sort_changed = false;
 
@@ -1495,12 +1501,17 @@ SKIF_GameManagement_DrawTab (void)
 
     update  = false;
 
-    if (! sort_changed && ! InterlockedCompareExchange(&cover_thread, 1, 0))
+    if (! sort_changed) //&& ! InterlockedCompareExchange(&cover_thread, 1, 0))
     {
       // We're going to stream the cover in asynchronously on this thread
       _beginthread([](void*)->void
       {
         CoInitializeEx(nullptr, 0x0);
+
+        static int queuePos = getTextureLoadQueuePos();
+        static ImVec2 _vecCoverUv0(vecCoverUv0);
+        static ImVec2 _vecCoverUv1(vecCoverUv1);
+        static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
 
         std::wstring load_str;
 
@@ -1609,19 +1620,30 @@ SKIF_GameManagement_DrawTab (void)
 
           load_str = load_str_final;
         }
-
-        //vecCoverUv0 = ImVec2 (0.f, 0.f); // Top left corner
-        //vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
     
         LoadLibraryTexture ( LibraryTexture::Cover,
                                 appid,
-                                  pTexSRV,
+                                  _pTexSRV,
                                     load_str,
                                       pApp,
-                                       vecCoverUv0,
-                                        vecCoverUv1);
+                                       _vecCoverUv0,
+                                        _vecCoverUv1);
 
-        InterlockedExchange(&cover_thread, 0);
+
+        if (textureLoadQueueLength == queuePos)
+        {
+          vecCoverUv0 = _vecCoverUv0;
+          vecCoverUv1 = _vecCoverUv1;
+          pTexSRV     = _pTexSRV;
+        }
+        else if (_pTexSRV.p != nullptr)
+        {
+          extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+          SKIF_ResourcesToFree.push(_pTexSRV.p);
+          _pTexSRV.p = nullptr;
+        }
+
+        //InterlockedExchange(&cover_thread, 0);
       }, 0x0, NULL);
     }
 
