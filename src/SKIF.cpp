@@ -143,11 +143,15 @@ extern        SK_ICommandProcessor*
 
 #include <filesystem>
 #include <regex>
+#include <concurrent_queue.h>
 
 #pragma comment (lib, "wininet.lib")
 
 HMODULE hModSKIF     = nullptr;
 HMODULE hModSpecialK = nullptr;
+
+// Texture related locks to prevent driver crashes
+concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
 
 std::filesystem::path orgWorkingDirectory;
 
@@ -473,6 +477,40 @@ SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags ext
   //ImGui::PopStyleColor ( );
 
   return ret;
+}
+
+// Basically like ImGui::Image but, you know, doesn't actually draw the images
+void SKIF_ImGui_OptImage (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
+{
+  // If not a nullptr, run original code
+  if (user_texture_id != nullptr)
+  {
+    ImGui::Image (user_texture_id, size, uv0, uv1, tint_col, border_col);
+  }
+  
+  // If a nullptr, run slightly tweaked code that omitts the image rendering
+  else {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return;
+
+    ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
+    if (border_col.w > 0.0f)
+        bb.Max += ImVec2(2, 2);
+    ImGui::ItemSize(bb);
+    if (!ImGui::ItemAdd(bb, 0))
+        return;
+
+    if (border_col.w > 0.0f)
+    {
+        window->DrawList->AddRect(bb.Min, bb.Max, ImGui::GetColorU32(border_col), 0.0f);
+        //window->DrawList->AddImage(user_texture_id, bb.Min + ImVec2(1, 1), bb.Max - ImVec2(1, 1), uv0, uv1, ImGui::GetColorU32(tint_col));
+    }
+    else
+    {
+        //window->DrawList->AddImage(user_texture_id, bb.Min, bb.Max, uv0, uv1, ImGui::GetColorU32(tint_col));
+    }
+  }
 }
 
 // Difference from regular
@@ -3884,8 +3922,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame ();
     ImGui::NewFrame          ();
     {
-
-
       // Fixes the wobble that occurs when switching between tabs,
       //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
@@ -6576,6 +6612,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       if (FAILED (g_pSwapChain->Present (Interval, Flags)))
         break;
+    }
+
+    // Release any leftover resources from last frame
+    CComPtr <IUnknown> pResource = nullptr;
+    while (! SKIF_ResourcesToFree.empty ())
+    {
+      if (SKIF_ResourcesToFree.try_pop (pResource))
+      {
+        pResource.p->Release();
+      }
     }
 
     _UpdateOcclusionStatus (hDC);

@@ -46,9 +46,9 @@
 #include <filesystem>
 #include <string>
 #include <sstream>
+#include <concurrent_queue.h>
 
 #include <stores/Steam/apps_ignore.h>
-#include <concurrent_queue.h>
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -77,10 +77,6 @@ extern void SKIF_ImGui_Spacing (float multiplier = 0.25f);
 CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
-
-// Texture related locks to prevent driver crashes
-concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
-std::mutex SKIF_TextureLock;
 
 HINSTANCE
 SKIF_Util_ExplorePath (
@@ -488,6 +484,14 @@ LoadLibraryTexture (
     }
   }
 
+  // Push the existing texture to a stack to be released after the frame 
+  if (pLibTexSRV.p != nullptr)
+  {
+    extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+    SKIF_ResourcesToFree.push (pLibTexSRV.p);
+    pLibTexSRV.p = nullptr;
+  }
+
   if (succeeded)
   {
     DirectX::ScratchImage* pImg   =
@@ -536,12 +540,9 @@ LoadLibraryTexture (
         srv_desc.Texture2D.MipLevels       = UINT_MAX;
         srv_desc.Texture2D.MostDetailedMip =  0;
 
-        //if (pLibTexSRV.p != nullptr)
-        //  SKIF_ResourcesToFree.push (pLibTexSRV);
-
-        CComPtr <ID3D11ShaderResourceView>
-            pOrigTexSRV (pLibTexSRV.p);
-                         pLibTexSRV = nullptr; // Crashes on Intel
+        //CComPtr <ID3D11ShaderResourceView>
+        //    pOrigTexSRV (pLibTexSRV.p);
+                         //pLibTexSRV = nullptr; // Crashes on Intel
 
       if (    pTex2D.p == nullptr ||
         FAILED (
@@ -552,7 +553,7 @@ LoadLibraryTexture (
         )
       )
       {
-        pLibTexSRV = pOrigTexSRV;
+        //pLibTexSRV = pOrigTexSRV;
       }
 
       // SRV is holding a reference, this is not needed anymore.
@@ -817,16 +818,6 @@ SKIF_GameManagement_DrawTab (void)
     SKIF_GameManagement_ShowScreenshot (sshot_file);
   }
   */
-
-  // Release any leftover resources from last frame
-  IUnknown* pResource = nullptr;
-  while (! SKIF_ResourcesToFree.empty ())
-  {
-    if (SKIF_ResourcesToFree.try_pop (pResource))
-    {
-      pResource->Release ();
-    }
-  }
 
   static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
@@ -1157,12 +1148,6 @@ SKIF_GameManagement_DrawTab (void)
   // Apply changes when the selected game changes
   if (update)
   {
-    // Release any current texture
-    if (pTex2D.p != nullptr)
-      pTex2D  = nullptr;
-    if (pTexSRV.p != nullptr)
-      pTexSRV = nullptr;
-
     fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
   }
 
@@ -1179,46 +1164,17 @@ SKIF_GameManagement_DrawTab (void)
   ImGui::GetCursorPosX (                                                  );
 
   // Display cover image
-  {
-    std::lock_guard<std::mutex> lk(SKIF_TextureLock);
-    ImGui::Image         ((ImTextureID)pTexSRV.p,
-                                                      ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                              900.0F * SKIF_ImGui_GlobalDPIScale),
-                                                      vecCoverUv0, // Top Left coordinates
-                                                      vecCoverUv1, // Bottom Right coordinates
-                                                      (appid == SKIF_STEAM_APPID) 
-                                                      ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
-                                                      : ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
-                                    ImGui::GetStyleColorVec4 (ImGuiCol_Border) // Border
-    );
-  }
+  SKIF_ImGui_OptImage  (pTexSRV.p,
+                                                    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                            900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                    vecCoverUv0, // Top Left coordinates
+                                                    vecCoverUv1, // Bottom Right coordinates
+                                                    (appid == SKIF_STEAM_APPID) 
+                                                    ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
+                                                    : ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
+                                  ImGui::GetStyleColorVec4 (ImGuiCol_Border) // Border
+  );
 
-  // Fix clear bug for custom SKIF games that has no fallback cover
-  /*
-  else {
-    ImVec2 size = ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                          900.0F * SKIF_ImGui_GlobalDPIScale);
-
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-
-    if (! window->SkipItems)
-    {
-      ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
-
-      ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
-      if (border_col.w > 0.0f)
-        bb.Max += ImVec2(2, 2);
-      ImGui::ItemSize(bb);
-      if (ImGui::ItemAdd(bb, 0))
-      {
-        if (border_col.w > 0.0f)
-        {
-          window->DrawList->AddRect(bb.Min, bb.Max, ImGui::GetColorU32(border_col), 0.0f);
-        }
-      }
-    }
-  }
-  */
 
   if (SKIF_iDimCovers == 2)
   {
@@ -1330,11 +1286,7 @@ SKIF_GameManagement_DrawTab (void)
 
             // If any file was removed
             if (d1 || d2)
-            {
               update  = true;
-              //pTex2D  = nullptr;
-              //pTexSRV = nullptr;
-            }
           }
         }
         else
@@ -1624,14 +1576,11 @@ SKIF_GameManagement_DrawTab (void)
       load_str = load_str_final;
     }
     
-    {
-      std::lock_guard<std::mutex> lk(SKIF_TextureLock);
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                             appid,
-                               pTexSRV,
-                                 load_str,
-                                   pApp );
-    }
+    LoadLibraryTexture ( LibraryTexture::Cover,
+                            appid,
+                              pTexSRV,
+                                load_str,
+                                  pApp );
 
     // Reset variables
     vecTex2D    = ImVec2 (600.f, 900.f);
@@ -1639,7 +1588,7 @@ SKIF_GameManagement_DrawTab (void)
     vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
 
     // Update vecTex2D with the size of the cover
-    if (pTexSRV != nullptr)
+    if (pTexSRV.p != nullptr)
     {
       pTexSRV->GetResource(reinterpret_cast<ID3D11Resource**>(&pTex2D.p));
 
@@ -2379,7 +2328,7 @@ Cache=false)";
     ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled);
   ImVec2 f1 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
-    ImGui::Image (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
+    SKIF_ImGui_OptImage (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
   ImVec2 f2 = ImGui::GetCursorPos (  );
              ImGui::SetCursorPosY (f0.y);
 
@@ -2414,10 +2363,10 @@ Cache=false)";
     // Start Icon + Selectable row
 
     ImGui::BeginGroup      ();
-    ImGui::Image           (app.second.textures.icon.p,
+    SKIF_ImGui_OptImage    (app.second.textures.icon.p,
                               ImVec2 ( _ICON_HEIGHT,
                                        _ICON_HEIGHT )
-                           );
+                            );
 
     change |=
       _HandleItemSelection (true);

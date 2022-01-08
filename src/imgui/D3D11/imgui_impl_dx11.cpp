@@ -1420,16 +1420,17 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     if (dwWaitState == WAIT_OBJECT_0)
     {
       DXGI_PRESENT_PARAMETERS                                 pparams = { };
-      pSwap3->Present1 ( Interval, DXGI_PRESENT_RESTART | (SKIF_bAllowTearing ?
-                           DXGI_PRESENT_ALLOW_TEARING : 0x0), &pparams );
+      pSwap3->Present1 ( Interval, (SKIF_bCanFlip      ? DXGI_PRESENT_RESTART       : 0x0) |
+                                   (SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
+                                   &pparams );
       data->PresentCount++;
     }
   }
 
   else
   {
-    data->SwapChain->Present ( Interval, DXGI_PRESENT_RESTART | (SKIF_bAllowTearing ?
-                                 DXGI_PRESENT_ALLOW_TEARING : 0x0) );
+    data->SwapChain->Present ( Interval, (SKIF_bCanFlip      ? DXGI_PRESENT_RESTART       : 0x0) |
+                                         (SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0x0) );
     data->PresentCount++;
   }
 }
