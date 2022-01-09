@@ -73,7 +73,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontJapanese            = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false;
+     SKIF_bFontVietnamese          = false,
+     SKIF_bLowBandwidthMode        = false;
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
@@ -3375,6 +3376,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Microsoft\Accessibility\)",
                          LR"(CursorSize)" ).getData ();
 
+  static auto regKVLowBandwidthMode =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Low Bandwidth Mode)" );
+
   static auto regKVRememberLastSelected =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Remember Last Selected)" );
@@ -3495,7 +3500,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Dim Covers)" );
 
-
+  
+  SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
 //SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
@@ -3826,6 +3832,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Force an update check
   std::wstring newVersion; // = SKIF_CheckForUpdates();
+
+  if (! SKIF_bLowBandwidthMode)
+    newVersion = SKIF_CheckForUpdates ();
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
@@ -4538,6 +4547,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SK_RunOnce(
             ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+          );
+          
+          if ( ImGui::Checkbox ( "Low bandwidth mode",                          &SKIF_bLowBandwidthMode ) )
+            regKVLowBandwidthMode.putData (                                      SKIF_bLowBandwidthMode );
+
+          SKIF_ImGui_SetHoverTip (
+            "For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
+            "This only affects new downloads of covers. It does not affect already downloaded covers.\n"
+            "Automatic downloads of new updates will also be disabled."
           );
 
           if ( ImGui::Checkbox ( "Remember the last selected game",         &SKIF_bRememberLastSelected ) )

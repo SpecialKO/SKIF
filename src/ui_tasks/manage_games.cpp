@@ -68,6 +68,8 @@ PopupState ConfirmPopup    = PopupState::Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
+extern bool            SKIF_bLowBandwidthMode;
+extern bool            SKIF_bDisableBorders;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
@@ -1227,9 +1229,8 @@ SKIF_GameManagement_DrawTab (void)
                                                     (appid == SKIF_STEAM_APPID) 
                                                     ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
                                                     : ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
-                                  ImGui::GetStyleColorVec4 (ImGuiCol_Border) // Border
+                                  (! SKIF_bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
-
 
   if (SKIF_iDimCovers == 2)
   {
@@ -1397,106 +1398,14 @@ SKIF_GameManagement_DrawTab (void)
     ImGui::EndPopup   (  );
   }
 
-  // Special handling at the bottom for Special K
-  if ( appid == SKIF_STEAM_APPID ) {
-    float fY =
-    ImGui::GetCursorPosY (                                                  );
-    ImGui::SetCursorPos  (                           ImVec2 ( fX +    1.0f,
-                                                              fY - (204.5f * SKIF_ImGui_GlobalDPIScale)) );
-    ImGui::BeginGroup    ();
-    static bool hoveredPatButton  = false,
-                hoveredPatCredits = false;
-
-    // Set all button styling to transparent
-    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
-
-    // Remove frame border
-    ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-
-    bool        clicked =
-    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
-                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
-                                                     ImVec2 (0.f,       0.f),
-                                                     ImVec2 (1.f,       1.f),     0,
-                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                  hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
-                                                   : ImVec4 (  .8f,  .8f,  .8f, .66f));
-
-    // Restore frame border
-    ImGui::PopStyleVar   ( );
-
-    // Restore the custom button styling
-    ImGui::PopStyleColor (3);
-
-    hoveredPatButton =
-    ImGui::IsItemHovered ( );
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
-    //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
-
-    if (clicked)
-      SKIF_Util_OpenURI (
-        L"https://www.patreon.com/Kaldaien"
-      );
-
-    ImGui::SetCursorPos  (                           ImVec2 (379.5f * SKIF_ImGui_GlobalDPIScale,
-                                                       fY - (204.0f  * SKIF_ImGui_GlobalDPIScale)) );
-
-    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
-                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
-    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
-                                                          200.0f * SKIF_ImGui_GlobalDPIScale), true, ImGuiWindowFlags_NoScrollbar);
-
-    ImGui::TextColored        (ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "SpecialK Thanks to our Patrons:");
-
-    extern std::string SKIF_GetPatrons (void);
-    static std::string patrons_ =
-      SKIF_GetPatrons () + '\0';
-
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    
-    ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
-    ImGui::PushStyleColor     (ImGuiCol_Text,           ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
-    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
-    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
-                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
-                           160.0f * SKIF_ImGui_GlobalDPIScale),
-                                    ImGuiInputTextFlags_ReadOnly );
-    ImGui::PopStyleColor      (4);
-    ImGui::PopStyleVar        ( );
-
-    hoveredPatCredits =
-    ImGui::IsItemActive();
-
-    ImGui::EndChild           ( );
-    ImGui::PopStyleColor      ( );
-
-    hoveredPatCredits = hoveredPatCredits ||
-    ImGui::IsItemHovered      ( );
-
-    ImGui::EndGroup           ( );
-  }
-
-  // Add Game button in the status bar
-
-  extern bool SKIF_bDisableStatusBar;
-  if (! SKIF_bDisableStatusBar)
-  {
-    //ImGui::SetCursorPos (ImVec2 (fX, ImGui::GetCursorPosY() + 10.0f * SKIF_ImGui_GlobalDPIScale));
-
-    //ImGui::Button("Derp");
-  }
+  float fY =
+  ImGui::GetCursorPosY (                                                  );
 
   ImGui::EndGroup             ( );
   ImGui::SameLine             ( );
+  
+  float fZ =
+  ImGui::GetCursorPosX (                                                  );
 
   if (update)
   {
@@ -1519,22 +1428,25 @@ SKIF_GameManagement_DrawTab (void)
         std::wstring load_str;
 
         // SKIF
-        // SKIF Custom
-        // GOG
-        if ( appid == SKIF_STEAM_APPID ||
-              pApp->store == "SKIF"     ||
-              pApp->store == "GOG" )
+        if (appid == SKIF_STEAM_APPID)
         {
           load_str = L"_library_600x900_x2.jpg";
+        }
 
-          if (pApp->store == "SKIF" || pApp->store == "EGS")
-            load_str = L"cover";
-          else if (pApp->store == "GOG")
-            load_str = L"*_glx_vertical_cover.webp";
+        // SKIF Custom
+        else if (pApp->store == "SKIF")
+        {
+          load_str = L"cover";
+        }
+
+        // GOG
+        else if (pApp->store == "GOG")
+        {
+          load_str = L"*_glx_vertical_cover.webp";
         }
 
         // EGS
-        else if ( pApp->store == "EGS" )
+        else if (pApp->store == "EGS")
         {
           load_str = 
             SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
@@ -1542,6 +1454,28 @@ SKIF_GameManagement_DrawTab (void)
           if ( ! PathFileExistsW (load_str.   c_str ()) )
           {
             SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+
+          //
+          } else {
+            // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
+            if ( ! SKIF_bLowBandwidthMode &&
+                  SUCCEEDED (
+                  DirectX::GetMetadataFromWICFile (
+                    load_str.c_str (),
+                      DirectX::WIC_FLAGS_FILTER_POINT,
+                        meta
+                    )
+                  )
+                )
+            {
+              // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
+              //   download the full-size cover and replace the existing one.
+              if (meta.width  == 600 ||
+                  meta.height == 900)
+              {
+                SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+              }
+            }
           }
         }
 
@@ -1574,20 +1508,20 @@ SKIF_GameManagement_DrawTab (void)
           std::wstring load_str_final = load_str;
           //std::wstring load_str_final = L"_library_600x900.jpg";
 
-          // If 600x900 exists but 600x900_x2 cannot be found
+          // If 600x900 exists but 600x900_x2 cannot be found 
           if (   PathFileExistsW (load_str.   c_str ()) &&
-              ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
+               ! PathFileExistsW (load_str_2x.c_str ()) )
           {
-            // Load the metadata from 600x900
-            if (
-              SUCCEEDED (
-              DirectX::GetMetadataFromWICFile (
-                load_str.c_str (),
-                  DirectX::WIC_FLAGS_FILTER_POINT,
-                    meta
+            // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
+            if ( ! SKIF_bLowBandwidthMode &&
+                  SUCCEEDED (
+                  DirectX::GetMetadataFromWICFile (
+                    load_str.c_str (),
+                      DirectX::WIC_FLAGS_FILTER_POINT,
+                        meta
+                    )
+                  )
                 )
-              )
-            )
             {
               // If the image is in reality 300x450, which indicates a real cover,
               //   download the real 600x900 cover and store it in _x2
@@ -1605,7 +1539,9 @@ SKIF_GameManagement_DrawTab (void)
           else {
             WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
 
-            if (GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
+            // ... but only if low bandwidth mode is disabled
+            if (! SKIF_bLowBandwidthMode &&
+                GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
                 GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
             {
               // If 600x900 has been edited after 600_900_x2,
@@ -1618,7 +1554,6 @@ SKIF_GameManagement_DrawTab (void)
             }
 
             load_str_final = load_str_2x;
-            //load_str_final = L"_library_600x900_x2.jpg";
           }
 
           load_str = load_str_final;
@@ -2457,8 +2392,8 @@ Cache=false)";
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( _WIDTH2,
-                                         _HEIGHT ), true,
-                                    ImGuiWindowFlags_NavFlattened );
+                                         _HEIGHT ), (! SKIF_bDisableBorders),
+                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
   auto _HandleItemSelection = [&](bool iconMenu = false) ->
@@ -2748,6 +2683,7 @@ Cache=false)";
   float fOriginalY =
     ImGui::GetCursorPosY ( );
 
+  extern bool SKIF_bDisableStatusBar;
   if (SKIF_bDisableStatusBar)
   {
     ImGui::BeginGroup      ( );
@@ -3159,10 +3095,11 @@ Cache=false)";
   ImGui::BeginChild (
     "###AppListInset2",
       ImVec2 ( _WIDTH2,
-               _HEIGHT2 ), true,
+               _HEIGHT2 ), (! SKIF_bDisableBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NavFlattened
+        ImGuiWindowFlags_NavFlattened      |
+        ImGuiWindowFlags_AlwaysUseWindowPadding
   );
   ImGui::BeginGroup ();
 
@@ -3308,6 +3245,100 @@ Cache=false)";
   ImGui::EndGroup     (                  );
   ImGui::EndChild     (                  );
   ImGui::EndGroup     (                  );
+
+  
+
+  // Special handling at the bottom for Special K
+  if ( appid == SKIF_STEAM_APPID ) {
+    ImGui::SetCursorPos  (                           ImVec2 ( fX + ImGui::GetStyle().FrameBorderSize,
+                                                              fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
+    ImGui::BeginGroup    ();
+    static bool hoveredPatButton  = false,
+                hoveredPatCredits = false;
+
+    // Set all button styling to transparent
+    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
+
+    // Remove frame border
+    ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+    bool        clicked =
+    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
+                                                     ImVec2 (0.f,       0.f),
+                                                     ImVec2 (1.f,       1.f),     0,
+                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
+                                  hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
+                                                   : ImVec4 (  .8f,  .8f,  .8f, .66f));
+
+    // Restore frame border
+    ImGui::PopStyleVar   ( );
+
+    // Restore the custom button styling
+    ImGui::PopStyleColor (3);
+
+    hoveredPatButton =
+    ImGui::IsItemHovered ( );
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
+    //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
+
+    if (clicked)
+      SKIF_Util_OpenURI (
+        L"https://www.patreon.com/Kaldaien"
+      );
+
+    extern int SKIF_iStyle;
+
+    ImGui::SetCursorPos  (ImVec2 (fZ - (238.0f * SKIF_ImGui_GlobalDPIScale),
+                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
+
+    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
+                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
+    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
+                                                          200.0f * SKIF_ImGui_GlobalDPIScale),
+                                                                      (! SKIF_bDisableBorders),
+                                                      ImGuiWindowFlags_NoScrollbar            |
+                                                      ImGuiWindowFlags_AlwaysUseWindowPadding |
+                        ((pApp->textures.isCustomCover || SKIF_iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
+
+    ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "SpecialK Thanks to our Patrons:");
+
+    extern std::string SKIF_GetPatrons (void);
+    static std::string patrons_ =
+      SKIF_GetPatrons () + '\0';
+
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    
+    ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
+                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                           160.0f * SKIF_ImGui_GlobalDPIScale),
+                                    ImGuiInputTextFlags_ReadOnly );
+    ImGui::PopStyleColor      (4);
+    ImGui::PopStyleVar        ( );
+
+    hoveredPatCredits =
+    ImGui::IsItemActive();
+
+    ImGui::EndChild           ( );
+    ImGui::PopStyleColor      ( );
+
+    hoveredPatCredits = hoveredPatCredits ||
+    ImGui::IsItemHovered      ( );
+
+    ImGui::EndGroup           ( );
+  }
 
 
 

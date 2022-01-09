@@ -371,13 +371,15 @@ void SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string Catalo
     {
       for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
       {
-        if (image["type"].dump() == R"("OfferImageTall")" && ! PathFileExists ((targetAssetPath + L"OfferImageTall.jpg").c_str()))
+        if (image["type"].dump() == R"("OfferImageTall")")
         {
           // Convert the URL value to a regular string
           std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
 
           // Download a downscaled copy of the cover
-          //assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+          extern bool            SKIF_bLowBandwidthMode;
+          if (SKIF_bLowBandwidthMode)
+            assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
           SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
         }
