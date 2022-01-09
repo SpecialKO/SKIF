@@ -756,7 +756,7 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
     }
 
     // Simplified Chinese character set
-    // Also includes almost alll of the Japanese characters except for some Kanjis
+    // Also includes almost all of the Japanese characters except for some Kanjis
     if (SKIF_bFontChineseSimplified)
       SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
     

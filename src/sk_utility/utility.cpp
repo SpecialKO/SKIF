@@ -60,6 +60,8 @@ SK_WideCharToUTF8 (const std::wstring& in)
                           gsl::narrow_cast <DWORD>       (len),
                             nullptr,                   FALSE );
 
+  out.resize(len);
+
   return out;
 #endif
 }
@@ -88,6 +90,8 @@ SK_UTF8ToWideChar (const std::string& in)
                           gsl::narrow_cast <int> (in.length ()),
                                                  out.data   (),
                           gsl::narrow_cast <DWORD>       (len) );
+
+  out.resize(len);
 
   return out;
 #endif

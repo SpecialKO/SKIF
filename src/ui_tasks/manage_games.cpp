@@ -977,7 +977,7 @@ SKIF_GameManagement_DrawTab (void)
   {
     RepopulateGames = false;
 
-    // Release textures
+    // Release textures -- not needed since they apparently release themselves already :thumbs_up:
     //for (auto& app : apps)
       //IUnknown_AtomicRelease ((void **)&app.second.textures.icon.p);
 
@@ -989,7 +989,7 @@ SKIF_GameManagement_DrawTab (void)
 
     // Reset selection to Special K, but only if set to something else than -1
     if (appid != 0)
-      appid     = SKIF_STEAM_APPID;
+      appid   = SKIF_STEAM_APPID;
 
     update    = true;
 
@@ -1088,9 +1088,11 @@ SKIF_GameManagement_DrawTab (void)
           //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
 
           // Strip game names from special symbols and null terminators
-          char chars[] = u8"©®™\0";
+          char chars[] = u8"©®™";
           for (unsigned int i = 0; i < strlen(chars); ++i)
             app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
+          
+          app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
         }
 
         // Corrupted app manifest / not known to Steam client; SKIP!
@@ -2542,7 +2544,7 @@ Cache=false)";
     // If not game, skip
   //if (app.second.type != "Game")
   //  continue; // This doesn't work since its reliant on loading the manifest, which is only done when an item is actually selected
-
+    
     bool selected = (appid == app.second.id);
     bool change   = false;
 
@@ -2576,7 +2578,7 @@ Cache=false)";
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::Selectable      ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth);
+    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth); // (app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()
     ImGui::PopStyleColor   (2                    );
 
     static DWORD timeClicked = 0;
@@ -2608,7 +2610,7 @@ Cache=false)";
 
     // Show full title in tooltip if the title is made up out of more than 48 characters.
     //   Use strlen(.c_str()) to strip \0 characters in the string that would otherwise also be counted.
-    if (strlen(app.first.c_str()) > 48)
+    if (app.first.length() > 48)
       SKIF_ImGui_SetHoverTip(app.first);
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
@@ -2654,7 +2656,7 @@ Cache=false)";
         if (! ImGui::IsMouseDown (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
-          ImGui::ActivateItem (ImGui::GetID ((app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()));
+          ImGui::ActivateItem (ImGui::GetID (app.second.ImGuiLabelAndID.c_str()));
 
           if (! ImGui::IsItemVisible    (    )) {
             ImGui::SetScrollHereY       (0.5f);
@@ -2999,11 +3001,6 @@ Cache=false)";
 
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
 
-            // Release current icon
-            //if (pApp->textures.icon.p != nullptr)
-            //  pApp->textures.icon.p = nullptr;
-            //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
-
             // Reload the icon
             LoadLibraryTexture (LibraryTexture::Icon,
                                   appid,
@@ -3048,11 +3045,6 @@ Cache=false)";
             // If any file was removed
             if (d1 || d2 || d3)
             {
-              // Release current icon
-              //if (pApp->textures.icon.p != nullptr)
-              //  pApp->textures.icon.p = nullptr;
-              //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
-
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
@@ -4077,9 +4069,13 @@ Cache=false)";
         // Hide entry
         pApp->id = 0;
 
-        // Release textures
-        //pApp->textures.icon.p = nullptr;
-        //IUnknown_AtomicRelease ((void **)&pApp->textures.icon.p);
+        // Release the icon texture (the cover will be handled by LoadLibraryTexture on next frame
+        if (pApp->textures.icon.p != nullptr)
+        {
+          extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+          SKIF_ResourcesToFree.push(pApp->textures.icon.p);
+          pApp->textures.icon.p = nullptr;
+        }
 
         // Reset selection to Special K
         appid = SKIF_STEAM_APPID;
@@ -4254,6 +4250,14 @@ Cache=false)";
           pApp = &app.second;
 
       update = true;
+
+      // Unload any current cover
+      if (pTexSRV.p != nullptr)
+      {
+        extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+        SKIF_ResourcesToFree.push(pTexSRV.p);
+        pTexSRV.p = nullptr;
+      }
 
       AddGamePopup = PopupState::Closed;
       ImGui::CloseCurrentPopup ( );

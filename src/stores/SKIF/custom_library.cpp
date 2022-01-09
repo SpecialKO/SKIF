@@ -51,8 +51,8 @@ int SKIF_AddCustomAppID (
                installDir  = std::wstring(p.parent_path().c_str());
   
   // Strip null terminators
-  name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
-  args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
+  //name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
+  //args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
 
   if (RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS)
   {
@@ -79,7 +79,7 @@ int SKIF_AddCustomAppID (
                                                                                               (DWORD) args.       size ( ) * sizeof(wchar_t)))
       failed = true;
 
-    if (failed == false)
+    if (! failed)
     {
       uint32_t appIdNext = appId + 1;
       RegSetKeyValue(hKey, NULL, L"NextID", REG_DWORD, &appIdNext, sizeof(DWORD));
@@ -88,17 +88,24 @@ int SKIF_AddCustomAppID (
     RegCloseKey (hKey);
   }
 
-  if (failed == false)
+  if (! failed)
   {
     app_record_s record(appId);
 
     record.store = "SKIF";
     record.type  = "Game";
     record._status.installed = true;
-    record.names.normal = SK_WideCharToUTF8(name).c_str();
+    record.names.normal = SK_WideCharToUTF8(name);
+    
+    // Strip game names from special symbols and null terminators
+    char chars[] = u8"©®™\0";
+    for (unsigned int i = 0; i < strlen(chars); ++i)
+      record.names.normal.erase(std::remove(record.names.normal.begin(), record.names.normal.end(), chars[i]), record.names.normal.end());
 
     // Add (recently added) at the end of the name
-    record.names.normal = record.names.normal + " (recently added)";
+    //record.names.normal = SK_FormatString("%s (recently added)", record.names.normal.c_str());
+
+    record.ImGuiLabelAndID = SK_FormatString("%s (recently added)###%s%i", record.names.normal.c_str(), record.store.c_str(), record.id);
 
     record.names.all_upper = record.names.normal;
     std::for_each (record.names.all_upper.begin ( ), record.names.all_upper.end ( ), [](char& c) {c = static_cast<char>(::toupper (c));});
@@ -152,8 +159,8 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
   std::wstring key = SK_FormatStringW(LR"(SOFTWARE\Kaldaien\Special K\Games\%lu)", pApp->id);
   
   // Strip null terminators
-  name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
-  args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
+  //name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
+  //args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
 
   if (RegOpenKeyExW (HKEY_CURRENT_USER, key.c_str(), 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
   {
@@ -181,6 +188,13 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
   if (failed == false)
   {
     pApp->names.normal = SK_WideCharToUTF8(name).c_str();
+    
+    // Strip game names from special symbols and null terminators
+    char chars[] = u8"©®™\0";
+    for (unsigned int i = 0; i < strlen(chars); ++i)
+      pApp->names.normal.erase(std::remove(pApp->names.normal.begin(), pApp->names.normal.end(), chars[i]), pApp->names.normal.end());
+
+    pApp->ImGuiLabelAndID = SK_FormatString("%s###%s%i", pApp->names.normal.c_str(), pApp->store.c_str(), pApp->id);
 
     pApp->install_dir = installDir;
     pApp->launch_configs[0].executable = exe;
@@ -233,11 +247,11 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               record.names.normal = SK_WideCharToUTF8 (szData);
 
               // Strip null terminators
-              record.names.normal.erase(std::find(record.names.normal.begin(), record.names.normal.end(), '\0'), record.names.normal.end());
+              //record.names.normal.erase(std::find(record.names.normal.begin(), record.names.normal.end(), '\0'), record.names.normal.end());
 
               // Add (recently added) at the end of a newly added game
               if (SelectNewSKIFGame == record.id)
-                record.names.normal = record.names.normal + " (recently added)";
+                record.names.normal = SK_FormatString("%s (recently added)", record.names.normal.c_str());
             }
 
             dwSize = sizeof (szData) / sizeof (WCHAR);

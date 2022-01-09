@@ -84,6 +84,7 @@ struct app_record_s {
   std::wstring install_dir;
   std::string  type  =  "Game";  // TODO: Proper enum
   std::string  store = "Steam";  // maybe enum?
+  std::string  ImGuiLabelAndID = "";
   std::string  EGS_CatalogNamespace = "";
   std::string  EGS_CatalogItemId = "";
   std::string  EGS_AppName = "";

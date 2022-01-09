@@ -70,27 +70,16 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         return;
       }
 
-      //OutputDebugString(L"Reading Epic Games Store manifests\n");
-      //OutputDebugString(EGS_AppDataPath.c_str());
-      //OutputDebugString(L"\n");
-
       bool hasGames = false;
 
       for (const auto& entry : std::filesystem::directory_iterator(SKIF_EGS_AppDataPath))
       {
-        //OutputDebugString(entry.path().wstring().c_str());
-        //OutputDebugString(L"\n");
-
         if (entry.is_directory() == false &&
             entry.path().extension().string() == ".item" )
         {
           std::ifstream file(entry.path());
           nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
           file.close();
-
-          // Parse file
-          //OutputDebugString(SK_UTF8ToWideChar(jf.dump()).c_str());
-          //OutputDebugString(L"\n");
 
           // Skip if we're dealing with a broken manifest
           if (jf.is_discarded ( ))
@@ -102,90 +91,90 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
           bool isGame = false;
 
-          for (auto& categories : jf["AppCategories"])
-          {
-            if (categories.dump() == R"("games")")
-              isGame = true;
-          }
+          try {
+            for (auto& categories : jf["AppCategories"])
+            {
+              if (categories.dump() == R"("games")")
+                isGame = true;
+            }
 
-          if (isGame)
-          {
-            hasGames = true;
+            if (isGame)
+            {
+              hasGames = true;
 
-            app_record_s EGS_record (jf.at ("InstallSize"));
+              int appid = jf.at("InstallSize");
 
-            EGS_record.store                = "EGS";
-            EGS_record.type                 = "Game";
-            EGS_record._status.installed    = true;
-            EGS_record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
-            EGS_record.install_dir.erase(std::find(EGS_record.install_dir.begin(), EGS_record.install_dir.end(), '\0'), EGS_record.install_dir.end());
+              // Set SKIF's internal "appid" to the installsize of the game.
+              //   TODO: Replace with some other proper solution that ensures no hits with other platforms
+              app_record_s record(appid);
 
-            EGS_record.names.normal         = jf.at ("DisplayName");
+              record.store                = "EGS";
+              record.type                 = "Game";
+              record._status.installed    = true;
+              record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
+              record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
-            EGS_record.names.all_upper      = EGS_record.names.normal;
-            std::for_each(EGS_record.names.all_upper.begin(), EGS_record.names.all_upper.end(), ::toupper);
+              record.names.normal         = jf.at ("DisplayName");
 
-            app_record_s::launch_config_s lc;
-            lc.id                           = 0;
-            lc.store                        = L"EGS";
-            lc.executable                   = EGS_record.install_dir + L"\\" + SK_UTF8ToWideChar(jf.at("LaunchExecutable"));
-            //lc.executable.erase(std::find(lc.executable.begin(), lc.executable.end(), '\0'), lc.executable.end());
+              record.names.all_upper      = record.names.normal;
+              std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
 
-            //OutputDebugString(lc.executable.c_str());
-            //OutputDebugString(L"\n");
+              app_record_s::launch_config_s lc;
+              lc.id                           = 0;
+              lc.store                        = L"EGS";
+              lc.executable                   = record.install_dir + L"\\" + SK_UTF8ToWideChar(jf.at("LaunchExecutable"));
 
-            lc.working_dir                  = EGS_record.install_dir;
-            //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
+              lc.working_dir                  = record.install_dir;
+              //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
 
-            std::string CatalogNamespace    = jf.at("CatalogNamespace"),
-                        CatalogItemId       = jf.at("CatalogItemId"),
-                        AppName             = jf.at("AppName");
+              std::string CatalogNamespace    = jf.at("CatalogNamespace"),
+                          CatalogItemId       = jf.at("CatalogItemId"),
+                          AppName             = jf.at("AppName");
 
-            // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-            lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
-            lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
+              // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+              lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
+              lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
 
-            EGS_record.launch_configs[0]    = lc;
+              record.launch_configs[0]    = lc;
 
-            EGS_record.EGS_CatalogNamespace = CatalogNamespace;
-            EGS_record.EGS_CatalogItemId    = CatalogItemId;
-            EGS_record.EGS_AppName          = AppName;
-            EGS_record.EGS_DisplayName      = EGS_record.names.normal;
+              record.EGS_CatalogNamespace = CatalogNamespace;
+              record.EGS_CatalogItemId    = CatalogItemId;
+              record.EGS_AppName          = AppName;
+              record.EGS_DisplayName      = record.names.normal;
 
-            EGS_record.specialk.profile_dir = SK_UTF8ToWideChar (EGS_record.EGS_DisplayName);
-            EGS_record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
+              record.specialk.profile_dir = SK_UTF8ToWideChar (record.EGS_DisplayName);
+              record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 
-            // Strip invalid filename characters
-            extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
-            EGS_record.specialk.profile_dir = SKIF_StripInvalidFilenameChars (EGS_record.specialk.profile_dir);
+              // Strip invalid filename characters
+              extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
+              record.specialk.profile_dir = SKIF_StripInvalidFilenameChars (record.specialk.profile_dir);
             
-            std::pair <std::string, app_record_s>
-              EGS(EGS_record.names.normal, EGS_record);
+              std::pair <std::string, app_record_s>
+                EGS(record.names.normal, record);
 
-            apps->emplace_back(EGS);
+              apps->emplace_back(EGS);
 
-            // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
-            std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
+              // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
+              std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
 
-            // Create necessary directories if they do not exist
-            std::filesystem::create_directories (AppCacheDir);
+              // Create necessary directories if they do not exist
+              std::filesystem::create_directories (AppCacheDir);
 
-            // Copy manifest to AppCache directory
-            CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
+              // Copy manifest to AppCache directory
+              CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
+            }
+          }
+          catch (const std::exception&)
+          {
+
           }
         }
       }
-
-      /*
-      if (hasGames)
-      {
-        SKIF_EGS_GetCatalogNamespaces ( );
-      }
-      */
     }
   }
 }
 
+/* Old -- not in use any longer
 void SKIF_EGS_GetCatalogNamespaces (bool forceUpdate)
 {
   if (SKIF_EGS_JSON_CatalogNamespaces == NULL || forceUpdate)
@@ -249,15 +238,15 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
 {
   if (SKIF_EGS_JSON_CatalogNamespaces != NULL)
   {
-    /*
-    OutputDebugString(L"Namespace: ");
-    OutputDebugString(SK_UTF8ToWideChar(CatalogNamespace).c_str());
-    OutputDebugString(L"\n");
-
-    OutputDebugString(L"JSON: ");
-    OutputDebugString(SK_UTF8ToWideChar(SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace].dump()).c_str());
-    OutputDebugString(L"\n");
-    */
+    //
+    //OutputDebugString(L"Namespace: ");
+    //OutputDebugString(SK_UTF8ToWideChar(CatalogNamespace).c_str());
+    //OutputDebugString(L"\n");
+    //
+    //OutputDebugString(L"JSON: ");
+    //OutputDebugString(SK_UTF8ToWideChar(SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace].dump()).c_str());
+    //OutputDebugString(L"\n");
+    //
 
     // Force an update of the file if it lacks the expected namespace we're looking for
     if (SKIF_EGS_JSON_CatalogNamespaces[CatalogNamespace].is_null ())
@@ -300,14 +289,14 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
             isGame = true;
         }
 
-        /* Not always the same -- Horizon Zero Dawn has a :tm: included in the offer title which is missing in the local DisplayName manifest.
-        if (jf["title"].dump() == "\"" + DisplayName + "\"")
-        {
-          isTitle = true;
-        }
-        */
+        // Not always the same -- Horizon Zero Dawn has a :tm: included in the offer title which is missing in the local DisplayName manifest.
+        //if (jf["title"].dump() == "\"" + DisplayName + "\"")
+        //{
+        //  isTitle = true;
+        //}
+        //
 
-        if (isGame /* && isTitle */)
+        if (isGame) // && isTitle)
         {
           std::filesystem::create_directories(targetAssetPath);
 
@@ -332,16 +321,14 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
               assetDownloaded = true;
             }
 
-            /*
-            if (image["type"].dump() == R"("ProductLogo")" && !PathFileExists((targetAssetPath + L"ProductLogo.jpg").c_str()))
-            {
-              OutputDebugString(L"ProductLogo: ");
-              OutputDebugString(SK_UTF8ToWideChar(image["url"]).c_str());
-              OutputDebugString(L"\n");
-
-              SKIF_GetWebResource (SK_UTF8ToWideChar(image["url"]), targetAssetPath + L"ProductLogo.jpg");
-            }
-            */
+            //if (image["type"].dump() == R"("ProductLogo")" && !PathFileExists((targetAssetPath + L"ProductLogo.jpg").c_str()))
+            //{
+            //  OutputDebugString(L"ProductLogo: ");
+            //  OutputDebugString(SK_UTF8ToWideChar(image["url"]).c_str());
+            //  OutputDebugString(L"\n");
+            //
+            //  SKIF_GetWebResource (SK_UTF8ToWideChar(image["url"]), targetAssetPath + L"ProductLogo.jpg");
+            //}
           }
 
           // We've retrieved the proper assets -- break the main loop
@@ -352,6 +339,7 @@ void SKIF_EGS_IdentifyAsset (std::string CatalogNamespace, std::string CatalogIt
     }
   }
 }
+*/
 
 void SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
 {
@@ -361,7 +349,7 @@ void SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string Catalo
   // Download JSON for the offered games/edition/base
   if (! PathFileExists ((targetAssetPath + L"offer.json").c_str()))
   {
-    std::wstring query = SK_FormatStringW(
+    std::wstring query = SK_FormatStringW (
       LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"6e7c4dd0177150eb9a47d624be221929582df8648e7ec271c821838ff4ee148e"}})",
       SK_UTF8ToWideChar(CatalogNamespace).c_str()
     );
@@ -379,20 +367,25 @@ void SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string Catalo
   }
   else
   {
-    bool assetDownloaded = false;
-
-    for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
+    try
     {
-      if (image["type"].dump() == R"("OfferImageTall")" && ! PathFileExists ((targetAssetPath + L"OfferImageTall.jpg").c_str()))
+      for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
       {
-        // Convert the URL value to a regular string
-        std::string assetUrl = image["url"];
+        if (image["type"].dump() == R"("OfferImageTall")" && ! PathFileExists ((targetAssetPath + L"OfferImageTall.jpg").c_str()))
+        {
+          // Convert the URL value to a regular string
+          std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
 
-        // Download a downscaled copy of the cover
-        //assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+          // Download a downscaled copy of the cover
+          //assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
-        SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+          SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+        }
       }
+    }
+    catch (const std::exception&)
+    {
+
     }
   }
 }
