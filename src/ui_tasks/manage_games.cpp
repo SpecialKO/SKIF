@@ -1014,6 +1014,7 @@ SKIF_GameManagement_DrawTab (void)
       SKIF_record.names.all_upper = "SPECIAL K";
       SKIF_record.install_dir     = std::filesystem::current_path ();
       SKIF_record.store           = "Steam";
+      SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%s%i", SKIF_record.names.normal.c_str(), SKIF_record.store.c_str(), SKIF_record.id);
 
       std::pair <std::string, app_record_s>
         SKIF ( "Special K", SKIF_record );

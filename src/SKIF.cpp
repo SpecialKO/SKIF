@@ -371,6 +371,65 @@ CONDITION_VARIABLE SKIF_IsNotFocused = { };
 
 extern bool SKIF_ImGui_IsFocused (void);
 
+#include <unordered_set>
+
+void
+SKIF_ImGui_MissingGlyphCallback (wchar_t c)
+{
+  static UINT acp = GetACP();
+
+  static std::unordered_set <wchar_t>
+      unprintable_chars;
+  if (unprintable_chars.emplace (c).second)
+  {
+    using range_def_s =
+      std::pair <const ImWchar*, bool *>;
+
+    static       auto pFonts = ImGui::GetIO ().Fonts;
+
+    static const auto ranges =
+      { // Sorted from least numer of unique characters to the most
+        range_def_s { pFonts->GetGlyphRangesVietnamese              (), &SKIF_bFontVietnamese        },
+        range_def_s { pFonts->GetGlyphRangesCyrillic                (), &SKIF_bFontCyrillic          },
+        range_def_s { pFonts->GetGlyphRangesThai                    (), &SKIF_bFontThai              },
+      ((acp == 932) // Prioritize Japanese for ACP 932
+      ? range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }
+      : range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }),
+      ((acp == 932)
+      ? range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }
+      : range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }),
+        range_def_s { pFonts->GetGlyphRangesKorean                  (), &SKIF_bFontKorean            }
+#ifdef _WIN64
+      // 32-bit SKIF breaks if too many character sets are
+      //   loaded so omit Chinese Full on those versions.
+      , range_def_s { pFonts->GetGlyphRangesChineseFull             (), &SKIF_bFontChineseAll        }
+#endif
+      };
+
+    for ( const auto &[span, enable] : ranges)
+    {
+      ImWchar const *sp =
+        &span [2];
+
+      while (*sp != 0x0)
+      {
+        if ( c <= (wchar_t)(*sp++) &&
+             c >= (wchar_t)(*sp++) )
+        {
+           sp             = nullptr;
+          *enable         = true;
+          invalidateFonts = true;
+
+          break;
+        }
+      }
+
+      if (sp == nullptr)
+        break;
+    }
+  }
+}
+
 bool
 SKIF_ImGui_IsHoverable (void)
 {
@@ -707,6 +766,8 @@ namespace skif_fs = std::filesystem;
 
 auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
 {
+  static UINT acp = GetACP();
+
   auto& io =
     ImGui::GetIO ();
 
@@ -746,19 +807,29 @@ auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
       SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesCyrillic                (), &font_cfg);
   
     // Japanese character set
-    // Load before Chinese to not overwrite the Japanese font
-    if (SKIF_bFontJapanese)
+    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
+    if (SKIF_bFontJapanese && acp == 932)
     {
       if (SKIF_IsWindows10OrGreater ( ))
         SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
       else
-        SKIF_ImGui_LoadFont (L"Yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
     }
 
     // Simplified Chinese character set
     // Also includes almost all of the Japanese characters except for some Kanjis
     if (SKIF_bFontChineseSimplified)
       SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
+
+    // Japanese character set
+    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
+    if (SKIF_bFontJapanese && acp != 932)
+    {
+      if (SKIF_IsWindows10OrGreater ( ))
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      else
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+    }
     
     // All Chinese character sets
     if (SKIF_bFontChineseAll)
@@ -3443,6 +3514,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
+  /* is handled dynamically now
   SKIF_bFontChineseSimplified   =   regKVFontChineseSimplified.getData   ( );
   SKIF_bFontChineseAll          =   regKVFontChineseAll.getData          ( );
   SKIF_bFontCyrillic            =   regKVFontCyrillic.getData            ( );
@@ -3450,6 +3522,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFontKorean              =   regKVFontKorean.getData              ( );
   SKIF_bFontThai                =   regKVFontThai.getData                ( );
   SKIF_bFontVietnamese          =   regKVFontVietnamese.getData          ( );
+  */
 
   if ( regKVNotifications.hasData() )
     SKIF_iNotifications         =   regKVNotifications.getData           ( );
@@ -3901,6 +3974,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bFontThai              = false;
       SKIF_bFontVietnamese        = false;
 
+      /*
       regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
       regKVFontChineseAll       .putData (SKIF_bFontChineseAll);
       regKVFontCyrillic         .putData (SKIF_bFontCyrillic);
@@ -3908,7 +3982,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       regKVFontKorean           .putData (SKIF_bFontKorean);
       regKVFontThai             .putData (SKIF_bFontThai);
       regKVFontVietnamese       .putData (SKIF_bFontVietnamese);
-      
+      */
+
       SKIF_ImGui_InitFonts ();
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
@@ -4547,39 +4622,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TreePop       ( );
 
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-
-          const char* items[] = { "SKIF Dark", "ImGui Dark", "ImGui Light", "ImGui Classic" };
-          static const char* current_item = items[SKIF_iStyle];
-            
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Choose a skin to apply to SKIF: (restart required)"
-          );
-          ImGui::TreePush      ("");
-
-          if (ImGui::BeginCombo ("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
-          {
-              for (int n = 0; n < IM_ARRAYSIZE (items); n++)
-              {
-                  bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
-                  if (ImGui::Selectable (items[n], is_selected))
-                  {
-                    SKIF_iStyle = n;
-                    regKVStyle.putData  (SKIF_iStyle);
-                    current_item = items[SKIF_iStyle];
-                    // Apply the new Dear ImGui style
-                    //SKIF_SetStyle ( );
-                  }
-                  if (is_selected)
-                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-              }
-              ImGui::EndCombo  ( );
-          }
-
-          ImGui::TreePop       ( );
-
           ImGui::NextColumn    ( );
 
           // New column
@@ -4743,7 +4785,44 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::Spacing       ( );
           ImGui::Spacing       ( );
+
+          const char* items[] = { "SKIF Dark", "ImGui Dark", "ImGui Light", "ImGui Classic" };
+          static const char* current_item = items[SKIF_iStyle];
             
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Choose a skin to apply to SKIF: (restart required)"
+          );
+          ImGui::TreePush      ("");
+
+          if (ImGui::BeginCombo ("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
+          {
+              for (int n = 0; n < IM_ARRAYSIZE (items); n++)
+              {
+                  bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
+                  if (ImGui::Selectable (items[n], is_selected))
+                  {
+                    SKIF_iStyle = n;
+                    regKVStyle.putData  (SKIF_iStyle);
+                    current_item = items[SKIF_iStyle];
+                    // Apply the new Dear ImGui style
+                    //SKIF_SetStyle ( );
+                  }
+                  if (is_selected)
+                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+              }
+              ImGui::EndCombo  ( );
+          }
+
+          ImGui::TreePop       ( );
+
+          //ImGui::Spacing       ( );
+          //ImGui::Spacing       ( );
+
+          //static UINT acp = GetACP();
+          //ImGui::Text(("Active code page: " + std::to_string(acp)).c_str());
+
+          /*
           ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE);
           SKIF_ImGui_SetHoverTip ("Enabling too many extended characters sets can"
                                   "\nnoticeably slow down the launch time of SKIF.");
@@ -4787,12 +4866,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // Second column
           ImGui::BeginGroup ( );
 
+          */
+
 /*
 #ifndef _WIN64
           ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
           ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
 #endif
 */
+
+          /*
 
           if (ImGui::Checkbox      ("Chinese (All)", &SKIF_bFontChineseAll))
           {
@@ -4801,6 +4884,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             regKVFontChineseAll.putData        (SKIF_bFontChineseAll);
             invalidateFonts = true;
           }
+
+          */
 
 /*
 #ifndef _WIN64
@@ -4811,17 +4896,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif
 */
 
+          /*
+
           if (ImGui::Checkbox      ("Korean", &SKIF_bFontKorean))
           {
             regKVFontKorean.putData (SKIF_bFontKorean);
             invalidateFonts = true;
           }
 
+          */
+
 /*
 #ifndef _WIN64
           SKIF_ImGui_SetHoverTip ("32-bit SKIF does not include Hangul syllables due to system limitations.");
 #endif
 */
+
+          /*
 
           ImGui::EndGroup      ( );
 
@@ -4847,6 +4938,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndGroup      ( );
 
           ImGui::TreePop       ( );
+
+          */
 
           /* Irrelevant -- hide by default
           ImGui::NewLine       ( );

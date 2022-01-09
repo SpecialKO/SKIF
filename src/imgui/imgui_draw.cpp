@@ -3120,6 +3120,9 @@ void ImFont::RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, const ImC
     draw_list->PrimRectUV(ImVec2(pos.x + glyph->X0 * scale, pos.y + glyph->Y0 * scale), ImVec2(pos.x + glyph->X1 * scale, pos.y + glyph->Y1 * scale), ImVec2(glyph->U0, glyph->V0), ImVec2(glyph->U1, glyph->V1), col);
 }
 
+#include <windows.h>
+#include <unordered_set>
+
 void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, const ImColor& col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) const
 {
     if (!text_end)
@@ -3232,7 +3235,21 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, const ImC
 
         const ImFontGlyph* glyph = FindGlyph((ImWchar)c);
         if (glyph == NULL)
+        {
             continue;
+        }
+
+        //
+        // SKIF Mod:  Unprintable Character Callback
+        //
+        if (glyph == FallbackGlyph)
+        {
+          extern void
+          SKIF_ImGui_MissingGlyphCallback (wchar_t c);
+          SKIF_ImGui_MissingGlyphCallback (
+            static_cast <wchar_t> (c)
+          );
+        }
 
         float char_width = glyph->AdvanceX * scale;
         if (glyph->Visible)
