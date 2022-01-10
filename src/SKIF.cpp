@@ -474,6 +474,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
                    cursorPos.y + 8 ) // 16 + 4 * (cursorScale - 1) )
         );
         */
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
         HoverTipActive = true;
 
         if ( HoverTipDuration == 0)
@@ -483,6 +484,8 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
           ImGui::SetTooltip (
             "%hs", szText.data ()
           );
+
+        ImGui::PopStyleColor  ();
       }
 
       else
@@ -3053,7 +3056,12 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst = nullptr)
     colors[ImGuiCol_ScrollbarGrabActive]    = colors[ImGuiCol_HeaderActive];  //ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
 
     // Separators
-    colors[ImGuiCol_Separator]              = colors[ImGuiCol_Border];
+    if (SKIF_bDisableBorders)
+      colors[ImGuiCol_Separator]            = colors[ImGuiCol_WindowBg];
+    else
+      colors[ImGuiCol_Separator]            = colors[ImGuiCol_Border];
+
+
     colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
     colors[ImGuiCol_SeparatorActive]        = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
 
@@ -3065,7 +3073,12 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst = nullptr)
     // Tabs
     colors[ImGuiCol_Tab]                    = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);       //ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.80f);
     colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_TabActive]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+
+    if (SKIF_bDisableBorders)
+      colors[ImGuiCol_TabActive]            = colors[ImGuiCol_WindowBg];
+    else
+      colors[ImGuiCol_TabActive]            = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+
     colors[ImGuiCol_TabUnfocused]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
     colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
 
@@ -4806,6 +4819,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
               style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
             }
+            if (SKIF_iStyle == 0)
+              SKIF_ImGui_StyleColorsDark ( );
           }
 
           if (SKIF_bDisableTooltips &&
@@ -5575,14 +5590,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup ();
             ImGui::Spacing    ();
-            ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
-            ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Note that these lists do not prevent Special K from being injected into processes.");
+            ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_CIRCLE);
+            ImGui::SameLine   (); ImGui::Text ("Note that these lists do not prevent Special K from being injected into processes.");
             ImGui::EndGroup   ();
-
-            SKIF_ImGui_SetMouseCursorHand ();
-            SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-            
-            ImGui::PopStyleColor  ();
 
             if (SKIF_bDisableTooltips)
             {
@@ -5605,11 +5615,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
               );
             }
 
+            /*
+            ImGui::BeginGroup ();
+            ImGui::Spacing    ();
+            ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+            ImGui::SameLine   (); ImGui::Text        ("More on the wiki.");
+            ImGui::EndGroup   ();
+
+            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+
             if (ImGui::IsItemClicked ())
               SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+            */
 
-            ImGui::Spacing ();
-            ImGui::Spacing ();
+            ImGui::PopStyleColor  ();
+
+            ImGui::NewLine    ();
 
             // Whitelist section
 
@@ -6075,8 +6097,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::NewLine          ( );
 
           ImGui::SetCursorPosY    (fY1);
-
-          ImGui::TextColored      (ImColor::HSV (0.11F,   1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE);
+          
+          ImGui::TextColored      (
+            ImColor::HSV (0.11F,   1.F, 1.F),
+            ICON_FA_EXCLAMATION_TRIANGLE " ");
           ImGui::SameLine         ( );
           ImGui::TextColored (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -6089,7 +6113,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine         ( );
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-            ICON_FA_EXCLAMATION_CIRCLE " ");
+              ICON_FA_EXCLAMATION_CIRCLE " ");
           ImGui::SameLine         ( );
           ImGui::Text             ("Stop the service before playing a multiplayer game.");
           ImGui::EndGroup         ( );

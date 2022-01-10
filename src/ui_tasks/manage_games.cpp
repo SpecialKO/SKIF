@@ -252,6 +252,7 @@ SKIF_Util_OpenURI_Threaded (
 #include <sk_boxart.png.h>
 #include <fsutil.h>
 #include <stores/EGS/egs_library.h>
+#include <atlimage.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -319,13 +320,16 @@ LoadLibraryTexture (
     else
       SKIFCustomPath += L"icon";
 
-    if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-      load_str =               SKIFCustomPath + L".png";
-    else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-      load_str =               SKIFCustomPath + L".jpg";
+    if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
+      load_str =                SKIFCustomPath + L".png";
+    else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =                SKIFCustomPath + L".jpg";
     else if (libTexToLoad == LibraryTexture::Icon &&
               PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =                SKIFCustomPath + L".ico";
+    else if (libTexToLoad == LibraryTexture::Icon &&
+              PathFileExistsW ((SKIFCustomPath + L"-original.jpg").c_str()))
+      load_str =                SKIFCustomPath + L"-original.jpg";
 
     customAsset = (load_str != L"\0");
   }
@@ -356,9 +360,9 @@ LoadLibraryTexture (
       if      (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
         load_str =               EGSAssetPath + L"OfferImageTall.jpg";
-      //else if (libTexToLoad == LibraryTexture::Icon &&
-      //         PathFileExistsW ((EGSAssetPath + L"ProductLogo.jpg").c_str()))
-      //  load_str =               EGSAssetPath + L"ProductLogo.jpg";
+      else if (libTexToLoad == LibraryTexture::Icon &&
+               PathFileExistsW ((EGSAssetPath + L"icon-original.jpg").c_str()))
+        load_str =               EGSAssetPath + L"icon-original.jpg";
     }
   }
 
@@ -379,6 +383,9 @@ LoadLibraryTexture (
     else if (libTexToLoad == LibraryTexture::Icon &&
              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
+    else if (libTexToLoad == LibraryTexture::Icon &&
+             PathFileExistsW ((SKIFCustomPath + L"-original.jpg").c_str()))
+      load_str =               SKIFCustomPath + L"-original.jpg";
 
     customAsset = (load_str != L"\0");
 
@@ -4277,6 +4284,17 @@ Cache=false)";
       for (auto& app : apps)
         if (app.second.id == appid && app.second.store == "SKIF")
           pApp = &app.second;
+
+      ImVec2 dontCare1, dontCare2;
+
+      // Load the new icon (hopefully)
+      LoadLibraryTexture (LibraryTexture::Icon,
+                            appid,
+                              pApp->textures.icon,
+                                L"icon",
+                                    dontCare1,
+                                      dontCare2,
+                                        pApp );
 
       update = true;
 

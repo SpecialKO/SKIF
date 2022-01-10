@@ -10,6 +10,8 @@
 
 #include <gsl/gsl>
 
+#include <atlimage.h>
+
 /*
 EGS registry / folder struture
 
@@ -167,6 +169,44 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
           // Copy manifest to AppCache directory
           CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
+
+
+          // -- Icon stuff --
+
+          std::wstring AssetDir = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
+
+          if (! PathFileExists((AssetDir + L"icon-original.jpg").c_str()))
+          {
+            //if (ExtractAssociatedIcon(NULL, wszIconPath, &iIcon)) { }
+            //if (S_OK == SHDefExtractIcon(wszIconPath, iIcon, 0, &hIcon, NULL, size)) { }
+            
+            // Create necessary directories if they do not exist
+            std::filesystem::create_directories(AssetDir);
+
+            std::wstring path = std::wstring(lc.executable);
+
+            // Strip null terminators
+            path.erase(std::find(path.begin(), path.end(), '\0'), path.end());
+
+            HICON hIcon;
+            WORD iIcon = 0;
+            WCHAR wszIconPath[MAX_PATH];
+            wcsncpy_s (wszIconPath,    MAX_PATH,
+                       path.c_str (), _TRUNCATE);
+
+            hIcon = ExtractAssociatedIcon (NULL, wszIconPath, &iIcon);
+
+            ICONINFO iconinfo;
+            GetIconInfo   (hIcon, &iconinfo);
+            HBITMAP hBitmap = iconinfo.hbmColor;
+
+            CImage image;
+            image.Attach  (hBitmap);
+            image.Save    ((AssetDir + L"icon-original.jpg").c_str());
+            image.Destroy ( );
+
+            DestroyIcon   (hIcon);
+          }
         }
       }
       catch (const std::exception&)
