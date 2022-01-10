@@ -674,19 +674,19 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // 32-bit/64-bit Services
   if (pid32 && bAckInj)
-    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Waiting for game...");
   else if (pid32)
-    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Stopped");
 
 #ifdef _WIN64
   if (pid64 && bAckInj)
-    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Waiting for game...");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Waiting for game...");
   else if (pid64)
-    ImGui::TextColored (ImColor::HSV (0.3F,  0.99F, 1.F), "Running");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Running");
   else
-    ImGui::TextColored (ImColor::HSV (0.08F, 0.99F, 1.F), "Stopped");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Stopped");
 #else
   ImGui::NewLine  ();
 #endif
@@ -862,13 +862,13 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     }
 
     else {
-      ImGui::TextColored  (ImColor::HSV (0.11F, 1.F, 1.F), "Auto-stop is not available due to Special K being outdated.");
+      ImGui::TextColored  (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Auto-stop is not available due to Special K being outdated.");
       SKIF_ImGui_SetHoverTip ("The feature requires Special K v21.08.12 or newer.");
     }
   }
 
   else {
-    ImGui::TextColored    (ImColor::HSV (0.11F, 1.F, 1.F), "Global injection is unavailable due to missing files.");
+    ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Global injection is unavailable due to missing files.");
   }
 
   ImGui::EndChildFrame ();
@@ -1250,20 +1250,27 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
     // Strip all null terminator \0 characters from the string
     out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
 
-    // Strip all double (or more) newline characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n\n+)"),   L"\n");
+    try
+    {
+      // Strip all double (or more) newline characters from the string
+      out_text = std::regex_replace(out_text, std::wregex(  LR"(\n\n+)"),   L"\n");
 
-    // Strip double pipe characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\|)"),    L"|");
+      // Strip double pipe characters from the string
+      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\|)"),    L"|");
 
-    // Strip pipe characters at the end of a line from the string
-    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\n)"),    L"\n");
+      // Strip pipe characters at the end of a line from the string
+      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\n)"),    L"\n");
 
-    // Strip trailing pipe characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(  LR"(\|+$)"),    L"");
+      // Strip trailing pipe characters from the string
+      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|+$)"),    L"");
 
-    // Strip trailing newline characters from the string
-    out_text = std::regex_replace(out_text, std::wregex(  LR"(\n+$)"),    L"");
+      // Strip trailing newline characters from the string
+      out_text = std::regex_replace(out_text, std::wregex(  LR"(\n+$)"),    L"");
+    }
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
+    }
 
     list_file.write(out_text.c_str(),
       out_text.length());
@@ -1382,10 +1389,16 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
 
   for (std::string line; std::getline(iss, line); )
   {
-    std::regex regexp (line, std::regex_constants::icase);
+    try {
+      std::regex regexp (line, std::regex_constants::icase);
 
-    if (std::regex_search(szExecutable, regexp))
-      return true;
+      if (std::regex_search(szExecutable, regexp))
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
+    }
   }
 
   return false;

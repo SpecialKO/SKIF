@@ -68,6 +68,8 @@ PopupState ConfirmPopup    = PopupState::Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
+
+extern int             SKIF_iStyle;
 extern bool            SKIF_bLowBandwidthMode;
 extern bool            SKIF_bDisableBorders;
 extern float           SKIF_ImGui_GlobalDPIScale;
@@ -267,9 +269,9 @@ LoadLibraryTexture (
         uint32_t                            appid,
         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        app_record_s*                       pApp = nullptr,
-        ImVec2&                             vCoverUv0 = ImVec2(0,0),
-        ImVec2&                             vCoverUv1 = ImVec2(0,0))
+        ImVec2&                             vCoverUv0,
+        ImVec2&                             vCoverUv1,
+        app_record_s*                       pApp = nullptr)
 {
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
@@ -942,7 +944,7 @@ SKIF_GameManagement_DrawTab (void)
     return ret;
   };
 
-//static volatile LONG cover_thread = 0;
+  static volatile LONG icon_thread  = 1;
   static volatile LONG need_sort    = 0;
   bool                 sort_changed = false;
 
@@ -1000,7 +1002,8 @@ SKIF_GameManagement_DrawTab (void)
 
   if (! populated)
   {
-    populated = true;
+    InterlockedExchange (&icon_thread, 1);
+
     apps      = PopulateAppRecords ();
 
     for (auto& app : apps)
@@ -1051,8 +1054,9 @@ SKIF_GameManagement_DrawTab (void)
     {
       CoInitializeEx (nullptr, 0x0);
 
+      ImVec2 dontCare1, dontCare2;
       SK_RunOnce (
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)")
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2)
       );
 
       for ( auto& app : apps )
@@ -1166,7 +1170,9 @@ SKIF_GameManagement_DrawTab (void)
                                app.second.id,
                                  app.second.textures.icon,
                                    load_str,
-                                     &app.second );
+                                     dontCare1,
+                                       dontCare2,
+                                         &app.second );
 
         static auto *pFont =
           ImGui::GetFont ();
@@ -1180,8 +1186,11 @@ SKIF_GameManagement_DrawTab (void)
           );
       }
 
+      InterlockedExchange (&icon_thread, 0);
       InterlockedExchange (&need_sort, 1);
     }, 0x0, NULL);
+
+    populated = true;
   }
 
   if (! update)
@@ -1355,7 +1364,13 @@ SKIF_GameManagement_DrawTab (void)
 
       // Strip (recently added) from the game name
       std::string name = pApp->names.normal;
-      name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      try {
+        name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      }
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+      }
 
       std::string linkGridDB = (pApp->store == "Steam")
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", appid)
@@ -1376,20 +1391,20 @@ SKIF_GameManagement_DrawTab (void)
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-              ImColor   (255, 255, 255, 255),
+          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->textures.isCustomCover)
         ImGui::TextColored (
-                ImColor   (255, 255, 255, 255),
+          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_UNDO_ALT
                               );
 
       ImGui::Separator  (  );
 
       ImGui::TextColored (
-              ImColor   (255, 255, 255, 255),
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                 ICON_FA_EXTERNAL_LINK_ALT
                             );
 
@@ -1407,183 +1422,186 @@ SKIF_GameManagement_DrawTab (void)
   float fZ =
   ImGui::GetCursorPosX (                                                  );
 
+  static bool loadTexture = false;
   if (update)
   {
     //SKIF_GameManagement_ShowScreenshot (L"");
-
-    update  = false;
-
-    if (! sort_changed) //&& ! InterlockedCompareExchange(&cover_thread, 1, 0))
-    {
-      // We're going to stream the cover in asynchronously on this thread
-      _beginthread([](void*)->void
-      {
-        CoInitializeEx(nullptr, 0x0);
-
-        static int queuePos = getTextureLoadQueuePos();
-        static ImVec2 _vecCoverUv0(vecCoverUv0);
-        static ImVec2 _vecCoverUv1(vecCoverUv1);
-        static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
-
-        std::wstring load_str;
-
-        // SKIF
-        if (appid == SKIF_STEAM_APPID)
-        {
-          load_str = L"_library_600x900_x2.jpg";
-        }
-
-        // SKIF Custom
-        else if (pApp->store == "SKIF")
-        {
-          load_str = L"cover";
-        }
-
-        // GOG
-        else if (pApp->store == "GOG")
-        {
-          load_str = L"*_glx_vertical_cover.webp";
-        }
-
-        // EGS
-        else if (pApp->store == "EGS")
-        {
-          load_str = 
-            SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
-
-          if ( ! PathFileExistsW (load_str.   c_str ()) )
-          {
-            SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
-
-          //
-          } else {
-            // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-            if ( ! SKIF_bLowBandwidthMode &&
-                  SUCCEEDED (
-                  DirectX::GetMetadataFromWICFile (
-                    load_str.c_str (),
-                      DirectX::WIC_FLAGS_FILTER_POINT,
-                        meta
-                    )
-                  )
-                )
-            {
-              // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
-              //   download the full-size cover and replace the existing one.
-              if (meta.width  == 600 ||
-                  meta.height == 900)
-              {
-                SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
-              }
-            }
-          }
-        }
-
-        // STEAM
-        else if (pApp->store == "Steam")
-        {
-
-          if ( appinfo != nullptr )
-          {
-            skValveDataFile::appinfo_s *pAppInfo =
-              appinfo->getAppInfo ( appid, nullptr );
-
-            DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
-          }
-
-          std::wstring load_str_2x (
-            SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata.path, appid)
-          );
-
-          std::filesystem::create_directories (load_str_2x);
-
-          load_str_2x += L"library_600x900_x2.jpg";
-      
-          load_str = SK_GetSteamDir ();
-
-          load_str   += LR"(/appcache/librarycache/)" +
-            std::to_wstring (appid)                   +
-                                    L"_library_600x900.jpg";
-
-          std::wstring load_str_final = load_str;
-          //std::wstring load_str_final = L"_library_600x900.jpg";
-
-          // If 600x900 exists but 600x900_x2 cannot be found 
-          if (   PathFileExistsW (load_str.   c_str ()) &&
-               ! PathFileExistsW (load_str_2x.c_str ()) )
-          {
-            // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
-            if ( ! SKIF_bLowBandwidthMode &&
-                  SUCCEEDED (
-                  DirectX::GetMetadataFromWICFile (
-                    load_str.c_str (),
-                      DirectX::WIC_FLAGS_FILTER_POINT,
-                        meta
-                    )
-                  )
-                )
-            {
-              // If the image is in reality 300x450, which indicates a real cover,
-              //   download the real 600x900 cover and store it in _x2
-              if (meta.width  == 300 &&
-                  meta.height == 450)
-              {
-                SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-                load_str_final = load_str_2x;
-                //load_str_final = L"_library_600x900_x2.jpg";
-              }
-            }
-          }
-
-          // If 600x900_x2 exists, check the last modified time stamps
-          else {
-            WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
-
-            // ... but only if low bandwidth mode is disabled
-            if (! SKIF_bLowBandwidthMode &&
-                GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
-                GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
-            {
-              // If 600x900 has been edited after 600_900_x2,
-              //   download new copy of the 600_900_x2 cover
-              if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
-              {
-                DeleteFile (load_str_2x.c_str());
-                SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-              }
-            }
-
-            load_str_final = load_str_2x;
-          }
-
-          load_str = load_str_final;
-        }
+    loadTexture = true;
+    update      = false;
+  }
     
-        LoadLibraryTexture ( LibraryTexture::Cover,
-                                appid,
-                                  _pTexSRV,
-                                    load_str,
-                                      pApp,
-                                       _vecCoverUv0,
-                                        _vecCoverUv1);
+  if (loadTexture && populated && ! InterlockedCompareExchange (&icon_thread, 0, 0))
+  {
+    loadTexture = false;
 
+    if ( appinfo != nullptr )
+    {
+      skValveDataFile::appinfo_s *pAppInfo =
+        appinfo->getAppInfo ( appid, nullptr );
 
-        if (textureLoadQueueLength == queuePos)
-        {
-          vecCoverUv0 = _vecCoverUv0;
-          vecCoverUv1 = _vecCoverUv1;
-          pTexSRV     = _pTexSRV;
-        }
-        else if (_pTexSRV.p != nullptr)
-        {
-          extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
-          SKIF_ResourcesToFree.push(_pTexSRV.p);
-          _pTexSRV.p = nullptr;
-        }
-
-        //InterlockedExchange(&cover_thread, 0);
-      }, 0x0, NULL);
+      DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
+
+    // We're going to stream the cover in asynchronously on this thread
+    _beginthread([](void*)->void
+    {
+      CoInitializeEx(nullptr, 0x0);
+
+      static int queuePos = getTextureLoadQueuePos();
+      static ImVec2 _vecCoverUv0(vecCoverUv0);
+      static ImVec2 _vecCoverUv1(vecCoverUv1);
+      static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
+
+      std::wstring load_str;
+
+      // SKIF
+      if (appid == SKIF_STEAM_APPID)
+      {
+        load_str = L"_library_600x900_x2.jpg";
+      }
+
+      // SKIF Custom
+      else if (pApp->store == "SKIF")
+      {
+        load_str = L"cover";
+      }
+
+      // GOG
+      else if (pApp->store == "GOG")
+      {
+        load_str = L"*_glx_vertical_cover.webp";
+      }
+
+      // EGS
+      else if (pApp->store == "EGS")
+      {
+        load_str = 
+          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+
+        if ( ! PathFileExistsW (load_str.   c_str ()) )
+        {
+          SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+
+        //
+        } else {
+          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
+          if ( ! SKIF_bLowBandwidthMode &&
+                SUCCEEDED (
+                DirectX::GetMetadataFromWICFile (
+                  load_str.c_str (),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      meta
+                  )
+                )
+              )
+          {
+            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
+            //   download the full-size cover and replace the existing one.
+            if (meta.width  == 600 ||
+                meta.height == 900)
+            {
+              SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+            }
+          }
+        }
+      }
+
+      // STEAM
+      else if (pApp->store == "Steam")
+      {
+        std::wstring load_str_2x (
+          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata.path, appid)
+        );
+
+        std::filesystem::create_directories (load_str_2x);
+
+        load_str_2x += L"library_600x900_x2.jpg";
+      
+        load_str = SK_GetSteamDir ();
+
+        load_str   += LR"(/appcache/librarycache/)" +
+          std::to_wstring (appid)                   +
+                                  L"_library_600x900.jpg";
+
+        std::wstring load_str_final = load_str;
+        //std::wstring load_str_final = L"_library_600x900.jpg";
+
+        // If 600x900 exists but 600x900_x2 cannot be found 
+        if (   PathFileExistsW (load_str.   c_str ()) &&
+              ! PathFileExistsW (load_str_2x.c_str ()) )
+        {
+          // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
+          if ( ! SKIF_bLowBandwidthMode &&
+                SUCCEEDED (
+                DirectX::GetMetadataFromWICFile (
+                  load_str.c_str (),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      meta
+                  )
+                )
+              )
+          {
+            // If the image is in reality 300x450, which indicates a real cover,
+            //   download the real 600x900 cover and store it in _x2
+            if (meta.width  == 300 &&
+                meta.height == 450)
+            {
+              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+              load_str_final = load_str_2x;
+              //load_str_final = L"_library_600x900_x2.jpg";
+            }
+          }
+        }
+
+        // If 600x900_x2 exists, check the last modified time stamps
+        else {
+          WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
+
+          // ... but only if low bandwidth mode is disabled
+          if (! SKIF_bLowBandwidthMode &&
+              GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
+              GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
+          {
+            // If 600x900 has been edited after 600_900_x2,
+            //   download new copy of the 600_900_x2 cover
+            if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+            {
+              DeleteFile (load_str_2x.c_str());
+              SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
+            }
+          }
+
+          load_str_final = load_str_2x;
+        }
+
+        load_str = load_str_final;
+      }
+    
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                              appid,
+                                _pTexSRV,
+                                  load_str,
+                                    _vecCoverUv0,
+                                      _vecCoverUv1,
+                                        pApp);
+
+
+      if (textureLoadQueueLength == queuePos)
+      {
+        vecCoverUv0 = _vecCoverUv0;
+        vecCoverUv1 = _vecCoverUv1;
+        pTexSRV     = _pTexSRV;
+      }
+      else if (_pTexSRV.p != nullptr)
+      {
+        extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+        SKIF_ResourcesToFree.push(_pTexSRV.p);
+        _pTexSRV.p = nullptr;
+      }
+
+      //InterlockedExchange(&cover_thread, 0);
+    }, 0x0, NULL);
+  }
 
     /*
     static
@@ -1760,7 +1778,7 @@ SKIF_GameManagement_DrawTab (void)
       }
     }
     */
-  }
+  //}
 
   /*
   float fTestScale    = SKIF_ImGui_GlobalDPIScale,
@@ -2022,11 +2040,11 @@ SKIF_GameManagement_DrawTab (void)
                                            : "Stopped";
 
               cache.injection.status.color =
-                         (cache.service)   ? ImColor ( 53, 255,   3)  // HSV (0.3F,  0.99F, 1.F)
-                                           : ImColor (255, 124,   3); // HSV (0.08F, 0.99F, 1.F);
+                         (cache.service)   ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)
+                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning); // HSV (0.08F, 0.99F, 1.F);
               cache.injection.status.color_hover =
-                         (cache.service)   ? ImColor (154, 255, 129)
-                                           : ImColor (255, 189, 129);
+                         (cache.service)   ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
               cache.injection.hover_text   =
                          (cache.service)   ? "Click to stop the service"
                                            : "Click to start the service";
@@ -2937,6 +2955,8 @@ Cache=false)";
             DeleteFile ((targetPath + L".ico").c_str());
 
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
+            
+            ImVec2 dontCare1, dontCare2;
 
             // Reload the icon
             LoadLibraryTexture (LibraryTexture::Icon,
@@ -2945,7 +2965,9 @@ Cache=false)";
                                       (pApp->store == "GOG")
                                       ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                       : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), pApp->id), //L"_icon.jpg",
-                                        pApp );
+                                          dontCare1,
+                                            dontCare2,
+                                              pApp );
           }
         }
       }
@@ -2982,6 +3004,8 @@ Cache=false)";
             // If any file was removed
             if (d1 || d2 || d3)
             {
+              ImVec2 dontCare1, dontCare2;
+
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
@@ -2989,7 +3013,9 @@ Cache=false)";
                                        (pApp->store == "GOG")
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                         : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), pApp->id), //L"_icon.jpg",
-                                            pApp );
+                                            dontCare1,
+                                              dontCare2,
+                                                pApp );
             }
           }
         }
@@ -3003,7 +3029,13 @@ Cache=false)";
 
       // Strip (recently added) from the game name
       std::string name = pApp->names.normal;
-      name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      try {
+        name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      }
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+      }
 
       std::string linkGridDB = (pApp->store == "Steam")
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons", appid)
@@ -3024,20 +3056,20 @@ Cache=false)";
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-              ImColor   (255, 255, 255, 255).Value,
+          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->textures.isCustomIcon)
         ImGui::TextColored (
-                ImColor   (255, 255, 255, 255).Value,
+          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_UNDO_ALT
                               );
 
       ImGui::Separator   ( );
 
       ImGui::TextColored (
-              ImColor    (255, 255,  255, 255).Value,
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                 ICON_FA_EXTERNAL_LINK_ALT
                             );
     }
@@ -3291,8 +3323,6 @@ Cache=false)";
         L"https://www.patreon.com/Kaldaien"
       );
 
-    extern int SKIF_iStyle;
-
     ImGui::SetCursorPos  (ImVec2 (fZ - (238.0f * SKIF_ImGui_GlobalDPIScale),
                                   fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
 
@@ -3340,51 +3370,9 @@ Cache=false)";
     ImGui::EndGroup           ( );
   }
 
+  extern void SKIF_ImGui_ServiceMenu (void);
 
-
-  if (ServiceMenu == PopupState::Open)
-  {
-    ImGui::OpenPopup ("ServiceMenu");
-    ServiceMenu = PopupState::Closed;
-  }
-
-  if (ImGui::BeginPopup ("ServiceMenu"))
-  {
-    ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F),
-        "Troubleshooting:"
-    );
-
-    ImGui::Separator ( );
-
-    extern bool SKIF_bStopOnInjection;
-
-    if (ImGui::Selectable("Force Start Service"))
-      _inject._StartStopInject (false, SKIF_bStopOnInjection);
-
-    if (ImGui::Selectable("Force Stop Service"))
-      _inject._StartStopInject (true);
-    
-    extern void SKIF_putStopOnInjection(bool in);
-
-#ifdef _WIN64
-    if (_inject.SKVer64 >= "21.08.12" &&
-      _inject.SKVer32 >= "21.08.12")
-#else
-    if (_inject.SKVer32 >= "21.08.12")
-#endif
-    {
-      ImGui::Separator ( );
-
-      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
-        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
-
-      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
-                              "when Special K is injected into a whitelisted game.");
-    }
-
-    ImGui::EndPopup ( );
-  }
+  SKIF_ImGui_ServiceMenu ( );
 
 
 
@@ -3414,7 +3402,8 @@ Cache=false)";
             SKIF_ImGui_SetHoverText ("Starts the global injection service as well.");
 
           ImGui::PushStyleColor  ( ImGuiCol_Text,
-            (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f));
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
+          );
 
           if ( ImGui::Selectable (("Launch " + pApp->type + " without Special K").c_str(), false,
                                  ((pApp->_status.running != 0x0)
@@ -3445,7 +3434,8 @@ Cache=false)";
                 clickedGalaxyLaunch = true;
 
               ImGui::PushStyleColor ( ImGuiCol_Text,
-                (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f));
+                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
+              );
 
               if (ImGui::Selectable (("Launch " + pApp->type + " without Special K").c_str(), false,
                                     ((pApp->_status.running != 0x0)
@@ -3589,23 +3579,23 @@ Cache=false)";
         ImGui::SetCursorPos(iconPos);
 
         ImGui::TextColored (
-               ImColor   (24, 118, 210, 255).Value,
-                 ICON_FA_BOOK_OPEN
+               ImColor   (25, 118, 210),
+                 ICON_FA_BOOK
                              );
         ImGui::TextColored (
-               ImColor   (114, 137, 218, 255).Value,
+               ImColor   (114, 137, 218),
                  ICON_FA_DISCORD
                              );
         ImGui::TextColored (
-               ImColor   (255, 249, 175, 255).Value,
+               (SKIF_iStyle == 2) ? ImColor::HSV(0.11F, 1.F, 1.F) : ImColor (247, 241, 169),
                  ICON_FA_DISCOURSE
                              );
         ImGui::TextColored (
-               ImColor   (249, 104,  84, 255).Value,
+               ImColor   (249, 104,  84),
                  ICON_FA_PATREON
                              );
         ImGui::TextColored (
-               ImColor   (226,  67,  40, 255).Value,
+               ImColor   (226,  67,  40),
                  ICON_FA_GITLAB
                              );
       }
@@ -3648,8 +3638,9 @@ Cache=false)";
         {
           if (! pApp->cloud_enabled)
           {
-            ImGui::TextColored ( ImColor::HSV (0.08F, 0.99F, 1.F),
-                                   "Developer forgot to enable Steam Auto-Cloud (!!)" );
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
+                                   ICON_FA_EXCLAMATION_TRIANGLE " Auto-Cloud is not enabled" );
+            ImGui::Separator   ( );
           }
 
           bool bCloudSaves = false;
@@ -3696,7 +3687,7 @@ Cache=false)";
 
           if (! bCloudSaves)
           {
-            ImGui::TextColored (ImColor::HSV(0.0f, 0.0f, 0.75f), "N/A");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "No locations could be found.");
           }
 
           ImGui::EndMenu ();
@@ -3765,9 +3756,9 @@ Cache=false)";
 
             ImGui::PushStyleColor (
               ImGuiCol_Text, branch.pwd_required ?
-                               ImVec4 (0.7f, 0.7f, 0.7f, 1.f)
+                               ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
                                                  :
-                               ImVec4 ( 1.f,  1.f,  1.f, 1.f)
+                               ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
             );
 
             bool bExpand =
@@ -3826,7 +3817,13 @@ Cache=false)";
             std::string name = pApp->names.normal;
 
             // Strip (recently added) from the desktop shortcuts
-            name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+            try {
+              name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+            }
+            catch (const std::exception& e)
+            {
+              UNREFERENCED_PARAMETER(e);
+            }
 
             /* Old method
             // Strip invalid filename characters
@@ -3874,7 +3871,7 @@ Cache=false)";
       }
 
       ImGui::PushStyleColor ( ImGuiCol_Text,
-        (ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
       );
 
       ImGui::Separator ( );
@@ -3993,18 +3990,18 @@ Cache=false)";
       ImGui::SetCursorPos  (iconPos);
 
       ImGui::TextColored (
-               ImColor (255, 207, 72).Value,
+               ImColor (255, 207, 72),
                  ICON_FA_FOLDER_OPEN
                            );
       ImGui::TextColored (
-               ImColor   (200, 200, 200, 255).Value,
+               ImColor   (200, 200, 200, 255),
                  ICON_FA_TOOLS
                            );
 
       if (pApp->store == "GOG")
       {
         ImGui::TextColored (
-         ImColor   (155, 89, 182, 255).Value,
+         ImColor   (155, 89, 182, 255),
            ICON_FA_DATABASE );
       }
 
@@ -4016,7 +4013,7 @@ Cache=false)";
            ICON_FA_DATABASE );
 
         ImGui::TextColored (
-         ImColor   (255, 255, 255, 255).Value,
+         (SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
            ICON_FA_STEAM_SYMBOL );
       }
 
@@ -4228,7 +4225,7 @@ Cache=false)";
     if (error)
     {
       ImGui::SetCursorPosX (fAddGamePopupX);
-      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incompatible type! Please select another file.");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Incompatible type! Please select another file.");
     }
     else {
       ImGui::NewLine   ( );
@@ -4343,7 +4340,13 @@ Cache=false)";
     if (ModifyGamePopup == PopupState::Open)
     {
       std::string name = pApp->names.normal;
-      name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      try {
+        name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+      }
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+      }
 
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str(), MAX_PATH);
@@ -4385,7 +4388,7 @@ Cache=false)";
     if (error)
     {
       ImGui::SetCursorPosX (fModifyGamePopupX);
-      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Incompatible type! Please select another file.");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Incompatible type! Please select another file.");
     }
     else {
       ImGui::NewLine   ( );

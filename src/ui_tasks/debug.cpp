@@ -1165,11 +1165,13 @@ SKIF_Debug_DrawUI (void)
 
     ImGui::SameLine   ( );
     
-    ImGui::PushStyleColor (ImGuiCol_Text, ImColor::HSV (0.11F, 1.F, 1.F).Value);
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
     if (ImGui::Button (ICON_FA_TOGGLE_OFF "  Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
                                                              30.0f * SKIF_ImGui_GlobalDPIScale )))
       _inject._StartStopInject(true);
     ImGui::PopStyleColor ( );
+    
+    SKIF_ImGui_Spacing      ( );
 
     extern void SKIF_putStopOnInjection(bool in);
 
@@ -1180,8 +1182,6 @@ SKIF_Debug_DrawUI (void)
     if ( _inject.SKVer32 >= "21.08.12" )
 #endif
     {
-      SKIF_ImGui_Spacing      ( );
-
       if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
 

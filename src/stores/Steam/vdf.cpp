@@ -214,6 +214,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           pAppRecord = &_non_steam;
         }
 
+        static DWORD dwSingleThread  = GetCurrentThreadId ();
+        assert      (dwSingleThread == GetCurrentThreadId ());
+
         static appinfo_s::section_s      section;
                appinfo_s::section_desc_s app_desc;
 
@@ -249,7 +252,14 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           SK_UseManifestToGetInstallDir (appid);
 
         // Strip double backslashes characters from the string
-        pAppRecord->install_dir = std::regex_replace(pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
+        try
+        {
+          pAppRecord->install_dir = std::regex_replace(pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
+        }
+        catch (const std::exception& e)
+        {
+          UNREFERENCED_PARAMETER(e);
+        }
 
         for (auto& finished_section : section.finished_sections)
         {
