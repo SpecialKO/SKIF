@@ -1404,68 +1404,40 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
   return false;
 }
 
-void SKIF_InjectionContext::_AddUserList(std::string pattern, bool whitelist_)
+bool SKIF_InjectionContext::_AddUserList (std::string pattern, bool whitelist_)
 {
+  int cx;
+  size_t size;
+
   if (whitelist_)
   {
+    size = sizeof whitelist;
+
     if (*whitelist == '\0')
-      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, pattern.c_str());
+      cx = snprintf (whitelist, size, "%s%s", whitelist, pattern.c_str());
     else
-      snprintf(whitelist, sizeof whitelist, "%s%s", whitelist, ("\n" + pattern).c_str());
+      cx = snprintf (whitelist, size, "%s%s", whitelist, ("\n" + pattern).c_str());
   }
 
   else
   {
+    size = sizeof blacklist;
+
     if (*blacklist == '\0')
-      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, pattern.c_str());
+      cx = snprintf (blacklist, size, "%s%s", blacklist, pattern.c_str());
     else
-      snprintf(blacklist, sizeof blacklist, "%s%s", blacklist, ("\n" + pattern).c_str());
+      cx = snprintf (blacklist, size, "%s%s", blacklist, ("\n" + pattern).c_str());
   }
+
+  return (size > cx && cx >= 0);
 }
 
-void SKIF_InjectionContext::_WhitelistBasedOnPath(std::string fullPath)
+bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool whitelist_)
 {
-  // Check if the path has been whitelisted
-  if (! _inject._TestUserList (fullPath.c_str(), true))
-  {
-    // name of parent folder
-    std::filesystem::path exePath = std::filesystem::path(fullPath);
-    std::string whitelistPattern;
+  // Check if the path is already included
+  bool ret = _inject._TestUserList (fullPath.c_str(), whitelist_);
 
-    // Does a parent folder exist?
-    if (exePath.has_parent_path() && exePath.parent_path().has_filename())
-    {
-      // Does another parent folder one level up exist? If so, add it to the pattern
-      if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
-        whitelistPattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
-
-      // Add the name of the parent folder to the pattern
-      whitelistPattern += exePath.parent_path().filename().string();
-
-      // If this is an Unreal Engine 4 game, add the executable as well
-      if ( whitelistPattern == R"(Binaries\\Win64)"
-        || whitelistPattern == R"(x64)"
-        || whitelistPattern == R"(Binaries\\Win32)"
-        || whitelistPattern == R"(x86)"
-        )
-        whitelistPattern += R"(\\)" + exePath.filename().string();
-    }
-    else
-    {
-      // Add the executable to the pattern if all else fails
-      whitelistPattern = std::filesystem::path(fullPath).filename().string();
-    }
-
-    // Whitelist path
-    _inject._AddUserList (whitelistPattern, true);
-    _inject._StoreList   (true);
-  }
-}
-
-void SKIF_InjectionContext::_BlacklistBasedOnPath(std::string fullPath)
-{
-  // Check if the path has been blacklisted
-  if (! _inject._TestUserList (fullPath.c_str(), false))
+  if (! ret)
   {
     // name of parent folder
     std::filesystem::path exePath = std::filesystem::path(fullPath);
@@ -1476,24 +1448,57 @@ void SKIF_InjectionContext::_BlacklistBasedOnPath(std::string fullPath)
     {
       // Does another parent folder one level up exist? If so, add it to the pattern
       if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
-        pattern = exePath.parent_path().parent_path().filename().string() + R"(\\)";
+        pattern = exePath.parent_path().parent_path().filename().string() + R"(\)";
 
       // Add the name of the parent folder to the pattern
       pattern += exePath.parent_path().filename().string();
 
       // If this is an Unreal Engine 4 game, add the executable as well
-      if (pattern == R"(Binaries\\Win64)" || pattern == R"(Binaries\\Win32)")
-        pattern += R"(\\)" + exePath.filename().string();
+      if ( pattern == R"(Binaries\Win64)" ||
+           pattern == R"(x64)"            ||
+           pattern == R"(Binaries\Win32)" || 
+           pattern == R"(x86)" )
+        pattern += R"(\)" + exePath.filename().string();
     }
-    else {
+    else
+    {
       // Add the executable to the pattern if all else fails
       pattern = std::filesystem::path(fullPath).filename().string();
     }
 
-    // Whitelist path
-    _inject._AddUserList (pattern, false);
-    _inject._StoreList   (false);
+    // Escape regular expression characters (uses a variant of nlohmann::json's replace_substring call)
+    if (! pattern.empty ())
+    {
+      // Regex meta characters
+      // \ must be run first to prevent generating additional slashes
+      // . is omitted because it seldom matters
+      // * ? < > | is invalid filename characters anyway... might want to omit them too?
+      char chars[] = R"(\^[]${}*()+|?<>)"; // .
+      for (unsigned int i = 0; i < strlen (chars); ++i)
+      {
+        for (auto pos  = pattern.find (chars[i]);          // Find the first occurence
+                  pos != std::string::npos;                // Validate we're still in the string
+                  pattern.insert      (pos, R"(\)"),       // Escape the character
+                  pos  = pattern.find (chars[i], pos + 2)) // Find the next occurence
+        { }
+      }
+    }
+
+    // Add to user list
+    ret = _inject._AddUserList (pattern, whitelist_) && _inject._StoreList (whitelist_);
   }
+
+  return ret;
+}
+
+bool SKIF_InjectionContext::_WhitelistBasedOnPath (std::string fullPath)
+{
+  return _AddUserListBasedOnPath (fullPath, true);
+}
+
+bool SKIF_InjectionContext::_BlacklistBasedOnPath (std::string fullPath)
+{
+  return _AddUserListBasedOnPath (fullPath, false);
 }
 
 // Header Files for Jump List features

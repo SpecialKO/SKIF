@@ -4,8 +4,6 @@
 #include <wtypes.h>
 #include <filesystem>
 
-#include <atlimage.h>
-
 
 /*
 GOG Galaxy / Offline Installers shared registry struture
@@ -128,44 +126,6 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                   GOG(record.names.normal, record);
 
                 apps->emplace_back(GOG);
-
-                
-                // -- Icon stuff --
-
-                std::wstring AssetDir = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)", path_cache.specialk_userdata.path, record.id);
-
-                if (! PathFileExists((AssetDir + L"icon-original.jpg").c_str()))
-                {
-                  //if (ExtractAssociatedIcon(NULL, wszIconPath, &iIcon)) { }
-                  //if (S_OK == SHDefExtractIcon(wszIconPath, iIcon, 0, &hIcon, NULL, size)) { }
-
-                  // Create necessary directories if they do not exist
-                  std::filesystem::create_directories(AssetDir);
-
-                  std::wstring path = std::wstring(lc.executable);
-
-                  // Strip null terminators
-                  path.erase(std::find(path.begin(), path.end(), '\0'), path.end());
-
-                  HICON hIcon;
-                  WORD iIcon = 0;
-                  WCHAR wszIconPath[MAX_PATH];
-                  wcsncpy_s (wszIconPath,    MAX_PATH,
-                              path.c_str (), _TRUNCATE);
-
-                  hIcon = ExtractAssociatedIcon (NULL, wszIconPath, &iIcon);
-
-                  ICONINFO iconinfo;
-                  GetIconInfo   (hIcon, &iconinfo);
-                  HBITMAP hBitmap = iconinfo.hbmColor;
-
-                  CImage image;
-                  image.Attach  (hBitmap);
-                  image.Save    ((AssetDir + L"icon-original.jpg").c_str());
-                  image.Destroy ( );
-
-                  DestroyIcon   (hIcon);
-                }
               }
             }
           }

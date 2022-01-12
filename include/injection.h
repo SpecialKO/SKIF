@@ -102,8 +102,9 @@ struct SKIF_InjectionContext {
   bool    _StoreList              (bool whitelist_);
   void    _LoadList               (bool whitelist_);
   bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
-  void    _AddUserList            (std::string pattern,       bool whitelist_);
-  void    _WhitelistBasedOnPath   (std::string fullPath);
-  void    _BlacklistBasedOnPath   (std::string fullPath);
+  bool    _AddUserList            (std::string pattern,       bool whitelist_);
+  bool    _AddUserListBasedOnPath (std::string fullPath,      bool whitelist_);
+  bool    _WhitelistBasedOnPath   (std::string fullPath);
+  bool    _BlacklistBasedOnPath   (std::string fullPath);
 
 } extern _inject;

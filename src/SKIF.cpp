@@ -52,10 +52,10 @@ uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
      SKIF_bDisableDPIScaling       = false,
-     SKIF_bDisableExitConfirmation = true,
+     SKIF_bDisableExitConfirmation =  true,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
-     SKIF_bDisableBorders          = false,
+     SKIF_bDisableBorders          =  true, // default to true
      SKIF_bDisableSteamLibrary     = false,
      SKIF_bDisableEGSLibrary       = false,
      SKIF_bDisableGOGLibrary       = false,
@@ -2546,6 +2546,77 @@ SK_FindProcessByName (const wchar_t* wszName)
   return none;
 }
 
+#include <gdiplus.h>
+#pragma comment (lib,"Gdiplus.lib")
+
+bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
+{
+  bool ret = PathFileExists (targetPath.c_str());
+
+  if (! ret)
+  {
+    // Create necessary directories if they do not exist
+    std::filesystem::path target = targetPath;
+    std::filesystem::create_directories (target.parent_path());
+
+    /* Required for SHDefExtractIconW
+    WORD wIndex;
+    wchar_t wszPath[MAX_PATH];
+    
+    wcsncpy_s (wszPath,   MAX_PATH,
+                path.c_str (), _TRUNCATE
+    );
+    */
+    
+    // GDI+ Image Encoder CLSIDs (haven't changed forever)
+    //
+    //              {distinct-same-same-same-samesamesame}
+    // image/bmp  : {557cf400-1a04-11d3-9a73-0000f81ef32e}
+    // image/jpeg : {557cf401-1a04-11d3-9a73-0000f81ef32e}
+    // image/gif  : {557cf402-1a04-11d3-9a73-0000f81ef32e}
+    // image/tiff : {557cf405-1a04-11d3-9a73-0000f81ef32e}
+    // image/png  : {557cf406-1a04-11d3-9a73-0000f81ef32e}
+
+    const CLSID pngEncoderClsId =
+      { 0x557cf406, 0x1a04, 0x11d3,{ 0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e } };
+
+    // Variables
+    HICON hIcon;
+    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+
+    // Extract the icon
+    //hIcon = ExtractAssociatedIcon (NULL, wszPath, &wIndex); // Loses transparency
+    
+    if (S_OK == SHDefExtractIconW (exePath.c_str (), 0, 0, &hIcon, 0, 32)) // 256
+    {
+      // Start up GDI+
+      if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
+      {
+        // Create the GDI+ object
+        Gdiplus::Bitmap* gdiplusImage =
+          Gdiplus::Bitmap::FromHICON (hIcon);
+
+        // Save the image in PNG as GIF loses the transparency
+        if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
+          ret = true;
+
+        // Delete the object
+        delete gdiplusImage;
+        gdiplusImage = NULL;
+
+        // Shut down GDI+
+        Gdiplus::GdiplusShutdown (gdiplusToken);
+      }
+
+      // Destroy the icon
+      DestroyIcon (hIcon);
+    }
+  }
+
+  return ret;
+}
+
 std::wstring SKIF_StripInvalidFilenameChars (std::wstring name)
 {
   // Non-trivial name = custom path, remove the old-style <program.exe>
@@ -3591,7 +3662,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
   SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
-  SKIF_bDisableBorders          =   regKVDisableBorders.getData          ( );
   SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
   SKIF_bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
   SKIF_bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
@@ -3613,6 +3683,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFontThai                =   regKVFontThai.getData                ( );
   SKIF_bFontVietnamese          =   regKVFontVietnamese.getData          ( );
   */
+
+  if ( regKVDisableBorders.hasData() )
+    SKIF_bDisableBorders        =   regKVDisableBorders.getData          ( );
 
   if ( regKVNotifications.hasData() )
     SKIF_iNotifications         =   regKVNotifications.getData           ( );
@@ -3664,7 +3737,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                      L"Warning about Controlled Folder Access",
                MB_ICONWARNING | MB_OK);
 
-    SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
+    SKIF_Util_OpenURI (L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
   }
 
   // Register SKIF in Windows to enable quick launching.
@@ -5941,6 +6014,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
 
+          float fY2 = ImGui::GetCursorPosY();
+
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
               "Getting started with other games:"
@@ -5995,6 +6070,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
+
+          float fY3 = ImGui::GetCursorPosY();
           
           ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
           ImGui::SameLine         ( );
@@ -6053,7 +6130,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::NewLine          ( );
           ImGui::NewLine          ( );
 
-          float fY2 = ImGui::GetCursorPosY();
+          float fY4 = ImGui::GetCursorPosY();
           
           ImGui::TextColored      (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_WRENCH);
           ImGui::SameLine         ( );
@@ -6092,9 +6169,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                    "SKIF is used to manage Special K's global injection service, "
                                    "which injects Special K's features into games as they start, and even games that are already running! "
                                    "The tool also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
 
           ImGui::SetCursorPosY    (fY1);
           
@@ -6151,8 +6225,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
           ImGui::EndGroup         ( );
 
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
+          ImGui::SetCursorPosY    (fY2);
 
           ImGui::TextColored (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -6188,8 +6261,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Local");
           ImGui::EndGroup         ( );
 
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
+          ImGui::SetCursorPosY    (fY3);
 
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -6323,16 +6395,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
           */
+          
 
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          // Additional spacing
-          ImGui::NewLine();
-          ImGui::NewLine();
-          ImGui::NewLine();
-
-          ImGui::SetCursorPosY    (fY2);
+          ImGui::SetCursorPosY    (fY4);
     
           ImGui::PushStyleColor   (
             ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
@@ -6458,7 +6523,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               statusBarY -= (SKIF_bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
         ImGui::SetCursorPosY (statusBarY);
 
-        ImGui::Separator    (       );
+        if (! SKIF_bDisableBorders)
+          ImGui::Separator    (       );
 
         // End Separation
 
@@ -6513,8 +6579,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::GetStyle   ().ItemSpacing.x * 2
         );
 
-        ImGui::SetCursorPosY ( ImGui::GetCursorPosY     () +
-                                ImGui::GetTextLineHeight () / 4.0f );
+        ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
+        //ImGui::SetCursorPosY ( ImGui::GetCursorPosY     () +
+        //                        ImGui::GetTextLineHeight () / 4.0f );
 
         ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
                                 "%s", SKIF_StatusBarText.c_str ()

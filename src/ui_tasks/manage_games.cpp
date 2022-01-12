@@ -274,6 +274,9 @@ LoadLibraryTexture (
         ImVec2&                             vCoverUv1,
         app_record_s*                       pApp = nullptr)
 {
+
+  extern bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath);
+
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
   DirectX::ScratchImage        img = { };
@@ -320,18 +323,22 @@ LoadLibraryTexture (
     else
       SKIFCustomPath += L"icon";
 
-    if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
-      load_str =                SKIFCustomPath + L".png";
-    else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
-      load_str =                SKIFCustomPath + L".jpg";
+    if      (PathFileExistsW    ((SKIFCustomPath + L".png").c_str()))
+      load_str =                  SKIFCustomPath + L".png";
+    else if (PathFileExistsW    ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =                  SKIFCustomPath + L".jpg";
     else if (libTexToLoad == LibraryTexture::Icon &&
-              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-      load_str =                SKIFCustomPath + L".ico";
-    else if (libTexToLoad == LibraryTexture::Icon &&
-              PathFileExistsW ((SKIFCustomPath + L"-original.jpg").c_str()))
-      load_str =                SKIFCustomPath + L"-original.jpg";
+             PathFileExistsW    ((SKIFCustomPath + L".ico").c_str()))
+      load_str =                  SKIFCustomPath + L".ico";
 
     customAsset = (load_str != L"\0");
+
+    if (! customAsset)
+    {
+      if      (libTexToLoad == LibraryTexture::Icon &&
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, SKIFCustomPath + L"-original.png"))
+        load_str =                SKIFCustomPath + L"-original.png";
+    }
   }
 
   // EGS
@@ -345,12 +352,12 @@ LoadLibraryTexture (
     else
       SKIFCustomPath += L"icon";
 
-    if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-      load_str =               SKIFCustomPath + L".png";
-    else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-      load_str =               SKIFCustomPath + L".jpg";
+    if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
+      load_str =                SKIFCustomPath + L".png";
+    else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =                SKIFCustomPath + L".jpg";
     else if (libTexToLoad == LibraryTexture::Icon &&
-              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
+             PathFileExistsW  ((SKIFCustomPath + L".ico").c_str()))
       load_str =                SKIFCustomPath + L".ico";
 
     customAsset = (load_str != L"\0");
@@ -361,8 +368,8 @@ LoadLibraryTexture (
                PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
         load_str =               EGSAssetPath + L"OfferImageTall.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW ((EGSAssetPath + L"icon-original.jpg").c_str()))
-        load_str =               EGSAssetPath + L"icon-original.jpg";
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, EGSAssetPath + L"icon-original.png"))
+        load_str =               SKIFCustomPath + L"-original.png";
     }
   }
 
@@ -383,17 +390,17 @@ LoadLibraryTexture (
     else if (libTexToLoad == LibraryTexture::Icon &&
              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
-    else if (libTexToLoad == LibraryTexture::Icon &&
-             PathFileExistsW ((SKIFCustomPath + L"-original.jpg").c_str()))
-      load_str =               SKIFCustomPath + L"-original.jpg";
 
     customAsset = (load_str != L"\0");
 
     if (! customAsset)
     {
-      if      (libTexToLoad == LibraryTexture::Icon)
+      if      (libTexToLoad == LibraryTexture::Icon &&
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, SKIFCustomPath + L"-original.png"))
+        load_str =             SKIFCustomPath + L"-original.png";
+      else if (libTexToLoad == LibraryTexture::Icon)
       {
-        load_str = name;
+        load_str =             name;
       }
 
       else if (libTexToLoad == LibraryTexture::Cover)
@@ -2147,7 +2154,7 @@ SKIF_GameManagement_DrawTab (void)
           );
           */
 
-          SKIF_Util_OpenURI (SK_UTF8ToWideChar(cache.config.full_path).c_str(), SW_SHOWNORMAL, L"EDIT");
+          SKIF_Util_OpenURI (SK_UTF8ToWideChar (cache.config.full_path).c_str(), SW_SHOWNORMAL, NULL);
 
           /* Cannot handle special characters such as (c), (r), etc
           SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs", cache.config.full_path.c_str ());
@@ -4194,6 +4201,7 @@ Cache=false)";
 
           std::filesystem::path p2 = szTarget;
           std::wstring productName = SKIF_GetProductName (p2.c_str());
+          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](unsigned char ch) {return ! std::isspace(ch);}).base(), productName.end());
           
           strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
           strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               500);
@@ -4203,6 +4211,7 @@ Cache=false)";
         }
         else if (p.extension() == L".exe") {
           std::wstring productName = SKIF_GetProductName (p.c_str());
+          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](unsigned char ch) {return ! std::isspace(ch);}).base(), productName.end());
 
           strncpy (charPath, p.u8string().c_str(),                                  MAX_PATH);
           strncpy (charName, (productName != L"")

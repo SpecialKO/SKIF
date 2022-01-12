@@ -1625,20 +1625,12 @@ SKIF_Debug_DrawUI (void)
         {
           if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
           {
-            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), false))
-            {
-              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), false);
-              _inject._StoreList        (false);
-            }
+            _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc.second));
           }
 
           if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
           {
-            if (! _inject._TestUserList (SK_WideCharToUTF8 (proc.second).c_str(), true))
-            {
-              _inject._AddUserList      (SK_WideCharToUTF8 (proc.second), true);
-              _inject._StoreList        (true);
-            }
+            _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc.second));
           }
 
           ImGui::EndMenu ( );
@@ -1744,8 +1736,7 @@ SKIF_Debug_DrawUI (void)
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban64")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
         {
-          _inject._AddUserList (SK_WideCharToUTF8(proc64.second), false);
-          _inject._StoreList   (false);
+          _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc64.second));
         }
         
         if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
@@ -1763,12 +1754,11 @@ SKIF_Debug_DrawUI (void)
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check64") && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
         {
-          _inject._AddUserList (SK_WideCharToUTF8(proc64.second), true);
-          _inject._StoreList   (true);
+          _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc64.second));
         }
         
         if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
-        SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
+          SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
 
         ImGui::PopStyleColor   (3);
         
@@ -1837,8 +1827,7 @@ SKIF_Debug_DrawUI (void)
 
         if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
         {
-          _inject._AddUserList (SK_WideCharToUTF8(proc32.second), false);
-          _inject._StoreList   (false);
+          _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc32.second));
         }
 
         if (! _inject._TestUserList(SK_WideCharToUTF8(proc32.second).c_str(), false))
@@ -1856,8 +1845,7 @@ SKIF_Debug_DrawUI (void)
         
         if (ImGui::SmallButton (ICON_FA_CHECK    "###Check32") && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
         {
-          _inject._AddUserList (SK_WideCharToUTF8(proc32.second), true);
-          _inject._StoreList   (true);
+          _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc32.second));
         }
 
         if (! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))

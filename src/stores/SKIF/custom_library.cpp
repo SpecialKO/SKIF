@@ -4,43 +4,7 @@
 #include <wtypes.h>
 #include <filesystem>
 #include <fsutil.h>
-#include <atlimage.h>
 
-void SKIF_ExtractIconCustomGame (std::wstring exePath, std::wstring assetDir)
-{
-  if (! PathFileExists((assetDir + L"icon-original.jpg").c_str()))
-  {
-    //if (ExtractAssociatedIcon(NULL, wszIconPath, &iIcon)) { }
-    //if (S_OK == SHDefExtractIcon(wszIconPath, iIcon, 0, &hIcon, NULL, size)) { }
-
-    // Create necessary directories if they do not exist
-    std::filesystem::create_directories(assetDir);
-
-    std::wstring path = std::wstring(exePath);
-
-    // Strip null terminators
-    path.erase(std::find(path.begin(), path.end(), '\0'), path.end());
-
-    HICON hIcon;
-    WORD iIcon = 0;
-    WCHAR wszIconPath[MAX_PATH];
-    wcsncpy_s (wszIconPath,    MAX_PATH,
-                path.c_str (), _TRUNCATE);
-
-    hIcon = ExtractAssociatedIcon (NULL, wszIconPath, &iIcon);
-
-    ICONINFO iconinfo;
-    GetIconInfo   (hIcon, &iconinfo);
-    HBITMAP hBitmap = iconinfo.hbmColor;
-
-    CImage image;
-    image.Attach  (hBitmap);
-    image.Save    ((assetDir + L"icon-original.jpg").c_str());
-    image.Destroy ( );
-
-    DestroyIcon   (hIcon);
-  }
-}
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
 {
@@ -164,9 +128,6 @@ int SKIF_AddCustomAppID (
       SKIF(record.names.normal, record);
 
     apps->emplace_back(SKIF);
-
-    std::wstring AssetDir = SK_FormatStringW(LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata.path, record.id);
-    SKIF_ExtractIconCustomGame (lc.executable, AssetDir);
 
     return appId;
   }
@@ -323,10 +284,6 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
                 pair (record.names.normal, record);
 
               apps->emplace_back (pair);
-
-              
-              std::wstring AssetDir = SK_FormatStringW(LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata.path, record.id);
-              SKIF_ExtractIconCustomGame (lc.executable, AssetDir);
             }
           }
         }
