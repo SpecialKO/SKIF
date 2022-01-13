@@ -6195,6 +6195,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_SetHoverTip (
             "In particular games where anti-cheat\nprotection might be present."
           );
+
+          ImGui::BeginGroup       ( );
+          ImGui::Spacing          ( );
+          ImGui::SameLine         ( );
+          ImGui::TextColored      (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+              ICON_FA_EXTERNAL_LINK_ALT " "      );
+          ImGui::SameLine         ( );
+          if (ImGui::Selectable   ("More on the wiki"))
+            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+          SKIF_ImGui_SetMouseCursorHand ();
+          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+          ImGui::EndGroup         ( );
           
           /*
           ImGui::BeginGroup       ( );
@@ -6211,19 +6224,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             "Any that deal with system input or some sort\nof window or keyboard/mouse input activity."
           );
           */
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-              ICON_FA_EXTERNAL_LINK_ALT " "      );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("More on the wiki"))
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-          ImGui::EndGroup         ( );
 
           ImGui::SetCursorPosY    (fY2);
 
@@ -6436,7 +6436,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        // Ghost
+        // Shelly the Ghost
 
         float title_len = ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
           //ImGui::GetFont ()->CalcTextSizeA ((tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f, SKIF_WINDOW_TITLE_A ).x;

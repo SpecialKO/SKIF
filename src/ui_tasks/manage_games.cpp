@@ -544,6 +544,8 @@ LoadLibraryTexture (
 
       vCoverUv0.x = 0.f - diff.x;
       vCoverUv1.x = 1.f + diff.x;
+      //vCoverUv0.y = 1.f;
+      //vCoverUv1.y = 1.f;
     }
 
     // Crop thinner aspect ratios by their height
@@ -553,8 +555,10 @@ LoadLibraryTexture (
       diff.y = (900.0f / newHeight);
       diff.y -= 1.0f;
       diff.y /= 2;
-
-      vCoverUv1.y = 0.f - diff.y;
+      
+      //vCoverUv0.x = 1.f;
+      //vCoverUv1.x = 1.f;
+      vCoverUv0.y = 0.f - diff.y;
       vCoverUv1.y = 1.f + diff.y;
     }
 
