@@ -45,6 +45,7 @@ SK_WideCharToUTF8 (const std::wstring& in)
   return
     transcode.to_bytes (in);
 #else
+  /*
   size_t len =
     WideCharToMultiByte ( CP_UTF8, 0x00, in.c_str (), -1,
                            nullptr, 0, nullptr, FALSE );
@@ -61,6 +62,14 @@ SK_WideCharToUTF8 (const std::wstring& in)
                             nullptr,                   FALSE );
 
   out.resize(len);
+  */
+  
+  // From https://stackoverflow.com/a/59617138
+  int count = 
+    WideCharToMultiByte (CP_UTF8, 0, in.c_str(), in.length(), NULL, 0, NULL, NULL);
+  std::string out       (count, 0);
+  WideCharToMultiByte   (CP_UTF8, 0, in.c_str(), -1, &out[0], count, NULL, NULL);
+
 
   return out;
 #endif
@@ -77,6 +86,8 @@ SK_UTF8ToWideChar (const std::string& in)
   return
     transcode.from_bytes (in);
 #else
+
+  /*
   size_t len =
     MultiByteToWideChar ( CP_UTF8, 0x00, in.c_str (), -1,
                            nullptr, 0 );
@@ -92,6 +103,13 @@ SK_UTF8ToWideChar (const std::string& in)
                           gsl::narrow_cast <DWORD>       (len) );
 
   out.resize(len);
+  */
+
+  // From https://stackoverflow.com/a/59617138
+  int count = 
+    MultiByteToWideChar (CP_UTF8, 0, in.c_str(), in.length(), NULL, 0);
+  std::wstring out      (count, 0);
+  MultiByteToWideChar   (CP_UTF8, 0, in.c_str(), in.length(), &out[0], count);
 
   return out;
 #endif

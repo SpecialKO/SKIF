@@ -3605,7 +3605,7 @@ Cache=false)";
                  ICON_FA_DISCORD
                              );
         ImGui::TextColored (
-               (SKIF_iStyle == 2) ? ImColor::HSV(0.11F, 1.F, 1.F) : ImColor (247, 241, 169),
+               (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImColor (247, 241, 169),
                  ICON_FA_DISCOURSE
                              );
         ImGui::TextColored (

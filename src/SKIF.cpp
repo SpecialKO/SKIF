@@ -39,15 +39,19 @@ bool failedLoadFontsPrompt = false;
 DWORD invalidatedFonts = 0;
 bool startedMinimized = false;
 bool SKIF_UpdateReady = false;
+bool showUpdatePrompt = false;
+bool changedUpdateChannel = false;
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
-int  SKIF_iNotifications           = 2,
-     SKIF_iGhostVisibility         = 0,
-     SKIF_iStyle                   = 0,
-     SKIF_iDimCovers               = 0;
+int  SKIF_iNotifications           = 2, // 0 = Never,       1 = Always,       2 = When unfocused
+     SKIF_iGhostVisibility         = 0, // 0 = Never,       1 = Always,       2 = While service is running
+     SKIF_iStyle                   = 0, // 0 = SKIF Dark,   1 = ImGui Dark,   2 = ImGui Light,               3 = ImGui Classic
+     SKIF_iDimCovers               = 0, // 0 = Never,       1 = Always,       2 = On mouse hover
+     SKIF_iCheckForUpdates         = 1, // 0 = Never,       1 = Weekly,       2 = On each launch
+     SKIF_iUpdateChannel           = 1; // 0 = Discord,     1 = Website,      2 = Ancient
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -76,6 +80,10 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontThai                = false,
      SKIF_bFontVietnamese          = false,
      SKIF_bLowBandwidthMode        = false;
+
+std::wstring 
+     SKIF_wsIgnoreUpdate;
+
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
@@ -1010,19 +1018,13 @@ namespace SKIF
         DWORD dwOutLen;
 
         auto type_idx =
-          std::type_index (typeid (_Tp));
+          std::type_index (typeid (_Tp));;
 
-        //if ( type_idx == std::type_index (typeid (std::wstring)) )
-        //{
-        //  std::wstring _out;
-        //
-        //  _out.resize (_SizeofData () + 1);
-        //
-        //  if ( ERROR_SUCCESS !=
-        //         _GetValue   (_out.data ()) ) out = _Tp ();
-        //
-        //  return out;
-        //}
+        if ( type_idx == std::type_index (typeid (std::wstring)) )
+        {
+          // Two null terminators are stored at the end of REG_SZ, so account for those
+          return (_SizeofData() > 4);
+        }
 
         if ( type_idx == std::type_index (typeid (bool)) )
         {
@@ -1047,6 +1049,64 @@ namespace SKIF
                _GetValue (&out, &dwOutLen) ) return false;
 
         return true;
+      };
+
+      std::wstring getWideString (void)
+      {
+        auto _GetValue =
+        [&]( _Tp*     pVal,
+               DWORD* pLen = nullptr ) ->
+        LSTATUS
+        {
+          LSTATUS lStat =
+            RegGetValueW ( _desc.hKey,
+                             _desc.wszSubKey,
+                               _desc.wszKeyValue,
+                               _desc.dwFlags,
+                                 &_desc.dwType,
+                                   pVal, pLen );
+
+          return lStat;
+        };
+
+        auto _SizeofData =
+        [&](void) ->
+        DWORD
+        {
+          DWORD len = 0;
+
+          if ( ERROR_SUCCESS ==
+                 _GetValue ( nullptr, &len )
+             ) return len;
+
+          return 0;
+        };
+
+        _Tp   out;
+        DWORD dwOutLen = _SizeofData();
+        std::wstring _out(dwOutLen, '\0');
+
+        auto type_idx =
+          std::type_index (typeid (_Tp));
+
+        if ( type_idx == std::type_index (typeid (std::wstring)) )
+        {
+          _desc.dwFlags = RRF_RT_REG_SZ;
+          _desc.dwType  = REG_SZ;
+
+          if ( ERROR_SUCCESS != 
+            RegGetValueW ( _desc.hKey,
+                             _desc.wszSubKey,
+                               _desc.wszKeyValue,
+                               _desc.dwFlags,
+                                 &_desc.dwType,
+                                   _out.data(), &dwOutLen)) return std::wstring();
+
+          // Strip null terminators
+          _out.erase(std::find(_out.begin(), _out.end(), '\0'), _out.end());
+        }
+
+        return _out;
       };
 
       _Tp getData (void)
@@ -1086,17 +1146,39 @@ namespace SKIF
         auto type_idx =
           std::type_index (typeid (_Tp));
 
-        //if ( type_idx == std::type_index (typeid (std::wstring)) )
-        //{
-        //  std::wstring _out;
-        //
-        //  _out.resize (_SizeofData () + 1);
-        //
-        //  if ( ERROR_SUCCESS !=
-        //         _GetValue   (_out.data ()) ) out = _Tp ();
-        //
-        //  return out;
-        //}
+        /*
+        if ( type_idx == std::type_index (typeid (std::wstring)) )
+        {
+          dwOutLen = _SizeofData();
+          std::wstring _out(dwOutLen, '\0');
+          
+          _desc.dwFlags = RRF_RT_REG_SZ;
+          _desc.dwType  = REG_SZ;
+
+          if ( ERROR_SUCCESS != 
+            RegGetValueW ( _desc.hKey,
+                             _desc.wszSubKey,
+                               _desc.wszKeyValue,
+                               _desc.dwFlags,
+                                 &_desc.dwType,
+                                   _out.data(), &dwOutLen)) return _Tp();
+
+          // Strip null terminators
+          //_out.erase(std::find(_out.begin(), _out.end(), '\0'), _out.end());
+
+          // Convert std::wstring to _Tp
+          std::wstringstream wss(_out);
+
+          while (false)
+          {
+            _Tp tmp{};
+            wss >> std::noskipws >> tmp;
+            out = out + tmp;
+          }
+
+          return _Tp();
+        }
+        */
 
         if ( type_idx == std::type_index (typeid (bool)) )
         {
@@ -1159,6 +1241,25 @@ namespace SKIF
             //
             //  return out;
             //} break;
+
+          if ( type_idx == std::type_index (typeid (std::wstring)) )
+          {
+            std::wstring _in = std::wstringstream(in).str();
+
+            _desc.dwType     = REG_SZ;
+                  dwDataSize = (DWORD) _in.size ( ) * sizeof(wchar_t);
+
+            lStat =
+              RegSetKeyValueW ( hKeyToSet,
+                                  nullptr,
+                                  _desc.wszKeyValue,
+                                  _desc.dwType,
+                           (LPBYTE) _in.data(), dwDataSize);
+            
+            RegCloseKey (hKeyToSet);
+
+            return lStat;
+          }
 
           if ( type_idx == std::type_index (typeid (bool)) )
           {
@@ -2716,125 +2817,228 @@ std::string SKIF_StripInvalidFilenameChars (std::string name)
 }
 
 
-std::wstring SKIF_CheckForUpdates()
+// Handles comparisons of a version string split between dots by
+// looping through the parts that makes up the string one by one.
+// 
+// Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
+int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
 {
-  std::wstring ret = L"";
+  int sum1 = 0, sum2 = 0;
+  //OutputDebugString((L"string1: " + string1 + L"\n").c_str());
+  //OutputDebugString((L"string2: " + string2 + L"\n").c_str());
 
-  std::wstring root = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
-  std::wstring path = root + LR"(repository.json)";
-
-  // Create necessary directories if they do not exist
-  std::filesystem::create_directories (root);
-
-  // Download repository.json if it does not exist or if we're forcing an update
-  if (! PathFileExists(path.c_str()))
+  for ( int i = 0, j = 0; (i < string1.length ( ) ||
+                           j < string2.length ( )); )
   {
-    SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
-  }
-  else {
-    WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
-
-    if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
+    while ( i < string1.length() && string1[i] != '.' )
     {
-      FILETIME ftSystemTime, ftAdjustedFileTime;
-      SYSTEMTIME systemTime;
-      GetSystemTime (&systemTime);
+      sum1 = sum1 * 10 + (string1[i] - '0');
+      i++;
+    }
 
-      if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
+    while ( j < string2.length() && string2[j] != '.' )
+    {
+      sum2 = sum2 * 10 + (string2[j] - '0');
+      j++;
+    }
+
+    // If string1 is higher than string2, return 1
+    //OutputDebugString((L"Result (1): " + std::to_wstring(sum1) + L" > " + std::to_wstring(sum2) + L"\n").c_str());
+    if (sum1 > sum2) return 1;
+
+    // If string2 is higher than string1, return -1
+    //OutputDebugString((L"Result (-1): " + std::to_wstring(sum2) + L" > " + std::to_wstring(sum1) + L"\n").c_str());
+    if (sum2 > sum1) return -1;
+
+    // if equal, reset variables and go for next numeric part 
+    sum1 = sum2 = 0;
+    i++;
+    j++;
+  }
+
+  // If both strings are equal, return 0
+  return 0; 
+}
+
+static volatile LONG update_thread = 0;
+struct SKIF_UpdateCheckResults {
+    std::wstring filename;
+    std::wstring description;
+    std::wstring releasenotes;
+};
+
+SKIF_UpdateCheckResults SKIF_CheckForUpdates()
+{
+  //OutputDebugString(L"SKIF_CheckForUpdates()\n");
+
+  if ( SKIF_iCheckForUpdates == 0 ||
+       SKIF_bLowBandwidthMode     ||
+      _Signal.QuickLaunch         ||
+      _Signal.Temporary           ||
+      _Signal.Stop                ||
+      _Signal.Quit)
+    return SKIF_UpdateCheckResults();
+
+  static SKIF_UpdateCheckResults results;
+
+  if (InterlockedCompareExchange (&update_thread, 1, 0) == 0)
+  {
+    _beginthreadex(nullptr,
+                           0,
+    [](LPVOID lpUser)->unsigned
+    {
+      SKIF_UpdateCheckResults* _res = (SKIF_UpdateCheckResults*)lpUser;
+
+      CoInitializeEx (nullptr,
+        COINIT_APARTMENTTHREADED |
+        COINIT_DISABLE_OLE1DDE
+      );
+
+      std::wstring root = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
+      std::wstring path = root + LR"(repository.json)";
+
+      // Create necessary directories if they do not exist
+      std::filesystem::create_directories (root);
+
+      // Download repository.json if it does not exist or if we're forcing an update
+      if (! PathFileExists(path.c_str()) || SKIF_iCheckForUpdates == 2)
       {
-        ULARGE_INTEGER uintLastWriteTime;
+        SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+      }
+      else {
+        WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
 
-        // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
-        uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
-        uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
-
-        // Perform 64-bit arithmetic to add 7 days to last modified timestamp
-        uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
-
-        // Copy the results to an FILETIME struct
-        ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
-        ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
-
-        // Compare with system time, and if system time is later (1), then update the local cache
-        if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+        if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
         {
-          SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+          FILETIME ftSystemTime, ftAdjustedFileTime;
+          SYSTEMTIME systemTime;
+          GetSystemTime (&systemTime);
+
+          if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
+          {
+            ULARGE_INTEGER uintLastWriteTime;
+
+            // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
+            uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
+            uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
+
+            // Perform 64-bit arithmetic to add 7 days to last modified timestamp
+            uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
+
+            // Copy the results to an FILETIME struct
+            ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
+            ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
+
+            // Compare with system time, and if system time is later (1), then update the local cache
+            if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+            {
+              SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+            }
+          }
         }
       }
-    }
-  }
     
-  std::ifstream file(path);
-  nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
-  file.close();
+      std::ifstream file(path);
+      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
+      file.close();
 
-  if (jf.is_discarded ( ))
-  {
-    DeleteFile (path.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
-    return L"";
-  }
+      if (jf.is_discarded ( ))
+      {
+        DeleteFile (path.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
+        return 0;
+      }
 
-  else {
-    std::string currentBranch  = "Testing";
+      else {
+        std::string currentBranch;
+
+        switch (SKIF_iUpdateChannel)
+        {
+        case 0:
+          currentBranch = "Testing"; // Discord
+          break;
+        case 1:
+          currentBranch = "Release";  // Website
+          break;
+        case 2:
+          currentBranch = "Compatibility"; // Ancient
+          break;
+        default:
+          currentBranch = "Unknown";
+        }
 
 #ifdef _WIN64
-    std::wstring currentVersion = SK_UTF8ToWideChar(_inject.SKVer64);
+        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
 #else
-    std::wstring currentVersion = SK_UTF8ToWideChar(_inject.SKVer32);
+        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
 #endif
 
-    try {
-      for (auto& version : jf["Main"]["Versions"])
-      {
-        bool isBranch = false;
-
-        for (auto& branch : version["Branches"])
-          if (branch.get<std::string>() == currentBranch)
-            isBranch = true;
-        
-        if (isBranch)
-        {
-          std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
-
-          // Check if the version of this branch is different from the current one.
-          // We don't check if the version is *newer* since we need to support downgrading
-          // to other branches as well, which means versions that are older.
-
-          /*
-          OutputDebugString(L"Dump: ");
-          OutputDebugString(SK_UTF8ToWideChar(version.dump()).c_str());
-          OutputDebugString(L"\n");
-
-          OutputDebugString((L"Current: " + currentVersion + L"\n").c_str());
-          OutputDebugString((L"Branch: " + branchVersion + L"\n").c_str());
-          */
-
-          // Limit to newer for now for testing purposes
-          if (_tcscmp(branchVersion.c_str(), currentVersion.c_str()) > 0) // != 0
+        try {
+          for (auto& version : jf["Main"]["Versions"])
           {
-            std::wstring branchInstaller = SK_UTF8ToWideChar(version["Installer"].get<std::string>());
-            std::wstring filename = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+            bool isBranch = false;
 
-            //OutputDebugString(L"Oh my, a newer is available!\n");
+            for (auto& branch : version["Branches"])
+              if (branch.get<std::string>() == currentBranch)
+                isBranch = true;
+        
+            if (isBranch)
+            {
+              std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
 
-            ret = filename;
+              // Check if the version of this branch is different from the current one.
+              // We don't check if the version is *newer* since we need to support downgrading
+              // to other branches as well, which means versions that are older.
 
-            if (! PathFileExists ((root + filename).c_str()))
-              SKIF_GetWebResourceThreaded (branchInstaller, root + filename);
+              /*
+              OutputDebugString(L"Dump: ");
+              OutputDebugString(SK_UTF8ToWideChar(version.dump()).c_str());
+              OutputDebugString(L"\n");
+
+              OutputDebugString((L"Current: " + currentVersion).c_str());
+              OutputDebugString(L"\n");
+              OutputDebugString((L"Branch: " + branchVersion).c_str());
+              OutputDebugString(L"\n");
+              */
+
+              // Limit to newer for now for testing purposes
+              if (SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0) //> 0) // != 0
+              {
+                std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
+                std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+            
+                //OutputDebugString(L"A new version is available!\n");
+
+                _res->filename     = filename;
+                _res->description  = SK_UTF8ToWideChar(version["Description"].get<std::string>());
+                _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
+
+                if (! PathFileExists ((root + filename).c_str()) && _res->description != SKIF_wsIgnoreUpdate)
+                  SKIF_GetWebResource (branchInstaller, root + filename);
+              }
+
+              // Found right branch -- no need to check more since versions are sorted newest to oldest
+              break;
+            }
           }
+        }
+        catch (const std::exception&)
+        {
 
-          // Found right branch -- no need to check more since versions are sorted newest to oldest
-          break;
         }
       }
-    }
-    catch (const std::exception&)
-    {
+    
+      InterlockedExchange (&update_thread, 2);
+      _endthreadex(0);
 
-    }
+      return 0;
+    }, (LPVOID)&results, NULL, NULL);
   }
 
-  return ret;
+  //OutputDebugString(L"<-- SKIF_CheckForUpdates()\n");
+  if (InterlockedCompareExchange (&update_thread, 2, 2) == 2)
+    return results;
+  else
+    return SKIF_UpdateCheckResults();
 }
 
 
@@ -3185,9 +3389,10 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst = nullptr)
     colors[ImGuiCol_SKIF_TextCaption]       = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     colors[ImGuiCol_SKIF_TextGameTitle]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
     colors[ImGuiCol_SKIF_Success]           = ImColor(121, 214, 28);  // 42,  203, 2);  //53,  255, 3);  //ImColor(144, 238, 144);
-    colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124, 3); // ImColor::HSV(0.11F, 1.F, 1.F);
+    colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124, 3); // ImColor::HSV(0.11F, 1.F, 1.F)
     colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
     colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
+    colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
 void SKIF_UI_DrawComponentVersion (void)
@@ -3261,9 +3466,9 @@ void SKIF_UI_DrawPlatformStatus (void)
   static bool isSKIFAdmin = IsUserAnAdmin();
   if (isSKIFAdmin)
   {
-    ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), "SKIF is running as an administrator!");
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "SKIF is running as an administrator!");
     SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
                               "Please restart the global injector service and SKIF as a regular user.");
   }
@@ -3335,9 +3540,9 @@ void SKIF_UI_DrawPlatformStatus (void)
 
       if (p.isAdmin)
       {
-        ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImColor::HSV(0.11F, 1.F, 1.F), (p.Name + " is running as an administrator!").c_str() );
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
 
         if (isSKIFAdmin)
           SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
@@ -3655,6 +3860,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Dim Covers)" );
 
+  static auto regKVCheckForUpdates =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Check For Updates)" );
+
+  static auto regKVUpdateChannel =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Update Channel)" );
+
+  static auto regKVIgnoreUpdate =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Ignore Update)" );
+
   
   SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
@@ -3674,6 +3891,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
+
   /* is handled dynamically now
   SKIF_bFontChineseSimplified   =   regKVFontChineseSimplified.getData   ( );
   SKIF_bFontChineseAll          =   regKVFontChineseAll.getData          ( );
@@ -3698,6 +3916,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if ( regKVDimCovers.hasData() )
     SKIF_iDimCovers             =   regKVDimCovers.getData               ( );
+
+  if ( regKVCheckForUpdates.hasData() )
+    SKIF_iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
+
+  if (regKVUpdateChannel.hasData() )
+    SKIF_iUpdateChannel         =   regKVUpdateChannel.getData           ( );
+
+  if (regKVIgnoreUpdate.hasData() )
+    SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
+  OutputDebugString((L"Ignore channel: " + SKIF_wsIgnoreUpdate + L"\n").c_str());
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
@@ -3988,14 +4216,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _inject._RefreshSKDLLVersions ();
 
   // Force an update check
-  std::wstring newVersion; // = SKIF_CheckForUpdates();
-
-  if (! SKIF_bLowBandwidthMode &&
-      ! _Signal.QuickLaunch    &&
-      ! _Signal.Temporary      &&
-      ! _Signal.Stop           &&
-      ! _Signal.Quit)
-    newVersion = SKIF_CheckForUpdates ();
+  SKIF_UpdateCheckResults newVersion; // = SKIF_CheckForUpdates();
 
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
@@ -4255,6 +4476,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
                          ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
       );
+
+      if (newVersion.filename.empty())
+      {
+        newVersion = SKIF_CheckForUpdates ();
+
+        //OutputDebugString((L"Filename: " + newVersion.filename + L"\n").c_str());
+      }
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
 
@@ -4805,9 +5033,186 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TreePop       ( );
 
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
+
+          const char* StyleItems[] = { "SKIF Dark",
+                                       "ImGui Dark",
+                                       "ImGui Light",
+                                       "ImGui Classic" };
+          static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
+          
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Choose a skin to apply to SKIF: (restart required)"
+          );
+          ImGui::TreePush      ("");
+
+          if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+          {
+              for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
+              {
+                  bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
+                  if (ImGui::Selectable (StyleItems[n], is_selected))
+                  {
+                    SKIF_iStyle = n;
+                    regKVStyle.putData  (SKIF_iStyle);
+                    StyleItemsCurrent = StyleItems[SKIF_iStyle];
+                    // Apply the new Dear ImGui style
+                    //SKIF_SetStyle ( );
+                  }
+                  if (is_selected)
+                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+              }
+              ImGui::EndCombo  ( );
+          }
+
+          ImGui::TreePop       ( );
+
           ImGui::NextColumn    ( );
 
           // New column
+          
+          ImGui::BeginGroup    ( );
+
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("This setting has no effect if low bandwidth mode is enabled.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Check for updates to Special K:"
+          );
+
+          if (SKIF_bLowBandwidthMode)
+          {
+            // Disable buttons
+            ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+          }
+
+          ImGui::TreePush        ("SKIF_iCheckForUpdates");
+          if (ImGui::RadioButton ("Never",                 &SKIF_iCheckForUpdates, 0))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Weekly",                &SKIF_iCheckForUpdates, 1))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("On each launch",        &SKIF_iCheckForUpdates, 2))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::TreePop         ( );
+
+          if (SKIF_bLowBandwidthMode)
+          {
+            ImGui::PopStyleVar ();
+            ImGui::PopItemFlag ();
+          }
+
+          ImGui::EndGroup      ( );
+
+          ImGui::TreePush        ("Push_UpdateChannel");
+
+          ImGui::BeginGroup    ( );
+
+          const char* ChannelItems[] = { "Discord (updates regularly)",
+                                         "Website (updates every ~6 months)",
+                                         /*"Ancient (~6 months older than Website)"*/ };
+          static const char* ChannelItemsCurrent = ChannelItems[SKIF_iUpdateChannel];
+
+          if (ImGui::BeginCombo ("##SKIF_iUpdateChannel", ChannelItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+          {
+              for (int n = 0; n < IM_ARRAYSIZE (ChannelItems); n++)
+              {
+                  bool is_selected = (ChannelItemsCurrent == ChannelItems[n]); // You can store your selection however you want, outside or inside your objects
+                  if (ImGui::Selectable (ChannelItems[n], is_selected) && SKIF_iUpdateChannel != n)
+                  {
+                    // Update channel
+                    SKIF_iUpdateChannel = n;
+                    regKVUpdateChannel.putData        (SKIF_iUpdateChannel);
+                    ChannelItemsCurrent = ChannelItems[SKIF_iUpdateChannel];
+                    SKIF_wsIgnoreUpdate = L"";
+                    regKVIgnoreUpdate.putData (SKIF_wsIgnoreUpdate);
+
+                    // Trigger a new check for updates
+                    changedUpdateChannel = true;
+                    SKIF_UpdateReady = showUpdatePrompt = false;
+                    newVersion.filename.clear();
+                    InterlockedExchange (&update_thread, 0);
+                  }
+                  if (is_selected)
+                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+              }
+              ImGui::EndCombo  ( );
+          }
+
+          ImGui::EndGroup      ( );
+
+          ImGui::TreePop       ( );
+
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
+            
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Dim game covers by 25%%:"
+          );
+          ImGui::TreePush        ("SKIF_iDimCovers");
+          if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
+            regKVDimCovers.putData (                        SKIF_iDimCovers);
+          ImGui::TreePop         ( );
+
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
+            
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Show Windows notifications:"
+          );
+          ImGui::TreePush        ("SKIF_iNotifications");
+          if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::TreePop         ( );
+
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
+            
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Show Shelly the Ghost:"
+          );
+          ImGui::TreePush        ("SKIF_iGhostVisibility");
+          if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
+            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
+            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
+            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+          ImGui::TreePop         ( );
+
+          ImGui::Spacing       ( );
+          ImGui::Spacing       ( );
           
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
           SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
@@ -4904,102 +5309,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine       ( );
             ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
             ImGui::EndGroup       ( );
-          }
-
-          ImGui::TreePop       ( );
-
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Dim game covers by 25%%:"
-          );
-          ImGui::TreePush        ("SKIF_iDimCovers");
-          if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Show Windows notifications:"
-          );
-          ImGui::TreePush        ("SKIF_iNotifications");
-          if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Show Shelly the Ghost:"
-          );
-          ImGui::TreePush        ("SKIF_iGhostVisibility");
-          if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-
-          const char* items[] = { "SKIF Dark", "ImGui Dark", "ImGui Light", "ImGui Classic" };
-          static const char* current_item = items[SKIF_iStyle];
-            
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Choose a skin to apply to SKIF: (restart required)"
-          );
-          ImGui::TreePush      ("");
-
-          if (ImGui::BeginCombo ("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
-          {
-              for (int n = 0; n < IM_ARRAYSIZE (items); n++)
-              {
-                  bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
-                  if (ImGui::Selectable (items[n], is_selected))
-                  {
-                    SKIF_iStyle = n;
-                    regKVStyle.putData  (SKIF_iStyle);
-                    current_item = items[SKIF_iStyle];
-                    // Apply the new Dear ImGui style
-                    //SKIF_SetStyle ( );
-                  }
-                  if (is_selected)
-                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-              }
-              ImGui::EndCombo  ( );
           }
 
           ImGui::TreePop       ( );
@@ -5575,7 +5884,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::BeginGroup ();
                 ImGui::Spacing    ();
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  u8"• ");
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_EXCLAMATION_TRIANGLE);
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Please remove all double quotes");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), R"( " )");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "from the list.");
@@ -5591,12 +5900,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::BeginGroup ();
                 ImGui::Spacing    ();
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      "? ");
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "Folders must be separated using two backslashes");
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_EXCLAMATION_CIRCLE);
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),   "Folders must be separated using two backslashes");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), R"( \\ )");
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "instead of one");
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),   "instead of one");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), R"( \ )");
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "backslash.");
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),   "backslash.");
                 ImGui::EndGroup   ();
 
                 SKIF_ImGui_SetHoverTip (
@@ -5612,7 +5921,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               {
                 ImGui::BeginGroup ();
                 ImGui::Spacing    ();
-                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      "? ");
+                ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_EXCLAMATION_CIRCLE);
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "The list can only include");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure),   " 128 ");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "lines, though multiple can be combined using a pipe");
@@ -5663,7 +5972,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             ImGui::BeginGroup ();
             ImGui::Spacing    ();
-            ImGui::SameLine   (); ImGui::TextColored (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_EXCLAMATION_CIRCLE);
+            ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_CIRCLE);
             ImGui::SameLine   (); ImGui::Text ("Note that these lists do not prevent Special K from being injected into processes.");
             ImGui::EndGroup   ();
 
@@ -5804,6 +6113,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                 "Blacklist Patterns:"
             );
+            ImGui::SameLine    ( );
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "(Does not prevent injection! Use this to exclude stuff from being whitelisted)");
 
             SKIF_ImGui_Spacing ();
 
@@ -6132,7 +6443,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           float fY4 = ImGui::GetCursorPosY();
           
-          ImGui::TextColored      (ImColor::HSV(0.11F, 1.F, 1.F), ICON_FA_WRENCH);
+          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_WRENCH);
           ImGui::SameLine         ( );
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -6304,7 +6615,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing          ( );
           ImGui::SameLine         ( );
           ImGui::TextColored      (
-            (SKIF_iStyle == 2) ? ImColor::HSV(0.11F, 1.F, 1.F) : ImColor (247, 241, 169),
+            (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImColor (247, 241, 169),
               ICON_FA_DISCOURSE " " );
           ImGui::SameLine         ( );
 
@@ -6743,32 +7054,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _inject._RefreshSKDLLVersions   ();
       }
 
-      static bool showUpdatePrompt = false;
-      if (! newVersion.empty())
+      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata.path);
+      if (! newVersion.filename.empty())
       {
         SK_RunOnce(
-          SKIF_UpdateReady = showUpdatePrompt = PathFileExists ((std::filesystem::current_path().wstring() + L"\\version\\" + newVersion).c_str())
+          SKIF_UpdateReady = showUpdatePrompt = PathFileExists ((updateRoot + newVersion.filename).c_str())
         )
 
         // Download has finished, prompt about starting the installer here.
-        if (version_folder.isSignaled (std::filesystem::current_path().wstring() + L"\\version\\" ) &&
-            PathFileExists ((std::filesystem::current_path().wstring() + L"\\version\\" + newVersion).c_str()))
+        if (version_folder.isSignaled (updateRoot) &&
+            PathFileExists ((updateRoot + newVersion.filename).c_str()))
           SKIF_UpdateReady = showUpdatePrompt = true;
+        else if (changedUpdateChannel)
+        {
+          changedUpdateChannel = false;
+          SKIF_UpdateReady = showUpdatePrompt = PathFileExists((updateRoot + newVersion.filename).c_str());
+        }
 
-        if (showUpdatePrompt)
+        if (showUpdatePrompt && newVersion.description != SKIF_wsIgnoreUpdate)
         {
           showUpdatePrompt = false;
           UpdatePromptPopup = PopupState::Open;
         }
       }
 
-      if (UpdatePromptPopup == PopupState::Open)
+      static float UpdateAvailableWidth = 0.0f;
+
+      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering)
+      {
+        UpdateAvailableWidth = ImGui::CalcTextSize (("An update is ready to be installed:" + SK_WideCharToUTF8(newVersion.description)).c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         ImGui::OpenPopup ("Update Available###UpdatePrompt");
-      
+      }
 
       // Update Available prompt
       ImGui::SetNextWindowSize (
-        ImVec2 ( 250.0f * SKIF_ImGui_GlobalDPIScale,
+        ImVec2 ( UpdateAvailableWidth,
                  0.0f )
       );
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
@@ -6779,23 +7099,50 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
-        UpdatePromptPopup = PopupState::Opened;
+        SKIF_ImGui_Spacing ();
+
+        ImGui::Text ("An update is ready to be installed:");
+
+        ImGui::SameLine ( );
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), SK_WideCharToUTF8 (newVersion.description).c_str());
+
+        if (! newVersion.releasenotes.empty())
+        {
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+          ImGui::TextWrapped    (SK_WideCharToUTF8 (newVersion.releasenotes).c_str());
+          ImGui::PopStyleColor  ( );
+        }
 
         SKIF_ImGui_Spacing ();
 
-        ImGui::Text ("An update is ready to be installed.");
+        float fX = ImGui::GetContentRegionAvail().x / 2 - (3 * 100 * SKIF_ImGui_GlobalDPIScale / 2);
 
-        SKIF_ImGui_Spacing ();
+        ImGui::SetCursorPosX(fX);
 
         if (ImGui::Button ("Install", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                             25 * SKIF_ImGui_GlobalDPIScale )))
+                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
           _inject._StartStopInject(true);
 
-          SKIF_Util_OpenURI (std::filesystem::current_path().wstring() + L"\\version\\" + newVersion);
+          SKIF_Util_OpenURI (updateRoot + newVersion.filename);
 
-          bExitOnInjection = true; // Used to close SKIF once the service have been stopped
+          //bExitOnInjection = true; // Used to close SKIF once the service have been stopped
 
+          UpdatePromptPopup = PopupState::Closed;
+          ImGui::CloseCurrentPopup ();
+        }
+
+        ImGui::SameLine ();
+        ImGui::Spacing  ();
+        ImGui::SameLine ();
+
+        if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                               25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          regKVIgnoreUpdate.putData(newVersion.description);
+
+          UpdatePromptPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
 
@@ -6806,6 +7153,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
+          UpdatePromptPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
 

@@ -1229,6 +1229,7 @@ enum ImGuiCol_
     ImGuiCol_SKIF_Warning,          // Orange
     ImGuiCol_SKIF_Failure,          // Red
     ImGuiCol_SKIF_Info,             // Blue
+    ImGuiCol_SKIF_Yellow,           // Yellow
 
     // Count
     ImGuiCol_COUNT

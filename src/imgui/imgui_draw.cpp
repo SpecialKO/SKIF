@@ -233,9 +233,10 @@ void ImGui::StyleColorsDark(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_TextCaption]       = colors[ImGuiCol_CheckMark];
     colors[ImGuiCol_SKIF_TextGameTitle]     = colors[ImGuiCol_Text];
     colors[ImGuiCol_SKIF_Success]           = ImColor(121, 214, 28); // ImColor(144, 238, 144);
-    colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124,  3);  // ImColor::HSV(0.11F, 1.F, 1.F);
+    colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124,  3);  // ImColor::HSV(0.11F, 1.F, 1.F)
     colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
     colors[ImGuiCol_SKIF_Info]              = ImColor::HSV(0.55F, 0.99F, 1.F);
+    colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
 void ImGui::StyleColorsClassic(ImGuiStyle* dst)
@@ -302,6 +303,7 @@ void ImGui::StyleColorsClassic(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_Warning]           = ImColor::HSV(0.11F, 1.F, 1.F);
     colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
     colors[ImGuiCol_SKIF_Info]              = ImColor::HSV(0.55F, 0.99F, 1.F);
+    colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
 // Those light colors are better suited with a thicker font than the default one + FrameBorder
@@ -380,9 +382,10 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_TextCaption]       = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
     colors[ImGuiCol_SKIF_TextGameTitle]     = colors[ImGuiCol_Text];
     colors[ImGuiCol_SKIF_Success]           = ImColor(86, 168, 64); //144, 238, 144) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-    colors[ImGuiCol_SKIF_Warning]           = ImColor(240, 139, 24); // ImColor::HSV(0.11F, 1.F, 1.F);
+    colors[ImGuiCol_SKIF_Warning]           = ImColor(240, 139, 24); // ImColor::HSV(0.11F, 1.F, 1.F)
     colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
     colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
+    colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
 //-----------------------------------------------------------------------------
