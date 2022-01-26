@@ -1,1 +1,0 @@
-﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(520,5): error MSB3191: Unable to create directory "C:\Program Files (x86)\Steam\steamapps\common\Special K\". Access to the path 'C:\Program Files (x86)\Steam\steamapps\common\Special K\' is denied.

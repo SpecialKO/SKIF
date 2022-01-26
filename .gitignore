@@ -21,3 +21,4 @@
 *.tlog
 /include/fonts/bin2header.exe
 /x64/[Dd]ebug/*
+/x64/Debug/SKIF.log
