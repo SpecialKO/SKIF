@@ -2978,7 +2978,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
             bool isBranch = false;
 
             for (auto& branch : version["Branches"])
-              if (branch.get<std::string>() == currentBranch)
+              if (branch.get<std::string_view>()._Equal(currentBranch))
                 isBranch = true;
         
             if (isBranch)
@@ -3925,7 +3925,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if (regKVIgnoreUpdate.hasData() )
     SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
-  OutputDebugString((L"Ignore channel: " + SKIF_wsIgnoreUpdate + L"\n").c_str());
+  //OutputDebugString((L"Ignore channel: " + SKIF_wsIgnoreUpdate + L"\n").c_str());
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
@@ -4175,6 +4175,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
   SKIF_ImGui_InitFonts ();
+
+  //OutputDebugString((L"Result: " + std::to_wstring(SKIF_CompareVersionStrings(L"22.1.22d", L"22.1.22b")) + L"\n").c_str());
 
   // Our state
   ImVec4 clear_color         =
