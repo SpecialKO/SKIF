@@ -208,6 +208,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   dwLastSignaled = SKIF_timeGetTime();
 
+  Sleep(30);
+
   return ret;
 };
 

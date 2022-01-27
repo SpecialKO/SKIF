@@ -3000,8 +3000,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               OutputDebugString(L"\n");
               */
 
-              // Limit to newer for now for testing purposes
-              if (SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0) //> 0) // != 0
+              // Limit to newer versions only
+              if (SKIF_CompareVersionStrings (branchVersion, currentVersion) > 0) //> 0) // != 0
               {
                 std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
                 std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
