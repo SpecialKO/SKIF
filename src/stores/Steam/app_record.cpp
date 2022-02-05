@@ -13,14 +13,13 @@ app_launch_config_s::getExecutableFullPath (int32_t appid)
 {
   std::wstring exec_path = L"";
 
-  if (store == L"Steam") {
+  if (store == L"Steam")
     exec_path = SK_UseManifestToGetInstallDir (appid);
-    exec_path.append (L"\\");
-    exec_path.append (executable);
-  }
-
   else
-    exec_path = executable;
+    exec_path = working_dir;
+  
+  exec_path.append (L"\\");
+  exec_path.append (executable);
 
   if (PathFileExistsW (exec_path.c_str ()))
     return exec_path;

@@ -260,7 +260,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               record.install_dir = szData;
 
             dwSize = sizeof (szData) / sizeof (WCHAR);
-            if (RegGetValueW (hKey, szSubKey, L"Exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+            if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"Exe"
             {
               app_record_s::launch_config_s lc;
               lc.id = 0;
@@ -274,9 +274,12 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
 
               record.launch_configs[0] = lc;
 
+              /*
               dwSize = sizeof (szData) / sizeof (WCHAR);
               if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 record.specialk.profile_dir = szData;
+              */
+              record.specialk.profile_dir = lc.executable;
 
               record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 

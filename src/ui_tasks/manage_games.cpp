@@ -253,6 +253,7 @@ SKIF_Util_OpenURI_Threaded (
 #include <fsutil.h>
 #include <stores/EGS/egs_library.h>
 #include <atlimage.h>
+#include <TlHelp32.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -336,7 +337,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, SKIFCustomPath + L"-original.png"))
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
         load_str =                SKIFCustomPath + L"-original.png";
     }
   }
@@ -368,7 +369,7 @@ LoadLibraryTexture (
                PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
         load_str =               EGSAssetPath + L"OfferImageTall.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, EGSAssetPath + L"icon-original.png"))
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EGSAssetPath + L"icon-original.png"))
         load_str =               SKIFCustomPath + L"-original.png";
     }
   }
@@ -396,7 +397,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].executable, SKIFCustomPath + L"-original.png"))
+               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
         load_str =             SKIFCustomPath + L"-original.png";
       else if (libTexToLoad == LibraryTexture::Icon)
       {
@@ -1852,7 +1853,7 @@ SKIF_GameManagement_DrawTab (void)
       }
     }
 
-    const  DWORD dwTimeout    = 425UL;
+    const  DWORD dwTimeout    = 850UL; // 425UL
     static DWORD dwLastUpdate = SKIF_timeGetTime ();
 
     struct {
@@ -2332,6 +2333,13 @@ Cache=false)";
           ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
       }
 
+      // Disable the button for global injection types if the servlets are missing
+      if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
+      {
+        ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+      }
+
       // This captures two events -- launching through context menu + large button
       if ( ImGui::ButtonEx (
                   buttonLabel.c_str (),
@@ -2344,9 +2352,9 @@ Cache=false)";
       {
 
         if (  pTargetApp->store != "Steam" && pTargetApp->store != "EGS" &&
-            ! PathFileExists(pTargetApp->launch_configs[0].executable.c_str()))
+            ! PathFileExists(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str()))
         {
-          confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].executable);
+          confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id));
           ConfirmPopup     = PopupState::Open;
         }
 
@@ -2383,7 +2391,7 @@ Cache=false)";
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
             sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = pTargetApp->launch_configs[0].executable    .c_str();
+            sexi.lpFile       = pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id).c_str();
             sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
             sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
             sexi.nShow        = SW_SHOWDEFAULT;
@@ -2407,6 +2415,13 @@ Cache=false)";
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
+      }
+      
+      // Disable the button for global injection types if the servlets are missing
+      if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
+      {
+        ImGui::PopStyleVar ();
+        ImGui::PopItemFlag ();
       }
 
       if (pTargetApp->_status.running)
@@ -2773,7 +2788,7 @@ Cache=false)";
     if (pApp->store != "Steam")
     {
       DWORD dwBinaryType = MAXDWORD;
-      if ( GetBinaryTypeW (pApp->launch_configs[0].executable.c_str (), &dwBinaryType) )
+      if ( GetBinaryTypeW (pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str (), &dwBinaryType) )
       {
         if (dwBinaryType == SCS_32BIT_BINARY)
           pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
@@ -3163,15 +3178,13 @@ Cache=false)";
   {
     _PrintInjectionSummary (pApp);
 
-    if (pApp->extended_config.vac.enabled == 1)
+    if ( pApp->extended_config.vac.enabled == 1 )
     {
         SKIF_StatusBarText = "Warning: ";
         SKIF_StatusBarHelp = "VAC protected game - Injection is not recommended!";
     }
 
-    if (  pApp->specialk.injection.injection.type != InjectionType::Local &&
-        ! pApp->launch_configs.empty ()
-       )
+    if ( pApp->specialk.injection.injection.type != InjectionType::Local )
     {
       ImGui::SetCursorPosY (
         ImGui::GetWindowHeight () - fBottomDist -
@@ -3244,45 +3257,53 @@ Cache=false)";
         }
       };
 
-      // Set horizontal position
-      ImGui::SetCursorPosX (
-        ImGui::GetCursorPosX  () +
-        ImGui::GetColumnWidth () -
-        ImGui::CalcTextSize   ("Disable Special K >").x -
-        ImGui::GetScrollX     () -
-        ImGui::GetStyle       ().ItemSpacing.x * 2
-      );
-
-      // If there is only one launch option
-      if ( pApp->launch_configs.size  () == 1 )
+      if ( ! _inject.bHasServlet )
       {
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () - 1.0f
-        );
-
-        _BlacklistCfg          (
-             pApp->launch_configs.begin ()->second );
+        ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
       }
 
-      // If there are more than one launch option
-      else
+      else if ( ! pApp->launch_configs.empty() )
       {
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () +
-          ImGui::GetStyle      ().ItemSpacing.y / 2.0f
+        // Set horizontal position
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX  () +
+          ImGui::GetColumnWidth () -
+          ImGui::CalcTextSize   ("Disable Special K >").x -
+          ImGui::GetScrollX     () -
+          ImGui::GetStyle       ().ItemSpacing.x * 2
         );
 
-        if ( ImGui::BeginMenu ("Disable Special K") )
+        // If there is only one launch option
+        if ( pApp->launch_configs.size  () == 1 )
         {
-          for ( auto& launch : pApp->launch_configs )
+          ImGui::SetCursorPosY (
+            ImGui::GetCursorPosY () - 1.0f
+          );
+
+          _BlacklistCfg          (
+               pApp->launch_configs.begin ()->second );
+        }
+
+        // If there are more than one launch option
+        else
+        {
+          ImGui::SetCursorPosY (
+            ImGui::GetCursorPosY () +
+            ImGui::GetStyle      ().ItemSpacing.y / 2.0f
+          );
+
+          if ( ImGui::BeginMenu ("Disable Special K") )
           {
-            if (! launch.second.valid)
-              continue;
+            for ( auto& launch : pApp->launch_configs )
+            {
+              if (! launch.second.valid)
+                continue;
 
-            _BlacklistCfg (launch.second, true);
+              _BlacklistCfg (launch.second, true);
+            }
+
+            ImGui::EndMenu       ();
           }
-
-          ImGui::EndMenu       ();
         }
       }
 
@@ -3387,6 +3408,67 @@ Cache=false)";
 
     ImGui::EndGroup           ( );
   }
+
+
+  // Refresh running state of SKIF Custom, EGS, and GOG titles
+  static DWORD lastGameRefresh = 0;
+
+  if (SKIF_timeGetTime() > lastGameRefresh + 5000)
+  {
+    for (auto& app : apps)
+    {
+      if (app.second.store == "Steam")
+        continue;
+      app.second._status.running = false;
+    }
+
+    PROCESSENTRY32W none = { },
+                    pe32 = { };
+
+    SK_AutoHandle hProcessSnap (
+      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+    );
+
+    if ((intptr_t)hProcessSnap.m_h > 0)
+    {
+      pe32.dwSize = sizeof(PROCESSENTRY32W);
+
+      if (Process32FirstW (hProcessSnap, &pe32))
+      {
+        do
+        {
+          for (auto& app : apps)
+          {
+            // Steam games are covered through separate registry monitoring
+            if (app.second.store == "Steam")
+              continue;
+
+            // EGS requries special treatment as they store the path to the executable based on the root of the install folder
+            if (app.second.store == "EGS")
+            {
+              std::wstring str = app.second.launch_configs[0].executable;
+              auto npos = str.rfind('/'); // Weird that they're using /, but I'll take it
+
+              if (npos != std::string::npos)
+                str = str.substr(npos + 1);
+
+              if (! str.empty() && wcsstr (pe32.szExeFile, str.c_str()))
+                app.second._status.running = true;
+            }
+
+            // GOG and SKIF Custom should be straight forward
+            else {
+              if (wcsstr (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
+                app.second._status.running = true;
+            }
+          }
+        } while (Process32NextW (hProcessSnap, &pe32));
+      }
+    }
+
+    lastGameRefresh = SKIF_timeGetTime();
+  }
+
 
   extern void SKIF_ImGui_ServiceMenu (void);
 
@@ -4380,7 +4462,7 @@ Cache=false)";
       }
 
       strncpy (charName, name.c_str( ), MAX_PATH);
-      strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].executable).c_str(), MAX_PATH);
+      strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id)).c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), 500);
       //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", path_cache.specialk_userdata.path, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
 

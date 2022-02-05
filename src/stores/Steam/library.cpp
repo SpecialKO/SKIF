@@ -21,6 +21,7 @@
 //
 
 #include <stores/steam/library.h>
+#include <fstream>
 
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
 const GUID IID_VFS_SteamUGC =
@@ -177,7 +178,7 @@ SK_Steam_GetInstalledAppIDs (void)
   if (! steam_lib_paths)
     return apps;
 
-  //bool bHasSpecialK = false;
+  bool bHasSpecialK = false;
 
   if (steam_libs != 0)
   {
@@ -203,8 +204,45 @@ SK_Steam_GetInstalledAppIDs (void)
         {
           apps.push_back (appid);
 
-          //if (appid == 1157970)
-          //  bHasSpecialK = true;
+          if (appid == 1157970)
+            bHasSpecialK = true;
+        }
+      }
+    }
+  }
+  
+  if (bHasSpecialK)
+  {
+    static bool
+          bInit = false;
+    if (! bInit)
+    {
+      static bool bLoaded =
+        (LoadLibraryW (L"steam_api64.dll") != nullptr);
+
+      if (bLoaded)
+      {
+        using  SteamAPI_Init_pfn = bool (__cdecl *)(void);
+        static SteamAPI_Init_pfn
+              _SteamAPI_Init     = nullptr;
+
+        if (_SteamAPI_Init == nullptr)
+        {   _SteamAPI_Init =
+            (SteamAPI_Init_pfn)GetProcAddress (GetModuleHandleW (
+               SK_RunLHIfBitness ( 64, L"steam_api64.dll",
+                                       L"steam_api.dll" )
+         ), "SteamAPI_Init");
+        }
+
+        if (_SteamAPI_Init != nullptr)
+        {
+          std::ofstream ("steam_appid.txt") << std::to_string (1157970);
+
+          if (_SteamAPI_Init ())
+          {
+            DeleteFileW (L"steam_appid.txt");
+            bInit = true;
+          }
         }
       }
     }

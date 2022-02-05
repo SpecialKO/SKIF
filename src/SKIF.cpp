@@ -82,7 +82,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bLowBandwidthMode        = false;
 
 std::wstring 
-     SKIF_wsIgnoreUpdate;
+     SKIF_wsIgnoreUpdate,
+     SKIF_wsUpdateChannel;
 
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
@@ -2860,11 +2861,13 @@ int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
   return 0; 
 }
 
+std::vector <std::pair<std::string, std::string>> updateChannels{};
 static volatile LONG update_thread = 0;
 struct SKIF_UpdateCheckResults {
-    std::wstring filename;
-    std::wstring description;
-    std::wstring releasenotes;
+  std::wstring version;
+  std::wstring filename;
+  std::wstring description;
+  std::wstring releasenotes;
 };
 
 SKIF_UpdateCheckResults SKIF_CheckForUpdates()
@@ -2883,6 +2886,12 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
   if (InterlockedCompareExchange (&update_thread, 1, 0) == 0)
   {
+    if (changedUpdateChannel)
+    {
+      results.filename.clear();
+      results.description.clear();
+    }
+
     _beginthreadex(nullptr,
                            0,
     [](LPVOID lpUser)->unsigned
@@ -2939,7 +2948,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       }
     
       std::ifstream file(path);
-      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
+      nlohmann::ordered_json jf = nlohmann::ordered_json::parse(file, nullptr, false);
       file.close();
 
       if (jf.is_discarded ( ))
@@ -2949,22 +2958,26 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       }
 
       else {
-        std::string currentBranch;
 
+        /*
         switch (SKIF_iUpdateChannel)
         {
         case 0:
-          currentBranch = "Testing"; // Discord
+          currentBranch = "Discord"; // Testing
           break;
         case 1:
-          currentBranch = "Release";  // Website
+          currentBranch = "Website"; // Stable
           break;
         case 2:
-          currentBranch = "Compatibility"; // Ancient
+          currentBranch = "Ancient"; // Compatibility
           break;
         default:
           currentBranch = "Unknown";
         }
+        */
+
+        std::string  currentBranch  = SK_WideCharToUTF8 (SKIF_wsUpdateChannel);
+        //OutputDebugString((L"currentBranch: " + SK_UTF8ToWideChar(currentBranch) + L"\n").c_str());
 
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
@@ -2973,6 +2986,53 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 #endif
 
         try {
+
+          
+          // Populate update channels
+          try {
+            static bool
+                firstRun = true;
+            if (firstRun)
+            {   firstRun = false;
+
+              bool detectedBranch = false;
+              for (auto& branch : jf["Main"]["Branches"])
+              {
+                updateChannels.emplace_back(branch["Name"].get<std::string>(), branch["Description"].get<std::string>());
+
+                if (branch["Name"].get<std::string_view>()._Equal(currentBranch))
+                  detectedBranch = true;
+              }
+
+              // If we cannot find the branch, move the user over to the closest "parent" branch
+              if (! detectedBranch)
+              {
+                if (     SKIF_wsUpdateChannel.find(L"Website")       != std::string::npos
+                      || SKIF_wsUpdateChannel.find(L"Release")       != std::string::npos)
+                         SKIF_wsUpdateChannel = L"Website";
+                else if (SKIF_wsUpdateChannel.find(L"Discord")       != std::string::npos
+                      || SKIF_wsUpdateChannel.find(L"Testing")       != std::string::npos)
+                         SKIF_wsUpdateChannel = L"Discord";
+                else if (SKIF_wsUpdateChannel.find(L"Ancient")       != std::string::npos
+                      || SKIF_wsUpdateChannel.find(L"Compatibility") != std::string::npos)
+                         SKIF_wsUpdateChannel = L"Ancient";
+                else
+                         SKIF_wsUpdateChannel = L"Website";
+
+                SKIF_wsIgnoreUpdate = L"";
+
+                currentBranch = SK_WideCharToUTF8(SKIF_wsUpdateChannel);
+              }
+            }
+          }
+          catch (const std::exception&)
+          {
+
+          }
+
+          //OutputDebugString((L"currentBranch: " + SK_UTF8ToWideChar(currentBranch) + L"\n").c_str());
+
+          // Detect if any new version is available in the selected channel
           for (auto& version : jf["Main"]["Versions"])
           {
             bool isBranch = false;
@@ -3001,13 +3061,15 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               */
 
               // Limit to newer versions only
-              if (SKIF_CompareVersionStrings (branchVersion, currentVersion) > 0) //> 0) // != 0
+              if ((SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
+                   SKIF_CompareVersionStrings (branchVersion, currentVersion)  > 0)
               {
                 std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
                 std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
             
                 //OutputDebugString(L"A new version is available!\n");
 
+                _res->version      = branchVersion;
                 _res->filename     = filename;
                 _res->description  = SK_UTF8ToWideChar(version["Description"].get<std::string>());
                 _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
@@ -3283,7 +3345,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst = nullptr)
     // Text
     colors[ImGuiCol_Text]                   = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
     colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.26f, 0.59f, 0.98f, 0.30f); //ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
 
     // Window, Child, Popup
     colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f); // ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
@@ -3872,6 +3934,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Ignore Update)" );
 
+  static auto regKVFollowUpdateChannel =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Follow Update Channel)" );
+
   
   SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
@@ -3926,6 +3992,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (regKVIgnoreUpdate.hasData() )
     SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
   //OutputDebugString((L"Ignore channel: " + SKIF_wsIgnoreUpdate + L"\n").c_str());
+
+  if (regKVFollowUpdateChannel.hasData() )
+    SKIF_wsUpdateChannel        = regKVFollowUpdateChannel.getWideString ( );
 
   if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
@@ -5115,35 +5184,57 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::BeginGroup    ( );
 
+          /*
           const char* ChannelItems[] = { "Discord (updates regularly)",
                                          "Website (updates every ~6 months)",
-                                         /*"Ancient (~6 months older than Website)"*/ };
-          static const char* ChannelItemsCurrent = ChannelItems[SKIF_iUpdateChannel];
+                                         "Ancient (~6 months older than Website)" };
+          */
 
-          if (ImGui::BeginCombo ("##SKIF_iUpdateChannel", ChannelItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+          if (! updateChannels.empty())
           {
-              for (int n = 0; n < IM_ARRAYSIZE (ChannelItems); n++)
-              {
-                  bool is_selected = (ChannelItemsCurrent == ChannelItems[n]); // You can store your selection however you want, outside or inside your objects
-                  if (ImGui::Selectable (ChannelItems[n], is_selected) && SKIF_iUpdateChannel != n)
-                  {
-                    // Update channel
-                    SKIF_iUpdateChannel = n;
-                    regKVUpdateChannel.putData        (SKIF_iUpdateChannel);
-                    ChannelItemsCurrent = ChannelItems[SKIF_iUpdateChannel];
-                    SKIF_wsIgnoreUpdate = L"";
-                    regKVIgnoreUpdate.putData (SKIF_wsIgnoreUpdate);
+            static std::pair<std::string, std::string>  empty           = std::pair("", "");
+            static std::pair<std::string, std::string>* selectedChannel = &empty;
 
-                    // Trigger a new check for updates
-                    changedUpdateChannel = true;
-                    SKIF_UpdateReady = showUpdatePrompt = false;
-                    newVersion.filename.clear();
-                    InterlockedExchange (&update_thread, 0);
-                  }
-                  if (is_selected)
-                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+            static bool
+                firstRun = true;
+            if (firstRun)
+            {   firstRun = false;
+              for (auto& updateChannel : updateChannels)
+                if (updateChannel.first == SK_WideCharToUTF8(SKIF_wsUpdateChannel))
+                  selectedChannel = &updateChannel;
+            }
+
+            if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", selectedChannel->second.c_str()))
+            {
+              for (auto& updateChannel : updateChannels)
+              {
+                bool is_selected = (selectedChannel->first == updateChannel.first);
+
+                if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != selectedChannel->first)
+                {
+                  // Update selection
+                  selectedChannel = &updateChannel;
+
+                  // Update channel
+                  SKIF_wsUpdateChannel = SK_UTF8ToWideChar(selectedChannel->first);
+                  SKIF_wsIgnoreUpdate  = L"";
+                  regKVFollowUpdateChannel.putData(SKIF_wsUpdateChannel);
+                  regKVIgnoreUpdate       .putData (SKIF_wsIgnoreUpdate);
+
+                  // Trigger a new check for updates
+                  changedUpdateChannel = true;
+                  SKIF_UpdateReady     = showUpdatePrompt = false;
+                  newVersion.filename.clear();
+                  newVersion.description.clear();
+                  InterlockedExchange (&update_thread, 0);
+                }
+
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus ( );
               }
+
               ImGui::EndCombo  ( );
+            }
           }
 
           ImGui::EndGroup      ( );
@@ -7084,18 +7175,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering)
       {
-        UpdateAvailableWidth = ImGui::CalcTextSize (("An update is ready to be installed:" + SK_WideCharToUTF8(newVersion.description)).c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
-        ImGui::OpenPopup ("Update Available###UpdatePrompt");
+        UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8(newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
+        ImGui::OpenPopup ("###UpdatePrompt");
       }
 
       // Update Available prompt
       ImGui::SetNextWindowSize (
-        ImVec2 ( UpdateAvailableWidth,
+        ImVec2 ( 450.0f * SKIF_ImGui_GlobalDPIScale,
                  0.0f )
       );
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-      if (ImGui::BeginPopupModal ( "Update Available###UpdatePrompt", nullptr,
+      if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
                                      ImGuiWindowFlags_NoResize |
                                      ImGuiWindowFlags_NoMove |
                                      ImGuiWindowFlags_AlwaysAutoResize )
@@ -7103,14 +7194,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         SKIF_ImGui_Spacing ();
 
-        ImGui::Text ("An update is ready to be installed:");
+        float fX = ImGui::GetContentRegionAvail().x / 2 - ImGui::CalcTextSize((SK_WideCharToUTF8(newVersion.description) + " is ready to be installed.").c_str()).x / 2;
 
-        ImGui::SameLine ( );
+        ImGui::SetCursorPosX(fX);
 
         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), SK_WideCharToUTF8 (newVersion.description).c_str());
+        ImGui::SameLine ( );
+        ImGui::Text ("is ready to be installed.");
+
+        SKIF_ImGui_Spacing ();
 
         if (! newVersion.releasenotes.empty())
         {
+          ImGui::Text ("Changes:");
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
           ImGui::TextWrapped    (SK_WideCharToUTF8 (newVersion.releasenotes).c_str());
           ImGui::PopStyleColor  ( );
@@ -7118,7 +7214,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        float fX = ImGui::GetContentRegionAvail().x / 2 - (3 * 100 * SKIF_ImGui_GlobalDPIScale / 2);
+#ifdef _WIN64
+        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
+#else
+        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
+#endif
+        std::string compareLabel;
+        ImVec4      compareColor;
+        bool        compareNewer = false;
+
+        if (SKIF_CompareVersionStrings(newVersion.version, currentVersion) > 0)
+        {
+          compareLabel = "This version is newer than currently installed.";
+          compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+          compareNewer = true;
+        }
+        else
+        {
+          compareLabel = "This version is older than currently installed!";
+          compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
+        }
+
+        fX = ImGui::GetContentRegionAvail().x / 2 - ImGui::CalcTextSize(compareLabel.c_str()).x / 2;
+
+        ImGui::SetCursorPosX(fX);
+          
+        ImGui::TextColored (compareColor, compareLabel.c_str());
+
+        SKIF_ImGui_Spacing ();
+
+        fX = ImGui::GetContentRegionAvail().x / 2 - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale / 2);
 
         ImGui::SetCursorPosX(fX);
 
@@ -7139,18 +7264,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::Spacing  ();
         ImGui::SameLine ();
 
-        if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                               25 * SKIF_ImGui_GlobalDPIScale )))
+        if (compareNewer)
         {
-          regKVIgnoreUpdate.putData(newVersion.description);
+          if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                                 25 * SKIF_ImGui_GlobalDPIScale )))
+          {
+            regKVIgnoreUpdate.putData(newVersion.description);
 
-          UpdatePromptPopup = PopupState::Closed;
-          ImGui::CloseCurrentPopup ();
+            UpdatePromptPopup = PopupState::Closed;
+            ImGui::CloseCurrentPopup ();
+          }
+
+          SKIF_ImGui_SetHoverTip ("SKIF will not prompt about this version again.");
+
+          ImGui::SameLine ();
+          ImGui::Spacing  ();
+          ImGui::SameLine ();
         }
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
 
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))

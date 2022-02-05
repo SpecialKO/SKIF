@@ -233,11 +233,13 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 
   bHasServlet =
     bHasServlet &&
+    PathFileExistsW (LR"(Servlet\SKIFsvc32.exe)") &&
     PathFileExistsW (L"SpecialK32.dll");
 
 #ifdef _WIN64
   bHasServlet =
     bHasServlet &&
+    PathFileExistsW (LR"(Servlet\SKIFsvc64.exe)") &&
     PathFileExistsW (L"SpecialK64.dll");
 #endif
 
@@ -870,7 +872,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   else {
-    ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Global injection is unavailable due to missing files.");
+    ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
   }
 
   ImGui::EndChildFrame ();

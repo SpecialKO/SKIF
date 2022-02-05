@@ -102,13 +102,17 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 record.install_dir = szData;
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"exe"
               {
                 app_record_s::launch_config_s lc;
                 lc.id = 0;
                 lc.store = L"GOG";
                 lc.executable = szData;
-                lc.working_dir = record.install_dir;
+                // lc.working_dir = record.install_dir;
+
+                dwSize = sizeof(szData) / sizeof(WCHAR);
+                if (RegGetValueW(hKey, szSubKey, L"workingDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                  lc.working_dir = szData;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
                 if (RegGetValueW(hKey, szSubKey, L"launchParam", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
@@ -116,9 +120,12 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
                 record.launch_configs[0] = lc;
 
+                /*
                 dwSize = sizeof(szData) / sizeof(WCHAR);
                 if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   record.specialk.profile_dir = szData;
+                */
+                record.specialk.profile_dir = lc.executable;
 
                 record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 
