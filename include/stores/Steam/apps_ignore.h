@@ -1,7 +1,7 @@
 #ifndef STEAM_APPS_IGNORABLE_H
 #define STEAM_APPS_IGNORABLE_H
 
-static const unsigned int steam_apps_ignorable[] = {
+static constexpr unsigned int steam_apps_ignorable[] = {
   496450,
   1787090,
   1802970,

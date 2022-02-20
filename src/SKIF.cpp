@@ -79,7 +79,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
      SKIF_bFontVietnamese          = false,
-     SKIF_bLowBandwidthMode        = false;
+     SKIF_bLowBandwidthMode        = false,
+     SKIF_bPreferGOGGalaxyLaunch   = false;
 
 std::wstring 
      SKIF_wsIgnoreUpdate,
@@ -3802,6 +3803,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Low Bandwidth Mode)" );
 
+  static auto regKVPreferGOGGalaxyLaunch =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Prefer GOG Galaxy Launch)" );
+
   static auto regKVRememberLastSelected =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Remember Last Selected)" );
@@ -3940,6 +3945,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   
   SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
+  SKIF_bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );
   SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
 //SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
@@ -4617,6 +4623,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
+#if 0
       FLOAT SKIF_GetHDRWhiteLuma (void);
       void  SKIF_SetHDRWhiteLuma (FLOAT);
 
@@ -4670,6 +4677,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing();
         }
       };
+#endif
 
       enum _Selection {
         None,
@@ -5067,7 +5075,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           _inject._StartAtLogonCtrl ( );
 
-          ImGui::Spacing       ( );
+          if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &SKIF_bPreferGOGGalaxyLaunch) )
+            regKVPreferGOGGalaxyLaunch.putData (SKIF_bPreferGOGGalaxyLaunch);
+
           ImGui::Spacing       ( );
             
           ImGui::TextColored (
@@ -5100,42 +5110,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             regKVDisableEGSLibrary.putData   (SKIF_bDisableEGSLibrary);
             RepopulateGames = true;
-          }
-
-          ImGui::TreePop       ( );
-
-          ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
-
-          const char* StyleItems[] = { "SKIF Dark",
-                                       "ImGui Dark",
-                                       "ImGui Light",
-                                       "ImGui Classic" };
-          static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
-          
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Choose a skin to apply to SKIF: (restart required)"
-          );
-          ImGui::TreePush      ("");
-
-          if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
-          {
-              for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
-              {
-                  bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
-                  if (ImGui::Selectable (StyleItems[n], is_selected))
-                  {
-                    SKIF_iStyle = n;
-                    regKVStyle.putData  (SKIF_iStyle);
-                    StyleItemsCurrent = StyleItems[SKIF_iStyle];
-                    // Apply the new Dear ImGui style
-                    //SKIF_SetStyle ( );
-                  }
-                  if (is_selected)
-                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-              }
-              ImGui::EndCombo  ( );
           }
 
           ImGui::TreePop       ( );
@@ -5242,7 +5216,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TreePop       ( );
 
           ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
             
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
           SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
@@ -5262,7 +5235,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             regKVDimCovers.putData (                        SKIF_iDimCovers);
           ImGui::TreePop         ( );
 
-          ImGui::Spacing       ( );
           ImGui::Spacing       ( );
             
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -5284,7 +5256,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::TreePop         ( );
 
           ImGui::Spacing       ( );
-          ImGui::Spacing       ( );
             
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
           SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
@@ -5304,7 +5275,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
           ImGui::TreePop         ( );
 
-          ImGui::Spacing       ( );
           ImGui::Spacing       ( );
           
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -5402,6 +5372,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine       ( );
             ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
             ImGui::EndGroup       ( );
+          }
+
+          ImGui::TreePop       ( );
+
+          ImGui::Spacing       ( );
+
+          const char* StyleItems[] = { "SKIF Dark",
+                                       "ImGui Dark",
+                                       "ImGui Light",
+                                       "ImGui Classic" };
+          static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
+          
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Choose a skin to apply to SKIF: (restart required)"
+          );
+          ImGui::TreePush      ("");
+
+          if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+          {
+              for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
+              {
+                  bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
+                  if (ImGui::Selectable (StyleItems[n], is_selected))
+                  {
+                    SKIF_iStyle = n;
+                    regKVStyle.putData  (SKIF_iStyle);
+                    StyleItemsCurrent = StyleItems[SKIF_iStyle];
+                    // Apply the new Dear ImGui style
+                    //SKIF_SetStyle ( );
+                  }
+                  if (is_selected)
+                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+              }
+              ImGui::EndCombo  ( );
           }
 
           ImGui::TreePop       ( );
@@ -6215,7 +6220,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
                                      _inject.blacklist, MAX_PATH * 128 - 1,
                                        ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
-                                                100 * SKIF_ImGui_GlobalDPIScale ),
+                                                 80 * SKIF_ImGui_GlobalDPIScale ),
                                          ImGuiInputTextFlags_Multiline );
 
             _CheckWarnings (_inject.blacklist);

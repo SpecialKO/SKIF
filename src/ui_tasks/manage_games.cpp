@@ -2384,16 +2384,25 @@ Cache=false)";
               _inject._StartStopInject   (true);
           }
 
+          extern bool SKIF_bPreferGOGGalaxyLaunch;
+          extern bool GOGGalaxy_Installed;
+
           // Launch game
-          if (pTargetApp->store != "Steam" && pTargetApp->store != "EGS")
+          if (pTargetApp->store == "GOG" && GOGGalaxy_Installed && SKIF_bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
           {
+            extern std::wstring GOGGalaxy_Path;
+
+            // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+            std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
+
             SHELLEXECUTEINFOW
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
             sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id).c_str();
-            sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
-            sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
+            sexi.lpFile       = GOGGalaxy_Path.c_str();
+            sexi.lpParameters = launchOptions.c_str();
+          //sexi.lpDirectory  = NULL;
             sexi.nShow        = SW_SHOWDEFAULT;
             sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                                 SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
@@ -2407,10 +2416,25 @@ Cache=false)";
             SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pTargetApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
           }
 
-          else {
+          else if (pTargetApp->store == "Steam") {
             //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str()); // This is seemingly unreliable
             SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pTargetApp->id)).c_str());
             pTargetApp->_status.invalidate();
+          }
+          
+          else { // SKIF Custom, GOG without Galaxy
+            SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id).c_str();
+            sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
+            sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
+            sexi.nShow        = SW_SHOWDEFAULT;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                                SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+
+            ShellExecuteExW (&sexi);
           }
         }
 
