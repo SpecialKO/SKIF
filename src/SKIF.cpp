@@ -4957,7 +4957,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                       lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
 
                       // Get the configuration information with the necessary buffer size.
-                      if ( QueryServiceConfig (
+                      if (lpsc != nullptr && 
+                            QueryServiceConfig (
                              svcWinRing0,
                                lpsc, cbBufSize,
                                  &dwBytesNeeded )
@@ -7255,11 +7256,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Install", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                 25 * SKIF_ImGui_GlobalDPIScale )))
         {
-          _inject._StartStopInject(true);
+          if (_inject.bCurrentState)
+            _inject._StartStopInject(true);
 
-          SKIF_Util_OpenURI (updateRoot + newVersion.filename);
+          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", L"/verysilent");
 
           //bExitOnInjection = true; // Used to close SKIF once the service have been stopped
+
+          //Sleep(50);
+          //bKeepProcessAlive = false;
 
           UpdatePromptPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
@@ -7585,8 +7590,8 @@ bool CreateDeviceD3D (HWND hWnd)
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
   sd.BufferCount                        =
-                          SKIF_bCanFlip ?  3
-                                        :  2 ;
+                          SKIF_bCanFlip ?  2   // 3
+                                        :  1 ; // 2
   sd.BufferDesc.Width                   =  4 ;
   sd.BufferDesc.Height                  =  4 ;
   sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -7609,7 +7614,7 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.SwapEffect                         =
    SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
                         : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
-                                        : DXGI_SWAP_EFFECT_DISCARD;
+                                        : DXGI_SWAP_EFFECT_DISCARD; // DXGI_SWAP_EFFECT_DISCARD does not work atm
 
   UINT createDeviceFlags = 0;
 //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;

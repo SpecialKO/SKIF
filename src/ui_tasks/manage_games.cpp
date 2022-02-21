@@ -155,7 +155,8 @@ HINSTANCE
 SKIF_Util_OpenURI (
   const std::wstring_view& path,
                DWORD       dwAction,
-               LPCWSTR     verb)
+               LPCWSTR     verb,
+               LPCWSTR     parameters)
 {
   //return
     //ShellExecuteW ( nullptr, L"OPEN",
@@ -167,6 +168,7 @@ SKIF_Util_OpenURI (
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = verb;
     sexi.lpFile       = path.data ();
+    sexi.lpParameters = parameters;
     sexi.nShow        = dwAction;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI |
                         SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
@@ -1449,8 +1451,8 @@ SKIF_GameManagement_DrawTab (void)
     update      = false;
   }
     
-  if (loadTexture && populated && ! InterlockedCompareExchange (&icon_thread, 0, 0))
-  {
+  if (loadTexture && populated && ! InterlockedCompareExchange (&icon_thread, 0, 0)) // && ImGui::GetFrameCount() > 2)
+  { // Load cover first on third frame (>2) to fix one copy leaking of the cover -- CRASHES IN WIN8.1 VMware VIRTUAL MACHINE
     loadTexture = false;
 
     if ( appinfo != nullptr )

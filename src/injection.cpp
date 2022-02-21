@@ -1497,12 +1497,16 @@ bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool 
 
 bool SKIF_InjectionContext::_WhitelistBasedOnPath (std::string fullPath)
 {
-  return _AddUserListBasedOnPath (fullPath, true);
+  return (fullPath.find("InvalidPath") == std::string::npos)
+    ? _AddUserListBasedOnPath (fullPath, true)
+    : false;
 }
 
 bool SKIF_InjectionContext::_BlacklistBasedOnPath (std::string fullPath)
 {
-  return _AddUserListBasedOnPath (fullPath, false);
+  return (fullPath.find("InvalidPath") == std::string::npos)
+    ? _AddUserListBasedOnPath (fullPath, false)
+    : false;
 }
 
 // Header Files for Jump List features

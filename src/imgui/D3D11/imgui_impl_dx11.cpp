@@ -36,7 +36,7 @@
 
 #include <SKIF.h>
 
-#define SKIF_scRGB
+//#define SKIF_scRGB
 extern BOOL SKIF_bAllowTearing;
 extern BOOL SKIF_bCanFlip;
 extern BOOL SKIF_bCanFlipDiscard;
@@ -1143,8 +1143,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   IM_ASSERT (hWnd != nullptr);
 
-  static bool bCanHDR         =
-    SKIF_IsWindows10OrGreater      () != FALSE;
+  static bool bCanHDR         = FALSE;
+  //SKIF_IsWindows10OrGreater      () != FALSE;
 
   // Create swap chain
   DXGI_SWAP_CHAIN_DESC swap_desc = { };
@@ -1165,8 +1165,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
-           SKIF_bCanFlip ? 3
-                         : 2;
+           SKIF_bCanFlip ? 2  // 3
+                         : 1; // 2
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1419,7 +1419,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
     if (dwWaitState == WAIT_OBJECT_0)
     {
-      DXGI_PRESENT_PARAMETERS                                 pparams = { };
+      DXGI_PRESENT_PARAMETERS       pparams = { };
       pSwap3->Present1 ( Interval, (SKIF_bCanFlip      ? DXGI_PRESENT_RESTART       : 0x0) |
                                    (SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
                                    &pparams );
