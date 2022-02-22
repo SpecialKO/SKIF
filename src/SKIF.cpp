@@ -2287,7 +2287,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Transform to lowercase
     std::wstring cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
 
     std::wstring splitPos1Lower = L"addgame="; // Start split
     std::wstring splitEXELower  = L".exe";     // Stop split (exe)
@@ -2306,7 +2306,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Update lowercase
     cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
 
     // If .exe is part of the string
     if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
@@ -2403,7 +2403,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Transform to lowercase
     std::wstring cmdLineLower = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), std::towlower);
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
 
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
