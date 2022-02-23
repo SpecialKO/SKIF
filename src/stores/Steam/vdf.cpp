@@ -768,18 +768,49 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                       rkCloudSave.path =
                         SK_UTF8ToWideChar ((const char *)key.second.second);
 
-                      if (pUser != nullptr)
-                      {
-                        replaceSpecialValues ( rkCloudSave.path,
-                                               L"{64BitSteamID}",
-                            std::to_wstring (pUser->GetSteamID ().ConvertToUint64 ())
+                      static unsigned long Steam3AccountID = 0UL;
+                      static uint64        Steam64BitID    = 0ULL;
+
+                      static auto
+                        CacheAccountIDs =
+                         [&](void)
+                          {
+                            // Original SteamAPI-based Account Id Resolver
+                            if (pUser != nullptr) {
+                              Steam64BitID    = pUser->GetSteamID ().ConvertToUint64 ();
+                              Steam3AccountID = pUser->GetSteamID ().GetAccountID    ();
+                            }
+
+                            // Fallback to System Registry and Application Manifest Lookups
+                            else
+                            {
+                              WCHAR                    szData [255] = { };
+                              DWORD   dwSize = sizeof (szData);
+                              PVOID   pvData =         szData;
+                              CRegKey hKey ((HKEY)0);
+
+                              if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
+                              {
+                                if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+                                  Steam3AccountID = *(DWORD*)pvData;
+                              }
+
+                              Steam64BitID = std::stoull (
+                                SK_UseManifestToGetAppOwner (pAppRecord->id));
+                            }
+                          };
+
+                        SK_RunOnce (
+                          CacheAccountIDs ()
                         );
 
-                        replaceSpecialValues ( rkCloudSave.path,
-                                                            L"{Steam3AccountID}",
-                            std::to_wstring (pUser->GetSteamID ().GetAccountID ())
-                        );
-                      }
+                      replaceSpecialValues ( rkCloudSave.path,
+                                             L"{64BitSteamID}",
+                               std::to_wstring (Steam64BitID) );
+
+                      replaceSpecialValues ( rkCloudSave.path,
+                                                          L"{Steam3AccountID}",
+                                            std::to_wstring (Steam3AccountID) );
                     }
                   }
                 }
