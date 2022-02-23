@@ -98,7 +98,7 @@ int SKIF_AddCustomAppID (
     record.names.normal = SK_WideCharToUTF8(name);
     
     // Strip game names from special symbols and null terminators
-    char chars[] = u8"©®™\0";
+    const char *chars = (const char *)u8"©®™\0";
     for (unsigned int i = 0; i < strlen(chars); ++i)
       record.names.normal.erase(std::remove(record.names.normal.begin(), record.names.normal.end(), chars[i]), record.names.normal.end());
 
@@ -190,7 +190,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->names.normal = SK_WideCharToUTF8(name).c_str();
     
     // Strip game names from special symbols and null terminators
-    char chars[] = u8"©®™\0";
+    const char* chars = (const char *)u8"©®™\0";
     for (unsigned int i = 0; i < strlen(chars); ++i)
       pApp->names.normal.erase(std::remove(pApp->names.normal.begin(), pApp->names.normal.end(), chars[i]), pApp->names.normal.end());
 
