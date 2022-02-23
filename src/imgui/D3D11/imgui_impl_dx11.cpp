@@ -761,8 +761,12 @@ ThrowIfFailed (HRESULT hr)
 
 static void ImGui_ImplDX11_CreateFontsTexture (void)
 {
-  auto _BuildForSlot = [&](UINT slot) -> void
+  auto
+  _BuildForSlot =
+  [&](UINT slot)
   {
+    std::ignore = slot;
+
     auto pDev = g_pd3dDevice;
 
     // Build texture atlas

@@ -781,7 +781,7 @@ SK_ImGui_AutoFont::Detach (void)
 }
 
 auto SKIF_ImGui_LoadFont =
-  [&]( const std::wstring& filename,
+   []( const std::wstring& filename,
              float         point_size,
        const ImWchar*      glyph_range,
              ImFontConfig* cfg = nullptr )
@@ -826,7 +826,9 @@ auto SKIF_ImGui_LoadFont =
 
 namespace skif_fs = std::filesystem;
 
-auto SKIF_ImGui_InitFonts = [&](float fontSize = 18.0F)
+auto
+SKIF_ImGui_InitFonts =
+[ ](float fontSize = 18.0F)
 {
   static UINT acp = GetACP();
 
@@ -2287,7 +2289,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Transform to lowercase
     std::wstring cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
 
     std::wstring splitPos1Lower = L"addgame="; // Start split
     std::wstring splitEXELower  = L".exe";     // Stop split (exe)
@@ -2306,7 +2308,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Update lowercase
     cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
 
     // If .exe is part of the string
     if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
@@ -2366,10 +2368,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       std::filesystem::path p = cmdLine;
       std::wstring productName = SKIF_GetProductName (p.c_str());
 
-      strncpy (charPath, p.u8string().c_str(),                                   MAX_PATH);
-      strncpy (charName, (productName != L"")
-                          ? SK_WideCharToUTF8 (productName).c_str()
-                          : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+      strncpy (charPath, (const char *)p.u8string().c_str(),                                   MAX_PATH);
+      strncpy (charName, (productName != L"") ? SK_WideCharToUTF8 (productName).c_str()
+                                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8(cmdLineArgs).c_str(),                 500);
 
       SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
@@ -2403,7 +2404,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Transform to lowercase
     std::wstring cmdLineLower = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](char c) { return std::towlower(c); });
+    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
 
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
@@ -3464,21 +3465,21 @@ void SKIF_UI_DrawComponentVersion (void)
 
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 32-bit");
 
 #ifdef _WIN64
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 64-bit");
 #endif
     
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Frontend (SKIF)");
 
@@ -4668,7 +4669,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           ImGui::TreePush("");
           ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, u8"HDR White:\t%04.1f cd/m²"))
+          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m²"))
           {
             SKIF_SetHDRWhiteLuma (fLuma);
             regKVLuma.putData    (fLuma);
@@ -5671,7 +5672,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::BeginGroup  ();
             ImGui::Spacing     ();
             ImGui::SameLine    ();
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Granted 'Performance Log Users' permission?");
             ImGui::SameLine    ();
@@ -5741,20 +5742,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
             ImGui::TreePush    ();
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Hardware: Independent Flip");
 
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Hardware Composed: Independent Flip");
 
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Hardware: Legacy Flip");
 
             /* Extremely uncommon so currently not included in the list
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
             */
@@ -5767,19 +5768,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
             ImGui::TreePush    ();
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Composed: Flip");
 
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Composed: Composition Atlas");
 
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Composed: Copy with GPU GDI");
 
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Composed: Copy with CPU GDI");
             ImGui::TreePop     ();
@@ -5813,7 +5814,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::BeginGroup  ();
             ImGui::Spacing     ();
             ImGui::SameLine    ();
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware.");
             ImGui::EndGroup    ();
@@ -5829,7 +5830,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::BeginGroup  ();
             ImGui::Spacing     ();
             ImGui::SameLine    ();
-            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+            ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
             ImGui::SameLine    ();
             ImGui::Text        ("Kernel Driver:");
             ImGui::SameLine    ();
@@ -5934,7 +5935,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::SameLine   ();
               ImGui::BeginGroup ();
               ImGui::Spacing    ();
-              ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+              ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
               ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
                                                         "Option is unavailable as one or more of the required files are missing."
               );
@@ -6293,13 +6294,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             if (! white_stored)
             {
-                ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  u8"• ");
+                ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"• ");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "The whitelist could not be saved! Please remove any non-Latin characters and try again.");
             }
 
             if (! black_stored)
             {
-                ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  u8"• ");
+                ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"• ");
                 ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "The blacklist could not be saved! Please remove any non-Latin characters and try again.");
             }
 
@@ -6769,7 +6770,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine         ( );
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                              u8"• ");
+                (const char *)u8"• ");
           ImGui::SameLine         ( );
           ImGui::TextWrapped      ("This indicates a regular bullet point.");
           ImGui::EndGroup         ( );

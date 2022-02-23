@@ -38,6 +38,7 @@
 #include <stores/GOG/gog_library.h>
 #include <stores/SKIF/custom_library.h>
 
+#include <cwctype>
 #include <regex>
 #include <iostream>
 #include <locale>
@@ -1131,7 +1132,7 @@ SKIF_GameManagement_DrawTab (void)
           //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
 
           // Strip game names from special symbols and null terminators
-          char chars[] = u8"©®™";
+          const char* chars = (const char *)u8"©®™";
           for (unsigned int i = 0; i < strlen(chars); ++i)
             app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
           
@@ -4363,26 +4364,26 @@ Cache=false)";
           WCHAR szTarget   [MAX_PATH];
           WCHAR szArguments[MAX_PATH];
 
-          ResolveIt (SKIF_hWnd, p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+          ResolveIt (SKIF_hWnd, (const char *)p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
 
           std::filesystem::path p2 = szTarget;
           std::wstring productName = SKIF_GetProductName (p2.c_str());
-          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](unsigned char ch) {return ! std::isspace(ch);}).base(), productName.end());
+          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
           strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
           strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               500);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
-                              : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
         }
         else if (p.extension() == L".exe") {
           std::wstring productName = SKIF_GetProductName (p.c_str());
-          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](unsigned char ch) {return ! std::isspace(ch);}).base(), productName.end());
+          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
-          strncpy (charPath, p.u8string().c_str(),                                  MAX_PATH);
+          strncpy (charPath, (const char *)p.u8string().c_str(),                                  MAX_PATH);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
-                              : p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
         }
         else {
           error = true;
@@ -4561,7 +4562,7 @@ Cache=false)";
       if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1))
       {
         error = false;
-        strncpy (charPath, std::filesystem::path(pwszFilePath).u8string().c_str(), MAX_PATH);
+        strncpy (charPath, (const char *)std::filesystem::path(pwszFilePath).u8string().c_str(), MAX_PATH);
       }
       else {
         error = true;

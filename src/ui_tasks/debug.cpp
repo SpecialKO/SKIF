@@ -1118,7 +1118,7 @@ SKIF_Debug_DrawUI (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine         ( );
 
 #ifdef _WIN64
@@ -1133,7 +1133,7 @@ SKIF_Debug_DrawUI (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), u8"• ");
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "Processes");
     ImGui::SameLine         ( );

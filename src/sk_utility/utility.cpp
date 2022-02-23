@@ -66,7 +66,7 @@ SK_WideCharToUTF8 (const std::wstring& in)
   
   // From https://stackoverflow.com/a/59617138
   int count = 
-    WideCharToMultiByte (CP_UTF8, 0, in.c_str(), in.length(), NULL, 0, NULL, NULL);
+    WideCharToMultiByte (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0, NULL, NULL);
   std::string out       (count, 0);
   WideCharToMultiByte   (CP_UTF8, 0, in.c_str(), -1, &out[0], count, NULL, NULL);
 
@@ -107,9 +107,9 @@ SK_UTF8ToWideChar (const std::string& in)
 
   // From https://stackoverflow.com/a/59617138
   int count = 
-    MultiByteToWideChar (CP_UTF8, 0, in.c_str(), in.length(), NULL, 0);
+    MultiByteToWideChar (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0);
   std::wstring out      (count, 0);
-  MultiByteToWideChar   (CP_UTF8, 0, in.c_str(), in.length(), &out[0], count);
+  MultiByteToWideChar   (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), &out[0], count);
 
   return out;
 #endif
