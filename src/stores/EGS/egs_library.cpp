@@ -1,6 +1,5 @@
 
 #include <stores/egs/egs_library.h>
-//#include <stores/generic_app.h>
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
@@ -113,21 +112,34 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           //   TODO: Replace with some other proper solution that ensures no hits with other platforms
           app_record_s record(appid);
 
+          //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
+
           record.store                = "EGS";
           record.type                 = "Game";
           record._status.installed    = true;
           record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
-          record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
           record.names.normal         = jf.at ("DisplayName");
 
           record.names.all_upper      = record.names.normal;
           std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
 
+
           app_record_s::launch_config_s lc;
           lc.id                           = 0;
           lc.store                        = L"EGS";
           lc.executable                   = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
+          lc.executable_path              = record.install_dir + L"\\" + lc.executable;
+          std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
+
+          // Strip out the subfolders from the executable variable
+          std::wstring
+             substr = lc.executable;
+          auto npos = substr.find_last_of(L"/\\");
+          if (npos != std::wstring::npos)
+            substr  = substr.substr(npos + 1);
+          if (! substr.empty() )
+            lc.executable = substr;
 
           lc.working_dir                  = record.install_dir;
           //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));

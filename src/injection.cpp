@@ -297,13 +297,14 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       SetLastError (NO_ERROR);
       CHandle hProcess (
                 (*record.pPid != 0)
-                              ? OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, *record.pPid)
+                              ? OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *record.pPid)
                               : NULL);
+      // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
 
       bool accessDenied =
         GetLastError ( ) == ERROR_ACCESS_DENIED;
 
-      // Do not continue it if we get access denied, as it means the PID is running outside of our security context
+      // Do not continue if we get access denied, as it means the PID is running outside of our security context
       if (! accessDenied)
       {
         // Get exit code to filter out zombie processes
@@ -1458,10 +1459,10 @@ bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool 
       pattern += exePath.parent_path().filename().string();
 
       // If this is an Unreal Engine 4 game, add the executable as well
-      if ( pattern == R"(Binaries\Win64)" ||
-           pattern == R"(x64)"            ||
-           pattern == R"(Binaries\Win32)" || 
-           pattern == R"(x86)" )
+      if ( pattern == R"(Binaries\Win64)" || // Unreal Engine 3-4
+           pattern == R"(Binaries\Win32)" || // Unreal Engine 3-4
+           pattern == R"(bin\x64)" ||        // CD Project Red
+           pattern == R"(bin\x86)" )         // CD Project Red
         pattern += R"(\)" + exePath.filename().string();
     }
     else

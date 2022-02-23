@@ -169,8 +169,9 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
-    std::wstring store = L"Steam"; // Used by getExecutableFullPath
+    std::wstring store = L"Steam";
     std::wstring executable;
+    std::wstring executable_path;
     std::wstring description;
     std::wstring launch_options; // Used by GOG and EGS
     std::wstring working_dir;
@@ -183,8 +184,8 @@ struct app_record_s {
     std::wstring getBlacklistFilename  (int32_t appid);
     bool         setBlacklisted        (int32_t appid, bool blacklist);
     bool         isBlacklisted         (int32_t appid);
-    std::wstring getExecutableDir      (int32_t appid);
-    std::wstring getExecutableFullPath (int32_t appid);
+    std::wstring getExecutableDir      (int32_t appid, bool validate = true);
+    std::wstring getExecutableFullPath (int32_t appid, bool validate = true);
   };
 
   struct cloud_save_record_s {

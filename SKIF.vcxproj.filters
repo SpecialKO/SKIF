@@ -351,9 +351,6 @@
     <ClInclude Include="include\stores\GOG\gog_library.h">
       <Filter>Header Files\Stores\GOG</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\generic_app.h">
-      <Filter>Header Files\Stores</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\SKIF\custom_library.h">
       <Filter>Header Files\Stores\SKIF</Filter>
     </ClInclude>
@@ -511,9 +508,6 @@
     </ClCompile>
     <ClCompile Include="src\stores\GOG\gog_library.cpp">
       <Filter>Source Files\Stores\GOG</Filter>
-    </ClCompile>
-    <ClCompile Include="src\stores\generic_app.cpp">
-      <Filter>Source Files\Stores</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\SKIF\custom_library.cpp">
       <Filter>Source Files\Stores\SKIF</Filter>

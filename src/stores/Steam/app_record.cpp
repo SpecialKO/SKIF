@@ -9,44 +9,41 @@ using app_branch_record_s =
       app_record_s::branch_record_s;
 
 std::wstring
-app_launch_config_s::getExecutableFullPath (int32_t appid)
+app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
 {
   std::wstring exec_path = L"";
 
-  if (store == L"Steam")
+  if      (store == L"Steam")
     exec_path = SK_UseManifestToGetInstallDir (appid);
-  else
+  else if (store == L"GOG" || store == L"EGS")
+    exec_path = executable_path;
+  else {
     exec_path = working_dir;
-  
-  exec_path.append (L"\\");
-  exec_path.append (executable);
+    exec_path.append (L"\\");
+    exec_path.append (executable);
+  }
 
-  if (PathFileExistsW (exec_path.c_str ()))
+  if (! validate || PathFileExistsW (exec_path.c_str ()))
     return exec_path;
 
   return L"<InvalidPath>";
 }
 
 std::wstring
-app_launch_config_s::getExecutableDir (int32_t appid)
+app_launch_config_s::getExecutableDir (int32_t appid, bool validate)
 {
   std::wstring exec_path =
     getExecutableFullPath (appid);
 
-  valid =
-    PathFileExistsW (exec_path.c_str ());
+  if (validate && ! PathFileExistsW (exec_path.c_str ()))
+    return L"<InvalidDir>";
 
-  if (valid)
-  {
-    wchar_t  wszExecutableBase [MAX_PATH] = { };
-    StrCatW (wszExecutableBase, exec_path.c_str ());
+  wchar_t  wszExecutableBase [MAX_PATH] = { };
+  StrCatW (wszExecutableBase, exec_path.c_str ());
 
-    PathRemoveFileSpecW (wszExecutableBase);
+  PathRemoveFileSpecW (wszExecutableBase);
 
-    return wszExecutableBase;
-  }
-
-  return L"<InvalidDir>";
+  return wszExecutableBase;
 }
 
 std::wstring

@@ -1,6 +1,5 @@
 
 #include <stores/gog/gog_library.h>
-//#include <stores/generic_app.h>
 #include <wtypes.h>
 #include <filesystem>
 
@@ -36,12 +35,6 @@ it's enough to launch the game through Galaxy like the start menu shortcuts does
 
     "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
 
-*/
-
-/*
-struct gog_app : generic_app {
-
-};
 */
 
 void
@@ -102,13 +95,17 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 record.install_dir = szData;
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"exe"
+              if (RegGetValueW(hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               {
                 app_record_s::launch_config_s lc;
                 lc.id = 0;
                 lc.store = L"GOG";
                 lc.executable = szData;
                 // lc.working_dir = record.install_dir;
+
+                dwSize = sizeof(szData) / sizeof(WCHAR);
+                if (RegGetValueW(hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                  lc.executable_path = szData;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
                 if (RegGetValueW(hKey, szSubKey, L"workingDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
