@@ -19,172 +19,49 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
-
+#include <SKIF.h>
+#include <font_awesome.h>
 #include <strsafe.h>
 #include <wtypes.h>
 #include <dxgi1_5.h>
-
 #include <gsl/gsl_util>
-
-const GUID IID_IDXGIFactory5 =
-  { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
-
-const int SKIF_STEAM_APPID = 1157970;
-int WindowsCursorSize = 1;
-bool RepositionSKIF   = false;
-bool tinyDPIFonts     = false;
-bool invalidateFonts  = false;
-bool failedLoadFonts  = false;
-bool failedLoadFontsPrompt = false;
-DWORD invalidatedFonts = 0;
-bool startedMinimized = false;
-bool SKIF_UpdateReady = false;
-bool showUpdatePrompt = false;
-bool changedUpdateChannel = false;
-
-#define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
-
-extern void SKIF_ProcessCommandLine (const char* szCmd);
-
-int  SKIF_iNotifications           = 2, // 0 = Never,       1 = Always,       2 = When unfocused
-     SKIF_iGhostVisibility         = 0, // 0 = Never,       1 = Always,       2 = While service is running
-     SKIF_iStyle                   = 0, // 0 = SKIF Dark,   1 = ImGui Dark,   2 = ImGui Light,               3 = ImGui Classic
-     SKIF_iDimCovers               = 0, // 0 = Never,       1 = Always,       2 = On mouse hover
-     SKIF_iCheckForUpdates         = 1, // 0 = Never,       1 = Weekly,       2 = On each launch
-     SKIF_iUpdateChannel           = 1; // 0 = Discord,     1 = Website,      2 = Ancient
-uint32_t
-     SKIF_iLastSelected            = SKIF_STEAM_APPID;
-bool SKIF_bRememberLastSelected    = false,
-     SKIF_bDisableDPIScaling       = false,
-     SKIF_bDisableExitConfirmation =  true,
-     SKIF_bDisableTooltips         = false,
-     SKIF_bDisableStatusBar        = false,
-     SKIF_bDisableBorders          =  true, // default to true
-     SKIF_bDisableSteamLibrary     = false,
-     SKIF_bDisableEGSLibrary       = false,
-     SKIF_bDisableGOGLibrary       = false,
-     SKIF_bSmallMode               = false,
-     SKIF_bFirstLaunch             = false,
-     SKIF_bEnableDebugMode         = false,
-     SKIF_bAllowMultipleInstances  = false,
-     SKIF_bAllowBackgroundService  = false,
-     SKIF_bEnableHDR               = false,
-     SKIF_bOpenAtCursorPosition    = false,
-     SKIF_bStopOnInjection         = false,
-     SKIF_bCloseToTray             = false,
-     SKIF_bFontChineseSimplified   = false,
-     SKIF_bFontChineseAll          = false,
-     SKIF_bFontCyrillic            = false,
-     SKIF_bFontJapanese            = false,
-     SKIF_bFontKorean              = false,
-     SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false,
-     SKIF_bLowBandwidthMode        = false,
-     SKIF_bPreferGOGGalaxyLaunch   = false;
-
-std::wstring 
-     SKIF_wsIgnoreUpdate,
-     SKIF_wsUpdateChannel;
-
-BOOL SKIF_bAllowTearing            = FALSE,
-     SKIF_bCanFlip                 = FALSE,
-     SKIF_bCanFlipDiscard          = FALSE;
-
-// GOG Galaxy stuff
-std::wstring GOGGalaxy_Path        = L"";
-std::wstring GOGGalaxy_Folder      = L"";
-std::wstring GOGGalaxy_UserID      = L"";
-bool GOGGalaxy_Installed           = false;
-
-DWORD    RepopulateGamesWasSet     = 0;
-bool     RepopulateGames           = false;
-uint32_t SelectNewSKIFGame         = 0;
-
-bool  HoverTipActive               = false;
-DWORD HoverTipDuration             = 0;
-
-// Notification icon stuff
-#define SKIF_NOTIFY_ICON                    0x1330
-#define SKIF_NOTIFY_EXIT                    0x1331
-#define SKIF_NOTIFY_START                   0x1332
-#define SKIF_NOTIFY_STOP                    0x1333
-#define SKIF_NOTIFY_STARTWITHSTOP           0x1334
-#define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150)
-bool SKIF_isTrayed = false;
-NOTIFYICONDATA niData;
-HMENU hMenu;
-
-// Cmd line argument stuff
-struct SKIF_Signals {
-  BOOL Stop          = FALSE;
-  BOOL Start         = FALSE;
-  BOOL Temporary     = FALSE;
-  BOOL Quit          = FALSE;
-  BOOL Minimize      = FALSE;
-  BOOL Restore       =  TRUE;
-  BOOL QuickLaunch   = FALSE;
-  BOOL AddSKIFGame   = FALSE;
-
-  BOOL _Disowned     = FALSE;
-} _Signal;
-
-#include <sk_utility/command.h>
-
-extern        SK_ICommandProcessor*
-  __stdcall SK_GetCommandProcessor (void);
-
-#include <SKIF.h>
-
-#include <stores/Steam/library.h>
-
 #include "../version.h"
 #include <injection.h>
-#include <font_awesome.h>
-
+#include <dxgi1_6.h>
+#include <xinput.h>
+#include <fsutil.h>
+#include <psapi.h>
+#include <fstream>
+#include <typeindex>
+#include <filesystem>
+#include <concurrent_queue.h>
+#include <unordered_set>
+#include <dwmapi.h>
+#include <d3d11.h>
+#include <dinput.h>
+#include <gdiplus.h>
+#include <Tlhelp32.h>
+#include <unordered_set>
+#include <json.hpp>
+#include <wtypes.h>
+#include <WinInet.h>
+#include <gsl/gsl>
+#include <comdef.h>
+#include "imgui/d3d11/imgui_impl_dx11.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_win32.h>
 #include <imgui/imgui_internal.h>
-#include <dxgi1_6.h>
-#include <xinput.h>
+#include <fonts/fa_regular_400.ttf.h>
+#include <fonts/fa_brands_400.ttf.h>
+#include <fonts/fa_solid_900.ttf.h>
+#include <sk_utility/command.h>
+#include <stores/Steam/library.h>
 
-#include <fsutil.h>
-#include <psapi.h>
 
-#include <fstream>
-#include <typeindex>
+extern void SKIF_ProcessCommandLine (const char* szCmd);
+extern        SK_ICommandProcessor*
+  __stdcall SK_GetCommandProcessor (void);
 
-#include <filesystem>
-#include <concurrent_queue.h>
-
-#pragma comment (lib, "wininet.lib")
-
-PopupState UpdatePromptPopup    = PopupState::Closed;
-HMODULE hModSKIF     = nullptr;
-HMODULE hModSpecialK = nullptr;
-
-// Texture related locks to prevent driver crashes
-concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
-
-std::filesystem::path orgWorkingDirectory;
-
-using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
-static GetSystemMetricsForDpi_pfn
-       GetSystemMetricsForDpi = nullptr;
-
-#define SK_BORDERLESS ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | \
-                        WS_SYSMENU )
-
-#define SK_BORDERLESS_EX      ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE )
-//#define SK_BORDERLESS_WIN8_EX ( SK_BORDERLESS_EX | WS_EX_NOREDIRECTIONBITMAP ) // We don't support Win8.0 or older
-
-#define SK_FULLSCREEN_X(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CXFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CXFULLSCREEN)
-#define SK_FULLSCREEN_Y(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CYFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CYFULLSCREEN)
-
-#define GCL_HICON           (-14)
-
-#ifndef WM_DPICHANGED
-#define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
-#endif
 
 DWORD SKIF_timeGetTime (void)
 {
@@ -264,10 +141,6 @@ SKIF_IsWindows10OrGreater (void)
   return bResult;
 }
 
-#ifndef NT_SUCCESS
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
-#endif
-
 BOOL
 SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
 {
@@ -296,8 +169,6 @@ SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWOR
   return FALSE;
 }
 
-#include <dwmapi.h>
-
 HRESULT
 WINAPI
 SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
@@ -321,20 +192,6 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
   return
     DwmGetCompositionTimingInfo ( 0, pTimingInfo );
 }
-
-
-float fAspect     = 16.0f / 9.0f;
-float fBottomDist = 0.0f;
-
-#include "imgui/d3d11/imgui_impl_dx11.h"
-#include <d3d11.h>
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
-ID3D11Device*           g_pd3dDevice           = nullptr;
-ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
-IDXGISwapChain*         g_pSwapChain           = nullptr;
-ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
-BOOL                    bOccluded              =   FALSE;
 
 // Forward declarations of helper functions
 bool CreateDeviceD3D           (HWND hWnd);
@@ -382,8 +239,6 @@ CONDITION_VARIABLE SKIF_IsFocused    = { };
 CONDITION_VARIABLE SKIF_IsNotFocused = { };
 
 extern bool SKIF_ImGui_IsFocused (void);
-
-#include <unordered_set>
 
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
@@ -738,9 +593,6 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
   return &ranges [0];
 }
 
-// Fixed-width font
-#define SK_IMGUI_FIXED_FONT 1
-
 class SK_ImGui_AutoFont {
 public:
    SK_ImGui_AutoFont (ImFont* pFont);
@@ -819,10 +671,6 @@ auto SKIF_ImGui_LoadFont =
 
   return (ImFont *)nullptr;
 };
-
-#include <fonts/fa_regular_400.ttf.h>
-#include <fonts/fa_brands_400.ttf.h>
-#include <fonts/fa_solid_900.ttf.h>
 
 namespace skif_fs = std::filesystem;
 
@@ -968,8 +816,6 @@ SKIF_ImGui_InitFonts =
 
   io.Fonts->AddFontDefault ();
 };
-
-
 
 namespace SKIF
 {
@@ -1372,19 +1218,6 @@ SKIF_GetPatrons (void)
 
   return "";
 }
-
-
-#include <wtypes.h>
-#include <WinInet.h>
-
-#include <gsl/gsl>
-#include <comdef.h>
-
-struct skif_get_web_uri_t {
-  wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
-  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH] = { };
-  wchar_t wszLocalPath[MAX_PATH + 2] = { };
-};
 
 DWORD
 WINAPI
@@ -2581,10 +2414,6 @@ void SKIF_putStopOnInjection (bool in)
     _inject._ToggleOnDemand (in);
 }
 
-#include <Tlhelp32.h>
-#include <unordered_set>
-#include <json.hpp>
-
 bool
 SK_IsProcessAdmin (PROCESSENTRY32W proc)
 {
@@ -2649,9 +2478,6 @@ SK_FindProcessByName (const wchar_t* wszName)
 
   return none;
 }
-
-#include <gdiplus.h>
-#pragma comment (lib,"Gdiplus.lib")
 
 bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 {
@@ -2819,7 +2645,6 @@ std::string SKIF_StripInvalidFilenameChars (std::string name)
   return name;
 }
 
-
 // Handles comparisons of a version string split between dots by
 // looping through the parts that makes up the string one by one.
 // 
@@ -2862,15 +2687,6 @@ int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
   // If both strings are equal, return 0
   return 0; 
 }
-
-std::vector <std::pair<std::string, std::string>> updateChannels{};
-static volatile LONG update_thread = 0;
-struct SKIF_UpdateCheckResults {
-  std::wstring version;
-  std::wstring filename;
-  std::wstring description;
-  std::wstring releasenotes;
-};
 
 SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 {
@@ -3765,9 +3581,6 @@ void SKIF_Initialize (void)
     isInitalized = true;
   }
 }
-
-bool bKeepWindowAlive  = true,
-     bKeepProcessAlive = true;
 
 // Main code
 int
@@ -7539,16 +7352,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   return 0;
 }
-
-using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
-using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
-                                                  CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
-                                                  CONST DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**,
-                                                                               ID3D11Device**,
-                                                        D3D_FEATURE_LEVEL*,    ID3D11DeviceContext**);
-
-CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
-D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
 
 // Helper functions
 
