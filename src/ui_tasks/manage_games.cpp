@@ -4543,7 +4543,7 @@ Cache=false)";
       }
 
       strncpy (charName, name.c_str( ), MAX_PATH);
-      strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id)).c_str(), MAX_PATH);
+      strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id, false)).c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), 500);
       //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", path_cache.specialk_userdata.path, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
 

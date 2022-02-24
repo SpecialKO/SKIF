@@ -115,7 +115,8 @@ int SKIF_AddCustomAppID (
     app_record_s::launch_config_s lc;
     lc.id = 0;
     lc.store = L"SKIF";
-    lc.executable = exe;
+    lc.executable = exeFileName;
+    lc.executable_path = exe;
     lc.working_dir = record.install_dir;
     lc.launch_options = args;
 
@@ -197,7 +198,8 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->ImGuiLabelAndID = SK_FormatString("%s###%s%i", pApp->names.normal.c_str(), pApp->store.c_str(), pApp->id);
 
     pApp->install_dir = installDir;
-    pApp->launch_configs[0].executable = exe;
+    pApp->launch_configs[0].executable = exeFileName;
+    pApp->launch_configs[0].executable_path = exe;
     pApp->launch_configs[0].working_dir = pApp->install_dir;
     pApp->launch_configs[0].launch_options = args;
     pApp->specialk.profile_dir = exeFileName; // THIS CAN BE WRONG!!!!
@@ -266,6 +268,10 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               lc.store = L"SKIF";
               lc.executable = szData;
               lc.working_dir = record.install_dir;
+
+              dwSize = sizeof (szData) / sizeof (WCHAR);
+              if (RegGetValueW(hKey, szSubKey, L"Exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                lc.executable_path = szData;
 
               dwSize = sizeof (szData) / sizeof (WCHAR);
               if (RegGetValueW(hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)

@@ -13,15 +13,15 @@ app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
 {
   std::wstring exec_path = L"";
 
-  if (store == L"GOG" || store == L"EGS")
-    exec_path = executable_path;
-  else {
-    if      (store == L"Steam")
-      exec_path = SK_UseManifestToGetInstallDir (appid);
-    else
-      exec_path = working_dir;
+  if (store == L"Steam")
+  {
+    exec_path = SK_UseManifestToGetInstallDir (appid);
     exec_path.append (L"\\");
     exec_path.append (executable);
+  }
+
+  else {
+    exec_path = executable_path;
   }
 
   if (! validate || PathFileExistsW (exec_path.c_str ()))
