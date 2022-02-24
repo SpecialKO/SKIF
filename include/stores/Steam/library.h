@@ -291,6 +291,9 @@ SK_UseManifestToGetAppName (AppId_t appid);
 std::wstring
 SK_UseManifestToGetInstallDir (AppId_t appid);
 
+std::string
+SK_UseManifestToGetAppOwner (AppId_t appid);
+
 std::vector <SK_Steam_Depot>
 SK_UseManifestToGetDepots (AppId_t appid);
 

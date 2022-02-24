@@ -577,6 +577,28 @@ SK_UseManifestToGetAppName (AppId_t appid)
   return "";
 }
 
+std::string
+SK_UseManifestToGetAppOwner (AppId_t appid)
+{
+  std::string manifest_data =
+    SK_GetManifestContentsForAppID (appid);
+
+  if (! manifest_data.empty ())
+  {
+    std::string app_owner =
+      SK_Steam_KeyValues::getValue (
+        manifest_data, { "AppState" }, "LastOwner"
+      );
+
+    if (! app_owner.empty ())
+    {
+      return app_owner;
+    }
+  }
+
+  return "";
+}
+
 std::wstring
 SK_UseManifestToGetInstallDir (AppId_t appid)
 {
