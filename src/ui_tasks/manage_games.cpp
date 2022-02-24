@@ -2379,7 +2379,7 @@ Cache=false)";
         if ( pTargetApp->store != "Steam" && pTargetApp->store != "EGS" &&
              pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id).find(L"InvalidPath") != std::wstring::npos )
         {
-          confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id));
+          confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id, false));
           ConfirmPopup     = PopupState::Open;
         }
 
