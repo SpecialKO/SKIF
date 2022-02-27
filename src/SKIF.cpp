@@ -2830,8 +2830,8 @@ int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
   //OutputDebugString((L"string1: " + string1 + L"\n").c_str());
   //OutputDebugString((L"string2: " + string2 + L"\n").c_str());
 
-  for ( int i = 0, j = 0; (i < string1.length ( ) ||
-                           j < string2.length ( )); )
+  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
+                              j < string2.length ( )); )
   {
     while ( i < string1.length() && string1[i] != '.' )
     {

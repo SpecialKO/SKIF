@@ -1411,8 +1411,7 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
 
 bool SKIF_InjectionContext::_AddUserList (std::string pattern, bool whitelist_)
 {
-  int cx;
-  size_t size;
+  size_t cx, size;
 
   if (whitelist_)
   {
