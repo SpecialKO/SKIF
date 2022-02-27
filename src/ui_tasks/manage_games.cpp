@@ -2908,8 +2908,6 @@ Cache=false)";
         if (test_path.empty())
           continue;
 
-        OutputDebugString((L"testing: " + test_path + L"\n").c_str());
-
         for ( auto& dll : test_dlls )
         {
           dll.path =
