@@ -237,7 +237,8 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
       }
 
       std::wstring test_path =
-        launch_cfg.second.working_dir;
+        launch_cfg.second.getExecutableDir(pApp->id, false);
+        //launch_cfg.second.working_dir; // Doesn't contain a full path
 
       struct {
         InjectionBitness bitness;
@@ -264,7 +265,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
       {
         dll.path =
           ( test_path + LR"(\)" ) +
-           ( dll.name + L".dll" );
+            ( dll.name + L".dll" );
 
         if (PathFileExistsW (dll.path.c_str ()))
         {

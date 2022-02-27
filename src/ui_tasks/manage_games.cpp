@@ -2852,8 +2852,17 @@ Cache=false)";
           pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
       }
 
-      std::wstring test_path =
-        pApp->launch_configs[0].working_dir;
+      std::wstring test_paths[] = { 
+        pApp->launch_configs[0].getExecutableDir(pApp->id, false),
+        pApp->launch_configs[0].working_dir
+      };
+
+      if (test_paths[0] == test_paths[1])
+        test_paths[1] = L"";
+
+      //std::wstring test_path =
+        //pApp->launch_configs[0].getExecutableDir(pApp->id, false);
+        //pApp->launch_configs[0].working_dir;
 
       struct {
         InjectionBitness bitness;
@@ -2893,45 +2902,58 @@ Cache=false)";
       pApp->specialk.injection.config.file =
         L"SpecialK.ini";
 
-      for ( auto& dll : test_dlls )
+      bool breakOuterLoop = false;
+      for ( auto& test_path : test_paths)
       {
-        dll.path =
-          ( test_path + LR"(\)" ) +
-           ( dll.name + L".dll" );
+        if (test_path.empty())
+          continue;
 
-        if (PathFileExistsW (dll.path.c_str ()))
+        OutputDebugString((L"testing: " + test_path + L"\n").c_str());
+
+        for ( auto& dll : test_dlls )
         {
-          std::wstring dll_ver =
-            SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
+          dll.path =
+            ( test_path + LR"(\)" ) +
+             ( dll.name + L".dll" );
 
-          if (! dll_ver.empty ())
+          if (PathFileExistsW (dll.path.c_str ()))
           {
-            pApp->specialk.injection.injection = {
-              dll.bitness,
-              dll.entry_pt, InjectionType::Local,
-              dll.path,     dll_ver
-            };
+            std::wstring dll_ver =
+              SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
 
-            if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
+            if (! dll_ver.empty ())
             {
-              pApp->specialk.injection.config.type =
-                ConfigType::Centralized;
-            }
-
-            else
-            {
-              pApp->specialk.injection.config = {
-                ConfigType::Localized,
-                test_path
+              pApp->specialk.injection.injection = {
+                dll.bitness,
+                dll.entry_pt, InjectionType::Local,
+                dll.path,     dll_ver
               };
+
+              if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
+              {
+                pApp->specialk.injection.config.type =
+                  ConfigType::Centralized;
+              }
+
+              else
+              {
+                pApp->specialk.injection.config = {
+                  ConfigType::Localized,
+                  test_path
+                };
+              }
+
+              pApp->specialk.injection.config.file =
+                dll.name + L".ini";
+
+              breakOuterLoop = true;
+              break;
             }
-
-            pApp->specialk.injection.config.file =
-              dll.name + L".ini";
-
-            break;
           }
         }
+
+        if (breakOuterLoop)
+          break;
       }
 
       if (pApp->specialk.injection.config.type == ConfigType::Centralized)
@@ -2944,6 +2966,7 @@ Cache=false)";
         ( pApp->specialk.injection.config.dir + LR"(\)" ) +
           pApp->specialk.injection.config.file;
 
+    // Handle Steam games
     } else {
       pApp->specialk.injection =
         SKIF_InstallUtils_GetInjectionStrategy (pApp->id);

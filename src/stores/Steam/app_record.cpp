@@ -34,7 +34,7 @@ std::wstring
 app_launch_config_s::getExecutableDir (int32_t appid, bool validate)
 {
   std::wstring exec_path =
-    getExecutableFullPath (appid);
+    getExecutableFullPath (appid, false);
 
   if (validate && ! PathFileExistsW (exec_path.c_str ()))
     return L"<InvalidDir>";
@@ -54,7 +54,7 @@ app_launch_config_s::getBlacklistFilename (int32_t appid)
     return blacklist_file;
 
   std::wstring full_path =
-    getExecutableFullPath (appid);
+    getExecutableFullPath (appid, false);
 
   valid =
     PathFileExistsW (full_path.c_str ());
