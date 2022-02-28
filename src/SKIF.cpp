@@ -7263,7 +7263,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (_inject.bCurrentState)
             _inject._StartStopInject(true);
 
-          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", L"/verysilent");
+          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", L"/VerySilent /Shortcuts=false");
 
           //bExitOnInjection = true; // Used to close SKIF once the service have been stopped
 
