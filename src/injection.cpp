@@ -424,14 +424,6 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 
 void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 {
-  /*
-  // Attempt to remove .old files, if any exists
-  DeleteFile (L"SpecialK32.old");
-#ifdef _WIN64
-  DeleteFile (L"SpecialK64.old");
-#endif
-*/
-
   struct updated_file_s {
     const wchar_t* wszFileName;
     const wchar_t* wszRealExt;

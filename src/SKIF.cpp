@@ -3782,6 +3782,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
 
+  // We don't want Steam's overlay to draw upon SKIF
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
   if (! SKIF_IsWindows8Point1OrGreater ( ))
   {
     MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
