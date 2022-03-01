@@ -394,7 +394,6 @@ volatile LONG SKIF_PresentIdx    =   0;
 #include <fsutil.h>
 
 extern SKIF_InjectionContext _inject;
-extern void SKIF_ImGui_Spacing (float multiplier = 0.25f);
 
 struct SKIF_Console : SK_IVariableListener
 {

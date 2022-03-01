@@ -15,6 +15,12 @@ app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
 
   if (store == L"Steam")
   {
+    // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+    //  so this ensures we do not end up testing the installation folder instead (since this has
+    //   bearing on whether a launch config is deemed valid or not as part of the blacklist check) 
+    if (executable.empty())
+      return L"<InvalidPath>";
+
     exec_path = SK_UseManifestToGetInstallDir (appid);
     exec_path.append (L"\\");
     exec_path.append (executable);
@@ -395,7 +401,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   if ( dwTimeLastChecked <= app_record_s::client_state_s::_TimeLastNotified )
   {
-    if (pApp->store != "Steam" || SKIF_Steam_UpdateAppState(pApp))
+    if (pApp->store != "Steam" || SKIF_Steam_UpdateAppState (pApp))
       dwTimeLastChecked = dwTimeNow + _RefreshInterval;
     else
       invalidate ();

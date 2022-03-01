@@ -524,7 +524,7 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
   }
 }
 
-void SKIF_ImGui_Spacing (float multiplier = 0.25f)
+void SKIF_ImGui_Spacing (float multiplier)
 {
   ImGui::ItemSize (
     ImVec2 ( ImGui::GetTextLineHeightWithSpacing () * multiplier,
@@ -2347,16 +2347,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       if (cmdLineArgs.find(L" ") == 0)
         cmdLineArgs = cmdLineArgs.substr(1);
 
-      /*
-      OutputDebugString(L"Extracted path: ");
-      OutputDebugString(cmdLine.c_str());
-      OutputDebugString(L"\n");
-
-      OutputDebugString(L"Extracted args: ");
-      OutputDebugString(cmdLineArgs.c_str());
-      OutputDebugString(L"\n");
-      */
-
       extern std::wstring SKIF_GetProductName    (const wchar_t* wszName);
       extern int          SKIF_AddCustomAppID    (std::vector<std::pair<std::string, app_record_s>>* apps,
                                                   std::wstring name, std::wstring path, std::wstring args);
@@ -2827,8 +2817,6 @@ std::string SKIF_StripInvalidFilenameChars (std::string name)
 int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
 {
   int sum1 = 0, sum2 = 0;
-  //OutputDebugString((L"string1: " + string1 + L"\n").c_str());
-  //OutputDebugString((L"string2: " + string2 + L"\n").c_str());
 
   for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
                               j < string2.length ( )); )
@@ -2846,11 +2834,9 @@ int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
     }
 
     // If string1 is higher than string2, return 1
-    //OutputDebugString((L"Result (1): " + std::to_wstring(sum1) + L" > " + std::to_wstring(sum2) + L"\n").c_str());
     if (sum1 > sum2) return 1;
 
     // If string2 is higher than string1, return -1
-    //OutputDebugString((L"Result (-1): " + std::to_wstring(sum2) + L" > " + std::to_wstring(sum1) + L"\n").c_str());
     if (sum2 > sum1) return -1;
 
     // if equal, reset variables and go for next numeric part 
@@ -2874,8 +2860,6 @@ struct SKIF_UpdateCheckResults {
 
 SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 {
-  //OutputDebugString(L"SKIF_CheckForUpdates()\n");
-
   if ( SKIF_iCheckForUpdates == 0 ||
        SKIF_bLowBandwidthMode     ||
       _Signal.QuickLaunch         ||
@@ -2979,7 +2963,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         */
 
         std::string  currentBranch  = SK_WideCharToUTF8 (SKIF_wsUpdateChannel);
-        //OutputDebugString((L"currentBranch: " + SK_UTF8ToWideChar(currentBranch) + L"\n").c_str());
 
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
@@ -3032,8 +3015,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
           }
 
-          //OutputDebugString((L"currentBranch: " + SK_UTF8ToWideChar(currentBranch) + L"\n").c_str());
-
           // Detect if any new version is available in the selected channel
           for (auto& version : jf["Main"]["Versions"])
           {
@@ -3051,25 +3032,12 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               // We don't check if the version is *newer* since we need to support downgrading
               // to other branches as well, which means versions that are older.
 
-              /*
-              OutputDebugString(L"Dump: ");
-              OutputDebugString(SK_UTF8ToWideChar(version.dump()).c_str());
-              OutputDebugString(L"\n");
-
-              OutputDebugString((L"Current: " + currentVersion).c_str());
-              OutputDebugString(L"\n");
-              OutputDebugString((L"Branch: " + branchVersion).c_str());
-              OutputDebugString(L"\n");
-              */
-
               // Limit to newer versions only
               if ((SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
                    SKIF_CompareVersionStrings (branchVersion, currentVersion)  > 0)
               {
                 std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
                 std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
-            
-                //OutputDebugString(L"A new version is available!\n");
 
                 _res->version      = branchVersion;
                 _res->filename     = filename;
@@ -3098,7 +3066,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
     }, (LPVOID)&results, NULL, NULL);
   }
 
-  //OutputDebugString(L"<-- SKIF_CheckForUpdates()\n");
   if (InterlockedCompareExchange (&update_thread, 2, 2) == 2)
     return results;
   else
@@ -4001,7 +3968,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if (regKVIgnoreUpdate.hasData() )
     SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
-  //OutputDebugString((L"Ignore channel: " + SKIF_wsIgnoreUpdate + L"\n").c_str());
 
   if (regKVFollowUpdateChannel.hasData() )
     SKIF_wsUpdateChannel        = regKVFollowUpdateChannel.getWideString ( );
@@ -4254,8 +4220,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
   SKIF_ImGui_InitFonts ();
-
-  //OutputDebugString((L"Result: " + std::to_wstring(SKIF_CompareVersionStrings(L"22.1.22d", L"22.1.22b")) + L"\n").c_str());
 
   // Our state
   ImVec4 clear_color         =
@@ -4561,8 +4525,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (newVersion.filename.empty())
       {
         newVersion = SKIF_CheckForUpdates ();
-
-        //OutputDebugString((L"Filename: " + newVersion.filename + L"\n").c_str());
       }
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
@@ -7784,7 +7746,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_PENDING:
         case IDT_REFRESH_DEBUG:
         case IDT_REFRESH_GAMES:
-        //OutputDebugString(L"Tick\n");
 
           if (wParam == IDT_REFRESH_GAMES && RepopulateGamesWasSet != 0)
           {
@@ -7795,21 +7756,9 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
           }
 
-          /*
-          if (wParam == IDT_REFRESH_DEBUG)
-            OutputDebugString(L"Debug tick\n");
-          else if (wParam == IDT_REFRESH_ONDEMAND)
-            OutputDebugString(L"OnDemand tick\n");
-          else if (wParam == IDT_REFRESH_PENDING)
-            OutputDebugString(L"Pending tick\n");
-          else
-            OutputDebugString(L"Unknown tick\n");
-          */
-
           // SKIF is focused -- eat my NULL and don't redraw at all!
           if (SKIF_ImGui_IsFocused ( ))
           {
-            //OutputDebugString (L"Tock\n");
             PostMessage (hWnd, WM_NULL, 0x0, 0x0);
             return 1;
           }
@@ -7819,7 +7768,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           //    _inject.TestServletRunlevel (true);
           //}
 
-        //OutputDebugString(L"Tale\n");
           return 0;
       }
       break;

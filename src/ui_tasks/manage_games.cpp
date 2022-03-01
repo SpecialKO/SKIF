@@ -78,7 +78,6 @@ extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern void SKIF_ImGui_Spacing (float multiplier = 0.25f);
 CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
@@ -1017,12 +1016,6 @@ SKIF_GameManagement_DrawTab (void)
   {
     RepopulateGames = false;
 
-    // Release textures -- not needed since they apparently release themselves already :thumbs_up:
-    //for (auto& app : apps)
-      //IUnknown_AtomicRelease ((void **)&app.second.textures.icon.p);
-
-    //Disabled for test: pTexSRV = nullptr;
-
     // Clear cached lists
     apps.clear   ();
     appids.clear ();
@@ -1144,6 +1137,23 @@ SKIF_GameManagement_DrawTab (void)
         {
           app.second.id = 0;
           continue;
+        }
+
+        // Check if install folder exists (but not for SKIF)
+        if (app.second.id != SKIF_STEAM_APPID)
+        {
+          std::wstring install_dir;
+
+          if (app.second.store == "Steam")
+            install_dir = SK_UseManifestToGetInstallDir(app.second.id);
+          else
+            install_dir = app.second.install_dir;
+          
+          if (! PathFileExists(install_dir.c_str()))
+          {
+            app.second.id = 0;
+            continue;
+          }
         }
 
         if (app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
@@ -2057,11 +2067,11 @@ SKIF_GameManagement_DrawTab (void)
         PathStripPathW (                         wszConfigPath);
         cfg.shorthand       = SK_WideCharToUTF8 (wszConfigPath);
 
-        if (! PathFileExistsW (sk_install.config.file.c_str ()))
-          cfg.shorthand.clear ();
+        //if (! PathFileExistsW (sk_install.config.file.c_str ()))
+        //  cfg.shorthand.clear ();
 
-        if (! PathFileExistsA (cache.dll.full_path.c_str ()))
-          cache.dll.shorthand.clear ();
+        //if (! PathFileExistsA (cache.dll.full_path.c_str ()))
+        //  cache.dll.shorthand.clear ();
 
         cache.injection.type        = "None";
         cache.injection.status.text.clear ();
@@ -2161,6 +2171,8 @@ SKIF_GameManagement_DrawTab (void)
         // Config Root
         if (ImGui::Selectable         (cache.config_repo.c_str ()))
         {
+          std::filesystem::create_directories (SK_UTF8ToWideChar(cache.config.root_dir));
+
           SKIF_Util_ExplorePath(
             SK_UTF8ToWideChar         (cache.config.root_dir)
           );
@@ -2177,6 +2189,20 @@ SKIF_GameManagement_DrawTab (void)
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
         {
+          std::filesystem::create_directories (SK_UTF8ToWideChar (cache.config.root_dir));
+          HANDLE h = CreateFile ( SK_UTF8ToWideChar (cache.config.full_path).c_str(),
+                         GENERIC_READ | GENERIC_WRITE,
+                           FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                             NULL,
+                               CREATE_NEW,
+                                 FILE_ATTRIBUTE_NORMAL,
+                                   NULL );
+
+          // We need to close the handle as well, as otherwise Notepad will think the file
+          //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
+          if (h != INVALID_HANDLE_VALUE)
+            CloseHandle (h);
+
           /*
           ShellExecuteW ( nullptr,
             L"OPEN", SK_UTF8ToWideChar(cache.config.full_path).c_str(),
@@ -2210,7 +2236,7 @@ SKIF_GameManagement_DrawTab (void)
 
           if (ImGui::Selectable ("Apply Compatibility Config"))
           {
-            std::wofstream config_file(cache.config.full_path.c_str());
+            std::wofstream config_file(SK_UTF8ToWideChar (cache.config.full_path).c_str());
 
             if (config_file.is_open())
             {
@@ -2251,7 +2277,18 @@ Cache=false)";
 
           if (ImGui::Selectable ("Reset Config File"))
           {
-            CreateFile(SK_UTF8ToWideChar(cache.config.full_path).c_str(), GENERIC_WRITE, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+            HANDLE h = CreateFile ( SK_UTF8ToWideChar (cache.config.full_path).c_str(),
+                        GENERIC_READ | GENERIC_WRITE,
+                          FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                            NULL,
+                              TRUNCATE_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                  NULL );
+
+            // We need to close the handle as well, as otherwise Notepad will think the file
+            //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
+            if (h != INVALID_HANDLE_VALUE)
+              CloseHandle (h);
           }
 
           ImGui::EndPopup ( );
@@ -2713,7 +2750,6 @@ Cache=false)";
 
         //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());
 
-
         deferred_update = true;
       }
     }
@@ -2830,16 +2866,6 @@ Cache=false)";
 
   if (update && pApp != nullptr)
   {
-    // Launch button got changed, now we don't need this anymore.
-#ifdef _USE_LOGO
-    if (pApp->textures.logo.p == nullptr)
-    {
-      _LoadLibraryTexture (pApp->id,
-                  pApp->textures.logo,
-                              L"_logo.png");
-    }
-#endif
-
     // Handle GOG, EGS, and SKIF Custom games
     if (pApp->store != "Steam")
     {
@@ -2859,10 +2885,6 @@ Cache=false)";
 
       if (test_paths[0] == test_paths[1])
         test_paths[1] = L"";
-
-      //std::wstring test_path =
-        //pApp->launch_configs[0].getExecutableDir(pApp->id, false);
-        //pApp->launch_configs[0].working_dir;
 
       struct {
         InjectionBitness bitness;
@@ -2955,17 +2977,21 @@ Cache=false)";
       }
 
       if (pApp->specialk.injection.config.type == ConfigType::Centralized)
+      {
         pApp->specialk.injection.config.dir =
           SK_FormatStringW(LR"(%ws\Profiles\%ws)",
             path_cache.specialk_userdata.path,
             pApp->specialk.profile_dir.c_str());
+      }
 
       pApp->specialk.injection.config.file =
         ( pApp->specialk.injection.config.dir + LR"(\)" ) +
           pApp->specialk.injection.config.file;
 
+    }
+
     // Handle Steam games
-    } else {
+    else {
       pApp->specialk.injection =
         SKIF_InstallUtils_GetInjectionStrategy (pApp->id);
 
@@ -3357,8 +3383,12 @@ Cache=false)";
             ImGui::GetCursorPosY () - 1.0f
           );
 
-          _BlacklistCfg          (
-               pApp->launch_configs.begin ()->second );
+          // Only if it is a valid one
+          if ( pApp->launch_configs.begin()->second.valid)
+          {
+            _BlacklistCfg          (
+                 pApp->launch_configs.begin ()->second );
+          }
         }
 
         // If there are more than one launch option
@@ -3371,9 +3401,12 @@ Cache=false)";
 
           if ( ImGui::BeginMenu ("Disable Special K") )
           {
+            std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
             {
-              if (! launch.second.valid)
+              // TODO: Secondary-Launch-Options: Need to ensure launch options that share an executable only gets listed once.
+              if (! launch.second.valid ) /* ||
+                  ! _used_launches.emplace (launch.second.blacklist_file).second ) */
                 continue;
 
               _BlacklistCfg (launch.second, true);

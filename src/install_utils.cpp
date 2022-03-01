@@ -173,6 +173,15 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 {
   sk_install_state_s
      install_state;
+     install_state = {
+        .injection = { .bitness  = InjectionBitness::Unknown,
+                       .entry_pt = InjectionPoint::CBTHook,
+                       .type     = InjectionType::Global,
+                     },
+           .config = { .type = ConfigType::Centralized,
+                       .file = L"SpecialK.ini",
+                     }
+                     };
 
   app_record_s    *pApp     =    nullptr;
   skValveDataFile::appinfo_s
@@ -193,6 +202,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 
     for ( auto& launch_cfg : app.second.launch_configs )
     {
+#if 0
       app_record_s::CPUType
                     cputype = app.second.
       common_config.cpu_type;
@@ -210,10 +220,19 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
       {
         // The any case will just be 64-bit for us, since SK only runs on
         //   64-bit systems. Thus, ignore 32-bit launch configs.
+#ifdef _WIN64
         if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
+#else
+        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
+#endif
         {
-          OutputDebugStringW (launch_cfg.second.description.c_str ());
+          //OutputDebugStringW (launch_cfg.second.description.c_str ());
           continue;
+        }
+
+        else {
+          cputype =
+            launch_cfg.second.cpu_type;
         }
       }
 
@@ -235,9 +254,22 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
             install_state.injection.bitness = InjectionBitness::SixtyFour;
         }
       }
+#endif
+
+      std::wstring exec_path =
+        launch_cfg.second.getExecutableFullPath (appid, false);
+
+      DWORD dwBinaryType = MAXDWORD;
+      if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+      {
+        if (dwBinaryType == SCS_32BIT_BINARY)
+          install_state.injection.bitness = InjectionBitness::ThirtyTwo;
+        else if (dwBinaryType == SCS_64BIT_BINARY)
+          install_state.injection.bitness = InjectionBitness::SixtyFour;
+      }
 
       std::wstring test_path =
-        launch_cfg.second.getExecutableDir(pApp->id, false);
+        launch_cfg.second.getExecutableDir (pApp->id, false);
         //launch_cfg.second.working_dir; // Doesn't contain a full path
 
       struct {
@@ -252,14 +284,6 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
         { install_state.injection.bitness, InjectionPoint::OpenGL,  L"OpenGL32", L"" },
         { install_state.injection.bitness, InjectionPoint::DInput8, L"dinput8",  L"" }
       };
-
-      // Global by default, unless one of these DLLs is found...
-      install_state.injection.type =
-        InjectionType::Global;
-      install_state.injection.entry_pt =
-        InjectionPoint::CBTHook;
-      install_state.config.file =
-        L"SpecialK.ini";
 
       for ( auto& dll : test_dlls )
       {
@@ -315,8 +339,8 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
       ( install_state.injection.bitness ==
                        InjectionBitness::SixtyFour );
 
-    install_state.config.type =
-      ConfigType::Centralized;
+    //install_state.config.type =
+    //  ConfigType::Centralized;
 
     wchar_t                 wszPathToSelf [MAX_PATH] = { };
     GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);

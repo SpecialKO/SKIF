@@ -473,9 +473,17 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
 
           launch.isBlacklisted (id);
 
+          // File extension, so we can strip out non-executable ones
+          wchar_t  wszExtension[MAX_PATH] = { };
+          const wchar_t* pwszExt =
+            PathFindExtension (launch.executable.c_str());
+          wcsncpy_s (wszExtension, MAX_PATH, pwszExt, _TRUNCATE);
+
+          // TODO: Secondary-Launch-Options: Need to stop filtering out launch options sharing the same executable here.
           if ( (! app_record_s::supports (launch.platforms,
                                      app_record_s::Platform::Windows) )  ||
-               (! _used_launches.emplace (launch.blacklist_file).second) ||
+               (  _wcsicmp (wszExtension, L".exe") != 0)                 || // Let's filter out all non-executables
+               (! _used_launches.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
                (!       launch.valid)
              )
           {
