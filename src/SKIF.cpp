@@ -2198,6 +2198,14 @@ const wchar_t* SKIF_WindowClass =
 #include <cwctype>
 #include <stores/Steam/app_record.h>
 
+std::wstring
+SKIF_TowLower (std::wstring_view input)
+{
+  std::wstring copy = std::wstring(input);
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towlower(c); });
+  return copy;
+}
+
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
@@ -2288,8 +2296,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::wstring cmdLineArgs    = cmdLine;
 
     // Transform to lowercase
-    std::wstring cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
+    std::wstring cmdLineLower   = SKIF_TowLower (cmdLine);
 
     std::wstring splitPos1Lower = L"addgame="; // Start split
     std::wstring splitEXELower  = L".exe";     // Stop split (exe)
@@ -2307,8 +2314,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
     // Update lowercase
-    cmdLineLower   = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
+    cmdLineLower   = SKIF_TowLower (cmdLine);
 
     // If .exe is part of the string
     if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
@@ -2393,8 +2399,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
     // Transform to lowercase
-    std::wstring cmdLineLower = cmdLine;
-    std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), [](wchar_t c) { return std::towlower(c); });
+    std::wstring cmdLineLower = SKIF_TowLower (cmdLine);
 
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path

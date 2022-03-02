@@ -96,4 +96,4 @@ void
 SKIF_GetFolderPath (path_cache_s::win_path_s* path);
 
 bool
-SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, _FILEOPENDIALOGOPTIONS dialogOptions = FOS_PATHMUSTEXIST, const GUID defaultFolder = FOLDERID_StartMenu);
+SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_StartMenu);

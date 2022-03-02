@@ -74,6 +74,7 @@ private:
 extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
 void SKIF_Initialize                (void);
+std::wstring SKIF_TowLower          (std::wstring_view wstr);
 std::wstring SKIF_GetLastError      (void);
 
 BOOL SKIF_IsWindows8Point1OrGreater (void);
@@ -136,6 +137,7 @@ enum class PopupState {
   Opened
 };
 
+extern PopupState IconMenu;
 extern PopupState ServiceMenu;
 
 extern PopupState AddGamePopup;

@@ -59,6 +59,7 @@ static bool clickedGameLaunch,
             clickedGalaxyLaunchWoSK = false,
             openedGameContextMenu   = false;
 
+PopupState IconMenu        = PopupState::Closed;
 PopupState ServiceMenu     = PopupState::Closed;
 
 PopupState AddGamePopup    = PopupState::Closed;
@@ -1337,7 +1338,7 @@ SKIF_GameManagement_DrawTab (void)
       if (ImGui::Selectable ("Set Custom Artwork",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
           std::wstring targetPath = L"";
           std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
@@ -2533,7 +2534,7 @@ Cache=false)";
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
-  auto _HandleItemSelection = [&](bool iconMenu = false) ->
+  auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
   {
     bool _GamePadRightClick =
@@ -2549,6 +2550,7 @@ Cache=false)";
 
     bool ret =
       ImGui::IsItemActivated (                      ) ||
+      ImGui::IsItemClicked   (ImGuiMouseButton_Left ) ||
       ImGui::IsItemClicked   (ImGuiMouseButton_Right) ||
       _GamePadRightClick                              ||
       _NavLongActivate;
@@ -2561,12 +2563,13 @@ Cache=false)";
       }
     }
 
-    if (iconMenu)
+    if (isIconMenu)
     {
-      if ( ! ImGui::IsPopupOpen ("IconMenu") &&
-             ImGui::IsItemClicked (ImGuiMouseButton_Right))
-        ImGui::OpenPopup      ("IconMenu");
+      if ( IconMenu != PopupState::Opened &&
+           ImGui::IsItemClicked (ImGuiMouseButton_Right))
+           IconMenu = PopupState::Open;
     }
+
     else {
       if ( ! openedGameContextMenu)
       {
@@ -3037,6 +3040,11 @@ Cache=false)";
   }
 
 
+  if (IconMenu == PopupState::Open)
+  {
+    ImGui::OpenPopup    ("IconMenu");
+    IconMenu = PopupState::Closed;
+  }
 
   if (ImGui::BeginPopup ("IconMenu"))
   {
@@ -3065,7 +3073,7 @@ Cache=false)";
       if (ImGui::Selectable ("Set Custom Icon",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png;*.ico" }, 1, _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png;*.ico" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
           std::wstring targetPath = L"";
           std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
@@ -4408,12 +4416,14 @@ Cache=false)";
       extern HWND SKIF_hWnd;
 
       LPWSTR pwszFilePath = NULL;
-      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, _FILEOPENDIALOGOPTIONS::FOS_NODEREFERENCELINKS))
+
+      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
       {
         error = false;
-        std::filesystem::path p = pwszFilePath;
+        std::filesystem::path p   = pwszFilePath;
+        std::wstring          ext = SKIF_TowLower (p.extension().wstring());
 
-        if (p.extension() == L".lnk")
+        if (ext == L".lnk")
         {
           WCHAR szTarget   [MAX_PATH];
           WCHAR szArguments[MAX_PATH];
@@ -4430,7 +4440,8 @@ Cache=false)";
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
         }
-        else if (p.extension() == L".exe") {
+
+        else if (ext == L".exe") { //  // (p.extension().wstring() == L".exe")
           std::wstring productName = SKIF_GetProductName (p.c_str());
           productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
@@ -4438,7 +4449,15 @@ Cache=false)";
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+
+          /* TODO: Detect appxmanifest.xml (is it standardized?), read it, extract Identify Name="xxxx", then whitelist that
+          if (PathFileExists ((p.parent_path().wstring() + L"\\" + L"appxmanifest.xml").c_str()))
+          {
+            OutputDebugString(L"AppXgame?\n");
+          }
+          */
         }
+
         else {
           error = true;
           strncpy (charPath, "\0", MAX_PATH);
@@ -4505,6 +4524,7 @@ Cache=false)";
         InterlockedExchange (&need_sort, 1);
 
       // Clear variables
+      error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
@@ -4613,11 +4633,12 @@ Cache=false)";
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
       LPWSTR pwszFilePath = NULL;
-      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1))
+      if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
       {
         error = false;
         strncpy (charPath, (const char *)std::filesystem::path(pwszFilePath).u8string().c_str(), MAX_PATH);
       }
+
       else {
         error = true;
         strncpy (charPath, "\0", MAX_PATH);
@@ -4726,6 +4747,7 @@ Cache=false)";
         InterlockedExchange (&need_sort, 1);
 
         // Clear variables
+        error = false;
         strncpy (charName, "\0", MAX_PATH);
         strncpy (charPath, "\0", MAX_PATH);
         strncpy (charArgs, "\0", 500);
@@ -4750,6 +4772,7 @@ Cache=false)";
     if (ImGui::Button  ("Cancel", vButtonSize))
     {
       // Clear variables
+      error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);

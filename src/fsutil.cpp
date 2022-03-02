@@ -340,7 +340,7 @@ SK_GetFontsDir (void)
 }
 
 bool
-SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, _FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder)
+SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder)
 {
   bool success = false;
   IFileOpenDialog  *pFileOpen;
