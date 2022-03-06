@@ -6714,14 +6714,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing          ( );
           ImGui::SameLine         ( );
           ImGui::TextColored      (
-            ImColor (226, 67, 40),
-              ICON_FA_GITLAB " "   );
+            (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+              ICON_FA_GITHUB " "   );
           ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("GitLab"))
-            SKIF_Util_OpenURI     (L"https://gitlab.special-k.info/");
+          if (ImGui::Selectable   ("GitHub"))
+            SKIF_Util_OpenURI     (L"https://github.com/SpecialKO");
 
           SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://gitlab.special-k.info/");
+          SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO");
           ImGui::EndGroup         ( );
 
           /*

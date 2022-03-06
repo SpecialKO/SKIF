@@ -3760,7 +3760,7 @@ Cache=false)";
         ImGui::PopStyleColor (  );
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITLAB)   .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITHUB)   .x, ImGui::GetTextLineHeight()));
 
         ImGui::EndGroup   (  );
         ImGui::SameLine   (  );
@@ -3806,14 +3806,14 @@ Cache=false)";
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
 
-        if (ImGui::Selectable ("GitLab", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ("GitHub", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           SKIF_Util_OpenURI (
-            L"https://gitlab.special-k.info/"
+            L"https://github.com/SpecialKO"
           );
         }
         SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       ("https://gitlab.special-k.info/");
+        SKIF_ImGui_SetHoverText       ("https://github.com/SpecialKO");
 
         ImGui::EndGroup   ( );
 
@@ -3836,8 +3836,8 @@ Cache=false)";
                  ICON_FA_PATREON
                              );
         ImGui::TextColored (
-               ImColor   (226,  67,  40),
-                 ICON_FA_GITLAB
+               (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+                 ICON_FA_GITHUB
                              );
       }
 
