@@ -88,6 +88,12 @@
     <Filter Include="Source Files\Stores\EGS">
       <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\Xbox">
+      <UniqueIdentifier>{b4cd7025-e1e1-4d32-a8dd-8966cefd74a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\Xbox">
+      <UniqueIdentifier>{923a8aab-cd55-483a-87cb-5987e34b829d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTex\BC.h">
@@ -372,6 +378,15 @@
     <ClInclude Include="include\stores\Steam\apps_ignore.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
+    <ClInclude Include="include\stores\Xbox\xbox_library.h">
+      <Filter>Header Files\Stores\Xbox</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pugiconfig.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pugixml.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -514,6 +529,12 @@
     </ClCompile>
     <ClCompile Include="src\stores\EGS\egs_library.cpp">
       <Filter>Source Files\Stores\EGS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Xbox\xbox_library.cpp">
+      <Filter>Source Files\Stores\Xbox</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pugixml.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

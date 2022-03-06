@@ -63,6 +63,7 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bDisableSteamLibrary     = false,
      SKIF_bDisableEGSLibrary       = false,
      SKIF_bDisableGOGLibrary       = false,
+     SKIF_bDisableXboxLibrary      =  true, // disabled by default for now
      SKIF_bSmallMode               = false,
      SKIF_bFirstLaunch             = false,
      SKIF_bEnableDebugMode         = false,
@@ -3819,13 +3820,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Steam Library)" );
 
+  static auto regKVDisableEGSLibrary =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Disable EGS Library)" );
+
   static auto regKVDisableGOGLibrary =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable GOG Library)" );
 
-  static auto regKVDisableEGSLibrary =
+  static auto regKVDisableXboxLibrary =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable EGS Library)" );
+                         LR"(Disable Xbox Library)" );
 
   static auto regKVSmallMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -3930,6 +3935,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
   SKIF_bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
   SKIF_bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
+
+  if (regKVDisableXboxLibrary.hasData())
+    SKIF_bDisableXboxLibrary    =   regKVDisableXboxLibrary.getData      ( );
+
   SKIF_bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
   SKIF_bSmallMode               =   regKVSmallMode.getData               ( );
   SKIF_bFirstLaunch             =   regKVFirstLaunch.getData             ( );
@@ -5081,6 +5090,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (ImGui::Checkbox        ("Epic Games Store", &SKIF_bDisableEGSLibrary))
           {
             regKVDisableEGSLibrary.putData   (SKIF_bDisableEGSLibrary);
+            RepopulateGames = true;
+          }
+
+          ImGui::SameLine ( );
+          ImGui::Spacing  ( );
+          ImGui::SameLine ( );
+
+          if (ImGui::Checkbox        ("Xbox", &SKIF_bDisableXboxLibrary))
+          {
+            regKVDisableXboxLibrary.putData   (SKIF_bDisableXboxLibrary);
             RepopulateGames = true;
           }
 

@@ -257,6 +257,7 @@ SKIF_Util_OpenURI_Threaded (
 #include <stores/EGS/egs_library.h>
 #include <atlimage.h>
 #include <TlHelp32.h>
+#include <stores/Xbox/xbox_library.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -423,6 +424,38 @@ LoadLibraryTexture (
           FindClose(hFind);
         }
       }
+    }
+  }
+
+  // Xbox
+  else if (pApp != nullptr && pApp->store == "Xbox")
+  {
+    std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+    SKIFCustomPath = std::wstring(XboxAssetPath);
+
+    if (libTexToLoad == LibraryTexture::Cover)
+      SKIFCustomPath += L"cover";
+    else
+      SKIFCustomPath += L"icon";
+
+    if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
+      load_str =                SKIFCustomPath + L".png";
+    else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
+      load_str =                SKIFCustomPath + L".jpg";
+    else if (libTexToLoad == LibraryTexture::Icon &&
+             PathFileExistsW  ((SKIFCustomPath + L".ico").c_str()))
+      load_str =                SKIFCustomPath + L".ico";
+
+    customAsset = (load_str != L"\0");
+
+    if (! customAsset)
+    {
+      if      (libTexToLoad == LibraryTexture::Cover &&
+               PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
+        load_str =               SKIFCustomPath + L"-original.png";
+      else if (libTexToLoad == LibraryTexture::Icon &&
+               PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
+        load_str =               SKIFCustomPath + L"-original.png";
     }
   }
 
@@ -1009,6 +1042,7 @@ SKIF_GameManagement_DrawTab (void)
   extern bool RepopulateGames;
   extern bool SKIF_bDisableEGSLibrary;
   extern bool SKIF_bDisableGOGLibrary;
+  extern bool SKIF_bDisableXboxLibrary;
 
   if (! SKIF_bDisableEGSLibrary && skif_egs_dir_watch.isSignaled ( ))
     RepopulateGames = true;
@@ -1064,6 +1098,9 @@ SKIF_GameManagement_DrawTab (void)
     // Load EGS titles from disk
     if (! SKIF_bDisableEGSLibrary)
       SKIF_EGS_GetInstalledAppIDs (&apps);
+    
+    if (! SKIF_bDisableXboxLibrary)
+      SKIF_Xbox_GetInstalledAppIDs (&apps);
 
     // Load custom SKIF titles from registry
     SKIF_GetCustomAppIDs (&apps);
@@ -1141,7 +1178,7 @@ SKIF_GameManagement_DrawTab (void)
         }
 
         // Check if install folder exists (but not for SKIF)
-        if (app.second.id != SKIF_STEAM_APPID)
+        if (app.second.id != SKIF_STEAM_APPID && app.second.store != "Xbox")
         {
           std::wstring install_dir;
 
@@ -1351,6 +1388,8 @@ SKIF_GameManagement_DrawTab (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata.path, pApp->id);
+          else if (pApp->store == "Xbox")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata.path, pApp->id);
 
@@ -1387,6 +1426,8 @@ SKIF_GameManagement_DrawTab (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata.path, pApp->id);
+          else if (pApp->store == "Xbox")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata.path, pApp->id);
 
@@ -2435,7 +2476,20 @@ Cache=false)";
                )
             {
               // Whitelist the path if it haven't been already
-              _inject._WhitelistBasedOnPath (fullPath);
+              if (pTargetApp->store == "Xbox")
+              {
+                if (! _inject._TestUserList (pTargetApp->Xbox_PackageName.c_str(), true))
+                {
+                  if (_inject._AddUserList  (pTargetApp->Xbox_PackageName, true))
+                    _inject._StoreList(true);
+                }
+              }
+
+              else
+              {
+                if (_inject._WhitelistBasedOnPath (fullPath))
+                  _inject._StoreList (true);
+              }
             }
 
             // Kickstart service if it is currently not running
@@ -3086,6 +3140,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata.path, pApp->id);
+          else if (pApp->store == "Xbox")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata.path, pApp->id);
 
@@ -3134,6 +3190,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata.path, pApp->id);
+          else if (pApp->store == "Xbox")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata.path, pApp->id);
 
@@ -3528,7 +3586,7 @@ Cache=false)";
   }
 
 
-  // Refresh running state of SKIF Custom, EGS, and GOG titles
+  // Refresh running state of SKIF Custom, EGS, GOG, and Xbox titles
   static DWORD lastGameRefresh = 0;
 
   if (SKIF_timeGetTime() > lastGameRefresh + 5000)
@@ -3582,11 +3640,22 @@ Cache=false)";
               fullPath = std::wstring (szExePath);
           }
 
+          //OutputDebugString((L"Process: " + fullPath + L"\n").c_str());
+
           for (auto& app : apps)
           {
             // Steam games are covered through separate registry monitoring
             if (app.second.store == "Steam")
+            {
               continue;
+            }
+
+            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
+            else if (app.second.store == "Xbox" && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
+            {
+              app.second._status.running = true;
+              break;
+            }
 
             // EGS, GOG and SKIF Custom should be straight forward
             else if (fullPath == app.second.launch_configs[0].getExecutableFullPath(app.second.id, false)) // full patch
@@ -3713,7 +3782,8 @@ Cache=false)";
                  )
               {
                 // Whitelist the path if it haven't been already
-                _inject._WhitelistBasedOnPath (fullPath);
+                if (_inject._WhitelistBasedOnPath (fullPath))
+                  _inject._StoreList (true);
               }
 
               // Kickstart service if it is currently not running
@@ -4155,8 +4225,9 @@ Cache=false)";
                                : (pApp->store == "Steam") ? L"http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
                                                           : L"https://www.pcgamingwiki.com/w/index.php?search=%ws";
       std::wstring pcgwValue =
-        (pApp->store == "SKIF") ? SK_UTF8ToWideChar (pApp->names.normal)
-                                : (pApp->store == "EGS") ? SK_UTF8ToWideChar(pApp->names.normal) : std::to_wstring(pApp->id);
+        (pApp->store == "SKIF" || pApp->store == "EGS" || pApp->store == "Xbox")
+                                ? SK_UTF8ToWideChar (pApp->names.normal)
+                                : std::to_wstring(pApp->id);
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -4449,13 +4520,6 @@ Cache=false)";
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
-
-          /* TODO: Detect appxmanifest.xml (is it standardized?), read it, extract Identify Name="xxxx", then whitelist that
-          if (PathFileExists ((p.parent_path().wstring() + L"\\" + L"appxmanifest.xml").c_str()))
-          {
-            OutputDebugString(L"AppXgame?\n");
-          }
-          */
         }
 
         else {

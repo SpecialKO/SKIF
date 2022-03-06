@@ -89,6 +89,7 @@ struct app_record_s {
   std::string  EGS_CatalogItemId = "";
   std::string  EGS_AppName = "";
   std::string  EGS_DisplayName = "";
+  std::string  Xbox_PackageName = "";
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
@@ -173,7 +174,7 @@ struct app_record_s {
     std::wstring executable;
     std::wstring executable_path;
     std::wstring description;
-    std::wstring launch_options; // Used by GOG and EGS
+    std::wstring launch_options;     // Used by GOG and EGS
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring type;

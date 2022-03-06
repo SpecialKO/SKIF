@@ -327,6 +327,8 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="include\json.hpp" />
+    <ClInclude Include="include\pugiconfig.hpp" />
+    <ClInclude Include="include\pugixml.hpp" />
     <ClInclude Include="include\stores\EGS\egs_library.h" />
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
@@ -363,6 +365,7 @@
     <ClInclude Include="include\stores\Steam\library.h" />
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
+    <ClInclude Include="include\stores\Xbox\xbox_library.h" />
     <ClInclude Include="include\ui_tasks\manage_games.h" />
     <ClInclude Include="include\vfs.h" />
     <ClInclude Include="steam\isteamapplist.h" />
@@ -414,6 +417,7 @@
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\pugixml.cpp" />
     <ClCompile Include="src\stores\EGS\egs_library.cpp" />
     <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -645,6 +649,7 @@
     <ClCompile Include="src\stores\Steam\library.cpp" />
     <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
+    <ClCompile Include="src\stores\Xbox\xbox_library.cpp" />
     <ClCompile Include="src\ui_tasks\debug.cpp" />
     <ClCompile Include="src\ui_tasks\display_mgmt.cpp" />
     <ClCompile Include="src\ui_tasks\manage_colorspace.cpp" />
