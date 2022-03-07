@@ -2,7 +2,9 @@
 #include <stores/xbox/xbox_library.h>
 #include <pugixml.hpp>
 #include <wtypes.h>
+#include <fstream>
 #include <filesystem>
+#include <json.hpp>
 
 
 /*
@@ -78,14 +80,17 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                     record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                     record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
-                    record.names.all_upper  = record.names.normal;
-                    std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
 
-                    //OutputDebugString((L"Properties.DisplayName: " + SK_UTF8ToWideChar(record.names.normal) + L"\n").c_str());
+                    std::string bitness = xmlRoot.child("Identity").attribute("ProcessorArchitecture").value();
+
+                    if (bitness == "x64")
+                      record.specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+                    else
+                      record.specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
                     std::wstring targetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(record.Xbox_PackageName).c_str());
                     std::wstring iconPath   = targetPath + L"icon-original.png";
-                    std::wstring coverPath  = targetPath + L"cover-original.png";
+                    std::wstring coverPath  = targetPath + L"cover-fallback.png";
 
                     bool icon  = PathFileExists(iconPath .c_str()),
                          cover = PathFileExists(coverPath.c_str());
@@ -104,6 +109,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       {
                         pugi::xml_node xmlConfigRoot  = config.document_element();
 
+                        record.Xbox_StoreId = xmlConfigRoot.child_value("StoreId");
+
                         for (pugi::xml_node exe = xmlConfigRoot.child("ExecutableList").child("Executable"); exe; exe = exe.next_sibling("Executable"))
                         {
                           if (appId == exe.attribute("Id").value())
@@ -116,8 +123,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                               lc.executable_path = record.install_dir + lc.executable;
                               lc.executable = lc.executable.substr(pos + 1);
                             }
-
-                            //OutputDebugString((L"Derp: " + lc.executable + L"\n").c_str());
                           }
                         }
                       }
@@ -128,11 +133,23 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       if (lc.executable_path.empty())
                         lc.executable_path = record.install_dir + lc.executable;
 
-                      //OutputDebugString((L"Full: " + lc.executable_path + L"\n").c_str());
+                      // Naively assume the first launch config has the more appropriate name
+                      if (lid == 0)
+                      {
+                        std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
+
+                        if (!appDisplayName.empty() && appDisplayName.find("ms-resource") == std::string::npos)
+                          record.names.normal = appDisplayName;
+                      }
                       
                       lc.working_dir = record.install_dir;
 
                       record.launch_configs[lid] = lc;
+                      lid++;
+
+                      // Create necessary directories if they do not exist
+                      if (!icon || !cover)
+                        std::filesystem::create_directories(targetPath);
 
                       if (!icon)
                       {
@@ -160,6 +177,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         }
                       }
                     }
+
+                    record.names.all_upper  = record.names.normal;
+                    std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
 
                     if (record.launch_configs.size() > 0)
                     {
@@ -191,3 +211,53 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   }
 }
 
+void
+SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
+{
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(PackageName).c_str());
+  std::filesystem::create_directories(targetAssetPath);
+
+  // Download JSON for the cover
+  if (! PathFileExists ((targetAssetPath + L"store.json").c_str()))
+  {
+    std::wstring query = L"https://storeedgefd.dsx.mp.microsoft.com/v8.0/sdk/products?market=US&locale=en-US&deviceFamily=Windows.Desktop";
+    std::string body  = SK_FormatString(R"({ "productIds": "%s" })", StoreID.c_str());
+
+    SKIF_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
+  }
+
+  std::ifstream fileStore(targetAssetPath + L"store.json");
+  nlohmann::json jf = nlohmann::json::parse(fileStore, nullptr, false);
+  fileStore.close();
+
+  if (jf.is_discarded ( ))
+  {
+    DeleteFile ((targetAssetPath + L"store.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+  }
+  else
+  {
+    try
+    {
+      for (auto& image : jf["Products"][0]["LocalizedProperties"][0]["Images"])
+      {
+        if (image["ImagePurpose"].get <std::string_view>()._Equal(R"(Poster)"))
+        {
+          // Download a downscaled copy of the cover
+          extern bool            SKIF_bLowBandwidthMode; // TAKES TOO LONG! :D
+
+          // Convert the URL value to a regular string
+          std::string assetUrl = image["Uri"]; // will throw exception if "Uri" does not exist
+
+          // Strip the first two characters (//)
+          assetUrl = SK_FormatString(R"(https://%s%s)", assetUrl.substr(2).c_str(), ((SKIF_bLowBandwidthMode) ? "?q=90&h=900&w=600" : ""));
+
+          SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
+        }
+      }
+    }
+    catch (const std::exception&)
+    {
+
+    }
+  }
+}

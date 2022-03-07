@@ -91,6 +91,10 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
       if (jf.is_discarded ( ))
         continue;
 
+      // Skip if a launch executable does not exist (easiest way to filter out Borderlands 3's DLCs, I guess?)
+      if (jf.at ("LaunchExecutable").get <std::string_view>().empty())
+        continue;
+
       // Skip if the install location does not exist
       if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
         continue;

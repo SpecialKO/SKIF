@@ -1385,6 +1385,9 @@ struct skif_get_web_uri_t {
   wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
   wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH] = { };
   wchar_t wszLocalPath[MAX_PATH + 2] = { };
+  LPCWSTR method = L"GET";
+  std::string body;
+  std::wstring header;
 };
 
 DWORD
@@ -1454,7 +1457,7 @@ SKIF_GetWebUri (skif_get_web_uri_t* get)
 
   hInetHTTPGetReq =
     HttpOpenRequest ( hInetHost,
-                        nullptr,
+                        get->method,
                           get->wszHostPath,
                             L"HTTP/1.1",
                               nullptr,
@@ -1463,7 +1466,6 @@ SKIF_GetWebUri (skif_get_web_uri_t* get)
                                   INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
                                   INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
                                     (DWORD_PTR)&dwInetCtx );
-
 
   // Wait 2500 msecs for a dead connection, then give up
   //
@@ -1476,11 +1478,12 @@ SKIF_GetWebUri (skif_get_web_uri_t* get)
   }
 
   if ( HttpSendRequestW ( hInetHTTPGetReq,
-                            nullptr,
-                              0,
-                                nullptr,
-                                  0 ) )
+                            get->header.c_str(),
+                              get->header.length(),
+                                (LPVOID)get->body.c_str(),
+                                  get->body.size() ) )
   {
+
     DWORD dwStatusCode        = 0;
     DWORD dwStatusCode_Len    = sizeof (DWORD);
 
@@ -1558,7 +1561,7 @@ SKIF_GetWebUri (skif_get_web_uri_t* get)
 }
 
 void
-SKIF_GetWebResource (std::wstring url, std::wstring_view destination)
+SKIF_GetWebResource (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "")
 {
   auto* get =
     new skif_get_web_uri_t { };
@@ -1572,6 +1575,15 @@ SKIF_GetWebResource (std::wstring url, std::wstring_view destination)
 
   urlcomps.lpszUrlPath      = get->wszHostPath;
   urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
+
+  if (!method.empty())
+    get->method = method.c_str();
+
+  if (!header.empty())
+    get->header = header.c_str();
+
+  if (!body.empty())
+    get->body = body;
 
   if ( InternetCrackUrl (          url.c_str  (),
          gsl::narrow_cast <DWORD> (url.length ()),
@@ -6339,7 +6351,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_Spacing      ( );
 
           ImGui::TextWrapped      ("Among its main features are a latency-free borderless window mode, HDR retrofit for "
-                                   "SDR games, Nvida Reflex addition in unsupported games, as well as texture modding "
+                                   "SDR games, Nvidia Reflex addition in unsupported games, as well as texture modding "
                                    "for players and modders alike. While not all features are supported in all games, most "
                                    "DirectX 11 and 12 titles can make use of one if not more of these features."
           );

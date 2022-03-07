@@ -453,6 +453,9 @@ LoadLibraryTexture (
       if      (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
         load_str =               SKIFCustomPath + L"-original.png";
+      else if (libTexToLoad == LibraryTexture::Cover &&
+               PathFileExistsW ((SKIFCustomPath + L"-fallback.png").c_str()))
+        load_str =               SKIFCustomPath + L"-fallback.png";
       else if (libTexToLoad == LibraryTexture::Icon &&
                PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
         load_str =               SKIFCustomPath + L"-original.png";
@@ -1159,13 +1162,13 @@ SKIF_GameManagement_DrawTab (void)
                            app.second.id );
           }
 
-          // Strip null terminators
-          //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
-
-          // Strip game names from special symbols and null terminators
+          // Strip game names from special symbols
           const char* chars = (const char *)u8"©®™";
           for (unsigned int i = 0; i < strlen(chars); ++i)
             app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
+
+          // Strip null terminators
+          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
           
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
         }
@@ -1570,9 +1573,9 @@ SKIF_GameManagement_DrawTab (void)
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
           SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
-
-        //
-        } else {
+        }
+        
+        else {
           // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
           if ( ! SKIF_bLowBandwidthMode &&
                 SUCCEEDED (
@@ -1590,6 +1593,40 @@ SKIF_GameManagement_DrawTab (void)
                 meta.height == 900)
             {
               SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+            }
+          }
+        }
+      }
+
+      // Xbox
+      else if (pApp->store == "Xbox")
+      {
+        load_str = 
+          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+
+        if ( ! PathFileExistsW (load_str.   c_str ()) )
+        {
+          SKIF_Xbox_IdentifyAssetNew (pApp->Xbox_PackageName, pApp->Xbox_StoreId);
+        }
+        
+        else {
+          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
+          if ( ! SKIF_bLowBandwidthMode &&
+                SUCCEEDED (
+                DirectX::GetMetadataFromWICFile (
+                  load_str.c_str (),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      meta
+                  )
+                )
+              )
+          {
+            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
+            //   download the full-size cover and replace the existing one.
+            if (meta.width  == 600 ||
+                meta.height == 900)
+            {
+              SKIF_Xbox_IdentifyAssetNew (pApp->Xbox_PackageName, pApp->Xbox_StoreId);
             }
           }
         }
@@ -1615,9 +1652,9 @@ SKIF_GameManagement_DrawTab (void)
         std::wstring load_str_final = load_str;
         //std::wstring load_str_final = L"_library_600x900.jpg";
 
-        // If 600x900 exists but 600x900_x2 cannot be found 
-        if (   PathFileExistsW (load_str.   c_str ()) &&
-              ! PathFileExistsW (load_str_2x.c_str ()) )
+        // If 600x900 exists but 600x900_x2 cannot be found
+        if (  PathFileExistsW (load_str.   c_str ()) &&
+            ! PathFileExistsW (load_str_2x.c_str ()) )
         {
           // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
           if ( ! SKIF_bLowBandwidthMode &&
@@ -3639,8 +3676,6 @@ Cache=false)";
             if (QueryFullProcessImageName (hProcess, 0, szExePath, &len))
               fullPath = std::wstring (szExePath);
           }
-
-          //OutputDebugString((L"Process: " + fullPath + L"\n").c_str());
 
           for (auto& app : apps)
           {
