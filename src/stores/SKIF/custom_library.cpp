@@ -97,10 +97,13 @@ int SKIF_AddCustomAppID (
     record._status.installed = true;
     record.names.normal = SK_WideCharToUTF8(name);
     
-    // Strip game names from special symbols and null terminators
-    const char *chars = (const char *)u8"©®™\0";
+    // Strip game names from special symbols
+    const char *chars = (const char *)u8"©®™";
     for (unsigned int i = 0; i < strlen(chars); ++i)
       record.names.normal.erase(std::remove(record.names.normal.begin(), record.names.normal.end(), chars[i]), record.names.normal.end());
+
+    // Strip null terminators
+    record.names.normal.erase(std::find(record.names.normal.begin(), record.names.normal.end(), '\0'), record.names.normal.end());
 
     // Add (recently added) at the end of the name
     //record.names.normal = SK_FormatString("%s (recently added)", record.names.normal.c_str());
@@ -191,10 +194,13 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
   {
     pApp->names.normal = SK_WideCharToUTF8(name).c_str();
     
-    // Strip game names from special symbols and null terminators
-    const char* chars = (const char *)u8"©®™\0";
+    // Strip game names from special symbols
+    const char* chars = (const char *)u8"©®™";
     for (unsigned int i = 0; i < strlen(chars); ++i)
       pApp->names.normal.erase(std::remove(pApp->names.normal.begin(), pApp->names.normal.end(), chars[i]), pApp->names.normal.end());
+
+    // Strip null terminators
+    pApp->names.normal.erase(std::find(pApp->names.normal.begin(), pApp->names.normal.end(), '\0'), pApp->names.normal.end());
 
     pApp->ImGuiLabelAndID = SK_FormatString("%s###%s%i", pApp->names.normal.c_str(), pApp->store.c_str(), pApp->id);
 

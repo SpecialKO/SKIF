@@ -2530,7 +2530,7 @@ Cache=false)";
             }
 
             // Kickstart service if it is currently not running
-            if (! clickedGameLaunchWoSK && ! _inject.bCurrentState )
+            if (! _inject.bCurrentState && ! clickedGameLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
               _inject._StartStopInject (false, true);
 
             // Stop the service if the user attempts to launch without SK
@@ -2576,12 +2576,17 @@ Cache=false)";
             pTargetApp->_status.invalidate();
           }
           
-          else { // SKIF Custom, GOG without Galaxy
+          else { // SKIF Custom, GOG without Galaxy, Xbox
+
+            std::wstring wszPath = (pTargetApp->store == "Xbox")
+                                  ? pTargetApp->launch_configs[0].executable_helper
+                                  : pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id);
+
             SHELLEXECUTEINFOW
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
             sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id).c_str();
+            sexi.lpFile       = wszPath.c_str();
             sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
             sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
             sexi.nShow        = SW_SHOWDEFAULT;
@@ -2775,6 +2780,22 @@ Cache=false)";
       }
     }
 
+    // Handle search input
+    if (manual_selection.id    == app.second.id &&
+        manual_selection.store == app.second.store)
+    {
+      // Set focus on current row
+      ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
+      ImGui::SetFocusID   (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()), ImGui::GetCurrentWindow());
+
+      // Clear stuff
+      selection.appid     = 0;
+      selection.store.clear();
+      manual_selection.id = 0;
+      manual_selection.store.clear();
+      change           = true;
+    }
+
     change |=
       _HandleItemSelection ();
 
@@ -2794,14 +2815,18 @@ Cache=false)";
     //change |=
     //  _HandleItemSelection ();
 
+    // FIXME; Bug that doesn't actually change focus on search
+    /*
     if (manual_selection.id    == app.second.id &&
         manual_selection.store == app.second.store)
     {
       selection.appid     = 0;
+      selection.store.clear();
       manual_selection.id = 0;
       manual_selection.store.clear();
       change           = true;
     }
+    */
 
     if ( app.second.id == selection.appid &&
                    sort_changed &&
@@ -3822,7 +3847,7 @@ Cache=false)";
               }
 
               // Kickstart service if it is currently not running
-              if (clickedGalaxyLaunch && ! _inject.bCurrentState)
+              if (! _inject.bCurrentState && ! clickedGalaxyLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
                 _inject._StartStopInject (false, true);
 
               // Stop the service if the user attempts to launch without SK

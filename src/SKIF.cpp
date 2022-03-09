@@ -1481,7 +1481,7 @@ SKIF_GetWebUri (skif_get_web_uri_t* get)
                             get->header.c_str(),
                               get->header.length(),
                                 (LPVOID)get->body.c_str(),
-                                  get->body.size() ) )
+                                  (DWORD)get->body.size() ) )
   {
 
     DWORD dwStatusCode        = 0;
@@ -2828,6 +2828,84 @@ std::string SKIF_StripInvalidFilenameChars (std::string name)
 }
 
 
+std::wstring SKIF_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
+{
+  if (! name.empty())
+  {
+    std::replace_if ( name.begin (),
+                      name.end   (),
+
+                        [](wchar_t tval)
+                        {
+                          static
+                          const std::unordered_set <wchar_t>
+                            invalid_file_char =
+                            {
+                              '\\', '/', ':',
+                              '*',  '?', '\"',
+                              '<',  '>', '|',
+                            //L'&',
+
+                              //
+                              // Obviously a period is not an invalid character,
+                              //   but three of them in a row messes with
+                              //     Windows Explorer and some Steam games use
+                              //       ellipsis in their titles.
+                              //
+                              '.'
+                            };
+
+                          return
+                            ( invalid_file_char.find (tval) !=
+                              invalid_file_char.end  (    ) );
+                        }
+                    , replacement
+                   );
+  }
+
+  return name;
+}
+
+
+std::string SKIF_ReplaceInvalidFilenameChars (std::string name, char replacement)
+{
+  if (! name.empty())
+  {
+    std::replace_if ( name.begin (),
+                      name.end   (),
+
+                        [](char tval)
+                        {
+                          static
+                          const std::unordered_set <char>
+                            invalid_file_char =
+                            {
+                              '\\', '/', ':',
+                              '*',  '?', '\"',
+                              '<',  '>', '|',
+                            //L'&',
+
+                              //
+                              // Obviously a period is not an invalid character,
+                              //   but three of them in a row messes with
+                              //     Windows Explorer and some Steam games use
+                              //       ellipsis in their titles.
+                              //
+                              '.'
+                            };
+
+                          return
+                            ( invalid_file_char.find (tval) !=
+                              invalid_file_char.end  (    ) );
+                        }
+                    , replacement
+                   );
+  }
+
+  return name;
+}
+
+
 // Handles comparisons of a version string split between dots by
 // looping through the parts that makes up the string one by one.
 // 
@@ -3576,7 +3654,7 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"Ubisoft Connect",     L"upc.exe"}
   };
 
-  for each (Platform &p in Platforms)
+  for ( auto& p : Platforms )
   {
     if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
         p.Refresh ( ); // Timer has expired, refresh
@@ -6521,7 +6599,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing          ( );
             ImGui::SameLine         ( );
             ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-            ImGui::InputTextEx      ("###QuickLaunch", NULL, "SKIF %COMMAND%", MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+            char szSteamCommand[MAX_PATH] = "SKIF %COMMAND%";
+            ImGui::InputTextEx      ("###QuickLaunch", NULL, szSteamCommand, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
             ImGui::PopStyleColor    ( );
             ImGui::TreePop          ( );
 

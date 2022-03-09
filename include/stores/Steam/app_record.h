@@ -179,6 +179,7 @@ struct app_record_s {
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring type;
+    std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
 
     bool         valid       = false; // Path points to a real directory
     int          blacklisted = -1;

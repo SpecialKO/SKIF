@@ -76,6 +76,10 @@ extern HMODULE hModSpecialK;
 void SKIF_Initialize                (void);
 std::wstring SKIF_TowLower          (std::wstring_view wstr);
 std::wstring SKIF_GetLastError      (void);
+std::string  SKIF_StripInvalidFilenameChars   ( std::string name);
+std::wstring SKIF_StripInvalidFilenameChars   (std::wstring name);
+std::string  SKIF_ReplaceInvalidFilenameChars ( std::string name,    char replacement);
+std::wstring SKIF_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
 
 BOOL SKIF_IsWindows8Point1OrGreater (void);
 BOOL SKIF_IsWindows10OrGreater      (void);

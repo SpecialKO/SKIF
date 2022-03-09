@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <json.hpp>
+#include <SKIF.h>
 
 
 /*
@@ -29,6 +30,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   WCHAR szSubKey[MAX_PATH];
   WCHAR szData[MAX_PATH];
   int AppID = 1; // All apps with 0 will be ignored, so start at 1
+  std::vector<std::pair<int, std::wstring>> gamingRoots;
 
   /* Load Xbox titles from registry */
   if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
@@ -74,12 +76,65 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                   record.install_dir = szData;
                   record.install_dir = record.install_dir.substr(4); // Strip \\?\
 
+                  if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
+                    record.install_dir += LR"(\)";
+
                   if (manifest.load_file((record.install_dir + LR"(appxmanifest.xml)").c_str()))
                   {
                     pugi::xml_node xmlRoot  = manifest.document_element();
+                    std::wstring virtualFolder;
+                    int driveAsInt = (record.install_dir.front() - '0');
+
+                    // Use a vector to ensure we don't make unnecessary queries to the filesystem
+                    for (auto& root : gamingRoots)
+                    {
+                      if (root.first == driveAsInt)
+                        virtualFolder = root.second;
+                    }
+
+                    if (virtualFolder.empty())
+                    {
+                      std::wstring driveRoot = record.install_dir.substr(0, 3) + LR"(.GamingRoot)";
+
+                      // .GamingRoot seems to be encoded in UTF-16 LE
+                      if (PathFileExists(driveRoot.c_str()))
+                      {
+                        std::ifstream fin(driveRoot.c_str(), std::ios::binary);
+                        fin.seekg(0, std::ios::end);
+                        size_t size = (size_t)fin.tellg();
+
+                        // skip initial 8 bytes: RGBX\0\0\0
+                        fin.seekg(8, std::ios::beg);
+                        size -= 8;
+
+                        // skip null terminators at the end: \0\0
+                        size -= 2;
+
+                        // read
+                        std::u16string u16((size / 2), '\0'); // (size / 2) + 1
+                        fin.read((char*)&u16[0], size);
+
+                        // convert to wstring
+                        //std::wstring path(u16.begin(), u16.end());
+
+                        // convert to wstring + partial path
+                        virtualFolder = record.install_dir.substr(0, 3) + std::wstring(u16.begin(), u16.end()); // H:\ + path
+
+                        // Push unto the vector
+                        gamingRoots.push_back(std::pair<int, std::wstring>(driveAsInt, virtualFolder));
+                      }
+                    }
 
                     record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                     record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
+
+                    // If we have found a partial path, construct the assumed full path
+                    if (! virtualFolder.empty())
+                      virtualFolder = SK_FormatStringW(LR"(%ws\%ws\Content\)", virtualFolder.c_str(), SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
+
+                    // Ensure that it actually exists before we swap it in!
+                    if (PathFileExists(virtualFolder.c_str()))
+                      record.install_dir = virtualFolder;
 
                     std::string bitness = xmlRoot.child("Identity").attribute("ProcessorArchitecture").value();
 
@@ -127,18 +182,23 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         }
                       }
 
+                      // Some games (e.g. Quake 2) needs to be launched through the gamelaunchhelper.exe, so retain that value
+                      lc.executable_helper = record.install_dir + L"\\" + SK_UTF8ToWideChar(app.attribute("Executable").value());
+
                       if (lc.executable.empty())
-                        lc.executable = SK_UTF8ToWideChar(app.attribute("Executable").value());
+                        lc.executable = lc.executable_helper;
 
                       if (lc.executable_path.empty())
                         lc.executable_path = record.install_dir + lc.executable;
+
+                      std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 
                       // Naively assume the first launch config has the more appropriate name
                       if (lid == 0)
                       {
                         std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
 
-                        if (!appDisplayName.empty() && appDisplayName.find("ms-resource") == std::string::npos)
+                        if (! appDisplayName.empty() && appDisplayName.find("ms-resource") == std::string::npos)
                           record.names.normal = appDisplayName;
                       }
                       
@@ -184,7 +244,19 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                     if (record.launch_configs.size() > 0)
                     {
                       // Naively assume first launch option is right one
-                      record.specialk.profile_dir = record.launch_configs[0].executable;
+                      std::wstring trimmed = record.launch_configs[0].executable;
+                      size_t pos = 0;
+
+                      // Some basic trimming
+                      pos = record.launch_configs[0].executable.rfind('\\');
+                      if (pos != std::wstring::npos)
+                        trimmed = trimmed.substr(pos + 1);
+
+                      pos = trimmed.rfind('/');
+                      if (pos != std::wstring::npos)
+                        trimmed = trimmed.substr(pos + 1);
+
+                      record.specialk.profile_dir = trimmed;
 
                       std::pair <std::string, app_record_s>
                         Xbox (record.names.normal, record);
