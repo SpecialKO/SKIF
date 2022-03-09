@@ -3612,7 +3612,7 @@ Cache=false)";
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
                         ((pApp->textures.isCustomCover || SKIF_iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
 
-    ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "SpecialK Thanks to our Patrons:");
+    ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
     extern std::string SKIF_GetPatrons (void);
     static std::string patrons_ =

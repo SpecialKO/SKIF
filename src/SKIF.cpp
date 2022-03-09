@@ -3355,7 +3355,7 @@ void SKIF_CreateNotifyIcon (void)
   niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
   niData.hWnd         = SKIF_Notify_hWnd;
   niData.uVersion     = NOTIFYICON_VERSION_4;
-  wcsncpy_s (niData.szTip,      128, L"Special K Injection Frontend",   128);
+  wcsncpy_s (niData.szTip,      128, L"Special K",   128);
 
   niData.uCallbackMessage = WM_SKIF_NOTIFY_ICON;
 
@@ -4205,8 +4205,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   SKIF_hWnd             =
-    CreateWindowExW (                      dwStyleEx,
-      wc.lpszClassName, SKIF_WINDOW_TITLE, dwStyle,
+    CreateWindowExW (                    dwStyleEx,
+      wc.lpszClassName, _L("Special K"), dwStyle,
       SK_FULLSCREEN_X (dpi) / 2 - __width  / 2,
       SK_FULLSCREEN_Y (dpi) / 2 - __height / 2,
                    __width, __height,
@@ -4215,8 +4215,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
 
   SKIF_Notify_hWnd      =
-    CreateWindowExW (                                             WS_EX_NOACTIVATE,
-      wcNotify.lpszClassName, _T("SK Injection Frontend Notify"), WS_ICONIC,
+    CreateWindowExW (                                 WS_EX_NOACTIVATE,
+      wcNotify.lpszClassName, _T("Special K Notify"), WS_ICONIC,
                          0, 0,
                          0, 0,
                    nullptr, nullptr,
@@ -5157,9 +5157,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           );
           ImGui::TreePush      ("");
 
-          if (ImGui::Checkbox        ("GOG", &SKIF_bDisableGOGLibrary))
+          if (ImGui::Checkbox        ("Epic", &SKIF_bDisableEGSLibrary))
           {
-            regKVDisableGOGLibrary.putData   (SKIF_bDisableGOGLibrary);
+            regKVDisableEGSLibrary.putData    (SKIF_bDisableEGSLibrary);
             RepopulateGames = true;
           }
 
@@ -5167,9 +5167,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing  ( );
           ImGui::SameLine ( );
 
-          if (ImGui::Checkbox      ("Steam", &SKIF_bDisableSteamLibrary))
+          if (ImGui::Checkbox         ("GOG", &SKIF_bDisableGOGLibrary))
           {
-            regKVDisableSteamLibrary.putData (SKIF_bDisableSteamLibrary);
+            regKVDisableGOGLibrary.putData    (SKIF_bDisableGOGLibrary);
             RepopulateGames = true;
           }
 
@@ -5177,9 +5177,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing  ( );
           ImGui::SameLine ( );
 
-          if (ImGui::Checkbox        ("Epic Games Store", &SKIF_bDisableEGSLibrary))
+          if (ImGui::Checkbox       ("Steam", &SKIF_bDisableSteamLibrary))
           {
-            regKVDisableEGSLibrary.putData   (SKIF_bDisableEGSLibrary);
+            regKVDisableSteamLibrary.putData  (SKIF_bDisableSteamLibrary);
             RepopulateGames = true;
           }
 
@@ -6475,7 +6475,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TextColored      (
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                                   "Getting started with Epic, GOG, or Steam games:");
+                                   "Getting started with Epic, GOG, Steam, or Xbox games:");
 
           SKIF_ImGui_Spacing      ( );
 
