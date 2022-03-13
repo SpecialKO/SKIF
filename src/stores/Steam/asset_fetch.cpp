@@ -225,9 +225,15 @@ SKIF_HTTP_GetAppLibImg (uint32_t app_id, std::wstring_view path)
   urlcomps.lpszUrlPath      = get->wszHostPath;
   urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
 
+  // Get UNIX-style time
+  time_t ltime;
+  time (&ltime);
+
   std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
                url += std::to_wstring (app_id);
                url += L"/library_600x900_2x.jpg";
+               url += L"?t=";
+               url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
 
   if ( InternetCrackUrl (          url.c_str  (),
          gsl::narrow_cast <DWORD> (url.length ()),

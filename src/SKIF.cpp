@@ -4097,6 +4097,59 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (nCmdShow == SW_HIDE)
     startedMinimized = SKIF_isTrayed = true;
 
+  // Clear out old installers
+  {
+    auto _isWeekOld = [&](FILETIME ftLastWriteTime) -> bool
+    {
+      FILETIME ftSystemTime, ftAdjustedFileTime;
+      SYSTEMTIME systemTime;
+      GetSystemTime (&systemTime);
+
+      if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
+      {
+        ULARGE_INTEGER uintLastWriteTime;
+
+        // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
+        uintLastWriteTime.HighPart        = ftLastWriteTime.dwHighDateTime;
+        uintLastWriteTime.LowPart         = ftLastWriteTime.dwLowDateTime;
+
+        // Perform 64-bit arithmetic to add 7 days to last modified timestamp
+        uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
+
+        // Copy the results to an FILETIME struct
+        ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
+        ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
+
+        // Compare with system time, and if system time is later (1), then update the local cache
+        if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+        {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    WIN32_FIND_DATA ffd;
+
+    std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
+
+    hFind = FindFirstFile((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
+
+    if (INVALID_HANDLE_VALUE != hFind)
+    {
+      if (_isWeekOld    (ffd.ftLastWriteTime))
+        DeleteFile      ((VersionFolder + ffd.cFileName).c_str());
+
+      while (FindNextFile (hFind, &ffd))
+        if (_isWeekOld  (ffd.ftLastWriteTime))
+          DeleteFile    ((VersionFolder + ffd.cFileName).c_str());
+
+      FindClose (hFind);
+    }
+  }
+
   // Check for updates
   SKIF_VersionCtl.CheckForUpdates (
     L"SKIF", SKIF_DEPLOYED_BUILD
