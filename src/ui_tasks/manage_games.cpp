@@ -2696,7 +2696,9 @@ Cache=false)";
     ImGui::SameLine (                );
     SKIF_ImGui_OptImage (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
   ImVec2 f2 = ImGui::GetCursorPos (  );
-             ImGui::SetCursorPosY (f0.y);
+    ImGui::SameLine (                );
+  ImVec2 f3 = ImGui::GetCursorPos (  );
+              ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
 
   float fOffset =
     ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
@@ -2778,6 +2780,12 @@ Cache=false)";
       {
         timeClicked = SKIF_timeGetTime ( );
       }
+
+      // Show full title in tooltip if the title spans longer than the width of the Selectable row
+      // Old: (app.first.length() > 48)
+      // New: ImGui::CalcTextSize  (app.first.c_str()).x > (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x)
+      if (ImGui::CalcTextSize  (app.first.c_str()).x > (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x))
+        SKIF_ImGui_SetHoverTip (app.first);
     }
 
     // Handle search input
@@ -2798,11 +2806,6 @@ Cache=false)";
 
     change |=
       _HandleItemSelection ();
-
-    // Show full title in tooltip if the title is made up out of more than 48 characters.
-    //   Use strlen(.c_str()) to strip \0 characters in the string that would otherwise also be counted.
-    if (app.first.length() > 48)
-      SKIF_ImGui_SetHoverTip(app.first);
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
