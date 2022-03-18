@@ -91,6 +91,7 @@ struct app_record_s {
   std::string  EGS_DisplayName = "";
   std::string  Xbox_PackageName = "";
   std::string  Xbox_StoreId = "";
+  std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);

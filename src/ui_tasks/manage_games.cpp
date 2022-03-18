@@ -2515,7 +2515,7 @@ Cache=false)";
               // Whitelist the path if it haven't been already
               if (pTargetApp->store == "Xbox")
               {
-                if (! _inject._TestUserList (pTargetApp->Xbox_PackageName.c_str(), true))
+                if (! _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->Xbox_AppDirectory).c_str(), true))
                 {
                   if (_inject._AddUserList  (pTargetApp->Xbox_PackageName, true))
                     _inject._StoreList(true);

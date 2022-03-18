@@ -79,6 +79,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                   if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
                     record.install_dir += LR"(\)";
 
+                  record.Xbox_AppDirectory = record.install_dir;
+
                   if (manifest.load_file((record.install_dir + LR"(appxmanifest.xml)").c_str()))
                   {
                     pugi::xml_node xmlRoot  = manifest.document_element();
