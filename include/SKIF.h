@@ -73,17 +73,7 @@ private:
 
 extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
-void SKIF_Initialize                (void);
-std::wstring SKIF_TowLower          (std::wstring_view wstr);
-std::wstring SKIF_GetLastError      (void);
-std::string  SKIF_StripInvalidFilenameChars   ( std::string name);
-std::wstring SKIF_StripInvalidFilenameChars   (std::wstring name);
-std::string  SKIF_ReplaceInvalidFilenameChars ( std::string name,    char replacement);
-std::wstring SKIF_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
-
-BOOL SKIF_IsWindows8Point1OrGreater (void);
-BOOL SKIF_IsWindows10OrGreater      (void);
-BOOL SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+void SKIF_Initialize               (void);
 
 bool SKIF_ImGui_IsHoverable        (void);
 void SKIF_ImGui_SetMouseCursorHand (void);
@@ -101,13 +91,6 @@ FLOAT SKIF_GetHDRWhiteLuma    (void);
 FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
 BOOL  SKIF_IsHDR              (void);
 
-HINSTANCE SKIF_Util_OpenURI     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = L"");
-HINSTANCE SKIF_Util_ExplorePath (const std::wstring_view& path);
-
-HINSTANCE SKIF_Util_ExplorePath_Formatted (                const wchar_t* const wszFmt, ...);
-HINSTANCE SKIF_Util_OpenURI_Formatted     (DWORD dwAction, const wchar_t* const wszFmt, ...);
-void      SKIF_Util_OpenURI_Threaded      (                const LPCWSTR path);
-
 extern float fAspect;
 extern float fBottomDist;
 
@@ -115,25 +98,10 @@ using  CreateDXGIFactory1_pfn = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ voi
 extern CreateDXGIFactory1_pfn
   SKIF_CreateDXGIFactory1;
 
-DWORD   SKIF_timeGetTime   (void);
-DWORD64 SKIF_timeGetTimeEx (void);
-
 const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
 const UINT_PTR IDT_REFRESH_GAMES    = 1340;
-
-void ResolveIt  (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
-bool CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
-
-struct skif_directory_watch_s
-{
-  ~skif_directory_watch_s (void);
-
-  bool isSignaled (std::wstring path);
-
-  HANDLE hChangeNotification = INVALID_HANDLE_VALUE;
-};
 
 enum class PopupState {
   Closed,

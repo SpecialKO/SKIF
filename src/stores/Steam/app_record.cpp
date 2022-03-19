@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stores/Steam/app_record.h>
+#include <SKIF_utility.h>
 
 // Shorthand, because these are way too long
 using app_launch_config_s =
@@ -212,72 +213,6 @@ app_branch_record_s::getDescAsUTF8 (void)
 }
 
 
-struct SKIF_RegistryWatch {
-  SKIF_RegistryWatch ( HKEY   hRootKey,
-              const wchar_t* wszSubKey )
-  {
-    _init.root    = hRootKey;
-    _init.sub_key = wszSubKey;
-
-    hEvent.m_h =
-        CreateEvent ( nullptr, TRUE,
-                               FALSE, L"SteamAppNotify" );
-
-    reset ();
-  }
-
-  void registerNotify (DWORD dwMask)
-  {
-    hKeyBase.NotifyChangeKeyValue (
-      TRUE, dwMask, hEvent.m_h
-    );
-  }
-
-  void reset (void)
-  {
-    hKeyBase.Close ();
-
-    if ((intptr_t)hEvent.m_h > 0)
-      ResetEvent (hEvent.m_h);
-
-    LSTATUS lStat =
-      hKeyBase.Open ( _init.root,
-                      _init.sub_key.c_str () );
-
-    if (lStat == ERROR_SUCCESS)
-    {
-      registerNotify (
-        _init.filter_mask
-      );
-    }
-  }
-
-  struct {
-    HKEY         root        = { };
-    std::wstring sub_key;
-    DWORD        filter_mask =
-      REG_NOTIFY_CHANGE_LAST_SET;
-  } _init;
-
-  CRegKey hKeyBase;
-  CHandle hEvent;
-
-  bool isSignaled (void)
-  {
-    bool signaled =
-      WaitForSingleObjectEx (
-        hEvent.m_h, 0UL, FALSE
-      ) == WAIT_OBJECT_0;
-
-    if (signaled)
-    {
-      reset ();
-    }
-
-    return signaled;
-  }
-};
-
 std::wstring
 SKIF_Steam_GetAppStateString (       AppId_t  appid,
                                const wchar_t *wszStateKey )
@@ -380,7 +315,8 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   static SKIF_RegistryWatch
     _appWatch ( HKEY_CURRENT_USER,
-                  LR"(SOFTWARE\Valve\Steam\Apps)" );
+                  LR"(SOFTWARE\Valve\Steam\Apps)",
+                    L"SteamAppNotify" );
 
   extern INT64 current_time_ms;
 

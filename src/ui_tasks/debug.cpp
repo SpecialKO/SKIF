@@ -392,6 +392,7 @@ volatile LONG SKIF_PresentIdx    =   0;
 #include <imgui/imgui_internal.h>
 #include "../../version.h"
 #include <fsutil.h>
+#include <SKIF_utility.h>
 
 extern SKIF_InjectionContext _inject;
 
@@ -1387,8 +1388,8 @@ SKIF_Debug_DrawUI (void)
 
     static DWORD
          dwLastRefresh = 0;
-    if ( dwLastRefresh + 500 < SKIF_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
-    {    dwLastRefresh       = SKIF_timeGetTime ();
+    if ( dwLastRefresh + 500 < SKIF_Util_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
+    {    dwLastRefresh       = SKIF_Util_timeGetTime ();
       standby_list.clear ();
       _Standby32.clear   ();
       _Standby64.clear   ();

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <json.hpp>
 #include <SKIF.h>
+#include <SKIF_utility.h>
 
 
 /*
@@ -132,7 +133,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                     // If we have found a partial path, construct the assumed full path
                     if (! virtualFolder.empty())
-                      virtualFolder = SK_FormatStringW(LR"(%ws\%ws\Content\)", virtualFolder.c_str(), SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
+                      virtualFolder = SK_FormatStringW(LR"(%ws\%ws\Content\)", virtualFolder.c_str(), SK_UTF8ToWideChar(SKIF_Util_ReplaceInvalidFilenameChars(record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
 
                     // Ensure that it actually exists before we swap it in!
                     if (PathFileExists(virtualFolder.c_str()))
@@ -297,7 +298,7 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
     std::wstring query = L"https://storeedgefd.dsx.mp.microsoft.com/v8.0/sdk/products?market=US&locale=en-US&deviceFamily=Windows.Desktop";
     std::string body  = SK_FormatString(R"({ "productIds": "%s" })", StoreID.c_str());
 
-    SKIF_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
+    SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
   }
 
   std::ifstream fileStore(targetAssetPath + L"store.json");
@@ -325,7 +326,7 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
           // Strip the first two characters (//)
           assetUrl = SK_FormatString(R"(https://%s%s)", assetUrl.substr(2).c_str(), ((SKIF_bLowBandwidthMode) ? "?q=90&h=900&w=600" : ""));
 
-          SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
+          SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
         }
       }
     }

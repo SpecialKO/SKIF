@@ -23,6 +23,7 @@
 #include <wmsdk.h>
 #include <filesystem>
 #include <SKIF.h>
+#include <SKIF_utility.h>
 
 #include <injection.h>
 
@@ -35,7 +36,10 @@
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
+#include <stores/Steam/apps_ignore.h>
 #include <stores/GOG/gog_library.h>
+#include <stores/EGS/egs_library.h>
+#include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
 #include <cwctype>
@@ -48,8 +52,13 @@
 #include <string>
 #include <sstream>
 #include <concurrent_queue.h>
+#include <fsutil.h>
+#include <atlimage.h>
+#include <TlHelp32.h>
 
-#include <stores/Steam/apps_ignore.h>
+#include <patreon.png.h>
+#include <sk_icon.jpg.h>
+#include <sk_boxart.png.h>
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -58,6 +67,7 @@ static bool clickedGameLaunch,
             clickedGalaxyLaunch,
             clickedGalaxyLaunchWoSK = false,
             openedGameContextMenu   = false;
+
 
 PopupState IconMenu        = PopupState::Closed;
 PopupState ServiceMenu     = PopupState::Closed;
@@ -78,6 +88,10 @@ extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
+extern std::wstring    SKIF_EGS_AppDataPath;
+
+SKIF_DirectoryWatch    SKIF_EGS_ManifestWatch;
+
 extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
@@ -88,176 +102,6 @@ std::atomic<int> textureLoadQueueLength{ 0 };
 int getTextureLoadQueuePos() {
   return textureLoadQueueLength.fetch_add(1, std::memory_order_relaxed) + 1;
 }
-
-HINSTANCE
-SKIF_Util_ExplorePath (
-  const std::wstring_view& path )
-{
-  //return
-    //ShellExecuteW ( nullptr, L"EXPLORE",
-      //path.data (), nullptr,
-                    //nullptr, SW_SHOWNORMAL );
-
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"EXPLORE";
-    sexi.lpFile       = path.data ();
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-HINSTANCE
-SKIF_Util_ExplorePath_Formatted (
-  const wchar_t * const wszFmt,
-                        ... )
-{  static        thread_local
-        wchar_t _thread_localPath
-        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
-        {                                };
-  va_list       vArgs   =   nullptr;
-  va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath,
-    ARRAYSIZE ( _thread_localPath ),
-                        wszFmt,
-                vArgs             );
-  va_end      ( vArgs             );
-
-  //return
-    //ShellExecuteW (
-      //nullptr, L"EXPLORE",
-                //_thread_localPath,
-      //nullptr,    nullptr,
-             //SW_SHOWNORMAL
-                  //);
-
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"EXPLORE";
-    sexi.lpFile       = _thread_localPath;
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-HINSTANCE
-SKIF_Util_OpenURI (
-  const std::wstring_view& path,
-               DWORD       dwAction,
-               LPCWSTR     verb,
-               LPCWSTR     parameters)
-{
-  //return
-    //ShellExecuteW ( nullptr, L"OPEN",
-      //path.data (), nullptr,
-                    //nullptr, dwAction );
-
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = verb;
-    sexi.lpFile       = path.data ();
-    sexi.lpParameters = parameters;
-    sexi.nShow        = dwAction;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-HINSTANCE
-SKIF_Util_OpenURI_Formatted (
-          DWORD       dwAction,
-  const wchar_t * const wszFmt,
-                        ... )
-{  static        thread_local
-        wchar_t _thread_localPath
-        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
-        {                                };
-  va_list       vArgs   =   nullptr;
-  va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath,
-    ARRAYSIZE ( _thread_localPath ),
-                        wszFmt,
-                vArgs             );
-  va_end      ( vArgs             );
-
-  //return
-    //ShellExecuteW ( nullptr,
-      //L"OPEN",  _thread_localPath,
-         //nullptr,   nullptr,   dwAction
-                  //);
-
-    SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = _thread_localPath;
-    sexi.nShow        = dwAction;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-void
-SKIF_Util_OpenURI_Threaded (
-        const LPCWSTR path )
-{
-  _beginthreadex(nullptr,
-                         0,
-  [](LPVOID lpUser)->unsigned
-  {
-    LPCWSTR _path = (LPCWSTR)lpUser;
-
-    CoInitializeEx (nullptr,
-      COINIT_APARTMENTTHREADED |
-      COINIT_DISABLE_OLE1DDE
-    );
-
-    SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = _path;
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-
-    ShellExecuteExW (&sexi);
-
-    _endthreadex(0);
-
-    return 0;
-  }, (LPVOID)path, NULL, NULL);
-}
-
-#include <patreon.png.h>
-#include <sk_icon.jpg.h>
-#include <sk_boxart.png.h>
-#include <fsutil.h>
-#include <stores/EGS/egs_library.h>
-#include <atlimage.h>
-#include <TlHelp32.h>
-#include <stores/Xbox/xbox_library.h>
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
@@ -1047,7 +891,7 @@ SKIF_GameManagement_DrawTab (void)
   extern bool SKIF_bDisableGOGLibrary;
   extern bool SKIF_bDisableXboxLibrary;
 
-  if (! SKIF_bDisableEGSLibrary && skif_egs_dir_watch.isSignaled ( ))
+  if (! SKIF_bDisableEGSLibrary && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
     RepopulateGames = true;
 
   if (RepopulateGames)
@@ -1961,7 +1805,7 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     const  DWORD dwTimeout    = 850UL; // 425UL
-    static DWORD dwLastUpdate = SKIF_timeGetTime ();
+    static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
 
     struct {
       std::string text = "";
@@ -1971,7 +1815,7 @@ SKIF_GameManagement_DrawTab (void)
 
     if (bText)
     {
-      dwLastUpdate = SKIF_timeGetTime ();
+      dwLastUpdate = SKIF_Util_timeGetTime ();
 
       if (labels.search (test_))
       {
@@ -2043,7 +1887,7 @@ SKIF_GameManagement_DrawTab (void)
     }
 
     if (                       dwLastUpdate != MAXDWORD &&
-         SKIF_timeGetTime () - dwLastUpdate >
+         SKIF_Util_timeGetTime () - dwLastUpdate >
                                dwTimeout )
     {
       if (result.app_id != 0)
@@ -2778,7 +2622,7 @@ Cache=false)";
       
       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
       {
-        timeClicked = SKIF_timeGetTime ( );
+        timeClicked = SKIF_Util_timeGetTime ( );
       }
 
       // Show full title in tooltip if the title spans longer than the width of the Selectable row
@@ -2851,7 +2695,7 @@ Cache=false)";
 
       if (update)
       {
-        timeClicked = SKIF_timeGetTime ( );
+        timeClicked = SKIF_Util_timeGetTime ( );
 
         app.second._status.invalidate ();
 
@@ -3654,7 +3498,7 @@ Cache=false)";
   // Refresh running state of SKIF Custom, EGS, GOG, and Xbox titles
   static DWORD lastGameRefresh = 0;
 
-  if (SKIF_timeGetTime() > lastGameRefresh + 5000)
+  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000)
   {
     for (auto& app : apps)
     {
@@ -3739,7 +3583,7 @@ Cache=false)";
       }
     }
 
-    lastGameRefresh = SKIF_timeGetTime();
+    lastGameRefresh = SKIF_Util_timeGetTime();
   }
 
 
@@ -4208,8 +4052,7 @@ Cache=false)";
             //name = std::regex_replace(name, std::regex(R"(  )"), " ");
             */
 
-            extern std::string SKIF_StripInvalidFilenameChars (std::string);
-            name = SKIF_StripInvalidFilenameChars (name);
+            name = SKIF_Util_StripInvalidFilenameChars (name);
 
             std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
             std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str(), pApp->launch_configs[0].launch_options.c_str());
@@ -4218,7 +4061,7 @@ Cache=false)";
 
             confirmPopupTitle = "Create Shortcut";
 
-            if (CreateLink (
+            if (SKIF_Util_CreateShortcut (
                 linkPath.c_str(),
                 wszPath,
                 linkArgs.c_str(),
@@ -4555,14 +4398,14 @@ Cache=false)";
       {
         error = false;
         std::filesystem::path p   = pwszFilePath;
-        std::wstring          ext = SKIF_TowLower (p.extension().wstring());
+        std::wstring          ext = SKIF_Util_TowLower (p.extension().wstring());
 
         if (ext == L".lnk")
         {
           WCHAR szTarget   [MAX_PATH];
           WCHAR szArguments[MAX_PATH];
 
-          ResolveIt (SKIF_hWnd, (const char *)p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_hWnd, (const char *)p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
 
           std::filesystem::path p2 = szTarget;
           std::wstring productName = SKIF_GetProductName (p2.c_str());

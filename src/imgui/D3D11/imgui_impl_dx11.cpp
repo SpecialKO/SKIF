@@ -1148,7 +1148,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT (hWnd != nullptr);
 
   static bool bCanHDR         = FALSE;
-  //SKIF_IsWindows10OrGreater      () != FALSE;
+  //SKIF_Util_IsWindows10OrGreater      () != FALSE;
 
   // Create swap chain
   DXGI_SWAP_CHAIN_DESC swap_desc = { };

@@ -329,6 +329,7 @@
     <ClInclude Include="include\json.hpp" />
     <ClInclude Include="include\pugiconfig.hpp" />
     <ClInclude Include="include\pugixml.hpp" />
+    <ClInclude Include="include\SKIF_utility.h" />
     <ClInclude Include="include\stores\EGS\egs_library.h" />
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
@@ -418,6 +419,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\pugixml.cpp" />
+    <ClCompile Include="src\SKIF_utility.cpp" />
     <ClCompile Include="src\stores\EGS\egs_library.cpp" />
     <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp">

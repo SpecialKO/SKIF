@@ -42,7 +42,7 @@ it's enough to launch the game through EGS like the start menu shortcuts does, l
 
 */
 
-skif_egs_directory_watch_s skif_egs_dir_watch;
+std::wstring SKIF_EGS_AppDataPath;
 
 void
 SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
@@ -168,8 +168,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 
           // Strip invalid filename characters
-          extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
-          record.specialk.profile_dir = SKIF_StripInvalidFilenameChars (record.specialk.profile_dir);
+          record.specialk.profile_dir = SKIF_Util_StripInvalidFilenameChars (record.specialk.profile_dir);
             
           std::pair <std::string, app_record_s>
             EGS(record.names.normal, record);
@@ -209,7 +208,7 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
       SK_UTF8ToWideChar(CatalogNamespace).c_str()
     );
 
-    SKIF_GetWebResource (query, targetAssetPath + L"offer.json");
+    SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json");
   }
   
   std::ifstream fileOffer(targetAssetPath + L"offer.json");
@@ -220,24 +219,33 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
   {
     DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
   }
+
   else
   {
     try
     {
-      for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
+      if (jf["errors"].is_array())
       {
-        if (image["type"].get <std::string_view>()._Equal(R"(OfferImageTall)")) //.dump() == R"("OfferImageTall")")
+        DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+      }
+
+      else
+      {
+        for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
         {
-          // Convert the URL value to a regular string
-          std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
+          if (image["type"].get <std::string_view>()._Equal(R"(OfferImageTall)")) //.dump() == R"("OfferImageTall")")
+          {
+            // Convert the URL value to a regular string
+            std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
 
-          // Download a downscaled copy of the cover
-          extern bool            SKIF_bLowBandwidthMode;
+            // Download a downscaled copy of the cover
+            extern bool            SKIF_bLowBandwidthMode;
 
-          if (SKIF_bLowBandwidthMode)
-            assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+            if (SKIF_bLowBandwidthMode)
+              assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
-          SKIF_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+          }
         }
       }
     }
@@ -246,50 +254,4 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
 
     }
   }
-}
-
-
-bool
-skif_egs_directory_watch_s::isSignaled (void)
-{
-  bool bRet = false;
-
-  if (hChangeNotification != INVALID_HANDLE_VALUE)
-  {
-    bRet =
-      ( WAIT_OBJECT_0 ==
-          WaitForSingleObject (hChangeNotification, 0) );
-
-    if (bRet)
-    {
-      FindNextChangeNotification (
-        hChangeNotification
-      );
-    }
-  }
-  else {
-    if (! SKIF_EGS_AppDataPath.empty())
-    {
-      hChangeNotification =
-        FindFirstChangeNotificationW (
-          SKIF_EGS_AppDataPath.c_str(), FALSE,
-            FILE_NOTIFY_CHANGE_FILE_NAME
-        );
-
-      if (hChangeNotification != INVALID_HANDLE_VALUE)
-      {
-        FindNextChangeNotification (
-          hChangeNotification
-        );
-      }
-    }
-  }
-
-  return bRet;
-}
-
-skif_egs_directory_watch_s::~skif_egs_directory_watch_s(void)
-{
-  if (      hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (hChangeNotification);
 }

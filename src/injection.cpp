@@ -23,6 +23,7 @@
 #pragma once
 
 #include <SKIF.h>
+#include <SKIF_utility.h>
 #include <injection.h>
 #include <fsutil.h>
 
@@ -206,7 +207,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
             (TIMERPROC) NULL
   );
 
-  dwLastSignaled = SKIF_timeGetTime();
+  dwLastSignaled = SKIF_Util_timeGetTime();
 
   Sleep(30);
 
@@ -266,12 +267,12 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
   static bool  triedToFix = false;
 
   // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
-  if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_timeGetTime())
+  if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_Util_timeGetTime())
     forcedCheck = true;
 
   if (dir_watch.isSignaled() || forcedCheck)
   {
-    dwLastSignaled = SKIF_timeGetTime();
+    dwLastSignaled = SKIF_Util_timeGetTime();
 
     for ( auto& record : records )
     {
@@ -394,9 +395,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     else if (runState == Starting && ! triedToFix)
     {
       if (dwFailed == NULL)
-        dwFailed = SKIF_timeGetTime();
+        dwFailed = SKIF_Util_timeGetTime();
 
-      if (dwFailed + 5000 < SKIF_timeGetTime())
+      if (dwFailed + 5000 < SKIF_Util_timeGetTime())
       {
         triedToFix = true;
         dwFailed = NULL;
@@ -407,9 +408,9 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
     else if (runState == Stopping && ! triedToFix)
     {
       if (dwFailed == NULL)
-        dwFailed = SKIF_timeGetTime();
+        dwFailed = SKIF_Util_timeGetTime();
 
-      if (dwFailed + 5000 < SKIF_timeGetTime())
+      if (dwFailed + 5000 < SKIF_Util_timeGetTime())
       {
         triedToFix = true;
         dwFailed = NULL;
@@ -494,10 +495,8 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         StringCchCatW (wszCombinTime, 127, wszSystemDate);
         StringCchCatW (wszCombinTime, 127, L"_");
         StringCchCatW (wszCombinTime, 127, wszSystemTime);
-
-        extern std::wstring SKIF_StripInvalidFilenameChars (std::wstring);
         
-        std::wstring wsAltFile = std::wstring (wszFileName) + L"_" + SKIF_StripInvalidFilenameChars (wszCombinTime) + L".old";
+        std::wstring wsAltFile = std::wstring (wszFileName) + L"_" + SKIF_Util_StripInvalidFilenameChars (wszCombinTime) + L".old";
 
         // Rename it to the new "DLLName_Datestamp_Timestamp.old" name
         MoveFileExW ( wszIOFile, wsAltFile.c_str(),
@@ -1227,7 +1226,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   if (list_file.is_open())
   {
     // Requires Windows 10 1903+ (Build 18362)
-    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
     {
       list_file.imbue (
           std::locale (".UTF-8")
@@ -1304,7 +1303,7 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
   if (list_file.is_open ())
   {
     // Requires Windows 10 1903+ (Build 18362)
-    if (SKIF_IsWindowsVersionOrGreater (10, 0, 18362))
+    if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
     {
       list_file.imbue (
           std::locale (".UTF-8")

@@ -26,6 +26,65 @@
 
 #include <gsl/gsl_util>
 
+#include <sk_utility/command.h>
+
+#include <SKIF.h>
+#include <SKIF_utility.h>
+
+#include <stores/Steam/library.h>
+
+#include "../version.h"
+#include <injection.h>
+#include <font_awesome.h>
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_win32.h>
+#include <imgui/imgui_internal.h>
+#include <dxgi1_6.h>
+#include <xinput.h>
+
+#include <fsutil.h>
+#include <psapi.h>
+
+#include <fstream>
+#include <typeindex>
+
+#include <filesystem>
+#include <concurrent_queue.h>
+
+#include "imgui/d3d11/imgui_impl_dx11.h"
+#include <d3d11.h>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
+
+#include <unordered_set>
+
+#include <fonts/fa_regular_400.ttf.h>
+#include <fonts/fa_brands_400.ttf.h>
+#include <fonts/fa_solid_900.ttf.h>
+
+
+#include <wtypes.h>
+#include <WinInet.h>
+
+#include <gsl/gsl>
+#include <comdef.h>
+
+#include <sstream>
+#include <cwctype>
+#include <stores/Steam/app_record.h>
+
+#include <Tlhelp32.h>
+#include <unordered_set>
+#include <json.hpp>
+
+#include <gdiplus.h>
+
+#include <dwmapi.h>
+
+#pragma comment (lib,"Gdiplus.lib")
+#pragma comment (lib, "wininet.lib")
+
 const GUID IID_IDXGIFactory5 =
   { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
 
@@ -129,35 +188,8 @@ struct SKIF_Signals {
   BOOL _Disowned     = FALSE;
 } _Signal;
 
-#include <sk_utility/command.h>
-
 extern        SK_ICommandProcessor*
   __stdcall SK_GetCommandProcessor (void);
-
-#include <SKIF.h>
-
-#include <stores/Steam/library.h>
-
-#include "../version.h"
-#include <injection.h>
-#include <font_awesome.h>
-
-#include <imgui/imgui.h>
-#include <imgui/imgui_impl_win32.h>
-#include <imgui/imgui_internal.h>
-#include <dxgi1_6.h>
-#include <xinput.h>
-
-#include <fsutil.h>
-#include <psapi.h>
-
-#include <fstream>
-#include <typeindex>
-
-#include <filesystem>
-#include <concurrent_queue.h>
-
-#pragma comment (lib, "wininet.lib")
 
 PopupState UpdatePromptPopup    = PopupState::Closed;
 HMODULE hModSKIF     = nullptr;
@@ -187,118 +219,6 @@ static GetSystemMetricsForDpi_pfn
 #define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
 #endif
 
-DWORD SKIF_timeGetTime (void)
-{
-  static LARGE_INTEGER qpcFreq = { };
-         LARGE_INTEGER li      = { };
-
-  using timeGetTime_pfn =
-          DWORD (WINAPI *)(void);
-  static timeGetTime_pfn
-   winmm_timeGetTime     = nullptr;
-
-  if (  winmm_timeGetTime == nullptr || qpcFreq.QuadPart == 1)
-  {
-    if (winmm_timeGetTime == nullptr)
-    {
-      HMODULE hModWinMM =
-        LoadLibraryEx ( L"winmm.dll", nullptr,
-                          LOAD_LIBRARY_SEARCH_SYSTEM32 );
-        winmm_timeGetTime =
-             (timeGetTime_pfn)GetProcAddress (hModWinMM,
-             "timeGetTime"                   );
-    }
-
-    return winmm_timeGetTime != nullptr ?
-           winmm_timeGetTime ()         : static_cast <DWORD> (-1);
-  }
-
-  if (QueryPerformanceCounter (&li))
-  {
-    if (qpcFreq.QuadPart == 0 && QueryPerformanceFrequency (&qpcFreq) == FALSE)
-    {   qpcFreq.QuadPart  = 1;
-
-      return rand ();
-    }
-
-    return
-      static_cast <DWORD> ( li.QuadPart /
-                      (qpcFreq.QuadPart / 1000ULL) );
-  }
-
-  return static_cast <DWORD> (-1);
-}
-
-BOOL
-SKIF_IsWindows8Point1OrGreater (void)
-{
-  SK_RunOnce (
-    SetLastError (NO_ERROR)
-  );
-
-  static BOOL
-    bResult =
-      GetProcAddress (
-        GetModuleHandleW (L"kernel32.dll"),
-                           "GetSystemTimePreciseAsFileTime"
-                     ) != nullptr &&
-      GetLastError  () == NO_ERROR;
-
-  return bResult;
-}
-
-BOOL
-SKIF_IsWindows10OrGreater (void)
-{
-  SK_RunOnce (
-    SetLastError (NO_ERROR)
-  );
-
-  static BOOL
-    bResult =
-      GetProcAddress (
-        GetModuleHandleW (L"kernel32.dll"),
-                           "SetThreadDescription"
-                     ) != nullptr &&
-      GetLastError  () == NO_ERROR;
-
-  return bResult;
-}
-
-#ifndef NT_SUCCESS
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
-#endif
-
-BOOL
-SKIF_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
-{
-  NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
-
-  OSVERSIONINFOEXW
-    osInfo                     = { };
-    osInfo.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
-
-  *reinterpret_cast<FARPROC *>(&RtlGetVersion) =
-    GetProcAddress (GetModuleHandleW (L"ntdll"), "RtlGetVersion");
-
-  if (RtlGetVersion != nullptr)
-  {
-    if (NT_SUCCESS (RtlGetVersion (&osInfo)))
-    {
-      return
-        ( osInfo.dwMajorVersion   >  dwMajorVersion ||
-          ( osInfo.dwMajorVersion == dwMajorVersion &&
-            osInfo.dwMinorVersion >= dwMinorVersion &&
-            osInfo.dwBuildNumber  >= dwBuildNumber  )
-        );
-    }
-  }
-
-  return FALSE;
-}
-
-#include <dwmapi.h>
-
 HRESULT
 WINAPI
 SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
@@ -327,10 +247,6 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 float fAspect     = 16.0f / 9.0f;
 float fBottomDist = 0.0f;
 
-#include "imgui/d3d11/imgui_impl_dx11.h"
-#include <d3d11.h>
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
 ID3D11Device*           g_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
 IDXGISwapChain*         g_pSwapChain           = nullptr;
@@ -383,8 +299,6 @@ CONDITION_VARIABLE SKIF_IsFocused    = { };
 CONDITION_VARIABLE SKIF_IsNotFocused = { };
 
 extern bool SKIF_ImGui_IsFocused (void);
-
-#include <unordered_set>
 
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
@@ -489,9 +403,9 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
         HoverTipActive = true;
 
         if ( HoverTipDuration == 0)
-          HoverTipDuration = SKIF_timeGetTime ( );
+          HoverTipDuration = SKIF_Util_timeGetTime ( );
 
-        else if ( HoverTipDuration + 500 < SKIF_timeGetTime() )
+        else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
           ImGui::SetTooltip (
             "%hs", szText.data ()
           );
@@ -821,10 +735,6 @@ auto SKIF_ImGui_LoadFont =
   return (ImFont *)nullptr;
 };
 
-#include <fonts/fa_regular_400.ttf.h>
-#include <fonts/fa_brands_400.ttf.h>
-#include <fonts/fa_solid_900.ttf.h>
-
 namespace skif_fs = std::filesystem;
 
 auto
@@ -875,7 +785,7 @@ SKIF_ImGui_InitFonts =
     // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
     if (SKIF_bFontJapanese && acp == 932)
     {
-      if (SKIF_IsWindows10OrGreater ( ))
+      if (SKIF_Util_IsWindows10OrGreater ( ))
         SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
       else
         SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
@@ -890,7 +800,7 @@ SKIF_ImGui_InitFonts =
     // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
     if (SKIF_bFontJapanese && acp != 932)
     {
-      if (SKIF_IsWindows10OrGreater ( ))
+      if (SKIF_Util_IsWindows10OrGreater ( ))
         SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
       else
         SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
@@ -1372,266 +1282,6 @@ SKIF_GetPatrons (void)
   }
 
   return "";
-}
-
-
-#include <wtypes.h>
-#include <WinInet.h>
-
-#include <gsl/gsl>
-#include <comdef.h>
-
-struct skif_get_web_uri_t {
-  wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
-  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH] = { };
-  wchar_t wszLocalPath[MAX_PATH + 2] = { };
-  LPCWSTR method = L"GET";
-  std::string body;
-  std::wstring header;
-};
-
-DWORD
-WINAPI
-SKIF_GetWebUri (skif_get_web_uri_t* get)
-{
-  ULONG ulTimeout = 5000UL;
-
-  PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
-  HINTERNET hInetHTTPGetReq  = nullptr,
-            hInetHost        = nullptr,
-  hInetRoot                  =
-    InternetOpen (
-      L"Special K - Asset Crawler",
-        INTERNET_OPEN_TYPE_DIRECT,
-          nullptr, nullptr,
-            0x00
-    );
-
-  // (Cleanup On Error)
-  auto CLEANUP = [&](bool clean = false) ->
-  DWORD
-  {
-    if (! clean)
-    {
-      DWORD dwLastError =
-           GetLastError ();
-
-      OutputDebugStringW (
-        ( std::wstring (L"WinInet Failure (") +
-              std::to_wstring (dwLastError)   +
-          std::wstring (L"): ")               +
-                 _com_error   (dwLastError).ErrorMessage ()
-        ).c_str ()
-      );
-    }
-
-    if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
-    if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
-    if (hInetRoot       != nullptr) InternetCloseHandle (hInetRoot);
-
-    skif_get_web_uri_t*     to_delete = nullptr;
-    std::swap   (get,   to_delete);
-    delete              to_delete;
-
-    return 0;
-  };
-
-  if (hInetRoot == nullptr)
-    return CLEANUP ();
-
-  DWORD_PTR dwInetCtx = 0;
-
-  hInetHost =
-    InternetConnect ( hInetRoot,
-                        get->wszHostName,
-                          INTERNET_DEFAULT_HTTP_PORT,
-                            nullptr, nullptr,
-                              INTERNET_SERVICE_HTTP,
-                                0x00,
-                                  (DWORD_PTR)&dwInetCtx );
-
-  if (hInetHost == nullptr)
-  {
-    return CLEANUP ();
-  }
-
-  hInetHTTPGetReq =
-    HttpOpenRequest ( hInetHost,
-                        get->method,
-                          get->wszHostPath,
-                            L"HTTP/1.1",
-                              nullptr,
-                                rgpszAcceptTypes,
-                                                                    INTERNET_FLAG_IGNORE_CERT_DATE_INVALID |
-                                  INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
-                                  INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
-                                    (DWORD_PTR)&dwInetCtx );
-
-  // Wait 2500 msecs for a dead connection, then give up
-  //
-  InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
-                         &ulTimeout,    sizeof (ULONG) );
-
-  if (hInetHTTPGetReq == nullptr)
-  {
-    return CLEANUP ();
-  }
-
-  if ( HttpSendRequestW ( hInetHTTPGetReq,
-                            get->header.c_str(),
-                              get->header.length(),
-                                (LPVOID)get->body.c_str(),
-                                  (DWORD)get->body.size() ) )
-  {
-
-    DWORD dwStatusCode        = 0;
-    DWORD dwStatusCode_Len    = sizeof (DWORD);
-
-    DWORD dwContentLength     = 0;
-    DWORD dwContentLength_Len = sizeof (DWORD);
-    DWORD dwSizeAvailable;
-
-    HttpQueryInfo ( hInetHTTPGetReq,
-                     HTTP_QUERY_STATUS_CODE |
-                     HTTP_QUERY_FLAG_NUMBER,
-                       &dwStatusCode,
-                         &dwStatusCode_Len,
-                           nullptr );
-
-    if (dwStatusCode == 200)
-    {
-      HttpQueryInfo ( hInetHTTPGetReq,
-                        HTTP_QUERY_CONTENT_LENGTH |
-                        HTTP_QUERY_FLAG_NUMBER,
-                          &dwContentLength,
-                            &dwContentLength_Len,
-                              nullptr );
-
-      std::vector <char> http_chunk;
-      std::vector <char> concat_buffer;
-
-      while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
-                                             &dwSizeAvailable,
-                                               0x00, NULL )
-        )
-      {
-        if (dwSizeAvailable > 0)
-        {
-          DWORD dwSizeRead = 0;
-
-          if (http_chunk.size () < dwSizeAvailable)
-              http_chunk.resize   (dwSizeAvailable);
-
-          if ( InternetReadFile ( hInetHTTPGetReq,
-                                    http_chunk.data (),
-                                      dwSizeAvailable,
-                                        &dwSizeRead )
-             )
-          {
-            if (dwSizeRead == 0)
-              break;
-
-            concat_buffer.insert ( concat_buffer.cend   (),
-                                    http_chunk.cbegin   (),
-                                      http_chunk.cbegin () + dwSizeRead );
-
-            if (dwSizeRead < dwSizeAvailable)
-              break;
-          }
-        }
-
-        else
-          break;
-      }
-
-      FILE *fOut =
-        _wfopen ( get->wszLocalPath, L"wb+" );
-
-      if (fOut != nullptr)
-      {
-        fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
-        fclose (fOut);
-      }
-    }
-  }
-
-  CLEANUP (true);
-
-  return 1;
-}
-
-void
-SKIF_GetWebResource (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "")
-{
-  auto* get =
-    new skif_get_web_uri_t { };
-
-  URL_COMPONENTSW urlcomps = { };
-
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
-
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
-
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
-
-  if (!method.empty())
-    get->method = method.c_str();
-
-  if (!header.empty())
-    get->header = header.c_str();
-
-  if (!body.empty())
-    get->body = body;
-
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
-  {
-    wcsncpy ( get->wszLocalPath,
-                           destination.data (),
-                       MAX_PATH );
-
-    SKIF_GetWebUri (get);
-  }
-}
-
-void
-SKIF_GetWebResourceThreaded (std::wstring url, std::wstring_view destination)
-{
-  auto* get =
-    new skif_get_web_uri_t { };
-
-  URL_COMPONENTSW urlcomps = { };
-
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
-
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
-
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
-
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
-  {
-    wcsncpy ( get->wszLocalPath,
-                           destination.data (),
-                       MAX_PATH );
-
-    _beginthreadex (
-       nullptr, 0, (_beginthreadex_proc_type)SKIF_GetWebUri,
-           get, 0x0, nullptr
-                   );
-  }
 }
 
 struct skif_version_info_t {
@@ -2181,17 +1831,6 @@ SKIF_VersionControl::CheckForUpdates ( const wchar_t *wszProduct,
   return true;
 }
 
-
-BOOL
-WINAPI
-SKIF_Util_CompactWorkingSet (void)
-{
-  return
-    EmptyWorkingSet (
-      GetCurrentProcess ()
-    );
-}
-
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
 HWND hWndOrigForeground;
@@ -2207,17 +1846,6 @@ constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
 
-#include <sstream>
-#include <cwctype>
-#include <stores/Steam/app_record.h>
-
-std::wstring
-SKIF_TowLower (std::wstring_view input)
-{
-  std::wstring copy = std::wstring(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towlower(c); });
-  return copy;
-}
 
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
@@ -2309,7 +1937,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::wstring cmdLineArgs    = cmdLine;
 
     // Transform to lowercase
-    std::wstring cmdLineLower   = SKIF_TowLower (cmdLine);
+    std::wstring cmdLineLower   = SKIF_Util_TowLower (cmdLine);
 
     std::wstring splitPos1Lower = L"addgame="; // Start split
     std::wstring splitEXELower  = L".exe";     // Stop split (exe)
@@ -2327,7 +1955,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
     // Update lowercase
-    cmdLineLower   = SKIF_TowLower (cmdLine);
+    cmdLineLower   = SKIF_Util_TowLower (cmdLine);
 
     // If .exe is part of the string
     if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
@@ -2348,7 +1976,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       WCHAR szTarget   [MAX_PATH];
       WCHAR szArguments[MAX_PATH];
 
-      ResolveIt (SKIF_hWnd, SK_WideCharToUTF8(cmdLine).c_str(), szTarget, szArguments, MAX_PATH);
+      SKIF_Util_ResolveShortcut (SKIF_hWnd, SK_WideCharToUTF8(cmdLine).c_str(), szTarget, szArguments, MAX_PATH);
 
       cmdLine     = std::wstring(szTarget);
       cmdLineArgs = std::wstring(szArguments);
@@ -2412,7 +2040,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
     // Transform to lowercase
-    std::wstring cmdLineLower = SKIF_TowLower (cmdLine);
+    std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
 
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
@@ -2543,7 +2171,7 @@ SKIF_RegisterApp (void)
 bool
 SKIF_hasControlledFolderAccess (void)
 {
-  if (! SKIF_IsWindows10OrGreater ( ))
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
     return false;
 
   HKEY hKey;
@@ -2588,10 +2216,6 @@ void SKIF_putStopOnInjection (bool in)
   if (_inject.bCurrentState)
     _inject._ToggleOnDemand (in);
 }
-
-#include <Tlhelp32.h>
-#include <unordered_set>
-#include <json.hpp>
 
 bool
 SK_IsProcessAdmin (PROCESSENTRY32W proc)
@@ -2657,9 +2281,6 @@ SK_FindProcessByName (const wchar_t* wszName)
 
   return none;
 }
-
-#include <gdiplus.h>
-#pragma comment (lib,"Gdiplus.lib")
 
 bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 {
@@ -2727,182 +2348,6 @@ bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
   }
 
   return ret;
-}
-
-std::wstring SKIF_StripInvalidFilenameChars (std::wstring name)
-{
-  // Non-trivial name = custom path, remove the old-style <program.exe>
-  if (! name.empty())
-  {
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                                    [](wchar_t tval)
-                                    {
-                                      static
-                                      const std::unordered_set <wchar_t>
-                                        invalid_file_char =
-                                        {
-                                          L'\\', L'/', L':',
-                                          L'*',  L'?', L'\"',
-                                          L'<',  L'>', L'|',
-                                        //L'&',
-
-                                          //
-                                          // Obviously a period is not an invalid character,
-                                          //   but three of them in a row messes with
-                                          //     Windows Explorer and some Steam games use
-                                          //       ellipsis in their titles.
-                                          //
-                                          L'.'
-                                        };
-
-                                      return
-                                        ( invalid_file_char.find (tval) !=
-                                          invalid_file_char.end  (    ) );
-                                    }
-                                ),
-
-                     name.end ()
-               );
-
-    // Strip trailing spaces from name, these are usually the result of
-    //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == L' ') *it = L'\0';
-      else                   break;
-    }
-  }
-
-  return name;
-}
-
-std::string SKIF_StripInvalidFilenameChars (std::string name)
-{
-  // Non-trivial name = custom path, remove the old-style <program.exe>
-  if (! name.empty())
-  {
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                                    [](char tval)
-                                    {
-                                      static
-                                      const std::unordered_set <char>
-                                        invalid_file_char =
-                                        {
-                                          '\\', '/', ':',
-                                          '*',  '?', '\"',
-                                          '<',  '>', '|',
-                                        //L'&',
-
-                                          //
-                                          // Obviously a period is not an invalid character,
-                                          //   but three of them in a row messes with
-                                          //     Windows Explorer and some Steam games use
-                                          //       ellipsis in their titles.
-                                          //
-                                          '.'
-                                        };
-
-                                      return
-                                        ( invalid_file_char.find (tval) !=
-                                          invalid_file_char.end  (    ) );
-                                    }
-                                ),
-
-                     name.end ()
-               );
-
-    // Strip trailing spaces from name, these are usually the result of
-    //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == ' ') *it = '\0';
-      else                   break;
-    }
-  }
-
-  return name;
-}
-
-
-std::wstring SKIF_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
-{
-  if (! name.empty())
-  {
-    std::replace_if ( name.begin (),
-                      name.end   (),
-
-                        [](wchar_t tval)
-                        {
-                          static
-                          const std::unordered_set <wchar_t>
-                            invalid_file_char =
-                            {
-                              '\\', '/', ':',
-                              '*',  '?', '\"',
-                              '<',  '>', '|',
-                            //L'&',
-
-                              //
-                              // Obviously a period is not an invalid character,
-                              //   but three of them in a row messes with
-                              //     Windows Explorer and some Steam games use
-                              //       ellipsis in their titles.
-                              //
-                              '.'
-                            };
-
-                          return
-                            ( invalid_file_char.find (tval) !=
-                              invalid_file_char.end  (    ) );
-                        }
-                    , replacement
-                   );
-  }
-
-  return name;
-}
-
-
-std::string SKIF_ReplaceInvalidFilenameChars (std::string name, char replacement)
-{
-  if (! name.empty())
-  {
-    std::replace_if ( name.begin (),
-                      name.end   (),
-
-                        [](char tval)
-                        {
-                          static
-                          const std::unordered_set <char>
-                            invalid_file_char =
-                            {
-                              '\\', '/', ':',
-                              '*',  '?', '\"',
-                              '<',  '>', '|',
-                            //L'&',
-
-                              //
-                              // Obviously a period is not an invalid character,
-                              //   but three of them in a row messes with
-                              //     Windows Explorer and some Steam games use
-                              //       ellipsis in their titles.
-                              //
-                              '.'
-                            };
-
-                          return
-                            ( invalid_file_char.find (tval) !=
-                              invalid_file_char.end  (    ) );
-                        }
-                    , replacement
-                   );
-  }
-
-  return name;
 }
 
 
@@ -2994,7 +2439,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       // Download repository.json if it does not exist or if we're forcing an update
       if (! PathFileExists(path.c_str()) || SKIF_iCheckForUpdates == 2)
       {
-        SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+        SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
       }
       else {
         WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
@@ -3023,7 +2468,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
             // Compare with system time, and if system time is later (1), then update the local cache
             if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
             {
-              SKIF_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+              SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
             }
           }
         }
@@ -3141,7 +2586,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                 _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
 
                 if (! PathFileExists ((root + filename).c_str()) && _res->description != SKIF_wsIgnoreUpdate)
-                  SKIF_GetWebResource (branchInstaller, root + filename);
+                  SKIF_Util_GetWebResource (branchInstaller, root + filename);
               }
 
               // Found right branch -- no need to check more since versions are sorted newest to oldest
@@ -3166,160 +2611,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
     return results;
   else
     return SKIF_UpdateCheckResults();
-}
-
-
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#resolving-a-shortcut
-//
-// ResolveIt - Uses the Shell's IShellLink and IPersistFile interfaces
-//             to retrieve the path and description from an existing shortcut.
-//
-// Returns the result of calling the member functions of the interfaces.
-//
-// Parameters:
-// hwnd         - A handle to the parent window. The Shell uses this window to
-//                display a dialog box if it needs to prompt the user for more
-//                information while resolving the link.
-// lpszLinkFile - Address of a buffer that contains the path of the link,
-//                including the file name.
-// lpszPath     - Address of a buffer that receives the path of the link target,
-//                including the file name.
-// lpszDesc     - Address of a buffer that receives the description of the
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-void
-ResolveIt(HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
-{
-  IShellLink* psl;
-
-  ///WCHAR szGotPath[MAX_PATH];
-  WCHAR szArguments[MAX_PATH];
-  WCHAR szTarget  [MAX_PATH];
-  //WIN32_FIND_DATA wfd;
-
-  *lpszTarget    = 0; // Assume failure
-  *lpszArguments = 0; // Assume failure
-
-  //CoInitializeEx (nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface.
-  if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
-  {
-    IPersistFile* ppf;
-
-    // Get a pointer to the IPersistFile interface.
-    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
-    {
-      WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode.
-      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
-
-      // Add code here to check return value from MultiByteWideChar
-      // for success.
-
-      // Load the shortcut.
-      if (SUCCEEDED(ppf->Load(wsz, STGM_READ)))
-      {
-        // Disables the UI and hopefully sets a timeout duration of 10ms,
-        //   since we don't actually care all that much about resolving the target.
-        DWORD flags = MAKELONG(SLR_NO_UI, 10);
-
-        // Resolve the link.
-        if (SUCCEEDED(psl->Resolve(hwnd, flags)))
-        {
-          // Get the link target.
-          if (SUCCEEDED(psl->GetPath(szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
-            StringCbCopy(lpszTarget, iPathBufferSize, szTarget);
-
-          // Get the arguments of the target.
-          if (SUCCEEDED(psl->GetArguments(szArguments, MAX_PATH)))
-            StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
-        }
-      }
-
-      // Release the pointer to the IPersistFile interface.
-      ppf->Release();
-    }
-
-    // Release the pointer to the IShellLink interface.
-    psl->Release();
-  }
-}
-
-//
-// https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
-// 
-// CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
-//              to create and store a shortcut to the specified object. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-// Parameters:
-// lpszPathObj  - Address of a buffer that contains the path of the object,
-//                including the file name.
-// lpszPathLink - Address of a buffer that contains the path where the 
-//                Shell link is to be stored, including the file name.
-// lpszDesc     - Address of a buffer that contains a description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
-
-bool
-CreateLink (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs, LPCWSTR lpszWorkDir, LPCWSTR lpszDesc, LPCWSTR lpszIconLocation, int iIcon)
-{
-  bool ret = false;
-  IShellLink* psl;
-
-  //CoInitializeEx (nullptr, 0x0);
-
-  // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-  // has already been called.
-
-  if (SUCCEEDED (CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
-  {
-    IPersistFile* ppf;
-
-    // Set the specifics of the shortcut. 
-    psl->SetPath               (lpszTarget);
-
-    if (wcscmp(lpszWorkDir, L"\0") == 0) // lpszWorkDir == L"\0"
-      psl->SetWorkingDirectory (std::filesystem::path(lpszTarget).parent_path().c_str());
-    else
-      psl->SetWorkingDirectory (lpszWorkDir);
-
-    if (wcscmp(lpszArgs, L"\0") != 0) // lpszArgs != L"\0"
-      psl->SetArguments          (lpszArgs);
-
-    if (wcscmp(lpszDesc, L"\0") != 0) // lpszDesc != L"\0"
-      psl->SetDescription      (lpszDesc);
-
-    if (wcscmp(lpszIconLocation, L"\0") != 0) // (lpszIconLocation != L"\0")
-      psl->SetIconLocation     (lpszIconLocation, iIcon);
-
-    // Query IShellLink for the IPersistFile interface, used for saving the 
-    // shortcut in persistent storage. 
-    //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-
-    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
-    {
-
-      //WCHAR wsz[MAX_PATH];
-
-      // Ensure that the string is Unicode. 
-      //MultiByteToWideChar (CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
-
-      // Save the link by calling IPersistFile::Save. 
-      if (SUCCEEDED (ppf->Save(lpszPathLink, FALSE)))
-        ret = true;
-
-      ppf->Release();
-    }
-    psl->Release();
-  }
-
-  return ret;
 }
 
 void SKIF_CreateUpdateNotifyMenu (void)
@@ -3387,19 +2678,6 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
   }
-}
-
-std::wstring SKIF_GetLastError (void)
-{
-  LPWSTR messageBuffer = nullptr;
-
-  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                NULL, GetLastError ( ), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
-
-  std::wstring message (messageBuffer, size);
-  LocalFree (messageBuffer);
-
-  return message;
 }
 
 void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst = nullptr)
@@ -3656,7 +2934,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
   for ( auto& p : Platforms )
   {
-    if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
+    if ( dwLastRefresh + 1000 < SKIF_Util_timeGetTime ())
         p.Refresh ( ); // Timer has expired, refresh
 
     if (p.isRunning)
@@ -3708,55 +2986,10 @@ void SKIF_UI_DrawPlatformStatus (void)
 #endif
   }
 
-  if ( dwLastRefresh + 1000 < SKIF_timeGetTime ())
-        dwLastRefresh        = SKIF_timeGetTime (); // Set timer for next refresh
+  if ( dwLastRefresh + 1000 < SKIF_Util_timeGetTime ())
+        dwLastRefresh        = SKIF_Util_timeGetTime (); // Set timer for next refresh
 }
 
-
-bool
-skif_directory_watch_s::isSignaled (std::wstring path)
-{
-  bool bRet = false;
-
-  if (hChangeNotification != INVALID_HANDLE_VALUE)
-  {
-    bRet =
-      ( WAIT_OBJECT_0 ==
-          WaitForSingleObject (hChangeNotification, 0) );
-
-    if (bRet)
-    {
-      FindNextChangeNotification (
-        hChangeNotification
-      );
-    }
-  }
-  else {
-    if (! path.empty())
-    {
-      hChangeNotification =
-        FindFirstChangeNotificationW (
-          path.c_str(), FALSE,
-            FILE_NOTIFY_CHANGE_FILE_NAME
-        );
-
-      if (hChangeNotification != INVALID_HANDLE_VALUE)
-      {
-        FindNextChangeNotification (
-          hChangeNotification
-        );
-      }
-    }
-  }
-
-  return bRet;
-}
-
-skif_directory_watch_s::~skif_directory_watch_s(void)
-{
-  if (      hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (hChangeNotification);
-}
 
 void SKIF_SetStyle (void)
 {  
@@ -3782,6 +3015,8 @@ void SKIF_SetStyle (void)
 
 void SKIF_Initialize (void)
 {
+  //OutputDebugString(L"Initialize!\n");
+
   static bool isInitalized = false;
 
   if (! isInitalized)
@@ -3848,7 +3083,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // We don't want Steam's overlay to draw upon SKIF
   SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
-  if (! SKIF_IsWindows8Point1OrGreater ( ))
+  if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
     MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
     return 0;
@@ -4491,7 +3726,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
     if (bExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
-      static DWORD dwExitDelay = SKIF_timeGetTime();
+      static DWORD dwExitDelay = SKIF_Util_timeGetTime();
       static int iDuration = -1;
 
       if (iDuration == -1)
@@ -4511,7 +3746,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       // MessageDuration * 2 seconds delay to allow Windows to send both notifications properly
       // If notifications are disabled, exit immediately
-      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_timeGetTime() || SKIF_iNotifications == 0)
+      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_Util_timeGetTime() || SKIF_iNotifications == 0)
       {
         bExitOnInjection = false;
         PostMessage (hWnd, WM_QUIT, 0, 0);
@@ -4533,7 +3768,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       tinyDPIFonts = true;
-      invalidatedFonts = SKIF_timeGetTime();
+      invalidatedFonts = SKIF_Util_timeGetTime();
     }
 
     else if (SKIF_ImGui_GlobalDPIScale >= 1.0f && tinyDPIFonts)
@@ -4543,7 +3778,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       tinyDPIFonts = false;
-      invalidatedFonts = SKIF_timeGetTime();
+      invalidatedFonts = SKIF_Util_timeGetTime();
     }
 
     else if (invalidateFonts)
@@ -4553,7 +3788,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       invalidateFonts = false;
-      invalidatedFonts = SKIF_timeGetTime();
+      invalidatedFonts = SKIF_Util_timeGetTime();
     }
     
     // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
@@ -5041,12 +4276,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      cbBufSize {},
                                      dwError;
 
-            static DWORD dwLastRefresh = SKIF_timeGetTime();
+            static DWORD dwLastRefresh = SKIF_Util_timeGetTime();
 
             // Refresh once every 500 ms
-            if (dwLastRefresh + 500 < SKIF_timeGetTime())
+            if (dwLastRefresh + 500 < SKIF_Util_timeGetTime())
             {
-              dwLastRefresh = SKIF_timeGetTime();
+              dwLastRefresh = SKIF_Util_timeGetTime();
 
               // Reset the current status to not installed.
               _status = NotInstalled;
@@ -5846,7 +5081,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               // S-1-5-4      = NT AUTHORITY\INTERACTIVE           == Any interactive user sessions
               // S-1-5-32-559 =     BUILT-IN\Performance Log Users == Members of this group may schedule logging of performance counters, enable trace providers, and collect event traces both locally and via remote access to this computer
 
-              if (SKIF_IsWindows10OrGreater ( )) // On Windows 10, use the native PowerShell cmdlet Add-LocalGroupMember since it supports SIDs
+              if (SKIF_Util_IsWindows10OrGreater ( )) // On Windows 10, use the native PowerShell cmdlet Add-LocalGroupMember since it supports SIDs
                 exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")";
               else                               // Windows 8.1 lacks Add-LocalGroupMember, so fall back on using WMI (to retrieve the localized names of the group and user) and NET to add the user to the group
                 exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "$Group = (Get-WmiObject -Class Win32_Group -Filter 'LocalAccount = True AND SID = \"S-1-5-32-559\"').Name; $User = (Get-WmiObject -Class Win32_SystemAccount -Filter 'LocalAccount = True AND SID = \"S-1-5-4\"').Name; net localgroup \"$Group\" \"$User\" /add")";
@@ -7042,7 +6277,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine    ( 0.0f, fNewPos );
 
           auto current_time =
-            SKIF_timeGetTime ();
+            SKIF_Util_timeGetTime ();
 
           ImGui::SetCursorPosY (
             ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
@@ -7280,8 +6515,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       _inject.TestServletRunlevel       ();
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
-      static skif_directory_watch_s root_folder, version_folder;
-      if (root_folder.isSignaled (std::filesystem::current_path ( )))
+      static SKIF_DirectoryWatch root_folder, version_folder;
+      if (root_folder.isSignaled (std::filesystem::current_path ( ).wstring ( )))
       {
         // If the Special K DLL file is currently loaded, unload it
         if (hModSpecialK != 0)
@@ -7463,11 +6698,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // This allows us to compact the working set on launch
       SK_RunOnce (
-        invalidatedFonts = SKIF_timeGetTime ( )
+        invalidatedFonts = SKIF_Util_timeGetTime ( )
       );
 
       if (invalidatedFonts > 0 &&
-          invalidatedFonts + 500 < SKIF_timeGetTime())
+          invalidatedFonts + 500 < SKIF_Util_timeGetTime())
       {
         SKIF_Util_CompactWorkingSet ();
         invalidatedFonts = 0;
@@ -7506,13 +6741,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       static UINT
           uiLastMove = 0;
-      if (uiLastMove > SKIF_timeGetTime () - uiMinMousePeriod)
+      if (uiLastMove > SKIF_Util_timeGetTime () - uiMinMousePeriod)
       {
         bRefresh = false;
       }
 
       else
-        uiLastMove = SKIF_timeGetTime ();
+        uiLastMove = SKIF_Util_timeGetTime ();
     }
 
     if (bDwmTiming)
@@ -7718,9 +6953,9 @@ bool CreateDeviceD3D (HWND hWnd)
                                               );
 
   SKIF_bCanFlip               =
-    SKIF_IsWindows8Point1OrGreater () != FALSE,
+    SKIF_Util_IsWindows8Point1OrGreater () != FALSE,
   SKIF_bCanFlipDiscard        =
-    SKIF_IsWindows10OrGreater      () != FALSE;
+    SKIF_Util_IsWindows10OrGreater      () != FALSE;
 
   // Overrides
 //SKIF_bAllowTearing          = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
@@ -7876,7 +7111,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_REFRESHGAMES:
-      RepopulateGamesWasSet = SKIF_timeGetTime();
+      RepopulateGamesWasSet = SKIF_Util_timeGetTime();
       RepopulateGames = true;
       SelectNewSKIFGame = (uint32_t)wParam;
 
@@ -7924,7 +7159,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
           if (wParam == IDT_REFRESH_GAMES && RepopulateGamesWasSet != 0)
           {
-            if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_timeGetTime())
+            if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_Util_timeGetTime())
             {
               RepopulateGamesWasSet = 0;
               KillTimer  (SKIF_hWnd, IDT_REFRESH_GAMES);
