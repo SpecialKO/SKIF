@@ -4829,8 +4829,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
       );
 
+      if ( (io.KeyCtrl && io.KeysDown['R']    && io.KeysDownDuration['R']    == 0.0f) ||
+           (              io.KeysDown[VK_F5]  && io.KeysDownDuration[VK_F5]  == 0.0f)
+         )
+      {
+        RepopulateGames = true;
+      }
+
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
-           (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f)         ||
+           (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
             ImGui::Button ( (SKIF_bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
                                             : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
