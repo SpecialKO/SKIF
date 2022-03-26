@@ -84,6 +84,8 @@ std::string confirmPopupText;
 extern int             SKIF_iStyle;
 extern bool            SKIF_bLowBandwidthMode;
 extern bool            SKIF_bDisableBorders;
+extern bool            SKIF_bMinimizeOnGameLaunch;
+extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
@@ -763,7 +765,7 @@ struct {
 Trie labels;
 
 void
-SKIF_GameManagement_DrawTab (void)
+SKIF_UI_Tab_DrawLibrary (void)
 {
   /*
   if (! sshot_file.empty ())
@@ -2439,6 +2441,9 @@ Cache=false)";
 
             ShellExecuteExW (&sexi);
           }
+
+          if (SKIF_bMinimizeOnGameLaunch)
+            ShowWindow (SKIF_hWnd, SW_MINIMIZE);
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3718,6 +3723,9 @@ Cache=false)";
                                 SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
             ShellExecuteExW (&sexi);
+
+            if (SKIF_bMinimizeOnGameLaunch)
+              ShowWindow (SKIF_hWnd, SW_MINIMIZE);
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }

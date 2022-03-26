@@ -81,10 +81,14 @@ void SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
 void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
 bool SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);
 void SKIF_ImGui_OptImage           (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
-
+void SKIF_ImGui_Columns            (int columns_count, const char* id, bool border, bool resizeble = false);
 void SKIF_ImGui_Spacing            (float multiplier = 0.25f);
 
+extern float SKIF_ImGui_GlobalDPIScale;
+extern float SKIF_ImGui_GlobalDPIScale_Last;
+
 void SKIF_UI_DrawPlatformStatus    (void);
+void SKIF_UI_DrawComponentVersion  (void);
 
 void  SKIF_SetHDRWhiteLuma    (float fLuma);
 FLOAT SKIF_GetHDRWhiteLuma    (void);
@@ -116,3 +120,14 @@ extern PopupState AddGamePopup;
 extern PopupState RemoveGamePopup;
 extern PopupState ModifyGamePopup;
 extern PopupState ConfirmPopup;
+
+enum UITab {
+  None,
+  Injection,
+  Settings,
+  Help,
+  Debug
+};
+
+extern UITab SKIF_Tab_Selected;
+extern UITab SKIF_Tab_ChangeTo;

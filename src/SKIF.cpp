@@ -31,7 +31,7 @@
 #include <SKIF.h>
 #include <SKIF_utility.h>
 
-#include <stores/Steam/library.h>
+#include <stores/Steam/steam_library.h>
 
 #include "../version.h"
 #include <injection.h>
@@ -63,6 +63,7 @@
 #include <fonts/fa_brands_400.ttf.h>
 #include <fonts/fa_solid_900.ttf.h>
 
+#include <stores/Steam/app_record.h>
 
 #include <wtypes.h>
 #include <WinInet.h>
@@ -72,7 +73,6 @@
 
 #include <sstream>
 #include <cwctype>
-#include <stores/Steam/app_record.h>
 
 #include <Tlhelp32.h>
 #include <unordered_set>
@@ -81,6 +81,7 @@
 #include <gdiplus.h>
 
 #include <dwmapi.h>
+#include <ui_tabs/about.h>
 
 #pragma comment (lib,"Gdiplus.lib")
 #pragma comment (lib, "wininet.lib")
@@ -140,7 +141,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontThai                = false,
      SKIF_bFontVietnamese          = false,
      SKIF_bLowBandwidthMode        = false,
-     SKIF_bPreferGOGGalaxyLaunch   = false;
+     SKIF_bPreferGOGGalaxyLaunch   = false,
+     SKIF_bMinimizeOnGameLaunch    = false;
 
 std::wstring 
      SKIF_wsIgnoreUpdate,
@@ -182,7 +184,7 @@ struct SKIF_Signals {
   BOOL Quit          = FALSE;
   BOOL Minimize      = FALSE;
   BOOL Restore       =  TRUE;
-  BOOL QuickLaunch   = FALSE;
+  BOOL Launcher      = FALSE;
   BOOL AddSKIFGame   = FALSE;
 
   BOOL _Disowned     = FALSE;
@@ -192,6 +194,9 @@ extern        SK_ICommandProcessor*
   __stdcall SK_GetCommandProcessor (void);
 
 PopupState UpdatePromptPopup    = PopupState::Closed;
+UITab SKIF_Tab_Selected = Injection,
+      SKIF_Tab_ChangeTo = None;
+
 HMODULE hModSKIF     = nullptr;
 HMODULE hModSpecialK = nullptr;
 
@@ -504,7 +509,7 @@ void SKIF_ImGui_OptImage (ImTextureID user_texture_id, const ImVec2& size, const
 
 // Difference from regular
 void
-SKIF_ImGui_Columns(int columns_count, const char* id, bool border, bool resizeble = false)
+SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeble)
 {
   ImGuiWindow* window = ImGui::GetCurrentWindow();
   IM_ASSERT(columns_count >= 1);
@@ -775,7 +780,7 @@ SKIF_ImGui_InitFonts =
   SKIF_ImGui_LoadFont     (L"Tahoma.ttf",   fontSize,  SK_ImGui_GetGlyphRangesDefaultEx               ()           );
 
   // Load extended character sets when SKIF is not used as a launcher
-  if (! _Signal.QuickLaunch)
+  if (! _Signal.Launcher)
   {
     // Cyrillic character set
     if (SKIF_bFontCyrillic)
@@ -1837,7 +1842,7 @@ HWND hWndOrigForeground;
 
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
 constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
-constexpr UINT WM_SKIF_QUICKLAUNCH   = WM_USER + 0x1026;
+constexpr UINT WM_SKIF_LAUNCHER      = WM_USER + 0x1026;
 constexpr UINT WM_SKIF_REFRESHGAMES  = WM_USER + 0x1027;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
@@ -1850,7 +1855,9 @@ const wchar_t* SKIF_WindowClass =
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
-  HWND hwndAlreadyExists =
+  // Static since we need to prevent a false positive when SKIF_ProxyCommandAndExitIfRunning
+  //   is called the second time after we have created the window in our own instance.
+  static HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 
   _Signal.Start =
@@ -1871,7 +1878,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.AddSKIFGame =
     StrStrIW (lpCmdLine, L"AddGame=") != NULL;
 
-  _Signal.QuickLaunch =
+  _Signal.Launcher =
     StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   if (  hwndAlreadyExists != 0 && (
@@ -1879,7 +1886,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                                    _Signal.Stop || _Signal.Start ||
                                    _Signal.Quit || _Signal.Minimize
                                   ) &&
-        _Signal.QuickLaunch == false &&
+        _Signal.Launcher == false &&
         _Signal.AddSKIFGame == false
      )
   {
@@ -1888,7 +1895,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         ! _Signal.Stop      &&
         ! _Signal.Quit      &&
         ! _Signal.Minimize  &&
-        ! _Signal.QuickLaunch)
+        ! _Signal.Launcher)
     {
       //if (IsIconic        (hwndAlreadyExists))
       //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
@@ -2027,7 +2034,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   }
   
   // Handle quick launching
-  else if (_Signal.QuickLaunch)
+  else if (_Signal.Launcher)
   {
     // Display in small mode
     SKIF_bSmallMode = true;
@@ -2063,6 +2070,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
+      //MessageBox(NULL, (L"Derp: " + blacklistFile + L"\n").c_str(), L"Debug", MB_ICONINFORMATION | MB_OK);
+      //MessageBox(NULL, (L"Derp2: " + path + L"\n").c_str(),         L"Debug", MB_ICONINFORMATION | MB_OK);
+
       // Check if the executable is blacklisted
       isLocalBlacklisted  = PathFileExistsW(blacklistFile.c_str());
       isGlobalBlacklisted = _inject._TestUserList(SK_WideCharToUTF8(path).c_str(), false);
@@ -2074,7 +2084,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
 
         if (hwndAlreadyExists != 0)
-          SendMessage (hwndAlreadyExists, WM_SKIF_QUICKLAUNCH, 0x0, 0x0);
+          SendMessage (hwndAlreadyExists, WM_SKIF_LAUNCHER, 0x0, 0x0);
 
         else if (! _inject.bCurrentState)
         {
@@ -2403,7 +2413,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 {
   if ( SKIF_iCheckForUpdates == 0 ||
        SKIF_bLowBandwidthMode     ||
-      _Signal.QuickLaunch         ||
+      _Signal.Launcher            ||
       _Signal.Temporary           ||
       _Signal.Stop                ||
       _Signal.Quit)
@@ -3080,9 +3090,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
 
-  // We don't want Steam's overlay to draw upon SKIF
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
   if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
     MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
@@ -3185,6 +3192,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Always Show Ghost)" );
 
+  static auto regKVMinimizeOnGameLaunch =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Minimize On Game Launch)" );
+
   static auto regKVCloseToTray =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
@@ -3272,6 +3283,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
+  SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   /* is handled dynamically now
@@ -3318,6 +3330,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     GetForegroundWindow ();
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+
+  // We don't want Steam's overlay to draw upon SKIF
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   // First round
   if (_Signal.Minimize)
@@ -3434,7 +3449,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             0L,         0L,
     hModSKIF, nullptr,  nullptr,
               nullptr,  nullptr,
-    _T ("SK_Injection_Frontend"),
+    SKIF_WindowClass,
               nullptr          };
 
   if (! ::RegisterClassEx (&wc))
@@ -3641,7 +3656,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //   but no running instance existed to service it yet...
   _Signal._Disowned = TRUE;
 
-  if      (_Signal.Start || _Signal.Stop)
+  // Don't execute again when used as a launcher (prevents false positives from game paths/executables)
+  if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
   bool HiddenFramesContinueRendering = false;
@@ -4037,14 +4053,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       };
 #endif
 
-      enum _Selection {
-        None,
-        Injection,
-        Settings,
-        Help,
-        Debug
-      } static tab_selected = Injection, tab_changeTo = None;
-
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
                               flagsHelp =
@@ -4089,7 +4097,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //   This prevent flashing and elements appearing too large during those frames.
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
 
-        /* TODO: Fix QuickLaunch creating timers on SKIF_hWnd = 0,
+        /* TODO: Fix Launcher creating timers on SKIF_hWnd = 0,
          * causing SKIF to be unable to close them later if switched out from the mode.
         
         // If the user changed mode, cancel the exit action.
@@ -4097,7 +4105,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           bExitOnInjection = false;
 
         // Be sure to load all extended character sets when changing mode
-        if (_Signal.QuickLaunch)
+        if (_Signal.Launcher)
           invalidateFonts = true;
 
         */
@@ -4189,37 +4197,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, (tab_changeTo == Injection) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, (SKIF_Tab_ChangeTo == Injection) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           if (! SKIF_bFirstLaunch)
           {
             // Select the Help tab on first launch
             SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
-            tab_changeTo = Help;
+            SKIF_Tab_ChangeTo = Help;
 
             // Store in the registry so this only occur once.
             regKVFirstLaunch.putData(SKIF_bFirstLaunch);
           }
 
-          //if (tab_selected != Injection)
-            //_inject._RefreshSKDLLVersions ();
+          SKIF_Tab_Selected = Injection;
+          if (SKIF_Tab_ChangeTo == Injection)
+            SKIF_Tab_ChangeTo = None;
 
-          tab_selected = Injection;
-          if (tab_changeTo == Injection)
-            tab_changeTo = None;
-
-          extern void SKIF_GameManagement_DrawTab(void);
-          SKIF_GameManagement_DrawTab();
+          extern void
+            SKIF_UI_Tab_DrawLibrary (void);
+            SKIF_UI_Tab_DrawLibrary (     );
 
           ImGui::EndTabItem ();
         }
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, (tab_changeTo == Debug) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, (SKIF_Tab_ChangeTo == Debug) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          if (tab_selected != Debug) // hModSpecialK == nullptr
+          if (SKIF_Tab_Selected != Debug) // hModSpecialK == nullptr
           {
             SetTimer (SKIF_hWnd,
                       IDT_REFRESH_DEBUG,
@@ -4228,13 +4234,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             );
           }
 
-          tab_selected = Debug;
-          if (tab_changeTo == Debug)
-            tab_changeTo = None;
+          SKIF_Tab_Selected = Debug;
+          if (SKIF_Tab_ChangeTo == Debug)
+            SKIF_Tab_ChangeTo = None;
 
           extern HRESULT
-            SKIF_Debug_DrawUI (void);
-            SKIF_Debug_DrawUI (    );
+            SKIF_UI_Tab_DrawMonitor (void);
+            SKIF_UI_Tab_DrawMonitor (    );
 
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
@@ -4249,7 +4255,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, (tab_changeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, (SKIF_Tab_ChangeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -4356,7 +4362,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             driverBinaryPath = _CheckDriver (driverStatus);
 
           // Reset and refresh things when visiting from another tab
-          if (tab_selected != Settings)
+          if (SKIF_Tab_Selected != Settings)
           {
             driverBinaryPath    = _CheckDriver (driverStatus);
             driverStatusPending =               driverStatus;
@@ -4364,9 +4370,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //_inject._RefreshSKDLLVersions ();
           }
 
-          tab_selected = Settings;
-          if (tab_changeTo == Settings)
-            tab_changeTo = None;
+          SKIF_Tab_Selected = Settings;
+          if (SKIF_Tab_ChangeTo == Settings)
+            SKIF_Tab_ChangeTo = None;
 
           // SKIF Options
           //if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
@@ -4399,8 +4405,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if ( ImGui::Checkbox ( "Remember the last selected game",         &SKIF_bRememberLastSelected ) )
             regKVRememberLastSelected.putData (                              SKIF_bRememberLastSelected );
             
+          if ( ImGui::Checkbox ( "Minimize SKIF when launching a game",             &SKIF_bMinimizeOnGameLaunch ) )
+            regKVMinimizeOnGameLaunch.putData (                                      SKIF_bMinimizeOnGameLaunch );
+            
           if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
-            regKVCloseToTray.putData (                                                SKIF_bCloseToTray );
+            regKVCloseToTray.putData (                                               SKIF_bCloseToTray );
 
           if (ImGui::Checkbox("Do not stop the global injection service when closing SKIF",
                                                   &SKIF_bAllowBackgroundService))
@@ -5211,20 +5220,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             static std::string btnDriverLabel;
             static std::wstring wszDriverTaskCmd;
-
-            static bool requiredFiles =
-              PathFileExistsW (LR"(Servlet\driver_install.ps1)")   &&
-              PathFileExistsW (LR"(Servlet\driver_uninstall.ps1)");
-
-            // Missing required files
-            if (! requiredFiles)
-            {
-              btnDriverLabel = "Not available";
-              ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
-            }
+            static LPCSTR szDriverTaskFunc;
 
             // Status is pending...
-            else if (driverStatus != driverStatusPending)
+            if (driverStatus != driverStatusPending)
             {
               btnDriverLabel = ICON_FA_SPINNER " Please Wait...";
               ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Pending...");
@@ -5233,23 +5232,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Driver is installed
             else if (driverStatus == Installed)
             {
-              wszDriverTaskCmd = (LR"(-ExecutionPolicy Bypass -File ")" + std::filesystem::current_path().wstring() + LR"(\Servlet\driver_uninstall.ps1")");
-              btnDriverLabel   = ICON_FA_SHIELD_ALT " Uninstall Driver";
+              btnDriverLabel    = ICON_FA_SHIELD_ALT " Uninstall Driver";
               ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
+              szDriverTaskFunc = "SK_WinRing0_Uninstall";
             }
 
             // Other driver is installed
             else if (driverStatus == OtherDriverInstalled)
             {
-              btnDriverLabel = ICON_FA_BAN " Unavailable";
+              btnDriverLabel    = ICON_FA_BAN " Unavailable";
               ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
             }
 
             // Driver is not installed
             else {
-              wszDriverTaskCmd = (LR"(-ExecutionPolicy Bypass -File ")" + std::filesystem::current_path().wstring() + LR"(\Servlet\driver_install.ps1")");
-              btnDriverLabel   = ICON_FA_SHIELD_ALT " Install Driver";
+              btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
               ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
+              szDriverTaskFunc = "SK_WinRing0_Install";
             }
 
             ImGui::EndGroup ();
@@ -5258,9 +5257,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Spacing  ();
 
             // Disable button if the required files are missing, status is pending, or if another driver is installed
-            if ( (! requiredFiles)                     ||
-                   driverStatusPending != driverStatus ||
-                  OtherDriverInstalled == driverStatus )
+            if (  driverStatusPending != driverStatus ||
+                 OtherDriverInstalled == driverStatus )
             {
               ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
               ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
@@ -5269,55 +5267,50 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Show button
             bool driverButton =
               ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
-                                                               25 * SKIF_ImGui_GlobalDPIScale));
+                                                      25 * SKIF_ImGui_GlobalDPIScale));
 
+            //
+            // COM Elevation Moniker will handle this unless UAC level is at maximum,
+            //   then user must respond to UAC prompt (probably in a background window).
+            //
             SKIF_ImGui_SetHoverTip (
               "Administrative privileges are required on the system to enable this."
             );
 
-            if ( driverButton && requiredFiles )
+            if ( driverButton )
             {
-              if (
-                ShellExecuteW (
-                  nullptr, L"runas",
-                    L"powershell",
-                      wszDriverTaskCmd.c_str(), nullptr,
-                        SW_HIDE
-                ) > (HINSTANCE)32 )
-              {
+              auto hModWinRing0 =
+                LoadLibraryW (L"SpecialK64.dll");
+
+              using DriverTaskFunc_pfn = void (*)(void);
+                    DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
+                      GetProcAddress (hModWinRing0,szDriverTaskFunc);
+
+              if (DriverTask != nullptr) {
+                  DriverTask ();
+                  DriverTask ();
+
                 // Batch call succeeded -- change driverStatusPending to the
                 //   opposite of driverStatus to signal that a new state is pending.
                 driverStatusPending =
                       (driverStatus == Installed) ?
                                      NotInstalled : Installed;
               }
+
+              FreeLibrary (hModWinRing0);
             }
 
             // Disabled button
             //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
-            else if ( (! requiredFiles)                     ||
-                        driverStatusPending != driverStatus ||
+            else if (   driverStatusPending != driverStatus ||
                        OtherDriverInstalled == driverStatus )
             {
               ImGui::PopStyleVar ();
               ImGui::PopItemFlag ();
             }
 
-            // Show warning about missing files
-            if (!requiredFiles)
-            {
-              ImGui::SameLine   ();
-              ImGui::BeginGroup ();
-              ImGui::Spacing    ();
-              ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-              ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
-                                                        "Option is unavailable as one or more of the required files are missing."
-              );
-              ImGui::EndGroup   ();
-            }
-
             // Show warning about another driver being installed
-            else if (OtherDriverInstalled == driverStatus)
+            if (OtherDriverInstalled == driverStatus)
             {
               ImGui::SameLine   ();
               ImGui::BeginGroup ();
@@ -5685,538 +5678,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, (tab_changeTo == Help) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, (SKIF_Tab_ChangeTo == Help) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          tab_selected = Help;
-          if (tab_changeTo == Help)
-            tab_changeTo = None;
-
-          SKIF_ImGui_Spacing      ( );
-
-          SKIF_ImGui_Columns      (2, nullptr, true);
-
-          SK_RunOnce (
-            ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
-          );
-
-          ImGui::PushStyleColor   (
-            ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
-                                    );
-
-          // ImColor::HSV (0.11F, 1.F, 1.F)   // Orange
-          // ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) // Blue Bullets
-          // ImColor(100, 255, 218); // Teal
-          //ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
-
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                                   "Beginner's Guide to Special K (SK):"
-                                    );
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::TextWrapped      ("Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything. "
-                                   "It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, "
-                                   "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games.");
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::TextWrapped      ("Among its main features are a latency-free borderless window mode, HDR retrofit for "
-                                   "SDR games, Nvidia Reflex addition in unsupported games, as well as texture modding "
-                                   "for players and modders alike. While not all features are supported in all games, most "
-                                   "DirectX 11 and 12 titles can make use of one if not more of these features."
-          );
-          ImGui::NewLine          ( );
-          ImGui::Text             ("To get started just hop on over to the");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
-          SKIF_ImGui_SetMouseCursorHand ( );
-          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
-          ImGui::SameLine         ( );
-          ImGui::Text             ("and launch a game!");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_SMILE_BEAM);
-
-          /*
-
-          ImGui::NewLine          ( );
-
-          ImGui::Text             ("Global injection will inject Special K into most games, however Special K only activates");
-          ImGui::Text             ("itself in games from Epic Games Store, GOG Galaxy, Steam, Origin, and Ubisoft Connect");
-          ImGui::Text             ("by default. Of these only the first three platforms are supported by the");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
-          SKIF_ImGui_SetMouseCursorHand ( );
-          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
-          ImGui::SameLine         ( );
-          ImGui::Text             ("tab");
-          ImGui::Text             ("while Origin and Ubisoft Connect games must be manually added to the list.");
-
-          ImGui::TextWrapped      ("Global injection will inject Special K into most games, however Special K only activates itself in games from "
-                                   "Epic Games Store, GOG Galaxy, Steam, Origin, and Ubisoft Connect by default. Of these only the first three platforms "
-                                   "are supported by the " ICON_FA_GAMEPAD " Library tab while Origin and Ubisoft Connect games must be manually added to the list.");
-          
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::TextWrapped      ("Consult the Whitelist / Blacklist section of the " ICON_FA_COG " Settings tab to manage Special K in more detail.");
-          */
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          float fY1 = ImGui::GetCursorPosY();
-
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                                   "Getting started with Epic, GOG, Steam, or Xbox games:");
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "1 ");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("Go to the ");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
-          SKIF_ImGui_SetMouseCursorHand ( );
-          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
-          ImGui::SameLine         ( );
-          ImGui::Text             ("tab.");
-
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "2 ");
-          ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Select and launch the game.");
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          float fY2 = ImGui::GetCursorPosY();
-
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Getting started with other games:"
-          );
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "1 ");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("Go to the ");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              ICON_FA_GAMEPAD " Library"
-          );
-          SKIF_ImGui_SetMouseCursorHand ( );
-          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) tab_changeTo = Injection;
-          ImGui::SameLine         ( );
-          ImGui::Text             ("tab.");
-
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "2 ");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("Click on ");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              ICON_FA_PLUS_SQUARE " Add Game"
-          );
-          SKIF_ImGui_SetMouseCursorHand ( );
-          if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-            AddGamePopup = PopupState::Open;
-            tab_changeTo = Injection;
-          }
-          ImGui::SameLine         ( );
-          ImGui::Text             ("to add the game to the list.");
-
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "3 ");
-          ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("Launch the game.");
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          float fY3 = ImGui::GetCursorPosY();
-          
-          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Quick launch Special K for select games through Steam:"
-          );
-          if (SKIF_RegisterApp      ( ))
-          {
-            ImGui::TextWrapped      ("Your computer is set up to quickly launch injection through Steam.");
-
-            SKIF_ImGui_Spacing      ( );
-
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                  "1 ");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("Right click the desired game in Steam, and select \"Properties...\".");
-            ImGui::EndGroup         ( );
-
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                  "2 ");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("Copy and paste the below into the \"Launch Options\" field.");
-            ImGui::EndGroup         ( );
-
-            ImGui::TreePush         ("");
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-            char szSteamCommand[MAX_PATH] = "SKIF %COMMAND%";
-            ImGui::InputTextEx      ("###QuickLaunch", NULL, szSteamCommand, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
-            ImGui::PopStyleColor    ( );
-            ImGui::TreePop          ( );
-
-            ImGui::BeginGroup       ( );
-            ImGui::Spacing          ( );
-            ImGui::SameLine         ( );
-            ImGui::TextColored      (
-              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                  "3 ");
-            ImGui::SameLine         ( );
-            ImGui::TextWrapped      ("Launch the game as usual through Steam.");
-            ImGui::EndGroup         ( );
-          }
-          else {
-            ImGui::TextWrapped ("Your computer is not set up to quickly launch injection through Steam.");
-          }
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          float fY4 = ImGui::GetCursorPosY();
-          
-          ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_WRENCH);
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-            "Compatibility Options:");
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::Text             ("Hold down ");
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-            ICON_FA_KEYBOARD " CTRL + Shift");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("when starting a game to access compatibility options.");
-
-
-          float pushColumnSeparator =
-            (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
-                                                  (ImGui::GetTextLineHeightWithSpacing () );
-
-          ImGui::ItemSize (
-            ImVec2 (0.0f, pushColumnSeparator)
-          );
-
-
-          ImGui::NextColumn       ( ); // Next Column
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "About the Injection Frontend (SKIF):"    );
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend, commonly referred to as \"SKIF\".\n\n"
-                                   "SKIF is used to manage Special K's global injection service, "
-                                   "which injects Special K's features into games as they start, and even games that are already running! "
-                                   "The tool also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
-
-          ImGui::SetCursorPosY    (fY1);
-          
-          ImGui::TextColored      (
-            ImColor::HSV (0.11F,   1.F, 1.F),
-            ICON_FA_EXCLAMATION_TRIANGLE " ");
-          ImGui::SameLine         ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                         "Multiplayer games:");
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-              ICON_FA_EXCLAMATION_CIRCLE " ");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("Stop the service before playing a multiplayer game.");
-          ImGui::EndGroup         ( );
-
-          SKIF_ImGui_SetHoverTip (
-            "In particular games where anti-cheat\nprotection might be present."
-          );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-              ICON_FA_EXTERNAL_LINK_ALT " "      );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("More on the wiki"))
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-          ImGui::EndGroup         ( );
-          
-          /*
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-            ICON_FA_EXCLAMATION_CIRCLE " ");
-          ImGui::SameLine         ( );
-          ImGui::Text             ("The service injects Special K into most user processes.");
-          ImGui::EndGroup         ( );
-
-          SKIF_ImGui_SetHoverTip (
-            "Any that deal with system input or some sort\nof window or keyboard/mouse input activity."
-          );
-          */
-
-          ImGui::SetCursorPosY    (fY2);
-
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "More on how to inject Special K:"
-          );
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-              ICON_FA_EXTERNAL_LINK_ALT " "      );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("Global (system-wide)"))
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Global");
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Global");
-          ImGui::EndGroup         ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-            ICON_FA_EXTERNAL_LINK_ALT " "      );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("Local (game-specific)"))
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Local");
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Local");
-          ImGui::EndGroup         ( );
-
-          ImGui::SetCursorPosY    (fY3);
-
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Online resources:"   );
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImColor (25, 118, 210),
-              ICON_FA_BOOK " "   );
-          ImGui::SameLine         ( );
-
-          if (ImGui::Selectable   ("Wiki"))
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
-          ImGui::EndGroup         ( );
-
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImColor (114, 137, 218),
-              ICON_FA_DISCORD " "   );
-          ImGui::SameLine         ( );
-
-          if (ImGui::Selectable   ("Discord"))
-            SKIF_Util_OpenURI     (L"https://discord.gg/specialk");
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://discord.gg/specialk");
-          ImGui::EndGroup         ( );
-
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImColor (247, 241, 169),
-              ICON_FA_DISCOURSE " " );
-          ImGui::SameLine         ( );
-
-          if (ImGui::Selectable   ("Forum"))
-            SKIF_Util_OpenURI     (L"https://discourse.differentk.fyi/");
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://discourse.differentk.fyi/");
-          ImGui::EndGroup         ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImColor (249, 104, 84),
-              ICON_FA_PATREON " "   );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("Patreon"))
-            SKIF_Util_OpenURI     (L"https://www.patreon.com/Kaldaien");
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://www.patreon.com/Kaldaien");
-          ImGui::EndGroup         ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
-              ICON_FA_GITHUB " "   );
-          ImGui::SameLine         ( );
-          if (ImGui::Selectable   ("GitHub"))
-            SKIF_Util_OpenURI     (L"https://github.com/SpecialKO");
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO");
-          ImGui::EndGroup         ( );
-
-          /*
-
-          ImGui::NewLine          ( );
-          ImGui::NewLine          ( );
-
-          ImGui::TextColored (
-            ImColor::HSV (0.11F, 1.F, 1.F),
-                         "UI hints:");
-
-          SKIF_ImGui_Spacing      ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                (const char *)u8"• ");
-          ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("This indicates a regular bullet point.");
-          ImGui::EndGroup         ( );
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "? ");
-          ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("More info is available when hovering the mouse cursor over the item.");
-          ImGui::EndGroup         ( );
-
-          SKIF_ImGui_SetHoverTip  ("The info either further elaborates on the topic"
-                                   "\nor provides relevant recommendations or tips.");
-
-          ImGui::BeginGroup       ( );
-          ImGui::Spacing          ( );
-          ImGui::SameLine         ( );
-          ImGui::TextColored      (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                                "?!");
-          ImGui::SameLine         ( );
-          ImGui::TextWrapped      ("In addition to having more info when hovering, the item can also be clicked to open a relevant link.");
-          ImGui::EndGroup         ( );
-
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/");
-          SKIF_ImGui_SetHoverTip  ( "The link that will be opened is also shown at"
-                                    "\nthe bottom of the window as in a web browser.");
-          if (ImGui::IsItemClicked ())
-            SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
-
-          */
-          
-
-          ImGui::SetCursorPosY    (fY4);
-    
-          ImGui::PushStyleColor   (
-            ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
-                                    );
-    
-          ImGui::PushStyleColor   (
-            ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
-                                    );
-
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Components:"
-          );
-    
-          ImGui::PushStyleColor   (
-            ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
-                                    );
-    
-          ImGui::PushStyleColor   (
-            ImGuiCol_SKIF_TextBase, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.3f, 0.3f, 0.3f, 1.0f)
-                                    );
-
-          SKIF_ImGui_Spacing      ( );
-          
-          //SKIF_UI_DrawPlatformStatus ( );
-          SKIF_UI_DrawComponentVersion ( );
-
-          ImGui::PopStyleColor    (4);
-
-          ImGui::Columns          (1);
-          
-
-          ImGui::PopStyleColor    ( );
+          SKIF_Tab_Selected = Help;
+          if (SKIF_Tab_ChangeTo == Help)
+            SKIF_Tab_ChangeTo = None;
+
+          // About Tab
+          SKIF_UI_Tab_DrawAbout   ( );
 
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
@@ -6331,8 +5802,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ( ICON_FA_PLUS_SQUARE " Add Game"))
         {
           AddGamePopup = PopupState::Open;
-          if (tab_selected != Injection)
-            tab_changeTo = Injection;
+          if (SKIF_Tab_Selected != Injection)
+            SKIF_Tab_ChangeTo = Injection;
         }
         ImGui::PopStyleVar  ( );
 
@@ -7122,7 +6593,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       );
       break;
 
-    case WM_SKIF_QUICKLAUNCH:
+    case WM_SKIF_LAUNCHER:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
 

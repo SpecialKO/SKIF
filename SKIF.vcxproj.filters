@@ -61,12 +61,6 @@
     <Filter Include="Header Files\Utility">
       <UniqueIdentifier>{e5817b47-00d5-484e-9bc2-e710e2866fb8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\UI Tasks">
-      <UniqueIdentifier>{ea818bb6-75af-4e0b-905a-f046d248f0b8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\UI Tasks">
-      <UniqueIdentifier>{e58a2ba6-a4c1-493c-b8f1-cfd30cdb9f2d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Utility">
       <UniqueIdentifier>{63669b58-6f63-49e1-97b9-07d46eb4581e}</UniqueIdentifier>
     </Filter>
@@ -93,6 +87,12 @@
     </Filter>
     <Filter Include="Source Files\Stores\Xbox">
       <UniqueIdentifier>{923a8aab-cd55-483a-87cb-5987e34b829d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UI Tabs">
+      <UniqueIdentifier>{ea818bb6-75af-4e0b-905a-f046d248f0b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\UI Tabs">
+      <UniqueIdentifier>{e58a2ba6-a4c1-493c-b8f1-cfd30cdb9f2d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -285,7 +285,7 @@
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
       <Filter>Header Files\ImGui\Backends\D3D11</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\Steam\library.h">
+    <ClInclude Include="include\stores\Steam\steam_library.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\generic_library.h">
@@ -297,8 +297,8 @@
     <ClInclude Include="include\sk_utility\utility.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\ui_tasks\manage_games.h">
-      <Filter>Header Files\UI Tasks</Filter>
+    <ClInclude Include="include\ui_tabs\library.h">
+      <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\vdf.h">
       <Filter>Header Files\Stores\Steam</Filter>
@@ -390,6 +390,9 @@
     <ClInclude Include="include\SKIF_utility.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\ui_tabs\about.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -476,14 +479,14 @@
     <ClCompile Include="src\SKIF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\stores\Steam\library.cpp">
+    <ClCompile Include="src\stores\Steam\steam_library.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
     <ClCompile Include="src\sk_config\ini.cpp">
       <Filter>Source Files\Config</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tasks\manage_games.cpp">
-      <Filter>Source Files\UI Tasks</Filter>
+    <ClCompile Include="src\ui_tabs\library.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Steam\vdf.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
@@ -512,17 +515,11 @@
     <ClCompile Include="src\vfs.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tasks\manage_colorspace.cpp">
-      <Filter>Source Files\UI Tasks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ui_tasks\debug.cpp">
-      <Filter>Source Files\UI Tasks</Filter>
+    <ClCompile Include="src\ui_tabs\monitor.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="sk_console.cpp">
       <Filter>Source Files\Utility</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ui_tasks\display_mgmt.cpp">
-      <Filter>Source Files\UI Tasks</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\GOG\gog_library.cpp">
       <Filter>Source Files\Stores\GOG</Filter>
@@ -541,6 +538,9 @@
     </ClCompile>
     <ClCompile Include="src\SKIF_utility.cpp">
       <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui_tabs\about.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

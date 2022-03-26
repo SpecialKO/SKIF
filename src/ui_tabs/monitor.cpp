@@ -1003,7 +1003,7 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
 }
 
 HRESULT
-SKIF_Debug_DrawUI (void)
+SKIF_UI_Tab_DrawMonitor (void)
 {
   extern HMODULE hModSpecialK;
   extern float   SKIF_ImGui_GlobalDPIScale;

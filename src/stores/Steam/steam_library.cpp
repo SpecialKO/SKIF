@@ -20,7 +20,7 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <stores/steam/library.h>
+#include <stores/steam/steam_library.h>
 #include <fstream>
 
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
@@ -474,7 +474,9 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
       wchar_t wszLibraryFolders [MAX_PATH + 2] = { };
 
       lstrcpyW (wszLibraryFolders, wszSteamPath);
-      lstrcatW (wszLibraryFolders, LR"(\steamapps\libraryfolders.vdf)");
+      // Old: \steamapps\libraryfolders.vdf
+      // New: \config\libraryfolders.vdf
+      lstrcatW (wszLibraryFolders, LR"(\config\libraryfolders.vdf)"); // 
 
       CHandle hLibFolders (
         CreateFileW ( wszLibraryFolders,

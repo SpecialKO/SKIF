@@ -81,12 +81,6 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               if (RegGetValueW(hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 record.names.normal = SK_WideCharToUTF8(szData);
 
-              // Strip null terminators // moved to later -- performed for all installed games as part of manage_games.cpp
-              //GOG_record.names.normal.erase(std::find(GOG_record.names.normal.begin(), GOG_record.names.normal.end(), '\0'), GOG_record.names.normal.end());
-
-              // Add (GOG) at the end of the name
-              //GOG_record.names.normal = GOG_record.names.normal + " (GOG)";
-
               record.names.all_upper = record.names.normal;
               std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
 

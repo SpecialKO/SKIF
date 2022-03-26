@@ -363,11 +363,12 @@
     <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
     <ClInclude Include="include\stores\Steam\asset_fetch.h" />
-    <ClInclude Include="include\stores\Steam\library.h" />
+    <ClInclude Include="include\stores\Steam\steam_library.h" />
     <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\stores\Xbox\xbox_library.h" />
-    <ClInclude Include="include\ui_tasks\manage_games.h" />
+    <ClInclude Include="include\ui_tabs\about.h" />
+    <ClInclude Include="include\ui_tabs\library.h" />
     <ClInclude Include="include\vfs.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
@@ -648,14 +649,13 @@
     <ClCompile Include="src\stores\Steam\apps_list.cpp" />
     <ClCompile Include="src\stores\Steam\app_record.cpp" />
     <ClCompile Include="src\stores\Steam\asset_fetch.cpp" />
-    <ClCompile Include="src\stores\Steam\library.cpp" />
+    <ClCompile Include="src\stores\Steam\steam_library.cpp" />
     <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp" />
-    <ClCompile Include="src\ui_tasks\debug.cpp" />
-    <ClCompile Include="src\ui_tasks\display_mgmt.cpp" />
-    <ClCompile Include="src\ui_tasks\manage_colorspace.cpp" />
-    <ClCompile Include="src\ui_tasks\manage_games.cpp" />
+    <ClCompile Include="src\ui_tabs\about.cpp" />
+    <ClCompile Include="src\ui_tabs\monitor.cpp" />
+    <ClCompile Include="src\ui_tabs\library.cpp" />
     <ClCompile Include="src\vfs.cpp" />
   </ItemGroup>
   <ItemGroup>

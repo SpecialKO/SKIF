@@ -23,7 +23,7 @@
 #pragma once
 
 #include <stores/generic_library.h>
-#include <stores/Steam/library.h>
+#include <stores/Steam/steam_library.h>
 
 #include <map>
 #include <string>

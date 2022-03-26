@@ -22,4 +22,4 @@
 
 #pragma once
 void
-SKIF_GameManagement_DrawTab (void)
+SKIF_UI_Tab_DrawLibrary (void)
