@@ -169,9 +169,19 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                         record.Xbox_StoreId = xmlConfigRoot.child_value("StoreId");
 
+                        int exeCount = 0;
+
+                        // Minecraft Launcher only defines one Executable in MicrosoftGame.Config, and without defining an ID for it so if the
+                        //   total amount of defined executables are 1 we assume that it is the one we are after. This way SKIF will still use
+                        //     ExecutableName.exe instead of GameLaunchHelper.exe as the name of the profile folder.
                         for (pugi::xml_node exe = xmlConfigRoot.child("ExecutableList").child("Executable"); exe; exe = exe.next_sibling("Executable"))
                         {
-                          if (appId == exe.attribute("Id").value())
+                          exeCount++;
+                        }
+
+                        for (pugi::xml_node exe = xmlConfigRoot.child("ExecutableList").child("Executable"); exe; exe = exe.next_sibling("Executable"))
+                        {
+                          if (exeCount == 1 || appId == exe.attribute("Id").value())
                           {
                             lc.executable = SK_UTF8ToWideChar(exe.attribute("Name").value());
 
@@ -192,7 +202,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         lc.executable = lc.executable_helper;
 
                       if (lc.executable_path.empty())
-                        lc.executable_path = record.install_dir + lc.executable;
+                        lc.executable_path = (lc.executable == lc.executable_helper)
+                                            ? lc.executable
+                                            : record.install_dir + lc.executable;
 
                       std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 

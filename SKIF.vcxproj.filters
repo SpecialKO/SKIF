@@ -393,6 +393,9 @@
     <ClInclude Include="include\ui_tabs\about.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="include\ui_tabs\settings.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTex\BC.cpp">
@@ -540,6 +543,9 @@
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\ui_tabs\about.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui_tabs\settings.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
   </ItemGroup>
