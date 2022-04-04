@@ -573,6 +573,15 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     return CLEANUP ();
   }
 
+  extern bool SKIF_bLowBandwidthMode;
+
+  int flags = INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
+
+  if (SKIF_bLowBandwidthMode)
+    flags |= INTERNET_FLAG_RESYNCHRONIZE | INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_CACHE_ASYNC;
+  else
+    flags |= INTERNET_FLAG_RELOAD;
+
   hInetHTTPGetReq =
     HttpOpenRequest ( hInetHost,
                         get->method,
@@ -580,9 +589,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
                             L"HTTP/1.1",
                               nullptr,
                                 rgpszAcceptTypes,
-                                                                    INTERNET_FLAG_IGNORE_CERT_DATE_INVALID |
-                                  INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_IGNORE_CERT_CN_INVALID   |
-                                  INTERNET_FLAG_RESYNCHRONIZE     | INTERNET_FLAG_CACHE_ASYNC,
+                                  flags,
                                     (DWORD_PTR)&dwInetCtx );
 
   // Wait 2500 msecs for a dead connection, then give up

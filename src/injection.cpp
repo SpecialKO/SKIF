@@ -168,12 +168,14 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   //HANDLE h32, h64;
 
+  extern bool SKIF_bUseAVX2Optimizations;
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = L"OPEN";
     sexi.lpFile       = LR"(SKIFsvc32.exe)";
-    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
+    sexi.lpParameters = (currentRunningState) ? L"Stop" : (SKIF_bUseAVX2Optimizations) ? L"Start AVX2" : L"Start";
     sexi.lpDirectory  = L"Servlet";
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
@@ -185,7 +187,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   {
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     sexi.lpFile       = LR"(SKIFsvc64.exe)";
-    sexi.lpParameters = currentRunningState ? L"Stop" : L"Start";
+    sexi.lpParameters = (currentRunningState) ? L"Stop" : (SKIF_bUseAVX2Optimizations) ? L"Start AVX2" : L"Start";
     //sexi.hProcess     = &h64;
 
     ret =

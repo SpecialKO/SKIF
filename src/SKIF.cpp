@@ -142,7 +142,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontVietnamese          = false,
      SKIF_bLowBandwidthMode        = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
-     SKIF_bMinimizeOnGameLaunch    = false;
+     SKIF_bMinimizeOnGameLaunch    = false,
+     SKIF_bUseAVX2Optimizations    = false;
 
 std::wstring 
      SKIF_wsIgnoreUpdate,
@@ -1855,9 +1856,7 @@ const wchar_t* SKIF_WindowClass =
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
-  // Static since we need to prevent a false positive when SKIF_ProxyCommandAndExitIfRunning
-  //   is called the second time after we have created the window in our own instance.
-  static HWND hwndAlreadyExists =
+  HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 
   _Signal.Start =
@@ -1881,13 +1880,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Launcher =
     StrStrIW (lpCmdLine, L".exe")     != NULL;
 
-  if (  hwndAlreadyExists != 0 && (
-              (! SKIF_bAllowMultipleInstances)  ||
-                                   _Signal.Stop || _Signal.Start ||
+  if ( (  hwndAlreadyExists != 0 ) &&
+       ( ! _Signal.Launcher )      &&
+       ( ! _Signal.AddSKIFGame)    &&
+       ((! SKIF_bAllowMultipleInstances)        ||
+                                   _Signal.Stop || _Signal.Start    ||
                                    _Signal.Quit || _Signal.Minimize
-                                  ) &&
-        _Signal.Launcher == false &&
-        _Signal.AddSKIFGame == false
+       )
      )
   {
     if (! _Signal.Start     &&
@@ -2447,7 +2446,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       std::filesystem::create_directories (root);
 
       // Download repository.json if it does not exist or if we're forcing an update
-      if (! PathFileExists(path.c_str()) || SKIF_iCheckForUpdates == 2)
+      if (! PathFileExists (path.c_str()) || SKIF_iCheckForUpdates == 2)
       {
         SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
       }
@@ -3228,6 +3227,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Load Vietnamese Characters)" );
 
+  static auto regKVUseAVX2Optimizations =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Use AVX2 Optimizations)" );
+
   static auto regKVNotifications =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
@@ -3284,6 +3287,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
+//SKIF_bUseAVX2Optimizations    =   regKVUseAVX2Optimizations.getData    ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   /* is handled dynamically now
@@ -4796,163 +4800,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TreePop       ( );
 
-          //ImGui::Spacing       ( );
-          //ImGui::Spacing       ( );
-
-          //static UINT acp = GetACP();
-          //ImGui::Text(("Active code page: " + std::to_string(acp)).c_str());
-
-          /*
-          ImGui::TextColored (ImColor::HSV (0.11F,   1.F, 1.F), ICON_FA_EXCLAMATION_TRIANGLE);
-          SKIF_ImGui_SetHoverTip ("Enabling too many extended characters sets can"
-                                  "\nnoticeably slow down the launch time of SKIF.");
-          ImGui::SameLine      ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Enable extended character sets:"
-          );
-
-          ImGui::TreePush      ("");
-
-          // First column
-          ImGui::BeginGroup ( );
-
-          if (ImGui::Checkbox      ("Chinese (Simplified)", &SKIF_bFontChineseSimplified))
-          {
-            SKIF_bFontChineseAll = false;
-            regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
-            regKVFontChineseAll.putData        (SKIF_bFontChineseAll);
-            invalidateFonts = true;
-          }
-
-          if (ImGui::Checkbox      ("Japanese", &SKIF_bFontJapanese))
-          {
-            regKVFontJapanese.putData (SKIF_bFontJapanese);
-            invalidateFonts = true;
-          }
-
-          if (ImGui::Checkbox      ("Vietnamese", &SKIF_bFontVietnamese))
-          {
-            regKVFontVietnamese.putData (SKIF_bFontVietnamese);
-            invalidateFonts = true;
-          }
-
-          ImGui::EndGroup ( );
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          // Second column
-          ImGui::BeginGroup ( );
-
-          */
-
-/*
-#ifndef _WIN64
-          ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-#endif
-*/
-
-          /*
-
-          if (ImGui::Checkbox      ("Chinese (All)", &SKIF_bFontChineseAll))
-          {
-            SKIF_bFontChineseSimplified = false;
-            regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
-            regKVFontChineseAll.putData        (SKIF_bFontChineseAll);
-            invalidateFonts = true;
-          }
-
-          */
-
-/*
-#ifndef _WIN64
-          ImGui::PopStyleVar ( );
-          ImGui::PopItemFlag ( );
-            
-          SKIF_ImGui_SetHoverTip ("Not included in 32-bit SKIF due to system limitations.");
-#endif
-*/
-
-          /*
-
-          if (ImGui::Checkbox      ("Korean", &SKIF_bFontKorean))
-          {
-            regKVFontKorean.putData (SKIF_bFontKorean);
-            invalidateFonts = true;
-          }
-
-          */
-
-/*
-#ifndef _WIN64
-          SKIF_ImGui_SetHoverTip ("32-bit SKIF does not include Hangul syllables due to system limitations.");
-#endif
-*/
-
-          /*
-
-          ImGui::EndGroup      ( );
-
-          ImGui::SameLine      ( );
-          ImGui::Spacing       ( );
-          ImGui::SameLine      ( );
-
-          // Third column
-          ImGui::BeginGroup    ( );
-
-          if (ImGui::Checkbox      ("Cyrillic", &SKIF_bFontCyrillic))
-          {
-            regKVFontCyrillic.putData   (SKIF_bFontCyrillic);
-            invalidateFonts = true;
-          }
-
-          if (ImGui::Checkbox      ("Thai", &SKIF_bFontThai))
-          {
-            regKVFontThai.putData (SKIF_bFontThai);
-            invalidateFonts = true;
-          }
-
-          ImGui::EndGroup      ( );
-
-          ImGui::TreePop       ( );
-
-          */
-
-          /* Irrelevant -- hide by default
-          ImGui::NewLine       ( );
-
-          ImGui::Text          ("Oudated SKIF features");
-          ImGui::TreePush      ("");
-
-          if (ImGui::Checkbox ("Show classic autostart method (" ICON_FA_BUG ")",
-                                                      &SKIF_bEnableDebugMode))
-          {
-            SKIF_ProcessCommandLine ( ( std::string ("SKIF.UI.DebugMode ") +
-                                        std::string ( SKIF_bEnableDebugMode ? "On"
-                                                                            : "Off" )
-                                      ).c_str ()
-
-            );
-            regKVEnableDebugMode.putData(             SKIF_bEnableDebugMode);
-          }
-
-          ImGui::TreePop    ( );
-          */
-
-          /* HDR was only needed for screenshot viewing
-          if (ImGui::Checkbox  ("HDR on compatible displays (restart required)###HDR_ImGui", &SKIF_bEnableHDR))
-            regKVEnableHDR.putData (                                                          SKIF_bEnableHDR);
-
-          _DrawHDRConfig       ( );
-          */
+        //if ( ImGui::Checkbox ( "Use AVX2 Optimizations", &SKIF_bUseAVX2Optimizations) )
+        //  regKVUseAVX2Optimizations.putData (SKIF_bUseAVX2Optimizations);
 
           ImGui::Columns    (1);
 
           ImGui::PopStyleColor();
-          //}
 
           ImGui::Spacing ();
           ImGui::Spacing ();
@@ -6026,7 +5879,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       static float UpdateAvailableWidth = 0.0f;
 
-      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering)
+      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8(newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         ImGui::OpenPopup ("###UpdatePrompt");

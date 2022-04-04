@@ -3379,7 +3379,7 @@ Cache=false)";
             ImGui::GetStyle      ().ItemSpacing.y / 2.0f
           );
 
-          if ( ImGui::BeginMenu ("Disable Special K") )
+          if (ImGui::BeginMenu ("Disable Special K"))
           {
             std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
@@ -4365,7 +4365,7 @@ Cache=false)";
   }
 
 
-  if (AddGamePopup == PopupState::Open)
+  if (AddGamePopup == PopupState::Open && ! ImGui::IsAnyPopupOpen ( ))
   {
     ImGui::OpenPopup("###AddGamePopup");
     //AddGamePopup = PopupState::Opened; // Disabled to allow quick link from the About tab to function
