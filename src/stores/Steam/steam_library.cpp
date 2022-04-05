@@ -473,10 +473,18 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
     {
       wchar_t wszLibraryFolders [MAX_PATH + 2] = { };
 
-      lstrcpyW (wszLibraryFolders, wszSteamPath);
       // Old: \steamapps\libraryfolders.vdf
-      // New: \config\libraryfolders.vdf
-      lstrcatW (wszLibraryFolders, LR"(\config\libraryfolders.vdf)"); // 
+      // New:    \config\libraryfolders.vdf
+      lstrcpyW (wszLibraryFolders, wszSteamPath);
+      lstrcatW (wszLibraryFolders, LR"(\config\libraryfolders.vdf)");
+
+      // Some Steam installs still relies on the old file apparently,
+      //   so if the new file does not exist we need to use the old one.
+      if (! PathFileExists(wszLibraryFolders))
+      {
+        lstrcpyW (wszLibraryFolders, wszSteamPath);
+        lstrcatW (wszLibraryFolders, LR"(\steamapps\libraryfolders.vdf)");
+      }
 
       CHandle hLibFolders (
         CreateFileW ( wszLibraryFolders,
