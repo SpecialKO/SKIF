@@ -2938,7 +2938,8 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"Galaxy",              L"GalaxyClient.exe"},
     {"EA Desktop",          L"EADesktop.exe"},
     {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
-    {"Ubisoft Connect",     L"upc.exe"}
+    {"Ubisoft Connect",     L"upc.exe"},
+    {"RTSS",                L"RTSS.exe"}
   };
 
   for ( auto& p : Platforms )
@@ -2956,11 +2957,18 @@ void SKIF_UI_DrawPlatformStatus (void)
       {
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
+        if (p.ProcessName == L"RTSS.exe")
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and might conflict with Special K!").c_str() );
+        else
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
 
         if (isSKIFAdmin)
           SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
                                     "Please restart both as a normal user.").c_str());
+        else if (p.ProcessName == L"RTSS.exe")
+          SKIF_ImGui_SetHoverTip ( "RivaTuner Statistics Server is known to occasionally conflict with Special K.\n"
+                                   "Please stop it if Special K does not function as expected. You might have\n"
+                                   "to stop MSI Afterburner as well if you use that application.");
         else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
           SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
                                     "Please restart the global injector service and SKIF as a regular user.");

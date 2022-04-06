@@ -1478,7 +1478,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      // STEAM
+      // Steam
       else if (pApp->store == "Steam")
       {
         std::wstring load_str_2x (
@@ -1531,19 +1531,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // ... but only if low bandwidth mode is disabled
           if (! SKIF_bLowBandwidthMode &&
-              GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
-              GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
+              GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
+              GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
           {
             // If 600x900 has been edited after 600_900_x2,
             //   download new copy of the 600_900_x2 cover
             if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
             {
-              DeleteFile (load_str_2x.c_str());
+              DeleteFile (load_str_2x.c_str ());
               SKIF_HTTP_GetAppLibImg (pApp->id, load_str_2x);
             }
           }
-
-          load_str_final = load_str_2x;
+          
+          // If 600x900_x2 exists now, load it
+          if (PathFileExistsW (load_str_2x.c_str ()))
+            load_str_final = load_str_2x;
         }
 
         load_str = load_str_final;
@@ -1556,7 +1558,6 @@ SKIF_UI_Tab_DrawLibrary (void)
                                     _vecCoverUv0,
                                       _vecCoverUv1,
                                         pApp);
-
 
       if (textureLoadQueueLength == queuePos)
       {
@@ -1574,183 +1575,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       //InterlockedExchange(&cover_thread, 0);
     }, 0x0, NULL);
   }
-
-    /*
-    static
-      app_record_s* pApp = nullptr;
-
-    for (auto& app : apps)
-      if (app.second.id == appid)
-        pApp = &app.second;
-
-    std::wstring load_str;
-
-    // SKIF
-    // SKIF Custom
-    // GOG
-    if ( appid == SKIF_STEAM_APPID ||
-         pApp->store == "SKIF"     ||
-         pApp->store == "GOG" )
-    {
-      load_str = L"_library_600x900_x2.jpg";
-
-      if (pApp->store == "SKIF" || pApp->store == "EGS")
-        load_str = L"cover";
-      else if (pApp->store == "GOG")
-        load_str = L"*_glx_vertical_cover.webp";
-    }
-
-    // EGS
-    else if ( pApp->store == "EGS" )
-    {
-      load_str = 
-        SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
-
-      std::wstring load_str_2x
-                  (load_str);
-
-      if ( ! PathFileExistsW (load_str.   c_str ()) )
-      {
-        //SKIF_EGS_IdentifyAsset (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
-        SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
-      }
-    }
-
-    // STEAM
-    else if (pApp->store == "Steam")
-    {
-
-      if ( appinfo != nullptr )
-      {
-        skValveDataFile::appinfo_s *pAppInfo =
-          appinfo->getAppInfo ( appid, nullptr );
-
-        DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
-      }
-
-      std::wstring load_str_2x (
-        SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata.path, appid)
-      );
-
-      std::filesystem::create_directories (load_str_2x);
-
-      load_str_2x += L"library_600x900_x2.jpg";
-      
-      load_str = SK_GetSteamDir ();
-
-      load_str   += LR"(/appcache/librarycache/)" +
-        std::to_wstring (appid)                   +
-                                L"_library_600x900.jpg";
-
-      std::wstring load_str_final = load_str;
-      //std::wstring load_str_final = L"_library_600x900.jpg";
-
-      // If 600x900 exists but 600x900_x2 cannot be found
-      if (   PathFileExistsW (load_str.   c_str ()) &&
-         ( ! PathFileExistsW (load_str_2x.c_str ()) ) )
-      {
-        // Load the metadata from 600x900
-        if (
-          SUCCEEDED (
-          DirectX::GetMetadataFromWICFile (
-            load_str.c_str (),
-              DirectX::WIC_FLAGS_FILTER_POINT,
-                meta
-            )
-          )
-        )
-        {
-          // If the image is in reality 300x450, which indicates a real cover,
-          //   download the real 600x900 cover and store it in _x2
-          if (meta.width  == 300 &&
-              meta.height == 450)
-          {
-            SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-            load_str_final = load_str_2x;
-            //load_str_final = L"_library_600x900_x2.jpg";
-          }
-        }
-      }
-
-      // If 600x900_x2 exists, check the last modified time stamps
-      else {
-        WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
-
-        if (GetFileAttributesEx (load_str   .c_str(), GetFileExInfoStandard, &faX1) &&
-            GetFileAttributesEx (load_str_2x.c_str(), GetFileExInfoStandard, &faX2))
-        {
-          // If 600x900 has been edited after 600_900_x2,
-          //   download new copy of the 600_900_x2 cover
-          if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
-          {
-            DeleteFile (load_str_2x.c_str());
-            SKIF_HTTP_GetAppLibImg (appid, load_str_2x);
-          }
-        }
-
-        load_str_final = load_str_2x;
-        //load_str_final = L"_library_600x900_x2.jpg";
-      }
-
-      load_str = load_str_final;
-    }
-    
-    LoadLibraryTexture ( LibraryTexture::Cover,
-                            appid,
-                              pTexSRV,
-                                load_str,
-                                  pApp );
-    */
-
-    // Reset variables
-    /*
-    vecTex2D    = ImVec2 (600.f, 900.f);
-    vecCoverUv0 = ImVec2 (0.f, 0.f); // Top left corner
-    vecCoverUv1 = ImVec2 (1.f, 1.f); // Bottom right corner
-
-    // Update vecTex2D with the size of the cover
-    if (pTexSRV.p != nullptr)
-    {
-      pTexSRV->GetResource(reinterpret_cast<ID3D11Resource**>(&pTex2D.p));
-
-      if (pTex2D != nullptr)
-      {
-        D3D11_TEXTURE2D_DESC desc;
-        pTex2D->GetDesc(&desc);
-        vecTex2D.x = static_cast<float>(desc.Width);
-        vecTex2D.y = static_cast<float>(desc.Height);
-
-        pTex2D.Release();
-
-        ImVec2 diff = ImVec2(0.0f, 0.0f);
-
-        // Crop wider aspect ratios by their width
-        if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
-        {
-          float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
-          diff.x = (600.0f / newWidth);
-          diff.x -= 1.0f;
-          diff.x /= 2;
-
-          vecCoverUv0.x = 0.f - diff.x;
-          vecCoverUv1.x = 1.f + diff.x;
-        }
-
-        // Crop thinner aspect ratios by their height
-        else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
-        {
-          float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
-          diff.y = (900.0f / newHeight);
-          diff.y -= 1.0f;
-          diff.y /= 2;
-
-          vecCoverUv0.y = 0.f - diff.y;
-          vecCoverUv1.y = 1.f + diff.y;
-        }
-      }
-    }
-    */
-  //}
 
   /*
   float fTestScale    = SKIF_ImGui_GlobalDPIScale,

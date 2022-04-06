@@ -313,24 +313,24 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
     SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
   }
 
-  std::ifstream fileStore(targetAssetPath + L"store.json");
-  nlohmann::json jf = nlohmann::json::parse(fileStore, nullptr, false);
-  fileStore.close();
+  try
+  {
+    std::ifstream fileStore(targetAssetPath + L"store.json");
+    nlohmann::json jf = nlohmann::json::parse(fileStore, nullptr, false);
+    fileStore.close();
 
-  if (jf.is_discarded ( ))
-  {
-    DeleteFile ((targetAssetPath + L"store.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
-  }
-  else
-  {
-    try
+    if (jf.is_discarded ( ))
+    {
+      DeleteFile ((targetAssetPath + L"store.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+    }
+    else
     {
       for (auto& image : jf["Products"][0]["LocalizedProperties"][0]["Images"])
       {
         if (image["ImagePurpose"].get <std::string_view>()._Equal(R"(Poster)"))
         {
           // Download a downscaled copy of the cover
-          extern bool            SKIF_bLowBandwidthMode; // TAKES TOO LONG! :D
+          extern bool SKIF_bLowBandwidthMode; // TAKES TOO LONG! :D
 
           // Convert the URL value to a regular string
           std::string assetUrl = image["Uri"]; // will throw exception if "Uri" does not exist
@@ -342,9 +342,9 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
         }
       }
     }
-    catch (const std::exception&)
-    {
+  }
+  catch (const std::exception&)
+  {
 
-    }
   }
 }

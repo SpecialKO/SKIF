@@ -83,25 +83,25 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
     if (entry.is_directory() == false &&
         entry.path().extension().string() == ".item" )
     {
-      std::ifstream file(entry.path());
-      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
-      file.close();
-
-      // Skip if we're dealing with a broken manifest
-      if (jf.is_discarded ( ))
-        continue;
-
-      // Skip if a launch executable does not exist (easiest way to filter out Borderlands 3's DLCs, I guess?)
-      if (jf.at ("LaunchExecutable").get <std::string_view>().empty())
-        continue;
-
-      // Skip if the install location does not exist
-      if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
-        continue;
-
-      bool isGame = false;
-
       try {
+        std::ifstream file(entry.path());
+        nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
+        file.close();
+
+        // Skip if we're dealing with a broken manifest
+        if (jf.is_discarded ( ))
+          continue;
+
+        // Skip if a launch executable does not exist (easiest way to filter out Borderlands 3's DLCs, I guess?)
+        if (jf.at ("LaunchExecutable").get <std::string_view>().empty())
+          continue;
+
+        // Skip if the install location does not exist
+        if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
+          continue;
+
+        bool isGame = false;
+
         for (auto& categories : jf["AppCategories"])
         {
           if (categories.get <std::string_view>()._Equal(R"(games)"))
@@ -213,19 +213,19 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
 
     SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json");
   }
-  
-  std::ifstream fileOffer(targetAssetPath + L"offer.json");
-  nlohmann::json jf = nlohmann::json::parse(fileOffer, nullptr, false);
-  fileOffer.close();
 
-  if (jf.is_discarded ( ))
+  try
   {
-    DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
-  }
+    std::ifstream fileOffer(targetAssetPath + L"offer.json");
+    nlohmann::json jf = nlohmann::json::parse(fileOffer, nullptr, false);
+    fileOffer.close();
 
-  else
-  {
-    try
+    if (jf.is_discarded ( ))
+    {
+      DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+    }
+
+    else
     {
       if (jf["errors"].is_array())
       {
@@ -252,9 +252,9 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
         }
       }
     }
-    catch (const std::exception&)
-    {
+  }
+  catch (const std::exception&)
+  {
 
-    }
   }
 }
