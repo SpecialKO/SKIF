@@ -811,38 +811,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   if ( bHasServlet )
   {
-    /*
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "? ");
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F),
-                                                          "The service injects Special K into most user processes."
-    );
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetHoverTip (
-      "Any that deal with system input or some sort\nof window or keyboard/mouse input activity."
-    );
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     (); ImGui::SameLine ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "?!");
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImColor (0.68F, 0.68F, 0.68F), 
-                                                          "Stop the service before playing a multiplayer game."
-    );
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    SKIF_ImGui_SetHoverTip        ("In particular games where anti-cheat\nprotection might be present.");
-
-    if (ImGui::IsItemClicked ())
-      SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    */
-
     extern void SKIF_putStopOnInjection(bool in);
 
 #ifdef _WIN64
@@ -1002,11 +970,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       args = (bAutoStartService) ? L"Start Minimize" : L"Minimize";
     else
       args = (bAutoStartService) ? L"Start"          : L"";
-    
-    /*
-    static TCHAR                             szExePath[MAX_PATH];
-    GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
-    */
+
     if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
     {
       if (bAutoStartSKIF)
