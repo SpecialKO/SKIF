@@ -2214,13 +2214,24 @@ SKIF_hasControlledFolderAccess (void)
   return enabled;
 }
 
+// Changed name to undo Kaldaien's stupid forced behaviour change in SK that breaks
+//   the intended user experience as well as launcher mode of SKIF
 static auto regKVDisableStopOnInjection =
+  SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                        LR"(Disable Auto-Stop)" );
+
+// Retain legacy key, but only to allow users to disable it
+static auto regKVLegacyDisableStopOnInjection =
   SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                         LR"(Disable Stop On Injection)" );
 
 void SKIF_putStopOnInjection (bool in)
 {
   regKVDisableStopOnInjection.putData(!in);
+
+  // If we're disabling the feature, also disable the legacy key
+  if (in)
+    regKVLegacyDisableStopOnInjection.putData(!in);
 
   if (_inject.bCurrentState)
     _inject._ToggleOnDemand (in);
@@ -3293,6 +3304,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
 //SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
+  
+  // If the legacy key has data, but not the new key, move the data over to respect existing user's choices
+  if (!regKVDisableStopOnInjection.hasData() && regKVLegacyDisableStopOnInjection.hasData())
+    regKVDisableStopOnInjection.putData (regKVLegacyDisableStopOnInjection.getData());
+
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
 //SKIF_bUseAVX2Optimizations    =   regKVUseAVX2Optimizations.getData    ( );
