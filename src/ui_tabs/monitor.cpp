@@ -1069,6 +1069,8 @@ SKIF_UI_Tab_DrawMonitor (void)
       Whitelist
     };
 
+    static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
+
     static std::vector <standby_record_s> _Standby32;
     static std::vector <standby_record_s> _Standby64;
 
@@ -1085,18 +1087,6 @@ SKIF_UI_Tab_DrawMonitor (void)
     static std::map <DWORD,   std::string>   humanpath_32;
     static std::map <DWORD,   std::string>     details_64;
     static std::map <DWORD,   std::string>     details_32;
-
-    static std::map<std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap();
-    static bool output = false;
-
-    if (output == false)
-    {
-      for (auto device : deviceMap)
-      {
-        OutputDebugString((device.first + L" = " + device.second + L"\n").c_str());
-      }
-      output = true;
-    }
 
     static           DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
     size_t num_pids =

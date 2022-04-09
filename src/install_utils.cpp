@@ -345,6 +345,12 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
     wchar_t                 wszPathToSelf [MAX_PATH] = { };
     GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
     PathRemoveFileSpecW (   wszPathToSelf);
+
+    extern bool SKIF_bUseAVX2Optimizations;
+
+    if (SKIF_bUseAVX2Optimizations)
+      PathAppendW       (   wszPathToSelf, LR"(AVX2\)");
+
     PathAppendW         (   wszPathToSelf,
                               bIs64Bit ? L"SpecialK64.dll"
                                        : L"SpecialK32.dll" );

@@ -3311,7 +3311,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
-//SKIF_bUseAVX2Optimizations    =   regKVUseAVX2Optimizations.getData    ( );
+  SKIF_bUseAVX2Optimizations    =   regKVUseAVX2Optimizations.getData    ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   /* is handled dynamically now
@@ -4824,8 +4824,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TreePop       ( );
 
-        //if ( ImGui::Checkbox ( "Use AVX2 Optimizations", &SKIF_bUseAVX2Optimizations) )
-        //  regKVUseAVX2Optimizations.putData (SKIF_bUseAVX2Optimizations);
+          if ( ImGui::Checkbox ( "Use AVX2 Optimizations", &SKIF_bUseAVX2Optimizations) )
+            regKVUseAVX2Optimizations.putData (SKIF_bUseAVX2Optimizations);
 
           ImGui::Columns    (1);
 
