@@ -386,6 +386,27 @@ std::string   SKIF_PresentDebugStr [2];
 volatile LONG SKIF_PresentIdx    =   0;
 
 
+// https://stackoverflow.com/a/59908355/15133327
+std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
+{
+  // It's not really related to MAX_PATH, but I guess it should be enough.
+  // Though the docs say "The first null-terminated string stored into the buffer is the current mapping for the device.
+  //                      The other null-terminated strings represent undeleted prior mappings for the device."
+  wchar_t devicePath[MAX_PATH] = { 0 };
+  std::map<std::wstring, std::wstring> result;
+  std::wstring dosPath = L"A:";
+
+  for (wchar_t letter = L'A'; letter <= L'Z'; ++letter)
+  {
+      dosPath[0] = letter;
+      if (QueryDosDeviceW(dosPath.c_str(), devicePath, MAX_PATH)) // may want to properly handle errors instead ... e.g. check ERROR_INSUFFICIENT_BUFFER
+      {
+          result[dosPath] = std::wstring(devicePath) + LR"(\)";
+      }
+  }
+  return result;
+}
+
 
 #include <injection.h>
 #include <sk_utility/command.h>
@@ -1036,7 +1057,8 @@ SKIF_UI_Tab_DrawMonitor (void)
     std::set <DWORD> _Active64;
 
     struct standby_record_s {
-      std::string  name;
+      std::wstring name;
+      std::string  nameUTF8;
       std::wstring filename;
       DWORD        pid;
     };
@@ -1059,9 +1081,22 @@ SKIF_UI_Tab_DrawMonitor (void)
     static std::map <DWORD, inject_policy>    policies_32;
     static std::map <DWORD,   std::string>    tooltips_64;
     static std::map <DWORD,   std::string>    tooltips_32;
+    static std::map <DWORD,   std::string>   humanpath_64;
+    static std::map <DWORD,   std::string>   humanpath_32;
     static std::map <DWORD,   std::string>     details_64;
     static std::map <DWORD,   std::string>     details_32;
 
+    static std::map<std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap();
+    static bool output = false;
+
+    if (output == false)
+    {
+      for (auto device : deviceMap)
+      {
+        OutputDebugString((device.first + L" = " + device.second + L"\n").c_str());
+      }
+      output = true;
+    }
 
     static           DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
     size_t num_pids =
@@ -1525,31 +1560,44 @@ SKIF_UI_Tab_DrawMonitor (void)
 
             CloseHandle (hDupHandle);
 
-            if ( std::wstring::npos !=
-                   handle_name.find ( L"SK_GlobalHookTeardown64" )
-                && _Used64.emplace (dwProcId).second ) {
-                _Standby64.emplace_back (
-                  standby_record_s {
-                   SK_WideCharToUTF8 (wszProcessName),
-                    wszProcessName, dwProcId } ), 
-                    PathStripPathW (
-                      _Standby64.back ().
-                        filename.data () );
-                break;
+            if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
+                && _Used64.emplace (dwProcId).second )
+            {
+              std::wstring friendlyPath = std::wstring (wszProcessName);
+
+              for (auto device : deviceMap)
+              {
+                if (friendlyPath.find(device.second) != std::wstring::npos)
+                {
+                  friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                  break;
+                }
+              }
+
+              _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+              PathStripPathW (_Standby64.back ().filename.data () );
+
+              break;
             } 
             
-            else if ( std::wstring::npos !=
-                   handle_name.find ( L"SK_GlobalHookTeardown32" )
-                && _Used32.emplace (dwProcId).second ) {
-                _Standby32.emplace_back (
-                  standby_record_s {
-                   SK_WideCharToUTF8 (wszProcessName),
-                    wszProcessName, dwProcId } ), 
-                    PathStripPathW (
-                      _Standby32.back ().
-                        filename.data () );
+            else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
+                && _Used32.emplace (dwProcId).second )
+            {
+              std::wstring friendlyPath = std::wstring(wszProcessName);
 
-                break;
+              for (auto device : deviceMap)
+              {
+                if (friendlyPath.find(device.second) != std::wstring::npos)
+                {
+                  friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                  break;
+                }
+              }
+
+              _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+              PathStripPathW (_Standby32.back ().filename.data () );
+
+              break;
             }
           }
 
@@ -1565,11 +1613,11 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
       {
         executables_64 [proc.pid]     =     proc.filename;
-        tooltips_64    [proc.pid]     =     proc.name;
+        tooltips_64    [proc.pid]     =     proc.nameUTF8;
 
-        if      (_inject._TestUserList     (proc.name.c_str(), false))
+        if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
           policies_64  [proc.pid]     =     Blacklist;
-        else if (_inject._TestUserList     (proc.name.c_str(),  true))
+        else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
           policies_64  [proc.pid]     =     Whitelist;
         else
           policies_64  [proc.pid]     =     DontCare;
@@ -1577,11 +1625,11 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
       { executables_32 [proc.pid]     =     proc.filename;
-        tooltips_32    [proc.pid]     =     proc.name;
+        tooltips_32    [proc.pid]     =     proc.nameUTF8;
 
-        if      (_inject._TestUserList     (proc.name.c_str(), false))
+        if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
           policies_32  [proc.pid]     =     Blacklist;
-        else if (_inject._TestUserList     (proc.name.c_str(),  true))
+        else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
           policies_32  [proc.pid]     =     Whitelist;
         else
           policies_32  [proc.pid]     =     DontCare;
@@ -1637,6 +1685,24 @@ SKIF_UI_Tab_DrawMonitor (void)
         }
 
         ImGui::Separator ( );
+
+        std::string_view
+          path = tooltips_64[proc.first];
+        if (path.empty())
+          path = tooltips_32[proc.first];
+
+        if (! path.empty())
+        {
+          std::filesystem::path p = path;
+
+          if (ImGui::Selectable  (ICON_FA_FOLDER_OPEN " Browse"))
+            SKIF_Util_ExplorePath (SK_UTF8ToWideChar(p.parent_path().string()).c_str());
+
+          SKIF_ImGui_SetMouseCursorHand ();
+          SKIF_ImGui_SetHoverText       (p.parent_path().string().c_str());
+
+          ImGui::Separator ( );
+        }
 
         if (ImGui::Selectable  (ICON_FA_WINDOW_CLOSE " End task"))
         {

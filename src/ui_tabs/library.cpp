@@ -1840,14 +1840,14 @@ SKIF_UI_Tab_DrawLibrary (void)
               cache.injection.type         = "Global";
               cache.injection.status.text  = 
                          (cache.service)   ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
-                                           : "Stopped";
+                                           : "                                "; //"Service Status";
 
               cache.injection.status.color =
                          (cache.service)   ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)
-                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning); // HSV (0.08F, 0.99F, 1.F);
+                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info); // HSV (0.08F, 0.99F, 1.F);
               cache.injection.status.color_hover =
                          (cache.service)   ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+                                           : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
               cache.injection.hover_text   =
                          (cache.service)   ? "Click to stop the service"
                                            : "Click to start the service";
@@ -2061,8 +2061,7 @@ Cache=false)";
       // Column 3
       ImGui::BeginGroup       ( );
 
-      static bool quickServiceHover = false;
-
+      /*
       ImGui::TextColored      (
         (_inject.isPending()) ? ImColor(3, 179, 255)
                               : (quickServiceHover) ? cache.injection.status.color_hover
@@ -2073,29 +2072,42 @@ Cache=false)";
                                 ? "Starting..."
                                 : "Stopping..."
                               : cache.injection.status.text.c_str ()
-      );
+      );*/
 
-      quickServiceHover = ImGui::IsItemHovered ();
-
-      if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
-              ImGui::IsItemClicked (ImGuiMouseButton_Right))
-        ServiceMenu = PopupState::Open;
+      static bool quickServiceHover = false;
 
       if (cache.injection.type._Equal ("Global") && ! _inject.isPending())
       {
-        if (ImGui::IsItemClicked ())
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImColor(0, 0, 0, 0).Value);
+        ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? cache.injection.status.color_hover.Value
+                                                                 : cache.injection.status.color.Value);
+
+        if (ImGui::Selectable (cache.injection.status.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
         {
           extern bool SKIF_bStopOnInjection;
 
-          _inject._StartStopInject (cache.service, SKIF_bStopOnInjection);
+          _inject._StartStopInject(cache.service, SKIF_bStopOnInjection);
 
           cache.app_id = 0;
         }
+
+        ImGui::PopStyleColor (3);
+
+        quickServiceHover = ImGui::IsItemHovered ();
 
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverTip        (
           cache.injection.hover_text.c_str ()
         );
+
+        if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
+                ImGui::IsItemClicked (ImGuiMouseButton_Right))
+          ServiceMenu = PopupState::Open;
+      }
+
+      else {
+        ImGui::NewLine ( );
       }
 
       if (! cache.dll.shorthand.empty ())
