@@ -49,8 +49,6 @@
 #include <sstream>
 #include <strsafe.h>
 
-extern bool SKIF_bUseAVX2Optimizations;
-
 SKIF_InjectionContext _inject;
 
 bool
@@ -175,7 +173,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = L"OPEN";
     sexi.lpFile       = LR"(SKIFsvc32.exe)";
-    sexi.lpParameters = (currentRunningState) ? L"Stop" : (SKIF_bUseAVX2Optimizations) ? L"Start AVX2" : L"Start";
+    sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
     sexi.lpDirectory  = L"Servlet";
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
@@ -187,7 +185,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   {
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     sexi.lpFile       = LR"(SKIFsvc64.exe)";
-    sexi.lpParameters = (currentRunningState) ? L"Stop" : (SKIF_bUseAVX2Optimizations) ? L"Start AVX2" : L"Start";
+    sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
     //sexi.hProcess     = &h64;
 
     ret =
@@ -431,7 +429,6 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
     const wchar_t* wszFileName;
     const wchar_t* wszRealExt;
     const wchar_t* wszPIDFile;
-    const bool     bAVX2;
 
     const wchar_t*
       combineParts ( wchar_t* wszInOut,
@@ -456,10 +453,7 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
       HANDLE hFind = INVALID_HANDLE_VALUE;
       WIN32_FIND_DATA ffd;
 
-      if (bAVX2)
-        hFind = FindFirstFile (L"AVX2\\*.old", &ffd);
-      else
-        hFind = FindFirstFile       (L"*.old", &ffd);
+      hFind = FindFirstFile       (L"*.old", &ffd);
 
       if (INVALID_HANDLE_VALUE != hFind)
       {
@@ -541,10 +535,8 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 
   std::vector <updated_file_s>
                updated_files =
-    { { L"SpecialK64",       L".dll", LR"(Servlet\SpecialK64.pid)", false },
-      { L"SpecialK32",       L".dll", LR"(Servlet\SpecialK32.pid)", false },
-      { L"AVX2\\SpecialK64", L".dll", LR"(Servlet\SpecialK64.pid)",  true },
-      { L"AVX2\\SpecialK32", L".dll", LR"(Servlet\SpecialK32.pid)",  true } };
+    { { L"SpecialK64",       L".dll", LR"(Servlet\SpecialK64.pid)" },
+      { L"SpecialK32",       L".dll", LR"(Servlet\SpecialK32.pid)" } };
 
   for ( const auto& file : updated_files )
   {
@@ -564,12 +556,7 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf32);
-
-  if (SKIF_bUseAVX2Optimizations)
-    PathAppendW         (         wszPathToSelf32, L"AVX2\\SpecialK32.dll");
-  else
-    PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
-
+  PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
   SKVer32 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
 
@@ -577,12 +564,7 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf64);
-
-  if (SKIF_bUseAVX2Optimizations)
-    PathAppendW         (         wszPathToSelf64, L"AVX2\\SpecialK64.dll");
-  else
-    PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");
-  
+  PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");  
   SKVer64 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
 #endif

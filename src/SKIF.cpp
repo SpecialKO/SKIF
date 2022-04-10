@@ -142,8 +142,7 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontVietnamese          = false,
      SKIF_bLowBandwidthMode        = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
-     SKIF_bMinimizeOnGameLaunch    = false,
-     SKIF_bUseAVX2Optimizations    = false;
+     SKIF_bMinimizeOnGameLaunch    = false;
 
 std::wstring 
      SKIF_wsIgnoreUpdate,
@@ -3246,10 +3245,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Load Vietnamese Characters)" );
 
-  static auto regKVUseAVX2Optimizations =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Use AVX2 Optimizations)" );
-
   static auto regKVNotifications =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
@@ -3311,7 +3306,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
   SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
-  SKIF_bUseAVX2Optimizations    =   regKVUseAVX2Optimizations.getData    ( );
   SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   /* is handled dynamically now
@@ -4823,9 +4817,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
 
           ImGui::TreePop       ( );
-
-          if ( ImGui::Checkbox ( "Use AVX2 Optimizations", &SKIF_bUseAVX2Optimizations) )
-            regKVUseAVX2Optimizations.putData (SKIF_bUseAVX2Optimizations);
 
           ImGui::Columns    (1);
 

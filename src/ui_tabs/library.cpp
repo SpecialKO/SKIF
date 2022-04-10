@@ -85,7 +85,6 @@ extern int             SKIF_iStyle;
 extern bool            SKIF_bLowBandwidthMode;
 extern bool            SKIF_bDisableBorders;
 extern bool            SKIF_bMinimizeOnGameLaunch;
-extern bool            SKIF_bUseAVX2Optimizations;
 extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -1770,13 +1769,11 @@ SKIF_UI_Tab_DrawLibrary (void)
         DWORD       running  = 0;
         bool        service  = false;
         bool        autostop = false;
-        bool        AVX2     = false;
       } static cache;
 
       if (         cache.service  != _inject.bCurrentState       ||
                    cache.running  != pTargetApp->_status.running ||
-                   cache.autostop != _inject.bAckInj             ||
-                   cache.AVX2     != SKIF_bUseAVX2Optimizations
+                   cache.autostop != _inject.bAckInj
          )
       {
         cache.app_id = 0;
@@ -1787,7 +1784,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         cache.app_id   = pTargetApp->id;
         cache.running  = pTargetApp->_status.running;
         cache.autostop = _inject.bAckInj;
-        cache.AVX2     = SKIF_bUseAVX2Optimizations;
 
         cache.service  = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
                          (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
@@ -2675,15 +2671,6 @@ Cache=false)";
   // This ensures the next block gets run when launching SKIF with a last selected item
   SK_RunOnce (update = true);
 
-  // Trigger an update if the AVX2 setting has been changed
-  static bool 
-      SKIF_bUseAVX2OptimizationsLast  = SKIF_bUseAVX2Optimizations;
-  if (SKIF_bUseAVX2OptimizationsLast != SKIF_bUseAVX2Optimizations)
-  {
-      SKIF_bUseAVX2OptimizationsLast  = SKIF_bUseAVX2Optimizations;
-      update = true;
-  }
-
   if (update && pApp != nullptr)
   {
     // Handle GOG, EGS, and SKIF Custom games
@@ -2730,10 +2717,6 @@ Cache=false)";
       wchar_t                 wszPathToSelf [MAX_PATH] = { };
       GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
       PathRemoveFileSpecW (   wszPathToSelf);
-
-      if (SKIF_bUseAVX2Optimizations)
-        PathAppendW       (   wszPathToSelf, LR"(AVX2\)");
-
       PathAppendW         (   wszPathToSelf,
                                 bIs64Bit ? L"SpecialK64.dll"
                                          : L"SpecialK32.dll" );
