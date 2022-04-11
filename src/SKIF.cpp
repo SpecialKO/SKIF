@@ -4909,10 +4909,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             static BOOL  pfuAccessToken = FALSE;
             static BYTE  pfuSID[SECURITY_MAX_SID_SIZE];
-            static DWORD cbSize = sizeof(pfuSID);
+            static BYTE  intSID[SECURITY_MAX_SID_SIZE];
+            static DWORD pfuSize = sizeof(pfuSID);
+            static DWORD intSize = sizeof(intSID);
 
-            SK_RunOnce ( CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinBuiltinPerfLoggingUsersSid, NULL, &pfuSID, &cbSize));
-            SK_RunOnce ( CheckTokenMembership (NULL, &pfuSID, &pfuAccessToken));
+            SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinBuiltinPerfLoggingUsersSid, NULL, &pfuSID, &pfuSize));
+            SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinInteractiveSid,             NULL, &intSID, &intSize));
+            SK_RunOnce (CheckTokenMembership (NULL, &pfuSID, &pfuAccessToken));
 
             enum pfuPermissions {
               Missing,
@@ -4954,10 +4957,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
             {
               std::wstring exeArgs;
 
-              // Use the SIDs since the user and group have different names on non-English systems
-              // S-1-5-4      = NT AUTHORITY\INTERACTIVE           == Any interactive user sessions
-              // S-1-5-32-559 =     BUILT-IN\Performance Log Users == Members of this group may schedule logging of performance counters, enable trace providers, and collect event traces both locally and via remote access to this computer
+              TCHAR pfuName[MAX_PATH],
+                    intName[MAX_PATH];
+              DWORD pfuNameLength = sizeof(pfuName),
+                    intNameLength = sizeof(intName);
 
+              // Unused variables
+              SID_NAME_USE pfuSnu, intSnu;
+              TCHAR pfuDomainName[MAX_PATH], 
+                    intDomainName[MAX_PATH];
+              DWORD pfuDomainNameLength = sizeof(pfuDomainName),
+                    intDomainNameLength = sizeof(intDomainName);
+
+              // Because non-English languages has localized user and group names, we need to retrieve those first
+              if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
+                  LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
+              {
+                exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
+
+                // Use 'net' to grant the proper permissions
+                if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+                  pfuState = Pending;
+              }
+
+              /*
               if (SKIF_Util_IsWindows10OrGreater ( )) // On Windows 10, use the native PowerShell cmdlet Add-LocalGroupMember since it supports SIDs
                 exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")";
               else                               // Windows 8.1 lacks Add-LocalGroupMember, so fall back on using WMI (to retrieve the localized names of the group and user) and NET to add the user to the group
@@ -4965,6 +4988,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
               if (ShellExecuteW (nullptr, L"runas", L"powershell", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32) // COM exception is thrown?
                 pfuState = Pending;
+              */
             }
 
             // Disable button for granted + pending states
