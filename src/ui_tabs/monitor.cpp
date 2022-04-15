@@ -1174,7 +1174,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     SKIF_ImGui_Spacing      ( );
 
     ImGui::TextWrapped      ("A forced stop of the service may sometime help in case of an issue,"
-                             " even if the service is not running.");
+                             " even if the service is not currently running.");
 
     SKIF_ImGui_Spacing      ( );
 
@@ -1210,12 +1210,18 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
 
-      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
-                              "when Special K is injected into a whitelisted game.");
+      //SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
+      //                        "when Special K is injected into a whitelisted game.");
 
       ImGui::SameLine         ( );
-      ImGui::Spacing          ( );
+
+      ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      SKIF_ImGui_SetHoverTip  ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+                              "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
+
       ImGui::SameLine         ( );
+      //ImGui::Spacing          ( );
+      //ImGui::SameLine         ( );
     }
 
     extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);

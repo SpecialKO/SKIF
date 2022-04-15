@@ -85,6 +85,7 @@ extern int             SKIF_iStyle;
 extern bool            SKIF_bLowBandwidthMode;
 extern bool            SKIF_bDisableBorders;
 extern bool            SKIF_bMinimizeOnGameLaunch;
+extern BOOL            SKIF_bSuppressServiceNotification;
 extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -2279,7 +2280,7 @@ Cache=false)";
           }
 
           if (SKIF_bMinimizeOnGameLaunch)
-            ShowWindow (SKIF_hWnd, SW_MINIMIZE);
+            SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE);
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3562,7 +3563,7 @@ Cache=false)";
             ShellExecuteExW (&sexi);
 
             if (SKIF_bMinimizeOnGameLaunch)
-              ShowWindow (SKIF_hWnd, SW_MINIMIZE);
+              SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE);
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }
@@ -3952,8 +3953,9 @@ Cache=false)";
       else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
       }
       ImGui::EndGroup    ( );
       ImGui::SameLine    ( );
@@ -4015,10 +4017,10 @@ Cache=false)";
       else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
-        if (ImGui::Selectable  ("Browse SteamDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable  ("Browse Steam", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"https://steamdb.info/app/%lu", pApp->id
+            L"steam://nav/games/details/%lu", pApp->id
                                         );
         }
         else
@@ -4026,7 +4028,7 @@ Cache=false)";
           SKIF_ImGui_SetMouseCursorHand ( );
           SKIF_ImGui_SetHoverText       (
             SK_FormatString (
-              "https://steamdb.info/app/%lu", pApp->id
+              "steam://nav/games/details/%lu", pApp->id
                             )
                                           );
         }
@@ -4043,6 +4045,22 @@ Cache=false)";
           SKIF_ImGui_SetHoverText       (
             SK_FormatString (
               "https://steamcommunity.com/app/%lu", pApp->id
+                            )
+                                          );
+        }
+
+        if (ImGui::Selectable  ("Browse SteamDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
+            L"https://steamdb.info/app/%lu", pApp->id
+                                        );
+        }
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "https://steamdb.info/app/%lu", pApp->id
                             )
                                           );
         }
@@ -4071,13 +4089,18 @@ Cache=false)";
       else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
-        ImGui::TextColored (
-         ImColor   (101, 192, 244, 255).Value,
-           ICON_FA_DATABASE );
 
         ImGui::TextColored (
          (SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
            ICON_FA_STEAM_SYMBOL );
+
+        ImGui::TextColored (
+         (SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+           ICON_FA_STEAM_SYMBOL );
+
+        ImGui::TextColored (
+         ImColor   (101, 192, 244, 255).Value,
+           ICON_FA_DATABASE );
       }
 
     }

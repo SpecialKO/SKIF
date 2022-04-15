@@ -106,12 +106,12 @@ bool changedUpdateChannel = false;
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
 
-int  SKIF_iNotifications           = 2, // 0 = Never,       1 = Always,       2 = When unfocused
-     SKIF_iGhostVisibility         = 0, // 0 = Never,       1 = Always,       2 = While service is running
-     SKIF_iStyle                   = 0, // 0 = SKIF Dark,   1 = ImGui Dark,   2 = ImGui Light,               3 = ImGui Classic
-     SKIF_iDimCovers               = 0, // 0 = Never,       1 = Always,       2 = On mouse hover
-     SKIF_iCheckForUpdates         = 1, // 0 = Never,       1 = Weekly,       2 = On each launch
-     SKIF_iUpdateChannel           = 1; // 0 = Discord,     1 = Website,      2 = Ancient
+int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = Always,                 2 = When unfocused
+     SKIF_iGhostVisibility         = 0, // 0 = Never,                       1 = Always,                 2 = While service is running
+     SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                         3 = ImGui Classic
+     SKIF_iDimCovers               = 0, // 0 = Never,                       1 = Always,                 2 = On mouse hover
+     SKIF_iCheckForUpdates         = 1, // 0 = Never,                       1 = Weekly,                 2 = On each launch
+     SKIF_iAutoStopBehavior        = 1; // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -143,6 +143,9 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bLowBandwidthMode        = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
      SKIF_bMinimizeOnGameLaunch    = false;
+
+// This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
+BOOL SKIF_bSuppressServiceNotification = FALSE;
 
 std::wstring 
      SKIF_wsIgnoreUpdate,
@@ -594,6 +597,7 @@ void SKIF_ImGui_ServiceMenu (void)
     
     extern void SKIF_putStopOnInjection(bool in);
 
+    /*
 #ifdef _WIN64
     if (_inject.SKVer64 >= "21.08.12" &&
       _inject.SKVer32 >= "21.08.12")
@@ -609,6 +613,7 @@ void SKIF_ImGui_ServiceMenu (void)
       SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
                               "when Special K is injected into a whitelisted game.");
     }
+    */
 
     ImGui::EndPopup ( );
   }
@@ -2420,9 +2425,7 @@ struct SKIF_UpdateCheckResults {
 
 SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 {
-  if ( SKIF_iCheckForUpdates == 0 ||
-       SKIF_bLowBandwidthMode     ||
-      _Signal.Launcher            ||
+  if (_Signal.Launcher            ||
       _Signal.Temporary           ||
       _Signal.Stop                ||
       _Signal.Quit)
@@ -2455,39 +2458,42 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       // Create necessary directories if they do not exist
       std::filesystem::create_directories (root);
 
-      // Download repository.json if it does not exist or if we're forcing an update
-      if (! PathFileExists (path.c_str()) || SKIF_iCheckForUpdates == 2)
+      if (SKIF_iCheckForUpdates != 0 && ! SKIF_bLowBandwidthMode)
       {
-        SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
-      }
-      else {
-        WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
-
-        if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
+        // Download repository.json if it does not exist or if we're forcing an update
+        if (! PathFileExists (path.c_str()) || SKIF_iCheckForUpdates == 2)
         {
-          FILETIME ftSystemTime, ftAdjustedFileTime;
-          SYSTEMTIME systemTime;
-          GetSystemTime (&systemTime);
+          SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+        }
+        else {
+          WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
 
-          if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
+          if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
           {
-            ULARGE_INTEGER uintLastWriteTime;
+            FILETIME ftSystemTime, ftAdjustedFileTime;
+            SYSTEMTIME systemTime;
+            GetSystemTime (&systemTime);
 
-            // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
-            uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
-            uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
-
-            // Perform 64-bit arithmetic to add 7 days to last modified timestamp
-            uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
-
-            // Copy the results to an FILETIME struct
-            ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
-            ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
-
-            // Compare with system time, and if system time is later (1), then update the local cache
-            if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+            if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
             {
-              SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+              ULARGE_INTEGER uintLastWriteTime;
+
+              // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
+              uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
+              uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
+
+              // Perform 64-bit arithmetic to add 7 days to last modified timestamp
+              uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
+
+              // Copy the results to an FILETIME struct
+              ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
+              ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
+
+              // Compare with system time, and if system time is later (1), then update the local cache
+              if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+              {
+                SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+              }
             }
           }
         }
@@ -2505,23 +2511,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
       else {
 
-        /*
-        switch (SKIF_iUpdateChannel)
-        {
-        case 0:
-          currentBranch = "Discord"; // Testing
-          break;
-        case 1:
-          currentBranch = "Website"; // Stable
-          break;
-        case 2:
-          currentBranch = "Ancient"; // Compatibility
-          break;
-        default:
-          currentBranch = "Unknown";
-        }
-        */
-
         std::string  currentBranch  = SK_WideCharToUTF8 (SKIF_wsUpdateChannel);
 
 #ifdef _WIN64
@@ -2531,7 +2520,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 #endif
 
         try {
-
           
           // Populate update channels
           try {
@@ -2575,41 +2563,44 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
           }
 
-          // Detect if any new version is available in the selected channel
-          for (auto& version : jf["Main"]["Versions"])
+          if (SKIF_iCheckForUpdates != 0 && !SKIF_bLowBandwidthMode)
           {
-            bool isBranch = false;
-
-            for (auto& branch : version["Branches"])
-              if (branch.get<std::string_view>()._Equal(currentBranch))
-                isBranch = true;
-        
-            if (isBranch)
+            // Detect if any new version is available in the selected channel
+            for (auto& version : jf["Main"]["Versions"])
             {
-              std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
+              bool isBranch = false;
 
-              // Check if the version of this branch is different from the current one.
-              // We don't check if the version is *newer* since we need to support downgrading
-              // to other branches as well, which means versions that are older.
-
-              // Limit to newer versions only
-              if ((SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
-                   SKIF_CompareVersionStrings (branchVersion, currentVersion)  > 0)
+              for (auto& branch : version["Branches"])
+                if (branch.get<std::string_view>()._Equal(currentBranch))
+                  isBranch = true;
+        
+              if (isBranch)
               {
-                std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
-                std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+                std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
 
-                _res->version      = branchVersion;
-                _res->filename     = filename;
-                _res->description  = SK_UTF8ToWideChar(version["Description"].get<std::string>());
-                _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
+                // Check if the version of this branch is different from the current one.
+                // We don't check if the version is *newer* since we need to support downgrading
+                // to other branches as well, which means versions that are older.
 
-                if (! PathFileExists ((root + filename).c_str()) && _res->description != SKIF_wsIgnoreUpdate)
-                  SKIF_Util_GetWebResource (branchInstaller, root + filename);
+                // Limit to newer versions only
+                if ((SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
+                     SKIF_CompareVersionStrings (branchVersion, currentVersion)  > 0)
+                {
+                  std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
+                  std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+
+                  _res->version      = branchVersion;
+                  _res->filename     = filename;
+                  _res->description  = SK_UTF8ToWideChar(version["Description"].get<std::string>());
+                  _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
+
+                  if (! PathFileExists ((root + filename).c_str()) && _res->description != SKIF_wsIgnoreUpdate)
+                    SKIF_Util_GetWebResource (branchInstaller, root + filename);
+                }
+
+                // Found right branch -- no need to check more since versions are sorted newest to oldest
+                break;
               }
-
-              // Found right branch -- no need to check more since versions are sorted newest to oldest
-              break;
             }
           }
         }
@@ -2892,16 +2883,16 @@ void SKIF_UI_DrawPlatformStatus (void)
   {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "SKIF is running as an administrator!");
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "App is running as an administrator!");
     SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                              "Please restart the global injector service and SKIF as a regular user.");
+                             "Please restart this app and the global injector service as a regular user.");
   }
   else {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "SKIF is running with normal privileges.");
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "App is running with normal privileges.");
     SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
-                              "into system processes nor games running as an administrator.");
+                             "into system processes nor games running as an administrator.");
   }
 
   ImGui::EndGroup         ( );
@@ -2939,9 +2930,9 @@ void SKIF_UI_DrawPlatformStatus (void)
 
   static DWORD dwLastRefresh = 0;
   static Platform Platforms[] = {
-    {"32-bit Service",      L"SKIFsvc32.exe"},
+    {"32-bit service",  L"SKIFsvc32.exe"},
 #ifdef _WIN64
-    {"64-bit Service",      L"SKIFsvc64.exe"},
+    {"64-bit service",  L"SKIFsvc64.exe"},
 #endif
     {"Steam",               L"steam.exe"},
     {"Origin",              L"Origin.exe"},
@@ -2973,18 +2964,18 @@ void SKIF_UI_DrawPlatformStatus (void)
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
 
         if (isSKIFAdmin)
-          SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
-                                    "Please restart both as a normal user.").c_str());
+          SKIF_ImGui_SetHoverTip (("It is not recommended to run either " + p.Name + " or this app as an administrator.\n"
+                                   "Please restart both as a normal user.").c_str());
         else if (p.ProcessName == L"RTSS.exe")
           SKIF_ImGui_SetHoverTip ( "RivaTuner Statistics Server is known to occasionally conflict with Special K.\n"
                                    "Please stop it if Special K does not function as expected. You might have\n"
                                    "to stop MSI Afterburner as well if you use that application.");
         else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
           SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                    "Please restart the global injector service and SKIF as a regular user.");
+                                   "Please restart the frontend and the global injector service as a regular user.");
         else
-          SKIF_ImGui_SetHoverTip ( ("Running elevated will prevent injection into these games.\n"
-                                    "Please restart " + p.Name + " as a normal user.").c_str());
+          SKIF_ImGui_SetHoverTip (("Running elevated will prevent injection into these games.\n"
+                                   "Please restart " + p.Name + " as a normal user.").c_str());
       }
       else {
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
@@ -3265,9 +3256,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Check For Updates)" );
 
-  static auto regKVUpdateChannel =
+  static auto regKVAutoStopBehavior =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Update Channel)" );
+                         LR"(Auto-Stop Behavior)" );
 
   static auto regKVIgnoreUpdate =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -3280,7 +3271,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
   SKIF_bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );
-  SKIF_bRememberLastSelected    =   regKVRememberLastSelected.getData    ( );
+  
+  if (regKVRememberLastSelected.hasData())
+    SKIF_bRememberLastSelected  =   regKVRememberLastSelected.getData    ( );
+
   SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
 //SKIF_bDisableExitConfirmation =   regKVDisableExitConfirmation.getData ( );
   SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
@@ -3318,34 +3312,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_bFontVietnamese          =   regKVFontVietnamese.getData          ( );
   */
 
-  if ( regKVDisableBorders.hasData() )
+  if (regKVDisableBorders.hasData())
     SKIF_bDisableBorders        =   regKVDisableBorders.getData          ( );
 
-  if ( regKVNotifications.hasData() )
+  if (regKVAutoStopBehavior.hasData())
+    SKIF_iAutoStopBehavior      =   regKVAutoStopBehavior.getData        ( );
+
+  if (regKVNotifications.hasData())
     SKIF_iNotifications         =   regKVNotifications.getData           ( );
 
-  if ( regKVGhostVisibility.hasData() )
+  if (regKVGhostVisibility.hasData())
     SKIF_iGhostVisibility       =   regKVGhostVisibility.getData         ( );
 
-  if ( regKVStyle.hasData() )
+  if (regKVStyle.hasData())
     SKIF_iStyle                 =   regKVStyle.getData                   ( );
 
-  if ( regKVDimCovers.hasData() )
+  if (regKVDimCovers.hasData())
     SKIF_iDimCovers             =   regKVDimCovers.getData               ( );
 
-  if ( regKVCheckForUpdates.hasData() )
+  if (regKVCheckForUpdates.hasData())
     SKIF_iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
 
-  if (regKVUpdateChannel.hasData() )
-    SKIF_iUpdateChannel         =   regKVUpdateChannel.getData           ( );
-
-  if (regKVIgnoreUpdate.hasData() )
+  if (regKVIgnoreUpdate.hasData())
     SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
 
-  if (regKVFollowUpdateChannel.hasData() )
+  if (regKVFollowUpdateChannel.hasData())
     SKIF_wsUpdateChannel        = regKVFollowUpdateChannel.getWideString ( );
 
-  if ( SKIF_bRememberLastSelected && regKVLastSelected.hasData() )
+  if (SKIF_bRememberLastSelected && regKVLastSelected.hasData())
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
 
   hWndOrigForeground =
@@ -4177,9 +4171,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::PopStyleVar ();
       
       if (SKIF_bCloseToTray)
-        SKIF_ImGui_SetHoverTip ("SKIF will minimize to the notification area");
+        SKIF_ImGui_SetHoverTip ("This app will close to the notification area");
       else if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
-        SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
+        SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
 
       ImGui::SetCursorPos (topCursorPos);
 
@@ -4424,56 +4418,175 @@ wWinMain ( _In_     HINSTANCE hInstance,
             "This will also disable automatic downloads of new updates to Special K."
           );
 
+          if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &SKIF_bPreferGOGGalaxyLaunch) )
+            regKVPreferGOGGalaxyLaunch.putData (SKIF_bPreferGOGGalaxyLaunch);
+
           if ( ImGui::Checkbox ( "Remember the last selected game",         &SKIF_bRememberLastSelected ) )
             regKVRememberLastSelected.putData (                              SKIF_bRememberLastSelected );
             
-          if ( ImGui::Checkbox ( "Minimize SKIF when launching a game",             &SKIF_bMinimizeOnGameLaunch ) )
+          if ( ImGui::Checkbox ( "Minimize when launching a game",             &SKIF_bMinimizeOnGameLaunch ) )
             regKVMinimizeOnGameLaunch.putData (                                      SKIF_bMinimizeOnGameLaunch );
             
-          if ( ImGui::Checkbox ( "Minimize SKIF to the notification area on close", &SKIF_bCloseToTray ) )
+          if ( ImGui::Checkbox ( "Close to the notification area", &SKIF_bCloseToTray ) )
             regKVCloseToTray.putData (                                               SKIF_bCloseToTray );
-
-          if (ImGui::Checkbox("Do not stop the global injection service when closing SKIF",
-                                                  &SKIF_bAllowBackgroundService))
-            regKVAllowBackgroundService.putData ( SKIF_bAllowBackgroundService);
-
-          if ( ImGui::Checkbox ( "Always open SKIF on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
-            regKVOpenAtCursorPosition.putData (                                         SKIF_bOpenAtCursorPosition );
-
-          if ( ImGui::Checkbox (
-                  "Allow multiple instances of SKIF",
-                    &SKIF_bAllowMultipleInstances )
-              )
-          {
-            if (! SKIF_bAllowMultipleInstances)
-            {
-              // Immediately close out any duplicate instances, they're undesirables
-              EnumWindows ( []( HWND   hWnd,
-                                LPARAM lParam ) -> BOOL
-              {
-                wchar_t                         wszRealWindowClass [64] = { };
-                if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
-                {
-                  if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
-                  {
-                    if (SKIF_hWnd != hWnd)
-                      PostMessage (  hWnd, WM_QUIT,
-                                      0x0, 0x0  );
-                  }
-                }
-                return TRUE;
-              }, (LPARAM)SKIF_WindowClass);
-            }
-
-            regKVAllowMultipleInstances.putData (
-              SKIF_bAllowMultipleInstances
-              );
-          }
 
           _inject._StartAtLogonCtrl ( );
 
-          if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &SKIF_bPreferGOGGalaxyLaunch) )
-            regKVPreferGOGGalaxyLaunch.putData (SKIF_bPreferGOGGalaxyLaunch);
+          ImGui::NextColumn    ( );
+
+          // New column
+          
+          ImGui::BeginGroup    ( );
+            
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
+                                  "Move the mouse over each option to get more information");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Auto-stop behavior when launching a game:"
+          );
+          ImGui::TreePush        ("SKIF_iAutoStopBehavior");
+
+          //if (ImGui::RadioButton ("Never",           &SKIF_iAutoStopBehavior, 0))
+          //  regKVAutoStopBehavior.putData (           SKIF_iAutoStopBehavior);
+          // 
+          //ImGui::SameLine        ( );
+
+          if (ImGui::RadioButton ("Stop on injection",    &SKIF_iAutoStopBehavior, 1))
+            regKVAutoStopBehavior.putData (             SKIF_iAutoStopBehavior);
+
+          SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K successfully injects into a game.");
+
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Stop on game exit",      &SKIF_iAutoStopBehavior, 2))
+            regKVAutoStopBehavior.putData (             SKIF_iAutoStopBehavior);
+
+          SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K detects that the game is being closed.");
+
+          ImGui::TreePop         ( );
+
+          ImGui::Spacing         ( );
+
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("This setting has no effect if low bandwidth mode is enabled.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Check for updates to Special K:"
+          );
+
+          if (SKIF_bLowBandwidthMode)
+          {
+            // Disable buttons
+            ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+          }
+
+          ImGui::BeginGroup    ( );
+
+          ImGui::TreePush        ("SKIF_iCheckForUpdates");
+          if (ImGui::RadioButton ("Never",                 &SKIF_iCheckForUpdates, 0))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Weekly",                &SKIF_iCheckForUpdates, 1))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("On each launch",        &SKIF_iCheckForUpdates, 2))
+            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+          ImGui::TreePop         ( );
+
+          ImGui::EndGroup      ( );
+
+          if (! updateChannels.empty())
+          {
+            ImGui::TreePush        ("Push_UpdateChannel");
+
+            ImGui::BeginGroup    ( );
+
+            static std::pair<std::string, std::string>  empty           = std::pair("", "");
+            static std::pair<std::string, std::string>* selectedChannel = &empty;
+
+            static bool
+                firstRun = true;
+            if (firstRun)
+            {   firstRun = false;
+              for (auto& updateChannel : updateChannels)
+                if (updateChannel.first == SK_WideCharToUTF8(SKIF_wsUpdateChannel))
+                  selectedChannel = &updateChannel;
+            }
+
+            if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", selectedChannel->second.c_str()))
+            {
+              for (auto& updateChannel : updateChannels)
+              {
+                bool is_selected = (selectedChannel->first == updateChannel.first);
+
+                if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != selectedChannel->first)
+                {
+                  // Update selection
+                  selectedChannel = &updateChannel;
+
+                  // Update channel
+                  SKIF_wsUpdateChannel = SK_UTF8ToWideChar(selectedChannel->first);
+                  SKIF_wsIgnoreUpdate  = L"";
+                  regKVFollowUpdateChannel.putData(SKIF_wsUpdateChannel);
+                  regKVIgnoreUpdate       .putData (SKIF_wsIgnoreUpdate);
+
+                  // Trigger a new check for updates
+                  changedUpdateChannel = true;
+                  SKIF_UpdateReady     = showUpdatePrompt = false;
+                  newVersion.filename.clear();
+                  newVersion.description.clear();
+                  InterlockedExchange (&update_thread, 0);
+                }
+
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus ( );
+              }
+
+              ImGui::EndCombo  ( );
+            }
+
+            ImGui::EndGroup      ( );
+
+            ImGui::TreePop       ( );
+          }
+
+          else if (SKIF_iCheckForUpdates > 0) {
+            ImGui::TreePush      ("Push_UpdateChannel");
+            ImGui::BeginGroup    ( );
+            ImGui::TextColored   (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
+                                 "A restart is required to populate the update channels.");
+            ImGui::EndGroup      ( );
+            ImGui::TreePop       ( );
+          }
+
+          if (SKIF_bLowBandwidthMode)
+          {
+            ImGui::PopStyleVar ();
+            ImGui::PopItemFlag ();
+          }
+
+          ImGui::Spacing       ( );
+            
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
+          ImGui::SameLine        ( );
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+              "Show Windows notifications:"
+          );
+          ImGui::TreePush        ("SKIF_iNotifications");
+          if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::SameLine        ( );
+          if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
+            regKVNotifications.putData (             SKIF_iNotifications);
+          ImGui::TreePop         ( );
 
           ImGui::Spacing       ( );
             
@@ -4521,303 +4634,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TreePop       ( );
 
-          ImGui::NextColumn    ( );
-
-          // New column
-          
-          ImGui::BeginGroup    ( );
-
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("This setting has no effect if low bandwidth mode is enabled.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Check for updates to Special K:"
-          );
-
-          if (SKIF_bLowBandwidthMode)
-          {
-            // Disable buttons
-            ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-          }
-
-          ImGui::TreePush        ("SKIF_iCheckForUpdates");
-          if (ImGui::RadioButton ("Never",                 &SKIF_iCheckForUpdates, 0))
-            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Weekly",                &SKIF_iCheckForUpdates, 1))
-            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("On each launch",        &SKIF_iCheckForUpdates, 2))
-            regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
-          ImGui::TreePop         ( );
-
-          if (SKIF_bLowBandwidthMode)
-          {
-            ImGui::PopStyleVar ();
-            ImGui::PopItemFlag ();
-          }
-
-          ImGui::EndGroup      ( );
-
-          ImGui::TreePush        ("Push_UpdateChannel");
-
-          ImGui::BeginGroup    ( );
-
-          /*
-          const char* ChannelItems[] = { "Discord (updates regularly)",
-                                         "Website (updates every ~6 months)",
-                                         "Ancient (~6 months older than Website)" };
-          */
-
-          if (! updateChannels.empty())
-          {
-            static std::pair<std::string, std::string>  empty           = std::pair("", "");
-            static std::pair<std::string, std::string>* selectedChannel = &empty;
-
-            static bool
-                firstRun = true;
-            if (firstRun)
-            {   firstRun = false;
-              for (auto& updateChannel : updateChannels)
-                if (updateChannel.first == SK_WideCharToUTF8(SKIF_wsUpdateChannel))
-                  selectedChannel = &updateChannel;
-            }
-
-            if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", selectedChannel->second.c_str()))
-            {
-              for (auto& updateChannel : updateChannels)
-              {
-                bool is_selected = (selectedChannel->first == updateChannel.first);
-
-                if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != selectedChannel->first)
-                {
-                  // Update selection
-                  selectedChannel = &updateChannel;
-
-                  // Update channel
-                  SKIF_wsUpdateChannel = SK_UTF8ToWideChar(selectedChannel->first);
-                  SKIF_wsIgnoreUpdate  = L"";
-                  regKVFollowUpdateChannel.putData(SKIF_wsUpdateChannel);
-                  regKVIgnoreUpdate       .putData (SKIF_wsIgnoreUpdate);
-
-                  // Trigger a new check for updates
-                  changedUpdateChannel = true;
-                  SKIF_UpdateReady     = showUpdatePrompt = false;
-                  newVersion.filename.clear();
-                  newVersion.description.clear();
-                  InterlockedExchange (&update_thread, 0);
-                }
-
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus ( );
-              }
-
-              ImGui::EndCombo  ( );
-            }
-          }
-
-          ImGui::EndGroup      ( );
-
-          ImGui::TreePop       ( );
-
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Dim game covers by 25%%:"
-          );
-          ImGui::TreePush        ("SKIF_iDimCovers");
-          if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
-            regKVDimCovers.putData (                        SKIF_iDimCovers);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Show Windows notifications:"
-          );
-          ImGui::TreePush        ("SKIF_iNotifications");
-          if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
-            regKVNotifications.putData (             SKIF_iNotifications);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-            
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Show Shelly the Ghost:"
-          );
-          ImGui::TreePush        ("SKIF_iGhostVisibility");
-          if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::SameLine        ( );
-          if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
-            regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
-          ImGui::TreePop         ( );
-
-          ImGui::Spacing       ( );
-          
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-          SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
-          ImGui::SameLine        ( );
-          ImGui::TextColored     (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Disable UI elements:"
-          );
-          ImGui::TreePush        ("");
-
-          /*
-          if (ImGui::Checkbox ("Exit prompt  ",
-                                                  &SKIF_bDisableExitConfirmation))
-            regKVDisableExitConfirmation.putData (SKIF_bDisableExitConfirmation);
-
-          if (SKIF_bAllowBackgroundService)
-            SKIF_ImGui_SetHoverTip(
-              "The global injector will remain active in the background."
-            );
-          else
-            SKIF_ImGui_SetHoverTip (
-              "The global injector will stop automatically."
-            );
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-          */
-
-          if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
-          {
-            io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
-
-            if (SKIF_bDisableDPIScaling)
-              io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
-
-            regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
-          }
-
-          SKIF_ImGui_SetHoverTip (
-            "This application will appear smaller on HiDPI monitors."
-          );
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
-            regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
-
-          if (ImGui::IsItemHovered ())
-            SKIF_StatusBarText = "Info: ";
-
-          SKIF_ImGui_SetHoverText ("This is where the info will be displayed.");
-          SKIF_ImGui_SetHoverTip  ("The info will instead be displayed in the status bar at the bottom."
-                                    "\nNote that some links cannot be previewed as a result.");
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          if (ImGui::Checkbox ("Status bar", &SKIF_bDisableStatusBar))
-            regKVDisableStatusBar.putData (   SKIF_bDisableStatusBar);
-
-          SKIF_ImGui_SetHoverTip (
-            "Combining this with disabled UI tooltips will hide all context based information or tips."
-          );
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          if (ImGui::Checkbox ("Borders", &SKIF_bDisableBorders))
-          {
-            regKVDisableBorders.putData (  SKIF_bDisableBorders);
-            if (SKIF_bDisableBorders)
-            {
-              style.TabBorderSize   = 0.0F;
-              style.FrameBorderSize = 0.0F;
-            }
-            else {
-              style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
-              style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
-            }
-            if (SKIF_iStyle == 0)
-              SKIF_ImGui_StyleColorsDark ( );
-          }
-
-          if (SKIF_bDisableTooltips &&
-              SKIF_bDisableStatusBar)
-          {
-            ImGui::BeginGroup     ( );
-            ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-            ImGui::SameLine       ( );
-            ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
-            ImGui::EndGroup       ( );
-          }
-
-          ImGui::TreePop       ( );
-
-          ImGui::Spacing       ( );
-
-          const char* StyleItems[] = { "SKIF Dark",
-                                       "ImGui Dark",
-                                       "ImGui Light",
-                                       "ImGui Classic" };
-          static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
-          
-          ImGui::TextColored (
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-              "Choose a skin to apply to SKIF: (restart required)"
-          );
-          ImGui::TreePush      ("");
-
-          if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
-          {
-              for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
-              {
-                  bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
-                  if (ImGui::Selectable (StyleItems[n], is_selected))
-                  {
-                    SKIF_iStyle = n;
-                    regKVStyle.putData  (SKIF_iStyle);
-                    StyleItemsCurrent = StyleItems[SKIF_iStyle];
-                    // Apply the new Dear ImGui style
-                    //SKIF_SetStyle ( );
-                  }
-                  if (is_selected)
-                      ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-              }
-              ImGui::EndCombo  ( );
-          }
-
-          ImGui::TreePop       ( );
-
           ImGui::Columns    (1);
 
           ImGui::PopStyleColor();
@@ -4825,8 +4641,248 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Spacing ();
           ImGui::Spacing ();
 
-          if (ImGui::CollapsingHeader ("Advanced Monitoring###SKIF_SettingsHeader-2"))
+          if (ImGui::CollapsingHeader ("Appearance###SKIF_SettingsHeader-1"))
           {
+            ImGui::PushStyleColor   (
+              ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                                      );
+
+            //ImGui::Spacing    ( );
+
+            SKIF_ImGui_Spacing      ( );
+
+            SKIF_ImGui_Columns      (2, nullptr, true);
+
+            SK_RunOnce(
+              ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+            );
+            
+            ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+            SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
+            ImGui::SameLine        ( );
+            ImGui::TextColored (
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                "Dim game covers by 25%%:"
+            );
+            ImGui::TreePush        ("SKIF_iDimCovers");
+            if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
+              regKVDimCovers.putData (                        SKIF_iDimCovers);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
+              regKVDimCovers.putData (                        SKIF_iDimCovers);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
+              regKVDimCovers.putData (                        SKIF_iDimCovers);
+            ImGui::TreePop         ( );
+
+            ImGui::Spacing         ( );
+          
+            ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+            SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
+            ImGui::SameLine        ( );
+            ImGui::TextColored     (
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                "Disable UI elements:"
+            );
+            ImGui::TreePush        ("");
+
+            if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
+            {
+              io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+
+              if (SKIF_bDisableDPIScaling)
+                io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
+
+              regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
+            }
+
+            SKIF_ImGui_SetHoverTip (
+              "This application will appear smaller on HiDPI monitors."
+            );
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
+            if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
+              regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
+
+            if (ImGui::IsItemHovered ())
+              SKIF_StatusBarText = "Info: ";
+
+            SKIF_ImGui_SetHoverText ("This is where the info will be displayed.");
+            SKIF_ImGui_SetHoverTip  ("The info will instead be displayed in the status bar at the bottom."
+                                      "\nNote that some links cannot be previewed as a result.");
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
+            if (ImGui::Checkbox ("Status bar", &SKIF_bDisableStatusBar))
+              regKVDisableStatusBar.putData (   SKIF_bDisableStatusBar);
+
+            SKIF_ImGui_SetHoverTip (
+              "Combining this with disabled UI tooltips will hide all context based information or tips."
+            );
+
+            ImGui::SameLine ( );
+            ImGui::Spacing  ( );
+            ImGui::SameLine ( );
+
+            if (ImGui::Checkbox ("Borders", &SKIF_bDisableBorders))
+            {
+              regKVDisableBorders.putData (  SKIF_bDisableBorders);
+              if (SKIF_bDisableBorders)
+              {
+                style.TabBorderSize   = 0.0F;
+                style.FrameBorderSize = 0.0F;
+              }
+              else {
+                style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
+                style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
+              }
+              if (SKIF_iStyle == 0)
+                SKIF_ImGui_StyleColorsDark ( );
+            }
+
+            if (SKIF_bDisableTooltips &&
+                SKIF_bDisableStatusBar)
+            {
+              ImGui::BeginGroup     ( );
+              ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+              ImGui::SameLine       ( );
+              ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
+              ImGui::EndGroup       ( );
+            }
+
+            ImGui::TreePop       ( );
+
+            ImGui::NextColumn    ( );
+            
+            ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+            SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
+            ImGui::SameLine        ( );
+            ImGui::TextColored (
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                "Show Shelly the Ghost:"
+            );
+            ImGui::TreePush        ("SKIF_iGhostVisibility");
+            if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::SameLine        ( );
+            if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
+              regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+            ImGui::TreePop         ( );
+
+            ImGui::Spacing       ( );
+
+            const char* StyleItems[] = { "SKIF Dark",
+                                         "ImGui Dark",
+                                         "ImGui Light",
+                                         "ImGui Classic" };
+            static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
+          
+            ImGui::TextColored (
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                "Color theme: (restart required)"
+            );
+            ImGui::TreePush      ("");
+
+            if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+            {
+                for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
+                {
+                    bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
+                    if (ImGui::Selectable (StyleItems[n], is_selected))
+                    {
+                      SKIF_iStyle = n;
+                      regKVStyle.putData  (SKIF_iStyle);
+                      StyleItemsCurrent = StyleItems[SKIF_iStyle];
+                      // Apply the new Dear ImGui style
+                      //SKIF_SetStyle ( );
+                    }
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                }
+                ImGui::EndCombo  ( );
+            }
+
+            ImGui::TreePop       ( );
+
+            ImGui::Columns       (1);
+
+            ImGui::PopStyleColor ( );
+
+          }
+
+          ImGui::Spacing ();
+          ImGui::Spacing ();
+
+          if (ImGui::CollapsingHeader ("Advanced###SKIF_SettingsHeader-2"))
+          {
+            ImGui::PushStyleColor   (
+              ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                                      );
+
+            SKIF_ImGui_Spacing      ( );
+
+            SKIF_ImGui_Columns      (2, nullptr, true);
+
+            SK_RunOnce(
+              ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+            );
+
+            if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
+              regKVOpenAtCursorPosition.putData (                                            SKIF_bOpenAtCursorPosition );
+
+            if ( ImGui::Checkbox (
+                    "Allow multiple instances of this app",
+                      &SKIF_bAllowMultipleInstances )
+                )
+            {
+              if (! SKIF_bAllowMultipleInstances)
+              {
+                // Immediately close out any duplicate instances, they're undesirables
+                EnumWindows ( []( HWND   hWnd,
+                                  LPARAM lParam ) -> BOOL
+                {
+                  wchar_t                         wszRealWindowClass [64] = { };
+                  if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+                  {
+                    if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+                    {
+                      if (SKIF_hWnd != hWnd)
+                        PostMessage (  hWnd, WM_QUIT,
+                                        0x0, 0x0  );
+                    }
+                  }
+                  return TRUE;
+                }, (LPARAM)SKIF_WindowClass);
+              }
+
+              regKVAllowMultipleInstances.putData (
+                SKIF_bAllowMultipleInstances
+                );
+            }
+
+            ImGui::NextColumn       ( );
+
+            if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
+                                                    &SKIF_bAllowBackgroundService))
+              regKVAllowBackgroundService.putData (  SKIF_bAllowBackgroundService);
+
+            ImGui::Columns          (1);
+
+            ImGui::PopStyleColor    ( );
+
+            ImGui::Spacing  ();
+            ImGui::Spacing  ();
+
+            ImGui::Separator   ();
+
             // PresentMon prerequisites
             ImGui::BeginGroup  ();
             ImGui::Spacing     ();
@@ -5391,7 +5447,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps\nEpic Games\\\\\nGOG Galaxy\\\\Games\nOrigin Games\\\\",
                                      _inject.whitelist, MAX_PATH * 128 - 1,
                                        ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
-                                                120 * SKIF_ImGui_GlobalDPIScale ), // 150
+                                                150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                           ImGuiInputTextFlags_Multiline );
 
             if (*_inject.whitelist == '\0')
@@ -5430,7 +5486,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::SameLine    ();
             ImGui::BeginGroup  ();
             ImGui::TextColored ((SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
-            ImGui::TextColored ((SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
+            //ImGui::TextColored ((SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
             ImGui::EndGroup    ();
 
             ImGui::SameLine    ();
@@ -5448,6 +5504,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               "\nmost of them have 'games' in the full path somewhere."
             );
 
+            /*
             if (ImGui::Selectable ("WindowsApps"))
             {
               white_edited = true;
@@ -5458,6 +5515,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_ImGui_SetHoverTip (
               "Whitelists games on the Microsoft Store or Game Pass."
             );
+            */
+
             ImGui::EndGroup ();
             ImGui::EndGroup ();
 
@@ -5481,7 +5540,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
                                      _inject.blacklist, MAX_PATH * 128 - 1,
                                        ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
-                                                 80 * SKIF_ImGui_GlobalDPIScale ),
+                                                 120 * SKIF_ImGui_GlobalDPIScale ),
                                          ImGuiInputTextFlags_Multiline );
 
             _CheckWarnings (_inject.blacklist);

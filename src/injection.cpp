@@ -113,11 +113,14 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   hInjectAck.Close();
 
+  extern int SKIF_iAutoStopBehavior;
+
   // Create a new handle if requested
   if (newState && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
-      CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAck)" )
+      CreateEvent ( nullptr, FALSE, FALSE, (SKIF_iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
+                                                                         : LR"(Local\SKIF_InjectAck)")
     );
 
     SetTimer (SKIF_hWnd,
@@ -321,6 +324,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       }
     }
 
+    extern BOOL SKIF_bSuppressServiceNotification;
     extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
     extern CHandle hInjectAck;
 
@@ -340,10 +344,17 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         bCurrentState     = true;
         runState          = Started;
 
-        if (bAckInj)
-          SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
+        // Do not show the first message if SKIF was hidden as a result of the game launch
+        if (! SKIF_bSuppressServiceNotification)
+        {
+          if (bAckInj)
+            SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
+          else
+            SKIF_CreateNotifyToast (L"The global injection service was started.",     L"Special K is now being injected into games!");
+        }
+
         else
-          SKIF_CreateNotifyToast (L"The global injection service was started.",     L"Special K is now being injected into games!");
+          SKIF_bSuppressServiceNotification = FALSE;
       }
       else
       {
@@ -789,11 +800,15 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (_inject.SKVer32 >= "21.08.12")
 #endif
     {
+
       if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
 
-      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
-                              "when Special K is injected into a whitelisted game.");
+      ImGui::SameLine        ( );
+
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      SKIF_ImGui_SetHoverTip ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+                              "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
     }
 
     else {
@@ -901,7 +916,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   static bool changes = false;
 
-  if (ImGui::Checkbox("Start SKIF with Windows", &bAutoStartSKIF))
+  if (ImGui::Checkbox("Start with Windows", &bAutoStartSKIF))
     changes = true;
 
   if (! bAutoStartSKIF)
@@ -915,12 +930,12 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   extern bool SKIF_bCloseToTray;
 
-  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the global injection service as well", &bAutoStartService))
+  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the injection service as well", &bAutoStartService))
     changes = true;
     
 
-  if (ImGui::Checkbox((SKIF_bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized in notification area" :
-                                            " " ICON_FA_WINDOW_MINIMIZE " Start SKIF minimized", &bStartMinimized))
+  if (ImGui::Checkbox((SKIF_bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
+                                            " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
     changes = true;
 
   ImGui::TreePop  ( );
