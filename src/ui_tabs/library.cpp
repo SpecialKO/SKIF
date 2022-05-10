@@ -810,11 +810,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static float max_app_name_len = 640.0f / 2.0f;
 
-  /* What does this even do? Nothing?
-  std::vector <AppId_t>
-    SK_Steam_GetInstalledAppIDs (void);
-  */
-
   static std::vector <AppId_t> appids;
 
   extern bool SKIF_bDisableSteamLibrary;

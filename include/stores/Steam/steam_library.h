@@ -123,6 +123,7 @@ SK_GetManifestContentsForAppID (AppId_t appid);
 
 // Barely functional Steam Key/Value Parser
 //   -> Does not handle unquoted kv pairs.
+//   -> Does also not handle a hanging { that lacks a closing } (worked around by counting the depth we end up on)
 class SK_Steam_KeyValues
 {
 public:
@@ -136,6 +137,23 @@ public:
 
     if (sections.empty () || input.empty ())
       return ret;
+
+    // TODO: Fix proper solution to the below
+    // This is a halfassed way of ensuring there's a matching set of { and }
+    // ---
+    int depth = 0;
+
+    for (auto c : input)
+    {
+      if (c == '{')
+        depth++;
+      if (c == '}' && depth > 0)
+        depth--;
+    }
+
+    if (depth != 0)
+      return ret;
+    // ---
 
     struct {
       std::deque <std::string> path;

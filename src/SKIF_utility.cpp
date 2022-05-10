@@ -580,7 +580,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
   if (SKIF_bLowBandwidthMode)
     flags |= INTERNET_FLAG_RESYNCHRONIZE | INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_CACHE_ASYNC;
   else
-    flags |= INTERNET_FLAG_RELOAD;
+    flags |= INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE;
 
   hInetHTTPGetReq =
     HttpOpenRequest ( hInetHost,

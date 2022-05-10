@@ -2463,8 +2463,18 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         // Download repository.json if it does not exist or if we're forcing an update
         if (! PathFileExists (path.c_str()) || SKIF_iCheckForUpdates == 2)
         {
-          SKIF_Util_GetWebResource (L"https://sk-data.special-k.info/repository.json", path);
+
+          // Get UNIX-style time
+          time_t ltime;
+          time (&ltime);
+
+          std::wstring url  = L"https://sk-data.special-k.info/repository.json";
+                       url += L"?t=";
+                       url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
+
+          SKIF_Util_GetWebResource (url, path);
         }
+
         else {
           WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
 
