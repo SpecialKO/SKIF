@@ -40,6 +40,8 @@ it's enough to launch the game through Galaxy like the start menu shortcuts does
 void
 SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
+  PLOG_INFO << "Detecting GOG games...";
+
   HKEY  hKey;
   DWORD dwIndex = 0, dwResult, dwSize;
   WCHAR szSubKey[MAX_PATH];

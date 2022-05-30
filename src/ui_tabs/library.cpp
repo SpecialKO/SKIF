@@ -360,6 +360,8 @@ LoadLibraryTexture (
     }
   }
 
+  PLOG_DEBUG << "Texture to load: " << load_str;
+
   if (pApp != nullptr)
   {
     if      (libTexToLoad == LibraryTexture::Cover)
@@ -808,7 +810,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   auto& io =
     ImGui::GetIO ();
 
-  static float max_app_name_len = 640.0f / 2.0f;
+  //static float max_app_name_len = 640.0f / 2.0f;
 
   static std::vector <AppId_t> appids;
 
@@ -913,6 +915,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     InterlockedExchange (&icon_thread, 1);
 
+    PLOG_INFO << "Populating library list...";
+
     apps      = PopulateAppRecords ();
 
     for (auto& app : apps)
@@ -962,18 +966,26 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
     }
 
+    PLOG_INFO << "Finished populating the library list.";
+
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](void*)->void
     {
       CoInitializeEx (nullptr, 0x0);
+
+      PLOG_INFO << "Begin streaming game icons and names...";
 
       ImVec2 dontCare1, dontCare2;
       SK_RunOnce (
         LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2)
       );
 
+      PLOG_INFO << "Loaded the embedded Patreon texture.";
+
       for ( auto& app : apps )
       {
+        PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
+
         // Special handling for non-Steam owners of Special K / SKIF
         if ( app.second.id == SKIF_STEAM_APPID )
           app.first = "Special K";
@@ -1004,22 +1016,53 @@ SKIF_UI_Tab_DrawLibrary (void)
                            app.second.id );
           }
 
-          // Strip game names from special symbols
-          const char* chars = (const char *)u8"©®™";
-          for (unsigned int i = 0; i < strlen(chars); ++i)
-            app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
+          // Corrupted app manifest / not known to Steam client; SKIP!
+          if (app.first.empty ())
+          {
+            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has no name; ignoring!";
 
-          // Strip null terminators
+            app.second.id = 0;
+            continue;
+          }
+
+          std::string original_name = app.first;
+
+          // Some games use weird Unicode character combos that ImGui can't handle,
+          //  so let's replace those with the normal ones.
+
+          // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
+          //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
+          app.first = std::regex_replace(app.first, std::regex("\xE2\x80\x99"), "\x27");
+
+          // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
+          //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
+          app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
+
+          // Strip game names from special symbols (disabled due to breaking some Chinese characters)
+          //const char* chars = (const char *)u8"©®™";
+          //for (unsigned int i = 0; i < strlen(chars); ++i)
+            //app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
+
+          // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
+          app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
+
+          // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
+          app.first = std::regex_replace(app.first, std::regex("\xC2\xAE"), "");
+
+          // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
+          app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
+
+          if (original_name != app.first)
+          {
+            PLOG_DEBUG << "Game title was changed:";
+            PLOG_DEBUG << "Old: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ")";
+            PLOG_DEBUG << "New: " << SK_UTF8ToWideChar(app.first.c_str())     << " (" << app.first     << ")";
+          }
+
+          // Strip any remaining null terminators
           app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
           
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
-        }
-
-        // Corrupted app manifest / not known to Steam client; SKIP!
-        if (app.first.empty ())
-        {
-          app.second.id = 0;
-          continue;
         }
 
         // Check if install folder exists (but not for SKIF)
@@ -1034,6 +1077,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           
           if (! PathFileExists(install_dir.c_str()))
           {
+            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has non-existent install folder; ignoring!";
+
             app.second.id = 0;
             continue;
           }
@@ -1104,17 +1149,24 @@ SKIF_UI_Tab_DrawLibrary (void)
                                        dontCare2,
                                          &app.second );
 
+        // UNUSED?
+        /*
         static auto *pFont =
           ImGui::GetFont ();
 
         max_app_name_len =
           std::max ( max_app_name_len,
-                       pFont->CalcTextSizeA (1.0f, FLT_MAX, 0.0f,
-                         app.first.c_str (),
+                        pFont->CalcTextSizeA (1.0f, FLT_MAX, 0.0f,
+                          app.first.c_str (),
                 StrStrA (app.first.c_str (), "##")
-                       ).x
+                        ).x
           );
+          */
+
+        PLOG_VERBOSE << "Finished with game!";
       }
+
+      PLOG_INFO << "Finished streaming game icons and names...";
 
       InterlockedExchange (&icon_thread, 0);
       InterlockedExchange (&need_sort, 1);

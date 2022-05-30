@@ -47,6 +47,8 @@ std::wstring SKIF_EGS_AppDataPath;
 void
 SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
+  PLOG_INFO << "Detecting Epic games...";
+
   HKEY hKey;
   DWORD dwSize;
   WCHAR szData[MAX_PATH];
@@ -69,11 +71,18 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
   // Fallback: If the registry value does not exist (which happens surprisingly often) assume the default path is used
   if (! registrySuccess)
+  {
+    PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
     SKIF_EGS_AppDataPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
+  }
+
+  PLOG_INFO << "Epic manifest location: " << SKIF_EGS_AppDataPath;
 
   // Abort if the folder does not exist
   if (! PathFileExists (SKIF_EGS_AppDataPath.c_str()))
   {
+    PLOG_WARNING << "Folder does not exist!";
+
     SKIF_EGS_AppDataPath = L"";
     return;
   }
@@ -84,6 +93,8 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         entry.path().extension().string() == ".item" )
     {
       try {
+        PLOG_DEBUG << "Parsing " << entry.path();
+
         std::ifstream file(entry.path());
         nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
         file.close();

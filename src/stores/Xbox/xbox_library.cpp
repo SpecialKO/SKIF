@@ -25,6 +25,8 @@ To get more information about the game, parsing the AppXManifest.xml in the root
 void
 SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
+  PLOG_INFO << "Detecting Xbox games...";
+
   HKEY  hKey, hSubKey;
   DWORD dwIndex = 0, dwResult, dwSize;
   WCHAR szSubKeyGUID[MAX_PATH];

@@ -111,7 +111,8 @@ int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = 
      SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                         3 = ImGui Classic
      SKIF_iDimCovers               = 0, // 0 = Never,                       1 = Always,                 2 = On mouse hover
      SKIF_iCheckForUpdates         = 1, // 0 = Never,                       1 = Weekly,                 2 = On each launch
-     SKIF_iAutoStopBehavior        = 1; // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
+     SKIF_iAutoStopBehavior        = 1, // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
+     SKIF_iLogging                 = 4; // 0 = None,       1 = Fatal,       2 = Error,       3 = Warning,       4 = Info,       5 = Debug,       6 = Verbose
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -3073,6 +3074,18 @@ void SKIF_Initialize (void)
       std::filesystem::path (wszPath).remove_filename ()
     );
 
+    DeleteFile(L"SKIF.log");
+
+    // Engage logging!
+    plog::init(plog::debug, "SKIF.log", 10000000, 1);
+
+    PLOG_INFO << "Special K Injection Frontend (SKIF) v " << SKIF_VERSION_STR_A;
+    PLOG_INFO << "Built " __TIME__ ", " __DATE__;
+    PLOG_INFO << SKIF_LOG_SEPARATOR;
+    PLOG_INFO << "Working directory:";
+    PLOG_INFO << "Old: " << orgWorkingDirectory;
+    PLOG_INFO << "New: " << std::filesystem::current_path();
+
     CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
     
     if (path_cache.my_documents.path [0] == 0)
@@ -3258,6 +3271,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Style)" );
 
+  static auto regKVLogging =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Logging)" );
+
   static auto regKVDimCovers =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Dim Covers)" );
@@ -3337,6 +3354,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (regKVStyle.hasData())
     SKIF_iStyle                 =   regKVStyle.getData                   ( );
 
+  if (regKVLogging.hasData())
+    SKIF_iLogging               =   regKVLogging.getData                 ( );
+
   if (regKVDimCovers.hasData())
     SKIF_iDimCovers             =   regKVDimCovers.getData               ( );
 
@@ -3354,6 +3374,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   hWndOrigForeground =
     GetForegroundWindow ();
+
+  plog::get()->setMaxSeverity((plog::Severity) SKIF_iLogging);
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
@@ -4884,6 +4906,39 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                     &SKIF_bAllowBackgroundService))
               regKVAllowBackgroundService.putData (  SKIF_bAllowBackgroundService);
 
+            const char* LogSeverity[] = { "None",
+                                          "Fatal",
+                                          "Error",
+                                          "Warning",
+                                          "Info",
+                                          "Debug",
+                                          "Verbose" };
+            static const char* LogSeverityCurrent = LogSeverity[SKIF_iLogging];
+          
+            ImGui::TextColored (
+              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                "Logging:"
+            );
+
+            ImGui::SameLine();
+
+            if (ImGui::BeginCombo ("##SKIF_iStyleCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
+            {
+                for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
+                {
+                    bool is_selected = (LogSeverityCurrent == LogSeverity[n]); // You can store your selection however you want, outside or inside your objects
+                    if (ImGui::Selectable (LogSeverity[n], is_selected))
+                    {
+                      SKIF_iLogging = n;
+                      regKVLogging.putData  (SKIF_iLogging);
+                      LogSeverityCurrent = LogSeverity[SKIF_iLogging];
+                    }
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                }
+                ImGui::EndCombo  ( );
+            }
+
             ImGui::Columns          (1);
 
             ImGui::PopStyleColor    ( );
@@ -6318,32 +6373,40 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  PLOG_INFO << "Writing last selected game to registry: " << SKIF_iLastSelected;
+
   regKVLastSelected.putData(SKIF_iLastSelected);
 
+  PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
 
+  PLOG_INFO << "Shutting down ImGui...";
   ImGui_ImplDX11_Shutdown   (    );
   ImGui_ImplWin32_Shutdown  (    );
 
   CleanupDeviceD3D          (    );
 
+  PLOG_INFO << "Destroying notification icon...";
   Shell_NotifyIcon          (NIM_DELETE, &niData);
   DeleteObject              (niData.hIcon);
   niData.hIcon               = 0;
   DestroyWindow             (SKIF_Notify_hWnd);
 
+  PLOG_INFO << "Destroying main window...";
   if (hDC != 0)
     ReleaseDC               (hWnd, hDC);
   DestroyWindow             (hWnd);
 
+  PLOG_INFO << "Destroying ImGui context...";
   ImGui::DestroyContext     (    );
 
   SKIF_Notify_hWnd = 0;
   SKIF_hWnd = 0;
        hWnd = 0;
 
+  PLOG_INFO << "Terminating process...";
   return 0;
 }
 

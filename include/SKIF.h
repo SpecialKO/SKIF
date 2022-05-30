@@ -30,6 +30,10 @@
 #include <string>
 #include <string_view>
 
+#include <plog/Log.h>
+#include "plog/Initializers/RollingFileInitializer.h"
+#include "plog/Appenders/ConsoleAppender.h"
+
 // This file is included mostly everywhere else, so lets define using ImGui's math operators here.
 #define IMGUI_DEFINE_MATH_OPERATORS
 

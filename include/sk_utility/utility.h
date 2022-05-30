@@ -40,6 +40,10 @@
 #include <array>
 #include <string>
 
+#include <plog/Log.h>
+#include "plog/Initializers/RollingFileInitializer.h"
+#include "plog/Appenders/ConsoleAppender.h"
+
 #if 0
 #include <SpecialK/SpecialK.h>
 #include <SpecialK/ini.h>

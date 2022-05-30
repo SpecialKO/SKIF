@@ -49,6 +49,7 @@
 #define SKIF_FILE_VERSION     SKIF_MAJOR,SKIF_MINOR,SKIF_BUILD,SKIF_REV_N
 #define SKIF_PRODUCT_VERSION  SKIF_MAJOR,SKIF_MINOR,SKIF_BUILD,SKIF_REV_N
 
+#define SKIF_LOG_SEPARATOR           "----------------------------"
 
 #define SKIF_WINDOW_TITLE_A          "Special K Injection Frontend"
 #define SKIF_WINDOW_TITLE_A_EX        SKIF_WINDOW_TITLE_A //"\t-~=( " ICON_FA_USER_COG " )=~-"

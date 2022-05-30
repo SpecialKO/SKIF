@@ -217,6 +217,8 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
 
 void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* apps)
 {
+  PLOG_INFO << "Detecting custom SKIF games...";
+
   HKEY    hKey;
   DWORD   dwIndex = 0, dwResult, dwSize;
   DWORD32 dwData  = 0;

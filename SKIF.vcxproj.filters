@@ -25,9 +25,6 @@
     <Filter Include="Source Files\ImGui\Win32">
       <UniqueIdentifier>{840abb22-849f-4480-95e4-02dd28955bd3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\DXTex">
-      <UniqueIdentifier>{fcae95b5-4150-4db2-ad68-0316bfc404ef}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\DXTex">
       <UniqueIdentifier>{c49090e8-805d-4d4c-bac0-497258bf48b5}</UniqueIdentifier>
     </Filter>
@@ -93,6 +90,24 @@
     </Filter>
     <Filter Include="Source Files\UI Tabs">
       <UniqueIdentifier>{e58a2ba6-a4c1-493c-b8f1-cfd30cdb9f2d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\DXTex">
+      <UniqueIdentifier>{fcae95b5-4150-4db2-ad68-0316bfc404ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Plog">
+      <UniqueIdentifier>{5ed52bdf-2101-4642-a4cd-d163a5327a20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Plog\Appenders">
+      <UniqueIdentifier>{181cb680-e447-4fcb-bc89-10feef802ad5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Plog\Converters">
+      <UniqueIdentifier>{53ad7bd8-597e-4873-a1e9-998d2e9fa630}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Plog\Formatters">
+      <UniqueIdentifier>{1dd4d855-b95b-4442-8d9f-e20146c1110d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Plog\Initializers">
+      <UniqueIdentifier>{feb2b720-f733-4b73-82f5-e925868f8e37}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -395,6 +410,69 @@
     </ClInclude>
     <ClInclude Include="include\vfs.h">
       <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Init.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Log.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Logger.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Record.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Severity.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Util.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\WinApi.h">
+      <Filter>Header Files\Plog</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\AndroidAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\ColorConsoleAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\ConsoleAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\DebugOutputAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\EventLogAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\IAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Appenders\RollingFileAppender.h">
+      <Filter>Header Files\Plog\Appenders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Initializers\RollingFileInitializer.h">
+      <Filter>Header Files\Plog\Initializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Formatters\CsvFormatter.h">
+      <Filter>Header Files\Plog\Formatters</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Formatters\FuncMessageFormatter.h">
+      <Filter>Header Files\Plog\Formatters</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Formatters\MessageOnlyFormatter.h">
+      <Filter>Header Files\Plog\Formatters</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Formatters\TxtFormatter.h">
+      <Filter>Header Files\Plog\Formatters</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Converters\NativeEOLConverter.h">
+      <Filter>Header Files\Plog\Converters</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Converters\UTF8Converter.h">
+      <Filter>Header Files\Plog\Converters</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
