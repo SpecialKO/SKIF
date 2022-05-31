@@ -2416,7 +2416,7 @@ int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
 }
 
 std::vector <std::pair<std::string, std::string>> updateChannels{};
-static volatile LONG update_thread = 0;
+static volatile LONG update_thread = 0; // 0 = No update check has run,     1 = Update check is running,     2 = Update check has completed
 struct SKIF_UpdateCheckResults {
   std::wstring version;
   std::wstring filename;
@@ -2452,6 +2452,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         COINIT_APARTMENTTHREADED |
         COINIT_DISABLE_OLE1DDE
       );
+
+      PLOG_INFO << "Thread started!";
 
       std::wstring root = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
       std::wstring path = root + LR"(repository.json)";
@@ -2620,7 +2622,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
         }
       }
-    
+
+      PLOG_INFO << "Thread stopped!";
       InterlockedExchange (&update_thread, 2);
       _endthreadex(0);
 
@@ -2628,7 +2631,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
     }, (LPVOID)&results, NULL, NULL);
   }
 
-  if (InterlockedCompareExchange (&update_thread, 2, 2) == 2)
+  if (InterlockedExchangeAdd (&update_thread, 0) == 2)
     return results;
   else
     return SKIF_UpdateCheckResults();
@@ -5795,6 +5798,27 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetCursorPos(tmpPos);
         // End Add Game
 
+        // Begin Pulsating Refresh Icon
+        if (InterlockedExchangeAdd (&update_thread, 0) == 1)
+        {
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX () +
+            ImGui::GetWindowSize ().x -
+              ( ImGui::CalcTextSize ( ICON_FA_SYNC ).x ) -
+            ImGui::GetCursorPosX () -
+            ImGui::GetStyle   ().ItemSpacing.x * 2
+          );
+
+          ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
+
+          ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
+                                ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
+                               ), ICON_FA_SYNC );
+        }
+
+        ImGui::SetCursorPos(tmpPos);
+        // End Refresh Icon
+
         // Begin Status Bar Text
         auto _StatusPartSize = [&](std::string& part) -> float
         {
@@ -5818,8 +5842,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         );
 
         ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
-        //ImGui::SetCursorPosY ( ImGui::GetCursorPosY     () +
-        //                        ImGui::GetTextLineHeight () / 4.0f );
 
         ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
                                 "%s", SKIF_StatusBarText.c_str ()

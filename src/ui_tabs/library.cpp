@@ -1420,8 +1420,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     update      = false;
   }
 
-  if (loadTexture && populated && (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems == 0) && ! InterlockedCompareExchange (&icon_thread, 0, 0)) // && ImGui::GetFrameCount() > 2)
-  { // Load cover first on third frame (>2) to fix one copy leaking of the cover -- CRASHES IN WIN8.1 VMware VIRTUAL MACHINE
+  if (loadTexture && populated && (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
+  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
     loadTexture = false;
 
     if ( appinfo != nullptr && pApp->store == "Steam")
