@@ -750,7 +750,7 @@ namespace skif_fs = std::filesystem;
 
 auto
 SKIF_ImGui_InitFonts =
-[ ](float fontSize = 18.0F)
+[ ](float fontSize)
 {
   static UINT acp = GetACP();
 
@@ -783,7 +783,7 @@ SKIF_ImGui_InitFonts =
   font_cfg.MergeMode = true;
 
   // Core character set
-  SKIF_ImGui_LoadFont     (L"Tahoma.ttf",   fontSize,  SK_ImGui_GetGlyphRangesDefaultEx               ()           );
+  SKIF_ImGui_LoadFont     (((tinyDPIFonts) ? L"Verdana.ttf" : L"Tahoma.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
 
   // Load extended character sets when SKIF is not used as a launcher
   if (! _Signal.Launcher)
@@ -3236,34 +3236,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
 
-  static auto regKVFontChineseSimplified =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Chinese Simplified Characters)" );
-
-  static auto regKVFontChineseAll =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Chinese All Characters)" );
-
-  static auto regKVFontCyrillic =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Cyrillic Characters)" );
-
-  static auto regKVFontJapanese =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Japanese Characters)" );
-
-  static auto regKVFontKorean =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Korean Characters)" );
-
-  static auto regKVFontThai =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Thai Characters)" );
-
-  static auto regKVFontVietnamese =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Load Vietnamese Characters)" );
-
   static auto regKVNotifications =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
@@ -3679,7 +3651,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplWin32_Init (hWnd);
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
-  SKIF_ImGui_InitFonts ();
+  SKIF_ImGui_InitFonts (18.0F);
 
   // Our state
   ImVec4 clear_color         =
@@ -3826,33 +3798,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
       break;
 
     // Set DPI related variables
-    //io.FontGlobalScale = 1.0f;
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
+    float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
+    if (fontScale < 15.0F)
+      fontScale += 1.0F;
 
     // Handling sub-1000px resolutions by rebuilding the font at 11px
     if (SKIF_ImGui_GlobalDPIScale < 1.0f && (! tinyDPIFonts))
     {
-      SKIF_ImGui_InitFonts (11.0F);
+      tinyDPIFonts = true;
+
+      PLOG_VERBOSE << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
+      SKIF_ImGui_InitFonts (fontScale); // 11.0F
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
-      tinyDPIFonts = true;
       invalidatedFonts = SKIF_Util_timeGetTime();
     }
 
     else if (SKIF_ImGui_GlobalDPIScale >= 1.0f && tinyDPIFonts)
     {
-      SKIF_ImGui_InitFonts ();
+      tinyDPIFonts = false;
+
+      PLOG_VERBOSE << "DPI scale detected as being at or above 100%; using font scale 18.0F";
+
+      SKIF_ImGui_InitFonts (18.0F);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
-      tinyDPIFonts = false;
       invalidatedFonts = SKIF_Util_timeGetTime();
     }
 
     else if (invalidateFonts)
     {
-      SKIF_ImGui_InitFonts ();
+      PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
+      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : 18.0F);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -3871,17 +3851,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bFontThai              = false;
       SKIF_bFontVietnamese        = false;
 
-      /*
-      regKVFontChineseSimplified.putData (SKIF_bFontChineseSimplified);
-      regKVFontChineseAll       .putData (SKIF_bFontChineseAll);
-      regKVFontCyrillic         .putData (SKIF_bFontCyrillic);
-      regKVFontJapanese         .putData (SKIF_bFontJapanese);
-      regKVFontKorean           .putData (SKIF_bFontKorean);
-      regKVFontThai             .putData (SKIF_bFontThai);
-      regKVFontVietnamese       .putData (SKIF_bFontVietnamese);
-      */
-
-      SKIF_ImGui_InitFonts ();
+      PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
+      SKIF_ImGui_InitFonts((tinyDPIFonts) ? fontScale : 18.0F);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -3917,6 +3888,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (t.Contains(ImGui::GetMousePos()))
           {
             SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+
             rectCursorMonitor = t;
           }
         }
@@ -4006,7 +3978,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
 
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
-      if ( RepositionSKIF )
+      if (RepositionSKIF)
       {
         RepositionSKIF = false;
       } else if ( monitor->WorkSize.y / fDpiScaleFactor < ((float)SKIF_hLargeMode + 40.0f) && ImGui::GetFrameCount () > 1)
@@ -5717,17 +5689,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Shelly the Ghost
 
-        float title_len = ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
-          //ImGui::GetFont ()->CalcTextSizeA ((tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f, SKIF_WINDOW_TITLE_A ).x;
+        
 
+        float title_len = (tinyDPIFonts) ? ImGui::CalcTextSize(SKIF_WINDOW_TITLE_SHORT_A).x : ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
         float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
-          /*
-          ImGui::GetCursorPos().x +
-            (
-              (ImGui::GetContentRegionAvail().x - 100.0f * SKIF_ImGui_GlobalDPIScale) - title_len
-            )
-                                                                                      / 2.0f;
-          */
 
         ImGui::SetCursorPosX (title_pos);
 
@@ -5735,26 +5700,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
           7.0f * SKIF_ImGui_GlobalDPIScale
         );
 
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A_EX); // ImVec4 (.666f, .666f, .666f, 1.f)
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A : SKIF_WINDOW_TITLE_A);
 
         if (                          SKIF_iGhostVisibility == 1 ||
             (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
         {
-          ImGui::SameLine(); // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
+          // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
+          ImGui::SameLine();
+
+          // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
+          float fMaxPos = SKIF_vecCurrentMode.x - ImGui::GetCursorPosX() - 125.0f * SKIF_ImGui_GlobalDPIScale;
 
           static float direction = -1.0f;
-          static float fMinPos   = 0.0f;
-          /*
-          static float fMinPos   =                ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f,
-                                                                                           ICON_FA_GHOST ).x;
-          */
+          static float fMinPos   =  0.0f;
 
-          float fMaxPos   = SKIF_vecCurrentMode.x - ImGui::GetCursorPosX() - 125.0f * SKIF_ImGui_GlobalDPIScale; // Needs to be updated constantly due to mixed-DPI monitor configs
-          /*
-          static float fMaxPos   = (ImGui::GetContentRegionAvail ().x - ImGui::GetCursorPos ().x) / 6.0f -
-                                                  ImGui::GetFont ()->CalcTextSizeA ( (tinyDPIFonts) ? 11.0F : 18.0F, FLT_MAX, 0.0f,
-                                                                                           ICON_FA_GHOST ).x;
-          */
           static float fNewPos   =
                      ( fMaxPos   -
                        fMinPos ) * 0.5f;

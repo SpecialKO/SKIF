@@ -52,9 +52,11 @@
 #define SKIF_LOG_SEPARATOR           "----------------------------"
 
 #define SKIF_WINDOW_TITLE_A          "Special K Injection Frontend"
-#define SKIF_WINDOW_TITLE_A_EX        SKIF_WINDOW_TITLE_A //"\t-~=( " ICON_FA_USER_COG " )=~-"
 #define SKIF_WINDOW_TITLE_W       _L("Special K Injection Frontend")
 #define SKIF_WINDOW_TITLE             SKIF_WINDOW_TITLE_W
+#define SKIF_WINDOW_TITLE_SHORT_A    "Special K"
+#define SKIF_WINDOW_TITLE_SHORT_W _L("Special K")
+#define SKIF_WINDOW_TITLE_SHORT       SKIF_WINDOW_TITLE_SHORT_W
 #define SKIF_WINDOW_HASH          "###Special K Injection Frontend"
 
 #define SKIF_DEPLOYED_BUILD 6
