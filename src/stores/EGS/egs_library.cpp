@@ -222,6 +222,8 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
       SK_UTF8ToWideChar(CatalogNamespace).c_str()
     );
 
+    PLOG_DEBUG << "Downloading offer JSON: " << query;
+
     SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json");
   }
 
@@ -233,6 +235,7 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
 
     if (jf.is_discarded ( ))
     {
+      PLOG_WARNING << "Could not read JSON file; deleting: " << targetAssetPath << "offer.json";
       DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
     }
 
@@ -240,6 +243,7 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
     {
       if (jf["errors"].is_array())
       {
+        PLOG_WARNING << "Could not read JSON file; deleting: " << targetAssetPath << "offer.json";
         DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
       }
 
@@ -257,6 +261,8 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
 
             if (SKIF_bLowBandwidthMode)
               assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+
+            PLOG_DEBUG << "Downloading OfferImageTall asset: " << assetUrl;
 
             SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
           }

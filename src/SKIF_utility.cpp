@@ -534,13 +534,11 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
       DWORD dwLastError =
            GetLastError ();
 
-      OutputDebugStringW (
-        ( std::wstring (L"WinInet Failure (") +
-              std::to_wstring (dwLastError)   +
-          std::wstring (L"): ")               +
-                 _com_error   (dwLastError).ErrorMessage ()
-        ).c_str ()
-      );
+      std::wstring wsError = (std::wstring(L"WinInet Failure (") + std::to_wstring(dwLastError) + std::wstring(L"): ") + _com_error(dwLastError).ErrorMessage());
+
+      OutputDebugStringW (wsError.c_str ());
+
+      PLOG_VERBOSE << wsError;
     }
 
     if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
@@ -677,6 +675,14 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
         fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
         fclose (fOut);
       }
+    }
+
+    else { // dwStatusCode != 200
+      PLOG_WARNING << "HttpSendRequestW failed -> HTTP Status Code: " << dwStatusCode;
+      PLOG_WARNING << "Method: " << std::wstring(get->method);
+      PLOG_WARNING << "Target: " << get->wszHostPath;
+      PLOG_WARNING << "Header: " << get->header;
+      PLOG_WARNING << "Body:   " << get->body;
     }
   }
 

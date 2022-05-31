@@ -100,10 +100,10 @@ CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
 
-std::atomic<int> textureLoadQueueLength{ 0 };
+std::atomic<int> textureLoadQueueLength{ 1 };
 
 int getTextureLoadQueuePos() {
-  return textureLoadQueueLength.fetch_add(1, std::memory_order_relaxed) + 1;
+  return textureLoadQueueLength.fetch_add(1) + 1;
 }
 
 CComPtr <ID3D11Texture2D>          pPatTex2D;
@@ -403,6 +403,7 @@ LoadLibraryTexture (
   if (pLibTexSRV.p != nullptr)
   {
     extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
     SKIF_ResourcesToFree.push (pLibTexSRV.p);
     pLibTexSRV.p = nullptr;
   }
@@ -973,7 +974,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_INFO << "Begin streaming game icons and names...";
+      PLOG_INFO << "Thread started!";
+      PLOG_INFO << "Streaming game icons and names asynchronously...";
 
       ImVec2 dontCare1, dontCare2;
       SK_RunOnce (
@@ -1166,10 +1168,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Finished with game!";
       }
 
-      PLOG_INFO << "Finished streaming game icons and names...";
+      PLOG_INFO << "Finished streaming game icons and names asynchronously...";
 
       InterlockedExchange (&icon_thread, 0);
       InterlockedExchange (&need_sort, 1);
+
+      PLOG_INFO << "Thread stopped!";
     }, 0x0, NULL);
 
     populated = true;
@@ -1415,8 +1419,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     loadTexture = true;
     update      = false;
   }
-    
-  if (loadTexture && populated && ! InterlockedCompareExchange (&icon_thread, 0, 0)) // && ImGui::GetFrameCount() > 2)
+
+  if (loadTexture && populated && (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems == 0) && ! InterlockedCompareExchange (&icon_thread, 0, 0)) // && ImGui::GetFrameCount() > 2)
   { // Load cover first on third frame (>2) to fix one copy leaking of the cover -- CRASHES IN WIN8.1 VMware VIRTUAL MACHINE
     loadTexture = false;
 
@@ -1428,15 +1432,39 @@ SKIF_UI_Tab_DrawLibrary (void)
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
 
-    // We're going to stream the cover in asynchronously on this thread
-    _beginthread([](void*)->void
-    {
-      CoInitializeEx(nullptr, 0x0);
+    PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
 
-      static int queuePos = getTextureLoadQueuePos();
+    // We're going to stream the cover in asynchronously on this thread
+    _beginthread ([](void*)->void
+    {
+      CoInitializeEx (nullptr, 0x0);
+
+      PLOG_INFO << "Thread started!";
+      PLOG_INFO << "Streaming game cover asynchronously...";
+
+      int queuePos = getTextureLoadQueuePos();
+      PLOG_VERBOSE << "queuePos = " << queuePos;
+
       static ImVec2 _vecCoverUv0(vecCoverUv0);
       static ImVec2 _vecCoverUv1(vecCoverUv1);
       static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
+
+      // Most textures are pushed to be released by LoadLibraryTexture(),
+      //  however the current cover pointer is only updated to the new one
+      //   *after* the old cover have been pushed to be released.
+      //  
+      // This means there's a short thread race where the main thread
+      //  can still reference a texture that has already been released.
+      //
+      // As a result, we preface the whole loading of the new cover texture
+      //  by explicitly changing the current cover texture to point to nothing.
+      //
+      // The only downside is that the cover transition is not seemless;
+      //  a black/non-existent cover will be displayed in-between.
+      // 
+      // But at least SKIF does not run the risk of crashing as often :)
+      PLOG_VERBOSE << "pTexSRV -> nullptr (was " << pTexSRV << ")";
+      pTexSRV = nullptr;
 
       std::wstring load_str;
 
@@ -1607,20 +1635,32 @@ SKIF_UI_Tab_DrawLibrary (void)
                                       _vecCoverUv1,
                                         pApp);
 
-      if (textureLoadQueueLength == queuePos)
+      PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
+
+      int currentQueueLength = textureLoadQueueLength.load();
+
+      if (currentQueueLength == queuePos)
       {
+        PLOG_DEBUG << "Texture is live! Swapping it in.";
         vecCoverUv0 = _vecCoverUv0;
         vecCoverUv1 = _vecCoverUv1;
         pTexSRV     = _pTexSRV;
       }
+
       else if (_pTexSRV.p != nullptr)
       {
+        PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
         extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
         SKIF_ResourcesToFree.push(_pTexSRV.p);
         _pTexSRV.p = nullptr;
       }
 
+      PLOG_INFO << "Finished streaming game cover asynchronously...";
+
       //InterlockedExchange(&cover_thread, 0);
+
+      PLOG_INFO << "Thread stopped!";
     }, 0x0, NULL);
   }
 
@@ -4235,6 +4275,7 @@ Cache=false)";
         if (pApp->textures.icon.p != nullptr)
         {
           extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->textures.icon.p << " to be released";
           SKIF_ResourcesToFree.push(pApp->textures.icon.p);
           pApp->textures.icon.p = nullptr;
         }
@@ -4437,6 +4478,7 @@ Cache=false)";
       if (pTexSRV.p != nullptr)
       {
         extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV.p << " to be released";;
         SKIF_ResourcesToFree.push(pTexSRV.p);
         pTexSRV.p = nullptr;
       }

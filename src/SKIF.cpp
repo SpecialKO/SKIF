@@ -3079,7 +3079,12 @@ void SKIF_Initialize (void)
     // Engage logging!
     plog::init(plog::debug, "SKIF.log", 10000000, 1);
 
-    PLOG_INFO << "Special K Injection Frontend (SKIF) v " << SKIF_VERSION_STR_A;
+#ifdef _WIN64
+    PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
+#else
+    PLOG_INFO << "Special K Injection Frontend (SKIF) 32-bit v " << SKIF_VERSION_STR_A;
+#endif
+
     PLOG_INFO << "Built " __TIME__ ", " __DATE__;
     PLOG_INFO << SKIF_LOG_SEPARATOR;
     PLOG_INFO << "Working directory:";
@@ -4932,6 +4937,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                       SKIF_iLogging = n;
                       regKVLogging.putData  (SKIF_iLogging);
                       LogSeverityCurrent = LogSeverity[SKIF_iLogging];
+                      plog::get()->setMaxSeverity((plog::Severity)SKIF_iLogging);
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
@@ -6302,6 +6308,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       if (SKIF_ResourcesToFree.try_pop (pResource))
       {
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << pResource.p;
         pResource.p->Release();
       }
     }
