@@ -102,6 +102,13 @@ bool SKIF_UpdateReady = false;
 bool showUpdatePrompt = false;
 bool changedUpdateChannel = false;
 
+// Custom Global Key States used for moving SKIF around using WinKey + Arrows
+bool KeyUp      = false;
+bool KeyDown    = false;
+bool KeyRight   = false;
+bool KeyLeft    = false;
+bool KeyWinKey  = false;
+
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
 extern void SKIF_ProcessCommandLine (const char* szCmd);
@@ -3949,6 +3956,77 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SetNextWindowPos(newWindowPos);
       }
 
+#pragma region Move SKIF using Windows Key + Arrow Keys
+
+      if ((io.KeysDown[VK_LWIN] && io.KeysDownDuration[VK_LWIN] == 0.0f) ||
+          (io.KeysDown[VK_RWIN] && io.KeysDownDuration[VK_RWIN] == 0.0f))
+        KeyWinKey = true;
+      else if (! io.KeysDown[VK_LWIN] && ! io.KeysDown[VK_RWIN])
+        KeyWinKey = false;
+
+      if (KeyWinKey)
+      {
+        if (monitor != nullptr)
+        {
+          ImVec2 suggestedPos, suggestedPos2;
+
+          // Loop through all platform monitors
+          for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
+          {
+            const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
+
+            // Get the screen area of the monitor
+            ImRect tmpMonRect = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
+
+            // Get the DPI scale for the monitor
+            float tmpDpiScale = tmpMonitor.DpiScale;
+
+            // Calculate the expected new size (does not account for resolutions below that of the SKIF window atm)
+            ImVec2 tmpWindowSize = 
+                          (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpDpiScale,
+                                                       SKIF_hSmallMode * tmpDpiScale)
+                                            : ImVec2 ( SKIF_wLargeMode * tmpDpiScale,
+                                                       SKIF_hLargeMode * tmpDpiScale);
+
+            // Check if the monitor is in the appropriate direction using the main axis
+            if (suggestedPos.x == 0.0f && suggestedPos.y == 0.0f)
+            {
+              if      (KeyLeft  && tmpMonitor.MainPos.x < monitor->MainPos.x)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyRight && tmpMonitor.MainPos.x > monitor->MainPos.x)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyUp    && tmpMonitor.MainPos.y < monitor->MainPos.y)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyDown  && tmpMonitor.MainPos.y > monitor->MainPos.y)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+            }
+
+            // We already have a suggestion, so check if the current index is more
+            //  appropriate by performing an additional check on the other axis
+            else {
+              if      (KeyLeft  &&  tmpMonitor.MainPos.x < monitor->MainPos.x  &&  tmpMonitor.MainPos.y == suggestedPos2.y)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyRight &&  tmpMonitor.MainPos.x > monitor->MainPos.x  &&  tmpMonitor.MainPos.y == suggestedPos2.y)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyUp    &&  tmpMonitor.MainPos.y < monitor->MainPos.y  &&  tmpMonitor.MainPos.x < suggestedPos2.x)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              else if (KeyDown  &&  tmpMonitor.MainPos.y > monitor->MainPos.y  &&  tmpMonitor.MainPos.x > suggestedPos2.x)
+                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+            }
+          }
+
+          if (suggestedPos.x != 0.0f && suggestedPos.y != 0.0f)
+            ImGui::SetNextWindowPos (suggestedPos);
+        }
+      }
+
+      KeyUp    = false;
+      KeyDown  = false;
+      KeyLeft  = false;
+      KeyRight = false;
+
+#pragma endregion
+
       ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
                        nullptr,
                          ImGuiWindowFlags_NoResize          |
@@ -4110,7 +4188,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
            (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
             ImGui::Button ( (SKIF_bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
-                                            : ICON_FA_COMPRESS_ARROWS_ALT,
+                                              : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
          )
@@ -6560,6 +6638,15 @@ LRESULT
 WINAPI
 WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  if (msg != WM_NULL        && 
+      msg != WM_NCHITTEST   &&
+      msg != WM_MOUSEFIRST  &&
+      msg != WM_MOUSEMOVE
+    )
+  {
+    //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  }
+
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
 

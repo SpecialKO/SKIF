@@ -204,7 +204,6 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.KeyMap [ImGuiKey_X]           = 'X';
   io.KeyMap [ImGuiKey_Y]           = 'Y';
   io.KeyMap [ImGuiKey_Z]           = 'Z';
-  io.KeyMap [ImGuiKey_F11]         = VK_F11;
 
   ImGui_ImplWin32_InitXInput (hwnd);
 
@@ -608,6 +607,15 @@ ImGui_ImplWin32_NewFrame (void)
 // PS: We treat DBLCLK messages as regular mouse down messages, so this code will work on windows classes that have the CS_DBLCLKS flag set. Our own example app code doesn't set this flag.
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  if (msg != WM_NULL        && 
+      msg != WM_NCHITTEST   &&
+      msg != WM_MOUSEFIRST  &&
+      msg != WM_MOUSEMOVE
+    )
+  {
+    //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  }
+
   if (ImGui::GetCurrentContext ( ) == NULL)
     return 0;
 
@@ -718,6 +726,24 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
   case WM_KEYUP:
   case WM_SYSKEYUP:
+    extern bool KeyUp;
+    extern bool KeyDown;
+    extern bool KeyLeft;
+    extern bool KeyRight;
+    extern bool KeyWinKey;
+
+    if (KeyWinKey)
+    {
+      if (wParam == VK_LEFT)
+        KeyLeft = true;
+      else if (wParam == VK_UP)
+        KeyUp = true;
+      else if (wParam == VK_RIGHT)
+        KeyRight = true;
+      else if (wParam == VK_DOWN)
+        KeyDown = true;
+    }
+
     if (wParam < 256 && g_Focused)
       io.KeysDown [wParam] = 0;
     return 0;
@@ -1402,6 +1428,15 @@ LRESULT
 CALLBACK
 ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  if (msg != WM_NULL        && 
+      msg != WM_NCHITTEST   &&
+      msg != WM_MOUSEFIRST  &&
+      msg != WM_MOUSEMOVE
+    )
+  {
+    //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  }
+
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
 
