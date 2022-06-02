@@ -3964,59 +3964,71 @@ wWinMain ( _In_     HINSTANCE hInstance,
       else if (! io.KeysDown[VK_LWIN] && ! io.KeysDown[VK_RWIN])
         KeyWinKey = false;
 
-      if (KeyWinKey)
+      if (KeyWinKey && (KeyLeft || KeyRight || KeyUp || KeyDown))
       {
         if (monitor != nullptr)
         {
-          ImVec2 suggestedPos, suggestedPos2;
+          ImVec2 suggestedPos (FLT_MAX, FLT_MAX);
 
           // Loop through all platform monitors
           for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
           {
             const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
 
+            // Skip if we are currently working on the current monitor
+            if (tmpMonitor.MainPos.x == monitor->MainPos.x &&
+                tmpMonitor.MainPos.y == monitor->MainPos.y)
+              continue;
+
             // Get the screen area of the monitor
             ImRect tmpMonRect = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
 
-            // Get the DPI scale for the monitor
-            float tmpDpiScale = tmpMonitor.DpiScale;
-
-            // Calculate the expected new size (does not account for resolutions below that of the SKIF window atm)
+            // Calculate the expected new size
             ImVec2 tmpWindowSize = 
-                          (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpDpiScale,
-                                                       SKIF_hSmallMode * tmpDpiScale)
-                                            : ImVec2 ( SKIF_wLargeMode * tmpDpiScale,
-                                                       SKIF_hLargeMode * tmpDpiScale);
+                          (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
+                                                       SKIF_hSmallMode * tmpMonitor.DpiScale)
+                                            : ImVec2 ( SKIF_wLargeMode * tmpMonitor.DpiScale,
+                                                       SKIF_hLargeMode * tmpMonitor.DpiScale);
+
+            // Calculate the expected position on the new monitor
+            ImVec2 tmpPos = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+
+            // Check if the position is within the boundaries of the
+            //  monitor and move the suggested position if it is not.
+            if (tmpPos.x < tmpMonitor.MainPos.x)
+                tmpPos.x = tmpMonitor.MainPos.x;
+            if (tmpPos.y < tmpMonitor.MainPos.y)
+                tmpPos.y = tmpMonitor.MainPos.y;
 
             // Check if the monitor is in the appropriate direction using the main axis
-            if (suggestedPos.x == 0.0f && suggestedPos.y == 0.0f)
+            if (suggestedPos.x == FLT_MAX && suggestedPos.y == FLT_MAX)
             {
               if      (KeyLeft  && tmpMonitor.MainPos.x < monitor->MainPos.x)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+                suggestedPos = tmpPos;
               else if (KeyRight && tmpMonitor.MainPos.x > monitor->MainPos.x)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+                suggestedPos = tmpPos;
               else if (KeyUp    && tmpMonitor.MainPos.y < monitor->MainPos.y)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+                suggestedPos = tmpPos;
               else if (KeyDown  && tmpMonitor.MainPos.y > monitor->MainPos.y)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+                suggestedPos = tmpPos;
             }
 
             // We already have a suggestion, so check if the current index is more
             //  appropriate by performing an additional check on the other axis
             else {
-              if      (KeyLeft  &&  tmpMonitor.MainPos.x < monitor->MainPos.x  &&  tmpMonitor.MainPos.y == suggestedPos2.y)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
-              else if (KeyRight &&  tmpMonitor.MainPos.x > monitor->MainPos.x  &&  tmpMonitor.MainPos.y == suggestedPos2.y)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
-              else if (KeyUp    &&  tmpMonitor.MainPos.y < monitor->MainPos.y  &&  tmpMonitor.MainPos.x < suggestedPos2.x)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
-              else if (KeyDown  &&  tmpMonitor.MainPos.y > monitor->MainPos.y  &&  tmpMonitor.MainPos.x > suggestedPos2.x)
-                suggestedPos = suggestedPos2 = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
+              if      (KeyLeft  &&  tmpMonitor.MainPos.x < monitor->MainPos.x  &&  (tmpMonitor.MainPos.y == monitor->MainPos.y || tmpMonitor.MainPos.y < suggestedPos.y))
+                suggestedPos = tmpPos;
+              else if (KeyRight &&  tmpMonitor.MainPos.x > monitor->MainPos.x  &&  (tmpMonitor.MainPos.y == monitor->MainPos.y || tmpMonitor.MainPos.y < suggestedPos.y))
+                suggestedPos = tmpPos;
+              else if (KeyUp    &&  tmpMonitor.MainPos.y < monitor->MainPos.y  &&  (tmpMonitor.MainPos.x == monitor->MainPos.x || tmpMonitor.MainPos.x < suggestedPos.x))
+                suggestedPos = tmpPos;
+              else if (KeyDown  &&  tmpMonitor.MainPos.y > monitor->MainPos.y  &&  (tmpMonitor.MainPos.x == monitor->MainPos.x || tmpMonitor.MainPos.x < suggestedPos.x))
+                suggestedPos = tmpPos;
             }
           }
 
-          if (suggestedPos.x != 0.0f && suggestedPos.y != 0.0f)
-            ImGui::SetNextWindowPos (suggestedPos);
+          if (suggestedPos.x != FLT_MAX && suggestedPos.y != FLT_MAX)
+            ImGui::SetNextWindowPos(suggestedPos);
         }
       }
 
