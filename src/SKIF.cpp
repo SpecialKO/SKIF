@@ -6682,7 +6682,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       return 0;
 
     case WM_SYSCOMMAND:
-      if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
+      if ((wParam & 0xfff0) == SC_KEYMENU)
       {
         // Disable ALT application menu
         if ( lParam == 0x00 ||
@@ -6690,6 +6690,15 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
           return 0;
         }
+      }
+
+      else if ((wParam & 0xfff0) == SC_MOVE)
+      {
+        // Disables the native move modal loop of Windows and
+        // use the RepositionSKIF approach to move the window
+        // to the center of the display the cursor is on.
+        PostMessage(hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
+        return 0;
       }
       break;
 
