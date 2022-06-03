@@ -103,11 +103,8 @@ bool showUpdatePrompt = false;
 bool changedUpdateChannel = false;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
-bool KeyUp      = false;
-bool KeyDown    = false;
-bool KeyRight   = false;
-bool KeyLeft    = false;
-bool KeyWinKey  = false;
+bool KeyWinKey = false;
+int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
@@ -3964,43 +3961,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       else if (! io.KeysDown[VK_LWIN] && ! io.KeysDown[VK_RWIN])
         KeyWinKey = false;
 
-      if (KeyWinKey && (KeyLeft || KeyRight || KeyUp || KeyDown))
+      if (KeyWinKey && SnapKeys)
       {
         if (monitor != nullptr)
         {
-          //ImVec2 suggestedPos (FLT_MAX, FLT_MAX);
-
-          /*
-          struct MonitorRects
-          {
-            std::vector<RECT>   rcMonitors;
-            RECT                rcCombined;
-
-            static BOOL CALLBACK MonitorEnum(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM pData)
-            {
-              MonitorRects* pThis = reinterpret_cast<MonitorRects*>(pData);
-              pThis->rcMonitors.push_back(*lprcMonitor);
-              UnionRect(&pThis->rcCombined, &pThis->rcCombined, lprcMonitor);
-              return TRUE;
-            }
-
-            MonitorRects()
-            {
-              SetRectEmpty(&rcCombined);
-              EnumDisplayMonitors(0, 0, MonitorEnum, (LPARAM)this);
-            }
-          };
-
-          MonitorRects mr;
-
-          int i = 0;
-          for (auto m : mr.rcMonitors)
-          {
-            OutputDebugString((L"Monitor #" + std::to_wstring(i) + L": " + std::to_wstring(m.top) + L"x" + std::to_wstring(m.left) + L"\n").c_str());
-            i++;
-          }
-          */
-
           HMONITOR currentMonitor = MonitorFromWindow(SKIF_hWnd, MONITOR_DEFAULTTONULL);
 
           if (currentMonitor != NULL)
@@ -4011,47 +3975,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             if (GetMonitorInfo(currentMonitor, (LPMONITORINFO)&currentMonitorInfo))
             {
-              /*
-              OutputDebugString((L"Monitor #P: " + std::to_wstring(currentMonitorInfo.rcMonitor.top)    + L"x"
-                                                 + std::to_wstring(currentMonitorInfo.rcMonitor.left)   + L"x"
-                                                 + std::to_wstring(currentMonitorInfo.rcMonitor.bottom) + L"x"
-                                                 + std::to_wstring(currentMonitorInfo.rcMonitor.right)
-                                                 + L"\n").c_str());
-              */
+              // Some simple math to basically create a dummy RECT that
+              //  lies alongside one of the sides of the current monitor
               RECT dummy(currentMonitorInfo.rcMonitor);
-              
-              if (KeyUp)
-              {
-                dummy.bottom = dummy.top;
-                dummy.top    = dummy.top    - static_cast<long>(SKIF_vecCurrentMode.y);
-              }
-              else if (KeyLeft)
+              if      (SnapKeys &  2) // Left
               {
                 dummy.right  = dummy.left;
                 dummy.left   = dummy.left   - static_cast<long>(SKIF_vecCurrentMode.x);
               }
-              else if (KeyDown)
+              else if (SnapKeys &  4) // Up
               {
-                dummy.top    = dummy.bottom;
-                dummy.bottom = dummy.bottom + static_cast<long>(SKIF_vecCurrentMode.y);
+                dummy.bottom = dummy.top;
+                dummy.top    = dummy.top    - static_cast<long>(SKIF_vecCurrentMode.y);
               }
-              else if (KeyRight)
+              else if (SnapKeys &  8) // Right
               {
                 dummy.left   = dummy.right;
                 dummy.right  = dummy.right  + static_cast<long>(SKIF_vecCurrentMode.x);
               }
+              else if (SnapKeys & 16) // Down
+              {
+                dummy.top = dummy.bottom;
+                dummy.bottom = dummy.bottom + static_cast<long>(SKIF_vecCurrentMode.y);
+              }
 
+              // Let us retrieve the closest monitor based on our dummy rect
               HMONITOR nearestMonitor = MonitorFromRect(&dummy, MONITOR_DEFAULTTONEAREST);
               if (GetMonitorInfo(nearestMonitor, (LPMONITORINFO)&nearestMonitorInfo))
               {
-                /*
-                OutputDebugString((L"Monitor #N: " + std::to_wstring(nearestMonitorInfo.rcMonitor.top)    + L"x"
-                                                   + std::to_wstring(nearestMonitorInfo.rcMonitor.left)   + L"x"
-                                                   + std::to_wstring(nearestMonitorInfo.rcMonitor.bottom) + L"x"
-                                                   + std::to_wstring(nearestMonitorInfo.rcMonitor.right)
-                                                   + L"\n").c_str());
-                */
-
+                // Don't bother if the nearest monitor is also the current monitor
                 if (nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
                 {
                   // Loop through all platform monitors
@@ -4059,32 +4011,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
                   {
                     const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
 
-                    ImVec2 nearestMainPos (static_cast<float>(nearestMonitorInfo.rcMonitor.left),
-                                           static_cast<float>(nearestMonitorInfo.rcMonitor.top));
-
                     // Skip if we are on the wrong monitor
-                    if (tmpMonitor.MainPos.x != nearestMainPos.x ||
-                        tmpMonitor.MainPos.y != nearestMainPos.y)
+                    if (tmpMonitor.MainPos.x != static_cast<float>(nearestMonitorInfo.rcMonitor.left) ||
+                        tmpMonitor.MainPos.y != static_cast<float>(nearestMonitorInfo.rcMonitor.top))
                       continue;
 
                     // Get the screen area of the monitor
                     ImRect tmpMonRect = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
-                  
-                    /*
-                    OutputDebugString((L"TmpMonitor #" + std::to_wstring(monitor_n)        + L": "
-                                                       + std::to_wstring(tmpMonRect.Min.y) + L"x"
-                                                       + std::to_wstring(tmpMonRect.Min.x) + L"x"
-                                                       + std::to_wstring(tmpMonRect.Max.y) + L"x"
-                                                       + std::to_wstring(tmpMonRect.Max.x)
-                                                       + L"\n").c_str());
-                  
-                    OutputDebugString((L"NerMonitor #" + std::to_wstring(monitor_n)        + L": "
-                                                       + std::to_wstring(nearestMainPos.y) + L"x"
-                                                       + std::to_wstring(nearestMainPos.x)
-                                                       + L"\n").c_str());
-                    */
 
-                    // Calculate the expected new size
+                    // Calculate the expected new size using the DPI scale of the monitor
                     ImVec2 tmpWindowSize = 
                                   (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
                                                                SKIF_hSmallMode * tmpMonitor.DpiScale)
@@ -4101,7 +4036,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     if (suggestedPos.y < tmpMonitor.MainPos.y)
                         suggestedPos.y = tmpMonitor.MainPos.y;
 
-                    // Set the new position and then break the loop
+                    // Set the new window position and break out of the loop
                     ImGui::SetNextWindowPos(suggestedPos);
                     break;
                   }
@@ -4109,75 +4044,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
               }
             }
           }
-
-          /*
-          // Loop through all platform monitors
-          for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-          {
-            const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-
-            // Skip if we are currently working on the current monitor
-            if (tmpMonitor.MainPos.x == monitor->MainPos.x &&
-                tmpMonitor.MainPos.y == monitor->MainPos.y)
-              continue;
-
-            // Get the screen area of the monitor
-            ImRect tmpMonRect = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
-
-            // Calculate the expected new size
-            ImVec2 tmpWindowSize = 
-                          (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
-                                                       SKIF_hSmallMode * tmpMonitor.DpiScale)
-                                            : ImVec2 ( SKIF_wLargeMode * tmpMonitor.DpiScale,
-                                                       SKIF_hLargeMode * tmpMonitor.DpiScale);
-
-            // Calculate the expected position on the new monitor
-            ImVec2 tmpPos = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
-
-            // Check if the position is within the boundaries of the
-            //  monitor and move the suggested position if it is not.
-            if (tmpPos.x < tmpMonitor.MainPos.x)
-                tmpPos.x = tmpMonitor.MainPos.x;
-            if (tmpPos.y < tmpMonitor.MainPos.y)
-                tmpPos.y = tmpMonitor.MainPos.y;
-
-            // Check if the monitor is in the appropriate direction using the main axis
-            if (suggestedPos.x == FLT_MAX && suggestedPos.y == FLT_MAX)
-            {
-              if      (KeyLeft  && tmpMonitor.MainPos.x < monitor->MainPos.x)
-                suggestedPos = tmpPos;
-              else if (KeyRight && tmpMonitor.MainPos.x > monitor->MainPos.x)
-                suggestedPos = tmpPos;
-              else if (KeyUp    && tmpMonitor.MainPos.y < monitor->MainPos.y)
-                suggestedPos = tmpPos;
-              else if (KeyDown  && tmpMonitor.MainPos.y > monitor->MainPos.y)
-                suggestedPos = tmpPos;
-            }
-
-            // We already have a suggestion, so check if the current index is more
-            //  appropriate by performing an additional check on the other axis
-            else {
-              if      (KeyLeft  &&  tmpMonitor.MainPos.x < monitor->MainPos.x  &&  (tmpMonitor.MainPos.y == monitor->MainPos.y || tmpMonitor.MainPos.y < suggestedPos.y))
-                suggestedPos = tmpPos;
-              else if (KeyRight &&  tmpMonitor.MainPos.x > monitor->MainPos.x  &&  (tmpMonitor.MainPos.y == monitor->MainPos.y || tmpMonitor.MainPos.y < suggestedPos.y))
-                suggestedPos = tmpPos;
-              else if (KeyUp    &&  tmpMonitor.MainPos.y < monitor->MainPos.y  &&  (tmpMonitor.MainPos.x == monitor->MainPos.x || tmpMonitor.MainPos.x < suggestedPos.x))
-                suggestedPos = tmpPos;
-              else if (KeyDown  &&  tmpMonitor.MainPos.y > monitor->MainPos.y  &&  (tmpMonitor.MainPos.x == monitor->MainPos.x || tmpMonitor.MainPos.x < suggestedPos.x))
-                suggestedPos = tmpPos;
-            }
-          }
-
-          if (suggestedPos.x != FLT_MAX && suggestedPos.y != FLT_MAX)
-            ImGui::SetNextWindowPos(suggestedPos);
-          */
         }
       }
 
-      KeyUp    = false;
-      KeyDown  = false;
-      KeyLeft  = false;
-      KeyRight = false;
+      SnapKeys = 0;
 
 #pragma endregion
 

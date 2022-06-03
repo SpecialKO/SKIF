@@ -726,22 +726,19 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
   case WM_KEYUP:
   case WM_SYSKEYUP:
-    extern bool KeyUp;
-    extern bool KeyDown;
-    extern bool KeyLeft;
-    extern bool KeyRight;
     extern bool KeyWinKey;
+    extern int  SnapKeys;
 
     if (KeyWinKey)
     {
       if (wParam == VK_LEFT)
-        KeyLeft = true;
+        SnapKeys |= 2;
       else if (wParam == VK_UP)
-        KeyUp = true;
+        SnapKeys |= 4;
       else if (wParam == VK_RIGHT)
-        KeyRight = true;
+        SnapKeys |= 8;
       else if (wParam == VK_DOWN)
-        KeyDown = true;
+        SnapKeys |= 16;
     }
 
     if (wParam < 256 && g_Focused)
