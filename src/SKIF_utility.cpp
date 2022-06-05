@@ -8,6 +8,7 @@
 #include <ShlObj.h>
 #include <strsafe.h>
 #include <filesystem>
+#include <DbgHelp.h>
 
 
 // Generic Utilities
@@ -75,6 +76,46 @@ SKIF_Util_timeGetTime (void)
   }
 
   return static_cast <DWORD> (-1);
+}
+
+// Handles comparisons of a version string split between dots by
+// looping through the parts that makes up the string one by one.
+// 
+// Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
+int
+SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
+{
+  int sum1 = 0, sum2 = 0;
+
+  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
+                              j < string2.length ( )); )
+  {
+    while ( i < string1.length() && string1[i] != '.' )
+    {
+      sum1 = sum1 * 10 + (string1[i] - '0');
+      i++;
+    }
+
+    while ( j < string2.length() && string2[j] != '.' )
+    {
+      sum2 = sum2 * 10 + (string2[j] - '0');
+      j++;
+    }
+
+    // If string1 is higher than string2, return 1
+    if (sum1 > sum2) return 1;
+
+    // If string2 is higher than string1, return -1
+    if (sum2 > sum1) return -1;
+
+    // if equal, reset variables and go for next numeric part 
+    sum1 = sum2 = 0;
+    i++;
+    j++;
+  }
+
+  // If both strings are equal, return 0
+  return 0; 
 }
 
 
@@ -354,6 +395,7 @@ SKIF_Util_OpenURI (
   return 0;
 }
 
+// Cannot handle special characters such as (c), (r), etc
 HINSTANCE
 SKIF_Util_OpenURI_Formatted (
           DWORD       dwAction,
@@ -426,6 +468,51 @@ SKIF_Util_OpenURI_Threaded (
 
 
 // Windows
+
+/*
+  Returns 0 for errors, 1 for x86, 2 for x64, and -1 for unknown types
+*/
+int
+SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
+{
+  int arch = 0;
+
+  HANDLE hFile = CreateFile (pszPathToBinary, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+  if (hFile != INVALID_HANDLE_VALUE)
+  {
+    HANDLE hMapping = CreateFileMapping (hFile, NULL, PAGE_READONLY | SEC_IMAGE, 0, 0, NULL);
+    if (hMapping != INVALID_HANDLE_VALUE)
+    {
+      LPVOID addrHeader = MapViewOfFile (hMapping, FILE_MAP_READ, 0, 0, 0);
+      if (addrHeader != NULL)
+      {
+        // All DbgHelp functions, such as ImageNtHeader, are single threaded.
+        //  Therefore, calls from more than one thread to this function will likely result in unexpected behavior or memory corruption.
+        //   To avoid this, you must synchronize all concurrent calls from more than one thread to this function.
+        PIMAGE_NT_HEADERS peHdr = ImageNtHeader (addrHeader);
+        if (peHdr != NULL)
+        {
+          switch (peHdr->FileHeader.Machine)
+          {
+            case IMAGE_FILE_MACHINE_I386:
+              arch = 1;
+              break;
+            case IMAGE_FILE_MACHINE_AMD64:
+              arch = 2;
+              break;
+            default:
+              arch = -1;
+          }
+        }
+        UnmapViewOfFile(addrHeader);
+      }
+      CloseHandle (hMapping);
+    }
+    CloseHandle (hFile);
+  }
+
+  return arch;
+}
 
 BOOL
 WINAPI

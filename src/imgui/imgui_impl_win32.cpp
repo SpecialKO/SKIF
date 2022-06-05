@@ -731,7 +731,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
     if (KeyWinKey)
     {
-      if (wParam == VK_LEFT)
+      if      (wParam == VK_LEFT)
         SnapKeys |= 2;
       else if (wParam == VK_UP)
         SnapKeys |= 4;

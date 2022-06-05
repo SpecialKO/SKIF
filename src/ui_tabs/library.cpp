@@ -873,6 +873,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   extern uint32_t SKIF_iLastSelected;
 
   static bool     update         = true;
+  static bool     updateInjStrat = false;
 
   struct {
     uint32_t    appid = SKIF_STEAM_APPID;
@@ -1955,6 +1956,61 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
+      auto __IsOutdatedLocalDLLFile = [&](void) -> bool
+      {
+        bool ret = false;
+
+        if ((pTargetApp->store != "Steam") ||
+            (pTargetApp->store == "Steam"  && // Exclude the check for games with known older versions
+              cache.app_id != 405900       && // Disgaea PC
+              cache.app_id != 359870       && // FFX/X-2 HD Remaster
+              cache.app_id != 578330       && // LEGO City Undercover
+              cache.app_id != 429660       && // Tales of Berseria
+              cache.app_id != 372360       && // Tales of Symphonia
+              cache.app_id != 738540       && // Tales of Vesperia DE
+              cache.app_id != 351970          // Tales of Zestiria: 
+            ))
+        {
+          if (SKIF_Util_CompareVersionStrings (SK_UTF8ToWideChar(_inject.SKVer32), SK_UTF8ToWideChar(cache.dll.version)) > 0)
+          {
+            ret = true;
+          }
+        }
+        
+        return ret;
+      };
+
+      auto __UpdateLocalDLLFile = [&](void) -> void
+      {
+        int iBinaryType = SKIF_Util_GetBinaryType (SK_UTF8ToWideChar (cache.dll.full_path).c_str());
+        if (iBinaryType > 0)
+        {
+          wchar_t                       wszPathToGlobalDLL [MAX_PATH + 2] = { };
+          GetModuleFileNameW  (nullptr, wszPathToGlobalDLL, MAX_PATH);
+          PathRemoveFileSpecW (         wszPathToGlobalDLL);
+          PathAppendW         (         wszPathToGlobalDLL, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
+
+          if (CopyFile (wszPathToGlobalDLL, SK_UTF8ToWideChar (cache.dll.full_path).c_str(), FALSE))
+          {
+            PLOG_INFO << "Successfully updated " << SK_UTF8ToWideChar (cache.dll.full_path) << " from v " << SK_UTF8ToWideChar (cache.dll.version) << " to v " << SK_UTF8ToWideChar (_inject.SKVer32);
+
+            // Force an update of the injection strategy
+            updateInjStrat = true;
+            cache.app_id = 0;
+          }
+
+          else {
+            PLOG_ERROR << "Failed to copy " << wszPathToGlobalDLL << " to " << SK_UTF8ToWideChar (cache.dll.full_path);
+            PLOG_ERROR << SKIF_Util_GetLastError();
+          }
+        }
+
+        else {
+          PLOG_ERROR << "Failed to retrieve binary type from " << SK_UTF8ToWideChar (cache.dll.full_path) << " -- returned: " << iBinaryType;
+          PLOG_ERROR << SKIF_Util_GetLastError();
+        }
+      };
+
       static constexpr float
            num_lines = 4.0f;
       auto line_ht   =
@@ -1992,12 +2048,67 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Column 2
       ImGui::BeginGroup       ();
+      // Injection Strategy
       ImGui::TextUnformatted  (cache.injection.type.c_str   ());
 
       if (! cache.dll.shorthand.empty ())
       {
-        ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
-        SKIF_ImGui_SetHoverText (cache.dll.full_path.c_str  ());
+        // Injection DLL
+        //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
+        ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
+
+        if (cache.injection.type._Equal("Global"))
+          flags |= ImGuiSelectableFlags_Disabled;
+
+        bool openLocalMenu = false;
+
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
+        if (ImGui::Selectable (cache.dll.shorthand.c_str(), false, flags))
+        {
+          openLocalMenu = true;
+        }
+        ImGui::PopStyleColor();
+
+        if (cache.injection.type._Equal("Local"))
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+          if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+            openLocalMenu = true;
+        }
+
+        SKIF_ImGui_SetHoverText       (cache.dll.full_path.c_str  ());
+        
+        if (openLocalMenu && ! ImGui::IsPopupOpen ("LocalDLLMenu"))
+          ImGui::OpenPopup    ("LocalDLLMenu");
+
+        if (ImGui::BeginPopup ("LocalDLLMenu"))
+        {
+          if (__IsOutdatedLocalDLLFile ( ))
+          {
+            if (ImGui::Selectable (("Update to v " + _inject.SKVer32).c_str( )))
+            {
+              __UpdateLocalDLLFile ( );
+            }
+
+            ImGui::Separator ( );
+          }
+
+          if (ImGui::Selectable ("Uninstall"))
+          {
+
+            if (DeleteFile (SK_UTF8ToWideChar(cache.dll.full_path).c_str()))
+            {
+              PLOG_INFO << "Successfully uninstalled local DLL v " << SK_UTF8ToWideChar(cache.dll.version) << " from " << SK_UTF8ToWideChar(cache.dll.full_path);
+
+              // Force an update of the injection strategy
+              updateInjStrat = true;
+              cache.app_id = 0;
+            }
+          }
+
+          ImGui::EndPopup ( );
+        }
       }
 
       else
@@ -2013,15 +2124,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           SKIF_Util_ExplorePath(
             SK_UTF8ToWideChar         (cache.config.root_dir)
           );
-
-          /* Cannot handle special characters such as (c), (r), etc
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs",
-                                       cache.config.root_dir.c_str ());
-          */
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str ());
-        //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
@@ -2040,22 +2145,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (h != INVALID_HANDLE_VALUE)
             CloseHandle (h);
 
-          /*
-          ShellExecuteW ( nullptr,
-            L"OPEN", SK_UTF8ToWideChar(cache.config.full_path).c_str(),
-                nullptr,   nullptr, SW_SHOWNORMAL
-          );
-          */
-
           SKIF_Util_OpenURI (SK_UTF8ToWideChar (cache.config.full_path).c_str(), SW_SHOWNORMAL, NULL);
-
-          /* Cannot handle special characters such as (c), (r), etc
-          SKIF_Util_OpenURI_Formatted (SW_SHOWNORMAL, L"%hs", cache.config.full_path.c_str ());
-          */
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.full_path.c_str ());
-        //SKIF_ImGui_SetHoverTip        ("Open the config file");
 
 
         if ( ! ImGui::IsPopupOpen ("ConfigFileMenu") &&
@@ -2081,6 +2174,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 LR"([SpecialK.System]
 ShowEULA=false
 EnableCEGUI=false
+GlobalInjectDelay=0.0
+
+[API.Hook]
+d3d9=true
+d3d9ex=true
+d3d11=true
+OpenGL=true
+d3d12=true
+Vulkan=true
 
 [Steam.Log]
 Silent=true
@@ -2149,19 +2251,6 @@ Cache=false)";
       // Column 3
       ImGui::BeginGroup       ( );
 
-      /*
-      ImGui::TextColored      (
-        (_inject.isPending()) ? ImColor(3, 179, 255)
-                              : (quickServiceHover) ? cache.injection.status.color_hover
-                                                    : cache.injection.status.color,
-        cache.injection.status.text.empty () ? "      "
-                                             : "%s",
-        (_inject.isPending()) ? (_inject.runState == SKIF_InjectionContext::RunningState::Starting)
-                                ? "Starting..."
-                                : "Stopping..."
-                              : cache.injection.status.text.c_str ()
-      );*/
-
       static bool quickServiceHover = false;
 
       if (cache.injection.type._Equal ("Global") && ! _inject.isPending())
@@ -2190,7 +2279,7 @@ Cache=false)";
         );
 
         if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
-                ImGui::IsItemClicked (ImGuiMouseButton_Right))
+               ImGui::IsItemClicked (ImGuiMouseButton_Right))
           ServiceMenu = PopupState::Open;
       }
 
@@ -2203,6 +2292,24 @@ Cache=false)";
         ImGui::Text           (cache.dll.version.empty () ? "      "
                                                           : "v %s",
                                cache.dll.version.c_str ());
+
+        if (cache.injection.type._Equal ("Local"))
+        {
+          if (__IsOutdatedLocalDLLFile ( ))
+          {
+            ImGui::SameLine        ( );
+
+            ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
+            if (ImGui::SmallButton (ICON_FA_ARROW_UP))
+            {
+              __UpdateLocalDLLFile ( );
+            }
+            ImGui::PopStyleColor ( );
+
+            SKIF_ImGui_SetHoverTip (("The local DLL file is outdated.\n"
+                                     "Click to update to v " + _inject.SKVer32));
+          }
+        }
       }
       ImGui::EndGroup         ();
 
@@ -2759,8 +2866,11 @@ Cache=false)";
   // This ensures the next block gets run when launching SKIF with a last selected item
   SK_RunOnce (update = true);
 
-  if (update && pApp != nullptr)
+  // Update the injection strategy for the game
+  if ((update && pApp != nullptr) || (updateInjStrat && pApp != nullptr))
   {
+    updateInjStrat = false;
+
     // Handle GOG, EGS, and SKIF Custom games
     if (pApp->store != "Steam")
     {

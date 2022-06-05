@@ -2379,46 +2379,6 @@ bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
   return ret;
 }
 
-
-// Handles comparisons of a version string split between dots by
-// looping through the parts that makes up the string one by one.
-// 
-// Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
-int SKIF_CompareVersionStrings (std::wstring string1, std::wstring string2)
-{
-  int sum1 = 0, sum2 = 0;
-
-  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
-                              j < string2.length ( )); )
-  {
-    while ( i < string1.length() && string1[i] != '.' )
-    {
-      sum1 = sum1 * 10 + (string1[i] - '0');
-      i++;
-    }
-
-    while ( j < string2.length() && string2[j] != '.' )
-    {
-      sum2 = sum2 * 10 + (string2[j] - '0');
-      j++;
-    }
-
-    // If string1 is higher than string2, return 1
-    if (sum1 > sum2) return 1;
-
-    // If string2 is higher than string1, return -1
-    if (sum2 > sum1) return -1;
-
-    // if equal, reset variables and go for next numeric part 
-    sum1 = sum2 = 0;
-    i++;
-    j++;
-  }
-
-  // If both strings are equal, return 0
-  return 0; 
-}
-
 std::vector <std::pair<std::string, std::string>> updateChannels{};
 static volatile LONG update_thread = 0; // 0 = No update check has run,     1 = Update check is running,     2 = Update check has completed
 struct SKIF_UpdateCheckResults {
@@ -2600,8 +2560,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                 // to other branches as well, which means versions that are older.
 
                 // Limit to newer versions only
-                if ((SKIF_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
-                     SKIF_CompareVersionStrings (branchVersion, currentVersion)  > 0)
+                if ((SKIF_Util_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
+                     SKIF_Util_CompareVersionStrings (branchVersion, currentVersion)  > 0)
                 {
                   std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
                   std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
@@ -6181,7 +6141,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec4      compareColor;
         bool        compareNewer = false;
 
-        if (SKIF_CompareVersionStrings(newVersion.version, currentVersion) > 0)
+        if (SKIF_Util_CompareVersionStrings (newVersion.version, currentVersion) > 0)
         {
           compareLabel = "This version is newer than currently installed.";
           compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);

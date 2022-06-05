@@ -10,7 +10,7 @@
 std::wstring SKIF_Util_TowLower              (std::wstring_view wstr);
 std::wstring SKIF_Util_GetLastError          (void);
 DWORD        SKIF_Util_timeGetTime           (void);
-
+int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
 
 // Filenames
 
@@ -34,6 +34,7 @@ void         SKIF_Util_OpenURI_Threaded            (                const LPCWST
 
 // Windows
 
+int          SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI  SKIF_Util_CompactWorkingSet           (void);
 BOOL         SKIF_Util_IsWindows8Point1OrGreater   (void);
 BOOL         SKIF_Util_IsWindows10OrGreater        (void);
