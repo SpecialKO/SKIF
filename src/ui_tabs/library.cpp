@@ -2307,7 +2307,7 @@ Cache=false)";
             ImGui::PopStyleColor ( );
 
             SKIF_ImGui_SetHoverTip (("The local DLL file is outdated.\n"
-                                     "Click to update to v " + _inject.SKVer32));
+                                     "Click to update it to v " + _inject.SKVer32 + "."));
           }
         }
       }
