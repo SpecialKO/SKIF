@@ -1259,9 +1259,9 @@ namespace SKIF
     };
   };
 
-#define SKIF_MakeRegKeyF  SKIF::WindowsRegistry::KeyValue <float>::MakeKeyValue
-#define SKIF_MakeRegKeyB  SKIF::WindowsRegistry::KeyValue <bool>::MakeKeyValue
-#define SKIF_MakeRegKeyI  SKIF::WindowsRegistry::KeyValue <int>::MakeKeyValue
+#define SKIF_MakeRegKeyF  SKIF::WindowsRegistry::KeyValue <float>       ::MakeKeyValue
+#define SKIF_MakeRegKeyB  SKIF::WindowsRegistry::KeyValue <bool>        ::MakeKeyValue
+#define SKIF_MakeRegKeyI  SKIF::WindowsRegistry::KeyValue <int>         ::MakeKeyValue
 #define SKIF_MakeRegKeyWS SKIF::WindowsRegistry::KeyValue <std::wstring>::MakeKeyValue
 };
 
@@ -1313,7 +1313,6 @@ constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 
 const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
-
 
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
@@ -1579,8 +1578,6 @@ bool
 SKIF_RegisterApp (void)
 {
   HKEY hKey;
-  //BYTE buffer[4000];
-  //DWORD buffsz = sizeof(buffer);
   static int ret = -1;
 
   if (ret != -1)
@@ -1601,40 +1598,6 @@ SKIF_RegisterApp (void)
 
     RegCloseKey (hKey);
   }
-
-  /*
-  //HKEY_CURRENT_USER\Environment
-  if (RegOpenKeyEx    (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, std::addressof(key)) == 0 &&
-      RegQueryValueEx (key, L"Path", nullptr, nullptr, buffer, std::addressof(buffsz)) == 0)
-  {
-    std::wstring env         = reinterpret_cast<const wchar_t*>(buffer),
-                 currentPath = std::filesystem::current_path().wstring();
-
-    if (env         .find (currentPath)             == std::wstring::npos &&
-        currentPath .find (LR"(\My Mods\SpecialK)") != std::wstring::npos)
-    {
-      std::wstring new_env = env;
-
-      if (env.rfind(L";") == env.length() - 1)
-        new_env += currentPath + L";";
-      else
-        new_env += L";" + currentPath + L";";
-
-      if (RegSetValueEx(key, L"Path", 0, REG_SZ, (LPBYTE)(new_env.c_str()), (DWORD)((new_env.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS)
-        ret = 1;
-      else
-        ret = 0;
-    }
-
-    else if (env    .find (currentPath)             != std::wstring::npos)
-      ret = 1;
-
-    else
-      ret = 0;
-
-    RegCloseKey (key);
-  }
-  */
 
   return ret;
 }
@@ -1676,8 +1639,8 @@ SKIF_hasControlledFolderAccess (void)
   return enabled;
 }
 
-// Changed name to undo Kaldaien's stupid forced behaviour change in SK that breaks
-//   the intended user experience as well as launcher mode of SKIF
+// Changed name to avoid the forced behaviour change in SK that broke the
+//   intended user experience as well as launcher mode of SKIF in early 2022
 static auto regKVDisableStopOnInjection =
   SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                         LR"(Disable Auto-Stop)" );
