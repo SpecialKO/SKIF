@@ -24,6 +24,7 @@
 
 #include <SKIF.h>
 #include <SKIF_utility.h>
+#include <SKIF_imgui.h>
 #include <injection.h>
 #include <fsutil.h>
 

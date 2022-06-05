@@ -60,7 +60,16 @@ struct {
 static bool                 g_WantUpdateHasGamepad = true;
 static bool                 g_WantUpdateMonitors = true;
 
-bool SKIF_ImGui_IsFocused (void)
+using XInputGetState_pfn =
+DWORD (WINAPI *)( DWORD, XINPUT_STATE * );
+using XInputGetCapabilities_pfn =
+DWORD (WINAPI *)( DWORD, DWORD, XINPUT_CAPABILITIES * );
+
+static XInputGetState_pfn        ImGui_XInputGetState = nullptr;
+static XInputGetCapabilities_pfn ImGui_XInputGetCapabilities = nullptr;
+static HMODULE                   g_hModXInput = nullptr;
+
+bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
   if (! g_Focused)
     return false;
@@ -95,15 +104,6 @@ bool SKIF_ImGui_IsFocused (void)
 
   return lastFocus;
 }
-
-using XInputGetState_pfn =
-DWORD (WINAPI *)( DWORD, XINPUT_STATE * );
-using XInputGetCapabilities_pfn =
-DWORD (WINAPI *)( DWORD, DWORD, XINPUT_CAPABILITIES * );
-
-static XInputGetState_pfn        ImGui_XInputGetState = nullptr;
-static XInputGetCapabilities_pfn ImGui_XInputGetCapabilities = nullptr;
-static HMODULE                   g_hModXInput = nullptr;
 
 bool    ImGui_ImplWin32_InitXInput (void *hwnd)
 {

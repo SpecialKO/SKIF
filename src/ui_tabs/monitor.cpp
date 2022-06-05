@@ -21,6 +21,7 @@
 //
 
 #include <SKIF.h>
+#include <SKIF_imgui.h>
 
 #include <wmsdk.h>
 #include <filesystem>
@@ -107,8 +108,6 @@ struct SK_InjectionRecord_s
 using SKX_GetInjectedPIDs_pfn   = size_t                (__stdcall *)(DWORD *pdwList, size_t capacity);
 using SK_Inject_GetRecord_pfn   = SK_InjectionRecord_s* (__stdcall *)(DWORD  dwPid);
 using SK_Inject_AuditRecord_pfn = HRESULT               (__stdcall *)(DWORD  dwPid, SK_InjectionRecord_s* pData, size_t cbSize);
-
-#include <imgui/imgui.h>
 
 BOOL
 SKIF_File_GetNameFromHandle ( HANDLE   hFile,

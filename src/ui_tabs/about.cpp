@@ -2,6 +2,7 @@
 #include <font_awesome.h>
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
+#include <SKIF_imgui.h>
 
 extern int SKIF_iStyle;
 

@@ -34,11 +34,8 @@
 #include "plog/Initializers/RollingFileInitializer.h"
 #include "plog/Appenders/ConsoleAppender.h"
 
-// This file is included mostly everywhere else, so lets define using ImGui's math operators here.
-#define IMGUI_DEFINE_MATH_OPERATORS
-
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
+#include <injection.h>
+#include <registry.h>
 
 class SK_AutoCOMInit
 {
@@ -75,21 +72,26 @@ private:
   bool  success_    = false;
 };
 
+struct SKIF_UpdateCheckResults {
+  std::wstring version;
+  std::wstring filename;
+  std::wstring description;
+  std::wstring releasenotes;
+} extern;
+
 extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
 void SKIF_Initialize               (void);
 
-bool SKIF_ImGui_IsHoverable        (void);
-void SKIF_ImGui_SetMouseCursorHand (void);
-void SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
-void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
-bool SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);
-void SKIF_ImGui_OptImage           (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
-void SKIF_ImGui_Columns            (int columns_count, const char* id, bool border, bool resizeble = false);
-void SKIF_ImGui_Spacing            (float multiplier = 0.25f);
-
 extern float SKIF_ImGui_GlobalDPIScale;
 extern float SKIF_ImGui_GlobalDPIScale_Last;
+
+extern std::string SKIF_StatusBarText;
+extern std::string SKIF_StatusBarHelp;
+extern HWND        SKIF_hWnd;
+extern HWND        SKIF_Notify_hWnd;
+
+extern bool RepopulateGames;
 
 void SKIF_UI_DrawPlatformStatus    (void);
 void SKIF_UI_DrawComponentVersion  (void);
@@ -110,6 +112,61 @@ const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_DEBUG    = 1339;
 const UINT_PTR IDT_REFRESH_GAMES    = 1340;
+
+constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
+constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
+constexpr UINT WM_SKIF_LAUNCHER      = WM_USER + 0x1026;
+constexpr UINT WM_SKIF_REFRESHGAMES  = WM_USER + 0x1027;
+constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
+constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
+constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
+
+constexpr wchar_t* SKIF_WindowClass =
+             L"SK_Injection_Frontend";
+
+// Settings
+extern int SKIF_iNotifications;
+extern int SKIF_iGhostVisibility;
+extern int SKIF_iStyle;
+extern int SKIF_iDimCovers;
+extern int SKIF_iCheckForUpdates;
+extern int SKIF_iAutoStopBehavior;
+extern int SKIF_iLogging;
+
+extern uint32_t SKIF_iLastSelected;
+extern bool SKIF_bRememberLastSelected;
+extern bool SKIF_bDisableDPIScaling;
+extern bool SKIF_bDisableExitConfirmation;
+extern bool SKIF_bDisableTooltips;
+extern bool SKIF_bDisableStatusBar;
+extern bool SKIF_bDisableBorders;
+extern bool SKIF_bDisableSteamLibrary;
+extern bool SKIF_bDisableEGSLibrary;
+extern bool SKIF_bDisableGOGLibrary;
+extern bool SKIF_bDisableXboxLibrary;
+extern bool SKIF_bSmallMode;
+extern bool SKIF_bFirstLaunch;
+extern bool SKIF_bEnableDebugMode;
+extern bool SKIF_bAllowMultipleInstances;
+extern bool SKIF_bAllowBackgroundService;
+extern bool SKIF_bEnableHDR;
+extern bool SKIF_bOpenAtCursorPosition;
+extern bool SKIF_bStopOnInjection;
+extern bool SKIF_bCloseToTray;
+extern bool SKIF_bFontChineseSimplified;
+extern bool SKIF_bFontChineseAll;
+extern bool SKIF_bFontCyrillic;
+extern bool SKIF_bFontJapanese;
+extern bool SKIF_bFontKorean;
+extern bool SKIF_bFontThai;
+extern bool SKIF_bFontVietnamese;
+extern bool SKIF_bLowBandwidthMode;
+extern bool SKIF_bPreferGOGGalaxyLaunch;
+extern bool SKIF_bMinimizeOnGameLaunch;
+
+// This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
+extern BOOL SKIF_bSuppressServiceNotification;
+
 
 enum class PopupState {
   Closed,
