@@ -642,8 +642,12 @@ HWND hWndOrigForeground;
 void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
+  PLOG_DEBUG << "Processing command line arguments: " << lpCmdLine;
+
   HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
+
+  PLOG_VERBOSE << "hwndAlreadyExists: " << hwndAlreadyExists;
 
   _Signal.Start =
     StrStrIW (lpCmdLine, L"Start")    != NULL;
@@ -675,6 +679,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
        )
      )
   {
+    PLOG_VERBOSE << "hwndAlreadyExists was found to be true; proxying call...";
+
     if (! _Signal.Start     &&
         ! _Signal.Temporary &&
         ! _Signal.Stop      &&
@@ -708,11 +714,22 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     }
 
     if (_Signal.Quit || (! _Signal._Disowned))
-       ExitProcess (0x0);
+    {
+      PLOG_INFO << "Terminating due to one of these contions were found to be true:";
+      PLOG_INFO << "_Signal.Quit: "        << (  _Signal.Quit     );
+      PLOG_INFO << "! _Signal._Disowned: " << (! _Signal._Disowned);
+      ExitProcess (0x0);
+    }
   }
 
   else if (_Signal.Quit)
   {
+    PLOG_VERBOSE << "hwndAlreadyExists was found to be false; handling call...";
+
+    if (_Signal.Stop)
+      _inject._StartStopInject (true);
+    
+    PLOG_INFO << "Terminating due to _Signal.Quit";
     ExitProcess (0x0);
   }
 
@@ -808,19 +825,25 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       if (SelectNewSKIFGame > 0 && hwndAlreadyExists != 0)
       {
         SendMessage (hwndAlreadyExists, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
+        PLOG_INFO << "Terminating due to one of these contions were found to be true:";
+        PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
+        PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
         ExitProcess (0x0);
       }
     }
 
     // Terminate the process if given a non-valid string
     else {
-      ExitProcess(0x0);
+      PLOG_INFO << "Terminating due to given a non-valid string!";
+      ExitProcess (0x0);
     }
   }
   
   // Handle quick launching
   else if (_Signal.Launcher)
   {
+    PLOG_VERBOSE << "SKIF being used as a launcher...";
+
     // Display in small mode
     SKIF_bSmallMode = true;
 
@@ -845,6 +868,10 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
 
+    PLOG_VERBOSE << "Executable: " << path;
+    PLOG_VERBOSE << "Parent Folder: " << SK_UTF8ToWideChar (parentFolder);
+    PLOG_VERBOSE << "Working Directory: " << workingDirectory;
+
     bool isLocalBlacklisted  = false,
          isGlobalBlacklisted = false;
 
@@ -854,9 +881,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
-
-      //MessageBox(NULL, (L"Derp: " + blacklistFile + L"\n").c_str(), L"Debug", MB_ICONINFORMATION | MB_OK);
-      //MessageBox(NULL, (L"Derp2: " + path + L"\n").c_str(),         L"Debug", MB_ICONINFORMATION | MB_OK);
 
       // Check if the executable is blacklisted
       isLocalBlacklisted  = PathFileExistsW(blacklistFile.c_str());
@@ -890,12 +914,20 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
                             SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
       // Launch executable
-      ShellExecuteExW(&sexi);
+      ShellExecuteExW (&sexi);
+      
+      PLOG_INFO << "Launched the given executable!";
     }
 
     // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
     if (hwndAlreadyExists != 0 || isLocalBlacklisted || isGlobalBlacklisted)
-      ExitProcess(0x0);
+    {
+      PLOG_INFO << "Terminating due to one of these contions were found to be true:";
+      PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
+      PLOG_INFO << "isLocalBlacklisted: "     << (isLocalBlacklisted    );
+      PLOG_INFO << "isGlobalBlacklisted: "    << (isGlobalBlacklisted   );
+      ExitProcess (0x0);
+    }
   }
 }
 
@@ -908,18 +940,40 @@ SKIF_RegisterApp (void)
   if (ret != -1)
     return ret;
 
-  if (RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS)
+  if (! _inject.bHasServlet)
   {
-    TCHAR               szExePath[MAX_PATH];
-    GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+    PLOG_ERROR << "Failed to register SKIF in Windows due to missing critical service components!";
+    return 0;
+  }
 
-    std::wstring wsPath = std::wstring(szExePath);
+  TCHAR               szExePath [MAX_PATH];
+  GetModuleFileName   (NULL, szExePath, _countof (szExePath));
 
-    if (ERROR_SUCCESS == RegSetValueExW(hKey, NULL, 0, REG_SZ, (LPBYTE)wsPath.data(),
-                                                                (DWORD)wsPath.size() * sizeof(wchar_t)))
-      ret = 1;
+  std::wstring wsPath = std::wstring (szExePath);
+
+  if (ERROR_SUCCESS == RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL))
+  {
+    ret = (ERROR_SUCCESS == RegSetValueExW (hKey, NULL, 0, REG_SZ, (LPBYTE)wsPath.data(),
+                                                                    (DWORD)wsPath.size() * sizeof (wchar_t)));
+
+    RegCloseKey (hKey);
+  }
+
+  if (ret)
+    PLOG_INFO << "App registration was successful: " << wsPath;
+  else
+    PLOG_ERROR << "Failed to register SKIF in Windows";
+
+  bool pathRegistered = 0;
+  if (ERROR_SUCCESS == RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL))
+  {
+    pathRegistered = (ERROR_SUCCESS == RegSetValueExW(hKey, L"Path", 0, REG_SZ, (LPBYTE)path_cache.specialk_userdata,
+                                                                          (DWORD)wcslen(path_cache.specialk_userdata) * sizeof(wchar_t)));
+
+    if (pathRegistered)
+      PLOG_INFO << "Centralized Special K userdata location updated: " << wsPath;
     else
-      ret = 0;
+      PLOG_ERROR << "Failed to update the global Special K userdata location";
 
     RegCloseKey (hKey);
   }
@@ -1570,6 +1624,15 @@ bool bKeepWindowAlive  = true,
 
 SKIF_UpdateCheckResults newVersion;
 
+// Uninstall registry keys
+// Current User: HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4A43527-9457-424A-90A6-17CF02ACF677}_is1
+// All Users:   HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{F4A43527-9457-424A-90A6-17CF02ACF677}_is1
+
+// Install folders
+// Legacy:                              Documents\My Mods\SpecialK
+// Modern (Current User; non-elevated): %LOCALAPPDATA%\Programs\Special K
+// Modern (All Users;        elevated): C:\Program Files\Special K
+
 // Main code
 int
 APIENTRY
@@ -1585,6 +1648,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
+    PLOG_INFO << "Unsupported version of Windows detected. Special K requires at least Windows 8.1; please update to a newer version.";
     MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
     return 0;
   }
@@ -1601,6 +1665,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     GetForegroundWindow ();
 
   plog::get()->setMaxSeverity((plog::Severity) SKIF_iLogging);
+
+  PLOG_INFO << "Max severity to log was set to " << SKIF_iLogging;
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 

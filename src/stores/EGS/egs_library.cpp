@@ -198,7 +198,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
       }
       catch (const std::exception&)
       {
-
+        PLOG_ERROR << "Failed to parse manifest: " << entry.path();
       }
     }
   }

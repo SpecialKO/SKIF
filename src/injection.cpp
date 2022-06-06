@@ -142,6 +142,8 @@ bool SKIF_InjectionContext::isPending(void)
 
 bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
 {
+  PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
+
   extern HWND    SKIF_hWnd;
   bool ret = false;
 
@@ -213,7 +215,12 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   dwLastSignaled = SKIF_Util_timeGetTime();
 
-  Sleep(30);
+  Sleep (30);
+
+  if (ret)
+    PLOG_INFO << "The operation was successful.";
+  else
+    PLOG_INFO << "The operation was unsuccessful.";
 
   return ret;
 };
