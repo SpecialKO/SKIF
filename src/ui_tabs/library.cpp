@@ -53,6 +53,7 @@
 #include <fsutil.h>
 #include <atlimage.h>
 #include <TlHelp32.h>
+#include <gsl/gsl_util>
 
 #include <patreon.png.h>
 #include <sk_icon.jpg.h>
@@ -124,9 +125,6 @@ LoadLibraryTexture (
         ImVec2&                             vCoverUv1,
         app_record_s*                       pApp = nullptr)
 {
-
-  extern bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath);
-
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
   DirectX::ScratchImage        img = { };
@@ -186,7 +184,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
         load_str =                SKIFCustomPath + L"-original.png";
     }
   }
@@ -218,7 +216,7 @@ LoadLibraryTexture (
                PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
         load_str =               EGSAssetPath + L"OfferImageTall.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EGSAssetPath + L"icon-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EGSAssetPath + L"icon-original.png"))
         load_str =               SKIFCustomPath + L"-original.png";
     }
   }
@@ -246,7 +244,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
         load_str =             SKIFCustomPath + L"-original.png";
       else if (libTexToLoad == LibraryTexture::Icon)
       {
@@ -515,109 +513,6 @@ LoadLibraryTexture (
     }
   }
 };
-
-/*
-void
-SKIF_GameManagement_ShowScreenshot (const std::wstring& filename)
-{
-  static CComPtr <ID3D11Texture2D>          pTex2D;
-  static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-
-  static DirectX::TexMetadata  meta = { };
-  static DirectX::ScratchImage img  = { };
-
-  if ( filename != sshot_file)
-  {
-    sshot_file = filename;
-
-    if (PathFileExistsW (filename.c_str ()))
-    {
-      if (
-        SUCCEEDED (
-          DirectX::LoadFromWICFile (
-            filename.c_str (),
-              DirectX::WIC_FLAGS_FORCE_LINEAR,
-                &meta, img
-          )
-        )
-      )
-      {
-        DirectX::ScratchImage pm_img;
-
-        DirectX::PremultiplyAlpha (*img.GetImage (0,0,0), DirectX::TEX_PMALPHA_DEFAULT, pm_img);
-
-        auto pDevice =
-          SKIF_D3D11_GetDevice ();
-
-        if (! pDevice)
-          return;
-
-        pTex2D = nullptr;
-
-        if (
-          SUCCEEDED (
-            DirectX::CreateTexture (
-              pDevice,
-                pm_img.GetImages (), pm_img.GetImageCount (),
-                  meta, (ID3D11Resource **)&pTex2D.p
-            )
-          )
-        )
-        {
-          D3D11_SHADER_RESOURCE_VIEW_DESC
-            srv_desc                           = { };
-            srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-            srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srv_desc.Texture2D.MipLevels       =  1;
-            srv_desc.Texture2D.MostDetailedMip =  0;
-
-          CComPtr <ID3D11ShaderResourceView>
-            pOrigTexSRV (pTexSRV.p);
-                         pTexSRV = nullptr;
-
-          if (   pTex2D.p == nullptr ||
-            FAILED (
-              pDevice->CreateShaderResourceView (
-                 pTex2D.p, &srv_desc,
-                &pTexSRV.p
-              )
-            )
-          )
-          {
-            pTexSRV = pOrigTexSRV;
-          }
-
-          // SRV is holding a reference, this is not needed anymore.
-          pTex2D = nullptr;
-        }
-      }
-    }
-  };
-
-  if (sshot_file.empty ())
-    pTexSRV = nullptr;
-
-  if (pTexSRV.p != nullptr)
-  {
-    // Compensate for HDR rescale if needed
-    extern BOOL  SKIF_IsHDR           (void);
-    extern FLOAT SKIF_GetHDRWhiteLuma (void);
-
-    //float inverse_hdr_scale =
-    //  SKIF_IsHDR () ? 1.0f / (80.0f / SKIF_GetHDRWhiteLuma ())
-    //                : 1.0f;
-
-    ImGui::SetNextWindowSize (ImVec2 ((float)meta.width, (float)meta.height));
-  //ImGui::SetNextWindowPos  (ImVec2 (0.0f, 0.0f));
-    ImGui::Begin             ("Screenshot View");
-  //ImGui::BeginChild        ("ScreenshotImage", ImVec2 (0, 0), false, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NavFlattened);
-    ImGui::Image ((ImTextureID)pTexSRV.p, ImVec2 ((float)meta.width, (float)meta.height),
-                  ImVec2 (0, 0), ImVec2 (1, 1));
-  //ImGui::EndChild   ();
-    ImGui::End        ();
-  }
-}
-*/
 
 using app_entry_t =
         std::pair < std::string,
@@ -3483,9 +3378,41 @@ Cache=false)";
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
-    extern std::string SKIF_GetPatrons (void);
+    auto _GetPatrons = [&](void) -> std::string
+    {
+      FILE *fPatrons =
+        _wfopen (L"patrons.txt", L"rb");
+
+      if (fPatrons != nullptr)
+      {
+        std::string out;
+#ifdef _WIN64
+        _fseeki64 (fPatrons, 0, SEEK_END);
+#else
+        fseek     (fPatrons, 0, SEEK_END);
+#endif
+
+        size_t size =
+          gsl::narrow_cast <size_t> (
+#ifdef _WIN64
+          _ftelli64 (fPatrons)      );
+#else
+          ftell     (fPatrons)      );
+#endif
+        rewind      (fPatrons);
+
+        out.resize (size);
+
+        fread (out.data (), size, 1, fPatrons);
+               out += '\0';
+        return out;
+      }
+
+      return "";
+    };
+
     static std::string patrons_ =
-      SKIF_GetPatrons () + '\0';
+      _GetPatrons () + '\0';
 
     ImGui::Spacing            ( );
     ImGui::SameLine           ( );

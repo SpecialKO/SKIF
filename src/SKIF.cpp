@@ -74,17 +74,13 @@
 #include <sstream>
 #include <cwctype>
 
-#include <Tlhelp32.h>
 #include <unordered_set>
 #include <json.hpp>
-
-#include <gdiplus.h>
 
 #include <dwmapi.h>
 #include <ui_tabs/about.h>
 #include <ui_tabs/settings.h>
 
-#pragma comment (lib,"Gdiplus.lib")
 #pragma comment (lib, "wininet.lib")
 
 const GUID IID_IDXGIFactory5 =
@@ -310,8 +306,6 @@ HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 CONDITION_VARIABLE SKIF_IsNotFocused = { };
-
-extern bool SKIF_ImGui_IsFocused (void);
 
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
@@ -641,41 +635,6 @@ SKIF_ImGui_InitFonts =
   io.Fonts->AddFontDefault ();
 };
 
-
-
-std::string
-SKIF_GetPatrons (void)
-{
-  FILE *fPatrons =
-    _wfopen (L"patrons.txt", L"rb");
-
-  if (fPatrons != nullptr)
-  {
-    std::string out;
-#ifdef _WIN64
-    _fseeki64 (fPatrons, 0, SEEK_END);
-#else
-    fseek     (fPatrons, 0, SEEK_END);
-#endif
-
-    size_t size =
-      gsl::narrow_cast <size_t> (
-#ifdef _WIN64
-      _ftelli64 (fPatrons)      );
-#else
-      ftell     (fPatrons)      );
-#endif
-    rewind      (fPatrons);
-
-    out.resize (size);
-
-    fread (out.data (), size, 1, fPatrons);
-           out += '\0';
-    return out;
-  }
-
-  return "";
-}
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
@@ -1017,139 +976,6 @@ void SKIF_putStopOnInjection (bool in)
 
   if (_inject.bCurrentState)
     _inject._ToggleOnDemand (in);
-}
-
-bool
-SK_IsProcessAdmin (PROCESSENTRY32W proc)
-{
-  bool          bRet = false;
-  SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
-
-  SetLastError(NO_ERROR);
-
-  SK_AutoHandle hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, proc.th32ProcessID);
-
-  if (GetLastError() == ERROR_ACCESS_DENIED)
-    return true;
-
-  if ( OpenProcessToken ( hProcess,
-                            TOKEN_QUERY,
-                              &hToken.m_h )
-     )
-  {
-    TOKEN_ELEVATION Elevation = { };
-
-    DWORD cbSize =
-      sizeof (TOKEN_ELEVATION);
-
-    if ( GetTokenInformation ( hToken.m_h,
-                                 TokenElevation,
-                                   &Elevation,
-                                     sizeof (Elevation),
-                                       &cbSize )
-       )
-    {
-      bRet =
-        ( Elevation.TokenIsElevated != 0 );
-    }
-  }
-
-  return bRet;
-}
-
-PROCESSENTRY32W
-SK_FindProcessByName (const wchar_t* wszName)
-{
-  PROCESSENTRY32W none = { },
-                  pe32 = { };
-
-  SK_AutoHandle hProcessSnap (
-    CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
-  );
-
-  if ((intptr_t)hProcessSnap.m_h <= 0) // == INVALID_HANDLE_VALUE)
-    return none;
-
-  pe32.dwSize = sizeof (PROCESSENTRY32W);
-
-  if (! Process32FirstW (hProcessSnap, &pe32))
-    return none;
-
-  do
-  {
-    if (wcsstr (pe32.szExeFile, wszName))
-      return pe32;
-  } while (Process32NextW (hProcessSnap, &pe32));
-
-  return none;
-}
-
-bool SKIF_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
-{
-  bool ret = PathFileExists (targetPath.c_str());
-
-  if (! ret)
-  {
-    // Create necessary directories if they do not exist
-    std::filesystem::path target = targetPath;
-    std::filesystem::create_directories (target.parent_path());
-
-    /* Required for SHDefExtractIconW
-    WORD wIndex;
-    wchar_t wszPath[MAX_PATH];
-    
-    wcsncpy_s (wszPath,   MAX_PATH,
-                path.c_str (), _TRUNCATE
-    );
-    */
-    
-    // GDI+ Image Encoder CLSIDs (haven't changed forever)
-    //
-    //              {distinct-same-same-same-samesamesame}
-    // image/bmp  : {557cf400-1a04-11d3-9a73-0000f81ef32e}
-    // image/jpeg : {557cf401-1a04-11d3-9a73-0000f81ef32e}
-    // image/gif  : {557cf402-1a04-11d3-9a73-0000f81ef32e}
-    // image/tiff : {557cf405-1a04-11d3-9a73-0000f81ef32e}
-    // image/png  : {557cf406-1a04-11d3-9a73-0000f81ef32e}
-
-    const CLSID pngEncoderClsId =
-      { 0x557cf406, 0x1a04, 0x11d3,{ 0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e } };
-
-    // Variables
-    HICON hIcon;
-    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-    ULONG_PTR gdiplusToken;
-
-    // Extract the icon
-    //hIcon = ExtractAssociatedIcon (NULL, wszPath, &wIndex); // Loses transparency
-    
-    if (S_OK == SHDefExtractIconW (exePath.c_str (), 0, 0, &hIcon, 0, 32)) // 256
-    {
-      // Start up GDI+
-      if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
-      {
-        // Create the GDI+ object
-        Gdiplus::Bitmap* gdiplusImage =
-          Gdiplus::Bitmap::FromHICON (hIcon);
-
-        // Save the image in PNG as GIF loses the transparency
-        if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
-          ret = true;
-
-        // Delete the object
-        delete gdiplusImage;
-        gdiplusImage = NULL;
-
-        // Shut down GDI+
-        Gdiplus::GdiplusShutdown (gdiplusToken);
-      }
-
-      // Destroy the icon
-      DestroyIcon (hIcon);
-    }
-  }
-
-  return ret;
 }
 
 volatile LONG update_thread = 0; // 0 = No update check has run,     1 = Update check is running,     2 = Update check has completed
@@ -1549,7 +1375,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
     void Refresh (void)
     {
-      PROCESSENTRY32W pe = SK_FindProcessByName (ProcessName.c_str());
+      PROCESSENTRY32W pe = SKIF_Util_FindProcessByName (ProcessName.c_str());
       ProcessID = pe.th32ProcessID;
 
       if (ProcessID != PreviousPID)
@@ -1558,7 +1384,7 @@ void SKIF_UI_DrawPlatformStatus (void)
         isRunning   = (ProcessID > 0);
 
         if (isRunning)
-          isAdmin = SK_IsProcessAdmin (pe);
+          isAdmin = SKIF_Util_IsProcessAdmin (pe);
       }
     }
   };
@@ -1668,8 +1494,6 @@ void SKIF_SetStyle (void)
 
 void SKIF_Initialize (void)
 {
-  //OutputDebugString(L"Initialize!\n");
-
   static bool isInitalized = false;
 
   if (! isInitalized)
@@ -1861,25 +1685,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Register SKIF in Windows to enable quick launching.
   SKIF_RegisterApp ( );
-
-  // Cache the Special K user data path
-  /* This is handled in the injection.cpp constructor instead
-  SKIF_GetFolderPath (&path_cache.specialk_userdata);
-  PathAppendW (        path_cache.specialk_userdata.path,
-                         LR"(My Mods\SpecialK)"  );
-  */
-
-  /*
-  int                                    app_id = SKIF_STEAM_APPID;
-  if (StrStrW (lpCmdLine, L"AppID="))
-  {   assert ( 1 ==
-      swscanf (lpCmdLine, L"AppID=%li", &app_id)
-             );
-  }
-
-  char      szAppID [16] = { };
-  snprintf (szAppID, 15, "%li",          app_id);
-  */
 
   // Create application window
   WNDCLASSEX wc =
@@ -2668,19 +2473,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           UpdateWindow     (hWnd);
           SKIF_isTrayed    = true;
         }
+
         else
         {
-          if (_inject.bCurrentState && ! SKIF_bDisableExitConfirmation)
-          {
-            ImGui::OpenPopup("Confirm Exit");
-          }
-          else
-          {
-            if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
-              _inject._StartStopInject (true);
+          if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+            _inject._StartStopInject (true);
 
-            bKeepProcessAlive = false;
-          }
+          bKeepProcessAlive = false;
         }
       }
 
@@ -2934,7 +2733,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
 
           ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
-                                ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
+                                ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
                                ), ICON_FA_SYNC );
         }
 
@@ -3024,87 +2823,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::TreePop     ( );
 
         ImGui::EndPopup ( );
-      }
-
-
-      // Confirm Exit prompt
-      ImGui::SetNextWindowSize (
-        ImVec2 ( (SKIF_bAllowBackgroundService)
-                    ? 515.0f * SKIF_ImGui_GlobalDPIScale
-                    : 350.0f * SKIF_ImGui_GlobalDPIScale,
-                   0.0f )
-      );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-      if (ImGui::BeginPopupModal ( "Confirm Exit", nullptr,
-                                     ImGuiWindowFlags_NoResize |
-                                     ImGuiWindowFlags_NoMove |
-                                     ImGuiWindowFlags_AlwaysAutoResize )
-         )
-      {
-        SKIF_ImGui_Spacing ();
-
-        if (SKIF_bAllowBackgroundService)
-          ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-            "                           Exiting will leave the global injection"
-            "\n                            service running in the background."
-          );
-        else
-          ImGui::TextColored ( ImColor::HSV (0.11F, 1.F, 1.F),
-                "      Exiting will stop the global injection service."
-          );
-
-        SKIF_ImGui_Spacing ();
-
-        if (SKIF_bAllowBackgroundService)
-        {
-          if (ImGui::Button ("Stop Service And Exit", ImVec2 (  0 * SKIF_ImGui_GlobalDPIScale,
-                                                               25 * SKIF_ImGui_GlobalDPIScale )))
-          {
-            _inject._StartStopInject (true);
-
-            bKeepProcessAlive = false;
-          }
-
-          ImGui::SameLine ();
-          ImGui::Spacing  ();
-          ImGui::SameLine ();
-        }
-
-        if (ImGui::Button ("Exit", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                             25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          if (! SKIF_bAllowBackgroundService)
-            _inject._StartStopInject (true);
-
-          bKeepProcessAlive = false;
-        }
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
-
-        if (ImGui::Button ("Minimize", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                                 25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          bKeepWindowAlive = true;
-          ImGui::CloseCurrentPopup ();
-
-          ShowWindow (hWnd, SW_MINIMIZE);
-        }
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
-
-        if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                               25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          bKeepWindowAlive = true;
-          ImGui::CloseCurrentPopup ();
-        }
-
-        ImGui::EndPopup ();
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.

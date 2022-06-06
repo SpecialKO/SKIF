@@ -3,6 +3,7 @@
 #include <string>
 #include <wininet.h>
 #include <atlbase.h>
+#include <Tlhelp32.h>
 
 
 // Generic Utilities
@@ -34,11 +35,14 @@ void         SKIF_Util_OpenURI_Threaded            (                const LPCWST
 
 // Windows
 
-int          SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
-BOOL WINAPI  SKIF_Util_CompactWorkingSet           (void);
-BOOL         SKIF_Util_IsWindows8Point1OrGreater   (void);
-BOOL         SKIF_Util_IsWindows10OrGreater        (void);
-BOOL         SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
+BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
+BOOL            SKIF_Util_IsWindows8Point1OrGreater   (void);
+BOOL            SKIF_Util_IsWindows10OrGreater        (void);
+BOOL            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+bool            SKIF_Util_IsProcessAdmin              (PROCESSENTRY32W proc);
+PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
+bool            SKIF_Util_SaveExtractExeIcon          (std::wstring exePath, std::wstring targetPath);
 
 
 // Web

@@ -9,6 +9,9 @@
 #include <strsafe.h>
 #include <filesystem>
 #include <DbgHelp.h>
+#include <gdiplus.h>
+
+#pragma comment (lib, "Gdiplus.lib")
 
 
 // Generic Utilities
@@ -590,6 +593,129 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
   }
 
   return FALSE;
+}
+
+bool
+SKIF_Util_IsProcessAdmin (PROCESSENTRY32W proc)
+{
+  bool          bRet = false;
+  SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
+
+  SetLastError(NO_ERROR);
+
+  SK_AutoHandle hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, proc.th32ProcessID);
+
+  if (GetLastError() == ERROR_ACCESS_DENIED)
+    return true;
+
+  if ( OpenProcessToken ( hProcess,
+                            TOKEN_QUERY,
+                              &hToken.m_h )
+     )
+  {
+    TOKEN_ELEVATION Elevation = { };
+
+    DWORD cbSize =
+      sizeof (TOKEN_ELEVATION);
+
+    if ( GetTokenInformation ( hToken.m_h,
+                                 TokenElevation,
+                                   &Elevation,
+                                     sizeof (Elevation),
+                                       &cbSize )
+       )
+    {
+      bRet =
+        ( Elevation.TokenIsElevated != 0 );
+    }
+  }
+
+  return bRet;
+}
+
+PROCESSENTRY32W
+SKIF_Util_FindProcessByName (const wchar_t* wszName)
+{
+  PROCESSENTRY32W none = { },
+                  pe32 = { };
+
+  SK_AutoHandle hProcessSnap (
+    CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+  );
+
+  if ((intptr_t)hProcessSnap.m_h <= 0) // == INVALID_HANDLE_VALUE)
+    return none;
+
+  pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+  if (! Process32FirstW (hProcessSnap, &pe32))
+    return none;
+
+  do
+  {
+    if (wcsstr (pe32.szExeFile, wszName))
+      return pe32;
+  } while (Process32NextW (hProcessSnap, &pe32));
+
+  return none;
+}
+
+bool
+SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
+{
+  bool ret = PathFileExists (targetPath.c_str());
+
+  if (! ret)
+  {
+    // Create necessary directories if they do not exist
+    std::filesystem::path target = targetPath;
+    std::filesystem::create_directories (target.parent_path());
+    
+    // GDI+ Image Encoder CLSIDs (haven't changed forever)
+    //
+    //              {distinct-same-same-same-samesamesame}
+    // image/bmp  : {557cf400-1a04-11d3-9a73-0000f81ef32e}
+    // image/jpeg : {557cf401-1a04-11d3-9a73-0000f81ef32e}
+    // image/gif  : {557cf402-1a04-11d3-9a73-0000f81ef32e}
+    // image/tiff : {557cf405-1a04-11d3-9a73-0000f81ef32e}
+    // image/png  : {557cf406-1a04-11d3-9a73-0000f81ef32e}
+
+    const CLSID pngEncoderClsId =
+      { 0x557cf406, 0x1a04, 0x11d3,{ 0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e } };
+
+    // Variables
+    HICON hIcon;
+    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+
+    // Extract the icon    
+    if (S_OK == SHDefExtractIconW (exePath.c_str (), 0, 0, &hIcon, 0, 32)) // 256
+    {
+      // Start up GDI+
+      if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
+      {
+        // Create the GDI+ object
+        Gdiplus::Bitmap* gdiplusImage =
+          Gdiplus::Bitmap::FromHICON (hIcon);
+
+        // Save the image in PNG as GIF loses the transparency
+        if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
+          ret = true;
+
+        // Delete the object
+        delete gdiplusImage;
+        gdiplusImage = NULL;
+
+        // Shut down GDI+
+        Gdiplus::GdiplusShutdown (gdiplusToken);
+      }
+
+      // Destroy the icon
+      DestroyIcon (hIcon);
+    }
+  }
+
+  return ret;
 }
 
 

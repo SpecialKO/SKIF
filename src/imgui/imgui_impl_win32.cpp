@@ -1376,8 +1376,8 @@ static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 {
   (void)viewport;
 
-  extern bool       SKIF_bDPIScaling;
-  extern ImGuiStyle SKIF_ImGui_DefaultStyle;
+  //extern bool       SKIF_bDPIScaling;
+  //extern ImGuiStyle SKIF_ImGui_DefaultStyle;
 
   /* Disabled alongside move from ImGuiConfigFlags_DpiEnableScaleViewports
   *    over to ImGuiConfigFlags_DpiEnableScaleFonts
