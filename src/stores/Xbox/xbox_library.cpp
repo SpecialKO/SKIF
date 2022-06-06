@@ -148,7 +148,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                     else
                       record.specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
-                    std::wstring targetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(record.Xbox_PackageName).c_str());
+                    std::wstring targetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(record.Xbox_PackageName).c_str());
                     std::wstring iconPath   = targetPath + L"icon-original.png";
                     std::wstring coverPath  = targetPath + L"cover-fallback.png";
 
@@ -303,7 +303,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 void
 SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 {
-  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(PackageName).c_str());
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(PackageName).c_str());
   std::filesystem::create_directories(targetAssetPath);
 
   // Download JSON for the cover

@@ -580,8 +580,7 @@ SKIF_ImGui_InitFonts =
   }
   
   skif_fs::path fontDir
-          (path_cache.specialk_userdata.
-           path);
+          (path_cache.specialk_userdata);
 
   fontDir /= L"Fonts";
 
@@ -1012,9 +1011,9 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
       PLOG_DEBUG << "Update Thread Started!";
 
-      std::wstring root = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
-      std::wstring path = root + LR"(repository.json)";
-      std::wstring path_patreon = SK_FormatStringW(LR"(%ws\patrons.txt)", path_cache.specialk_userdata.path);
+      std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    path_cache.specialk_userdata);
+      std::wstring path         = root + LR"(repository.json)";
+      std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", path_cache.specialk_userdata);
 
       // Get UNIX-style time
       time_t ltime;
@@ -1524,10 +1523,10 @@ void SKIF_Initialize (void)
       std::filesystem::path (wszPath).remove_filename ()
     );
 
-    DeleteFile(L"SKIF.log");
+    DeleteFile (L"SKIF.log");
 
     // Engage logging!
-    plog::init(plog::debug, "SKIF.log", 10000000, 1);
+    plog::init (plog::debug, "SKIF.log", 10000000, 1);
 
 #ifdef _WIN64
     PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
@@ -1545,9 +1544,15 @@ void SKIF_Initialize (void)
     
     if (path_cache.my_documents.path [0] == 0)
     {
-      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                    SK_GetSteamDir (),      _TRUNCATE );
+      // Cache the Special K user data path
+      wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+             std::filesystem::current_path ().wstring().c_str(), _TRUNCATE);
 
+      // Cache the Steam install folder
+      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
+                   SK_GetSteamDir (),      _TRUNCATE );
+
+      // Cache user profile locations
       SKIF_GetFolderPath ( &path_cache.my_documents       );
       SKIF_GetFolderPath ( &path_cache.app_data_local     );
       SKIF_GetFolderPath ( &path_cache.app_data_local_low );
@@ -1651,7 +1656,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     HANDLE hFind = INVALID_HANDLE_VALUE;
     WIN32_FIND_DATA ffd;
 
-    std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata.path);
+    std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata);
 
     hFind = FindFirstFile((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
 
@@ -2843,7 +2848,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _inject._RefreshSKDLLVersions   ();
       }
 
-      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata.path);
+      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata);
       if (! newVersion.filename.empty())
       {
         SK_RunOnce(

@@ -412,7 +412,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 
     install_state.config.dir =
       SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
-                           path_cache.specialk_userdata.path,
+                           path_cache.specialk_userdata,
                              name.c_str () );
   }
 

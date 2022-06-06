@@ -1226,11 +1226,11 @@ SKIF_UI_Tab_DrawMonitor (void)
     extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
     
     if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Config Root", ImColor(255, 207, 72)))
-      SKIF_Util_ExplorePath (path_cache.specialk_userdata.path);
+      SKIF_Util_ExplorePath (path_cache.specialk_userdata);
 
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       (
-      SK_WideCharToUTF8 (path_cache.specialk_userdata.path).c_str ()
+      SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str ()
     );
 
     ImGui::TreePop    ( );

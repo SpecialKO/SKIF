@@ -187,7 +187,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           apps->emplace_back(EGS);
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
-          std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
+          std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
 
           // Create necessary directories if they do not exist
           std::filesystem::create_directories (AppCacheDir);
@@ -208,7 +208,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 void
 SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
 {
-  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata.path, SK_UTF8ToWideChar(AppName).c_str());
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
   std::filesystem::create_directories(targetAssetPath);
 
   // Download JSON for the offered games/edition/base

@@ -224,9 +224,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     PathFileExistsW  (L"Servlet");
 
   // Cache the Special K user data path
-  SKIF_GetFolderPath (&path_cache.specialk_userdata);
-  PathAppendW (        path_cache.specialk_userdata.path,
-                         LR"(My Mods\SpecialK)"  );
+  //SKIF_GetFolderPath (&path_cache.specialk_userdata);
+  //PathAppendW (        path_cache.specialk_userdata.path,
+  //                       LR"(My Mods\SpecialK)"  );
 
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
@@ -641,13 +641,13 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   if (ImGui::Selectable ("Centralized"))
   {
-    SKIF_Util_ExplorePath (path_cache.specialk_userdata.path);
+    SKIF_Util_ExplorePath (path_cache.specialk_userdata);
     //SKIF_Util_OpenURI (root_dir);
   }
 
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText       (
-    SK_WideCharToUTF8 (path_cache.specialk_userdata.path).c_str ()
+    SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str ()
   );
   //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
@@ -861,8 +861,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
                                user_startup.path );
 
-  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata.path),
-                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata.path);
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata);
 
   static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
                       Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
@@ -1164,7 +1164,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 {
   bool ret = false;
   static std::wstring root_dir =
-           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+           std::wstring(path_cache.specialk_userdata) + LR"(\Global\)";
 
   // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
   std::filesystem::create_directories (root_dir.c_str ());
@@ -1242,7 +1242,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 void SKIF_InjectionContext::_LoadList(bool whitelist_)
 {
   static std::wstring root_dir =
-           std::wstring(path_cache.specialk_userdata.path) + LR"(\Global\)";
+           std::wstring(path_cache.specialk_userdata) + LR"(\Global\)";
 
   std::wifstream list_file(
     (whitelist_) ? (root_dir + LR"(whitelist.ini)").c_str()

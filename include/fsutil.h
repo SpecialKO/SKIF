@@ -73,15 +73,16 @@ struct path_cache_s {
   {    FOLDERID_Fonts,
     L"%WINDIR%\\Fonts"
   };
-  win_path_s specialk_userdata  =
-  {            FOLDERID_Documents,
-    L"%USERPROFILE%\\My Documents"
-  };
+  //win_path_s specialk_userdata  =
+  //{            FOLDERID_Documents,
+  //  L"%USERPROFILE%\\My Documents"
+  //};
   win_path_s desktop            =
   {         FOLDERID_Desktop,
     L"%USERPROFILE%\\Desktop"
   };
-  wchar_t steam_install [MAX_PATH] = { };
+  wchar_t steam_install     [MAX_PATH] = { };
+  wchar_t specialk_userdata [MAX_PATH] = { };
 } extern path_cache;
 
 HRESULT
