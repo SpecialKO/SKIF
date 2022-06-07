@@ -81,7 +81,8 @@ struct SKIF_UpdateCheckResults {
 
 extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
-void SKIF_Initialize               (void);
+std::string SKIF_GetPatrons        (void);
+void        SKIF_Initialize        (void);
 
 extern float SKIF_ImGui_GlobalDPIScale;
 extern float SKIF_ImGui_GlobalDPIScale_Last;

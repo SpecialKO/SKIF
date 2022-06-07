@@ -3378,41 +3378,7 @@ Cache=false)";
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
-    auto _GetPatrons = [&](void) -> std::string
-    {
-      FILE *fPatrons =
-        _wfopen (L"patrons.txt", L"rb");
-
-      if (fPatrons != nullptr)
-      {
-        std::string out;
-#ifdef _WIN64
-        _fseeki64 (fPatrons, 0, SEEK_END);
-#else
-        fseek     (fPatrons, 0, SEEK_END);
-#endif
-
-        size_t size =
-          gsl::narrow_cast <size_t> (
-#ifdef _WIN64
-          _ftelli64 (fPatrons)      );
-#else
-          ftell     (fPatrons)      );
-#endif
-        rewind      (fPatrons);
-
-        out.resize (size);
-
-        fread (out.data (), size, 1, fPatrons);
-               out += '\0';
-        return out;
-      }
-
-      return "";
-    };
-
-    static std::string patrons_ =
-      _GetPatrons () + '\0';
+    std::string patrons_ = SKIF_GetPatrons ( );
 
     ImGui::Spacing            ( );
     ImGui::SameLine           ( );

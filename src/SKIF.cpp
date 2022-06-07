@@ -1031,8 +1031,17 @@ void SKIF_putStopOnInjection (bool in)
     _inject._ToggleOnDemand (in);
 }
 
+std::string patrons;
 volatile LONG update_thread = 0; // 0 = No update check has run,     1 = Update check is running,     2 = Update check has completed
 std::vector <std::pair<std::string, std::string>> updateChannels;
+
+std::string SKIF_GetPatrons ( )
+{
+  if (InterlockedExchangeAdd (&update_thread, 0) == 2)
+    return patrons;
+  else
+    return "";
+}
 
 SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 {
@@ -1085,8 +1094,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       {
         bool downloadNewFiles = false;
 
-        // Download repository.json if it does not exist or if we're forcing an update
-        if (! PathFileExists (path.c_str()) || SKIF_iCheckForUpdates == 2)
+        // Download files if any does not exist or if we're forcing an update
+        if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || SKIF_iCheckForUpdates == 2)
         {
           downloadNewFiles = true;
         }
@@ -1116,7 +1125,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
 
               // Compare with system time, and if system time is later (1), then update the local cache
-              if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
+              if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
               {
                 downloadNewFiles = true;
               }
@@ -1129,6 +1138,42 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         {
           SKIF_Util_GetWebResource (url, path);
           SKIF_Util_GetWebResource (url_patreon, path_patreon);
+        }
+      }
+
+      // Read patrons file
+      if (patrons.empty( ))
+      {
+        FILE *fPatrons =
+        _wfopen (L"patrons.txt", L"rb");
+
+        if (fPatrons != nullptr)
+        {
+          std::string out;
+  #ifdef _WIN64
+          _fseeki64 (fPatrons, 0, SEEK_END);
+  #else
+          fseek     (fPatrons, 0, SEEK_END);
+  #endif
+
+          size_t size =
+            gsl::narrow_cast <size_t> (
+  #ifdef _WIN64
+            _ftelli64 (fPatrons)      );
+  #else
+            ftell     (fPatrons)      );
+  #endif
+          rewind      (fPatrons);
+
+          out.resize (size);
+
+          fread (out.data (), size, 1, fPatrons);
+
+          out += '\0';
+          
+          patrons = out;
+
+          fclose (fPatrons);
         }
       }
     
@@ -1631,7 +1676,7 @@ SKIF_UpdateCheckResults newVersion;
 // Install folders
 // Legacy:                              Documents\My Mods\SpecialK
 // Modern (Current User; non-elevated): %LOCALAPPDATA%\Programs\Special K
-// Modern (All Users;        elevated): C:\Program Files\Special K
+// Modern (All Users;        elevated): %PROGRAMFILES%\Special K
 
 // Main code
 int
