@@ -508,4 +508,9 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Follow Update Channel)" );
 
+  // Moved within _registry to solve scoping issues with the previous approach
+  //  following the refactoring of SKIF.h/cpp, registry.h/cpp, and settings.h/cpp
+  std::wstring wsUpdateChannel;
+  std::wstring wsIgnoreUpdate;
+
 } extern _registry;

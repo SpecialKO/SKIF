@@ -17,7 +17,7 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   static driverStatus        = NotInstalled,
-          driverStatusPending = NotInstalled;
+         driverStatusPending = NotInstalled;
 
   // Check if the WinRing0_1_2_0 kernel driver service is installed or not
   auto _CheckDriver = [](Status& _status)->std::wstring
@@ -240,16 +240,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     static std::pair<std::string, std::string>  empty           = std::pair("", "");
     static std::pair<std::string, std::string>* selectedChannel = &empty;
-    
-    extern std::wstring SKIF_wsIgnoreUpdate,
-                        SKIF_wsUpdateChannel;
 
     static bool
         firstRun = true;
     if (firstRun)
     {   firstRun = false;
       for (auto& updateChannel : updateChannels)
-        if (updateChannel.first == SK_WideCharToUTF8(SKIF_wsUpdateChannel))
+        if (updateChannel.first == SK_WideCharToUTF8 (_registry.wsUpdateChannel))
           selectedChannel = &updateChannel;
     }
 
@@ -265,10 +262,10 @@ SKIF_UI_Tab_DrawSettings (void)
           selectedChannel = &updateChannel;
 
           // Update channel
-          SKIF_wsUpdateChannel = SK_UTF8ToWideChar(selectedChannel->first);
-          SKIF_wsIgnoreUpdate  = L"";
-          _registry.regKVFollowUpdateChannel.putData(SKIF_wsUpdateChannel);
-          _registry.regKVIgnoreUpdate       .putData (SKIF_wsIgnoreUpdate);
+          _registry.wsUpdateChannel = SK_UTF8ToWideChar (selectedChannel->first);
+          _registry.wsIgnoreUpdate  = L"";
+          _registry.regKVFollowUpdateChannel.putData (_registry.wsUpdateChannel);
+          _registry.regKVIgnoreUpdate       .putData (_registry.wsIgnoreUpdate);
 
           // Trigger a new check for updates
           extern bool changedUpdateChannel, SKIF_UpdateReady, showUpdatePrompt;

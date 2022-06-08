@@ -148,10 +148,6 @@ bool SKIF_bRememberLastSelected    = false,
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;
 
-std::wstring 
-     SKIF_wsIgnoreUpdate,
-     SKIF_wsUpdateChannel;
-
 BOOL SKIF_bAllowTearing            = FALSE,
      SKIF_bCanFlip                 = FALSE,
      SKIF_bCanFlipDiscard          = FALSE;
@@ -971,9 +967,9 @@ SKIF_RegisterApp (void)
                                                                           (DWORD)wcslen(path_cache.specialk_userdata) * sizeof(wchar_t)));
 
     if (pathRegistered)
-      PLOG_INFO << "Centralized Special K userdata location updated: " << wsPath;
+      PLOG_INFO << "Updated central Special K userdata location: " << wsPath;
     else
-      PLOG_ERROR << "Failed to update the global Special K userdata location";
+      PLOG_ERROR << "Failed to update the central Special K userdata location!";
 
     RegCloseKey (hKey);
   }
@@ -1136,6 +1132,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         // Update both the local repository.json file as well as patrons.txt
         if (downloadNewFiles)
         {
+          PLOG_INFO << "Downloading new repository.json and patrons.txt files...";
           SKIF_Util_GetWebResource (url, path);
           SKIF_Util_GetWebResource (url_patreon, path_patreon);
         }
@@ -1183,13 +1180,17 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
       if (jf.is_discarded ( ))
       {
+        PLOG_ERROR << "Parse error for repository.json. Deleting file so we retry on next launch...";
         DeleteFile (path.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
         return 0;
       }
 
       else {
 
-        std::string  currentBranch  = SK_WideCharToUTF8 (SKIF_wsUpdateChannel);
+        std::wstring wsCurrentBranch = _registry.wsUpdateChannel;
+        std::string  currentBranch   = SK_WideCharToUTF8 (wsCurrentBranch);
+
+        PLOG_INFO << "Update Channel: " << wsCurrentBranch;
 
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
@@ -1218,21 +1219,25 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               // If we cannot find the branch, move the user over to the closest "parent" branch
               if (! detectedBranch)
               {
-                if (     SKIF_wsUpdateChannel.find(L"Website")       != std::string::npos
-                      || SKIF_wsUpdateChannel.find(L"Release")       != std::string::npos)
-                         SKIF_wsUpdateChannel = L"Website";
-                else if (SKIF_wsUpdateChannel.find(L"Discord")       != std::string::npos
-                      || SKIF_wsUpdateChannel.find(L"Testing")       != std::string::npos)
-                         SKIF_wsUpdateChannel = L"Discord";
-                else if (SKIF_wsUpdateChannel.find(L"Ancient")       != std::string::npos
-                      || SKIF_wsUpdateChannel.find(L"Compatibility") != std::string::npos)
-                         SKIF_wsUpdateChannel = L"Ancient";
+                PLOG_ERROR << "Could not find the update channel in repository.json!";
+
+                if (     wsCurrentBranch.find(L"Website")       != std::string::npos
+                      || wsCurrentBranch.find(L"Release")       != std::string::npos)
+                         wsCurrentBranch = L"Website";
+                else if (wsCurrentBranch.find(L"Discord")       != std::string::npos
+                      || wsCurrentBranch.find(L"Testing")       != std::string::npos)
+                         wsCurrentBranch = L"Discord";
+                else if (wsCurrentBranch.find(L"Ancient")       != std::string::npos
+                      || wsCurrentBranch.find(L"Compatibility") != std::string::npos)
+                         wsCurrentBranch = L"Ancient";
                 else
-                         SKIF_wsUpdateChannel = L"Website";
+                         wsCurrentBranch = L"Website";
 
-                SKIF_wsIgnoreUpdate = L"";
+                PLOG_ERROR << "Using fallback channel: " << wsCurrentBranch;
 
-                currentBranch = SK_WideCharToUTF8(SKIF_wsUpdateChannel);
+                _registry.wsIgnoreUpdate = L"";
+
+                currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
               }
             }
           }
@@ -1256,6 +1261,9 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               {
                 std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
 
+                PLOG_INFO << "Installed version: " << currentVersion;
+                PLOG_INFO << "Latest version: "    << branchVersion;
+
                 // Check if the version of this branch is different from the current one.
                 // We don't check if the version is *newer* since we need to support downgrading
                 // to other branches as well, which means versions that are older.
@@ -1267,12 +1275,14 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                   std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
                   std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
 
+                  PLOG_INFO << "Downloading installer: " << branchInstaller;
+
                   _res->version      = branchVersion;
                   _res->filename     = filename;
                   _res->description  = SK_UTF8ToWideChar(version["Description"] .get<std::string>());
                   _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
 
-                  if (! PathFileExists ((root + filename).c_str()) && _res->description != SKIF_wsIgnoreUpdate)
+                  if (! PathFileExists ((root + filename).c_str()) && _res->description != _registry.wsIgnoreUpdate)
                     SKIF_Util_GetWebResource (branchInstaller, root + filename);
                 }
 
@@ -2976,7 +2986,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_UpdateReady = showUpdatePrompt = PathFileExists((updateRoot + newVersion.filename).c_str());
         }
 
-        if (showUpdatePrompt && newVersion.description != SKIF_wsIgnoreUpdate)
+        if (showUpdatePrompt && newVersion.description != _registry.wsIgnoreUpdate)
         {
           showUpdatePrompt = false;
           UpdatePromptPopup = PopupState::Open;

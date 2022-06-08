@@ -94,14 +94,11 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   if (regKVCheckForUpdates.hasData())
     SKIF_iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
 
-  extern std::wstring SKIF_wsIgnoreUpdate,
-                      SKIF_wsUpdateChannel;
-
   if (regKVIgnoreUpdate.hasData())
-    SKIF_wsIgnoreUpdate         =   regKVIgnoreUpdate.getWideString      ( );
+    wsIgnoreUpdate              =   regKVIgnoreUpdate.getWideString      ( );
 
   if (regKVFollowUpdateChannel.hasData())
-    SKIF_wsUpdateChannel        = regKVFollowUpdateChannel.getWideString ( );
+    wsUpdateChannel             = regKVFollowUpdateChannel.getWideString ( );
 
   if (SKIF_bRememberLastSelected && regKVLastSelected.hasData())
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
