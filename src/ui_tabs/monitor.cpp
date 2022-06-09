@@ -276,8 +276,6 @@ enum _SK_NTDLL_HANDLE_TYPE
   DxgkCompositionObject = 0x45,
 };
 
-static USHORT FoundEvent = 0x0;
-
 enum _SK_NTDLL_HANDLE_OBJ_ATTRIB
 {
   Inherit                     = 0x00000002L,
@@ -1460,33 +1458,32 @@ SKIF_UI_Tab_DrawMonitor (void)
              handle_info_buffer.data ()
           );
 
+        // Go through all handles of the system
         for ( unsigned int i = 0;
                            i < handleTableInformationEx->NumberOfHandles;
                            i++)
         {
+          // Skip handles belong to SKIF
           if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
             continue;
 
-          // If we don't know what event type we're looking for, assume events are between event types 0xC (12) and 0x12 (18) -- skip all other event types
-          if (FoundEvent == 0x0)
-          {
-            if (handleTableInformationEx->Handles[i].ObjectTypeIndex < 0xA ||  // 0xA  == 10 -- prev. 12
-                handleTableInformationEx->Handles[i].ObjectTypeIndex > 0x14)   // 0x14 == 20 -- prev. 18
-            {
-              continue;
-            }
-          }
-
-          // When we know what event type to look for, skip all other
-          else if (FoundEvent != handleTableInformationEx->Handles[i].ObjectTypeIndex)
-          {
+          /* Skip handles with the following access codes as the next call
+             to NtDuplicateObject() or NtQueryObject() might hang forever.
+             
+             Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
+          */
+          if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000))
             continue;
-          }
 
+          // Add the remaining handles to the list of handles to go through
           handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
                .emplace_back (handleTableInformationEx->Handles [i]);
         }
 
+        // Go through each process
         for ( auto& handles : handles_by_process )
         {
           auto dwProcId = handles.first;
@@ -1502,6 +1499,7 @@ SKIF_UI_Tab_DrawMonitor (void)
           wchar_t                                wszProcessName [MAX_PATH] = { };
           GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
+          // Go through each handle the process contains
           for ( auto& handle : handles.second )
           {
             auto hHandleSrc = handle.Handle;
@@ -1538,22 +1536,17 @@ SKIF_UI_Tab_DrawMonitor (void)
             if (NT_SUCCESS (ntStat))
             {
               POBJECT_NAME_INFORMATION _pni =
-                (POBJECT_NAME_INFORMATION)pObjectName.data ();
+                (POBJECT_NAME_INFORMATION) pObjectName.data ();
 
               handle_name = _pni != nullptr ?
-                      _pni->Name.Length > 0 ?
-                      _pni->Name.Buffer     : L""
-                                            : L"";
-            }
-
-            if (FoundEvent == 0x0 && (std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown64") ||
-                                      std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown32") ))
-            {
-              //FoundEvent = handle.ObjectTypeIndex;
-              //console.AddLog("Found Event Type: 0x%x (%u)", FoundEvent, FoundEvent);
+                            _pni->Name.Length > 0 ?
+                            _pni->Name.Buffer     : L""
+                                                  : L"";
             }
 
             CloseHandle (hDupHandle);
+
+            // Examine what we got
 
             if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
                 && _Used64.emplace (dwProcId).second )

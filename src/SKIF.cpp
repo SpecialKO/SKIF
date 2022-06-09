@@ -2997,7 +2997,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
-        UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8(newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
+        UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         ImGui::OpenPopup ("###UpdatePrompt");
       }
 
