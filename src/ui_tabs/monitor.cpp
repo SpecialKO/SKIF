@@ -1475,8 +1475,14 @@ SKIF_UI_Tab_DrawMonitor (void)
           if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000))
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)) // Spodi freeze + https://github.com/erengy/taiga/issues/270
             continue;
+
+          // Need a better approach as this is slow on some systems... Maybe look
+          //  up all object type IDs before-hand to identify those pertaining to
+          //   events, and then just include those?
 
           // Add the remaining handles to the list of handles to go through
           handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
@@ -1503,6 +1509,9 @@ SKIF_UI_Tab_DrawMonitor (void)
           for ( auto& handle : handles.second )
           {
             auto hHandleSrc = handle.Handle;
+
+            // Debug purposes
+            //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
 
             HANDLE   hDupHandle;
             NTSTATUS ntStat     =

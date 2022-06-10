@@ -87,7 +87,8 @@ SKIF_UI_Tab_DrawSettings (void)
                 binaryPath = std::wstring (lpsc->lpBinaryPathName);
 
                 // Check if 'SpecialK' can be found in the path.
-                if (binaryPath.find (L"SpecialK") != std::wstring::npos)
+                if (binaryPath.find (L"SpecialK")  != std::wstring::npos ||
+                    binaryPath.find (L"Special K") != std::wstring::npos)
                   _status = Installed; // SK driver installed
                 else
                   _status = OtherDriverInstalled; // Other driver installed
@@ -761,9 +762,9 @@ SKIF_UI_Tab_DrawSettings (void)
     if      (pfuState == Granted)
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Yes");
     else if (pfuState == Missing)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "No");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "No");
     else // (pfuState == Pending)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Yes, but a sign out from Windows is needed to allow the changes to take effect.");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "Restart required"); //"Yes, but a sign out from Windows is needed to allow the changes to take effect.");
     ImGui::EndGroup    ();
 
     ImGui::Spacing  ();
@@ -1006,9 +1007,10 @@ SKIF_UI_Tab_DrawSettings (void)
             DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
               GetProcAddress (hModWinRing0,szDriverTaskFunc);
 
-      if (DriverTask != nullptr) {
-          DriverTask ();
-          DriverTask ();
+      if (DriverTask != nullptr)
+      {
+        DriverTask ();
+        DriverTask ();
 
         // Batch call succeeded -- change driverStatusPending to the
         //   opposite of driverStatus to signal that a new state is pending.
