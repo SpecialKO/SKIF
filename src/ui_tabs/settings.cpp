@@ -3,6 +3,8 @@
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
 #include <SKIF_imgui.h>
+#include <filesystem>
+#include <fsutil.h>
 
 void
 SKIF_UI_Tab_DrawSettings (void)
@@ -39,6 +41,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
       // Reset the current status to not installed.
       _status = NotInstalled;
+
+      // Retrieve the install folder.
+      static std::wstring installFolder = std::filesystem::path(path_cache.specialk_userdata).filename();
 
       // Get a handle to the SCM database.
       schSCManager =
@@ -86,9 +91,8 @@ SKIF_UI_Tab_DrawSettings (void)
                 // Store the binary path of the installed driver.
                 binaryPath = std::wstring (lpsc->lpBinaryPathName);
 
-                // Check if 'SpecialK' can be found in the path.
-                if (binaryPath.find (L"SpecialK")  != std::wstring::npos ||
-                    binaryPath.find (L"Special K") != std::wstring::npos)
+                // Check if the installed driver exists in the install folder.
+                if (binaryPath.find (installFolder)  != std::wstring::npos)
                   _status = Installed; // SK driver installed
                 else
                   _status = OtherDriverInstalled; // Other driver installed
