@@ -1479,7 +1479,8 @@ SKIF_UI_Tab_DrawMonitor (void)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)) // Holy  freeze
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
             continue;
 
           // Need a better approach as this is slow on some systems... Maybe look

@@ -158,6 +158,8 @@ SKIF_UI_Tab_DrawAbout (void)
       "Quick launch Special K for select games through Steam:"
   );
 
+  SKIF_ImGui_Spacing      ( );
+
   extern int SKIF_RegisterApp (bool force = false);
   if (SKIF_RegisterApp      ( ) > 0)
   {
@@ -206,6 +208,8 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   else {
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImColor::HSV (0.11F,   1.F, 1.F),
       ICON_FA_EXCLAMATION_TRIANGLE " ");
@@ -221,6 +225,9 @@ SKIF_UI_Tab_DrawAbout (void)
     if (ImGui::Button ("  Set this install as default  "))
       SKIF_RegisterApp (true);
     ImGui::PopStyleColor    ( );
+    
+    // We need som additional spacing at the bottom here to push down the Components section in the right column
+    SKIF_ImGui_Spacing      (2.00f);
   }
 
   ImGui::NewLine          ( );

@@ -32,12 +32,12 @@ SKIF_UI_Tab_DrawSettings (void)
                               cbBufSize {},
                               dwError;
 
-    static DWORD dwLastRefresh = SKIF_Util_timeGetTime();
+    static DWORD dwLastRefresh = 0;
 
     // Refresh once every 500 ms
-    if (dwLastRefresh + 500 < SKIF_Util_timeGetTime())
+    if (dwLastRefresh < SKIF_Util_timeGetTime())
     {
-      dwLastRefresh = SKIF_Util_timeGetTime();
+      dwLastRefresh = SKIF_Util_timeGetTime() + 500;
 
       // Reset the current status to not installed.
       _status = NotInstalled;
@@ -90,6 +90,9 @@ SKIF_UI_Tab_DrawSettings (void)
               {
                 // Store the binary path of the installed driver.
                 binaryPath = std::wstring (lpsc->lpBinaryPathName);
+                binaryPath = binaryPath.substr(4); // Strip \??\\
+
+                PLOG_INFO << "Found kernel driver WinRing0_1_2_0 installed at: " << binaryPath;
 
                 // Check if the installed driver exists in the install folder.
                 if (binaryPath.find (installFolder)  != std::wstring::npos)
@@ -109,8 +112,8 @@ SKIF_UI_Tab_DrawSettings (void)
     return binaryPath;
   };
 
-  // Driver is supposedly getting a new state -- check for an update
-  //   on each frame until driverStatus matches driverStatusPending
+  // Driver is supposedly getting a new state -- check if its time for an
+  //  update on each frame until driverStatus matches driverStatusPending
   if (driverStatusPending != driverStatus)
     driverBinaryPath = _CheckDriver (driverStatus);
 
@@ -967,6 +970,13 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       btnDriverLabel    = ICON_FA_BAN " Unavailable";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
+      ImGui::Spacing     ();
+      ImGui::SameLine    ();
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+      ImGui::SameLine    ();
+      ImGui::Text        ("Conflict With:");
+      ImGui::SameLine    ();
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), SK_WideCharToUTF8 (driverBinaryPath).c_str ());
     }
 
     // Driver is not installed
@@ -992,7 +1002,7 @@ SKIF_UI_Tab_DrawSettings (void)
     // Show button
     bool driverButton =
       ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
-                                              25 * SKIF_ImGui_GlobalDPIScale));
+                                                       25 * SKIF_ImGui_GlobalDPIScale));
 
     //
     // COM Elevation Moniker will handle this unless UAC level is at maximum,
@@ -1009,7 +1019,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       using DriverTaskFunc_pfn = void (*)(void);
             DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
-              GetProcAddress (hModWinRing0,szDriverTaskFunc);
+              GetProcAddress (hModWinRing0, szDriverTaskFunc);
 
       if (DriverTask != nullptr)
       {
@@ -1028,7 +1038,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     // Disabled button
     //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
-    else if (   driverStatusPending != driverStatus ||
+    else if (    driverStatusPending != driverStatus ||
                 OtherDriverInstalled == driverStatus )
     {
       ImGui::PopStyleVar ();
@@ -1041,15 +1051,10 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SameLine   ();
       ImGui::BeginGroup ();
       ImGui::Spacing    ();
-      ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "? ");
       ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
                                                 "Option is unavailable as another application have already installed a copy of the driver."
       );
       ImGui::EndGroup   ();
-
-      SKIF_ImGui_SetHoverTip (
-        SK_WideCharToUTF8 (driverBinaryPath).c_str ()
-      );
     }
 
     ImGui::EndGroup ();

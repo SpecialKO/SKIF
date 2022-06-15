@@ -596,14 +596,14 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
 }
 
 bool
-SKIF_Util_IsProcessAdmin (PROCESSENTRY32W proc)
+SKIF_Util_IsProcessAdmin (DWORD PID)
 {
   bool          bRet = false;
   SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
 
   SetLastError(NO_ERROR);
 
-  SK_AutoHandle hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, proc.th32ProcessID);
+  SK_AutoHandle hProcess = OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, PID);
 
   if (GetLastError() == ERROR_ACCESS_DENIED)
     return true;

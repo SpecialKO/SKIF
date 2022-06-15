@@ -3439,7 +3439,7 @@ Cache=false)";
 
     if ((intptr_t)hProcessSnap.m_h > 0)
     {
-      pe32.dwSize = sizeof(PROCESSENTRY32W);
+      pe32.dwSize = sizeof (PROCESSENTRY32W);
 
       if (Process32FirstW (hProcessSnap, &pe32))
       {

@@ -1478,22 +1478,6 @@ void SKIF_UI_DrawPlatformStatus (void)
     {
       Name        =  n;
       ProcessName = pn;
-      Refresh ( );
-    }
-
-    void Refresh (void)
-    {
-      PROCESSENTRY32W pe = SKIF_Util_FindProcessByName (ProcessName.c_str());
-      ProcessID = pe.th32ProcessID;
-
-      if (ProcessID != PreviousPID)
-      {
-        PreviousPID = ProcessID;
-        isRunning   = (ProcessID > 0);
-
-        if (isRunning)
-          isAdmin = SKIF_Util_IsProcessAdmin (pe);
-      }
     }
   };
 
@@ -1512,11 +1496,57 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"RTSS",                L"RTSS.exe"}
   };
 
+  // Timer has expired, refresh
+  if (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
+  {
+    for (auto& p : Platforms)
+    {
+      p.ProcessID = 0;
+      p.isRunning = false;
+    }
+
+    PROCESSENTRY32W none = { },
+                    pe32 = { };
+
+    SK_AutoHandle hProcessSnap (
+      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+    );
+
+    if ((intptr_t)hProcessSnap.m_h > 0)
+    {
+      pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+      if (Process32FirstW (hProcessSnap, &pe32))
+      {
+        do
+        {
+          for (auto& p : Platforms)
+          {
+            if (wcsstr (pe32.szExeFile, p.ProcessName.c_str()))
+            {
+              p.ProcessID = pe32.th32ProcessID;
+              p.isRunning = true;
+
+              // If it is a new process, check if it is running as an admin
+              if (p.ProcessID != p.PreviousPID)
+              {
+                p.PreviousPID = p.ProcessID;
+                p.isAdmin     = SKIF_Util_IsProcessAdmin (p.ProcessID);
+              }
+
+              // Skip checking the remaining platforms for this process
+              continue;
+            }
+          }
+        } while (Process32NextW (hProcessSnap, &pe32));
+      }
+    }
+
+    dwLastRefresh = SKIF_Util_timeGetTime () + 1000; // Set timer for next refresh
+  }
+
   for ( auto& p : Platforms )
   {
-    if ( dwLastRefresh + 1000 < SKIF_Util_timeGetTime ())
-        p.Refresh ( ); // Timer has expired, refresh
-
     if (p.isRunning)
     {
       ImGui::BeginGroup       ( );
@@ -1572,9 +1602,6 @@ void SKIF_UI_DrawPlatformStatus (void)
       ImGui::NewLine();
 #endif
   }
-
-  if ( dwLastRefresh + 1000 < SKIF_Util_timeGetTime ())
-        dwLastRefresh        = SKIF_Util_timeGetTime (); // Set timer for next refresh
 }
 
 
@@ -3029,9 +3056,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_Spacing ();
 
         ImGui::Text     ("Target Folder:");
-        ImGui::SameLine ( );
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-        ImGui::Text     (SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str());
+        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str());
         ImGui::PopStyleColor  ( );
 
         SKIF_ImGui_Spacing ();
