@@ -102,4 +102,11 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
 
   if (SKIF_bRememberLastSelected && regKVLastSelected.hasData())
     SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
+
+  // App registration
+  if (regKVAppRegistration.hasData())
+    wsAppRegistration           = regKVAppRegistration.getWideString ( );
+
+  if (regKVPath.hasData())
+    wsPath                      = regKVPath.getWideString ( );
 }

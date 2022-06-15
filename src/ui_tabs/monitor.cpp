@@ -1106,7 +1106,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     //ImGui::NewLine          ( );
 
-    SKIF_ImGui_Spacing();
+    SKIF_ImGui_Spacing ( );
 
     SKIF_ImGui_Columns      (2, nullptr, true);
 
@@ -1477,7 +1477,9 @@ SKIF_UI_Tab_DrawMonitor (void)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
            || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)) // Spodi freeze + https://github.com/erengy/taiga/issues/270
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
+           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)) // Holy  freeze
             continue;
 
           // Need a better approach as this is slow on some systems... Maybe look

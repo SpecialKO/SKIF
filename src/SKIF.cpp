@@ -927,51 +927,51 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   }
 }
 
-bool
-SKIF_RegisterApp (void)
+int
+SKIF_RegisterApp (bool force = false)
 {
   HKEY hKey;
   static int ret = -1;
 
-  if (ret != -1)
+  if (ret != -1 && ! force)
     return ret;
 
   if (! _inject.bHasServlet)
   {
-    PLOG_ERROR << "Failed to register SKIF in Windows due to missing critical service components!";
-    return 0;
+    PLOG_ERROR << "Missing critical service components!";
+    return -1;
   }
 
   TCHAR               szExePath [MAX_PATH];
   GetModuleFileName   (NULL, szExePath, _countof (szExePath));
 
-  std::wstring wsPath = std::wstring (szExePath);
+  std::wstring wsExePath = std::wstring (szExePath);
 
-  if (ERROR_SUCCESS == RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL))
+  if (_registry.wsPath            == path_cache.specialk_userdata &&
+      _registry.wsAppRegistration == wsExePath)
   {
-    ret = (ERROR_SUCCESS == RegSetValueExW (hKey, NULL, 0, REG_SZ, (LPBYTE)wsPath.data(),
-                                                                    (DWORD)wsPath.size() * sizeof (wchar_t)));
-
-    RegCloseKey (hKey);
+    ret = 1;
   }
 
-  if (ret)
-    PLOG_INFO << "App registration was successful: " << wsPath;
-  else
-    PLOG_ERROR << "Failed to register SKIF in Windows";
-
-  bool pathRegistered = 0;
-  if (ERROR_SUCCESS == RegCreateKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K)", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &hKey, NULL))
+  else if (force || _registry.wsPath.empty() || _registry.wsAppRegistration.empty())
   {
-    pathRegistered = (ERROR_SUCCESS == RegSetValueExW(hKey, L"Path", 0, REG_SZ, (LPBYTE)path_cache.specialk_userdata,
-                                                                          (DWORD)wcslen(path_cache.specialk_userdata) * sizeof(wchar_t)));
+    ret = 1;
 
-    if (pathRegistered)
-      PLOG_INFO << "Updated central Special K userdata location: " << wsPath;
+    if (_registry.regKVAppRegistration.putData(wsExePath))
+      PLOG_INFO << "App registration was successful: " << wsExePath;
     else
-      PLOG_ERROR << "Failed to update the central Special K userdata location!";
+    {
+      PLOG_ERROR << "Failed to register SKIF in Windows";
+      ret = 0;
+    }
 
-    RegCloseKey (hKey);
+    if (_registry.regKVPath.putData(path_cache.specialk_userdata))
+      PLOG_INFO << "Updated central Special K userdata location: " << path_cache.specialk_userdata;
+    else
+    {
+      PLOG_ERROR << "Failed to update the central Special K userdata location!";
+      ret = 0;
+    }
   }
 
   return ret;
@@ -1810,6 +1810,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Register SKIF in Windows to enable quick launching.
+  PLOG_INFO << "Path: "             << _registry.wsPath;
+  PLOG_INFO << "App Registration: " << _registry.wsAppRegistration;
   SKIF_RegisterApp ( );
 
   // Create application window
@@ -3026,15 +3028,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
+        ImGui::Text     ("Target Folder:");
+        ImGui::SameLine ( );
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
+        ImGui::Text     (SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str());
+        ImGui::PopStyleColor  ( );
+
+        SKIF_ImGui_Spacing ();
+
         if (! newVersion.releasenotes.empty())
         {
           ImGui::Text ("Changes:");
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
           ImGui::TextWrapped    (SK_WideCharToUTF8 (newVersion.releasenotes).c_str());
           ImGui::PopStyleColor  ( );
-        }
 
-        SKIF_ImGui_Spacing ();
+          SKIF_ImGui_Spacing ();
+        }
 
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
@@ -3075,7 +3085,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (_inject.bCurrentState)
             _inject._StartStopInject(true);
 
-          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", L"/VerySilent /Shortcuts=false");
+          std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_userdata);
+
+          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
           //bExitOnInjection = true; // Used to close SKIF once the service have been stopped
 

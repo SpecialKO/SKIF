@@ -3,6 +3,7 @@
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
 #include <SKIF_imgui.h>
+#include <fsutil.h>
 
 extern int SKIF_iStyle;
 
@@ -157,10 +158,10 @@ SKIF_UI_Tab_DrawAbout (void)
       "Quick launch Special K for select games through Steam:"
   );
 
-  extern bool SKIF_RegisterApp (void);
-  if (SKIF_RegisterApp      ( ))
+  extern int SKIF_RegisterApp (bool force = false);
+  if (SKIF_RegisterApp      ( ) > 0)
   {
-    ImGui::TextWrapped      ("Your computer is set up to quickly launch injection through Steam.");
+    ImGui::TextWrapped      ("Your system is set up to quickly launch injection through Steam.");
 
     SKIF_ImGui_Spacing      ( );
 
@@ -203,8 +204,23 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::TextWrapped      ("Launch the game as usual through Steam.");
     ImGui::EndGroup         ( );
   }
+
   else {
-    ImGui::TextWrapped ("Your computer is not set up to quickly launch injection through Steam.");
+    ImGui::TextColored      (
+      ImColor::HSV (0.11F,   1.F, 1.F),
+      ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::SameLine         ( );
+    ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to quickly launch injection through Steam.");
+
+    SKIF_ImGui_Spacing      ( );
+    
+    SKIF_ImGui_Spacing      (1.0f);
+    ImGui::SameLine         ( );
+    
+    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
+    if (ImGui::Button ("  Set this install as default  "))
+      SKIF_RegisterApp (true);
+    ImGui::PopStyleColor    ( );
   }
 
   ImGui::NewLine          ( );

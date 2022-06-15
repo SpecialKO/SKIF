@@ -140,7 +140,7 @@ bool SKIF_InjectionContext::isPending(void)
     return false;
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop)
+bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
 {
   PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
 
@@ -172,27 +172,29 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
 #endif
 
-  //HANDLE h32, h64;
-
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = LR"(SKIFsvc32.exe)";
+    sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
+    sexi.lpFile       = L"SKIFsvc32.exe";
+#ifdef _WIN64
+    sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
+#else
     sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
+#endif // _WIN64
     sexi.lpDirectory  = L"Servlet";
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
                         SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-    //sexi.hProcess     = &h32;
 
 #ifdef _WIN64
-  if ( ShellExecuteExW (&sexi) || currentRunningState )
+  if (_inject.SKSvc32 >= "1.0.2.0")
+    ret =   ShellExecuteExW (&sexi);
+  else if ( ShellExecuteExW (&sexi) || currentRunningState )
   {
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-    sexi.lpFile       = LR"(SKIFsvc64.exe)";
+    sexi.lpFile       = L"SKIFsvc64.exe";
     sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
-    //sexi.hProcess     = &h64;
 
     ret =
       ShellExecuteExW (&sexi);
@@ -566,8 +568,9 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
   }
 }
 
-extern bool SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
+extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
 extern bool SKIF_bDisableExitConfirmation;
 
 void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
@@ -579,13 +582,33 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKVer32 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
 
+  wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
+  GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
+  PathRemoveFileSpecW (         wszPathToSvc32);
+  PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
+  SKSvc32 =
+    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
+  
+  PLOG_INFO << "SpecialK32.dll : " << SK_UTF8ToWideChar (SKVer32);
+  PLOG_INFO << "SKIFsvc32.exe  : " << SK_UTF8ToWideChar (SKSvc32);
+
 #ifdef _WIN64
   wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf64);
-  PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");  
+  PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");
   SKVer64 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
+
+  wchar_t                       wszPathToSvc64 [MAX_PATH + 2] = { };
+  GetModuleFileNameW  (nullptr, wszPathToSvc64, MAX_PATH);
+  PathRemoveFileSpecW (         wszPathToSvc64);
+  PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
+  SKSvc64 =
+    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
+
+  PLOG_INFO << "SpecialK64.dll : " << SK_UTF8ToWideChar (SKVer64);
+  PLOG_INFO << "SKIFsvc64.exe  : " << SK_UTF8ToWideChar (SKSvc64);
 #endif
 }
 

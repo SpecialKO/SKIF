@@ -81,10 +81,10 @@ struct SKIF_WindowsRegistry {
                dwOutLen = sizeof (float);
         }
 
-        if ( ERROR_SUCCESS !=
-               _GetValue (&out, &dwOutLen) ) return false;
+        if ( ERROR_SUCCESS == _GetValue (&out, &dwOutLen) )
+          return true;
 
-        return true;
+        return false;
       };
 
       std::wstring getWideString (void)
@@ -241,7 +241,7 @@ struct SKIF_WindowsRegistry {
         return out;
       };
 
-      _Tp putData (_Tp in)
+      bool putData (_Tp in)
       {
         auto _SetValue =
         [&]( _Tp*    pVal,
@@ -331,9 +331,9 @@ struct SKIF_WindowsRegistry {
         };
 
         if ( ERROR_SUCCESS == _SetValue (&in) )
-          return in;
+          return true;
 
-        return _Tp ();
+        return false;
       };
 
       static KeyValue <typename _Tp>
@@ -508,9 +508,22 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Follow Update Channel)" );
 
+  // App registration
+  KeyValue <std::wstring> regKVAppRegistration =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)",
+                         L"" );
+
+  KeyValue <std::wstring> regKVPath =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Path)" );
+
   // Moved within _registry to solve scoping issues with the previous approach
   //  following the refactoring of SKIF.h/cpp, registry.h/cpp, and settings.h/cpp
   std::wstring wsUpdateChannel;
   std::wstring wsIgnoreUpdate;
+
+  // Stored here because why not *shrug*
+  std::wstring wsAppRegistration;
+  std::wstring wsPath;
 
 } extern _registry;

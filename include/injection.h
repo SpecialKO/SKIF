@@ -86,8 +86,10 @@ struct SKIF_InjectionContext {
 
   std::string SKVer32 = "";
   std::string SKVer64 = "";
+  std::string SKSvc32 = "";
+  std::string SKSvc64 = "";
 
-  bool    _StartStopInject        (bool running_, bool autoStop = false);
+  bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
 
   void     TestServletRunlevel    (bool forcedCheck = false);
   void    _DanceOfTheDLLFiles     (void);

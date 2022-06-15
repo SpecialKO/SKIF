@@ -786,7 +786,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                                                             : ICON_FA_SIGN_OUT_ALT " Sign out to apply";   // Pending
 
     if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
-                                                          25 * SKIF_ImGui_GlobalDPIScale)))
+                                                         25 * SKIF_ImGui_GlobalDPIScale)))
     {
       std::wstring exeArgs;
 

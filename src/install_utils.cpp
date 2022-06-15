@@ -106,6 +106,70 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
 }
 
 std::wstring
+SKIF_GetFileVersion (const wchar_t* wszName)
+{
+  if (! wszName)
+    return L"";
+
+  static VerQueryValueW_pfn
+    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "VerQueryValueW"                                     );
+
+  static GetFileVersionInfoExW_pfn
+    SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetFileVersionInfoExW"                                            );
+
+  UINT cbTranslatedBytes = 0,
+       cbProductBytes    = 0,
+       cbVersionBytes    = 0;
+
+  std::vector <uint8_t>
+    cbData (16384, 0ui8);
+
+  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
+  wchar_t* wszVersion    = nullptr;
+
+  struct LANGANDCODEPAGE {
+    WORD wLanguage;
+    WORD wCodePage;
+  } *lpTranslate = nullptr;
+
+  BOOL bRet =
+    SKIF_GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                                   wszName,
+                                     0x00,
+                    static_cast <DWORD> (cbData.size ()),
+                                         cbData.data () );
+
+  if (! bRet) return L"";
+
+  if ( SKIF_VerQueryValueW ( cbData.data (),
+                             TEXT ("\\VarFileInfo\\Translation"),
+            static_cast_p2p <void> (&lpTranslate),
+                                    &cbTranslatedBytes ) &&
+                                     cbTranslatedBytes   && lpTranslate )
+  {
+    wchar_t        wszPropName [64] = { };
+    _snwprintf_s ( wszPropName, 63,
+                      LR"(\StringFileInfo\%04x%04x\ProductVersion)",
+                        lpTranslate   [0].wLanguage,
+                          lpTranslate [0].wCodePage );
+
+    SKIF_VerQueryValueW ( cbData.data (),
+                            wszPropName,
+            static_cast_p2p <void> (&wszVersion),
+                                    &cbVersionBytes );
+
+    if (cbVersionBytes)
+      return wszVersion;
+  }
+
+  return L"";
+}
+
+std::wstring
 SKIF_GetProductName (const wchar_t* wszName)
 {
   if (! wszName)

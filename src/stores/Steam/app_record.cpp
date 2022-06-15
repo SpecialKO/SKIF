@@ -161,6 +161,113 @@ app_launch_config_s::isBlacklisted (int32_t appid)
   return black;
 }
 
+std::wstring
+app_launch_config_s::getElevatedFilename (int32_t appid)
+{
+  if (! elevated_file.empty ())
+    return elevated_file;
+
+  std::wstring full_path =
+    getExecutableFullPath (appid, false);
+
+  valid =
+    PathFileExistsW (full_path.c_str ());
+
+  if (valid)
+  {
+    wchar_t wszExecutableBase [MAX_PATH] = { };
+    wchar_t wszElevatedPath  [MAX_PATH] = { };
+
+    StrCatW (wszExecutableBase, executable.c_str ());
+    StrCatW (wszElevatedPath,  full_path.c_str  ());
+
+    PathRemoveFileSpecW  ( wszElevatedPath  );
+    PathStripPathW       ( wszExecutableBase );
+    PathRemoveExtensionW ( wszExecutableBase );
+
+    elevated_file =
+      SK_FormatStringW (
+        L"%ws\\SpecialK.admin.%ws",
+          wszElevatedPath, wszExecutableBase
+                       );
+  }
+
+  else
+    elevated_file =
+      L"InvalidLaunchConfig.NeverInject";
+
+  return
+    elevated_file;
+}
+
+bool
+app_launch_config_s::setElevated ( int32_t appid,
+                                   bool    elevate )
+{
+  std::wstring elevated_path =
+    getElevatedFilename (appid);
+
+  auto _Elevate =
+  [&](bool set) -> bool
+  {
+    elevated =
+      PathFileExistsW (elevated_path.c_str ()) ?
+                                              1 : 0;
+
+    assert (set == elevated);
+
+    UNREFERENCED_PARAMETER (set);
+
+    return elevated;
+  };
+
+  if (elevate != isElevated (appid))
+  {
+    if (elevate)
+    {
+      FILE* fElevate =
+        _wfopen (elevated_path.c_str (), L"w+");
+
+      if (fElevate != nullptr)
+      {
+        fputws ((L"Dummy! ID: " + std::to_wstring(appid) + L"\n").c_str(), fElevate);
+        fclose (           fElevate);
+
+        return _Elevate (elevate);
+      }
+
+      return _Elevate (false);
+    }
+
+    else
+    {
+      if (DeleteFileW (elevated_path.c_str ()))
+        return _Elevate (elevate);
+      else
+        return _Elevate (true);
+    }
+  }
+
+  return _Elevate (elevate);
+}
+
+bool
+app_launch_config_s::isElevated (int32_t appid)
+{
+  if (elevated != -1)
+    return (elevated != 0);
+
+  bool elevate =
+    PathFileExistsW (
+      getElevatedFilename (appid).c_str ()
+    );
+
+  elevated = elevate ?
+                    1 : 0;
+
+  return elevate;
+}
+
 std::string
 app_branch_record_s::getTimeAsCStr (void) const
 {

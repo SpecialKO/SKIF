@@ -75,6 +75,9 @@ std::wstring
 SKIF_GetSpecialKDLLVersion (const wchar_t* wszName);
 
 std::wstring
+SKIF_GetFileVersion        (const wchar_t* wszName);
+
+std::wstring
 SKIF_GetProductName        (const wchar_t* wszName);
 
 sk_install_state_s

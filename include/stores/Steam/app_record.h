@@ -179,15 +179,20 @@ struct app_record_s {
     std::wstring launch_options;     // Used by GOG and EGS
     std::wstring working_dir;
     std::wstring blacklist_file;
+    std::wstring elevated_file;
     std::wstring type;
     std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
 
     bool         valid       = false; // Path points to a real directory
     int          blacklisted = -1;
+    int          elevated    = -1;
 
     std::wstring getBlacklistFilename  (int32_t appid);
     bool         setBlacklisted        (int32_t appid, bool blacklist);
     bool         isBlacklisted         (int32_t appid);
+    std::wstring getElevatedFilename   (int32_t appid);
+    bool         setElevated           (int32_t appid, bool elevated);
+    bool         isElevated            (int32_t appid);
     std::wstring getExecutableDir      (int32_t appid, bool validate = true);
     std::wstring getExecutableFullPath (int32_t appid, bool validate = true);
   };

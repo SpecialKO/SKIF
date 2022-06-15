@@ -2141,7 +2141,7 @@ Cache=false)";
         {
           extern bool SKIF_bStopOnInjection;
 
-          _inject._StartStopInject(cache.service, SKIF_bStopOnInjection);
+          _inject._StartStopInject (cache.service, SKIF_bStopOnInjection, pApp->launch_configs[0].isElevated(pApp->id));
 
           cache.app_id = 0;
         }
@@ -2285,11 +2285,11 @@ Cache=false)";
 
             // Kickstart service if it is currently not running
             if (! _inject.bCurrentState && ! clickedGameLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
-              _inject._StartStopInject (false, true);
+              _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated(pApp->id));
 
             // Stop the service if the user attempts to launch without SK
             else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
-              _inject._StartStopInject   (true);
+              _inject._StartStopInject (true);
           }
 
           extern bool SKIF_bPreferGOGGalaxyLaunch;
@@ -3259,6 +3259,14 @@ Cache=false)";
 
       else if ( ! pApp->launch_configs.empty() )
       {
+        bool elevate =
+          pApp->launch_configs[0].isElevated (pApp->id);
+
+        if (ImGui::Checkbox ("Elevated service (beta)###ElevatedLaunch",   &elevate))
+          pApp->launch_configs[0].setElevated (pApp->id, elevate);
+
+        ImGui::SameLine ( );
+
         // Set horizontal position
         ImGui::SetCursorPosX (
           ImGui::GetCursorPosX  () +
@@ -3610,7 +3618,7 @@ Cache=false)";
 
               // Kickstart service if it is currently not running
               if (! _inject.bCurrentState && ! clickedGalaxyLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
-                _inject._StartStopInject (false, true);
+                _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated(pApp->id));
 
               // Stop the service if the user attempts to launch without SK
               else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)

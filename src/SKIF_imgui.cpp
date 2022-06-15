@@ -206,7 +206,8 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
   }
 }
 
-void SKIF_ImGui_Spacing (float multiplier)
+void
+SKIF_ImGui_Spacing (float multiplier)
 {
   ImGui::ItemSize (
     ImVec2 ( ImGui::GetTextLineHeightWithSpacing () * multiplier,
