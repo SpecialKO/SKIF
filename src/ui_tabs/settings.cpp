@@ -86,7 +86,7 @@ SKIF_UI_Tab_DrawSettings (void)
                       svcWinRing0,
                         lpsc, cbBufSize,
                           &dwBytesNeeded )
-                  )
+                 )
               {
                 // Store the binary path of the installed driver.
                 binaryPath = std::wstring (lpsc->lpBinaryPathName);
@@ -94,9 +94,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
                 PLOG_INFO << "Found kernel driver WinRing0_1_2_0 installed at: " << binaryPath;
 
-                // Check if the installed driver exists in the install folder.
+                // Check if the installed driver exists in the install folder
                 if (binaryPath.find (installFolder)  != std::wstring::npos)
-                  _status = Installed; // SK driver installed
+                  if (PathFileExists (binaryPath.c_str()))
+                    _status = Installed; // File exists, so driver is installed
+                  else
+                    _status = NotInstalled; // File does not exist, so is uninstalled
                 else
                   _status = OtherDriverInstalled; // Other driver installed
               }
@@ -526,9 +529,10 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing       ( );
 
     const char* StyleItems[] = { "SKIF Dark",
-                                  "ImGui Dark",
-                                  "ImGui Light",
-                                  "ImGui Classic" };
+                                 "ImGui Dark",
+                                 "ImGui Light",
+                                 "ImGui Classic"
+    };
     static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
           
     ImGui::TextColored (
@@ -1024,7 +1028,7 @@ SKIF_UI_Tab_DrawSettings (void)
       if (DriverTask != nullptr)
       {
         DriverTask ();
-        DriverTask ();
+        //DriverTask (); // Not needed any longer
 
         // Batch call succeeded -- change driverStatusPending to the
         //   opposite of driverStatus to signal that a new state is pending.
