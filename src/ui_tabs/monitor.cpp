@@ -167,7 +167,12 @@ SKIF_File_GetNameFromHandle ( HANDLE   hFile,
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
 
-#define STATUS_INFO_LENGTH_MISMATCH 0xc0000004
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
+#define STATUS_INFO_LENGTH_MISMATCH      ((NTSTATUS)0xC0000004L)
+#define STATUS_INSUFFICIENT_RESOURCES    ((NTSTATUS)0xC000009AL)
+#define STATUS_BUFFER_OVERFLOW           ((NTSTATUS)0x80000005L)
+#define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
+
 #define SystemHandleInformationSize 0x200000
 
 static HMODULE _NtDll =
@@ -207,11 +212,22 @@ enum SYSTEM_INFORMATION_CLASS
   SystemPolicyInformation               = 134,
 };
 
+/*
 enum OBJECT_INFORMATION_CLASS
 { ObjectBasicInformation = 0,
   ObjectNameInformation  = 1,
   ObjectTypeInformation  = 2
 };
+*/
+
+typedef enum _OBJECT_INFORMATION_CLASS {
+  ObjectBasicInformation,
+  ObjectNameInformation,
+  ObjectTypeInformation,
+  ObjectTypesInformation,
+  ObjectHandleFlagInformation,
+  ObjectSessionInformation,
+} OBJECT_INFORMATION_CLASS;
 
 using NtQuerySystemInformation_pfn =
   NTSTATUS (NTAPI *)(
@@ -245,6 +261,7 @@ NtQuerySystemInformation_pfn NtQuerySystemInformation = nullptr;
 NtDuplicateObject_pfn        NtDuplicateObject        = nullptr;
 NtQueryObject_pfn            NtQueryObject            = nullptr;
 
+// This is different between versions of Windows and should never be hardcoded
 enum _SK_NTDLL_HANDLE_TYPE
 {
   Directory             = 0x3,
@@ -402,6 +419,118 @@ std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
       }
   }
   return result;
+}
+
+
+// https://stackoverflow.com/questions/39098586/is-there-a-list-of-possible-values-for-system-handle-entry-objecttype
+
+#define ALIGN_DOWN(Length, Type)       ((ULONG)(Length) & ~(sizeof(Type) - 1))
+#define ALIGN_UP(Length, Type)         (ALIGN_DOWN(((ULONG)(Length) + sizeof(Type) - 1), Type))
+
+typedef struct _OBJECT_TYPE_INFORMATION {
+  UNICODE_STRING TypeName;
+  ULONG TotalNumberOfObjects;
+  ULONG TotalNumberOfHandles;
+  ULONG TotalPagedPoolUsage;
+  ULONG TotalNonPagedPoolUsage;
+  ULONG TotalNamePoolUsage;
+  ULONG TotalHandleTableUsage;
+  ULONG HighWaterNumberOfObjects;
+  ULONG HighWaterNumberOfHandles;
+  ULONG HighWaterPagedPoolUsage;
+  ULONG HighWaterNonPagedPoolUsage;
+  ULONG HighWaterNamePoolUsage;
+  ULONG HighWaterHandleTableUsage;
+  ULONG InvalidAttributes;
+  GENERIC_MAPPING GenericMapping;
+  ULONG ValidAccessMask;
+  BOOLEAN SecurityRequired;
+  BOOLEAN MaintainHandleCount;
+  ULONG PoolType;
+  ULONG DefaultPagedPoolCharge;
+  ULONG DefaultNonPagedPoolCharge;
+} OBJECT_TYPE_INFORMATION, *POBJECT_TYPE_INFORMATION;
+
+typedef struct _OBJECT_TYPE_INFORMATION_V2 {
+  UNICODE_STRING TypeName;
+  ULONG TotalNumberOfObjects;
+  ULONG TotalNumberOfHandles;
+  ULONG TotalPagedPoolUsage;
+  ULONG TotalNonPagedPoolUsage;
+  ULONG TotalNamePoolUsage;
+  ULONG TotalHandleTableUsage;
+  ULONG HighWaterNumberOfObjects;
+  ULONG HighWaterNumberOfHandles;
+  ULONG HighWaterPagedPoolUsage;
+  ULONG HighWaterNonPagedPoolUsage;
+  ULONG HighWaterNamePoolUsage;
+  ULONG HighWaterHandleTableUsage;
+  ULONG InvalidAttributes;
+  GENERIC_MAPPING GenericMapping;
+  ULONG ValidAccessMask;
+  BOOLEAN SecurityRequired;
+  BOOLEAN MaintainHandleCount;
+  UCHAR TypeIndex;   // Added in V2
+  CHAR ReservedByte; // Added in V2
+  ULONG PoolType;
+  ULONG DefaultPagedPoolCharge;
+  ULONG DefaultNonPagedPoolCharge;
+} OBJECT_TYPE_INFORMATION_V2, *POBJECT_TYPE_INFORMATION_V2;
+
+
+typedef struct _OBJECT_TYPES_INFORMATION {
+  LONG NumberOfTypes;
+// OBJECT_TYPE_INFORMATION TypeInformation [1];
+} OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
+
+// https://stackoverflow.com/questions/39098586/is-there-a-list-of-possible-values-for-system-handle-entry-objecttype
+// https://raw.githubusercontent.com/antonioCoco/ConPtyShell/master/Invoke-ConPtyShell.ps1
+// https://github.com/antonioCoco/ConPtyShell/blob/master/ConPtyShell.cs
+// https://codemachine.com/downloads/win71/ntstatus.h
+NTSTATUS QueryObjectTypesInfo (POBJECT_TYPES_INFORMATION *TypesInfo)
+{
+  ULONG StartBufferLength = 28;
+  ULONG BufferLength = 0;
+  NTSTATUS status = 0xC0000001;
+
+  status = STATUS_INFO_LENGTH_MISMATCH;
+
+  *TypesInfo = (POBJECT_TYPES_INFORMATION)malloc(StartBufferLength);
+
+  if (*TypesInfo != NULL)
+  {
+    status = NtQueryObject (NULL, ObjectTypesInformation, TypesInfo, StartBufferLength, &BufferLength);
+
+    if (status == STATUS_INFO_LENGTH_MISMATCH)
+    {
+      *TypesInfo = NULL;
+      while (status == STATUS_INFO_LENGTH_MISMATCH)
+      {
+        if (*TypesInfo != NULL)
+          free(*TypesInfo);
+
+        *TypesInfo = (POBJECT_TYPES_INFORMATION)malloc(BufferLength);
+
+        if (*TypesInfo != NULL)
+          status = NtQueryObject (NULL, ObjectTypesInformation, *TypesInfo, BufferLength, &BufferLength);
+        else
+          status = STATUS_INSUFFICIENT_RESOURCES;
+      }
+
+      if (! NT_SUCCESS(status))
+      {
+        if (*TypesInfo != NULL)
+        {
+          free(*TypesInfo);
+          *TypesInfo = NULL;
+        }
+      }
+    }
+  }
+  else
+    status = STATUS_INSUFFICIENT_RESOURCES;
+
+  return status;
 }
 
 
@@ -1020,6 +1149,46 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
   return (path.find("SteamApps") != std::string::npos);
 }
 
+USHORT GetTypeIndexByName (std::wstring TypeName)
+{
+  USHORT ret = USHRT_MAX;
+  POBJECT_TYPE_INFORMATION_V2  TypeInfo = NULL;
+  POBJECT_TYPES_INFORMATION   TypesInfo = NULL;
+
+  if (NT_SUCCESS (QueryObjectTypesInfo (&TypesInfo)))
+  {
+    PLOG_VERBOSE << "Number of Types: " << std::to_wstring (TypesInfo->NumberOfTypes);
+
+    // Align to first element of the array
+    TypeInfo = (POBJECT_TYPE_INFORMATION_V2)((PCHAR)TypesInfo + ALIGN_UP(sizeof(*TypesInfo), ULONG_PTR));
+    for (int i = 0; i < TypesInfo->NumberOfTypes; i++)
+    {
+      //USHORT     _TypeIndex = i + 2;               // OBJECT_TYPE_INFORMATION requires adding 2 to get the proper type index
+      USHORT       _TypeIndex = TypeInfo->TypeIndex; // OBJECT_TYPE_INFORMATION_V2 includes it in the struct
+      std::wstring _TypeName  = std::wstring(TypeInfo->TypeName.Buffer, TypeInfo->TypeName.Length / sizeof(WCHAR));
+
+      PLOG_VERBOSE << std::to_wstring(TypeInfo->TypeIndex) << " - " << _TypeName;
+
+      if (TypeName == _TypeName)
+      {
+        ret = _TypeIndex;
+        break;
+      }
+
+      // Align to the next element of the array
+      TypeInfo = (POBJECT_TYPE_INFORMATION_V2)((PCHAR)(TypeInfo + 1) + ALIGN_UP(TypeInfo->TypeName.MaximumLength, ULONG_PTR));
+    }
+  }
+
+  // Free up the memory that QueryObjectTypesInfo() allocated
+  free (TypesInfo);
+
+  if (ret == USHRT_MAX)
+    PLOG_ERROR << "Failed to locate TypeIndex for Events!";
+
+  return ret;
+}
+
 HRESULT
 SKIF_UI_Tab_DrawMonitor (void)
 {
@@ -1290,6 +1459,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     static std::string handle_dump;
     static std::string standby_list;
+    static      USHORT EventIndex = GetTypeIndexByName (L"Event");
 
     extern void
       SKIF_ImGui_SetHoverTip(const std::string_view& szText);
@@ -1411,228 +1581,249 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       SKIF_ImGui_Spacing   ( );
     }
-
+    
     extern bool SKIF_ImGui_IsFocused (void);
 
-    static DWORD
-         dwLastRefresh = 0;
-    if ( dwLastRefresh + 500 < SKIF_Util_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
-    {    dwLastRefresh       = SKIF_Util_timeGetTime ();
-      standby_list.clear ();
-      _Standby32.clear   ();
-      _Standby64.clear   ();
+    if (EventIndex != USHRT_MAX)
+    {
+      static DWORD
+          dwLastRefresh = 0;
+      if (dwLastRefresh + 500 < SKIF_Util_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+      {   dwLastRefresh       = SKIF_Util_timeGetTime ();
+        standby_list.clear ();
+        _Standby32.clear   ();
+        _Standby64.clear   ();
 
-      using _PerProcessHandleMap =
-        std::map        < DWORD,
-            std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
-                                                            >;
-      NTSTATUS ntStatusHandles;
+        using _PerProcessHandleMap =
+          std::map        < DWORD,
+              std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
+                                                              >;
+        NTSTATUS ntStatusHandles;
 
-      ULONG      handle_info_size ( SystemHandleInformationSize );
-      _ByteArray handle_info_buffer;
+        ULONG      handle_info_size ( SystemHandleInformationSize );
+        _ByteArray handle_info_buffer;
 
-      do
-      {
-        handle_info_buffer.resize (
-                 handle_info_size );
-
-        ntStatusHandles =
-          NtQuerySystemInformation (
-            SystemExtendedHandleInformation,
-              handle_info_buffer.data (),
-              handle_info_size,
-             &handle_info_size     );
-
-      } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
-
-      if (NT_SUCCESS (ntStatusHandles))
-      {
-        DWORD  dwPidOfMe   =  GetCurrentProcessId (); // Actual Pid
-        HANDLE hProcessDst =  GetCurrentProcess   (); // Pseudo Handle
-
-        _PerProcessHandleMap
-          handles_by_process;
-
-        auto handleTableInformationEx =
-          PSYSTEM_HANDLE_INFORMATION_EX (
-             handle_info_buffer.data ()
-          );
-
-        // Go through all handles of the system
-        for ( unsigned int i = 0;
-                           i < handleTableInformationEx->NumberOfHandles;
-                           i++)
+        do
         {
-          // Skip handles belong to SKIF
-          if (handleTableInformationEx->Handles [i].ProcessId == dwPidOfMe)
-            continue;
+          handle_info_buffer.resize (
+                   handle_info_size );
 
-          /* Skip handles with the following access codes as the next call
-             to NtDuplicateObject() or NtQueryObject() might hang forever.
-             
-             Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
-          */
-          if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
-           || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
-            continue;
+          ntStatusHandles =
+            NtQuerySystemInformation (
+              SystemExtendedHandleInformation,
+                handle_info_buffer.data (),
+                handle_info_size,
+               &handle_info_size     );
 
-          // Need a better approach as this is slow on some systems... Maybe look
-          //  up all object type IDs before-hand to identify those pertaining to
-          //   events, and then just include those?
+        } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
 
-          // Add the remaining handles to the list of handles to go through
-          handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
-               .emplace_back (handleTableInformationEx->Handles [i]);
-        }
-
-        // Go through each process
-        for ( auto& handles : handles_by_process )
+        if (NT_SUCCESS (ntStatusHandles))
         {
-          auto dwProcId = handles.first;
+          DWORD  dwPidOfMe   =  GetCurrentProcessId (); // Actual Pid
+          HANDLE hProcessDst =  GetCurrentProcess   (); // Pseudo Handle
 
-          HANDLE hProcessSrc =
-              OpenProcess (
-                  PROCESS_DUP_HANDLE |
-                  PROCESS_QUERY_INFORMATION, FALSE,
-                dwProcId  );
+          _PerProcessHandleMap
+            handles_by_process;
 
-          if (! hProcessSrc) continue;
+          auto handleTableInformationEx =
+            PSYSTEM_HANDLE_INFORMATION_EX (
+               handle_info_buffer.data ()
+            );
 
-          wchar_t                                wszProcessName [MAX_PATH] = { };
-          GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
-
-          // Go through each handle the process contains
-          for ( auto& handle : handles.second )
+          // Go through all handles of the system
+          for ( unsigned int i = 0;
+                             i < handleTableInformationEx->NumberOfHandles;
+                             i++)
           {
-            auto hHandleSrc = handle.Handle;
+            // Skip handles belong to SKIF
+            if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
+              continue;
 
-            // Debug purposes
-            //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
+            //OutputDebugString(L"ObjectTypeIndex: ");
+            //OutputDebugString(std::to_wstring(handleTableInformationEx->Handles[i].ObjectTypeIndex).c_str());
+            //OutputDebugString(L"\n");
 
-            HANDLE   hDupHandle;
-            NTSTATUS ntStat     =
-              NtDuplicateObject (
-                hProcessSrc,  hHandleSrc,
-                hProcessDst, &hDupHandle,
-                        0, 0, 0 );
+            // If it is not the index that corresponds to Events, skip it
+            if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
+              continue;
 
-            if (! NT_SUCCESS (ntStat)) continue;
+            /* Skip handles with the following access codes as the next call
+               to NtDuplicateObject() or NtQueryObject() might hang forever.
+             
+               Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
+            */
+            /*
+            if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
+             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
+              continue;
+            */
 
-            std::wstring handle_name = L"";
+            // Need a better approach as this is slow on some systems... Maybe look
+            //  up all object type IDs before-hand to identify those pertaining to
+            //   events, and then just include those?
 
-            ULONG      _ObjectNameLen ( 64 );
-            _ByteArray pObjectName;
-
-            do
-            {
-              pObjectName.resize (
-                  _ObjectNameLen );
-
-              ntStat =
-                NtQueryObject (
-                  hDupHandle,
-                       ObjectNameInformation,
-                      pObjectName.data (),
-                      _ObjectNameLen,
-                     &_ObjectNameLen );
-
-            } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
-
-            if (NT_SUCCESS (ntStat))
-            {
-              POBJECT_NAME_INFORMATION _pni =
-                (POBJECT_NAME_INFORMATION) pObjectName.data ();
-
-              handle_name = _pni != nullptr ?
-                            _pni->Name.Length > 0 ?
-                            _pni->Name.Buffer     : L""
-                                                  : L"";
-            }
-
-            CloseHandle (hDupHandle);
-
-            // Examine what we got
-
-            if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
-                && _Used64.emplace (dwProcId).second )
-            {
-              std::wstring friendlyPath = std::wstring (wszProcessName);
-
-              for (auto device : deviceMap)
-              {
-                if (friendlyPath.find(device.second) != std::wstring::npos)
-                {
-                  friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                  break;
-                }
-              }
-
-              _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-              PathStripPathW (_Standby64.back ().filename.data () );
-
-              break;
-            } 
-            
-            else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
-                && _Used32.emplace (dwProcId).second )
-            {
-              std::wstring friendlyPath = std::wstring(wszProcessName);
-
-              for (auto device : deviceMap)
-              {
-                if (friendlyPath.find(device.second) != std::wstring::npos)
-                {
-                  friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                  break;
-                }
-              }
-
-              _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-              PathStripPathW (_Standby32.back ().filename.data () );
-
-              break;
-            }
+            // Add the remaining handles to the list of handles to go through
+            handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
+                 .emplace_back (handleTableInformationEx->Handles [i]);
           }
 
-          CloseHandle (hProcessSrc);
+          // Go through each process
+          for ( auto& handles : handles_by_process )
+          {
+            auto dwProcId = handles.first;
+
+            HANDLE hProcessSrc =
+                OpenProcess (
+                    PROCESS_DUP_HANDLE |
+                    PROCESS_QUERY_INFORMATION, FALSE,
+                  dwProcId  );
+
+            if (! hProcessSrc) continue;
+
+            wchar_t                                wszProcessName [MAX_PATH] = { };
+            GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+
+            // Go through each handle the process contains
+            for ( auto& handle : handles.second )
+            {
+              auto hHandleSrc = handle.Handle;
+
+              // Debug purposes
+              //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
+
+              HANDLE   hDupHandle;
+              NTSTATUS ntStat     =
+                NtDuplicateObject (
+                  hProcessSrc,  hHandleSrc,
+                  hProcessDst, &hDupHandle,
+                          0, 0, 0 );
+
+              if (! NT_SUCCESS (ntStat)) continue;
+
+              std::wstring handle_name = L"";
+
+              ULONG      _ObjectNameLen ( 64 );
+              _ByteArray pObjectName;
+
+              do
+              {
+                pObjectName.resize (
+                    _ObjectNameLen );
+
+                ntStat =
+                  NtQueryObject (
+                    hDupHandle,
+                         ObjectNameInformation,
+                        pObjectName.data (),
+                        _ObjectNameLen,
+                       &_ObjectNameLen );
+
+              } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
+
+              if (NT_SUCCESS (ntStat))
+              {
+                POBJECT_NAME_INFORMATION _pni =
+                  (POBJECT_NAME_INFORMATION) pObjectName.data ();
+
+                handle_name = _pni != nullptr ?
+                              _pni->Name.Length > 0 ?
+                              _pni->Name.Buffer     : L""
+                                                    : L"";
+              }
+
+              CloseHandle (hDupHandle);
+
+              // Examine what we got
+
+              if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
+                  && _Used64.emplace (dwProcId).second )
+              {
+                std::wstring friendlyPath = std::wstring (wszProcessName);
+
+                //OutputDebugString(L"Handle ObjectTypeIndex x64: ");
+                //OutputDebugString(std::to_wstring(handle.ObjectTypeIndex).c_str());
+                //OutputDebugString(L"\n");
+
+                for (auto device : deviceMap)
+                {
+                  if (friendlyPath.find(device.second) != std::wstring::npos)
+                  {
+                    friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                    break;
+                  }
+                }
+
+                _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+                PathStripPathW (_Standby64.back ().filename.data () );
+
+                break;
+              } 
+            
+              else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
+                  && _Used32.emplace (dwProcId).second )
+              {
+                std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                //OutputDebugString(L"Handle ObjectTypeIndex x32: ");
+                //OutputDebugString(std::to_wstring(handle.ObjectTypeIndex).c_str());
+                //OutputDebugString(L"\n");
+
+                for (auto device : deviceMap)
+                {
+                  if (friendlyPath.find(device.second) != std::wstring::npos)
+                  {
+                    friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                    break;
+                  }
+                }
+
+                _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+                PathStripPathW (_Standby32.back ().filename.data () );
+
+                break;
+              }
+            }
+
+            CloseHandle (hProcessSrc);
+          }
         }
-      }
 
-      executables_64.clear ();
-      executables_32.clear ();
-         policies_64.clear ();
-         policies_32.clear ();
+        executables_64.clear ();
+        executables_32.clear ();
+           policies_64.clear ();
+           policies_32.clear ();
 
-      if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
-      {
-        executables_64 [proc.pid]     =     proc.filename;
-        tooltips_64    [proc.pid]     =     proc.nameUTF8;
+        if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
+        {
+          executables_64 [proc.pid]     =     proc.filename;
+          tooltips_64    [proc.pid]     =     proc.nameUTF8;
 
-        if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-          policies_64  [proc.pid]     =     Blacklist;
-        else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-          policies_64  [proc.pid]     =     Whitelist;
-        else
-          policies_64  [proc.pid]     =     DontCare;
-      }
+          if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
+            policies_64  [proc.pid]     =     Blacklist;
+          else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
+            policies_64  [proc.pid]     =     Whitelist;
+          else
+            policies_64  [proc.pid]     =     DontCare;
+        }
 
-      if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
-      { executables_32 [proc.pid]     =     proc.filename;
-        tooltips_32    [proc.pid]     =     proc.nameUTF8;
+        if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
+        { executables_32 [proc.pid]     =     proc.filename;
+          tooltips_32    [proc.pid]     =     proc.nameUTF8;
 
-        if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-          policies_32  [proc.pid]     =     Blacklist;
-        else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-          policies_32  [proc.pid]     =     Whitelist;
-        else
-          policies_32  [proc.pid]     =     DontCare;
+          if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
+            policies_32  [proc.pid]     =     Blacklist;
+          else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
+            policies_32  [proc.pid]     =     Whitelist;
+          else
+            policies_32  [proc.pid]     =     DontCare;
+        }
       }
     }
 
@@ -1766,7 +1957,9 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
                               );
 
-      if (executables_64.size() == 0 && executables_32.size() == 0)
+      if (EventIndex == USHRT_MAX)
+        ImGui::Text ("Error occurred when trying to locate type index for events!");
+      else if (executables_64.size() == 0 && executables_32.size() == 0)
         ImGui::Text ("Special K is currently not injected in any process.");
 
       for ( auto& proc64 : executables_64 )

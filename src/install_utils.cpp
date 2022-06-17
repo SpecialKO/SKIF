@@ -122,14 +122,12 @@ SKIF_GetFileVersion (const wchar_t* wszName)
         "GetFileVersionInfoExW"                                            );
 
   UINT cbTranslatedBytes = 0,
-       cbProductBytes    = 0,
        cbVersionBytes    = 0;
 
   std::vector <uint8_t>
     cbData (16384, 0ui8);
 
-  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
-  wchar_t* wszVersion    = nullptr;
+  wchar_t* wszVersion    = nullptr; // Will point somewhere in cbData
 
   struct LANGANDCODEPAGE {
     WORD wLanguage;

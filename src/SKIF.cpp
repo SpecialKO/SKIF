@@ -930,7 +930,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 int
 SKIF_RegisterApp (bool force = false)
 {
-  HKEY hKey;
   static int ret = -1;
 
   if (ret != -1 && ! force)

@@ -819,7 +819,6 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
                                 (LPVOID)get->body.c_str(),
                                   (DWORD)get->body.size() ) )
   {
-
     DWORD dwStatusCode        = 0;
     DWORD dwStatusCode_Len    = sizeof (DWORD);
 

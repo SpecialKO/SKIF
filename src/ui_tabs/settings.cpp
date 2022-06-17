@@ -35,7 +35,7 @@ SKIF_UI_Tab_DrawSettings (void)
     static DWORD dwLastRefresh = 0;
 
     // Refresh once every 500 ms
-    if (dwLastRefresh < SKIF_Util_timeGetTime())
+    if (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
     {
       dwLastRefresh = SKIF_Util_timeGetTime() + 500;
 

@@ -3417,11 +3417,10 @@ Cache=false)";
     ImGui::EndGroup           ( );
   }
 
-
   // Refresh running state of SKIF Custom, EGS, GOG, and Xbox titles
   static DWORD lastGameRefresh = 0;
 
-  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000)
+  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
   {
     for (auto& app : apps)
     {
