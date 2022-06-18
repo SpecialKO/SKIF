@@ -340,7 +340,11 @@
     <ClInclude Include="include\plog\Formatters\FuncMessageFormatter.h" />
     <ClInclude Include="include\plog\Formatters\MessageOnlyFormatter.h" />
     <ClInclude Include="include\plog\Formatters\TxtFormatter.h" />
+    <ClInclude Include="include\plog\Helpers\AscDump.h" />
+    <ClInclude Include="include\plog\Helpers\HexDump.h" />
+    <ClInclude Include="include\plog\Helpers\PrintVar.h" />
     <ClInclude Include="include\plog\Init.h" />
+    <ClInclude Include="include\plog\Initializers\ConsoleInitializer.h" />
     <ClInclude Include="include\plog\Initializers\RollingFileInitializer.h" />
     <ClInclude Include="include\plog\Log.h" />
     <ClInclude Include="include\plog\Logger.h" />

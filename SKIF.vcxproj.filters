@@ -109,6 +109,9 @@
     <Filter Include="Header Files\Plog\Initializers">
       <UniqueIdentifier>{feb2b720-f733-4b73-82f5-e925868f8e37}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Plog\Helpers">
+      <UniqueIdentifier>{77e9274d-76e4-410e-a38f-9de363a4fa0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTex\BC.h">
@@ -479,6 +482,18 @@
     </ClInclude>
     <ClInclude Include="include\registry.h">
       <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Initializers\ConsoleInitializer.h">
+      <Filter>Header Files\Plog\Initializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Helpers\AscDump.h">
+      <Filter>Header Files\Plog\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Helpers\HexDump.h">
+      <Filter>Header Files\Plog\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\plog\Helpers\PrintVar.h">
+      <Filter>Header Files\Plog\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
