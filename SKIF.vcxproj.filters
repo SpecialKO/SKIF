@@ -270,12 +270,6 @@
     <ClInclude Include="steam\steamuniverse.h">
       <Filter>Header Files\Stores\Steam\API</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\Steam\achievements.h">
-      <Filter>Header Files\Stores\Steam</Filter>
-    </ClInclude>
-    <ClInclude Include="include\stores\Steam\ugc.h">
-      <Filter>Header Files\Stores\Steam</Filter>
-    </ClInclude>
     <ClInclude Include="include\imgui\imconfig.h">
       <Filter>Header Files\ImGui</Filter>
     </ClInclude>

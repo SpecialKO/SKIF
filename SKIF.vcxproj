@@ -385,13 +385,11 @@
     <ClInclude Include="include\stores\generic_library.h" />
     <ClInclude Include="include\stores\GOG\gog_library.h" />
     <ClInclude Include="include\stores\SKIF\custom_library.h" />
-    <ClInclude Include="include\stores\Steam\achievements.h" />
     <ClInclude Include="include\stores\Steam\apps_ignore.h" />
     <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
     <ClInclude Include="include\stores\Steam\asset_fetch.h" />
     <ClInclude Include="include\stores\Steam\steam_library.h" />
-    <ClInclude Include="include\stores\Steam\ugc.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\stores\Xbox\xbox_library.h" />
     <ClInclude Include="include\ui_tabs\about.h" />
