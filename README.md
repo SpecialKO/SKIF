@@ -37,3 +37,7 @@ SKIF supports detecting and launching games from the following platforms:
 | `Minimize`  | Launches SKIF minimized *or* minimizes any running instances of SKIF, to the taskbar or notification area depending on configuration. |
 | `"<path>.exe"` | Uses SKIF as a launcher to start the injection service, launch another application, and then stop the service. Any arguments specified after the path is proxied to the launched application. Called through `SKIF %COMMAND%` from within the Steam client. |
 | `AddGame="<path>"`  | **Experimental!** Adds the specified application to the library of SKIF as a custom game. |
+
+## Third-party code
+
+* Uses [PLOG](https://github.com/SergiusTheBest/plog), licensed under [MIT](https://github.com/SergiusTheBest/plog/blob/master/LICENSE)
