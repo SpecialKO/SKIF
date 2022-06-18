@@ -1326,7 +1326,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
 
-    PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
+    //PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
 
     // We're going to stream the cover in asynchronously on this thread
     _beginthread ([](void*)->void
@@ -1337,7 +1337,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Streaming game cover asynchronously...";
 
       int queuePos = getTextureLoadQueuePos();
-      PLOG_VERBOSE << "queuePos = " << queuePos;
+      //PLOG_VERBOSE << "queuePos = " << queuePos;
 
       static ImVec2 _vecCoverUv0(vecCoverUv0);
       static ImVec2 _vecCoverUv1(vecCoverUv1);
@@ -1357,7 +1357,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       //  a black/non-existent cover will be displayed in-between.
       // 
       // But at least SKIF does not run the risk of crashing as often :)
-      PLOG_VERBOSE << "pTexSRV -> nullptr (was " << pTexSRV << ")";
+      //PLOG_VERBOSE << "pTexSRV -> nullptr (was " << pTexSRV << ")";
       pTexSRV = nullptr;
 
       std::wstring load_str;

@@ -1027,12 +1027,13 @@ void SKIF_putStopOnInjection (bool in)
 }
 
 std::string patrons;
-volatile LONG update_thread = 0; // 0 = No update check has run,     1 = Update check is running,     2 = Update check has completed
+volatile LONG update_thread = 0;              // 0 = No update check has run,        1 = Update check is running,       2 = Update check has completed
+volatile LONG update_thread_patreon = 0;      // 0 = patrons.txt is not ready,       1 = patrons.txt is ready 
 std::vector <std::pair<std::string, std::string>> updateChannels;
 
 std::string SKIF_GetPatrons ( )
 {
-  if (InterlockedExchangeAdd (&update_thread, 0) == 2)
+  if (InterlockedExchangeAdd (&update_thread_patreon, 0) == 1)
     return patrons;
   else
     return "";
@@ -1084,11 +1085,10 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
       // Create necessary directories if they do not exist
       std::filesystem::create_directories (root);
+      bool downloadNewFiles = false;
 
       if (SKIF_iCheckForUpdates != 0 && ! SKIF_bLowBandwidthMode)
       {
-        bool downloadNewFiles = false;
-
         // Download files if any does not exist or if we're forcing an update
         if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || SKIF_iCheckForUpdates == 2)
         {
@@ -1127,17 +1127,16 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
             }
           }
         }
-
-        // Update both the local repository.json file as well as patrons.txt
-        if (downloadNewFiles)
-        {
-          PLOG_INFO << "Downloading new repository.json and patrons.txt files...";
-          SKIF_Util_GetWebResource (url, path);
-          SKIF_Util_GetWebResource (url_patreon, path_patreon);
-        }
       }
 
-      // Read patrons file
+      // Update patrons.txt
+      if (downloadNewFiles)
+      {
+        PLOG_INFO << "Downloading patrons.txt...";
+        SKIF_Util_GetWebResource (url_patreon, path_patreon);
+      }
+
+      // Read patrons.txt
       if (patrons.empty( ))
       {
         FILE *fPatrons =
@@ -1146,19 +1145,19 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         if (fPatrons != nullptr)
         {
           std::string out;
-  #ifdef _WIN64
+#ifdef _WIN64
           _fseeki64 (fPatrons, 0, SEEK_END);
-  #else
+#else
           fseek     (fPatrons, 0, SEEK_END);
-  #endif
+#endif
 
           size_t size =
             gsl::narrow_cast <size_t> (
-  #ifdef _WIN64
+#ifdef _WIN64
             _ftelli64 (fPatrons)      );
-  #else
+#else
             ftell     (fPatrons)      );
-  #endif
+#endif
           rewind      (fPatrons);
 
           out.resize (size);
@@ -1171,6 +1170,16 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
           fclose (fPatrons);
         }
+      }
+
+      // Indicate patrons variable is ready to be accessed from the main thread
+      InterlockedExchange (&update_thread_patreon, 1);
+
+      // Update repository.json
+      if (downloadNewFiles)
+      {
+        PLOG_INFO << "Downloading repository.json...";
+        SKIF_Util_GetWebResource (url, path);
       }
     
       std::ifstream file(path);
