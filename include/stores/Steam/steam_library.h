@@ -26,7 +26,7 @@
 
 #include "sk_utility/utility.h"
 
-#include "steam/steam_api.h"
+//#include "steam/steam_api.h"
 #include "vfs.h"
 
 #include <vector>

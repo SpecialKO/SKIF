@@ -1321,7 +1321,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if ( appinfo != nullptr && pApp->store == "Steam")
     {
       skValveDataFile::appinfo_s *pAppInfo =
-        appinfo->getAppInfo ( pApp->id, nullptr );
+        appinfo->getAppInfo ( pApp->id );
 
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }

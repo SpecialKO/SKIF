@@ -179,8 +179,7 @@ appinfo_s::getNextApp (void)
 }
 
 appinfo_s*
-skValveDataFile::getAppInfo ( uint32_t     appid,
-                              ISteamUser *pUser )
+skValveDataFile::getAppInfo ( uint32_t     appid )
 {
   extern bool SKIF_STEAM_OWNER;
 
@@ -531,9 +530,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
           { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                 }
         };
 
-        std::wstring account_id_str   =
-                          (pUser != nullptr)                     ?
-          std::to_wstring (pUser->GetSteamID ().GetAccountID ()) : L"anonymous";
+        std::wstring account_id_str   = L"anonymous";
 
         std::wstring cloud_path       =
           SK_FormatStringW (      LR"(%ws\userdata\%ws\%d\)",
@@ -783,29 +780,19 @@ skValveDataFile::getAppInfo ( uint32_t     appid,
                         CacheAccountIDs =
                          [&](void)
                           {
-                            // Original SteamAPI-based Account Id Resolver
-                            if (pUser != nullptr) {
-                              Steam64BitID    = pUser->GetSteamID ().ConvertToUint64 ();
-                              Steam3AccountID = pUser->GetSteamID ().GetAccountID    ();
-                            }
+                            WCHAR                    szData [255] = { };
+                            DWORD   dwSize = sizeof (szData);
+                            PVOID   pvData =         szData;
+                            CRegKey hKey ((HKEY)0);
 
-                            // Fallback to System Registry and Application Manifest Lookups
-                            else
+                            if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
                             {
-                              WCHAR                    szData [255] = { };
-                              DWORD   dwSize = sizeof (szData);
-                              PVOID   pvData =         szData;
-                              CRegKey hKey ((HKEY)0);
-
-                              if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
-                              {
-                                if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-                                  Steam3AccountID = *(DWORD*)pvData;
-                              }
-
-                              Steam64BitID = std::stoull (
-                                SK_UseManifestToGetAppOwner (pAppRecord->id));
+                              if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+                                Steam3AccountID = *(DWORD*)pvData;
                             }
+
+                            Steam64BitID = std::stoull (
+                              SK_UseManifestToGetAppOwner (pAppRecord->id));
                           };
 
                         SK_RunOnce (

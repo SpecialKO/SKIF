@@ -4,7 +4,16 @@
 #include <cstdint>
 #include <vector>
 #include <wtypes.h>
-#include <steam/isteamuser.h>
+//#include <steam/isteamuser.h>
+
+// Steamworks API definitions
+typedef unsigned __int32 uint32;
+typedef unsigned __int64 uint64;
+typedef uint32 AppId_t;
+typedef uint32 DepotId_t;
+typedef uint64 PublishedFileId_t;
+typedef uint64 ManifestId_t;
+typedef uint64 UGCHandle_t;
 
 class skValveDataFile
 {
@@ -58,8 +67,7 @@ public:
     appinfo_s* getNextApp     (void);
   };
 
-  appinfo_s* getAppInfo ( uint32_t     appid,
-                          ISteamUser* pUser = nullptr );
+  appinfo_s* getAppInfo ( uint32_t     appid );
 
   struct header_s
   {

@@ -248,7 +248,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
   app_record_s    *pApp     =    nullptr;
   skValveDataFile::appinfo_s
                   *pAppInfo =
-    appinfo->getAppInfo ( appid, nullptr );
+    appinfo->getAppInfo ( appid );
 
   UNREFERENCED_PARAMETER (pAppInfo);
 
