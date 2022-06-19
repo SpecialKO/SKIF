@@ -167,6 +167,7 @@ SKIF_File_GetNameFromHandle ( HANDLE   hFile,
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
 
+// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
 #define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
 #define STATUS_INFO_LENGTH_MISMATCH      ((NTSTATUS)0xC0000004L)
 #define STATUS_INSUFFICIENT_RESOURCES    ((NTSTATUS)0xC000009AL)
@@ -400,7 +401,7 @@ std::string   SKIF_PresentDebugStr [2];
 volatile LONG SKIF_PresentIdx    =   0;
 
 
-// https://stackoverflow.com/a/59908355/15133327
+// CC BY-SA 4.0: https://stackoverflow.com/a/59908355/15133327
 std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
 {
   // It's not really related to MAX_PATH, but I guess it should be enough.
@@ -421,36 +422,7 @@ std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
   return result;
 }
 
-
-// https://stackoverflow.com/questions/39098586/is-there-a-list-of-possible-values-for-system-handle-entry-objecttype
-
-#define ALIGN_DOWN(Length, Type)       ((ULONG)(Length) & ~(sizeof(Type) - 1))
-#define ALIGN_UP(Length, Type)         (ALIGN_DOWN(((ULONG)(Length) + sizeof(Type) - 1), Type))
-
-typedef struct _OBJECT_TYPE_INFORMATION {
-  UNICODE_STRING TypeName;
-  ULONG TotalNumberOfObjects;
-  ULONG TotalNumberOfHandles;
-  ULONG TotalPagedPoolUsage;
-  ULONG TotalNonPagedPoolUsage;
-  ULONG TotalNamePoolUsage;
-  ULONG TotalHandleTableUsage;
-  ULONG HighWaterNumberOfObjects;
-  ULONG HighWaterNumberOfHandles;
-  ULONG HighWaterPagedPoolUsage;
-  ULONG HighWaterNonPagedPoolUsage;
-  ULONG HighWaterNamePoolUsage;
-  ULONG HighWaterHandleTableUsage;
-  ULONG InvalidAttributes;
-  GENERIC_MAPPING GenericMapping;
-  ULONG ValidAccessMask;
-  BOOLEAN SecurityRequired;
-  BOOLEAN MaintainHandleCount;
-  ULONG PoolType;
-  ULONG DefaultPagedPoolCharge;
-  ULONG DefaultNonPagedPoolCharge;
-} OBJECT_TYPE_INFORMATION, *POBJECT_TYPE_INFORMATION;
-
+// MIT: https://github.com/antonioCoco/ConPtyShell/blob/master/ConPtyShell.cs
 typedef struct _OBJECT_TYPE_INFORMATION_V2 {
   UNICODE_STRING TypeName;
   ULONG TotalNumberOfObjects;
@@ -477,16 +449,12 @@ typedef struct _OBJECT_TYPE_INFORMATION_V2 {
   ULONG DefaultNonPagedPoolCharge;
 } OBJECT_TYPE_INFORMATION_V2, *POBJECT_TYPE_INFORMATION_V2;
 
-
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
 typedef struct _OBJECT_TYPES_INFORMATION {
   LONG NumberOfTypes;
-// OBJECT_TYPE_INFORMATION TypeInformation [1];
 } OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
 
-// https://stackoverflow.com/questions/39098586/is-there-a-list-of-possible-values-for-system-handle-entry-objecttype
-// https://raw.githubusercontent.com/antonioCoco/ConPtyShell/master/Invoke-ConPtyShell.ps1
-// https://github.com/antonioCoco/ConPtyShell/blob/master/ConPtyShell.cs
-// https://codemachine.com/downloads/win71/ntstatus.h
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
 NTSTATUS QueryObjectTypesInfo (POBJECT_TYPES_INFORMATION *TypesInfo)
 {
   ULONG StartBufferLength = 28;
@@ -1149,6 +1117,15 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
   return (path.find("SteamApps") != std::string::npos);
 }
 
+
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
+//               https://jadro-windows.cz/download/ntqueryobject.zip
+#define ALIGN_DOWN(Length, Type)       ((ULONG)(Length) & ~(sizeof(Type) - 1))
+#define ALIGN_UP(Length, Type)         (ALIGN_DOWN(((ULONG)(Length) + sizeof(Type) - 1), Type))
+
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
+//               https://jadro-windows.cz/download/ntqueryobject.zip
+// Modified to use POBJECT_TYPE_INFORMATION_V2 instead of POBJECT_TYPE_INFORMATION
 USHORT GetTypeIndexByName (std::wstring TypeName)
 {
   USHORT ret = USHRT_MAX;

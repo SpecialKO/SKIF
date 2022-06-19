@@ -144,8 +144,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 {
   PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
 
-  extern HWND    SKIF_hWnd;
-  bool ret = false;
+  extern HWND SKIF_hWnd;
+  bool        ret = false;
 
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
 
@@ -172,29 +172,48 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
 #endif
 
+  static std::wstring curDir    = SK_FormatStringW (LR"(%ws\Servlet\)", std::filesystem::current_path().c_str());
+  static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
+  static std::wstring SKIFsvc32 = curDir + L"SKIFsvc32.exe";
+
+  // Create any missing directories
+  if (! std::filesystem::exists (            workDir))
+        std::filesystem::create_directories (workDir);
+
+  SetLastError (NO_ERROR);
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
-    sexi.lpFile       = L"SKIFsvc32.exe";
-#ifdef _WIN64
-    sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
-#else
+    sexi.lpFile       = SKIFsvc32.c_str();
     sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
-#endif // _WIN64
-    sexi.lpDirectory  = L"Servlet";
+    sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata).c_str(); // L"Servlet"
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
                         SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
 #ifdef _WIN64
-  if (_inject.SKSvc32 >= "1.0.2.0")
-    ret =   ShellExecuteExW (&sexi);
+  // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
+  static bool Proxy64 = (_inject.SKSvc32 >= "1.0.2.0" && curDir == workDir);
+
+  if (Proxy64)
+  {
+    PLOG_VERBOSE << "SKIFsvc >= 1.0.2.0 and curDir == workDir. Using Proxy64 call.";
+
+    sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
+
+    ret =
+      ShellExecuteExW (&sexi);
+  }
+
   else if ( ShellExecuteExW (&sexi) || currentRunningState )
   {
+    PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
+
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-    sexi.lpFile       = L"SKIFsvc64.exe";
-    sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
+    static std::wstring SKIFsvc64 = curDir + L"SKIFsvc64.exe";
+    sexi.lpFile       = SKIFsvc64.c_str();
 
     ret =
       ShellExecuteExW (&sexi);
@@ -202,7 +221,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 #else
   ret =
     ShellExecuteExW (&sexi);
-#endif
+#endif // _WIN64
+
+  PLOG_DEBUG << SKIF_Util_GetLastError ();
 
   if (currentRunningState)
     runState = RunningState::Stopping;
@@ -215,14 +236,14 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
             (TIMERPROC) NULL
   );
 
-  dwLastSignaled = SKIF_Util_timeGetTime();
+  dwLastSignaled = SKIF_Util_timeGetTime ();
 
   Sleep (30);
 
   if (ret)
-    PLOG_INFO << "The operation was successful.";
+    PLOG_INFO  << "The operation was successful.";
   else
-    PLOG_INFO << "The operation was unsuccessful.";
+    PLOG_ERROR << "The operation was unsuccessful.";
 
   return ret;
 };
@@ -1194,10 +1215,11 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 {
   bool ret = false;
   static std::wstring root_dir =
-           std::wstring(path_cache.specialk_userdata) + LR"(\Global\)";
+         std::wstring (path_cache.specialk_userdata) + LR"(\Global\)";
 
-  // Create the Documents/My Mods/SpecialK/Global/ folder, and any intermediate ones, if it does not already exist
-  std::filesystem::create_directories (root_dir.c_str ());
+  // Create any missing directories
+  if (! std::filesystem::exists (            root_dir))
+        std::filesystem::create_directories (root_dir);
 
   std::wofstream list_file(
     (whitelist_) ? (root_dir + LR"(\whitelist.ini)").c_str()

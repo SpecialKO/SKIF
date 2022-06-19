@@ -24,12 +24,6 @@
 
 #include <gsl/gsl>
 
-// Deprecated in C++17
-#ifdef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-#include <locale>
-#include <codecvt>
-#endif
-
 #include <fonts/fa_regular_400.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
 #include <fonts/fa_solid_900.ttf.h>
@@ -37,14 +31,6 @@
 std::string
 SK_WideCharToUTF8 (const std::wstring& in)
 {
-#ifdef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-  std::wstring_convert <
-    std::codecvt_utf8_utf16 <wchar_t>
-  > transcode;
-
-  return
-    transcode.to_bytes (in);
-#else
   /*
   size_t len =
     WideCharToMultiByte ( CP_UTF8, 0x00, in.c_str (), -1,
@@ -64,7 +50,7 @@ SK_WideCharToUTF8 (const std::wstring& in)
   out.resize(len);
   */
   
-  // From https://stackoverflow.com/a/59617138
+  // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
   int count = 
     WideCharToMultiByte (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0, NULL, NULL);
   std::string out       (count, 0);
@@ -72,21 +58,11 @@ SK_WideCharToUTF8 (const std::wstring& in)
 
 
   return out;
-#endif
 }
 
 std::wstring
 SK_UTF8ToWideChar (const std::string& in)
 {
-#ifdef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-  std::wstring_convert <
-    std::codecvt_utf8_utf16 <wchar_t>
-  > transcode;
-
-  return
-    transcode.from_bytes (in);
-#else
-
   /*
   size_t len =
     MultiByteToWideChar ( CP_UTF8, 0x00, in.c_str (), -1,
@@ -105,14 +81,13 @@ SK_UTF8ToWideChar (const std::string& in)
   out.resize(len);
   */
 
-  // From https://stackoverflow.com/a/59617138
+  // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
   int count = 
     MultiByteToWideChar (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0);
   std::wstring out      (count, 0);
   MultiByteToWideChar   (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), &out[0], count);
 
   return out;
-#endif
 }
 
 void

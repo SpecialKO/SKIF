@@ -40,6 +40,10 @@
 #include <array>
 #include <string>
 
+#ifndef PLOG_ENABLE_WCHAR_INPUT
+#define PLOG_ENABLE_WCHAR_INPUT 1
+#endif
+
 #include <plog/Log.h>
 #include "plog/Initializers/RollingFileInitializer.h"
 #include "plog/Appenders/ConsoleAppender.h"

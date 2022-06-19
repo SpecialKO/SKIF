@@ -486,8 +486,6 @@ auto SKIF_ImGui_LoadFont =
   return (ImFont *)nullptr;
 };
 
-namespace skif_fs = std::filesystem;
-
 auto
 SKIF_ImGui_InitFonts =
 [ ](float fontSize)
@@ -575,13 +573,14 @@ SKIF_ImGui_InitFonts =
       SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
   }
   
-  skif_fs::path fontDir
+  std::filesystem::path fontDir
           (path_cache.specialk_userdata);
 
   fontDir /= L"Fonts";
 
-  if (! skif_fs::exists (            fontDir))
-        skif_fs::create_directories (fontDir);
+  // Create any missing directories
+  if (! std::filesystem::exists (            fontDir))
+        std::filesystem::create_directories (fontDir);
 
   static auto
     skif_fs_wb = ( std::ios_base::binary
@@ -592,7 +591,7 @@ SKIF_ImGui_InitFonts =
        const uint8_t akData [],
        const size_t  cbSize )
   {
-    if (! skif_fs::is_regular_file ( fontDir / szFont)            )
+    if (! std::filesystem::is_regular_file ( fontDir / szFont)            )
                      std::ofstream ( fontDir / szFont, skif_fs_wb ).
       write ( reinterpret_cast <const char *> (akData),
                                                cbSize);
@@ -1083,8 +1082,10 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                    url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
       std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
 
-      // Create necessary directories if they do not exist
-      std::filesystem::create_directories (root);
+      // Create any missing directories
+      if (! std::filesystem::exists (            root))
+            std::filesystem::create_directories (root);
+
       bool downloadNewFiles = false;
 
       if (SKIF_iCheckForUpdates != 0 && ! SKIF_bLowBandwidthMode)
@@ -1667,10 +1668,98 @@ void SKIF_Initialize (void)
       std::filesystem::path (wszPath).remove_filename ()
     );
 
-    DeleteFile (L"SKIF.log");
+    // Cache critical locations
+    if (path_cache.my_documents.path [0] == 0)
+    {
+      // Cache user profile locations
+      SKIF_GetFolderPath ( &path_cache.my_documents       );
+      SKIF_GetFolderPath ( &path_cache.app_data_local     );
+      SKIF_GetFolderPath ( &path_cache.app_data_local_low );
+      SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
+      SKIF_GetFolderPath ( &path_cache.win_saved_games    );
+      SKIF_GetFolderPath ( &path_cache.desktop            );
+
+      bool fallback = false;
+      // Cache the Special K user data path
+      try
+      {
+        std::filesystem::path testDir
+          (std::filesystem::current_path());
+        std::filesystem::path testFile
+          (                        testDir);
+
+        testDir  /= L"SKIFTMPDIR";
+        testFile += L"SKIFTMPFILE.tmp";
+
+        // See if we can create a folder
+        if (! std::filesystem::exists (            testDir))
+              std::filesystem::create_directories (testDir);
+
+        // Delete it
+        RemoveDirectory (testDir.c_str());
+
+        // See if we can create a file
+        HANDLE h = CreateFile ( testFile.wstring().c_str(),
+                GENERIC_READ | GENERIC_WRITE,
+                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    NULL,
+                      CREATE_NEW,
+                        FILE_ATTRIBUTE_NORMAL,
+                          NULL );
+
+        // If the file was created successfully
+        if (h != INVALID_HANDLE_VALUE)
+        {
+          // We need to close the handle as well
+          CloseHandle (h);
+
+          // Delete it
+          DeleteFile (testFile.wstring().c_str());
+
+          // Use current path if we have write permissions
+          wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+                 std::filesystem::current_path ().wstring().c_str(), _TRUNCATE);
+        }
+
+        else {
+          fallback = true;
+        }
+      }
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+
+        fallback = true;
+      }
+
+      if (fallback)
+      {
+        // Fall back to appdata in case of issues
+        std::wstring fallbackDir =
+          std::wstring (path_cache.my_documents.path) + LR"(My Mods\SpecialK\)";
+
+        wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+               fallbackDir.c_str(), _TRUNCATE);
+        
+        // Create any missing directories
+        if (! std::filesystem::exists (            fallbackDir))
+              std::filesystem::create_directories (fallbackDir);
+      }
+
+      // Cache the Steam install folder
+      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
+                   SK_GetSteamDir (),      _TRUNCATE );
+    }
+
+    // Now we can proceed with initializing the logging
+    std::wstring logPath =
+      SK_FormatStringW (LR"(%ws\SKIF.log)", path_cache.specialk_userdata);
+
+    // Delete old log file
+    DeleteFile (logPath.c_str());
 
     // Engage logging!
-    plog::init (plog::debug, "SKIF.log", 10000000, 1);
+    plog::init (plog::debug, logPath.c_str(), 10000000, 1);
 
 #ifdef _WIN64
     PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
@@ -1683,27 +1772,9 @@ void SKIF_Initialize (void)
     PLOG_INFO << "Working directory:";
     PLOG_INFO << "Old: " << orgWorkingDirectory;
     PLOG_INFO << "New: " << std::filesystem::current_path();
+    PLOG_INFO << "Special K userdata: " << path_cache.specialk_userdata;
 
-    CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
-    
-    if (path_cache.my_documents.path [0] == 0)
-    {
-      // Cache the Special K user data path
-      wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
-             std::filesystem::current_path ().wstring().c_str(), _TRUNCATE);
-
-      // Cache the Steam install folder
-      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                   SK_GetSteamDir (),      _TRUNCATE );
-
-      // Cache user profile locations
-      SKIF_GetFolderPath ( &path_cache.my_documents       );
-      SKIF_GetFolderPath ( &path_cache.app_data_local     );
-      SKIF_GetFolderPath ( &path_cache.app_data_local_low );
-      SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
-      SKIF_GetFolderPath ( &path_cache.win_saved_games    );
-      SKIF_GetFolderPath ( &path_cache.desktop            );
-    }
+    //CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
 
     isInitalized = true;
   }

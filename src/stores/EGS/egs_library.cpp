@@ -189,8 +189,9 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
 
-          // Create necessary directories if they do not exist
-          std::filesystem::create_directories (AppCacheDir);
+          // Create any missing directories
+          if (! std::filesystem::exists (            AppCacheDir))
+                std::filesystem::create_directories (AppCacheDir);
 
           // Copy manifest to AppCache directory
           CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
@@ -209,7 +210,10 @@ void
 SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
 {
   std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
-  std::filesystem::create_directories(targetAssetPath);
+
+  // Create any missing directories
+  if (! std::filesystem::exists (            targetAssetPath))
+        std::filesystem::create_directories (targetAssetPath);
 
   // Download JSON for the offered games/edition/base
   if (! PathFileExists ((targetAssetPath + L"offer.json").c_str()))

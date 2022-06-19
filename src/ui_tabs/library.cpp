@@ -1190,7 +1190,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (targetPath != L"")
           {
-            std::filesystem::create_directories (targetPath);
+            // Create any missing directories
+            if (! std::filesystem::exists (            targetPath))
+                  std::filesystem::create_directories (targetPath);
+
             targetPath += L"cover";
 
             if (ext == L".jpg")
@@ -1455,7 +1458,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata, pApp->id)
         );
 
-        std::filesystem::create_directories (load_str_2x);
+        // Create any missing directories
+        if (! std::filesystem::exists (            load_str_2x))
+              std::filesystem::create_directories (load_str_2x);
 
         load_str_2x += L"library_600x900_x2.jpg";
       
@@ -1996,11 +2001,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Config Root
         if (ImGui::Selectable         (cache.config_repo.c_str ()))
         {
-          std::filesystem::create_directories (SK_UTF8ToWideChar(cache.config.root_dir));
+          std::wstring wsRootDir =
+            SK_UTF8ToWideChar (cache.config.root_dir);
 
-          SKIF_Util_ExplorePath(
-            SK_UTF8ToWideChar         (cache.config.root_dir)
-          );
+          // Create any missing directories
+          if (! std::filesystem::exists (            wsRootDir))
+                std::filesystem::create_directories (wsRootDir);
+
+          SKIF_Util_ExplorePath       (wsRootDir);
         }
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (cache.config.root_dir.c_str ());
@@ -2008,7 +2016,13 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Config File
         if (ImGui::Selectable         (cache.config.shorthand.c_str ()))
         {
-          std::filesystem::create_directories (SK_UTF8ToWideChar (cache.config.root_dir));
+          std::wstring wsRootDir =
+            SK_UTF8ToWideChar (cache.config.root_dir);
+
+          // Create any missing directories
+          if (! std::filesystem::exists (            wsRootDir))
+                std::filesystem::create_directories (wsRootDir);
+
           HANDLE h = CreateFile ( SK_UTF8ToWideChar (cache.config.full_path).c_str(),
                          GENERIC_READ | GENERIC_WRITE,
                            FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -2973,7 +2987,10 @@ Cache=false)";
 
           if (targetPath != L"")
           {
-            std::filesystem::create_directories (targetPath);
+            // Create any missing directories
+            if (! std::filesystem::exists (            targetPath))
+                  std::filesystem::create_directories (targetPath);
+
             targetPath += L"icon";
 
             DeleteFile ((targetPath + L".png").c_str());

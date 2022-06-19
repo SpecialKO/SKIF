@@ -35,6 +35,8 @@ SKIF_Util_GetLastError (void)
   std::wstring message (messageBuffer, size);
   LocalFree (messageBuffer);
 
+  message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
+
   return message;
 }
 
@@ -601,7 +603,7 @@ SKIF_Util_IsProcessAdmin (DWORD PID)
   bool          bRet = false;
   SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
 
-  SetLastError(NO_ERROR);
+  SetLastError (NO_ERROR);
 
   SK_AutoHandle hProcess = OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, PID);
 
@@ -667,9 +669,11 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 
   if (! ret)
   {
-    // Create necessary directories if they do not exist
     std::filesystem::path target = targetPath;
-    std::filesystem::create_directories (target.parent_path());
+
+    // Create any missing directories
+    if (! std::filesystem::exists (            target.parent_path()))
+          std::filesystem::create_directories (target.parent_path());
     
     // GDI+ Image Encoder CLSIDs (haven't changed forever)
     //
