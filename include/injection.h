@@ -64,7 +64,7 @@ struct SKIF_InjectionContext {
   bool isPending (void);
 
   struct pid_file_watch_s {
-    const wchar_t* wszPidFilename;
+    std::wstring     wsPidFilename;
           FILE*      fPidFile;
           int*       pPid;
   };
@@ -76,13 +76,15 @@ struct SKIF_InjectionContext {
 
     bool isSignaled (void);
 
-    wchar_t wszDirectory [MAX_PATH] = {                  };
-    HANDLE    hChangeNotification   = INVALID_HANDLE_VALUE;
+    std::wstring wsDirectory         = L"";
+    HANDLE       hChangeNotification = INVALID_HANDLE_VALUE;
   } dir_watch;
 
-  std::array <pid_file_watch_s, 2> records =
-    { LR"(Servlet\SpecialK64.pid)", nullptr, &pid64,
-      LR"(Servlet\SpecialK32.pid)", nullptr, &pid32 };
+#ifdef _WIN64
+  std::array <pid_file_watch_s, 2> records;
+#else
+  std::array <pid_file_watch_s, 1> records;
+#endif
 
   std::string SKVer32 = "";
   std::string SKVer64 = "";

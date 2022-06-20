@@ -71,6 +71,8 @@ SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
     }
   }
 
+  PLOG_VERBOSE_IF(bRet) << "=> true";
+
   return bRet;
 }
 
@@ -79,12 +81,11 @@ SKIF_InjectionContext::pid_directory_watch_s::pid_directory_watch_s (void)
   // This actually runs first out of the whole executable, so initialize core components.
   SKIF_Initialize ( );
 
-  GetCurrentDirectoryW ( MAX_PATH, wszDirectory             );
-  PathAppendW          (           wszDirectory, L"Servlet" );
+  wsDirectory = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
 
   hChangeNotification =
     FindFirstChangeNotificationW (
-      wszDirectory, FALSE,
+      wsDirectory.c_str(), FALSE,
         FILE_NOTIFY_CHANGE_FILE_NAME
     );
 
@@ -289,6 +290,24 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   // Force the overlay to update itself as well
   //_SetTaskbarOverlay (bCurrentState);
 
+  // Initialize the PID file watches
+
+  std::wstring servlet = 
+    SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
+  
+
+  records =
+    {   SK_FormatStringW (LR"(%ws\Servlet\SpecialK32.pid)", path_cache.specialk_userdata), nullptr, &pid32
+#ifdef _WIN64
+      , SK_FormatStringW (LR"(%ws\Servlet\SpecialK64.pid)", path_cache.specialk_userdata), nullptr, &pid64,
+#endif
+    };
+
+  PLOG_INFO << "Watching 32-bit PID file: " << records[0].wsPidFilename;
+#ifdef _WIN64
+  PLOG_INFO << "Watching 64-bit PID file: " << records[1].wsPidFilename;
+#endif
+
   // Load the whitelist and blacklist
   _LoadList  (true);
   _LoadList (false);
@@ -304,18 +323,21 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
   if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_Util_timeGetTime())
     forcedCheck = true;
 
-  if (dir_watch.isSignaled() || forcedCheck)
+  if (dir_watch.isSignaled () || forcedCheck)
   {
     dwLastSignaled = SKIF_Util_timeGetTime();
 
     for ( auto& record : records )
     {
+      PLOG_VERBOSE << "record.wsPidFilename                   == " << record.wsPidFilename;
+      PLOG_VERBOSE << "PathFileExistsW (record.wsPidFilename) == " << PathFileExistsW (record.wsPidFilename.c_str());
+
       // If we currently assume the service is not running, check if it's running
       if (                 *record.pPid == 0 &&
-           PathFileExistsW (record.wszPidFilename) )
+           PathFileExistsW (record.wsPidFilename.c_str()) )
       {
         record.fPidFile =
-          _wfopen (record.wszPidFilename, L"r");
+          _wfopen (record.wsPidFilename.c_str(), L"r");
 
         if (record.fPidFile != nullptr)
         {
@@ -349,7 +371,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         // If the PID is not active (it is either terminated or a zombie process), delete the file.
         if (dwExitCode != STILL_ACTIVE)
         {
-          DeleteFileW (record.wszPidFilename);
+          DeleteFileW (record.wsPidFilename.c_str());
                       *record.pPid = 0;
         }
       }
