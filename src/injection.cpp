@@ -251,6 +251,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
 {
+  SKIF_Initialize ( );
+
   bHasServlet =
     PathFileExistsW  (L"Servlet");
 
@@ -265,8 +267,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   if (! bLogonTaskEnabled)
     DeleteFile (LR"(Servlet\task_inject.bat)");
 
-  _DanceOfTheDLLFiles ( );
-
   bHasServlet =
     bHasServlet &&
     PathFileExistsW (LR"(Servlet\SKIFsvc32.exe)") &&
@@ -279,8 +279,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     PathFileExistsW (L"SpecialK64.dll");
 #endif
 
-  runState = RunningState::Stopped;
-
   // Force a one-time check on launch
   //TestServletRunlevel (true);
 
@@ -291,11 +289,6 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   //_SetTaskbarOverlay (bCurrentState);
 
   // Initialize the PID file watches
-
-  std::wstring servlet = 
-    SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
-  
-
   records =
     {   SK_FormatStringW (LR"(%ws\Servlet\SpecialK32.pid)", path_cache.specialk_userdata), nullptr, &pid32
 #ifdef _WIN64
@@ -307,6 +300,11 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 #ifdef _WIN64
   PLOG_INFO << "Watching 64-bit PID file: " << records[1].wsPidFilename;
 #endif
+
+  // Perform the dance of the DLL files
+  _DanceOfTheDLLFiles ( );
+
+  runState = RunningState::Stopped;
 
   // Load the whitelist and blacklist
   _LoadList  (true);
@@ -599,8 +597,11 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 
   std::vector <updated_file_s>
                updated_files =
-    { { L"SpecialK64",       L".dll", LR"(Servlet\SpecialK64.pid)" },
-      { L"SpecialK32",       L".dll", LR"(Servlet\SpecialK32.pid)" } };
+    { { L"SpecialK32",       L".dll", records[0].wsPidFilename.c_str()}
+#ifdef _WIN64
+     ,{ L"SpecialK64",       L".dll", records[1].wsPidFilename.c_str() }
+#endif
+    };
 
   for ( const auto& file : updated_files )
   {
