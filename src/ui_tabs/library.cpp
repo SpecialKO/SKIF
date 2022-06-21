@@ -825,7 +825,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_record.id              = SKIF_STEAM_APPID;
       SKIF_record.names.normal    = "Special K";
       SKIF_record.names.all_upper = "SPECIAL K";
-      SKIF_record.install_dir     = std::filesystem::current_path ();
+      SKIF_record.install_dir     = path_cache.specialk_install;
       SKIF_record.store           = "Steam";
       SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%s%i", SKIF_record.names.normal.c_str(), SKIF_record.store.c_str(), SKIF_record.id);
 

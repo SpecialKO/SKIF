@@ -173,9 +173,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
 #endif
 
-  static std::wstring curDir    = SK_FormatStringW (LR"(%ws\Servlet\)", std::filesystem::current_path().c_str());
+  static std::wstring instDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_install );
   static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
-  static std::wstring SKIFsvc32 = curDir + L"SKIFsvc32.exe";
+  static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
 
   // Create any missing directories
   if (! std::filesystem::exists (            workDir))
@@ -196,7 +196,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
 #ifdef _WIN64
   // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
-  static bool Proxy64 = (_inject.SKSvc32 >= "1.0.2.0" && curDir == workDir);
+  static bool Proxy64 = (_inject.SKSvc32 >= "1.0.2.0" && instDir == workDir);
 
   if (Proxy64)
   {
@@ -213,7 +213,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
 
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-    static std::wstring SKIFsvc64 = curDir + L"SKIFsvc64.exe";
+    static std::wstring SKIFsvc64 = instDir + L"SKIFsvc64.exe";
     sexi.lpFile       = SKIFsvc64.c_str();
 
     ret =

@@ -43,7 +43,7 @@ SKIF_UI_Tab_DrawSettings (void)
       _status = NotInstalled;
 
       // Retrieve the install folder.
-      static std::wstring installFolder = std::filesystem::path(path_cache.specialk_userdata).filename();
+      static std::wstring installFolder = std::filesystem::path (path_cache.specialk_userdata).filename();
 
       // Get a handle to the SCM database.
       schSCManager =

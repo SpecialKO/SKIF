@@ -203,8 +203,6 @@ HMODULE hModSpecialK = nullptr;
 // Texture related locks to prevent driver crashes
 concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
 
-std::filesystem::path orgWorkingDirectory;
-
 using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
 static GetSystemMetricsForDpi_pfn
        GetSystemMetricsForDpi = nullptr;
@@ -858,7 +856,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
-      path = orgWorkingDirectory.wstring() + L"\\" + path;
+      path = SK_FormatStringW (LR"(%ws\%ws)", path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
 
     std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
@@ -940,10 +938,7 @@ SKIF_RegisterApp (bool force = false)
     return -1;
   }
 
-  TCHAR               szExePath [MAX_PATH];
-  GetModuleFileName   (NULL, szExePath, _countof (szExePath));
-
-  std::wstring wsExePath = std::wstring (szExePath);
+  std::wstring wsExePath = std::wstring (path_cache.skif_executable);
 
   if (_registry.wsPath            == path_cache.specialk_userdata &&
       _registry.wsAppRegistration == wsExePath)
@@ -955,7 +950,7 @@ SKIF_RegisterApp (bool force = false)
   {
     ret = 1;
 
-    if (_registry.regKVAppRegistration.putData(wsExePath))
+    if (_registry.regKVAppRegistration.putData (wsExePath))
       PLOG_INFO << "App registration was successful: " << wsExePath;
     else
     {
@@ -963,7 +958,7 @@ SKIF_RegisterApp (bool force = false)
       ret = 0;
     }
 
-    if (_registry.regKVPath.putData(path_cache.specialk_userdata))
+    if (_registry.regKVPath.putData (path_cache.specialk_userdata))
       PLOG_INFO << "Updated central Special K userdata location: " << path_cache.specialk_userdata;
     else
     {
@@ -1649,107 +1644,103 @@ void SKIF_Initialize (void)
     hModSKIF =
       GetModuleHandleW (nullptr);
 
-    wchar_t             wszPath
-     [MAX_PATH + 2] = { };
-    GetCurrentDirectoryW (
-      MAX_PATH,         wszPath);
-    SK_Generate8Dot3   (wszPath);
-    GetModuleFileNameW (hModSKIF,
-                        wszPath,
-      MAX_PATH                 );
-    SK_Generate8Dot3   (wszPath);
+    // Cache user profile locations
+    SKIF_GetFolderPath ( &path_cache.my_documents       );
+    SKIF_GetFolderPath ( &path_cache.app_data_local     );
+    SKIF_GetFolderPath ( &path_cache.app_data_local_low );
+    SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
+    SKIF_GetFolderPath ( &path_cache.win_saved_games    );
+    SKIF_GetFolderPath ( &path_cache.desktop            );
 
     // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
     // Store the original working directory in a variable, since it's used by custom launch, for example.
-    orgWorkingDirectory = std::filesystem::current_path();
+    GetCurrentDirectoryW (MAX_PATH, path_cache.skif_workdir_org);
 
+    // Lets store the full path to SKIF's executable
+    GetModuleFileNameW  (nullptr, path_cache.specialk_install, MAX_PATH);
+    wcsncpy_s ( path_cache.skif_executable,   MAX_PATH,
+                path_cache.specialk_install, _TRUNCATE );
+    
     // Let's change the current working directory to the folder of the executable itself.
-    std::filesystem::current_path (
-      std::filesystem::path (wszPath).remove_filename ()
-    );
+    PathRemoveFileSpecW (         path_cache.specialk_install);
+    SetCurrentDirectory (         path_cache.specialk_install);
 
-    // Cache critical locations
-    if (path_cache.my_documents.path [0] == 0)
+    // Generate 8.3 filenames
+    SK_Generate8Dot3    (path_cache.skif_workdir_org);
+    SK_Generate8Dot3    (path_cache.specialk_install);
+
+    std::wstring delayedLogging;
+
+    bool fallback = false;
+    // Cache the Special K user data path
+    try
     {
-      // Cache user profile locations
-      SKIF_GetFolderPath ( &path_cache.my_documents       );
-      SKIF_GetFolderPath ( &path_cache.app_data_local     );
-      SKIF_GetFolderPath ( &path_cache.app_data_local_low );
-      SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
-      SKIF_GetFolderPath ( &path_cache.win_saved_games    );
-      SKIF_GetFolderPath ( &path_cache.desktop            );
+      std::filesystem::path testDir  (path_cache.specialk_install);
+      std::filesystem::path testFile (testDir);
 
-      bool fallback = false;
-      // Cache the Special K user data path
-      try
+      testDir  /= L"SKIFTMPDIR";
+      testFile /= L"SKIFTMPFILE.tmp";
+
+      // See if we can create a folder
+      if (! std::filesystem::exists (            testDir))
+            std::filesystem::create_directories (testDir); // will throw exception if it fails
+
+      // Delete it
+      RemoveDirectory (testDir.c_str());
+
+      // See if we can create a file
+      HANDLE h = CreateFile ( testFile.wstring().c_str(),
+              GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                  NULL,
+                    CREATE_NEW,
+                      FILE_ATTRIBUTE_NORMAL,
+                        NULL );
+
+      // If the file was created successfully
+      if (h != INVALID_HANDLE_VALUE)
       {
-        std::filesystem::path testDir
-          (std::filesystem::current_path());
-        std::filesystem::path testFile
-          (                        testDir);
-
-        testDir  /= L"SKIFTMPDIR";
-        testFile += L"SKIFTMPFILE.tmp";
-
-        // See if we can create a folder
-        if (! std::filesystem::exists (            testDir))
-              std::filesystem::create_directories (testDir);
+        // We need to close the handle as well
+        CloseHandle (h);
 
         // Delete it
-        RemoveDirectory (testDir.c_str());
+        DeleteFile (testFile.wstring().c_str());
 
-        // See if we can create a file
-        HANDLE h = CreateFile ( testFile.wstring().c_str(),
-                GENERIC_READ | GENERIC_WRITE,
-                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                    NULL,
-                      CREATE_NEW,
-                        FILE_ATTRIBUTE_NORMAL,
-                          NULL );
-
-        // If the file was created successfully
-        if (h != INVALID_HANDLE_VALUE)
-        {
-          // We need to close the handle as well
-          CloseHandle (h);
-
-          // Delete it
-          DeleteFile (testFile.wstring().c_str());
-
-          // Use current path if we have write permissions
-          wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
-                 std::filesystem::current_path ().wstring().c_str(), _TRUNCATE);
-        }
-
-        else {
-          fallback = true;
-        }
+        // Use current path if we have write permissions
+        wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+                    path_cache.specialk_install, _TRUNCATE );
       }
-      catch (const std::exception& e)
-      {
-        UNREFERENCED_PARAMETER(e);
 
+      else {
         fallback = true;
       }
-
-      if (fallback)
-      {
-        // Fall back to appdata in case of issues
-        std::wstring fallbackDir =
-          std::wstring (path_cache.my_documents.path) + LR"(My Mods\SpecialK\)";
-
-        wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
-               fallbackDir.c_str(), _TRUNCATE);
-        
-        // Create any missing directories
-        if (! std::filesystem::exists (            fallbackDir))
-              std::filesystem::create_directories (fallbackDir);
-      }
-
-      // Cache the Steam install folder
-      wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                   SK_GetSteamDir (),      _TRUNCATE );
     }
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
+
+      fallback = true;
+    }
+
+    if (fallback)
+    {
+      // Fall back to appdata in case of issues
+      std::wstring fallbackDir =
+        std::wstring (path_cache.my_documents.path) + LR"(\My Mods\SpecialK\)";
+
+      wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+                  fallbackDir.c_str(), _TRUNCATE);
+        
+      // Create any missing directories
+      if (! std::filesystem::exists (            fallbackDir))
+            std::filesystem::create_directories (fallbackDir);
+    }
+
+
+    // Cache the Steam install folder
+    wcsncpy_s ( path_cache.steam_install, MAX_PATH,
+                  SK_GetSteamDir (),      _TRUNCATE );
+
 
     // Now we can proceed with initializing the logging
     std::wstring logPath =
@@ -1769,12 +1760,13 @@ void SKIF_Initialize (void)
 
     PLOG_INFO << "Built " __TIME__ ", " __DATE__;
     PLOG_INFO << SKIF_LOG_SEPARATOR;
-    PLOG_INFO << "Working directory:";
-    PLOG_INFO << "Old: " << orgWorkingDirectory;
-    PLOG_INFO << "New: " << std::filesystem::current_path();
+    PLOG_INFO << "Working directory:  ";
+    PLOG_INFO << "Old:                " << path_cache.skif_workdir_org;
+    PLOG_INFO << "New:                " << std::filesystem::current_path ();
+    PLOG_INFO << "SKIF executable:    " << path_cache.skif_executable;
+    PLOG_INFO << "Special K install:  " << path_cache.specialk_install;
     PLOG_INFO << "Special K userdata: " << path_cache.specialk_userdata;
-
-    //CreateDirectoryW (L"Servlet", nullptr); // Attempt to create the Servlet folder if it does not exist
+    PLOG_INFO << SKIF_LOG_SEPARATOR;
 
     isInitalized = true;
   }
@@ -1916,9 +1908,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Register SKIF in Windows to enable quick launching.
-  PLOG_INFO << "Path: "             << _registry.wsPath;
-  PLOG_INFO << "App Registration: " << _registry.wsAppRegistration;
+  PLOG_INFO << SKIF_LOG_SEPARATOR;
+  PLOG_INFO << "Current Registry State:";
+  PLOG_INFO << "Special K user data:   " << _registry.wsPath;
+  PLOG_INFO << "SKIF app registration: " << _registry.wsAppRegistration;
   SKIF_RegisterApp ( );
+  PLOG_INFO << SKIF_LOG_SEPARATOR;
 
   // Create application window
   WNDCLASSEX wc =
@@ -3064,7 +3059,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
       static SKIF_DirectoryWatch root_folder, version_folder;
-      if (root_folder.isSignaled (std::filesystem::current_path ( ).wstring ( )))
+      if (root_folder.isSignaled (path_cache.specialk_install))
       {
         // If the Special K DLL file is currently loaded, unload it
         if (hModSpecialK != 0)
@@ -3135,8 +3130,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_Spacing ();
 
         ImGui::Text     ("Target Folder:");
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str());
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_install).c_str());
         ImGui::PopStyleColor  ( );
 
         SKIF_ImGui_Spacing ();
@@ -3144,7 +3139,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! newVersion.releasenotes.empty())
         {
           ImGui::Text ("Changes:");
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::TextWrapped    (SK_WideCharToUTF8 (newVersion.releasenotes).c_str());
           ImGui::PopStyleColor  ( );
 
@@ -3190,7 +3185,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (_inject.bCurrentState)
             _inject._StartStopInject(true);
 
-          std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_userdata);
+          std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_install);
 
           SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
