@@ -1669,8 +1669,6 @@ void SKIF_Initialize (void)
     SK_Generate8Dot3    (path_cache.skif_workdir_org);
     SK_Generate8Dot3    (path_cache.specialk_install);
 
-    std::wstring delayedLogging;
-
     bool fallback = false;
     // Cache the Special K user data path
     try
