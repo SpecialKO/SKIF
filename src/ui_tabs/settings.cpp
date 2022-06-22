@@ -22,7 +22,7 @@ SKIF_UI_Tab_DrawSettings (void)
          driverStatusPending = NotInstalled;
 
   // Check if the WinRing0_1_2_0 kernel driver service is installed or not
-  auto _CheckDriver = [](Status& _status)->std::wstring
+  auto _CheckDriver = [](Status& _status, bool forced = false)->std::wstring
   {
     std::wstring       binaryPath = L"";
     SC_HANDLE        schSCManager = NULL,
@@ -35,7 +35,7 @@ SKIF_UI_Tab_DrawSettings (void)
     static DWORD dwLastRefresh = 0;
 
     // Refresh once every 500 ms
-    if (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+    if (forced || (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))))
     {
       dwLastRefresh = SKIF_Util_timeGetTime() + 500;
 
@@ -43,7 +43,8 @@ SKIF_UI_Tab_DrawSettings (void)
       _status = NotInstalled;
 
       // Retrieve the install folder.
-      static std::wstring installFolder = std::filesystem::path (path_cache.specialk_userdata).filename();
+      static std::wstring dirNameInstall  = std::filesystem::path (path_cache.specialk_install ).filename();
+      static std::wstring dirNameUserdata = std::filesystem::path (path_cache.specialk_userdata).filename();
 
       // Get a handle to the SCM database.
       schSCManager =
@@ -95,7 +96,8 @@ SKIF_UI_Tab_DrawSettings (void)
                 PLOG_INFO << "Found kernel driver WinRing0_1_2_0 installed at: " << binaryPath;
 
                 // Check if the installed driver exists in the install folder
-                if (binaryPath.find (installFolder)  != std::wstring::npos)
+                if (binaryPath.find (dirNameInstall ) != std::wstring::npos || 
+                    binaryPath.find (dirNameUserdata) != std::wstring::npos)
                   if (PathFileExists (binaryPath.c_str()))
                     _status = Installed; // File exists, so driver is installed
                   else
@@ -123,7 +125,7 @@ SKIF_UI_Tab_DrawSettings (void)
   // Reset and refresh things when visiting from another tab
   if (SKIF_Tab_Selected != Settings)
   {
-    driverBinaryPath    = _CheckDriver (driverStatus);
+    driverBinaryPath    = _CheckDriver (driverStatus, true);
     driverStatusPending =               driverStatus;
 
     //_inject._RefreshSKDLLVersions ();

@@ -198,7 +198,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
   static bool Proxy64 = (_inject.SKSvc32 >= "1.0.2.0" && instDir == workDir);
 
-  if (Proxy64)
+  if (Proxy64 && elevated)
   {
     PLOG_VERBOSE << "SKIFsvc >= 1.0.2.0 and curDir == workDir. Using Proxy64 call.";
 
@@ -348,29 +348,30 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         }
       }
 
-      // Verify the claimed PID is still running...
-      SetLastError (NO_ERROR);
-      CHandle hProcess (
-                (*record.pPid != 0)
-                              ? OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *record.pPid)
-                              : NULL);
-      // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
-
-      bool accessDenied =
-        GetLastError ( ) == ERROR_ACCESS_DENIED;
-
-      // Do not continue if we get access denied, as it means the PID is running outside of our security context
-      if (! accessDenied)
+      if (*record.pPid != 0)
       {
-        // Get exit code to filter out zombie processes
-        DWORD dwExitCode = 0;
-        GetExitCodeProcess(hProcess, &dwExitCode);
+        // Verify the claimed PID is still running...
+        SetLastError (NO_ERROR);
+        CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *record.pPid));
+        // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
 
-        // If the PID is not active (it is either terminated or a zombie process), delete the file.
-        if (dwExitCode != STILL_ACTIVE)
+        bool accessDenied =
+          GetLastError ( ) == ERROR_ACCESS_DENIED;
+
+        // Do not continue if we get access denied, as it means the PID is running outside of our security context
+        if (! accessDenied)
         {
-          DeleteFileW (record.wsPidFilename.c_str());
-                      *record.pPid = 0;
+          // Get exit code to filter out zombie processes
+          DWORD dwExitCode = 0;
+          GetExitCodeProcess (hProcess, &dwExitCode);
+
+          // If the PID is not active (it is either terminated or a zombie process), delete the file.
+          if (dwExitCode != STILL_ACTIVE)
+          {
+            PLOG_INFO << "Detected terminated or zombie process (PID: " << std::to_wstring(*record.pPid) << "), deleting " << record.wsPidFilename;
+            DeleteFileW (record.wsPidFilename.c_str());
+            *record.pPid = 0;
+          }
         }
       }
     }
