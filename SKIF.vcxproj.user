@@ -20,7 +20,8 @@
     <LocalDebuggerWorkingDirectory>F:\Aemony\Documents\My Mods\SpecialK\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>"H:\Games\SteamLibrary\steamapps\common\[NINJA GAIDEN Master Collection] NINJA GAIDEN Σ\NINJA GAIDEN SIGMA.exe"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
   </PropertyGroup>

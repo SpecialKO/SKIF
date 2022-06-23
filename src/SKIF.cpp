@@ -848,36 +848,20 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (cmdLine.find(L"\"") == 0)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
-    PLOG_VERBOSE << "cmdLine: " << cmdLine;
-
     // Transform to lowercase
     std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
 
-    PLOG_VERBOSE << "cmdLineLower: " << cmdLineLower;
-
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
-
-    PLOG_VERBOSE << "path: " << path;
-
     std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
-
-    PLOG_VERBOSE << "proxiedCmdLine: " << proxiedCmdLine;
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
-    {
-      PLOG_VERBOSE << R"(path.find(L"\\") == std::wstring::npos -- was true!)";
       path = SK_FormatStringW (LR"(%ws\%ws)", path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
-      PLOG_VERBOSE << "path: " << path;
-    }
 
-    std::wstring parentFolder     = std::filesystem::path(path).parent_path().filename().wstring();    // name of the parent folder
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
 
     PLOG_VERBOSE << "Executable:        " << path;
-    PLOG_VERBOSE << "Parent Folder (narrow): " << SK_WideCharToUTF8 (parentFolder);
-    PLOG_VERBOSE << "Parent Folder  (wide) : " << parentFolder;
     PLOG_VERBOSE << "Working Directory: " << workingDirectory;
 
     bool isLocalBlacklisted  = false,
@@ -891,8 +875,8 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       );
 
       // Check if the executable is blacklisted
-      isLocalBlacklisted  = PathFileExistsW(blacklistFile.c_str());
-      isGlobalBlacklisted = _inject._TestUserList(SK_WideCharToUTF8(path).c_str(), false);
+      isLocalBlacklisted  = PathFileExistsW (blacklistFile.c_str());
+      isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
       if (! isLocalBlacklisted &&
           ! isGlobalBlacklisted)

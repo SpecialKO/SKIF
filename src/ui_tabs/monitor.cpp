@@ -1837,23 +1837,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       if (ImGui::BeginPopup     ("ProcessMenu"))
       {
-        if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
-        {
-          if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
-          {
-            _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc.second));
-          }
-
-          if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
-          {
-            _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc.second));
-          }
-
-          ImGui::EndMenu ( );
-        }
-
-        ImGui::Separator ( );
-
         std::string_view
           path = tooltips_64[proc.first];
         if (path.empty())
@@ -1863,8 +1846,21 @@ SKIF_UI_Tab_DrawMonitor (void)
         {
           std::filesystem::path p = path;
 
+          if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
+          {
+            if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
+              _inject._BlacklistBasedOnPath (p.string()); // SK_WideCharToUTF8 (proc.second)
+
+            if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
+              _inject._WhitelistBasedOnPath (p.string()); // SK_WideCharToUTF8 (proc.second)
+
+            ImGui::EndMenu ( );
+          }
+
+          ImGui::Separator ( );
+
           if (ImGui::Selectable  (ICON_FA_FOLDER_OPEN " Browse"))
-            SKIF_Util_ExplorePath (SK_UTF8ToWideChar(p.parent_path().string()).c_str());
+            SKIF_Util_ExplorePath (SK_UTF8ToWideChar (p.parent_path().string()).c_str());
 
           SKIF_ImGui_SetMouseCursorHand ();
           SKIF_ImGui_SetHoverText       (p.parent_path().string().c_str());

@@ -89,8 +89,8 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
   for (const auto& entry : std::filesystem::directory_iterator(SKIF_EGS_AppDataPath))
   {
-    if (entry.is_directory() == false &&
-        entry.path().extension().string() == ".item" )
+    if (entry.is_directory()               == false    &&
+        entry.path().extension().wstring() == L".item" )
     {
       try {
         PLOG_DEBUG << "Parsing " << entry.path();
