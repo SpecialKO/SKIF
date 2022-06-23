@@ -1473,7 +1473,7 @@ bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool 
         pattern = exePath.parent_path().parent_path().filename().string() + R"(\)";
 
       // Add the name of the parent folder to the pattern
-      pattern += exePath.parent_path().filename().string();
+      pattern += SK_WideCharToUTF8 (exePath.parent_path().filename().wstring());
 
       // If this is an Unreal Engine 4 game, add the executable as well
       if ( pattern == R"(Binaries\Win64)" || // Unreal Engine 3-4

@@ -3,7 +3,7 @@
 //
 // DirectX Texture Library - Direct3D 11 helpers
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
@@ -11,7 +11,9 @@
 
 #include "DirectXTexP.h"
 
-#if !defined(_XBOX_ONE) || !defined(_TITLE)
+#ifdef _GAMING_XBOX
+#error This module is not supported for GDK
+#elif !defined(_XBOX_ONE) || !defined(_TITLE)
 #include <d3d10.h>
 #endif
 
@@ -37,7 +39,7 @@ namespace
         if (!pContext || !pSource || !result.GetPixels())
             return E_POINTER;
 
-#if defined(_XBOX_ONE) && defined(_TITLE)
+    #if defined(_XBOX_ONE) && defined(_TITLE)
 
         ComPtr<ID3D11Device> d3dDevice;
         pContext->GetDevice(d3dDevice.GetAddressOf());
@@ -62,7 +64,7 @@ namespace
             }
         }
 
-#endif
+    #endif
 
         if (metadata.IsVolumemap())
         {
@@ -74,7 +76,7 @@ namespace
 
             for (size_t level = 0; level < metadata.mipLevels; ++level)
             {
-                UINT dindex = D3D11CalcSubresource(static_cast<UINT>(level), 0, static_cast<UINT>(metadata.mipLevels));
+                const UINT dindex = D3D11CalcSubresource(static_cast<UINT>(level), 0, static_cast<UINT>(metadata.mipLevels));
 
                 D3D11_MAPPED_SUBRESOURCE mapped;
                 HRESULT hr = pContext->Map(pSource, dindex, D3D11_MAP_READ, 0, &mapped);
@@ -88,7 +90,7 @@ namespace
                     return E_POINTER;
                 }
 
-                size_t lines = ComputeScanlines(metadata.format, height);
+                const size_t lines = ComputeScanlines(metadata.format, height);
                 if (!lines)
                 {
                     pContext->Unmap(pSource, dindex);
@@ -114,8 +116,8 @@ namespace
                     uint8_t* dptr = img->pixels;
                     for (size_t h = 0; h < lines; ++h)
                     {
-                        size_t msize = std::min<size_t>(img->rowPitch, mapped.RowPitch);
-                        memcpy_s(dptr, img->rowPitch, sptr, msize);
+                        const size_t msize = std::min<size_t>(img->rowPitch, mapped.RowPitch);
+                        memcpy(dptr, sptr, msize);
                         sptr += mapped.RowPitch;
                         dptr += img->rowPitch;
                     }
@@ -142,7 +144,7 @@ namespace
 
                 for (size_t level = 0; level < metadata.mipLevels; ++level)
                 {
-                    UINT dindex = D3D11CalcSubresource(static_cast<UINT>(level), static_cast<UINT>(item), static_cast<UINT>(metadata.mipLevels));
+                    const UINT dindex = D3D11CalcSubresource(static_cast<UINT>(level), static_cast<UINT>(item), static_cast<UINT>(metadata.mipLevels));
 
                     D3D11_MAPPED_SUBRESOURCE mapped;
                     HRESULT hr = pContext->Map(pSource, dindex, D3D11_MAP_READ, 0, &mapped);
@@ -162,19 +164,21 @@ namespace
                         return E_POINTER;
                     }
 
-                    size_t lines = ComputeScanlines(metadata.format, height);
+                    const size_t lines = ComputeScanlines(metadata.format, height);
                     if (!lines)
                     {
                         pContext->Unmap(pSource, dindex);
                         return E_UNEXPECTED;
                     }
 
+                    const size_t msize = (metadata.dimension == TEX_DIMENSION_TEXTURE2D)
+                        ? std::min<size_t>(img->rowPitch, mapped.RowPitch) : img->rowPitch;
+
                     auto sptr = static_cast<const uint8_t*>(mapped.pData);
                     uint8_t* dptr = img->pixels;
                     for (size_t h = 0; h < lines; ++h)
                     {
-                        size_t msize = std::min<size_t>(img->rowPitch, mapped.RowPitch);
-                        memcpy_s(dptr, img->rowPitch, sptr, msize);
+                        memcpy(dptr, sptr, msize);
                         sptr += mapped.RowPitch;
                         dptr += img->rowPitch;
                     }
@@ -207,10 +211,10 @@ bool DirectX::IsSupportedTexture(
     if (!pDevice)
         return false;
 
-    D3D_FEATURE_LEVEL fl = pDevice->GetFeatureLevel();
+    const D3D_FEATURE_LEVEL fl = pDevice->GetFeatureLevel();
 
     // Validate format
-    DXGI_FORMAT fmt = metadata.format;
+    const DXGI_FORMAT fmt = metadata.format;
 
     if (!IsValid(fmt))
         return false;
@@ -246,10 +250,10 @@ bool DirectX::IsSupportedTexture(
         return false;
 
     // Validate array size, dimension, and width/height
-    size_t arraySize = metadata.arraySize;
-    size_t iWidth = metadata.width;
-    size_t iHeight = metadata.height;
-    size_t iDepth = metadata.depth;
+    const size_t arraySize = metadata.arraySize;
+    const size_t iWidth = metadata.width;
+    const size_t iHeight = metadata.height;
+    const size_t iDepth = metadata.depth;
 
     // Most cases are known apriori based on feature level, but we use this for robustness to handle the few optional cases
     UINT formatSupport = 0;
@@ -452,14 +456,14 @@ HRESULT DirectX::CreateTextureEx(
 
         if (metadata.arraySize > 1)
             // Direct3D 11 doesn't support arrays of 3D textures
-            return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+            return HRESULT_E_NOT_SUPPORTED;
 
         size_t depth = metadata.depth;
 
         size_t idx = 0;
         for (size_t level = 0; level < metadata.mipLevels; ++level)
         {
-            size_t index = metadata.ComputeIndex(level, 0, 0);
+            const size_t index = metadata.ComputeIndex(level, 0, 0);
             if (index >= nimages)
                 return E_FAIL;
 
@@ -477,7 +481,7 @@ HRESULT DirectX::CreateTextureEx(
             const uint8_t* pSlice = img.pixels + img.slicePitch;
             for (size_t slice = 1; slice < depth; ++slice)
             {
-                size_t tindex = metadata.ComputeIndex(level, 0, slice);
+                const size_t tindex = metadata.ComputeIndex(level, 0, slice);
                 if (tindex >= nimages)
                     return E_FAIL;
 
@@ -514,7 +518,7 @@ HRESULT DirectX::CreateTextureEx(
         {
             for (size_t level = 0; level < metadata.mipLevels; ++level)
             {
-                size_t index = metadata.ComputeIndex(level, item, 0);
+                const size_t index = metadata.ComputeIndex(level, item, 0);
                 if (index >= nimages)
                     return E_FAIL;
 
@@ -539,64 +543,64 @@ HRESULT DirectX::CreateTextureEx(
     // Create texture using static initialization data
     HRESULT hr = E_UNEXPECTED;
 
-    DXGI_FORMAT tformat = (forceSRGB) ? MakeSRGB(metadata.format) : metadata.format;
+    const DXGI_FORMAT tformat = (forceSRGB) ? MakeSRGB(metadata.format) : metadata.format;
 
     switch (metadata.dimension)
     {
     case TEX_DIMENSION_TEXTURE1D:
-    {
-        D3D11_TEXTURE1D_DESC desc = {};
-        desc.Width = static_cast<UINT>(metadata.width);
-        desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
-        desc.ArraySize = static_cast<UINT>(metadata.arraySize);
-        desc.Format = tformat;
-        desc.Usage = usage;
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = cpuAccessFlags;
-        desc.MiscFlags = miscFlags & ~static_cast<uint32_t>(D3D11_RESOURCE_MISC_TEXTURECUBE);
-
-        hr = pDevice->CreateTexture1D(&desc, initData.get(), reinterpret_cast<ID3D11Texture1D**>(ppResource));
-    }
-    break;
-
-    case TEX_DIMENSION_TEXTURE2D:
-    {
-        D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width = static_cast<UINT>(metadata.width);
-        desc.Height = static_cast<UINT>(metadata.height);
-        desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
-        desc.ArraySize = static_cast<UINT>(metadata.arraySize);
-        desc.Format = tformat;
-        desc.SampleDesc.Count = 1;
-        desc.SampleDesc.Quality = 0;
-        desc.Usage = usage;
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = cpuAccessFlags;
-        if (metadata.IsCubemap())
-            desc.MiscFlags = miscFlags | D3D11_RESOURCE_MISC_TEXTURECUBE;
-        else
+        {
+            D3D11_TEXTURE1D_DESC desc = {};
+            desc.Width = static_cast<UINT>(metadata.width);
+            desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
+            desc.ArraySize = static_cast<UINT>(metadata.arraySize);
+            desc.Format = tformat;
+            desc.Usage = usage;
+            desc.BindFlags = bindFlags;
+            desc.CPUAccessFlags = cpuAccessFlags;
             desc.MiscFlags = miscFlags & ~static_cast<uint32_t>(D3D11_RESOURCE_MISC_TEXTURECUBE);
 
-        hr = pDevice->CreateTexture2D(&desc, initData.get(), reinterpret_cast<ID3D11Texture2D**>(ppResource));
-    }
-    break;
+            hr = pDevice->CreateTexture1D(&desc, initData.get(), reinterpret_cast<ID3D11Texture1D**>(ppResource));
+        }
+        break;
+
+    case TEX_DIMENSION_TEXTURE2D:
+        {
+            D3D11_TEXTURE2D_DESC desc = {};
+            desc.Width = static_cast<UINT>(metadata.width);
+            desc.Height = static_cast<UINT>(metadata.height);
+            desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
+            desc.ArraySize = static_cast<UINT>(metadata.arraySize);
+            desc.Format = tformat;
+            desc.SampleDesc.Count = 1;
+            desc.SampleDesc.Quality = 0;
+            desc.Usage = usage;
+            desc.BindFlags = bindFlags;
+            desc.CPUAccessFlags = cpuAccessFlags;
+            if (metadata.IsCubemap())
+                desc.MiscFlags = miscFlags | D3D11_RESOURCE_MISC_TEXTURECUBE;
+            else
+                desc.MiscFlags = miscFlags & ~static_cast<uint32_t>(D3D11_RESOURCE_MISC_TEXTURECUBE);
+
+            hr = pDevice->CreateTexture2D(&desc, initData.get(), reinterpret_cast<ID3D11Texture2D**>(ppResource));
+        }
+        break;
 
     case TEX_DIMENSION_TEXTURE3D:
-    {
-        D3D11_TEXTURE3D_DESC desc = {};
-        desc.Width = static_cast<UINT>(metadata.width);
-        desc.Height = static_cast<UINT>(metadata.height);
-        desc.Depth = static_cast<UINT>(metadata.depth);
-        desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
-        desc.Format = tformat;
-        desc.Usage = usage;
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = cpuAccessFlags;
-        desc.MiscFlags = miscFlags & ~static_cast<uint32_t>(D3D11_RESOURCE_MISC_TEXTURECUBE);
+        {
+            D3D11_TEXTURE3D_DESC desc = {};
+            desc.Width = static_cast<UINT>(metadata.width);
+            desc.Height = static_cast<UINT>(metadata.height);
+            desc.Depth = static_cast<UINT>(metadata.depth);
+            desc.MipLevels = static_cast<UINT>(metadata.mipLevels);
+            desc.Format = tformat;
+            desc.Usage = usage;
+            desc.BindFlags = bindFlags;
+            desc.CPUAccessFlags = cpuAccessFlags;
+            desc.MiscFlags = miscFlags & ~static_cast<uint32_t>(D3D11_RESOURCE_MISC_TEXTURECUBE);
 
-        hr = pDevice->CreateTexture3D(&desc, initData.get(), reinterpret_cast<ID3D11Texture3D**>(ppResource));
-    }
-    break;
+            hr = pDevice->CreateTexture3D(&desc, initData.get(), reinterpret_cast<ID3D11Texture3D**>(ppResource));
+        }
+        break;
     }
 
     return hr;
@@ -742,215 +746,215 @@ HRESULT DirectX::CaptureTexture(
     switch (resType)
     {
     case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
-    {
-        ComPtr<ID3D11Texture1D> pTexture;
-        hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
-        if (FAILED(hr))
-            break;
-
-        assert(pTexture);
-
-        D3D11_TEXTURE1D_DESC desc;
-        pTexture->GetDesc(&desc);
-
-        ComPtr<ID3D11Texture1D> pStaging;
-        if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
         {
-            // Handle case where the source is already a staging texture we can use directly
-            pStaging = pTexture;
-        }
-        else
-        {
-            desc.BindFlags = 0;
-            desc.MiscFlags = 0;
-            desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-            desc.Usage = D3D11_USAGE_STAGING;
-
-            hr = pDevice->CreateTexture1D(&desc, nullptr, pStaging.GetAddressOf());
+            ComPtr<ID3D11Texture1D> pTexture;
+            hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
             if (FAILED(hr))
                 break;
 
-            assert(pStaging);
+            assert(pTexture);
 
-            pContext->CopyResource(pStaging.Get(), pSource);
+            D3D11_TEXTURE1D_DESC desc;
+            pTexture->GetDesc(&desc);
+
+            ComPtr<ID3D11Texture1D> pStaging;
+            if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
+            {
+                // Handle case where the source is already a staging texture we can use directly
+                pStaging = pTexture;
+            }
+            else
+            {
+                desc.BindFlags = 0;
+                desc.MiscFlags = 0;
+                desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+                desc.Usage = D3D11_USAGE_STAGING;
+
+                hr = pDevice->CreateTexture1D(&desc, nullptr, pStaging.GetAddressOf());
+                if (FAILED(hr))
+                    break;
+
+                assert(pStaging);
+
+                pContext->CopyResource(pStaging.Get(), pSource);
+            }
+
+            TexMetadata mdata;
+            mdata.width = desc.Width;
+            mdata.height = mdata.depth = 1;
+            mdata.arraySize = desc.ArraySize;
+            mdata.mipLevels = desc.MipLevels;
+            mdata.miscFlags = 0;
+            mdata.miscFlags2 = 0;
+            mdata.format = desc.Format;
+            mdata.dimension = TEX_DIMENSION_TEXTURE1D;
+
+            hr = result.Initialize(mdata);
+            if (FAILED(hr))
+                break;
+
+            hr = Capture(pContext, pStaging.Get(), mdata, result);
         }
-
-        TexMetadata mdata;
-        mdata.width = desc.Width;
-        mdata.height = mdata.depth = 1;
-        mdata.arraySize = desc.ArraySize;
-        mdata.mipLevels = desc.MipLevels;
-        mdata.miscFlags = 0;
-        mdata.miscFlags2 = 0;
-        mdata.format = desc.Format;
-        mdata.dimension = TEX_DIMENSION_TEXTURE1D;
-
-        hr = result.Initialize(mdata);
-        if (FAILED(hr))
-            break;
-
-        hr = Capture(pContext, pStaging.Get(), mdata, result);
-    }
-    break;
+        break;
 
     case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
-    {
-        ComPtr<ID3D11Texture2D> pTexture;
-        hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
-        if (FAILED(hr))
-            break;
-
-        assert(pTexture);
-
-        D3D11_TEXTURE2D_DESC desc;
-        pTexture->GetDesc(&desc);
-
-        ComPtr<ID3D11Texture2D> pStaging;
-        if (desc.SampleDesc.Count > 1)
         {
-            desc.SampleDesc.Count = 1;
-            desc.SampleDesc.Quality = 0;
-
-            ComPtr<ID3D11Texture2D> pTemp;
-            hr = pDevice->CreateTexture2D(&desc, nullptr, pTemp.GetAddressOf());
+            ComPtr<ID3D11Texture2D> pTexture;
+            hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
             if (FAILED(hr))
                 break;
 
-            assert(pTemp);
+            assert(pTexture);
 
-            DXGI_FORMAT fmt = desc.Format;
-            if (IsTypeless(fmt))
+            D3D11_TEXTURE2D_DESC desc;
+            pTexture->GetDesc(&desc);
+
+            ComPtr<ID3D11Texture2D> pStaging;
+            if (desc.SampleDesc.Count > 1)
             {
-                // Assume a UNORM if it exists otherwise use FLOAT
-                fmt = MakeTypelessUNORM(fmt);
-                fmt = MakeTypelessFLOAT(fmt);
-            }
+                desc.SampleDesc.Count = 1;
+                desc.SampleDesc.Quality = 0;
 
-            UINT support = 0;
-            hr = pDevice->CheckFormatSupport(fmt, &support);
-            if (FAILED(hr))
-                break;
+                ComPtr<ID3D11Texture2D> pTemp;
+                hr = pDevice->CreateTexture2D(&desc, nullptr, pTemp.GetAddressOf());
+                if (FAILED(hr))
+                    break;
 
-            if (!(support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE))
-            {
-                hr = E_FAIL;
-                break;
-            }
+                assert(pTemp);
 
-            for (UINT item = 0; item < desc.ArraySize; ++item)
-            {
-                for (UINT level = 0; level < desc.MipLevels; ++level)
+                DXGI_FORMAT fmt = desc.Format;
+                if (IsTypeless(fmt))
                 {
-                    UINT index = D3D11CalcSubresource(level, item, desc.MipLevels);
-                    pContext->ResolveSubresource(pTemp.Get(), index, pSource, index, fmt);
+                    // Assume a UNORM if it exists otherwise use FLOAT
+                    fmt = MakeTypelessUNORM(fmt);
+                    fmt = MakeTypelessFLOAT(fmt);
                 }
+
+                UINT support = 0;
+                hr = pDevice->CheckFormatSupport(fmt, &support);
+                if (FAILED(hr))
+                    break;
+
+                if (!(support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE))
+                {
+                    hr = E_FAIL;
+                    break;
+                }
+
+                for (UINT item = 0; item < desc.ArraySize; ++item)
+                {
+                    for (UINT level = 0; level < desc.MipLevels; ++level)
+                    {
+                        const UINT index = D3D11CalcSubresource(level, item, desc.MipLevels);
+                        pContext->ResolveSubresource(pTemp.Get(), index, pSource, index, fmt);
+                    }
+                }
+
+                desc.BindFlags = 0;
+                desc.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
+                desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+                desc.Usage = D3D11_USAGE_STAGING;
+
+                hr = pDevice->CreateTexture2D(&desc, nullptr, pStaging.GetAddressOf());
+                if (FAILED(hr))
+                    break;
+
+                assert(pStaging);
+
+                pContext->CopyResource(pStaging.Get(), pTemp.Get());
+            }
+            else if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
+            {
+                // Handle case where the source is already a staging texture we can use directly
+                pStaging = pTexture;
+            }
+            else
+            {
+                desc.BindFlags = 0;
+                desc.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
+                desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+                desc.Usage = D3D11_USAGE_STAGING;
+
+                hr = pDevice->CreateTexture2D(&desc, nullptr, &pStaging);
+                if (FAILED(hr))
+                    break;
+
+                assert(pStaging);
+
+                pContext->CopyResource(pStaging.Get(), pSource);
             }
 
-            desc.BindFlags = 0;
-            desc.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
-            desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-            desc.Usage = D3D11_USAGE_STAGING;
+            TexMetadata mdata;
+            mdata.width = desc.Width;
+            mdata.height = desc.Height;
+            mdata.depth = 1;
+            mdata.arraySize = desc.ArraySize;
+            mdata.mipLevels = desc.MipLevels;
+            mdata.miscFlags = (desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) ? TEX_MISC_TEXTURECUBE : 0u;
+            mdata.miscFlags2 = 0;
+            mdata.format = desc.Format;
+            mdata.dimension = TEX_DIMENSION_TEXTURE2D;
 
-            hr = pDevice->CreateTexture2D(&desc, nullptr, pStaging.GetAddressOf());
+            hr = result.Initialize(mdata);
             if (FAILED(hr))
                 break;
 
-            assert(pStaging);
-
-            pContext->CopyResource(pStaging.Get(), pTemp.Get());
+            hr = Capture(pContext, pStaging.Get(), mdata, result);
         }
-        else if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
-        {
-            // Handle case where the source is already a staging texture we can use directly
-            pStaging = pTexture;
-        }
-        else
-        {
-            desc.BindFlags = 0;
-            desc.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
-            desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-            desc.Usage = D3D11_USAGE_STAGING;
-
-            hr = pDevice->CreateTexture2D(&desc, nullptr, &pStaging);
-            if (FAILED(hr))
-                break;
-
-            assert(pStaging);
-
-            pContext->CopyResource(pStaging.Get(), pSource);
-        }
-
-        TexMetadata mdata;
-        mdata.width = desc.Width;
-        mdata.height = desc.Height;
-        mdata.depth = 1;
-        mdata.arraySize = desc.ArraySize;
-        mdata.mipLevels = desc.MipLevels;
-        mdata.miscFlags = (desc.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) ? TEX_MISC_TEXTURECUBE : 0u;
-        mdata.miscFlags2 = 0;
-        mdata.format = desc.Format;
-        mdata.dimension = TEX_DIMENSION_TEXTURE2D;
-
-        hr = result.Initialize(mdata);
-        if (FAILED(hr))
-            break;
-
-        hr = Capture(pContext, pStaging.Get(), mdata, result);
-    }
-    break;
+        break;
 
     case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
-    {
-        ComPtr<ID3D11Texture3D> pTexture;
-        hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
-        if (FAILED(hr))
-            break;
-
-        assert(pTexture);
-
-        D3D11_TEXTURE3D_DESC desc;
-        pTexture->GetDesc(&desc);
-
-        ComPtr<ID3D11Texture3D> pStaging;
-        if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
         {
-            // Handle case where the source is already a staging texture we can use directly
-            pStaging = pTexture;
-        }
-        else
-        {
-            desc.BindFlags = 0;
-            desc.MiscFlags = 0;
-            desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-            desc.Usage = D3D11_USAGE_STAGING;
-
-            hr = pDevice->CreateTexture3D(&desc, nullptr, pStaging.GetAddressOf());
+            ComPtr<ID3D11Texture3D> pTexture;
+            hr = pSource->QueryInterface(IID_GRAPHICS_PPV_ARGS(pTexture.GetAddressOf()));
             if (FAILED(hr))
                 break;
 
-            assert(pStaging);
+            assert(pTexture);
 
-            pContext->CopyResource(pStaging.Get(), pSource);
+            D3D11_TEXTURE3D_DESC desc;
+            pTexture->GetDesc(&desc);
+
+            ComPtr<ID3D11Texture3D> pStaging;
+            if ((desc.Usage == D3D11_USAGE_STAGING) && (desc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
+            {
+                // Handle case where the source is already a staging texture we can use directly
+                pStaging = pTexture;
+            }
+            else
+            {
+                desc.BindFlags = 0;
+                desc.MiscFlags = 0;
+                desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+                desc.Usage = D3D11_USAGE_STAGING;
+
+                hr = pDevice->CreateTexture3D(&desc, nullptr, pStaging.GetAddressOf());
+                if (FAILED(hr))
+                    break;
+
+                assert(pStaging);
+
+                pContext->CopyResource(pStaging.Get(), pSource);
+            }
+
+            TexMetadata mdata;
+            mdata.width = desc.Width;
+            mdata.height = desc.Height;
+            mdata.depth = desc.Depth;
+            mdata.arraySize = 1;
+            mdata.mipLevels = desc.MipLevels;
+            mdata.miscFlags = 0;
+            mdata.miscFlags2 = 0;
+            mdata.format = desc.Format;
+            mdata.dimension = TEX_DIMENSION_TEXTURE3D;
+
+            hr = result.Initialize(mdata);
+            if (FAILED(hr))
+                break;
+
+            hr = Capture(pContext, pStaging.Get(), mdata, result);
         }
-
-        TexMetadata mdata;
-        mdata.width = desc.Width;
-        mdata.height = desc.Height;
-        mdata.depth = desc.Depth;
-        mdata.arraySize = 1;
-        mdata.mipLevels = desc.MipLevels;
-        mdata.miscFlags = 0;
-        mdata.miscFlags2 = 0;
-        mdata.format = desc.Format;
-        mdata.dimension = TEX_DIMENSION_TEXTURE3D;
-
-        hr = result.Initialize(mdata);
-        if (FAILED(hr))
-            break;
-
-        hr = Capture(pContext, pStaging.Get(), mdata, result);
-    }
-    break;
+        break;
 
     default:
         hr = E_FAIL;

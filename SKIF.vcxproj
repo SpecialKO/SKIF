@@ -445,222 +445,32 @@
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DirectXTex\BC.cpp" />
+    <ClCompile Include="DirectXTex\BC4BC5.cpp" />
+    <ClCompile Include="DirectXTex\BC6HBC7.cpp" />
+    <ClCompile Include="DirectXTex\BCDirectCompute.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexImage.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexResize.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
     <ClCompile Include="src\pugixml.cpp" />
     <ClCompile Include="src\registry.cpp" />
     <ClCompile Include="src\SKIF_imgui.cpp" />
     <ClCompile Include="src\SKIF_utility.cpp" />
     <ClCompile Include="src\stores\EGS\egs_library.cpp" />
     <ClCompile Include="sk_console.cpp" />
-    <ClCompile Include="DirectXTex\BC.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BC4BC5.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BC6HBC7.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BCDirectCompute.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexD3D12.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexImage.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexResize.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</FunctionLevelLinking>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FunctionLevelLinking>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</RemoveUnreferencedCodeData>
-      <RemoveUnreferencedCodeData Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RemoveUnreferencedCodeData>
-    </ClCompile>
     <ClCompile Include="src\fsutil.cpp" />
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\imgui\imgui.cpp" />
@@ -695,9 +505,6 @@
     <Image Include="SKIF_on.ico" />
     <Image Include="SKIF_off.ico" />
     <Image Include="SKIF_on_notify.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="DirectXTex\DirectXTex.inl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="src\imgui_pix_shader.hlsl">
@@ -751,6 +558,9 @@
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="appcompat.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DirectXTex\DirectXTex.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

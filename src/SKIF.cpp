@@ -729,6 +729,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   // Handle adding custom game
   if (_Signal.AddSKIFGame)
   {
+    PLOG_VERBOSE << "SKIF being used to add a custom game to SKIF...";
     // O:\WindowsApps\DevolverDigital.MyFriendPedroWin10_1.0.6.0_x64__6kzv4j18v0c96\MyFriendPedro.exe
 
     char charName     [MAX_PATH],
@@ -847,22 +848,36 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     if (cmdLine.find(L"\"") == 0)
       cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
+    PLOG_VERBOSE << "cmdLine: " << cmdLine;
+
     // Transform to lowercase
     std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
 
+    PLOG_VERBOSE << "cmdLineLower: " << cmdLineLower;
+
     // Extract the target path and any proxied command line arguments
     std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
+
+    PLOG_VERBOSE << "path: " << path;
+
     std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
+
+    PLOG_VERBOSE << "proxiedCmdLine: " << proxiedCmdLine;
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
+    {
+      PLOG_VERBOSE << R"(path.find(L"\\") == std::wstring::npos -- was true!)";
       path = SK_FormatStringW (LR"(%ws\%ws)", path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
+      PLOG_VERBOSE << "path: " << path;
+    }
 
-    std::string  parentFolder     = std::filesystem::path(path).parent_path().filename().string();                   // name of parent folder
-    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();                             // path to the parent folder
+    std::wstring parentFolder     = std::filesystem::path(path).parent_path().filename().wstring();    // name of the parent folder
+    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
 
-    PLOG_VERBOSE << "Executable: " << path;
-    PLOG_VERBOSE << "Parent Folder: " << SK_UTF8ToWideChar (parentFolder);
+    PLOG_VERBOSE << "Executable:        " << path;
+    PLOG_VERBOSE << "Parent Folder (narrow): " << SK_WideCharToUTF8 (parentFolder);
+    PLOG_VERBOSE << "Parent Folder  (wide) : " << parentFolder;
     PLOG_VERBOSE << "Working Directory: " << workingDirectory;
 
     bool isLocalBlacklisted  = false,
@@ -1839,6 +1854,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Clear out old installers
   {
+    PLOG_INFO << "Clearing out old installers...";
+
     auto _isWeekOld = [&](FILETIME ftLastWriteTime) -> bool
     {
       FILETIME ftSystemTime, ftAdjustedFileTime;
