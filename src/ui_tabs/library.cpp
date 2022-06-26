@@ -4359,38 +4359,48 @@ Cache=false)";
 
       LPWSTR pwszFilePath = NULL;
 
-      if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
+      if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
       {
         error = false;
-        std::filesystem::path p   = pwszFilePath;
-        std::wstring          ext = SKIF_Util_TowLower (p.extension().wstring());
+        std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
+        std::filesystem::path pathDiscard    = pwszFilePath; // Wide-string std::filesystem::path which will be discarded
+        std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
+        std::wstring          pathExtension  = SKIF_Util_TowLower (pathDiscard.extension().wstring());
+        std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
 
-        if (ext == L".lnk")
+        if (pathExtension == L".lnk")
         {
-          WCHAR szTarget   [MAX_PATH];
-          WCHAR szArguments[MAX_PATH];
+          WCHAR wszTarget    [MAX_PATH];
+          WCHAR wszArguments [MAX_PATH];
 
-          SKIF_Util_ResolveShortcut (SKIF_hWnd, (const char *)p.u8string().c_str(), szTarget, szArguments,       MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
 
-          std::filesystem::path p2 = szTarget;
-          std::wstring productName = SKIF_GetProductName (p2.c_str());
-          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+          if (! PathFileExists (wszTarget))
+          {
+            error = true;
+            strncpy (charPath, "\0", MAX_PATH);
+          }
+
+          else {
+            std::wstring productName = SKIF_GetProductName (wszTarget);
+            productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
-          strncpy (charPath, SK_WideCharToUTF8 (szTarget).c_str(),                  MAX_PATH);
-          strncpy (charArgs, SK_WideCharToUTF8 (szArguments).c_str(),               500);
-          strncpy (charName, (productName != L"")
-                              ? SK_WideCharToUTF8 (productName).c_str()
-                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+            strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
+            strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
+            strncpy (charName, (productName != L"")
+                                ? SK_WideCharToUTF8 (productName).c_str()
+                                : pathFilename.c_str(), MAX_PATH);
+          }
         }
 
-        else if (ext == L".exe") { //  // (p.extension().wstring() == L".exe")
-          std::wstring productName = SKIF_GetProductName (p.c_str());
-          productName.erase(std::find_if(productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+        else if (pathExtension == L".exe") {
+          std::wstring productName = SKIF_GetProductName (path.c_str());
+          productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
-          strncpy (charPath, (const char *)p.u8string().c_str(),                                  MAX_PATH);
+          strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
-                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
+                              : pathFilename.c_str(), MAX_PATH);
         }
 
         else {
@@ -4398,6 +4408,7 @@ Cache=false)";
           strncpy (charPath, "\0", MAX_PATH);
         }
       }
+
       else {
         error = true;
         strncpy (charPath, "\0", MAX_PATH);
@@ -4572,7 +4583,44 @@ Cache=false)";
       if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
       {
         error = false;
-        strncpy (charPath, (const char *)std::filesystem::path(pwszFilePath).u8string().c_str(), MAX_PATH);
+        std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
+        std::filesystem::path pathDiscard    = pwszFilePath; // Wide-string std::filesystem::path which will be discarded
+        std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
+        std::wstring          pathExtension  = SKIF_Util_TowLower (pathDiscard.extension().wstring());
+        std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
+
+        if (pathExtension == L".lnk")
+        {
+          WCHAR wszTarget    [MAX_PATH];
+          WCHAR wszArguments [MAX_PATH];
+
+          SKIF_Util_ResolveShortcut (SKIF_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
+
+          if (! PathFileExists (wszTarget))
+          {
+            error = true;
+            strncpy (charPath, "\0", MAX_PATH);
+          }
+
+          else {
+            std::wstring productName = SKIF_GetProductName (wszTarget);
+            productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+          
+            strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
+          }
+        }
+
+        else if (pathExtension == L".exe") {
+          std::wstring productName = SKIF_GetProductName (path.c_str());
+          productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+
+          strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
+        }
+
+        else {
+          error = true;
+          strncpy (charPath, "\0", MAX_PATH);
+        }
       }
 
       else {

@@ -16,6 +16,14 @@
 
 // Generic Utilities
 
+std::string
+SKIF_Util_ToLower      (std::string_view input)
+{
+  std::string copy = std::string(input);
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::tolower(c); });
+  return copy;
+}
+
 std::wstring
 SKIF_Util_TowLower     (std::wstring_view input)
 {
@@ -1102,26 +1110,24 @@ SKIF_RegistryWatch::isSignaled (void)
 // Returns the result of calling the member functions of the interfaces.
 //
 // Parameters:
-// hwnd         - A handle to the parent window. The Shell uses this window to
-//                display a dialog box if it needs to prompt the user for more
-//                information while resolving the link.
-// lpszLinkFile - Address of a buffer that contains the path of the link,
-//                including the file name.
-// lpszPath     - Address of a buffer that receives the path of the link target,
-//                including the file name.
-// lpszDesc     - Address of a buffer that receives the description of the
-//                Shell link, stored in the Comment field of the link
-//                properties.
+// hwnd            - A handle to the parent window. The Shell uses this window to
+//                   display a dialog box if it needs to prompt the user for more
+//                   information while resolving the link.
+// lpszLinkFile    - Address of a buffer that contains the path of the link to resolve,
+//                   including the .lnk file name.
+// lpszTarget      - Address of a buffer that receives the path of the link target,
+//                   including the file name.
+// lpszArguments   - Address of a buffer that receives the arguments of the Shell link.
+// iPathBufferSize - Size of the buffers at lpszLinkFile and lpszTarget. Typically MAX_PATH.
+//
 
 void
-SKIF_Util_ResolveShortcut (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
+SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
 {
   IShellLink* psl;
 
-  ///WCHAR szGotPath[MAX_PATH];
-  WCHAR szArguments[MAX_PATH];
-  WCHAR szTarget  [MAX_PATH];
-  //WIN32_FIND_DATA wfd;
+  WCHAR szArguments [MAX_PATH];
+  WCHAR szTarget    [MAX_PATH];
 
   *lpszTarget    = 0; // Assume failure
   *lpszArguments = 0; // Assume failure
@@ -1129,38 +1135,38 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LP
   //CoInitializeEx (nullptr, 0x0);
 
   // Get a pointer to the IShellLink interface.
-  if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
+  if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
     IPersistFile* ppf;
 
     // Get a pointer to the IPersistFile interface.
-    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
+    if (SUCCEEDED (psl->QueryInterface (IID_IPersistFile, (void**)&ppf)))
     {
-      WCHAR wsz[MAX_PATH];
+      //WCHAR wsz[MAX_PATH];
 
       // Ensure that the string is Unicode.
-      MultiByteToWideChar(CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
+      //MultiByteToWideChar (CP_ACP, 0, lpszLinkFile, -1, wsz, MAX_PATH);
 
       // Add code here to check return value from MultiByteWideChar
       // for success.
 
       // Load the shortcut.
-      if (SUCCEEDED(ppf->Load(wsz, STGM_READ)))
+      if (SUCCEEDED (ppf->Load (lpszLinkFile, STGM_READ)))
       {
         // Disables the UI and hopefully sets a timeout duration of 10ms,
         //   since we don't actually care all that much about resolving the target.
-        DWORD flags = MAKELONG(SLR_NO_UI, 10);
+        DWORD flags = MAKELONG (SLR_NO_UI, 10);
 
         // Resolve the link.
-        if (SUCCEEDED(psl->Resolve(hwnd, flags)))
+        if (SUCCEEDED (psl->Resolve (hwnd, flags)))
         {
           // Get the link target.
-          if (SUCCEEDED(psl->GetPath(szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
-            StringCbCopy(lpszTarget, iPathBufferSize, szTarget);
+          if (SUCCEEDED (psl->GetPath (szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
+            StringCbCopy (lpszTarget, iPathBufferSize, szTarget);
 
           // Get the arguments of the target.
-          if (SUCCEEDED(psl->GetArguments(szArguments, MAX_PATH)))
-            StringCbCopy(lpszArguments, iPathBufferSize, szArguments);
+          if (SUCCEEDED (psl->GetArguments (szArguments, MAX_PATH)))
+            StringCbCopy (lpszArguments, iPathBufferSize, szArguments);
         }
       }
 
@@ -1179,16 +1185,24 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LP
 // CreateLink - Uses the Shell's IShellLink and IPersistFile interfaces 
 //              to create and store a shortcut to the specified object. 
 //
-// Returns the result of calling the member functions of the interfaces. 
+// Returns true if successful; false if an error occurred.
 //
 // Parameters:
-// lpszPathObj  - Address of a buffer that contains the path of the object,
-//                including the file name.
-// lpszPathLink - Address of a buffer that contains the path where the 
-//                Shell link is to be stored, including the file name.
-// lpszDesc     - Address of a buffer that contains a description of the 
-//                Shell link, stored in the Comment field of the link
-//                properties.
+// lpszPathLink     - Address of a buffer that contains the full path where the
+//                    Shell link is to be stored, including the .lnk file name.
+// lpszTarget       - Address of a buffer that contains the path of the target,
+//                    including the file name if relevant.
+// lpszArgs         - Address of a buffer that contains any arguments for the
+//                    target, if relevant.
+// lpszWorkDir      - Address of a buffer that contains the working directory
+//                    the target should launch in, if relevant.
+// lpszDesc         - Address of a buffer that contains a description of the
+//                    Shell link, stored in the Comment field of the link
+//                    properties.
+// lpszIconLocation - Address of a buffer that contains the full path of icon
+//                    used for the shortcut, if relevant.
+// iIcon            - Index for the icon at lpszIconLocation to use.
+// 
 
 bool
 SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs, LPCWSTR lpszWorkDir, LPCWSTR lpszDesc, LPCWSTR lpszIconLocation, int iIcon)
@@ -1201,41 +1215,40 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
 
-  if (SUCCEEDED (CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
+  if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
     IPersistFile* ppf;
 
     // Set the specifics of the shortcut. 
     psl->SetPath               (lpszTarget);
 
-    if (wcscmp(lpszWorkDir, L"\0") == 0) // lpszWorkDir == L"\0"
+    if (wcscmp (lpszWorkDir, L"\0") == 0) // lpszWorkDir == L"\0"
       psl->SetWorkingDirectory (std::filesystem::path(lpszTarget).parent_path().c_str());
     else
       psl->SetWorkingDirectory (lpszWorkDir);
 
-    if (wcscmp(lpszArgs, L"\0") != 0) // lpszArgs != L"\0"
+    if (wcscmp (lpszArgs, L"\0") != 0) // lpszArgs != L"\0"
       psl->SetArguments          (lpszArgs);
 
-    if (wcscmp(lpszDesc, L"\0") != 0) // lpszDesc != L"\0"
+    if (wcscmp (lpszDesc, L"\0") != 0) // lpszDesc != L"\0"
       psl->SetDescription      (lpszDesc);
 
-    if (wcscmp(lpszIconLocation, L"\0") != 0) // (lpszIconLocation != L"\0")
+    if (wcscmp (lpszIconLocation, L"\0") != 0) // (lpszIconLocation != L"\0")
       psl->SetIconLocation     (lpszIconLocation, iIcon);
 
     // Query IShellLink for the IPersistFile interface, used for saving the 
     // shortcut in persistent storage. 
     //hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
 
-    if (SUCCEEDED(psl->QueryInterface(IID_IPersistFile, (void**)&ppf)))
+    if (SUCCEEDED (psl->QueryInterface (IID_IPersistFile, (void**)&ppf)))
     {
-
       //WCHAR wsz[MAX_PATH];
 
       // Ensure that the string is Unicode. 
       //MultiByteToWideChar (CP_ACP, 0, lpszPathLink, -1, wsz, MAX_PATH);
 
       // Save the link by calling IPersistFile::Save. 
-      if (SUCCEEDED (ppf->Save(lpszPathLink, FALSE)))
+      if (SUCCEEDED (ppf->Save (lpszPathLink, FALSE)))
         ret = true;
 
       ppf->Release();

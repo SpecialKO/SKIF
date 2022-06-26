@@ -8,7 +8,8 @@
 
 // Generic Utilities
 
-std::wstring SKIF_Util_TowLower              (std::wstring_view wstr);
+std::string  SKIF_Util_ToLower               (std::string_view  input);
+std::wstring SKIF_Util_TowLower              (std::wstring_view input);
 std::wstring SKIF_Util_GetLastError          (void);
 DWORD        SKIF_Util_timeGetTime           (void);
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
@@ -100,5 +101,5 @@ struct SKIF_RegistryWatch {
 
 // Shortcuts (*.lnk)
 
-void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
 bool         SKIF_Util_CreateShortcut        (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);

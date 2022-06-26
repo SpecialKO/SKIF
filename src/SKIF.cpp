@@ -522,7 +522,7 @@ SKIF_ImGui_InitFonts =
   SKIF_ImGui_LoadFont     (((tinyDPIFonts) ? L"Verdana.ttf" : L"Tahoma.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
 
   // Load extended character sets when SKIF is not used as a launcher
-  if (! _Signal.Launcher)
+  if (! _Signal.Launcher || _Signal.AddSKIFGame)
   {
     // Cyrillic character set
     if (SKIF_bFontCyrillic)
@@ -776,13 +776,13 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
       cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
       
-      WCHAR szTarget   [MAX_PATH];
-      WCHAR szArguments[MAX_PATH];
+      WCHAR wszTarget   [MAX_PATH];
+      WCHAR wszArguments[MAX_PATH];
 
-      SKIF_Util_ResolveShortcut (SKIF_hWnd, SK_WideCharToUTF8(cmdLine).c_str(), szTarget, szArguments, MAX_PATH);
+      SKIF_Util_ResolveShortcut (SKIF_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
 
-      cmdLine     = std::wstring(szTarget);
-      cmdLineArgs = std::wstring(szArguments);
+      cmdLine     = std::wstring(wszTarget);
+      cmdLineArgs = std::wstring(wszArguments);
     }
 
     // Clear var if no valid path was found
@@ -805,24 +805,24 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
           std::pair < std::string, app_record_s >
                     > apps;
 
-      std::filesystem::path p = cmdLine;
-      std::wstring productName = SKIF_GetProductName (p.c_str());
-
-      strncpy (charPath, (const char *)p.u8string().c_str(),                                   MAX_PATH);
-      strncpy (charName, (productName != L"") ? SK_WideCharToUTF8 (productName).c_str()
-                                              : (const char *)p.replace_extension().filename().u8string().c_str(), MAX_PATH);
-      strncpy (charArgs, SK_WideCharToUTF8(cmdLineArgs).c_str(),                 500);
-
-      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
-    
-      // If a running instance of SKIF already exists, terminate this one as it has served its purpose
-      if (SelectNewSKIFGame > 0 && hwndAlreadyExists != 0)
+      if (PathFileExists (cmdLine.c_str()))
       {
-        SendMessage (hwndAlreadyExists, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
-        PLOG_INFO << "Terminating due to one of these contions were found to be true:";
-        PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
-        PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
-        ExitProcess (0x0);
+        std::wstring productName = SKIF_GetProductName (cmdLine.c_str());
+
+        if (productName == L"")
+          productName = std::filesystem::path (cmdLine).replace_extension().filename().wstring();
+
+        SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, productName, cmdLine, cmdLineArgs);
+    
+        // If a running instance of SKIF already exists, terminate this one as it has served its purpose
+        if (SelectNewSKIFGame > 0 && hwndAlreadyExists != 0)
+        {
+          SendMessage (hwndAlreadyExists, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
+          PLOG_INFO << "Terminating due to one of these contions were found to be true:";
+          PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
+          PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
+          ExitProcess (0x0);
+        }
       }
     }
 
@@ -964,6 +964,17 @@ SKIF_RegisterApp (bool force = false)
       PLOG_ERROR << "Failed to update the central Special K userdata location!";
       ret = 0;
     }
+
+    /*
+    if (SKIF_Util_CreateShortcut (
+                linkPath.c_str(),
+                wszPath,
+                linkArgs.c_str(),
+                pApp->launch_configs[0].working_dir.c_str(),
+                SK_UTF8ToWideChar(name).c_str(),
+                pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str()
+                ))
+                */
   }
 
   return ret;
