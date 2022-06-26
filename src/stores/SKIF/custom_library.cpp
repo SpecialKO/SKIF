@@ -81,6 +81,15 @@ int SKIF_AddCustomAppID (
 
     if (! failed)
     {
+      PLOG_INFO << "Custom game:";
+      PLOG_INFO << "ID:            " << std::to_string(appId);
+      PLOG_INFO << "Name:          " << name;
+      PLOG_INFO << "Exe:           " << exe;
+      PLOG_INFO << "ExeFileName:   " << exeFileName;
+      PLOG_INFO << "InstallDir:    " << installDir;
+      PLOG_INFO << "LaunchOptions: " << args;
+      PLOG_INFO << "Successfully added custom game to SKIF!";
+
       uint32_t appIdNext = appId + 1;
       RegSetKeyValue(hKey, NULL, L"NextID", REG_DWORD, &appIdNext, sizeof(DWORD));
     }
