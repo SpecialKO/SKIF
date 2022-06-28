@@ -1846,7 +1846,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             (pTargetApp->store == "Steam"  && // Exclude the check for games with known older versions
               cache.app_id != 405900       && // Disgaea PC
               cache.app_id != 359870       && // FFX/X-2 HD Remaster
-              cache.app_id != 578330       && // LEGO City Undercover
+            //cache.app_id != 578330       && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
               cache.app_id != 429660       && // Tales of Berseria
               cache.app_id != 372360       && // Tales of Symphonia
               cache.app_id != 738540       && // Tales of Vesperia DE
