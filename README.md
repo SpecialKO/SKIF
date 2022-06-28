@@ -1,4 +1,4 @@
-# Special K Injection Frontend (SKIF)
+# <img src="https://sk-data.special-k.info/artwork/blahblah/skif_eclipse_sticker.png" width="24" alt="Animated eclipse icon for Special K Injection Frontend (SKIF)"> Special K Injection Frontend (SKIF)
 ![Screenshot of the app](https://sk-data.special-k.info/artwork/screens/skif_75percent.png)
 
 The modern frontend used for managing Special K and its global injection service as well as quickly and easily inject Special K into games launched through the frontend.
