@@ -454,6 +454,7 @@ typedef struct _OBJECT_TYPES_INFORMATION {
   LONG NumberOfTypes;
 } OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
 
+#if 0
 // CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
 NTSTATUS QueryObjectTypesInfo (POBJECT_TYPES_INFORMATION *TypesInfo)
 {
@@ -463,7 +464,7 @@ NTSTATUS QueryObjectTypesInfo (POBJECT_TYPES_INFORMATION *TypesInfo)
 
   status = STATUS_INFO_LENGTH_MISMATCH;
 
-  *TypesInfo = (POBJECT_TYPES_INFORMATION)malloc(StartBufferLength);
+  *TypesInfo = (POBJECT_TYPES_INFORMATION)malloc(StartBufferLength); // <-- Causes the final free() to crash 32-bit SKIF on 64-bit Windows machines.
 
   if (*TypesInfo != NULL)
   {
@@ -500,6 +501,7 @@ NTSTATUS QueryObjectTypesInfo (POBJECT_TYPES_INFORMATION *TypesInfo)
 
   return status;
 }
+#endif
 
 
 #include <injection.h>
@@ -1128,11 +1130,23 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
 // Modified to use POBJECT_TYPE_INFORMATION_V2 instead of POBJECT_TYPE_INFORMATION
 USHORT GetTypeIndexByName (std::wstring TypeName)
 {
-  USHORT ret = USHRT_MAX;
   POBJECT_TYPE_INFORMATION_V2  TypeInfo = NULL;
   POBJECT_TYPES_INFORMATION   TypesInfo = NULL;
+  USHORT   ret                          = USHRT_MAX;
+  NTSTATUS ntStatTypesInfo;
+  ULONG    BufferLength (28);
 
-  if (NT_SUCCESS (QueryObjectTypesInfo (&TypesInfo)))
+  do
+  {
+    if (TypesInfo != NULL)
+      free(TypesInfo);
+
+    TypesInfo = (POBJECT_TYPES_INFORMATION)calloc(BufferLength, sizeof(POBJECT_TYPES_INFORMATION));
+
+    ntStatTypesInfo = NtQueryObject(NULL, ObjectTypesInformation, TypesInfo, BufferLength, &BufferLength);
+  } while (ntStatTypesInfo == STATUS_INFO_LENGTH_MISMATCH);
+
+  if (NT_SUCCESS (ntStatTypesInfo) && TypesInfo->NumberOfTypes > 0)
   {
     PLOG_VERBOSE << "Number of Types: " << std::to_wstring (TypesInfo->NumberOfTypes);
 
@@ -1157,8 +1171,9 @@ USHORT GetTypeIndexByName (std::wstring TypeName)
     }
   }
 
-  // Free up the memory that QueryObjectTypesInfo() allocated
-  free (TypesInfo);
+  // Free up the memory that was allocated by calloc
+  if (TypesInfo != NULL)
+    free (TypesInfo);
 
   if (ret == USHRT_MAX)
     PLOG_ERROR << "Failed to locate TypeIndex for Events!";
