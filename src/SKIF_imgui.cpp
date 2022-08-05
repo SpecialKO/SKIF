@@ -321,7 +321,7 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   ImVec2 iconPos = ImGui::GetCursorPos ( );
   ImGui::ItemSize      (ImVec2 (ImGui::CalcTextSize (icon.c_str()) .x, ImGui::GetTextLineHeightWithSpacing()));
   ImGui::SameLine      ( );
-  ImGui::Selectable    (label.c_str(), &ret,  ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_SpanAvailWidth);
+  ImGui::Selectable    (label.c_str(), &ret,  ImGuiSelectableFlags_SpanAllColumns | static_cast<int>(ImGuiSelectableFlags_SpanAvailWidth));
   ImGui::SetCursorPos  (iconPos);
   ImGui::TextColored   (colIcon, icon.c_str());
 
