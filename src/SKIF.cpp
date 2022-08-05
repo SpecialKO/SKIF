@@ -402,48 +402,6 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
   return &ranges [0];
 }
 
-// Fixed-width font
-#define SK_IMGUI_FIXED_FONT 1
-
-class SK_ImGui_AutoFont {
-public:
-   SK_ImGui_AutoFont (ImFont* pFont);
-  ~SK_ImGui_AutoFont (void);
-
-  bool Detach (void);
-
-protected:
-  ImFont* font_ = nullptr;
-};
-
-SK_ImGui_AutoFont::SK_ImGui_AutoFont (ImFont* pFont)
-{
-  if (pFont != nullptr)
-  {
-    ImGui::PushFont (pFont);
-    font_ = pFont;
-  }
-}
-
-SK_ImGui_AutoFont::~SK_ImGui_AutoFont (void)
-{
-  Detach ();
-}
-
-bool
-SK_ImGui_AutoFont::Detach (void)
-{
-  if (font_ != nullptr)
-  {
-    font_ = nullptr;
-    ImGui::PopFont ();
-
-    return true;
-  }
-
-  return false;
-}
-
 auto SKIF_ImGui_LoadFont =
    []( const std::wstring& filename,
              float         point_size,
