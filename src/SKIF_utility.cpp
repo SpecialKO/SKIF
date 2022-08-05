@@ -20,7 +20,7 @@ std::string
 SKIF_Util_ToLower      (std::string_view input)
 {
   std::string copy = std::string(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::tolower(c); });
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::tolower(c, std::locale{}); });
   return copy;
 }
 
@@ -580,7 +580,7 @@ SKIF_Util_IsWindows10OrGreater (void)
 BOOL
 SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
 {
-  NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+  NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW) = nullptr;
 
   OSVERSIONINFOEXW
     osInfo                     = { };
@@ -827,9 +827,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 
   if ( HttpSendRequestW ( hInetHTTPGetReq,
                             get->header.c_str(),
-                              get->header.length(),
+                              static_cast<DWORD>(get->header.length()),
                                 (LPVOID)get->body.c_str(),
-                                  (DWORD)get->body.size() ) )
+                                  static_cast<DWORD>(get->body.size()) ) )
   {
     DWORD dwStatusCode        = 0;
     DWORD dwStatusCode_Len    = sizeof (DWORD);
@@ -1124,7 +1124,7 @@ SKIF_RegistryWatch::isSignaled (void)
 void
 SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
 {
-  IShellLink* psl;
+  IShellLink* psl = nullptr;
 
   WCHAR szArguments [MAX_PATH];
   WCHAR szTarget    [MAX_PATH];
@@ -1137,7 +1137,7 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
   // Get a pointer to the IShellLink interface.
   if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
-    IPersistFile* ppf;
+    IPersistFile* ppf = nullptr;
 
     // Get a pointer to the IPersistFile interface.
     if (SUCCEEDED (psl->QueryInterface (IID_IPersistFile, (void**)&ppf)))
@@ -1208,7 +1208,7 @@ bool
 SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs, LPCWSTR lpszWorkDir, LPCWSTR lpszDesc, LPCWSTR lpszIconLocation, int iIcon)
 {
   bool ret = false;
-  IShellLink* psl;
+  IShellLink* psl = nullptr;
 
   //CoInitializeEx (nullptr, 0x0);
 
@@ -1217,7 +1217,7 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
 
   if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
-    IPersistFile* ppf;
+    IPersistFile* ppf = nullptr;
 
     // Set the specifics of the shortcut. 
     psl->SetPath               (lpszTarget);

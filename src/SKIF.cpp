@@ -732,10 +732,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     PLOG_VERBOSE << "SKIF being used to add a custom game to SKIF...";
     // O:\WindowsApps\DevolverDigital.MyFriendPedroWin10_1.0.6.0_x64__6kzv4j18v0c96\MyFriendPedro.exe
 
-    char charName     [MAX_PATH],
-         charPath     [MAX_PATH],
-         charArgs     [500];
-
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring cmdLineArgs    = cmdLine;
 
@@ -987,7 +983,7 @@ SKIF_hasControlledFolderAccess (void)
     return false;
 
   HKEY hKey;
-  DWORD buffer;
+  DWORD buffer = 0;
   unsigned long size = 1024;
   bool enabled = false;
 
@@ -1102,17 +1098,17 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         }
 
         else {
-          WIN32_FILE_ATTRIBUTE_DATA fileAttributes;
+          WIN32_FILE_ATTRIBUTE_DATA fileAttributes{};
 
           if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
           {
-            FILETIME ftSystemTime, ftAdjustedFileTime;
-            SYSTEMTIME systemTime;
+            FILETIME ftSystemTime{}, ftAdjustedFileTime{};
+            SYSTEMTIME systemTime{};
             GetSystemTime (&systemTime);
 
             if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
             {
-              ULARGE_INTEGER uintLastWriteTime;
+              ULARGE_INTEGER uintLastWriteTime{};
 
               // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
               uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
@@ -1853,13 +1849,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     auto _isWeekOld = [&](FILETIME ftLastWriteTime) -> bool
     {
-      FILETIME ftSystemTime, ftAdjustedFileTime;
-      SYSTEMTIME systemTime;
+      FILETIME ftSystemTime{}, ftAdjustedFileTime{};
+      SYSTEMTIME systemTime{};
       GetSystemTime (&systemTime);
 
       if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
       {
-        ULARGE_INTEGER uintLastWriteTime;
+        ULARGE_INTEGER uintLastWriteTime{};
 
         // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
         uintLastWriteTime.HighPart        = ftLastWriteTime.dwHighDateTime;
@@ -2415,7 +2411,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (currentMonitor != NULL)
           {
-            MONITORINFO currentMonitorInfo, nearestMonitorInfo;
+            MONITORINFO currentMonitorInfo{}, nearestMonitorInfo{};
             currentMonitorInfo.cbSize = sizeof(currentMonitorInfo);
             nearestMonitorInfo.cbSize = sizeof(nearestMonitorInfo);
 

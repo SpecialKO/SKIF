@@ -1502,7 +1502,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // If 600x900_x2 exists, check the last modified time stamps
         else {
-          WIN32_FILE_ATTRIBUTE_DATA faX1, faX2;
+          WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
 
           // ... but only if low bandwidth mode is disabled
           if (! SKIF_bLowBandwidthMode &&
@@ -2724,7 +2724,7 @@ Cache=false)";
   {
     ImGui::BeginGroup      ( );
 
-    static bool btnHovered;
+    static bool btnHovered = false;
     ImGui::PushStyleColor (ImGuiCol_Header,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
     ImGui::PushStyleColor (ImGuiCol_HeaderHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
     ImGui::PushStyleColor (ImGuiCol_HeaderActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
@@ -3818,7 +3818,7 @@ Cache=false)";
               wchar_t sel_path [MAX_PATH    ] = { };
               char    label    [MAX_PATH * 2] = { };
 
-              swprintf ( sel_path, L"%ws",
+              swprintf ( sel_path, MAX_PATH, L"%ws",
                            cloud.second.evaluated_dir.c_str () );
 
               sprintf ( label, "%ws###CloudUFS.%d", sel_path,
