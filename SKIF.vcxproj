@@ -392,6 +392,7 @@
     <ClInclude Include="include\stores\Steam\steam_library.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\stores\Xbox\xbox_library.h" />
+    <ClInclude Include="include\TextFlow.hpp" />
     <ClInclude Include="include\ui_tabs\about.h" />
     <ClInclude Include="include\ui_tabs\library.h" />
     <ClInclude Include="include\ui_tabs\settings.h" />

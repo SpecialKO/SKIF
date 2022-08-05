@@ -81,6 +81,8 @@
 #include <ui_tabs/about.h>
 #include <ui_tabs/settings.h>
 
+#include "TextFlow.hpp"
+
 #pragma comment (lib, "wininet.lib")
 
 const GUID IID_IDXGIFactory5 =
@@ -442,6 +444,8 @@ auto SKIF_ImGui_LoadFont =
   return (ImFont *)nullptr;
 };
 
+ImFont* fontConsolas = nullptr;
+
 auto
 SKIF_ImGui_InitFonts =
 [ ](float fontSize)
@@ -583,6 +587,8 @@ SKIF_ImGui_InitFonts =
     }           );
 
   io.Fonts->AddFontDefault ();
+
+  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx());
 };
 
 
@@ -3069,9 +3075,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Update Available prompt
+      // 730px    - Full popup width
+      // 715px    - Release Notes width
+      //  15px    - Approx. scrollbar width
+      //   7.78px - Approx. character width (700px / 90 characters)
       ImGui::SetNextWindowSize (
-        ImVec2 ( 450.0f * SKIF_ImGui_GlobalDPIScale,
-                 0.0f )
+        ImVec2 ( 885.0f * SKIF_ImGui_GlobalDPIScale,
+                   0.0f )
       );
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
@@ -3102,9 +3112,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (! newVersion.releasenotes.empty())
         {
-          ImGui::Text ("Changes:");
+          static std::vector<char> vecNotes;
+
+          static std::string oldNotes = "<nothing>";
+          std::string releaseNotes = SK_WideCharToUTF8(newVersion.releasenotes);
+
+          if (oldNotes.size() != releaseNotes.size())
+          {
+            vecNotes.clear();
+
+            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+            releaseNotes = TextFlow::Column(releaseNotes).width(110).toString();
+            oldNotes = releaseNotes;
+
+            vecNotes.push_back ('\n');
+
+            for (int i = 0; i < releaseNotes.length(); i++)
+              vecNotes.push_back(releaseNotes[i]);
+
+            vecNotes.push_back ('\n');
+
+            // Ensure the vector array is double null terminated
+            vecNotes.push_back ('\0');
+            vecNotes.push_back ('\0');
+          }
+
+          ImGui::Text           ("Changes:");
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-          ImGui::TextWrapped    (SK_WideCharToUTF8 (newVersion.releasenotes).c_str());
+          ImGui::PushFont       (fontConsolas);
+          ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
+                                  vecNotes.data(), vecNotes.size(),
+                                    ImVec2 ( 870 * SKIF_ImGui_GlobalDPIScale,
+                                             200 * SKIF_ImGui_GlobalDPIScale ),
+                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+
+          ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
 
           SKIF_ImGui_Spacing ();

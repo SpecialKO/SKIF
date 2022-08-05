@@ -138,9 +138,13 @@ SKIF_ImGui_IsHoverable (void)
 }
 
 void
-SKIF_ImGui_SetMouseCursorHand (void)
+SKIF_ImGui_SetMouseCursorHand (bool allow_overlap)
 {
-  if (ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax())) // ImGui::IsItemHovered () &&
+  // It is not clear what purpose IsMouseHoveringRect() was used for here, but it was implemented back in January 2022,
+  //  see the following commit https://github.com/SpecialKO/SKIF/commit/a2eac724aad8f4295dcc1679a7e6e82ce4926c91
+  // "allow_overlap" is used to allow that behaviour in the specific scenarios it was intended for (if we ever figure that out)
+  if ((allow_overlap && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax())) ||
+      ImGui::IsItemHovered ( ) )
   {
     ImGui::SetMouseCursor (
       ImGuiMouseCursor_Hand

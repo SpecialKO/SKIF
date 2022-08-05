@@ -489,6 +489,9 @@
     <ClInclude Include="DirectXTex\scoped.h">
       <Filter>Header Files\DXTex</Filter>
     </ClInclude>
+    <ClInclude Include="include\TextFlow.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
