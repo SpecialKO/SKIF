@@ -2555,7 +2555,7 @@ Cache=false)";
       // Show full title in tooltip if the title spans longer than the width of the Selectable row
       // Old: (app.first.length() > 48)
       // New: ImGui::CalcTextSize  (app.first.c_str()).x > (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x)
-      if (ImGui::CalcTextSize  (app.first.c_str()).x > (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x))
+      if (ImGui::CalcTextSize  (app.first.c_str()).x >= (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x))
         SKIF_ImGui_SetHoverTip (app.first);
     }
 
