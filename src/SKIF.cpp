@@ -3113,35 +3113,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! newVersion.releasenotes.empty())
         {
           static std::vector<char> vecNotes;
+          static std::string       oldNotes = "<nothing>";
+          std::string              newNotes = SK_WideCharToUTF8(newVersion.releasenotes);
 
-          static std::string oldNotes = "<nothing>";
-          std::string releaseNotes = SK_WideCharToUTF8(newVersion.releasenotes);
-
-          if (oldNotes.size() != releaseNotes.size())
+          if (oldNotes.size() != newNotes.size())
           {
             vecNotes.clear();
 
             // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-            releaseNotes = TextFlow::Column(releaseNotes).width(110).toString();
-            oldNotes = releaseNotes;
+            newNotes = TextFlow::Column(newNotes).width(110).toString();
+            oldNotes = newNotes;
 
             vecNotes.push_back ('\n');
 
-            for (int i = 0; i < releaseNotes.length(); i++)
-              vecNotes.push_back(releaseNotes[i]);
+            for (int i = 0; i < newNotes.length(); i++)
+              vecNotes.push_back(newNotes[i]);
 
             vecNotes.push_back ('\n');
 
             // Ensure the vector array is double null terminated
             vecNotes.push_back ('\0');
             vecNotes.push_back ('\0');
+
+
           }
 
           ImGui::Text           ("Changes:");
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
-                                  vecNotes.data(), vecNotes.size(),
+                                  vecNotes.data(), static_cast<int>(vecNotes.size()),
                                     ImVec2 ( 870 * SKIF_ImGui_GlobalDPIScale,
                                              200 * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
