@@ -1739,11 +1739,7 @@ SKIF_UI_Tab_DrawMonitor (void)
               {
                 std::wstring friendlyPath = std::wstring (wszProcessName);
 
-                //OutputDebugString(L"Handle ObjectTypeIndex x64: ");
-                //OutputDebugString(std::to_wstring(handle.ObjectTypeIndex).c_str());
-                //OutputDebugString(L"\n");
-
-                for (auto device : deviceMap)
+                for (auto& device : deviceMap)
                 {
                   if (friendlyPath.find(device.second) != std::wstring::npos)
                   {
@@ -1763,11 +1759,7 @@ SKIF_UI_Tab_DrawMonitor (void)
               {
                 std::wstring friendlyPath = std::wstring(wszProcessName);
 
-                //OutputDebugString(L"Handle ObjectTypeIndex x32: ");
-                //OutputDebugString(std::to_wstring(handle.ObjectTypeIndex).c_str());
-                //OutputDebugString(L"\n");
-
-                for (auto device : deviceMap)
+                for (auto& device : deviceMap)
                 {
                   if (friendlyPath.find(device.second) != std::wstring::npos)
                   {
@@ -1792,7 +1784,7 @@ SKIF_UI_Tab_DrawMonitor (void)
            policies_64.clear ();
            policies_32.clear ();
 
-        if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
+        if (! _Standby64.empty ()) for ( auto& proc : _Standby64 )
         {
           executables_64 [proc.pid]     =     proc.filename;
           tooltips_64    [proc.pid]     =     proc.nameUTF8;
@@ -1805,7 +1797,7 @@ SKIF_UI_Tab_DrawMonitor (void)
             policies_64  [proc.pid]     =     DontCare;
         }
 
-        if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
+        if (! _Standby32.empty ()) for ( auto& proc : _Standby32 )
         { executables_32 [proc.pid]     =     proc.filename;
           tooltips_32    [proc.pid]     =     proc.nameUTF8;
 

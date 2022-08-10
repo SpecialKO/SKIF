@@ -231,7 +231,9 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
+  extern bool SKIF_UpdateReady;
+  if (! SKIF_UpdateReady)
+    ImGui::NewLine          ( ); // Omitted to allow the "view release notes..." link to appear without pushing down the Update button
 
   float fY4 = ImGui::GetCursorPosY();
           

@@ -81,6 +81,7 @@ struct SKIF_UpdateCheckResults {
   std::wstring filename;
   std::wstring description;
   std::wstring releasenotes;
+  std::string  history;
 } extern;
 
 extern HMODULE hModSKIF;

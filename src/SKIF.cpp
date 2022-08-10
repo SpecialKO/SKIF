@@ -196,6 +196,7 @@ extern        SK_ICommandProcessor*
   __stdcall SK_GetCommandProcessor (void);
 
 PopupState UpdatePromptPopup    = PopupState::Closed;
+PopupState HistoryPopup         = PopupState::Closed;
 UITab SKIF_Tab_Selected = Injection,
       SKIF_Tab_ChangeTo = None;
 
@@ -1019,6 +1020,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
     {
       results.filename.clear();
       results.description.clear();
+      results.history.clear();
     }
 
     _beginthreadex(nullptr,
@@ -1222,6 +1224,9 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
           if (SKIF_iCheckForUpdates != 0 && !SKIF_bLowBandwidthMode)
           {
+            // Used to populate history
+            bool found = false;
+
             // Detect if any new version is available in the selected channel
             for (auto& version : jf["Main"]["Versions"])
             {
@@ -1235,33 +1240,51 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
               {
                 std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
 
-                PLOG_INFO << "Installed version: " << currentVersion;
-                PLOG_INFO << "Latest version: "    << branchVersion;
-
                 // Check if the version of this branch is different from the current one.
                 // We don't check if the version is *newer* since we need to support downgrading
                 // to other branches as well, which means versions that are older.
 
-                // Limit to newer versions only
-                if ((SKIF_Util_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
-                     SKIF_Util_CompareVersionStrings (branchVersion, currentVersion)  > 0)
+                // Limit download to a single version only
+                if (! found)
                 {
-                  std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
-                  std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+                  if ((SKIF_Util_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
+                       SKIF_Util_CompareVersionStrings (branchVersion, currentVersion)  > 0)
+                  {
+                    PLOG_INFO << "Installed version: " << currentVersion;
+                    PLOG_INFO << "Latest version: "    << branchVersion;
 
-                  PLOG_INFO << "Downloading installer: " << branchInstaller;
+                    std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
+                    std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
 
-                  _res->version      = branchVersion;
-                  _res->filename     = filename;
-                  _res->description  = SK_UTF8ToWideChar(version["Description"] .get<std::string>());
-                  _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
+                    PLOG_INFO << "Downloading installer: " << branchInstaller;
 
-                  if (! PathFileExists ((root + filename).c_str()) && _res->description != _registry.wsIgnoreUpdate)
-                    SKIF_Util_GetWebResource (branchInstaller, root + filename);
+                    _res->version      = branchVersion;
+                    _res->filename     = filename;
+                    _res->description  = SK_UTF8ToWideChar(version["Description"] .get<std::string>());
+                    _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
+
+                    if (! PathFileExists ((root + filename).c_str()) && _res->description != _registry.wsIgnoreUpdate)
+                      SKIF_Util_GetWebResource (branchInstaller, root + filename);
+
+                    found = true;
+                  }
                 }
 
                 // Found right branch -- no need to check more since versions are sorted newest to oldest
-                break;
+                if (changedUpdateChannel)
+                  break;
+
+                // Only populate the history stuff on launch -- not when the user has changed update channel
+                else {
+                  _res->history += version["Description"].get<std::string>();
+                  _res->history += "\n";
+                  _res->history += "=================\n";
+                  if (version["ReleaseNotes"].get<std::string>().empty())
+                    _res->history += "No listed changes.";
+                  else
+                    _res->history += version["ReleaseNotes"].get<std::string>();
+                  _res->history += "\n\n\n";
+                }
               }
             }
           }
@@ -1397,6 +1420,20 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    SKIF_VERSION_STR_A " (" __DATE__ ")");
 
+  ImGui::EndGroup         ( );
+
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      "View release notes..."
+  );
+  SKIF_ImGui_SetMouseCursorHand ( );
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    HistoryPopup = PopupState::Open;
   ImGui::EndGroup         ( );
 
   if (SKIF_UpdateReady)
@@ -3067,10 +3104,64 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       static float UpdateAvailableWidth = 0.0f;
+      static float calculatedWidth      = 0.0f;
+      static float NumLines             = 0;
+      static int NumCharsOnLine         = 0;
+      static std::vector<char> vecNotes;
 
       if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
-        UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
+        //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
+        UpdateAvailableWidth = 360.0f;
+
+        if (vecNotes.empty())
+        {
+          calculatedWidth = 0.0f;
+          NumLines        = 0.0f;
+          NumCharsOnLine  = 0;
+
+          if (! newVersion.releasenotes.empty())
+          {
+            std::string strNotes = SK_WideCharToUTF8(newVersion.releasenotes);
+
+            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+            strNotes = TextFlow::Column(strNotes).width(110).toString();
+
+            // Calc longest line and number of lines
+            std::istringstream iss(strNotes);
+            for (std::string line; std::getline(iss, line); NumLines++)
+              if (line.length() > NumCharsOnLine)
+                NumCharsOnLine = static_cast<int>(line.length());
+
+            // 8.0f  per character
+            // 15.0f for the scrollbar
+            calculatedWidth = NumCharsOnLine * 8.0f + 15.0f;
+
+            // Populate the vector
+            vecNotes.push_back ('\n');
+
+            for (int i = 0; i < strNotes.length(); i++)
+              vecNotes.push_back(strNotes[i]);
+
+            vecNotes.push_back ('\n');
+
+            // Ensure the vector array is double null terminated
+            vecNotes.push_back ('\0');
+            vecNotes.push_back ('\0');
+
+            // Increase NumLines by 3, two from vecNotes.push_back and
+            //  two from ImGui's love of having one and a half empty line below content
+            NumLines += 3.5f;
+
+            // Only allow up to 20 lines at most
+            if (NumLines > 20.0f)
+              NumLines = 20.0f;
+          }
+        }
+
+        if ((calculatedWidth * SKIF_ImGui_GlobalDPIScale) > UpdateAvailableWidth)
+          UpdateAvailableWidth = calculatedWidth;
+
         ImGui::OpenPopup ("###UpdatePrompt");
       }
 
@@ -3080,7 +3171,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //  15px    - Approx. scrollbar width
       //   7.78px - Approx. character width (700px / 90 characters)
       ImGui::SetNextWindowSize (
-        ImVec2 ( 885.0f * SKIF_ImGui_GlobalDPIScale,
+        ImVec2 ( UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale,
                    0.0f )
       );
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
@@ -3091,68 +3182,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
-        SKIF_ImGui_Spacing ();
-
-        float fX = ImGui::GetContentRegionAvail().x / 2 - ImGui::CalcTextSize((SK_WideCharToUTF8(newVersion.description) + " is ready to be installed.").c_str()).x / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), SK_WideCharToUTF8 (newVersion.description).c_str());
-        ImGui::SameLine ( );
-        ImGui::Text ("is ready to be installed.");
-
-        SKIF_ImGui_Spacing ();
-
-        ImGui::Text     ("Target Folder:");
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
-        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_install).c_str());
-        ImGui::PopStyleColor  ( );
-
-        SKIF_ImGui_Spacing ();
-
-        if (! newVersion.releasenotes.empty())
-        {
-          static std::vector<char> vecNotes;
-          static std::string       oldNotes = "<nothing>";
-          std::string              newNotes = SK_WideCharToUTF8(newVersion.releasenotes);
-
-          if (oldNotes.size() != newNotes.size())
-          {
-            vecNotes.clear();
-
-            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-            newNotes = TextFlow::Column(newNotes).width(110).toString();
-            oldNotes = newNotes;
-
-            vecNotes.push_back ('\n');
-
-            for (int i = 0; i < newNotes.length(); i++)
-              vecNotes.push_back(newNotes[i]);
-
-            vecNotes.push_back ('\n');
-
-            // Ensure the vector array is double null terminated
-            vecNotes.push_back ('\0');
-            vecNotes.push_back ('\0');
-
-
-          }
-
-          ImGui::Text           ("Changes:");
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-          ImGui::PushFont       (fontConsolas);
-          ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
-                                  vecNotes.data(), static_cast<int>(vecNotes.size()),
-                                    ImVec2 ( 870 * SKIF_ImGui_GlobalDPIScale,
-                                             200 * SKIF_ImGui_GlobalDPIScale ),
-                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
-
-          ImGui::PopFont        ( );
-          ImGui::PopStyleColor  ( );
-
-          SKIF_ImGui_Spacing ();
-        }
-
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
 #else
@@ -3174,7 +3203,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
           compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
         }
 
-        fX = ImGui::GetContentRegionAvail().x / 2 - ImGui::CalcTextSize(compareLabel.c_str()).x / 2;
+        SKIF_ImGui_Spacing ();
+
+        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+
+        ImGui::SetCursorPosX(fX);
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), SK_WideCharToUTF8 (newVersion.description).c_str());
+        ImGui::SameLine ( );
+        ImGui::Text ("is ready to be installed.");
+
+        SKIF_ImGui_Spacing ();
+
+        ImGui::Text     ("Target Folder:");
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_install).c_str());
+        ImGui::PopStyleColor  ( );
+
+        SKIF_ImGui_Spacing ();
+
+        if (! vecNotes.empty())
+        {
+          ImGui::Text           ("Changes:");
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+          ImGui::PushFont       (fontConsolas);
+          ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
+                                  vecNotes.data(), static_cast<int>(vecNotes.size()),
+                                    ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                                        (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
+                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+
+          ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
+
+          SKIF_ImGui_Spacing ();
+        }
+
+        fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(compareLabel.c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
 
         ImGui::SetCursorPosX(fX);
           
@@ -3182,7 +3247,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        fX = ImGui::GetContentRegionAvail().x / 2 - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale / 2);
+        fX = (ImGui::GetContentRegionAvail().x - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale) - (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
 
         ImGui::SetCursorPosX(fX);
 
@@ -3201,6 +3266,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           //Sleep(50);
           //bKeepProcessAlive = false;
 
+          vecNotes.clear();
           UpdatePromptPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
@@ -3216,6 +3282,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             _registry.regKVIgnoreUpdate.putData(newVersion.description);
 
+            vecNotes.clear();
             UpdatePromptPopup = PopupState::Closed;
             ImGui::CloseCurrentPopup ();
           }
@@ -3230,7 +3297,117 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
+          vecNotes.clear();
           UpdatePromptPopup = PopupState::Closed;
+          ImGui::CloseCurrentPopup ();
+        }
+
+        ImGui::EndPopup ();
+      }
+
+      
+      static float HistoryPopupWidth     = 0.0f;
+      static float calcHistoryPopupWidth = 0.0f;
+      static float HistoryPopupNumLines     = 0;
+      static int HistoryPopupNumCharsOnLine = 0;
+      static std::vector<char> vecHistory;
+
+      if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      {
+        //HistoryPopupWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
+        HistoryPopupWidth = 360.0f;
+
+        if (vecHistory.empty())
+        {
+          calcHistoryPopupWidth = 0.0f;
+          HistoryPopupNumLines        = 0.0f;
+          HistoryPopupNumCharsOnLine  = 0;
+
+          if (! newVersion.history.empty())
+          {
+            std::string strHistory = newVersion.history;
+
+            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+            strHistory = TextFlow::Column(strHistory).width(110).toString();
+
+            // Calc longest line and number of lines
+            std::istringstream iss(strHistory);
+            for (std::string line; std::getline(iss, line); HistoryPopupNumLines++)
+              if (line.length() > HistoryPopupNumCharsOnLine)
+                HistoryPopupNumCharsOnLine = static_cast<int>(line.length());
+
+            // 8.0f  per character
+            // 15.0f for the scrollbar
+            calcHistoryPopupWidth = HistoryPopupNumCharsOnLine * 8.0f + 15.0f;
+
+            // Populate the vector
+            vecHistory.push_back ('\n');
+
+            for (int i = 0; i < strHistory.length(); i++)
+              vecHistory.push_back(strHistory[i]);
+
+            vecHistory.push_back ('\n');
+
+            // Ensure the vector array is double null terminated
+            vecHistory.push_back ('\0');
+            vecHistory.push_back ('\0');
+
+            // Increase NumLines by 3, two from vecHistory.push_back and
+            //  two from ImGui's love of having one and a half empty line below content
+            HistoryPopupNumLines += 3.5f;
+
+            // Only allow up to 20 lines at most
+            if (HistoryPopupNumLines > 40.0f)
+              HistoryPopupNumLines = 40.0f;
+          }
+        }
+
+        if ((calcHistoryPopupWidth * SKIF_ImGui_GlobalDPIScale) > HistoryPopupWidth)
+          HistoryPopupWidth = calcHistoryPopupWidth;
+
+        ImGui::OpenPopup ("###History");
+      }
+      
+      ImGui::SetNextWindowSize (
+        ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
+                   0.0f )
+      );
+      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+      if (ImGui::BeginPopupModal ( "Changelog###History", nullptr,
+                                     ImGuiWindowFlags_NoResize |
+                                     ImGuiWindowFlags_NoMove |
+                                     ImGuiWindowFlags_AlwaysAutoResize )
+         )
+      {
+        SKIF_ImGui_Spacing ();
+
+        if (! newVersion.history.empty())
+        {
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+          ImGui::PushFont       (fontConsolas);
+          ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
+                                  vecHistory.data(), static_cast<int>(vecHistory.size()),
+                                    ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                         (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
+                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+
+          ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
+
+          SKIF_ImGui_Spacing ();
+        }
+
+        SKIF_ImGui_Spacing ();
+
+        float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
+
+        ImGui::SetCursorPosX(fX);
+
+        if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                              25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          HistoryPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
 
