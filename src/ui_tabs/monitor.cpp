@@ -545,7 +545,6 @@ struct SKIF_Console : SK_IVariableListener
 
     extern bool SKIF_bDisableTooltips;
     extern bool SKIF_bDisableDPIScaling;
-    extern bool SKIF_bDisableExitConfirmation;
     extern bool SKIF_bDisableStatusBar;
     extern bool SKIF_bSmallMode;
     extern bool SKIF_bFirstLaunch;
@@ -555,8 +554,6 @@ struct SKIF_Console : SK_IVariableListener
        SK_CreateVar ( SK_IVariable::Boolean, &SKIF_bDisableTooltips         ) );
     cmd_proc.AddVariable (                 "SKIF.UI.DisableDPIScaling",
        SK_CreateVar ( SK_IVariable::Boolean, &SKIF_bDisableDPIScaling       ) );
-    cmd_proc.AddVariable (                 "SKIF.UI.DisableExitConfirmation",
-       SK_CreateVar ( SK_IVariable::Boolean, &SKIF_bDisableExitConfirmation ) );
     cmd_proc.AddVariable (                 "SKIF.UI.DisableStatusBar",
        SK_CreateVar ( SK_IVariable::Boolean, &SKIF_bDisableStatusBar        ) );
     cmd_proc.AddVariable (                 "SKIF.UI.SmallMode",             

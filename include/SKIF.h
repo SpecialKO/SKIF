@@ -142,7 +142,6 @@ extern int SKIF_iLogging;
 extern uint32_t SKIF_iLastSelected;
 extern bool SKIF_bRememberLastSelected;
 extern bool SKIF_bDisableDPIScaling;
-extern bool SKIF_bDisableExitConfirmation;
 extern bool SKIF_bDisableTooltips;
 extern bool SKIF_bDisableStatusBar;
 extern bool SKIF_bDisableBorders;

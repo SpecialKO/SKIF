@@ -616,7 +616,6 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
 extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
-extern bool SKIF_bDisableExitConfirmation;
 
 void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
@@ -827,8 +826,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
 
-  if ( ! bCurrentState && SKIF_bDisableExitConfirmation)
-      SKIF_ImGui_SetHoverTip ("Service continues running after SKIF is closed");
+  if ( ! bCurrentState && SKIF_bAllowBackgroundService)
+      SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
     
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState::Open;

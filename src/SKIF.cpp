@@ -119,7 +119,6 @@ uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
      SKIF_bDisableDPIScaling       = false,
-     SKIF_bDisableExitConfirmation =  true,
      SKIF_bDisableTooltips         = false,
      SKIF_bDisableStatusBar        = false,
      SKIF_bDisableBorders          =  true, // default to true
@@ -2723,7 +2722,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       
       if (SKIF_bCloseToTray)
         SKIF_ImGui_SetHoverTip ("This app will close to the notification area");
-      else if (_inject.bCurrentState && SKIF_bDisableExitConfirmation && SKIF_bAllowBackgroundService)
+      else if (_inject.bCurrentState && SKIF_bAllowBackgroundService)
         SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
 
       ImGui::SetCursorPos (topCursorPos);
