@@ -92,8 +92,6 @@ extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern std::wstring    SKIF_EGS_AppDataPath;
 
-SKIF_DirectoryWatch    SKIF_EGS_ManifestWatch;
-
 extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
@@ -710,7 +708,37 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   extern bool SKIF_bDisableSteamLibrary;
 
-  auto PopulateAppRecords = [&](void) ->
+  auto _Steam_isLibrariesSignaled = [&](void) -> bool
+  {
+#define MAX_STEAM_LIBRARIES 16
+
+    bool isSignaled = false;
+
+    steam_library_t* steam_lib_paths = nullptr;
+    int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+    static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
+
+    if (! steam_lib_paths)
+      return false;
+
+    if (steam_libs != 0)
+    {
+      for (int i = 0; i < steam_libs; i++)
+      {
+        wchar_t    wszManifestDir [MAX_PATH + 2] = { };
+        swprintf ( wszManifestDir,
+                     LR"(%s\steamapps)",
+                 (wchar_t *)steam_lib_paths [i] );
+
+        if (steam_libs_watch[i].isSignaled(wszManifestDir))
+          isSignaled = true;
+      }
+    }
+
+    return isSignaled;
+  };
+
+  auto _Steam_GetInstalledAppIDs = [&](void) ->
     std::vector <std::pair <std::string, app_record_s>>
   { std::vector <std::pair <std::string, app_record_s>> ret;
 
@@ -785,8 +813,13 @@ SKIF_UI_Tab_DrawLibrary (void)
   extern bool SKIF_bDisableEGSLibrary;
   extern bool SKIF_bDisableGOGLibrary;
   extern bool SKIF_bDisableXboxLibrary;
+  
+  static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
 
-  if (! SKIF_bDisableEGSLibrary && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
+  if (! SKIF_bDisableSteamLibrary && _Steam_isLibrariesSignaled ())
+    RepopulateGames = true;
+
+  if (! SKIF_bDisableEGSLibrary   && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
     RepopulateGames = true;
 
   if (RepopulateGames)
@@ -812,7 +845,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     PLOG_INFO << "Populating library list...";
 
-    apps      = PopulateAppRecords ();
+    apps      = _Steam_GetInstalledAppIDs ();
 
     for (auto& app : apps)
       if (app.second.id == SKIF_STEAM_APPID)
@@ -2054,6 +2087,64 @@ SKIF_UI_Tab_DrawLibrary (void)
           );
 
           ImGui::Separator ( );
+
+          static bool defaults_d3d8     = PathFileExists (LR"(Global\default_d3d8.ini)"),
+                      defaults_d3d9     = PathFileExists (LR"(Global\default_d3d9.ini)"),
+                      defaults_dxgi     = PathFileExists (LR"(Global\default_dxgi.ini)"),
+                      defaults_ddraw    = PathFileExists (LR"(Global\default_ddraw.ini)"),
+                      defaults_dinput8  = PathFileExists (LR"(Global\default_dinput8.ini)"),
+                      defaults_opengl32 = PathFileExists (LR"(Global\default_opengl32.ini)"),
+                      defaults_specialk = PathFileExists (LR"(Global\default_specialk.ini)");
+
+          static SKIF_DirectoryWatch SKIF_GlobalWatch;
+
+          if (SKIF_GlobalWatch.isSignaled (L"Global"))
+          {
+            defaults_d3d8     = PathFileExists (LR"(Global\default_d3d8.ini)"),
+            defaults_d3d9     = PathFileExists (LR"(Global\default_d3d9.ini)"),
+            defaults_dxgi     = PathFileExists (LR"(Global\default_dxgi.ini)"),
+            defaults_ddraw    = PathFileExists (LR"(Global\default_ddraw.ini)"),
+            defaults_dinput8  = PathFileExists (LR"(Global\default_dinput8.ini)"),
+            defaults_opengl32 = PathFileExists (LR"(Global\default_opengl32.ini)"),
+            defaults_specialk = PathFileExists (LR"(Global\default_specialk.ini)");
+          }
+
+          if (defaults_d3d8 || defaults_d3d9 || defaults_dxgi || defaults_ddraw || defaults_dinput8 || defaults_opengl32 || defaults_specialk)
+          {
+            if (ImGui::BeginMenu ("Apply Default Preset"))
+            {
+              if (defaults_specialk)
+              {
+                if (ImGui::Selectable ("SpecialK.ini"))
+                  CopyFile (LR"(Global\default_specialk.ini)", SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+              
+                if (defaults_d3d8 || defaults_d3d9 || defaults_dxgi || defaults_ddraw || defaults_dinput8 || defaults_opengl32)
+                  ImGui::Separator ( );
+              }
+
+              if (defaults_d3d8     && ImGui::Selectable ("D3D8.ini"))
+                CopyFile (LR"(Global\default_d3d8.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              if (defaults_d3d9     && ImGui::Selectable ("D3D9.ini"))
+                CopyFile (LR"(Global\default_d3d9.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              if (defaults_dxgi     && ImGui::Selectable ("DXGI.ini"))
+                CopyFile (LR"(Global\default_dxgi.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              if (defaults_ddraw    && ImGui::Selectable ("DDraw.ini"))
+                CopyFile (LR"(Global\default_ddraw.ini)",    SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              if (defaults_dinput8  && ImGui::Selectable ("DInput8.ini"))
+                CopyFile (LR"(Global\default_dinput8.ini)",  SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              if (defaults_opengl32 && ImGui::Selectable ("OpenGL32.ini"))
+                CopyFile (LR"(Global\default_opengl32.ini)", SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+
+              ImGui::EndMenu ();
+            }
+
+            ImGui::Separator ( );
+          }
 
           if (ImGui::Selectable ("Apply Compatibility Config"))
           {

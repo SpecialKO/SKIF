@@ -1010,21 +1010,20 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view path)
       );
     }
   }
-  else {
-    if (! path.empty())
-    {
-      hChangeNotification =
-        FindFirstChangeNotificationW (
-          std::wstring(path).c_str(), FALSE,
-            FILE_NOTIFY_CHANGE_FILE_NAME
-        );
 
-      if (hChangeNotification != INVALID_HANDLE_VALUE)
-      {
-        FindNextChangeNotification (
-          hChangeNotification
-        );
-      }
+  else if (! path.empty())
+  {
+    hChangeNotification =
+      FindFirstChangeNotificationW (
+        std::wstring(path).c_str(), FALSE,
+          FILE_NOTIFY_CHANGE_FILE_NAME
+      );
+
+    if (hChangeNotification != INVALID_HANDLE_VALUE)
+    {
+      FindNextChangeNotification (
+        hChangeNotification
+      );
     }
   }
 

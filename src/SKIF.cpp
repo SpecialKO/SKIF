@@ -3102,10 +3102,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      static float UpdateAvailableWidth = 0.0f;
-      static float calculatedWidth      = 0.0f;
-      static float NumLines             = 0;
-      static int NumCharsOnLine         = 0;
+      static float  UpdateAvailableWidth = 0.0f;
+      static float  calculatedWidth      = 0.0f;
+      static float  NumLines             = 0;
+      static size_t NumCharsOnLine       = 0;
       static std::vector<char> vecNotes;
 
       if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
@@ -3130,16 +3130,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             std::istringstream iss(strNotes);
             for (std::string line; std::getline(iss, line); NumLines++)
               if (line.length() > NumCharsOnLine)
-                NumCharsOnLine = static_cast<int>(line.length());
+                NumCharsOnLine = line.length();
 
             // 8.0f  per character
             // 15.0f for the scrollbar
-            calculatedWidth = NumCharsOnLine * 8.0f + 15.0f;
+            calculatedWidth = static_cast<float>(NumCharsOnLine) * 8.0f + 15.0f;
 
             // Populate the vector
             vecNotes.push_back ('\n');
 
-            for (int i = 0; i < strNotes.length(); i++)
+            for (size_t i = 0; i < strNotes.length(); i++)
               vecNotes.push_back(strNotes[i]);
 
             vecNotes.push_back ('\n');
@@ -3305,10 +3305,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       
-      static float HistoryPopupWidth     = 0.0f;
-      static float calcHistoryPopupWidth = 0.0f;
-      static float HistoryPopupNumLines     = 0;
-      static int HistoryPopupNumCharsOnLine = 0;
+      static float  HistoryPopupWidth          = 0.0f;
+      static float  calcHistoryPopupWidth      = 0.0f;
+      static float  HistoryPopupNumLines       = 0;
+      static size_t HistoryPopupNumCharsOnLine = 0;
       static std::vector<char> vecHistory;
 
       if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
@@ -3333,16 +3333,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             std::istringstream iss(strHistory);
             for (std::string line; std::getline(iss, line); HistoryPopupNumLines++)
               if (line.length() > HistoryPopupNumCharsOnLine)
-                HistoryPopupNumCharsOnLine = static_cast<int>(line.length());
+                HistoryPopupNumCharsOnLine = line.length();
 
             // 8.0f  per character
             // 15.0f for the scrollbar
-            calcHistoryPopupWidth = HistoryPopupNumCharsOnLine * 8.0f + 15.0f;
+            calcHistoryPopupWidth = static_cast<float>(HistoryPopupNumCharsOnLine) * 8.0f + 15.0f;
 
             // Populate the vector
             vecHistory.push_back ('\n');
 
-            for (int i = 0; i < strHistory.length(); i++)
+            for (size_t i = 0; i < strHistory.length(); i++)
               vecHistory.push_back(strHistory[i]);
 
             vecHistory.push_back ('\n');

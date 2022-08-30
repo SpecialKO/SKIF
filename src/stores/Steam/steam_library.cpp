@@ -488,7 +488,7 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 
       // Some Steam installs still relies on the old file apparently,
       //   so if the new file does not exist we need to use the old one.
-      if (! PathFileExists(wszLibraryFolders))
+      if (! PathFileExists (wszLibraryFolders))
       {
         lstrcpyW (wszLibraryFolders, wszSteamPath);
         lstrcatW (wszLibraryFolders, LR"(\steamapps\libraryfolders.vdf)");
