@@ -380,3 +380,23 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 
   }
 }
+
+bool
+SKIF_Xbox_hasInstalledGamesChanged (void)
+{
+  static DWORD dwLastSignalCheck = 0;
+
+  bool signal = false;
+  if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
+  {
+    static SKIF_RegistryWatch
+      appWatch ( HKEY_LOCAL_MACHINE,
+                   LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root)",
+                     L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME );
+  
+    signal            = appWatch.isSignaled   ( );
+    dwLastSignalCheck = SKIF_Util_timeGetTime ( );
+  }
+
+  return signal;
+}

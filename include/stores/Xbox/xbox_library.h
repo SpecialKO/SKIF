@@ -7,3 +7,4 @@ extern void  SKIF_Util_GetWebResource (std::wstring url, std::wstring_view desti
 
 void        SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps);
 void        SKIF_Xbox_IdentifyAssetNew   (std::string PackageName, std::string StoreID);
+bool        SKIF_Xbox_hasInstalledGamesChanged (void);

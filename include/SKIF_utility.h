@@ -1,4 +1,5 @@
 #pragma once
+
 #include <wtypes.h>
 #include <string>
 #include <wininet.h>

@@ -717,6 +717,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     steam_library_t* steam_lib_paths = nullptr;
     int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
     static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
+    static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
+    static bool                hasInitialized = false;
 
     if (! steam_lib_paths)
       return false;
@@ -730,10 +732,37 @@ SKIF_UI_Tab_DrawLibrary (void)
                      LR"(%s\steamapps)",
                  (wchar_t *)steam_lib_paths [i] );
 
-        if (steam_libs_watch[i].isSignaled(wszManifestDir))
-          isSignaled = true;
+        bool countFiles = false;
+
+        if (steam_libs_watch[i].isSignaled (wszManifestDir))
+          countFiles = true;
+
+        if (countFiles || ! hasInitialized)
+        {
+          int prevCount = steam_libs_files[i];
+          int currCount = 0;
+
+          std::error_code dirError;
+          std::filesystem::directory_iterator iterator = 
+            std::filesystem::directory_iterator (wszManifestDir, dirError);
+
+          // Only iterate over the files if the directory exists and is accessible
+          if (! dirError)
+          {
+            for (auto& directory_entry : iterator)
+              if (directory_entry.is_regular_file())
+                currCount++;
+
+            steam_libs_files[i] = currCount;
+          }
+
+          if (hasInitialized && prevCount != currCount)
+            isSignaled = true;
+        }
       }
     }
+
+    hasInitialized = true;
 
     return isSignaled;
   };
@@ -816,11 +845,18 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
 
-  if (! SKIF_bDisableSteamLibrary && _Steam_isLibrariesSignaled ())
-    RepopulateGames = true;
+  if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
+  {
+    // Temporarily disabled since this gets triggered on game launch/shutdown as well...
+    //if (! SKIF_bDisableSteamLibrary && _Steam_isLibrariesSignaled ())
+    //  RepopulateGames = true;
 
-  if (! SKIF_bDisableEGSLibrary   && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
-    RepopulateGames = true;
+    if (! SKIF_bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
+      RepopulateGames = true;
+
+    if (! SKIF_bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
+      RepopulateGames = true;
+  }
 
   if (RepopulateGames)
   {

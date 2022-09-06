@@ -13,7 +13,6 @@
 
 #pragma comment (lib, "Gdiplus.lib")
 
-
 // Generic Utilities
 
 std::string
@@ -1073,7 +1072,7 @@ SKIF_RegistryWatch::reset (void)
 
   LSTATUS lStat =
     hKeyBase.Open ( _init.root,
-                    _init.sub_key.c_str () );
+                    _init.sub_key.c_str (), KEY_NOTIFY );
 
   if (lStat == ERROR_SUCCESS)
   {
@@ -1090,9 +1089,7 @@ SKIF_RegistryWatch::isSignaled (void)
     ) == WAIT_OBJECT_0;
 
   if (signaled)
-  {
     reset ();
-  }
 
   return signaled;
 }
