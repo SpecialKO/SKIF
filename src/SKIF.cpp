@@ -1,5 +1,5 @@
 ﻿//
-// Copyright 2020 - 2021 Andon "Kaldaien" Coleman
+// Copyright 2020 - 2022 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -88,6 +88,10 @@
 const GUID IID_IDXGIFactory5 =
   { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
 
+CHandle SKIF_RefreshEvent (
+         CreateEvent (nullptr, true, false, nullptr)
+  );
+
 const int SKIF_STEAM_APPID = 1157970;
 bool RepositionSKIF   = false;
 bool tinyDPIFonts     = false;
@@ -144,7 +148,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bFontVietnamese          = false,
      SKIF_bLowBandwidthMode        = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
-     SKIF_bMinimizeOnGameLaunch    = false;
+     SKIF_bMinimizeOnGameLaunch    = false,
+     SKIF_bDisableVSYNC            = false;
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;
@@ -536,11 +541,13 @@ SKIF_ImGui_InitFonts =
   std::filesystem::path fontDir
           (path_cache.specialk_userdata);
 
+  std::error_code ec;
+
   fontDir /= L"Fonts";
 
   // Create any missing directories
-  if (! std::filesystem::exists (            fontDir))
-        std::filesystem::create_directories (fontDir);
+  if (! std::filesystem::exists (            fontDir, ec))
+        std::filesystem::create_directories (fontDir, ec);
 
   static auto
     skif_fs_wb = ( std::ios_base::binary
@@ -551,7 +558,7 @@ SKIF_ImGui_InitFonts =
        const uint8_t akData [],
        const size_t  cbSize )
   {
-    if (! std::filesystem::is_regular_file ( fontDir / szFont)            )
+    if (! std::filesystem::is_regular_file ( fontDir / szFont, ec)        )
                      std::ofstream ( fontDir / szFont, skif_fs_wb ).
       write ( reinterpret_cast <const char *> (akData),
                                                cbSize);
@@ -2246,6 +2253,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (! _TranslateAndDispatch ())
       break;
 
+    if (msg.message == WM_SETCURSOR)
+    {
+      if (! ImGui::IsAnyItemHovered ())
+        continue;
+    }
+
+    if ((msg.message == WM_SETFOCUS || msg.message == WM_KILLFOCUS) ||
+        (msg.message == WM_TIMER))
+    {
+      SetEvent (SKIF_RefreshEvent);
+      continue;
+    }
+
     // Set DPI related variables
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
@@ -3462,7 +3482,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (SUCCEEDED (SK_DWM_GetCompositionTimingInfo (&dwm_timing)))
     {
-      bDwmTiming = true;
+      // Do NOT sync vs. DWM, MPOs break this stuff!
+    //bDwmTiming = true;
       fDwmPeriod =
         1000.0f / ( static_cast <float> (dwm_timing.rateRefresh.uiNumerator) /
                     static_cast <float> (dwm_timing.rateRefresh.uiDenominator) );
@@ -3492,12 +3513,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (dwm_timing.qpcVBlank <= dwmLastVBlank)
         bRefresh = false;
 
-      if (bRefresh && hSwapWait.m_h != 0)
-      {
-        // Wait on SwapChain
-        bRefresh =
-          (WaitForSingleObject (hSwapWait.m_h, 0) != WAIT_TIMEOUT);
-      }
+      //if (bRefresh && hSwapWait.m_h != 0)
+      //{
+      //  // Wait on SwapChain
+      //  bRefresh =
+      //    (WaitForSingleObject (hSwapWait.m_h, 0) != WAIT_TIMEOUT);
+      //}
 
       if (bRefresh)
         dwmLastVBlank = dwm_timing.qpcVBlank;
@@ -3529,19 +3550,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       startedMinimized = false;
       if ( SKIF_bOpenAtCursorPosition )
         RepositionSKIF = true;
-    }
-
-    UINT Interval =
-      SKIF_bAllowTearing ? 0
-                         : 1;
-    UINT  Flags   =
-      SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING
-                         : 0x0;
-
-    if (bRefresh)
-    {
-      if (FAILED (g_pSwapChain->Present (Interval, Flags)))
-        break;
     }
 
     // Release any leftover resources from last frame
@@ -3579,23 +3587,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGui_ImplWin32_UpdateGamepads ();
 
             SetEvent           (event);
-            PostMessage        (SKIF_hWnd, WM_NULL, 0x0, 0x0);
-          //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 0, nullptr);
+            {
+              //PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
+              ResetEvent         (SKIF_RefreshEvent);
+              SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+            }
 
             if (! SKIF_ImGui_IsFocused ())
             {
-              SKIF_Util_CompactWorkingSet ();
+              SK_RunOnce (SKIF_Util_CompactWorkingSet ());
 
-              SleepConditionVariableCS (
-                &SKIF_IsFocused, &GamepadInputPump,
-                  INFINITE
-              );
+              // 1000 ms refresh while unfocused
+              while (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT)
+              {
+                SleepConditionVariableCS (
+                  &SKIF_IsFocused, &GamepadInputPump,
+                    1000
+                );
+              }
             }
 
-            // XInput tends to have ~3-7 ms of latency between updates
-            //   best-case, try to delay the next poll until there's
-            //     new data.
-            Sleep (5);
+            // A forced refresh is allowed to happen instantly, otherwise wait 5 ms or
+            //   force refreshing while mouse is clicked.
+            if (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT && (0x0 == GetAsyncKeyState (0)))
+            {
+              // XInput tends to have ~3-7 ms of latency between updates
+              //   best-case, try to delay the next poll until there's
+              //     new data.
+              Sleep (5);
+            }
           }
 
           LeaveCriticalSection  (&GamepadInputPump);
@@ -3614,6 +3634,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! _TranslateAndDispatch ())
           break;
 
+        else if (msg.message == WM_SETCURSOR)                                 break;
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
         else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) break;

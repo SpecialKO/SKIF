@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2021 Andon "Kaldaien" Coleman
+// Copyright 2019-2022 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -155,12 +155,16 @@ extern bool SKIF_bEnableDebugMode;
 extern bool SKIF_bAllowMultipleInstances;
 extern bool SKIF_bAllowBackgroundService;
 extern bool SKIF_bEnableHDR;
+extern bool SKIF_bDisableVSYNC;
 extern bool SKIF_bOpenAtCursorPosition;
 extern bool SKIF_bStopOnInjection;
 extern bool SKIF_bCloseToTray;
 extern bool SKIF_bLowBandwidthMode;
 extern bool SKIF_bPreferGOGGalaxyLaunch;
 extern bool SKIF_bMinimizeOnGameLaunch;
+
+// Not a saved setting, this indicates the DXGI runtime supports tearing
+extern BOOL SKIF_bAllowTearing;
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 extern BOOL SKIF_bSuppressServiceNotification;

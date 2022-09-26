@@ -452,6 +452,10 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(HDR)" );
 
+  KeyValue <bool> regKVDisableVSYNC =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Disable VSYNC)" );
+
   KeyValue <bool> regKVOpenAtCursorPosition =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );

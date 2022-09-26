@@ -530,6 +530,41 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing       ( );
 
+    // Only show if OS supports tearing in windowed mode
+    if (SKIF_bAllowTearing)
+    {
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      SKIF_ImGui_SetHoverTip ("Controls UI latency for specific types of displays");
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                              "UI Refresh Mode:"
+      );
+
+      enum SKIF_SyncModes {
+        Sync_VRR_Compat = 0,
+        Sync_None       = 1
+      };
+
+      int SKIF_iSyncMode =
+        SKIF_bDisableVSYNC ? Sync_None
+                           : Sync_VRR_Compat;
+
+      ImGui::TreePush        ("SKIF_iSyncMode");
+      if (ImGui::RadioButton ("VRR Compatibility", &SKIF_iSyncMode, Sync_VRR_Compat))
+        _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = false));
+      SKIF_ImGui_SetHoverTip (
+        "Sluggish UI, but avoids variable-refresh signal loss"
+      );
+      ImGui::SameLine        ( );
+      if (ImGui::RadioButton ("VSYNC Off",         &SKIF_iSyncMode, Sync_None))
+        _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = true));
+      SKIF_ImGui_SetHoverTip (
+        "Improved UI response on low fixed-refresh rate displays"
+      );
+      ImGui::TreePop         ( );
+      ImGui::Spacing         ( );
+    }
+
     const char* StyleItems[] = { "SKIF Dark",
                                  "ImGui Dark",
                                  "ImGui Light",

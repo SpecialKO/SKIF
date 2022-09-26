@@ -1169,8 +1169,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.BufferCount  =
-           SKIF_bCanFlip ? 2  // 3
-                         : 1; // 2
+           SKIF_bCanFlip ? 3
+                         : 1;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
   swap_desc.SwapEffect   =
@@ -1408,10 +1408,29 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
+  extern bool SKIF_bDisableVSYNC;
+
+  bool bNoVSYNC =
+    SKIF_bAllowTearing ? ( SKIF_bDisableVSYNC ? true
+                                              : false )
+                       : false;
+
   UINT Interval =
-    SKIF_bAllowTearing ? 0
-                       : SKIF_bCanFlipDiscard ? 1
-                                              : 0;
+    bNoVSYNC ? 0
+             : SKIF_bCanFlipDiscard ? 2
+                                    : 0; // Non-Flip is ALWAYS VSYNC'd
+
+  auto& io =
+    ImGui::GetIO ();
+
+  // While mouse is down (i.e. dragging), use VSYNC
+  if ( ImGui::IsAnyMouseDown ()                  ||
+       io.NavInputs [ImGuiNavInput_Menu] != 0.0f ||
+       io.KeyCtrl )
+  {
+    Interval = std::max (Interval, 1U);
+    bNoVSYNC = false;
+  }
 
   if (data->WaitHandle)
   {
@@ -1424,8 +1443,8 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     if (dwWaitState == WAIT_OBJECT_0)
     {
       DXGI_PRESENT_PARAMETERS       pparams = { };
-      pSwap3->Present1 ( Interval, (SKIF_bCanFlip      ? DXGI_PRESENT_RESTART       : 0x0) |
-                                   (SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
+      pSwap3->Present1 ( Interval, (SKIF_bCanFlip ? DXGI_PRESENT_RESTART       : 0x0) |
+                                   (     bNoVSYNC ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
                                    &pparams );
       data->PresentCount++;
     }
