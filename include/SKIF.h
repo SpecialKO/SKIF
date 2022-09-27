@@ -26,6 +26,7 @@
 
 #include <combaseapi.h>
 #include <comdef.h>
+#include <atlbase.h>
 
 #include <string>
 #include <string_view>
@@ -194,3 +195,6 @@ enum UITab {
 
 extern UITab SKIF_Tab_Selected;
 extern UITab SKIF_Tab_ChangeTo;
+
+// Call SetEvent (...) on this to force a redraw, even if window is not focused
+extern CHandle SKIF_RefreshEvent;
