@@ -1,5 +1,5 @@
 ﻿//
-// Copyright 2021 Andon "Kaldaien" Coleman
+// Copyright 2021 - 2022 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -24,6 +24,7 @@
 #include <SKIF_imgui.h>
 
 #include <wmsdk.h>
+#include <Tlhelp32.h>
 #include <filesystem>
 
 #include <font_awesome.h>
@@ -109,6 +110,8 @@ using SKX_GetInjectedPIDs_pfn   = size_t                (__stdcall *)(DWORD *pdw
 using SK_Inject_GetRecord_pfn   = SK_InjectionRecord_s* (__stdcall *)(DWORD  dwPid);
 using SK_Inject_AuditRecord_pfn = HRESULT               (__stdcall *)(DWORD  dwPid, SK_InjectionRecord_s* pData, size_t cbSize);
 
+#include <imgui/imgui.h>
+
 BOOL
 SKIF_File_GetNameFromHandle ( HANDLE   hFile,
                               wchar_t *pwszFileName,
@@ -189,7 +192,7 @@ __declspec (noinline)
 void SKIF_ImportFromNtDll_Impl (_T& pfn, const char* name)
 {
   pfn =
-    reinterpret_cast <typename _T> (
+    reinterpret_cast <_T> (
       SKIF_GetNtDllProcAddress (name)
     );
 }
@@ -1116,6 +1119,233 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
   return (path.find("SteamApps") != std::string::npos);
 }
 
+#if 0
+bool
+SK_IsProcessAdmin (PROCESSENTRY32W proc)
+{
+  bool          bRet = false;
+  SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
+
+  SetLastError(NO_ERROR);
+
+  SK_AutoHandle hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, proc.th32ProcessID);
+
+  if (GetLastError() == ERROR_ACCESS_DENIED)
+    return true;
+
+  if ( OpenProcessToken ( hProcess,
+                            TOKEN_QUERY,
+                              &hToken.m_h )
+     )
+  {
+    TOKEN_ELEVATION Elevation = { };
+
+    DWORD cbSize =
+      sizeof (TOKEN_ELEVATION);
+
+    if ( GetTokenInformation ( hToken.m_h,
+                                 TokenElevation,
+                                   &Elevation,
+                                     sizeof (Elevation),
+                                       &cbSize )
+       )
+    {
+      bRet =
+        ( Elevation.TokenIsElevated != 0 );
+    }
+  }
+
+  return bRet;
+}
+
+PROCESSENTRY32W
+SK_FindProcessByName (const wchar_t* wszName)
+{
+  PROCESSENTRY32W none = { },
+                  pe32 = { };
+
+  SK_AutoHandle hProcessSnap (
+    CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+  );
+
+  if ((intptr_t)hProcessSnap.m_h <= 0) // == INVALID_HANDLE_VALUE)
+    return none;
+
+  pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+  if (! Process32FirstW (hProcessSnap, &pe32))
+    return none;
+
+  do
+  {
+    if (wcsstr (pe32.szExeFile, wszName))
+      return pe32;
+  } while (Process32NextW (hProcessSnap, &pe32));
+
+  return none;
+}
+
+struct Platform {
+  std::string     Name;
+  std::wstring    ProcessName;
+  DWORD           ProcessID   = 0,
+                  PreviousPID = 0;
+  bool            isRunning   = false,
+                  isAdmin     = false;
+
+  CHandle         hThreadRefresh;
+  CHandle         hSignalRefresh;
+
+  Platform (std::string n, std::wstring pn)
+  {
+    Name        =  n;
+    ProcessName = pn;
+    Refresh ( );
+  }
+
+  void Refresh (void)
+  {
+    if (hSignalRefresh == nullptr)
+    {
+      hSignalRefresh.m_h =
+        CreateEventW (nullptr, FALSE, FALSE, nullptr);
+    }
+
+    if (hSignalRefresh != nullptr)
+    {
+      SetEvent (hSignalRefresh);
+
+      if (hThreadRefresh == nullptr)
+      {
+        hThreadRefresh.m_h =
+          CreateThread (nullptr, 0x0,
+          [](LPVOID lpUser)
+       -> DWORD
+          {
+            Platform* p =
+              (Platform *)lpUser;
+       
+            while (WaitForSingleObject (p->hSignalRefresh, INFINITE) == WAIT_OBJECT_0)
+            {
+              PROCESSENTRY32W pe =
+                SK_FindProcessByName (p->ProcessName.c_str());
+       
+              p->ProcessID =  pe.th32ProcessID;
+       
+              if (p->ProcessID != p->PreviousPID)
+              {
+                p->PreviousPID =  p->ProcessID;
+                p->isRunning   = (p->ProcessID > 0);
+       
+                if (p->isRunning)
+                    p->isAdmin = SK_IsProcessAdmin (pe);
+              }
+            }
+       
+            return 0;
+          }, this, 0x0, nullptr);
+      }
+    }
+  }
+};
+
+static DWORD dwLastPlatformRefresh = 0;
+static Platform Platforms[] = {
+    {"32-bit Service",      L"SKIFsvc32.exe"},
+#ifdef _WIN64
+    {"64-bit Service",      L"SKIFsvc64.exe"},
+#endif
+    {"Steam",               L"steam.exe"},
+    {"Origin",              L"Origin.exe"},
+    {"Galaxy",              L"GalaxyClient.exe"},
+    {"EA Desktop",          L"EADesktop.exe"},
+    {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
+    {"Ubisoft Connect",     L"upc.exe"}
+};
+
+void SKIF_UI_DrawPlatformStatus (void)
+{
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+
+  static bool isSKIFAdmin = IsUserAnAdmin();
+  if (isSKIFAdmin)
+  {
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "SKIF is running as an administrator!");
+    SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                              "Please restart the global injector service and SKIF as a regular user.");
+  }
+  else {
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "SKIF is running with normal privileges.");
+    SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
+                              "into system processes nor games running as an administrator.");
+  }
+
+  ImGui::EndGroup         ( );
+
+  for ( auto& p : Platforms )
+  {
+    if ( dwLastPlatformRefresh + 1000 < SKIF_Util_timeGetTime ())
+        p.Refresh ( ); // Timer has expired, refresh
+
+    if (p.isRunning)
+    {
+      ImGui::BeginGroup       ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+
+      if (p.isAdmin)
+      {
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
+
+        if (isSKIFAdmin)
+          SKIF_ImGui_SetHoverTip ( ("It is not recommended to run either " + p.Name + " or SKIF as an administrator.\n"
+                                    "Please restart both as a normal user.").c_str());
+        else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+          SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
+                                    "Please restart the global injector service and SKIF as a regular user.");
+        else
+          SKIF_ImGui_SetHoverTip ( ("Running elevated will prevent injection into these games.\n"
+                                    "Please restart " + p.Name + " as a normal user.").c_str());
+      }
+      else {
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), (p.Name + " is running.").c_str());
+      }
+
+      ImGui::EndGroup          ( );
+    }
+    else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+    {
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::ItemSize         (ImVec2 (ImGui::CalcTextSize (ICON_FA_CHECK " ") .x, ImGui::GetTextLineHeight()));
+      //ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_MINUS " ");
+      ImGui::SameLine         ( );
+      ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
+    }
+
+#ifdef _WIN64
+    if (p.ProcessName == L"SKIFsvc64.exe")
+      ImGui::NewLine           ( );
+#else
+    if (p.ProcessName == L"SKIFsvc32.exe")
+      ImGui::NewLine();
+#endif
+  }
+
+  if ( dwLastPlatformRefresh + 1000 < SKIF_Util_timeGetTime ())
+       dwLastPlatformRefresh        = SKIF_Util_timeGetTime (); // Set timer for next refresh
+}
+#endif
 
 // CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
 //               https://jadro-windows.cz/download/ntqueryobject.zip
@@ -1226,28 +1456,43 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
 
-    static std::vector <standby_record_s> _Standby32;
-    static std::vector <standby_record_s> _Standby64;
 
-    std::set <DWORD> _Used32;
-    std::set <DWORD> _Used64;
+    // Double-buffer updates so we can go lock-free
+    //
+    struct injection_snapshot_s {
+      std::vector <standby_record_s> _Standby32;
+      std::vector <standby_record_s> _Standby64;
 
-    static std::map <DWORD,  std::wstring> executables_64;
-    static std::map <DWORD,  std::wstring> executables_32;
-    static std::map <DWORD, inject_policy>    policies_64;
-    static std::map <DWORD, inject_policy>    policies_32;
-    static std::map <DWORD,   std::string>    tooltips_64;
-    static std::map <DWORD,   std::string>    tooltips_32;
-    static std::map <DWORD,   std::string>   humanpath_64;
-    static std::map <DWORD,   std::string>   humanpath_32;
-    static std::map <DWORD,   std::string>     details_64;
-    static std::map <DWORD,   std::string>     details_32;
+      std::map <DWORD,  std::wstring> executables_64;
+      std::map <DWORD,  std::wstring> executables_32;
+      std::map <DWORD, inject_policy>    policies_64;
+      std::map <DWORD, inject_policy>    policies_32;
+      std::map <DWORD,   std::string>    tooltips_64;
+      std::map <DWORD,   std::string>    tooltips_32;
+      std::map <DWORD,   std::string>     details_64;
+      std::map <DWORD,   std::string>     details_32;
 
-    static           DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
+      DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
+    } static snapshots [2];
+
+    static volatile LONG snapshot_idx = 0;
+
+    auto &snapshot =
+      snapshots [ReadAcquire (&snapshot_idx)];
+
+    auto& executables_64 = snapshot.executables_64;
+    auto& executables_32 = snapshot.executables_32;
+    auto&    policies_64 = snapshot.   policies_64;
+    auto&    policies_32 = snapshot.   policies_32;
+    auto&    tooltips_64 = snapshot.   tooltips_64;
+    auto&    tooltips_32 = snapshot.   tooltips_32;
+    auto&     details_64 = snapshot.    details_64;
+    auto&     details_32 = snapshot.    details_32;
+
     size_t num_pids =
-      SKX_GetInjectedPIDs (dwPIDs, MAX_INJECTED_PROCS);
+      SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
   
-    static DWORD dwMonitored = 0;
+    //static DWORD dwMonitored = 0;
 
     /*
     ImGui::Separator (                   );
@@ -1503,7 +1748,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       while (num_pids > 0)
       {
         DWORD dwPID =
-              dwPIDs [--num_pids];
+     snapshot.dwPIDs [--num_pids];
 
 #ifdef _WIN64
         _Active64.emplace (dwPID);
@@ -1570,242 +1815,281 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       SKIF_ImGui_Spacing   ( );
     }
-    
-    extern bool SKIF_ImGui_IsFocused (void);
 
     if (EventIndex != USHRT_MAX)
     {
-      static DWORD
-          dwLastRefresh = 0;
-      if (dwLastRefresh + 500 < SKIF_Util_timeGetTime () && active_listing && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
-      {   dwLastRefresh       = SKIF_Util_timeGetTime ();
-        standby_list.clear ();
-        _Standby32.clear   ();
-        _Standby64.clear   ();
-
-        using _PerProcessHandleMap =
-          std::map        < DWORD,
-              std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
-                                                              >;
-        NTSTATUS ntStatusHandles;
-
-        ULONG      handle_info_size ( SystemHandleInformationSize );
-        _ByteArray handle_info_buffer;
-
-        do
+      static HANDLE hThread =
+        CreateThread ( nullptr, 0x0,
+          [](LPVOID)
+       -> DWORD
         {
-          handle_info_buffer.resize (
-                   handle_info_size );
+          static constexpr auto
+            RefreshIntervalInMsec = 250UL;
 
-          ntStatusHandles =
-            NtQuerySystemInformation (
-              SystemExtendedHandleInformation,
-                handle_info_buffer.data (),
-                handle_info_size,
-               &handle_info_size     );
-
-        } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
-
-        if (NT_SUCCESS (ntStatusHandles))
-        {
-          DWORD  dwPidOfMe   =  GetCurrentProcessId (); // Actual Pid
-          HANDLE hProcessDst =  GetCurrentProcess   (); // Pseudo Handle
-
-          _PerProcessHandleMap
-            handles_by_process;
-
-          auto handleTableInformationEx =
-            PSYSTEM_HANDLE_INFORMATION_EX (
-               handle_info_buffer.data ()
-            );
-
-          // Go through all handles of the system
-          for ( unsigned int i = 0;
-                             i < handleTableInformationEx->NumberOfHandles;
-                             i++)
+          do
           {
-            // Skip handles belong to SKIF
-            if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
-              continue;
-
-            //OutputDebugString(L"ObjectTypeIndex: ");
-            //OutputDebugString(std::to_wstring(handleTableInformationEx->Handles[i].ObjectTypeIndex).c_str());
-            //OutputDebugString(L"\n");
-
-            // If it is not the index that corresponds to Events, skip it
-            if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
-              continue;
-
-            /* Skip handles with the following access codes as the next call
-               to NtDuplicateObject() or NtQueryObject() might hang forever.
-             
-               Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
-            */
-            /*
-            if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
-             || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
-              continue;
-            */
-
-            // Need a better approach as this is slow on some systems... Maybe look
-            //  up all object type IDs before-hand to identify those pertaining to
-            //   events, and then just include those?
-
-            // Add the remaining handles to the list of handles to go through
-            handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
-                 .emplace_back (handleTableInformationEx->Handles [i]);
-          }
-
-          // Go through each process
-          for ( auto& handles : handles_by_process )
-          {
-            auto dwProcId = handles.first;
-
-            HANDLE hProcessSrc =
-                OpenProcess (
-                    PROCESS_DUP_HANDLE |
-                    PROCESS_QUERY_INFORMATION, FALSE,
-                  dwProcId  );
-
-            if (! hProcessSrc) continue;
-
-            wchar_t                                wszProcessName [MAX_PATH] = { };
-            GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
-
-            // Go through each handle the process contains
-            for ( auto& handle : handles.second )
+            if (SKIF_Tab_Selected != Debug || !active_listing)
             {
-              auto hHandleSrc = handle.Handle;
+              Sleep (RefreshIntervalInMsec * 4);
+              continue;
+            }
 
-              // Debug purposes
-              //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
+            long idx =
+              ( ReadAcquire (&snapshot_idx) + 1 ) % 2;
 
-              HANDLE   hDupHandle;
-              NTSTATUS ntStat     =
-                NtDuplicateObject (
-                  hProcessSrc,  hHandleSrc,
-                  hProcessDst, &hDupHandle,
-                          0, 0, 0 );
+            auto &snapshot =
+              snapshots [idx];
 
-              if (! NT_SUCCESS (ntStat)) continue;
+            auto& _Standby64     = snapshot._Standby64;
+            auto& _Standby32     = snapshot._Standby32;
+            auto& executables_64 = snapshot.executables_64;
+            auto& executables_32 = snapshot.executables_32;
+            auto&    policies_64 = snapshot.   policies_64;
+            auto&    policies_32 = snapshot.   policies_32;
+            auto&    tooltips_64 = snapshot.   tooltips_64;
+            auto&    tooltips_32 = snapshot.   tooltips_32;
 
-              std::wstring handle_name = L"";
+            standby_list.clear ();
+            _Standby32.clear   ();
+            _Standby64.clear   ();
 
-              ULONG      _ObjectNameLen ( 64 );
-              _ByteArray pObjectName;
+            std::set <DWORD> _Used32;
+            std::set <DWORD> _Used64;
 
-              do
+            using _PerProcessHandleMap =
+              std::map        < DWORD,
+                  std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
+                                                                  >;
+            NTSTATUS ntStatusHandles;
+
+            ULONG      handle_info_size ( SystemHandleInformationSize );
+            _ByteArray handle_info_buffer;
+
+            do
+            {
+              handle_info_buffer.resize (
+                       handle_info_size );
+
+              ntStatusHandles =
+                NtQuerySystemInformation (
+                  SystemExtendedHandleInformation,
+                    handle_info_buffer.data (),
+                    handle_info_size,
+                   &handle_info_size     );
+
+            } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
+
+            if (NT_SUCCESS (ntStatusHandles))
+            {
+              DWORD  dwPidOfMe   =  GetCurrentProcessId (); // Actual Pid
+              HANDLE hProcessDst =  GetCurrentProcess   (); // Pseudo Handle
+
+              _PerProcessHandleMap
+                handles_by_process;
+
+              auto handleTableInformationEx =
+                PSYSTEM_HANDLE_INFORMATION_EX (
+                   handle_info_buffer.data ()
+                );
+
+              // Go through all handles of the system
+              for ( unsigned int i = 0;
+                                 i < handleTableInformationEx->NumberOfHandles;
+                                 i++)
               {
-                pObjectName.resize (
-                    _ObjectNameLen );
+                // Skip handles belong to SKIF
+                if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
+                  continue;
 
-                ntStat =
-                  NtQueryObject (
-                    hDupHandle,
-                         ObjectNameInformation,
-                        pObjectName.data (),
-                        _ObjectNameLen,
-                       &_ObjectNameLen );
+                //OutputDebugString(L"ObjectTypeIndex: ");
+                //OutputDebugString(std::to_wstring(handleTableInformationEx->Handles[i].ObjectTypeIndex).c_str());
+                //OutputDebugString(L"\n");
 
-              } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
+                // If it is not the index that corresponds to Events, skip it
+                if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
+                  continue;
 
-              if (NT_SUCCESS (ntStat))
-              {
-                POBJECT_NAME_INFORMATION _pni =
-                  (POBJECT_NAME_INFORMATION) pObjectName.data ();
+                /* Skip handles with the following access codes as the next call
+                   to NtDuplicateObject() or NtQueryObject() might hang forever.
+                 
+                   Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
+                */
+                /*
+                if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
+                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
+                  continue;
+                */
 
-                handle_name = _pni != nullptr ?
-                              _pni->Name.Length > 0 ?
-                              _pni->Name.Buffer     : L""
-                                                    : L"";
+                // Need a better approach as this is slow on some systems... Maybe look
+                //  up all object type IDs before-hand to identify those pertaining to
+                //   events, and then just include those?
+
+                // Add the remaining handles to the list of handles to go through
+                handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
+                     .emplace_back (handleTableInformationEx->Handles [i]);
               }
 
-              CloseHandle (hDupHandle);
-
-              // Examine what we got
-
-              if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
-                  && _Used64.emplace (dwProcId).second )
+              // Go through each process
+              for ( auto& handles : handles_by_process )
               {
-                std::wstring friendlyPath = std::wstring (wszProcessName);
+                auto dwProcId = handles.first;
 
-                for (auto& device : deviceMap)
+                HANDLE hProcessSrc =
+                    OpenProcess (
+                        PROCESS_DUP_HANDLE |
+                        PROCESS_QUERY_INFORMATION, FALSE,
+                      dwProcId  );
+
+                if (! hProcessSrc) continue;
+
+                wchar_t                                wszProcessName [MAX_PATH] = { };
+                GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+
+                // Go through each handle the process contains
+                for ( auto& handle : handles.second )
                 {
-                  if (friendlyPath.find(device.second) != std::wstring::npos)
+                  auto hHandleSrc = handle.Handle;
+
+                  // Debug purposes
+                  //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
+
+                  HANDLE   hDupHandle;
+                  NTSTATUS ntStat     =
+                    NtDuplicateObject (
+                      hProcessSrc,  hHandleSrc,
+                      hProcessDst, &hDupHandle,
+                              0, 0, 0 );
+
+                  if (! NT_SUCCESS (ntStat)) continue;
+
+                  std::wstring handle_name = L"";
+
+                  ULONG      _ObjectNameLen ( 64 );
+                  _ByteArray pObjectName;
+
+                  do
                   {
-                    friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                    pObjectName.resize (
+                        _ObjectNameLen );
+
+                    ntStat =
+                      NtQueryObject (
+                        hDupHandle,
+                             ObjectNameInformation,
+                            pObjectName.data (),
+                            _ObjectNameLen,
+                           &_ObjectNameLen );
+
+                  } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
+
+                  if (NT_SUCCESS (ntStat))
+                  {
+                    POBJECT_NAME_INFORMATION _pni =
+                      (POBJECT_NAME_INFORMATION) pObjectName.data ();
+
+                    handle_name = _pni != nullptr ?
+                                  _pni->Name.Length > 0 ?
+                                  _pni->Name.Buffer     : L""
+                                                        : L"";
+                  }
+
+                  CloseHandle (hDupHandle);
+
+                  // Examine what we got
+
+                  if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
+                      && _Used64.emplace (dwProcId).second )
+                  {
+                    std::wstring friendlyPath = std::wstring (wszProcessName);
+
+                    for (auto& device : deviceMap)
+                    {
+                      if (friendlyPath.find(device.second) != std::wstring::npos)
+                      {
+                        friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                        break;
+                      }
+                    }
+
+                    _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+                    PathStripPathW (_Standby64.back ().filename.data () );
+
+                    break;
+                  } 
+                
+                  else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
+                      && _Used32.emplace (dwProcId).second )
+                  {
+                    std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                    for (auto& device : deviceMap)
+                    {
+                      if (friendlyPath.find(device.second) != std::wstring::npos)
+                      {
+                        friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                        break;
+                      }
+                    }
+
+                    _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
+                    PathStripPathW (_Standby32.back ().filename.data () );
+
                     break;
                   }
                 }
 
-                _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-                PathStripPathW (_Standby64.back ().filename.data () );
-
-                break;
-              } 
-            
-              else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
-                  && _Used32.emplace (dwProcId).second )
-              {
-                std::wstring friendlyPath = std::wstring(wszProcessName);
-
-                for (auto& device : deviceMap)
-                {
-                  if (friendlyPath.find(device.second) != std::wstring::npos)
-                  {
-                    friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                    break;
-                  }
-                }
-
-                _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-                PathStripPathW (_Standby32.back ().filename.data () );
-
-                break;
+                CloseHandle (hProcessSrc);
               }
             }
 
-            CloseHandle (hProcessSrc);
-          }
-        }
+            executables_64.clear ();
+            executables_32.clear ();
+               policies_64.clear ();
+               policies_32.clear ();
 
-        executables_64.clear ();
-        executables_32.clear ();
-           policies_64.clear ();
-           policies_32.clear ();
+            if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
+            {
+              executables_64 [proc.pid]     =     proc.filename;
+              tooltips_64    [proc.pid]     =     proc.nameUTF8;
 
-        if (! _Standby64.empty ()) for ( auto& proc : _Standby64 )
-        {
-          executables_64 [proc.pid]     =     proc.filename;
-          tooltips_64    [proc.pid]     =     proc.nameUTF8;
+              if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
+                policies_64  [proc.pid]     =     Blacklist;
+              else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
+                policies_64  [proc.pid]     =     Whitelist;
+              else
+                policies_64  [proc.pid]     =     DontCare;
+            }
 
-          if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-            policies_64  [proc.pid]     =     Blacklist;
-          else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-            policies_64  [proc.pid]     =     Whitelist;
-          else
-            policies_64  [proc.pid]     =     DontCare;
-        }
+            if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
+            { executables_32 [proc.pid]     =     proc.filename;
+              tooltips_32    [proc.pid]     =     proc.nameUTF8;
 
-        if (! _Standby32.empty ()) for ( auto& proc : _Standby32 )
-        { executables_32 [proc.pid]     =     proc.filename;
-          tooltips_32    [proc.pid]     =     proc.nameUTF8;
+              if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
+                policies_32  [proc.pid]     =     Blacklist;
+              else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
+                policies_32  [proc.pid]     =     Whitelist;
+              else
+                policies_32  [proc.pid]     =     DontCare;
+            }
 
-          if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-            policies_32  [proc.pid]     =     Blacklist;
-          else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-            policies_32  [proc.pid]     =     Whitelist;
-          else
-            policies_32  [proc.pid]     =     DontCare;
-        }
-      }
+            Sleep (RefreshIntervalInMsec);
+
+            InterlockedExchange (&snapshot_idx, idx);
+
+            // Force a repaint
+            SetEvent (SKIF_RefreshEvent);
+          } while (true); // Keep thread alive until exit
+
+          return 0;
+        }, nullptr, 0x0, nullptr
+      );
     }
 
     static std::pair <DWORD, std::wstring> static_proc = { 0, L"" };
@@ -1936,7 +2220,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       if (EventIndex == USHRT_MAX)
         ImGui::Text ("Error occurred when trying to locate type index for events!");
-      else if (executables_64.size() == 0 && executables_32.size() == 0)
+      else if (executables_64.empty () && executables_32.empty ())
         ImGui::Text ("Special K is currently not injected in any process.");
 
       for ( auto& proc64 : executables_64 )
