@@ -80,68 +80,79 @@ app_section_s::parse (section_desc_s& desc)
     section_data_s
   > raw_sections;
 
-  for ( uint8_t *cur = (uint8_t *)desc.blob             ;
-                 cur < (uint8_t *)desc.blob + desc.size ;
-                 cur++ )
+  static bool exception = false;
+
+  if (! exception)
   {
-    auto op =
-      (_TokenOp)(*cur);
-
-    auto name =
-      (char *)(cur + 1);
-
-    if (op != SectionEnd)
+    for ( uint8_t *cur = (uint8_t *)desc.blob             ;
+                    cur < (uint8_t *)desc.blob + desc.size ;
+                    cur++ )
     {
-      // Skip past name declarations, except for </Section> because it has no name.
-              cur++;
-      while (*cur != '\0')
-            ++cur;
-    }
+      auto op =
+        (_TokenOp)(*cur);
 
-    if (op == SectionBegin)
-    {
-      if (! raw_sections.empty ())
-            raw_sections.push_back ({ raw_sections.back ().name + std::string (".") +
-                                      name, {  (void *)cur, 0 } });
-      else
-        raw_sections.push_back     ({ name, {  (void *)cur, 0 } });
-    }
+      auto name =
+        (char *)(cur + 1);
 
-    else if (op == SectionEnd)
-    {
-      if (! raw_sections.empty ())
-      {     raw_sections.back  ().desc.size =
-          (uintptr_t)cur -
-          (uintptr_t)raw_sections.back      ().desc.blob;
-                finished_sections.push_back (raw_sections.back ());
-                     raw_sections.pop_back  ();
-      }
-    }
-
-    else
-    {
-      ++cur;
-
-      switch (op)
+      if (op != SectionEnd)
       {
-        case String:
-          raw_sections.back ().keys.push_back (
-            { name, { String, (void *)cur }}
-          );
-          while (*cur != '\0')     ++cur;
-          break;
+        // Skip past name declarations, except for </Section> because it has no name.
+                cur++;
+        while (*cur != '\0')
+              ++cur;
+      }
 
-        case Int32:
-        case Int64:
-          raw_sections.back ().keys.push_back (
-            { name, { op, (void *)cur }}
-          );
-             cur += (operand_sizes [op]-1);
-          break;
+      if (op == SectionBegin)
+      {
+        if (! raw_sections.empty ())
+              raw_sections.push_back ({ raw_sections.back ().name + std::string (".") +
+                                        name, {  (void *)cur, 0 } });
+        else
+          raw_sections.push_back     ({ name, {  (void *)cur, 0 } });
+      }
 
-        default:
-          MessageBox (nullptr, std::to_wstring (op).c_str (), L"Unknown VDF Token Operator", MB_OK);
-          break;
+      else if (op == SectionEnd)
+      {
+        if (! raw_sections.empty ())
+        {     raw_sections.back  ().desc.size =
+            (uintptr_t)cur -
+            (uintptr_t)raw_sections.back      ().desc.blob;
+                  finished_sections.push_back (raw_sections.back ());
+                        raw_sections.pop_back  ();
+        }
+      }
+
+      else
+      {
+        ++cur;
+
+        switch (op)
+        {
+          case String:
+            if (! raw_sections.empty ())
+            {     raw_sections.back ().keys.push_back (
+                { name, { String, (void *)cur }}
+              );
+            } else { exception = true; }
+            while (*cur != '\0')     ++cur;
+            break;
+
+          case Int32:
+          case Int64:
+            if (! raw_sections.empty ())
+            {     raw_sections.back ().keys.push_back (
+                { name, { op, (void *)cur }}
+              );
+            } else { exception = true; }
+            cur += (operand_sizes [op]-1);
+            break;
+
+          default:
+            //MessageBox (nullptr, std::to_wstring (op).c_str (), L"Unknown VDF Token Operator", MB_OK);
+            PLOG_WARNING << "Unknown VDF Token Operator: " << op;
+            exception = true;
+            break;
+        }
       }
     }
   }
