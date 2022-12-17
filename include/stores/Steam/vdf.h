@@ -15,6 +15,8 @@ typedef uint64 PublishedFileId_t;
 typedef uint64 ManifestId_t;
 typedef uint64 UGCHandle_t;
 
+#pragma pack(push)
+#pragma pack(1)
 class skValveDataFile
 {
 public:
@@ -23,7 +25,10 @@ public:
   static constexpr
     uint32_t _LastSteamApp = 0;
 
-  struct appinfo_s
+  static
+    uint32_t vdf_version;
+
+  struct appinfo27_s
   {
        AppId_t appid;
       uint32_t size;
@@ -32,7 +37,15 @@ public:
       uint64_t access_token;
        uint8_t sha1sum [20];
       uint32_t change_num;
+  };
+  
+  struct appinfo28_s : appinfo27_s
+  {
+       uint8_t sha1_sec [20]; // Added December 2022
+  };
 
+  struct appinfo_s : appinfo28_s
+  {
     struct section_desc_s {
       void*  blob;
       size_t size;
@@ -84,3 +97,5 @@ private:
   std::wstring        path;
   std::vector <BYTE> _data;
 };
+
+#pragma pack(pop)
