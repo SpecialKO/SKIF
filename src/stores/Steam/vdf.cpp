@@ -32,6 +32,8 @@ const int SKIF_STEAM_APPID = 1157970;
 using appinfo_s     = skValveDataFile::appinfo_s;
 using app_section_s =                  appinfo_s::section_s;
 
+uint32_t skValveDataFile::vdf_version = 0x27; // Default to Pre-December 2022
+
 skValveDataFile::skValveDataFile (std::wstring source) : path (source)
 {
   FILE *fData = nullptr;
@@ -62,6 +64,10 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
     base =
       reinterpret_cast <
              header_s *> (_data.data ());
+
+    vdf_version =
+      ((uint8_t *)&base->version)[0];
+
     root =
       &base->head;
   }
@@ -161,14 +167,25 @@ app_section_s::parse (section_desc_s& desc)
 void*
 appinfo_s::getRootSection (size_t* pSize)
 {
+  size_t vdf_header_size =
+    ( vdf_version > 0x27 ? sizeof (appinfo_s)
+                         : sizeof (appinfo27_s) );
+
+  if ( vdf_version < 0x27 ||
+       vdf_version > 0x28 )
+  {
+    MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
+                   L"Unsupported VDF Version", MB_OK );
+  }
+
   size_t kv_size =
-    (size - sizeof (appinfo_s) + 8);
+    (size - vdf_header_size + 8);
 
   if (pSize != nullptr)
      *pSize  = kv_size;
 
   return
-    (uint8_t*)&appid + sizeof (appinfo_s);
+    (uint8_t*)&appid + vdf_header_size;
 }
 
 appinfo_s*

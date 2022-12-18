@@ -259,7 +259,7 @@ public:
 
     int idx = 0;
 
-    for ( auto it : keys )
+    for ( auto& it : keys )
     {
       if (it._Equal (key))
         return values [idx];
@@ -283,7 +283,7 @@ public:
 
     int idx = 0;
 
-    for ( auto it : keys )
+    for ( auto& it : keys )
     {
       if (it._Equal (key))
       {
