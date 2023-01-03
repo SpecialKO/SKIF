@@ -171,12 +171,25 @@ appinfo_s::getRootSection (size_t* pSize)
     ( vdf_version > 0x27 ? sizeof (appinfo_s)
                          : sizeof (appinfo27_s) );
 
-  if ( vdf_version < 0x27 ||
-       vdf_version > 0x28 )
+  auto _CheckVersion =
+    [&](void) -> void
   {
-    MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
-                   L"Unsupported VDF Version", MB_OK );
-  }
+    switch (vdf_version)
+    {
+      case 0x28: // v40
+        PLOG_INFO    << "Steam appinfo.vdf version: " << vdf_version << " (December 2022)";
+        break;
+      case 0x27: // v39
+        PLOG_INFO    << "Steam appinfo.vdf version: " << vdf_version << " (pre-December 2022)";
+        break;
+      default:
+        PLOG_WARNING << "Steam appinfo.vdf version: " << vdf_version << " (unknown/unsupported)";
+        MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
+                       L"Unsupported VDF Version", MB_OK );
+    }
+  };
+
+  SK_RunOnce(_CheckVersion());
 
   size_t kv_size =
     (size - vdf_header_size + 8);
@@ -191,7 +204,7 @@ appinfo_s::getRootSection (size_t* pSize)
 appinfo_s*
 appinfo_s::getNextApp (void)
 {
-  section_desc_s root_sec;
+  section_desc_s root_sec{};
 
   root_sec.blob =
     getRootSection (&root_sec.size);
@@ -245,7 +258,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         assert      (dwSingleThread == GetCurrentThreadId ());
 
         static appinfo_s::section_s      section;
-               appinfo_s::section_desc_s app_desc;
+        appinfo_s::section_desc_s app_desc{};
 
         section.finished_sections.clear ();
 
@@ -495,8 +508,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         for ( auto& launch_cfg : pAppRecord->launch_configs )
         {
-          auto id     = pAppRecord->id;
-          auto launch = launch_cfg.second;
+          auto& id     = pAppRecord->id;
+          auto& launch = launch_cfg.second;
 
           launch.isBlacklisted (id);
 
