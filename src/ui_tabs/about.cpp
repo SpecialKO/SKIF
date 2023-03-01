@@ -251,7 +251,8 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
     ICON_FA_KEYBOARD " CTRL + Shift");
   ImGui::SameLine         ( );
-  ImGui::Text             ("when starting a game to access compatibility options.");
+  ImGui::Text             ("when starting a game to access compatibility options");
+  ImGui::Text             ("or quickly perform a local install of the appropriate wrapper DLL for the game.");
 
 
   float pushColumnSeparator =

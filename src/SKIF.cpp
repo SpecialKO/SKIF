@@ -2266,6 +2266,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       continue;
     }
 
+    // 2023-03-01: Ugly workaround for SKIF not appearing properly on launch
+    if (ImGui::GetFrameCount() < 5)
+    {
+      SetEvent (SKIF_RefreshEvent); // Force a refresh during the first five frames
+      PLOG_VERBOSE << "SKIF_RefreshEvent set!";
+    }
+
     // Set DPI related variables
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;

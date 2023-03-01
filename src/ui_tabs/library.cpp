@@ -1026,7 +1026,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // Strip any remaining null terminators
           app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
+
+          // Trim leftover spaces
+          app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+          app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
           
+          // Update ImGuiLabelAndID
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
         }
 

@@ -221,8 +221,9 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
     // Can be retrieved by monitoring requests made by the storefront in a web browser of choice
     // Up to 2020-04: 6e7c4dd0177150eb9a47d624be221929582df8648e7ec271c821838ff4ee148e
     //  From 2020-04: 4bebe12f9eab12438766fb5971b0bc54422ba81954539f294ec23b0a29ff92ad
+    //  From 2023-xx: 7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437
     std::wstring query = SK_FormatStringW (
-      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"4bebe12f9eab12438766fb5971b0bc54422ba81954539f294ec23b0a29ff92ad"}})",
+      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437"}})",
       SK_UTF8ToWideChar(CatalogNamespace).c_str()
     );
 
