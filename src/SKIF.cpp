@@ -2144,7 +2144,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
-  bool HiddenFramesContinueRendering = false;
+  bool HiddenFramesContinueRendering = true;
 
   // Force a one-time check before we enter the main loop
   _inject.TestServletRunlevel (true);
@@ -2205,7 +2205,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                               //(hSwapWait.m_h != 0) ? 1
                                                   //: 0,
                                     hWaitStates, TRUE,
-                                        INFINITE, QS_ALLINPUT );
+                                (HiddenFramesContinueRendering == false) ?
+                                                                INFINITE : 5, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
     //
@@ -2256,21 +2257,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (msg.message == WM_SETCURSOR)
     {
       if (! ImGui::IsAnyItemHovered ())
+      {
+        //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
         continue;
+      }
     }
 
     if ((msg.message == WM_SETFOCUS || msg.message == WM_KILLFOCUS) ||
         (msg.message == WM_TIMER))
     {
       SetEvent (SKIF_RefreshEvent);
+      //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
       continue;
-    }
-
-    // 2023-03-01: Ugly workaround for SKIF not appearing properly on launch
-    if (ImGui::GetFrameCount() < 5)
-    {
-      SetEvent (SKIF_RefreshEvent); // Force a refresh during the first five frames
-      PLOG_VERBOSE << "SKIF_RefreshEvent set!";
     }
 
     // Set DPI related variables
