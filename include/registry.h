@@ -456,6 +456,10 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable VSYNC)" );
 
+  KeyValue <bool> regKVDisableCFAWarning =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Disable CFA Warning)" );
+
   KeyValue <bool> regKVOpenAtCursorPosition =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );

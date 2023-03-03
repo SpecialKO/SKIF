@@ -149,7 +149,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bLowBandwidthMode        = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
      SKIF_bMinimizeOnGameLaunch    = false,
-     SKIF_bDisableVSYNC            = false;
+     SKIF_bDisableVSYNC            = false,
+     SKIF_bDisableCFAWarning       = false; // Controlled Folder Access warning
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;
@@ -969,6 +970,7 @@ SKIF_hasControlledFolderAccess (void)
 
   if (enabled)
   {
+    // Regular users / unelevated processes has read access to this key on Windows 10, but not on Windows 11.
     if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
     {
       static TCHAR               szExePath[MAX_PATH];
@@ -1906,18 +1908,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Check if Controlled Folder Access is enabled
-  if (SKIF_hasControlledFolderAccess ( ))
+  if (SKIF_bDisableCFAWarning == false && SKIF_hasControlledFolderAccess ( ))
   {
-    MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K from working properly. "
-                     L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
-                     L"\n\n"
-                     L"This warning will appear until SKIF (this application) have been excluded or the feature have been disabled."
-                     L"\n\n"
-                     L"Microsoft's support page with more information will be opened upon clicking OK.",
-                     L"Warning about Controlled Folder Access",
-               MB_ICONWARNING | MB_OK);
+    if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
+                                  L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
+                                  L"\n\n"
+                                  L"Do you want to disable this warning for all future launches?"
+                                  L"\n\n"
+                                  L"Microsoft's support page with more information will open when you select any of the options below.",
+                                  L"Warning about Controlled Folder Access",
+               MB_ICONWARNING | MB_YESNOCANCEL))
+    {
+      _registry.regKVDisableCFAWarning.putData (true);
+    }
 
-    SKIF_Util_OpenURI (L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
+    SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
   }
 
   // Register SKIF in Windows to enable quick launching.
@@ -3285,7 +3290,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
-          //bExitOnInjection = true; // Used to close SKIF once the service have been stopped
+          //bExitOnInjection = true; // Used to close SKIF once the service had been stopped
 
           //Sleep(50);
           //bKeepProcessAlive = false;

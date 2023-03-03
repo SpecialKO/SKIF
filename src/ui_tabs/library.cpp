@@ -1171,7 +1171,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
   }
 
-  // Apply changes when the SKIF_iDimCovers var have been changed in the Settings tab
+  // Apply changes when the SKIF_iDimCovers var has been changed in the Settings tab
   else if (tmpSKIF_iDimCovers != SKIF_iDimCovers)
   {
     fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
@@ -1422,7 +1422,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Most textures are pushed to be released by LoadLibraryTexture(),
       //  however the current cover pointer is only updated to the new one
-      //   *after* the old cover have been pushed to be released.
+      //   *after* the old cover has been pushed to be released.
       //  
       // This means there's a short thread race where the main thread
       //  can still reference a texture that has already been released.

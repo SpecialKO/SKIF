@@ -14,6 +14,7 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   extern int SKIF_iLogging;
 
   //XXX: These are all defined extern in SKIF.h, consider including that header instead?
+  //TODO: Move everything over to be defined as part of registry.h instead.
   extern uint32_t SKIF_iLastSelected;
   extern bool SKIF_bRememberLastSelected;
   extern bool SKIF_bDisableDPIScaling;
@@ -31,6 +32,7 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   extern bool SKIF_bAllowBackgroundService;
   extern bool SKIF_bEnableHDR;
   extern bool SKIF_bDisableVSYNC;
+  extern bool SKIF_bDisableCFAWarning;
   extern bool SKIF_bOpenAtCursorPosition;
   extern bool SKIF_bStopOnInjection;
   extern bool SKIF_bCloseToTray;
@@ -61,6 +63,7 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   SKIF_bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
 //SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
   SKIF_bDisableVSYNC            =   regKVDisableVSYNC.getData            ( );
+  SKIF_bDisableCFAWarning       =   regKVDisableCFAWarning.getData       ( );
   SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   
   // If the legacy key has data, but not the new key, move the data over to respect existing user's choices
