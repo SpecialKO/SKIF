@@ -5,6 +5,13 @@
 #include <filesystem>
 #include <fsutil.h>
 
+#include <dxgi.h>
+#include <d3d11.h>
+#include <d3dkmthk.h>
+#include "../../version.h"
+
+extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait);
+
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
@@ -19,6 +26,49 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static driverStatus        = NotInstalled,
          driverStatusPending = NotInstalled;
+
+  
+  static bool checkedMPOs = false;
+  static D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS MPOcaps = {};
+
+  if (! checkedMPOs)
+  {
+    checkedMPOs = true;
+
+    LUID adapterLuid = { 0 };
+    IDXGIDevice* pDXGIDevice = nullptr;
+    if (SUCCEEDED(SKIF_D3D11_GetDevice(false)->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice)))
+    {
+        IDXGIAdapter* pDXGIAdapter = nullptr;
+        if (SUCCEEDED(pDXGIDevice->GetAdapter(&pDXGIAdapter)))
+        {
+            DXGI_ADAPTER_DESC adapterDesc = {};
+            if (SUCCEEDED(pDXGIAdapter->GetDesc(&adapterDesc)))
+            {
+                adapterLuid = adapterDesc.AdapterLuid;
+            }
+            pDXGIAdapter->Release();
+        }
+        pDXGIDevice->Release();
+    }
+
+    // Open a handle to the adapter using its LUID
+    D3DKMT_OPENADAPTERFROMLUID openAdapter;
+    openAdapter.AdapterLuid = adapterLuid;
+    if (D3DKMTOpenAdapterFromLuid(&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+    {
+      MPOcaps.hAdapter = openAdapter.hAdapter;
+      D3DKMTGetMultiPlaneOverlayCaps(&MPOcaps);
+
+      PLOG_INFO << SKIF_LOG_SEPARATOR;
+      PLOG_INFO << "MPO Capabilities:";
+      PLOG_INFO << "MPO MaxPlanes: "    << MPOcaps.MaxPlanes;
+      PLOG_INFO << "MPO MaxRGBPlanes: " << MPOcaps.MaxRGBPlanes;
+      PLOG_INFO << "MPO MaxYUVPlanes: " << MPOcaps.MaxYUVPlanes;
+      PLOG_INFO << "MPO Stretch: "      << MPOcaps.MaxStretchFactor << "x - " << MPOcaps.MaxShrinkFactor << "x";
+      PLOG_INFO << SKIF_LOG_SEPARATOR;
+    }
+  }
 
   // Check if the WinRing0_1_2_0 kernel driver service is installed or not
   auto _CheckDriver = [](Status& _status, bool forced = false)->std::wstring
@@ -945,6 +995,28 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
     */
     ImGui::TreePop     ();
+
+    ImGui::BeginGroup  ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::SameLine    ();
+    ImGui::Text        ("MPO Planes Supported:");
+    ImGui::SameLine    ();
+    ImGui::TextColored (
+      (MPOcaps.MaxPlanes > 1)
+        ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
+        : ImColor::HSV(0.11F, 1.F, 1.F),
+      (std::to_string(MPOcaps.MaxPlanes) + " plane" + ((MPOcaps.MaxPlanes > 1) ? "s  " ICON_FA_THUMBS_UP : "  " ICON_FA_THUMBS_DOWN)).c_str()
+    );
+    ImGui::EndGroup    ();
+
+    SKIF_ImGui_SetHoverTip ("Multi-Plane Overlays (MPOs) are additional dedicated hardware scanout planes\n"
+                            "enabling the GPU to partially take over composition from the DWM. This allows\n"
+                            "games to bypass the DWM in various mixed scenarios or window modes,\n"
+                            "eliminating the input latency that would otherwise be incurred, such as when\n"
+                            "notifications or window-based overlays (e.g. Game Bar) appear above the game.\n"
+                            "\n"
+                            "MPOs requires a newer GPU, such as an Nvidia 20-series card or newer."
+    );
 
     SKIF_ImGui_Spacing ();
             

@@ -85,8 +85,6 @@
 
 #include "TextFlow.hpp"
 
-#include <d3dkmthk.h>
-
 #pragma comment (lib, "wininet.lib")
 
 const GUID IID_IDXGIFactory5 =
@@ -2095,44 +2093,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     CleanupDeviceD3D ();
     return 1;
   }
-
-
-  // START MPO POC
-  LUID adapterLuid = { 0 };
-  IDXGIDevice* pDXGIDevice = nullptr;
-  if (SUCCEEDED(g_pd3dDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice)))
-  {
-      IDXGIAdapter* pDXGIAdapter = nullptr;
-      if (SUCCEEDED(pDXGIDevice->GetAdapter(&pDXGIAdapter)))
-      {
-          DXGI_ADAPTER_DESC adapterDesc = {};
-          if (SUCCEEDED(pDXGIAdapter->GetDesc(&adapterDesc)))
-          {
-              adapterLuid = adapterDesc.AdapterLuid;
-          }
-          pDXGIAdapter->Release();
-      }
-      pDXGIDevice->Release();
-  }
-
-  // Open a handle to the adapter using its LUID
-  D3DKMT_OPENADAPTERFROMLUID openAdapter;
-  openAdapter.AdapterLuid = adapterLuid;
-  if (D3DKMTOpenAdapterFromLuid(&openAdapter) != (NTSTATUS)0x00000000L) // STATUS_SUCCESS
-  {
-    return NULL; // Failed to open adapter
-  }
-  else {
-    OutputDebugString(L"Success!\n");
-    D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS derp = {};
-    derp.hAdapter = openAdapter.hAdapter;
-
-    D3DKMTGetMultiPlaneOverlayCaps(&derp);
-    OutputDebugString((L"MaxPlanes: " + std::to_wstring(derp.MaxPlanes) + L"\n").c_str());
-  }
-
-  // END MPO POC
-
 
   SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
