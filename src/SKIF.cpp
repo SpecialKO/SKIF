@@ -47,7 +47,9 @@
 #include <fsutil.h>
 #include <psapi.h>
 
+#include <codecvt>
 #include <fstream>
+#include <random>
 
 #include <filesystem>
 #include <concurrent_queue.h>
@@ -1115,6 +1117,64 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       // Read patrons.txt
       if (patrons.empty( ))
       {
+        std::wifstream fPatrons(L"patrons.txt");
+        std::vector<std::wstring> lines;
+        std::wstring full_text;
+
+        if (fPatrons.is_open ())
+        {
+          // Requires Windows 10 1903+ (Build 18362)
+          if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
+          {
+            fPatrons.imbue (
+                std::locale (".UTF-8")
+            );
+          }
+          else
+          {
+            // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
+            // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(suppress : 4996)
+            fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+          }
+
+          std::wstring line;
+
+          while (fPatrons.good ())
+          {
+            std::getline (fPatrons, line);
+
+            // Skip blank lines, since they would match everything....
+            for (const auto& it : line)
+            {
+              if (iswalpha(it) != 0)
+              {
+                lines.push_back(line);
+                break;
+              }
+            }
+          }
+
+          if (! lines.empty())
+          {
+            // Shuffle the lines using a random number generator
+            auto rd  = std::random_device{};
+            auto gen = std::default_random_engine{ rd() };
+            std::shuffle(lines.begin(), lines.end(), gen);  // Shuffle the vector
+
+            for (const auto& vline : lines) {
+              full_text += vline + L"\n";
+            }
+
+            if (full_text.length() > 0)
+              full_text.resize (full_text.length () - 1);
+
+            patrons = SK_WideCharToUTF8(full_text);
+          }
+
+          fPatrons.close ();
+
+        /*/ Old method
         FILE *fPatrons =
         _wfopen (L"patrons.txt", L"rb");
 
@@ -1135,16 +1195,13 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
             ftell     (fPatrons)      );
 #endif
           rewind      (fPatrons);
-
           out.resize (size);
-
           fread (out.data (), size, 1, fPatrons);
-
           out += '\0';
-          
-          patrons = out;
-
           fclose (fPatrons);
+
+          patrons = out;
+        */
         }
       }
 
@@ -1524,8 +1581,7 @@ void SKIF_UI_DrawPlatformStatus (void)
       p.isRunning = false;
     }
 
-    PROCESSENTRY32W none = { },
-                    pe32 = { };
+    PROCESSENTRY32W pe32 = { };
 
     SK_AutoHandle hProcessSnap (
       CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
@@ -3863,6 +3919,11 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
+
+  if (ImGui::GetCurrentContext() != NULL)
+  {
+    //OutputDebugString((L"[WndProc][" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Message spotted : " + std::to_wstring(msg) + L" w wParam : " + std::to_wstring(wParam) + L"\n").c_str());
+  }
 
   switch (msg)
   {

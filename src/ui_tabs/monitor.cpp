@@ -20,7 +20,6 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <SKIF.h>
 #include <SKIF_imgui.h>
 
 #include <wmsdk.h>
@@ -1471,6 +1470,8 @@ SKIF_UI_Tab_DrawMonitor (void)
       std::map <DWORD,   std::string>    tooltips_32;
       std::map <DWORD,   std::string>     details_64;
       std::map <DWORD,   std::string>     details_32;
+      std::map <DWORD,   bool>              admin_64;
+      std::map <DWORD,   bool>              admin_32;
 
       DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
     } static snapshots [2];
@@ -1488,9 +1489,11 @@ SKIF_UI_Tab_DrawMonitor (void)
     auto&    tooltips_32 = snapshot.   tooltips_32;
     auto&     details_64 = snapshot.    details_64;
     auto&     details_32 = snapshot.    details_32;
+    auto&       admin_64 = snapshot.      admin_64;
+    auto&       admin_32 = snapshot.      admin_32;
 
-    size_t num_pids =
-      SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
+//    size_t num_pids =
+//      SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
   
     //static DWORD dwMonitored = 0;
 
@@ -1698,6 +1701,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     extern void
       SKIF_ImGui_SetHoverTip(const std::string_view& szText);
 
+#if 0
 #ifdef _WIN64
     if (ImGui::CollapsingHeader("Active 64-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
 #else
@@ -1815,6 +1819,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       SKIF_ImGui_Spacing   ( );
     }
+#endif
 
     if (EventIndex != USHRT_MAX)
     {
@@ -1848,13 +1853,22 @@ SKIF_UI_Tab_DrawMonitor (void)
             auto&    policies_32 = snapshot.   policies_32;
             auto&    tooltips_64 = snapshot.   tooltips_64;
             auto&    tooltips_32 = snapshot.   tooltips_32;
+            auto&     details_64 = snapshot.    details_64;
+            auto&     details_32 = snapshot.    details_32;
+            auto&       admin_64 = snapshot.      admin_64;
+            auto&       admin_32 = snapshot.      admin_32;
 
             standby_list.clear ();
             _Standby32.clear   ();
             _Standby64.clear   ();
+            details_64.clear   ();
+            details_32.clear   ();
 
             std::set <DWORD> _Used32;
             std::set <DWORD> _Used64;
+
+            static DWORD dwPidOfMe =
+              GetCurrentProcessId (); // Actual Pid
 
             using _PerProcessHandleMap =
               std::map        < DWORD,
@@ -1881,7 +1895,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
             if (NT_SUCCESS (ntStatusHandles))
             {
-              DWORD  dwPidOfMe   =  GetCurrentProcessId (); // Actual Pid
               HANDLE hProcessDst =  GetCurrentProcess   (); // Pseudo Handle
 
               _PerProcessHandleMap
@@ -1901,35 +1914,9 @@ SKIF_UI_Tab_DrawMonitor (void)
                 if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
                   continue;
 
-                //OutputDebugString(L"ObjectTypeIndex: ");
-                //OutputDebugString(std::to_wstring(handleTableInformationEx->Handles[i].ObjectTypeIndex).c_str());
-                //OutputDebugString(L"\n");
-
                 // If it is not the index that corresponds to Events, skip it
                 if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
                   continue;
-
-                /* Skip handles with the following access codes as the next call
-                   to NtDuplicateObject() or NtQueryObject() might hang forever.
-                 
-                   Source: https://github.com/tamentis/psutil/blob/master/psutil/arch/mswindows/process_handles.c
-                */
-                /*
-                if ((handleTableInformationEx->Handles [i].GrantedAccess == 0x0012019f)
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001a019f)
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120189)
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100000)
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00120089)  // Spodi freeze + https://github.com/giampaolo/psutil/issues/340
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0012008D)  // Spodi freeze + https://github.com/erengy/taiga/issues/270
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x0016019F)  // Holy  freeze + https://github.com/erengy/taiga/issues/301
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x00100081)  // Holy  freeze
-                 || (handleTableInformationEx->Handles [i].GrantedAccess == 0x001A0089)) // Merle freeze
-                  continue;
-                */
-
-                // Need a better approach as this is slow on some systems... Maybe look
-                //  up all object type IDs before-hand to identify those pertaining to
-                //   events, and then just include those?
 
                 // Add the remaining handles to the list of handles to go through
                 handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
@@ -2022,7 +2009,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                     PathStripPathW (_Standby64.back ().filename.data () );
 
                     break;
-                  } 
+                  }
                 
                   else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
                       && _Used32.emplace (dwProcId).second )
@@ -2049,15 +2036,133 @@ SKIF_UI_Tab_DrawMonitor (void)
               }
             }
 
+            // Fallback approach - check Modules as well for the remaining processes 
+
+            PROCESSENTRY32W pe32 = { };
+            MODULEENTRY32W  me32 = { };
+
+            SK_AutoHandle hProcessSnap (
+              CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+            );
+
+            if ((intptr_t)hProcessSnap.m_h > 0)
+            {
+              pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+              if (Process32FirstW (hProcessSnap, &pe32))
+              {
+                do
+                {
+                  // Skip handles belong to SKIF
+                  if (pe32.th32ProcessID == dwPidOfMe ||
+                      pe32.th32ProcessID == 0)
+                    continue;
+
+                  //PLOG_VERBOSE << "Checking " << pe32.th32ProcessID;
+
+                  if (_Used32.find(pe32.th32ProcessID) != _Used32.end() ||
+                      _Used64.find(pe32.th32ProcessID) != _Used64.end() )
+                  {
+                    //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << " have already been discovered!";
+                    continue;
+                  }
+
+                  HANDLE hProcessSrc =
+                      OpenProcess (
+                          PROCESS_QUERY_INFORMATION, FALSE,
+                        pe32.th32ProcessID );
+
+                  if (! hProcessSrc) continue;
+
+                  wchar_t                                wszProcessName [MAX_PATH] = { };
+                  GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+
+                  SK_AutoHandle hModuleSnap (
+                    CreateToolhelp32Snapshot (TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe32.th32ProcessID)
+                  );
+
+                  if ((intptr_t)hModuleSnap.m_h > 0)
+                  {
+                    me32.dwSize = sizeof (MODULEENTRY32W);
+
+                    if (Module32FirstW (hModuleSnap, &me32))
+                    {
+                      do
+                      {
+                        std::wstring modName = me32.szModule;
+
+                        if (modName == L"SpecialK64.dll"
+                             && _Used64.emplace (pe32.th32ProcessID).second)
+                        {
+                          //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << " was discovered!";
+
+                          std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                          for (auto& device : deviceMap)
+                          {
+                            if (friendlyPath.find(device.second) != std::wstring::npos)
+                            {
+                              friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                              break;
+                            }
+                          }
+
+                          _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, pe32.th32ProcessID }),
+                          PathStripPathW (_Standby64.back ().filename.data () );
+                          details_64[pe32.th32ProcessID] = "Possibly stuck injection...";
+
+                          // Skip checking the remaining modules for this process
+                          break;
+                        }
+
+                        else if (modName == L"SpecialK32.dll"
+                             && _Used32.emplace (pe32.th32ProcessID).second)
+                        {
+                          //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << "was discovered!";
+                          
+                          std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                          for (auto& device : deviceMap)
+                          {
+                            if (friendlyPath.find(device.second) != std::wstring::npos)
+                            {
+                              friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                              break;
+                            }
+                          }
+
+                          _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, pe32.th32ProcessID }),
+                          PathStripPathW (_Standby32.back ().filename.data () );
+                          details_32[pe32.th32ProcessID] = "Possibly stuck injection...";
+
+                          // Skip checking the remaining modules for this process
+                          break;
+                        }
+                      } while (Module32NextW (hModuleSnap, &me32));
+                    }
+                  }
+
+                  CloseHandle (hProcessSrc);
+                } while (Process32NextW (hProcessSnap, &pe32));
+              }
+            }
+
+            // End Fallback approach
+
             executables_64.clear ();
             executables_32.clear ();
+               tooltips_64.clear ();
+               tooltips_32.clear ();
                policies_64.clear ();
                policies_32.clear ();
+                  admin_64.clear ();
+                  admin_32.clear ();
 
             if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
             {
               executables_64 [proc.pid]     =     proc.filename;
               tooltips_64    [proc.pid]     =     proc.nameUTF8;
+              admin_64       [proc.pid]     =     SKIF_Util_IsProcessAdmin (proc.pid);
 
               if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
                 policies_64  [proc.pid]     =     Blacklist;
@@ -2068,8 +2173,10 @@ SKIF_UI_Tab_DrawMonitor (void)
             }
 
             if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
-            { executables_32 [proc.pid]     =     proc.filename;
+            {
+              executables_32 [proc.pid]     =     proc.filename;
               tooltips_32    [proc.pid]     =     proc.nameUTF8;
+              admin_32       [proc.pid]     =     SKIF_Util_IsProcessAdmin (proc.pid);
 
               if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
                 policies_32  [proc.pid]     =     Blacklist;
@@ -2183,23 +2290,26 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                               );
 
-      ImGui::ItemSize    (ImVec2 ( 20.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::Text        ("%s", "Status");
       ImGui::SameLine    ( );
-      ImGui::Text        ("%s", "Actions");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 ( 70.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::Text        ("%s", "PID");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (125.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::Text        ("%s", "Type");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::Text        ("%s", "Arch");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (220.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("%s", "Admin");
+      SKIF_ImGui_SetHoverTip ("Is the process running elevated?");
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::Text        ("%s", "Process Name");
       ImGui::SameLine    ( );
@@ -2225,9 +2335,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       for ( auto& proc64 : executables_64 )
       {
-        inject_policy policy =
-          policies_64 [proc64.first];
-        
         std::string pretty_str       = ICON_FA_WINDOWS,
                     pretty_str_hover = "Windows";
         
@@ -2251,61 +2358,60 @@ SKIF_UI_Tab_DrawMonitor (void)
           hoveredPID = proc64.first;
         ImGui::SetCursorPos (curPos);
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
-
-        if (ImGui::SmallButton (ICON_FA_BAN      "###Ban64")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
+        ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
+        std::string txtPolicy = "",
+                    hovPolicy = "";
+          
+        if (policies_64[proc64.first] == Blacklist)
         {
-          _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc64.second));
+          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
+          txtPolicy = ICON_FA_BAN;
+          hovPolicy = "Process is blacklisted";
         }
-        
-        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), false))
-          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
-        
-        ImGui::SameLine        ( );
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.0f, .0f, .0f, .0f));
-
-        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question64");
-        ImGui::SameLine        ( );
-
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
-        
-        if (ImGui::SmallButton (ICON_FA_CHECK    "###Check64") && ! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
+        else if (policies_64[proc64.first] == Whitelist)
         {
-          _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc64.second));
+          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+          txtPolicy = ICON_FA_CHECK;
+          hovPolicy = "Process is whitelisted";
         }
-        
-        if (! _inject._TestUserList (SK_WideCharToUTF8(proc64.second).c_str(), true))
-          SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
 
-        ImGui::PopStyleColor   (3);
-        
-        ImVec4 colText = (hoveredPID == proc64.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase);
+        ImVec4 colText    =    (hoveredPID == proc64.first)                                   ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
+                                                                                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)     ;
+        ImVec4 colStatus  = (_Active64.count (proc64.first))                                  ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)     :
+                                  (details_64[proc64.first] == "Possibly stuck injection...") ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)     :
+                                                                                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
 
+        ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
         ImGui::SameLine        ( );        
-        ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::TextColored     (colPolicy, txtPolicy.c_str());
+        if (!hovPolicy.empty())
+          SKIF_ImGui_SetHoverTip (hovPolicy.c_str());
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%i", proc64.first);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
         SKIF_ImGui_SetHoverTip (pretty_str_hover);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", "64-bit");
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", admin_64 [proc64.first] ? "Yes" : "No");
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active64.count (proc64.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
                                                                : colText,
                                              "%s", SK_WideCharToUTF8(proc64.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", details_64[proc64.first].c_str());
         if (strlen (details_64[proc64.first].c_str()) > 73)
@@ -2316,9 +2422,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       for ( auto& proc32 : executables_32 )
       {
-        inject_policy policy =
-          policies_32 [proc32.first];
-        
         std::string pretty_str       = ICON_FA_WINDOWS,
                     pretty_str_hover = "Windows";
 
@@ -2342,61 +2445,60 @@ SKIF_UI_Tab_DrawMonitor (void)
           hoveredPID = proc32.first;
         ImGui::SetCursorPos (curPos);
 
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Blacklist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
-
-        if (ImGui::SmallButton (ICON_FA_BAN      "###Ban32")   && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), false))
+        ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
+        std::string txtPolicy = "",
+                    hovPolicy = "";
+          
+        if (policies_32[proc32.first] == Blacklist)
         {
-          _inject._BlacklistBasedOnPath (SK_WideCharToUTF8 (proc32.second));
+          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
+          txtPolicy = ICON_FA_BAN;
+          hovPolicy = "Process is blacklisted";
+        }
+        else if (policies_32[proc32.first] == Whitelist)
+        {
+          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+          txtPolicy = ICON_FA_CHECK;
+          hovPolicy = "Process is whitelisted";
         }
 
-        if (! _inject._TestUserList(SK_WideCharToUTF8(proc32.second).c_str(), false))
-          SKIF_ImGui_SetHoverTip ("Click to blacklist process.");
-        
+        ImVec4 colText    =    (hoveredPID == proc32.first)                                   ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
+                                                                                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)     ;
+        ImVec4 colStatus  = (_Active32.count (proc32.first))                                  ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)     :
+                                  (details_32[proc32.first] == "Possibly stuck injection...") ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)     :
+                                                                                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
+
+        ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
+        ImGui::SameLine        ( );        
+        ImGui::TextColored     (colPolicy, txtPolicy.c_str());
+        if (!hovPolicy.empty())
+          SKIF_ImGui_SetHoverTip (hovPolicy.c_str());
         ImGui::SameLine        ( );
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == DontCare  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.0f, .0f, .0f, .0f));
-
-        ImGui::SmallButton     (ICON_FA_QUESTION_CIRCLE"###Question32");    
-        ImGui::SameLine        ( );
-
-        ImGui::PushStyleColor  (ImGuiCol_Button, policy == Whitelist ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
-                                                                     : ImVec4 (.1f, .1f, .1f, .5f));
-        
-        if (ImGui::SmallButton (ICON_FA_CHECK    "###Check32") && ! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
-        {
-          _inject._WhitelistBasedOnPath (SK_WideCharToUTF8 (proc32.second));
-        }
-
-        if (! _inject._TestUserList (SK_WideCharToUTF8(proc32.second).c_str(), true))
-          SKIF_ImGui_SetHoverTip ("Click to whitelist process.");
-
-        ImGui::PopStyleColor   (3);
-        
-        ImVec4 colText = (hoveredPID == proc32.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase);
-
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%i", proc32.first);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
         SKIF_ImGui_SetHoverTip (pretty_str_hover);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (195.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", "32-bit");
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (245.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (colText, "%s", admin_32 [proc32.first] ? "Yes" : "No");
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (_Active32.count (proc32.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
                                                                : colText,
                                              "%s", SK_WideCharToUTF8(proc32.second).c_str());
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", details_32[proc32.first].c_str());
         if (strlen (details_32[proc32.first].c_str()) > 73)

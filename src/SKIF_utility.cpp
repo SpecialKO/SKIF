@@ -44,6 +44,8 @@ SKIF_Util_GetLastError (void)
 
   message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
 
+  message = L" [" + std::to_wstring(GetLastError()) + L"] " + message;
+
   return message;
 }
 
@@ -89,6 +91,46 @@ SKIF_Util_timeGetTime (void)
 
   return static_cast <DWORD> (-1);
 }
+
+
+// A function that returns the current time as a string in a custom format
+std::wstring
+SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
+{
+  std::wostringstream woss;
+
+  // Get current time
+  auto now_tp = std::chrono::system_clock::now();
+
+  // Milliseconds
+  auto ms     = std::chrono::duration_cast<std::chrono::milliseconds>(now_tp.time_since_epoch()) % 1000;
+
+  // Hours, Minutes, Seconds
+  std::time_t t       = std::chrono::system_clock::to_time_t(now_tp);
+  std::tm* local_now  = std::localtime(&t);
+
+  for (wchar_t c : format) {
+    switch (c) {
+      case L'H':
+        woss << std::setfill(L'0') << std::setw(2) << local_now->tm_hour;
+        break;
+      case L'M':
+        woss << std::setfill(L'0') << std::setw(2) << local_now->tm_min;
+        break;
+      case L's':
+        woss << std::setfill(L'0') << std::setw(2) << local_now->tm_sec;
+        break;
+      case L'm':
+        woss << std::setfill(L'0') << std::setw(3) << ms.count();
+        break;
+      default: // Append the rest as is (e.g. separator)
+        woss << c;
+    }
+  }
+
+  return woss.str();
+}
+
 
 // Handles comparisons of a version string split between dots by
 // looping through the parts that makes up the string one by one.

@@ -1,8 +1,7 @@
-#include <SKIF.h>
+#include <SKIF_imgui.h>
 #include <font_awesome.h>
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
-#include <SKIF_imgui.h>
 #include <filesystem>
 #include <fsutil.h>
 
@@ -60,7 +59,7 @@ SKIF_UI_Tab_DrawSettings (void)
         svcWinRing0 =
           OpenService (
             schSCManager,        // SCM database
-            L"WinRing0_1_2_0",   // name of service
+            L"SK_WinRing0",      // name of service // Old: WinRing0_1_2_0
             SERVICE_QUERY_CONFIG // query config
           );
 
@@ -93,24 +92,58 @@ SKIF_UI_Tab_DrawSettings (void)
                 binaryPath = std::wstring (lpsc->lpBinaryPathName);
                 binaryPath = binaryPath.substr(4); // Strip \??\\
 
-                PLOG_INFO << "Found kernel driver WinRing0_1_2_0 installed at: " << binaryPath;
+                PLOG_INFO << "Found kernel driver SK_WinRing0 installed at: " << binaryPath;
 
+                if (PathFileExists (binaryPath.c_str()))
+                {
+                  _status = Installed; // File exists, so driver is installed
+                }
+                else {
+                  _status = NotInstalled; // File does not actually exist, so driver has been uninstalled
+                }
+
+                /* Old method -- irrelevant now that SK_WinRing0 is the new name
                 // Check if the installed driver exists in the install folder
                 if (binaryPath.find (dirNameInstall ) != std::wstring::npos || 
                     binaryPath.find (dirNameUserdata) != std::wstring::npos)
+                {
                   if (PathFileExists (binaryPath.c_str()))
+                  {
                     _status = Installed; // File exists, so driver is installed
-                  else
-                    _status = NotInstalled; // File does not exist, so is uninstalled
-                else
+                  }
+                  else {
+                    _status = NotInstalled; // File does not actually exist, so driver has been uninstalled
+                  }
+                }
+                else {
                   _status = OtherDriverInstalled; // Other driver installed
+                }
+                */
               }
+              else {
+                PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetLastError ( );
+              }
+
               LocalFree (lpsc);
             }
+            else {
+              PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetLastError ( );
+            }
           }
+          else {
+            PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetLastError();
+          }
+
           CloseServiceHandle (svcWinRing0);
         }
+        else {
+          PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetLastError();
+        }
+
         CloseServiceHandle (schSCManager);
+      }
+      else {
+        PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetLastError ( );
       }
     }
 
@@ -924,9 +957,11 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
 
+    /* Disabled as PresentMon doesn't detect this any longer as of May 2022.
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Composition Atlas");
+    */
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
@@ -989,7 +1024,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     static std::string btnDriverLabel;
     static std::wstring wszDriverTaskCmd;
-    static LPCSTR szDriverTaskFunc;
+    //static LPCSTR szDriverTaskFunc;
 
     // Status is pending...
     if (driverStatus != driverStatusPending)
@@ -1003,7 +1038,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       btnDriverLabel    = ICON_FA_SHIELD_ALT " Uninstall Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
-      szDriverTaskFunc = "SK_WinRing0_Uninstall";
+      wszDriverTaskCmd = L"Uninstall";
     }
 
     // Other driver is installed
@@ -1024,7 +1059,7 @@ SKIF_UI_Tab_DrawSettings (void)
     else {
       btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
-      szDriverTaskFunc = "SK_WinRing0_Install";
+      wszDriverTaskCmd = L"Install";
     }
 
     ImGui::EndGroup ();
@@ -1055,6 +1090,14 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if ( driverButton )
     {
+      std::filesystem::path SKIFdrv = std::filesystem::path(std::filesystem::current_path().wstring() + LR"(\Drivers\WinRing0\SKIFdrv.exe)");
+
+      if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+        driverStatusPending =
+              (driverStatus == Installed) ?
+                            NotInstalled  : Installed;
+
+      /* Old method before SKIFdrv.exe
       auto hModWinRing0 =
         LoadLibraryW (L"SpecialK64.dll");
 
@@ -1075,6 +1118,7 @@ SKIF_UI_Tab_DrawSettings (void)
       }
 
       FreeLibrary (hModWinRing0);
+      */
     }
 
     // Disabled button
