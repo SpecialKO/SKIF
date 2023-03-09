@@ -44,7 +44,6 @@
 
 extern SKIF_InjectionContext _inject;
 
-
 enum class SK_RenderAPI
 {
   Reserved  = 0x0001u,
@@ -354,11 +353,13 @@ typedef struct _OBJECT_TYPES_INFORMATION {
   LONG NumberOfTypes;
 } OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
 
+/* Unused
 SK_Inject_AuditRecord_pfn
 SK_Inject_AuditRecord = nullptr;
 
 SK_Inject_GetRecord_pfn
 SK_Inject_GetRecord   = nullptr;
+*/
 
 // Some string manipulation to assume whether a process is an Xbox app or not
 bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
@@ -457,7 +458,7 @@ USHORT GetTypeIndexByName (std::wstring TypeName)
   return ret;
 }
 
-HRESULT
+void
 SKIF_UI_Tab_DrawMonitor (void)
 {
   extern HMODULE hModSpecialK;
@@ -475,6 +476,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
   "SKX_GetInjectedPIDs");
 
+   /* Unused
    SK_Inject_GetRecord     =
   (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
   "SK_Inject_GetRecord");
@@ -482,46 +484,37 @@ SKIF_UI_Tab_DrawMonitor (void)
    SK_Inject_AuditRecord     =
   (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
   "SK_Inject_AuditRecord");
+  */
 
    static bool active_listing = true;
 
   if (SKX_GetInjectedPIDs != nullptr)
   {
-    std::set <DWORD> _Active32;
-    std::set <DWORD> _Active64;
-
-    struct standby_record_s {
-      std::wstring name;
-      std::string  nameUTF8;
-      std::wstring filename;
-      DWORD        pid;
-    };
-
     enum inject_policy {
       Blacklist,
       DontCare,
       Whitelist
     };
 
-    static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
+    struct standby_record_s {
+      std::wstring  path;
+      std::string   pathUTF8;
+      std::wstring  filename;
+      std::string   tooltip;
+      std::string   details;
+      std::string   arch;
+      bool          admin;
+      int           status; // 0 - Active   1 - Idle/Inactive   2 - Stuck?
+      inject_policy policy;
+      //DWORD         pid;
+    };
 
+    static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
 
     // Double-buffer updates so we can go lock-free
     //
     struct injection_snapshot_s {
-      std::vector <standby_record_s> _Standby32;
-      std::vector <standby_record_s> _Standby64;
-
-      std::map <DWORD,  std::wstring> executables_64;
-      std::map <DWORD,  std::wstring> executables_32;
-      std::map <DWORD, inject_policy>    policies_64;
-      std::map <DWORD, inject_policy>    policies_32;
-      std::map <DWORD,   std::string>    tooltips_64;
-      std::map <DWORD,   std::string>    tooltips_32;
-      std::map <DWORD,   std::string>     details_64;
-      std::map <DWORD,   std::string>     details_32;
-      std::map <DWORD,   bool>              admin_64;
-      std::map <DWORD,   bool>              admin_32;
+      std::map <DWORD, standby_record_s> Processes;
 
       DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
     } static snapshots [2];
@@ -531,16 +524,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     auto &snapshot =
       snapshots [ReadAcquire (&snapshot_idx)];
 
-    auto& executables_64 = snapshot.executables_64;
-    auto& executables_32 = snapshot.executables_32;
-    auto&    policies_64 = snapshot.   policies_64;
-    auto&    policies_32 = snapshot.   policies_32;
-    auto&    tooltips_64 = snapshot.   tooltips_64;
-    auto&    tooltips_32 = snapshot.   tooltips_32;
-    auto&     details_64 = snapshot.    details_64;
-    auto&     details_32 = snapshot.    details_32;
-    auto&       admin_64 = snapshot.      admin_64;
-    auto&       admin_32 = snapshot.      admin_32;
+    auto&      processes = snapshot.Processes;
     
     extern void SKIF_UI_DrawPlatformStatus   (void);
     extern void SKIF_UI_DrawComponentVersion (void);
@@ -715,11 +699,10 @@ SKIF_UI_Tab_DrawMonitor (void)
       SKIF_ImportFromNtDll (NtDuplicateObject);
     }              );
 
-    static std::string handle_dump;
-    static std::string standby_list;
     static      USHORT EventIndex = GetTypeIndexByName (L"Event");
     
     // Check active 64-bit injections...
+    // TODO: Move into child thread
     size_t num_pids =
       SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
 
@@ -728,11 +711,15 @@ SKIF_UI_Tab_DrawMonitor (void)
       DWORD dwPID =
         snapshot.dwPIDs[--num_pids];
 
+      /*
 #ifdef _WIN64
       _Active64.emplace(dwPID);
 #else
       _Active32.emplace(dwPID);
 #endif
+      */
+
+      processes[dwPID].status = 0; // Active
     }
 
     if (EventIndex != USHRT_MAX)
@@ -759,27 +746,13 @@ SKIF_UI_Tab_DrawMonitor (void)
             auto &snapshot =
               snapshots [idx];
 
-            auto& _Standby64     = snapshot._Standby64;
-            auto& _Standby32     = snapshot._Standby32;
-            auto& executables_64 = snapshot.executables_64;
-            auto& executables_32 = snapshot.executables_32;
-            auto&    policies_64 = snapshot.   policies_64;
-            auto&    policies_32 = snapshot.   policies_32;
-            auto&    tooltips_64 = snapshot.   tooltips_64;
-            auto&    tooltips_32 = snapshot.   tooltips_32;
-            auto&     details_64 = snapshot.    details_64;
-            auto&     details_32 = snapshot.    details_32;
-            auto&       admin_64 = snapshot.      admin_64;
-            auto&       admin_32 = snapshot.      admin_32;
+            // TODO: Merge all of these into a single large std::map <DWORD, struct> object
 
-            standby_list.clear ();
-            _Standby32.clear   ();
-            _Standby64.clear   ();
-            details_64.clear   ();
-            details_32.clear   ();
+            auto& Processes      = snapshot.Processes;
 
-            std::set <DWORD> _Used32;
-            std::set <DWORD> _Used64;
+            Processes.clear    ();
+
+            std::set <DWORD> _Detected;
 
             static DWORD dwPidOfMe =
               GetCurrentProcessId (); // Actual Pid
@@ -850,9 +823,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                 if (! hProcessSrc) continue;
 
-                wchar_t                                wszProcessName [MAX_PATH] = { };
-                GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
-
                 // Go through each handle the process contains
                 for ( auto& handle : handles.second )
                 {
@@ -905,29 +875,13 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                   // Examine what we got
 
-                  if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )
-                      && _Used64.emplace (dwProcId).second )
+                  if ( (std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )  ||
+                        std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )) &&
+                        _Detected.emplace(dwProcId).second )
                   {
-                    std::wstring friendlyPath = std::wstring (wszProcessName);
+                    wchar_t                                wszProcessName [MAX_PATH] = { };
+                    GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
-                    for (auto& device : deviceMap)
-                    {
-                      if (friendlyPath.find(device.second) != std::wstring::npos)
-                      {
-                        friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                        break;
-                      }
-                    }
-
-                    _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-                    PathStripPathW (_Standby64.back ().filename.data () );
-
-                    break;
-                  }
-                
-                  else if ( std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )
-                      && _Used32.emplace (dwProcId).second )
-                  {
                     std::wstring friendlyPath = std::wstring(wszProcessName);
 
                     for (auto& device : deviceMap)
@@ -935,13 +889,32 @@ SKIF_UI_Tab_DrawMonitor (void)
                       if (friendlyPath.find(device.second) != std::wstring::npos)
                       {
                         friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                        // Strip all null terminator \0 characters from the string
+                        friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
                         break;
                       }
                     }
 
-                    _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, dwProcId }),
-                    PathStripPathW (_Standby32.back ().filename.data () );
+                    standby_record_s proc = standby_record_s{};
+                    proc.path     = friendlyPath;
+                    proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
+                    proc.tooltip  = proc.pathUTF8;
+                    proc.filename = wszProcessName;
+                    proc.arch     = (std::wstring::npos != handle_name.find(L"SK_GlobalHookTeardown64")) ? "64-bit" : "32-bit";
+                    proc.admin    = SKIF_Util_IsProcessAdmin (dwProcId);
 
+                    if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
+                      proc.policy = Blacklist;
+                    else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
+                      proc.policy = Whitelist;
+                    else
+                      proc.policy = DontCare;
+
+                    proc.status = 1; // Inactive
+
+                    PathStripPathW (proc.filename.data());
+
+                    Processes[dwProcId] = proc;
                     break;
                   }
                 }
@@ -974,8 +947,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                   //PLOG_VERBOSE << "Checking " << pe32.th32ProcessID;
 
-                  if (_Used32.find(pe32.th32ProcessID) != _Used32.end() ||
-                      _Used64.find(pe32.th32ProcessID) != _Used64.end() )
+                  if (_Detected.find(pe32.th32ProcessID) != _Detected.end())
                   {
                     //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << " have already been discovered!";
                     continue;
@@ -987,9 +959,6 @@ SKIF_UI_Tab_DrawMonitor (void)
                         pe32.th32ProcessID );
 
                   if (! hProcessSrc) continue;
-
-                  wchar_t                                wszProcessName [MAX_PATH] = { };
-                  GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
                   SK_AutoHandle hModuleSnap (
                     CreateToolhelp32Snapshot (TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe32.th32ProcessID)
@@ -1005,10 +974,11 @@ SKIF_UI_Tab_DrawMonitor (void)
                       {
                         std::wstring modName = me32.szModule;
 
-                        if (modName == L"SpecialK64.dll"
-                             && _Used64.emplace (pe32.th32ProcessID).second)
+                        if (modName == L"SpecialK32.dll" ||
+                            modName == L"SpecialK64.dll" )
                         {
-                          //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << " was discovered!";
+                          wchar_t                                wszProcessName [MAX_PATH] = { };
+                          GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
                           std::wstring friendlyPath = std::wstring(wszProcessName);
 
@@ -1017,37 +987,32 @@ SKIF_UI_Tab_DrawMonitor (void)
                             if (friendlyPath.find(device.second) != std::wstring::npos)
                             {
                               friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                              // Strip all null terminator \0 characters from the string
+                              friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
                               break;
                             }
                           }
 
-                          _Standby64.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, pe32.th32ProcessID }),
-                          PathStripPathW (_Standby64.back ().filename.data () );
-                          details_64[pe32.th32ProcessID] = "Possibly stuck injection...";
+                          standby_record_s proc = standby_record_s{};
+                          proc.path     = friendlyPath;
+                          proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
+                          proc.tooltip  = proc.pathUTF8;
+                          proc.filename = wszProcessName;
+                          proc.arch     = (modName == L"SpecialK64.dll") ? "64-bit" : "32-bit";
+                          proc.admin    = SKIF_Util_IsProcessAdmin (pe32.th32ProcessID);
 
-                          // Skip checking the remaining modules for this process
-                          break;
-                        }
+                          if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
+                            proc.policy = Blacklist;
+                          else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
+                            proc.policy = Whitelist;
+                          else
+                            proc.policy = DontCare;
 
-                        else if (modName == L"SpecialK32.dll"
-                             && _Used32.emplace (pe32.th32ProcessID).second)
-                        {
-                          //PLOG_VERBOSE << "PID " << pe32.th32ProcessID << "was discovered!";
-                          
-                          std::wstring friendlyPath = std::wstring(wszProcessName);
+                          proc.status = 2; // Stuck?
 
-                          for (auto& device : deviceMap)
-                          {
-                            if (friendlyPath.find(device.second) != std::wstring::npos)
-                            {
-                              friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                              break;
-                            }
-                          }
+                          PathStripPathW (proc.filename.data());
 
-                          _Standby32.emplace_back (standby_record_s { friendlyPath, SK_WideCharToUTF8 (friendlyPath), wszProcessName, pe32.th32ProcessID }),
-                          PathStripPathW (_Standby32.back ().filename.data () );
-                          details_32[pe32.th32ProcessID] = "Possibly stuck injection...";
+                          Processes[pe32.th32ProcessID] = proc;
 
                           // Skip checking the remaining modules for this process
                           break;
@@ -1063,43 +1028,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
             // End Fallback approach
 
-            executables_64.clear ();
-            executables_32.clear ();
-               tooltips_64.clear ();
-               tooltips_32.clear ();
-               policies_64.clear ();
-               policies_32.clear ();
-                  admin_64.clear ();
-                  admin_32.clear ();
-
-            if (! _Standby64.empty ()) for ( auto proc : _Standby64 )
-            {
-              executables_64 [proc.pid]     =     proc.filename;
-              tooltips_64    [proc.pid]     =     proc.nameUTF8;
-              admin_64       [proc.pid]     =     SKIF_Util_IsProcessAdmin (proc.pid);
-
-              if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-                policies_64  [proc.pid]     =     Blacklist;
-              else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-                policies_64  [proc.pid]     =     Whitelist;
-              else
-                policies_64  [proc.pid]     =     DontCare;
-            }
-
-            if (! _Standby32.empty ()) for ( auto proc : _Standby32 )
-            {
-              executables_32 [proc.pid]     =     proc.filename;
-              tooltips_32    [proc.pid]     =     proc.nameUTF8;
-              admin_32       [proc.pid]     =     SKIF_Util_IsProcessAdmin (proc.pid);
-
-              if      (_inject._TestUserList     (proc.nameUTF8.c_str(), false))
-                policies_32  [proc.pid]     =     Blacklist;
-              else if (_inject._TestUserList     (proc.nameUTF8.c_str(),  true))
-                policies_32  [proc.pid]     =     Whitelist;
-              else
-                policies_32  [proc.pid]     =     DontCare;
-            }
-
             Sleep (RefreshIntervalInMsec);
 
             InterlockedExchange (&snapshot_idx, idx);
@@ -1113,9 +1041,9 @@ SKIF_UI_Tab_DrawMonitor (void)
       );
     }
 
-    static std::pair <DWORD, std::wstring> static_proc = { 0, L"" };
+    static std::pair <DWORD, standby_record_s> static_proc = { 0, standby_record_s{} };
 
-    auto _ProcessMenu = [&](std::pair <const DWORD,  std::wstring> proc) -> void
+    auto _ProcessMenu = [&](std::pair <const DWORD, standby_record_s> proc) -> void
     {
       static bool opened = false;
       static bool openedWithAltMethod = false;
@@ -1147,9 +1075,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::BeginPopup     ("ProcessMenu"))
       {
         std::string_view
-          path = tooltips_64[proc.first];
-        if (path.empty())
-          path = tooltips_32[proc.first];
+          path = proc.second.tooltip;
 
         if (! path.empty())
         {
@@ -1180,8 +1106,6 @@ SKIF_UI_Tab_DrawMonitor (void)
         if (ImGui::Selectable  (ICON_FA_WINDOW_CLOSE " End task"))
         {
           static_proc = { proc.first, proc.second };
-          // Strip all null terminator \0 characters from the string
-          static_proc.second.erase (std::find (static_proc.second.begin ( ), static_proc.second.end ( ), '\0'), static_proc.second.end ( ));
         }
 
         ImGui::EndPopup        ( );
@@ -1244,56 +1168,56 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       if (EventIndex == USHRT_MAX)
         ImGui::Text ("Error occurred when trying to locate type index for events!");
-      else if (executables_64.empty () && executables_32.empty ())
+      else if (processes.empty ())
         ImGui::Text ("Special K is currently not injected in any process.");
 
-      for ( auto& proc64 : executables_64 )
+      for ( auto& proc : processes )
       {
         std::string pretty_str       = ICON_FA_WINDOWS,
                     pretty_str_hover = "Windows";
         
-        if (StrStrIA(tooltips_64[proc64.first].c_str(), "SteamApps") != NULL)
+        if (StrStrIA(proc.second.tooltip.c_str(), "SteamApps") != NULL)
         {
           pretty_str       = ICON_FA_STEAM;
           pretty_str_hover = "Steam";
         }
-        else if (SKIF_Debug_IsXboxApp(tooltips_64[proc64.first], SK_WideCharToUTF8(proc64.second)))
+        else if (SKIF_Debug_IsXboxApp(proc.second.tooltip, SK_WideCharToUTF8(proc.second.filename)))
         {
           pretty_str       = ICON_FA_XBOX;
           pretty_str_hover = "Xbox";
         }
 
-        ImGui::PushID (proc64.first);
+        ImGui::PushID (proc.first);
 
         ImVec2 curPos = ImGui::GetCursorPos ( );
-        ImGui::Selectable   ("", (hoveredPID == proc64.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
-        _ProcessMenu (proc64);
+        ImGui::Selectable   ("", (hoveredPID == proc.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+        _ProcessMenu (proc);
         if (ImGui::IsItemHovered ( ))
-          hoveredPID = proc64.first;
+          hoveredPID = proc.first;
         ImGui::SetCursorPos (curPos);
 
         ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
         std::string txtPolicy = "",
                     hovPolicy = "";
           
-        if (policies_64[proc64.first] == Blacklist)
+        if (proc.second.policy == Blacklist)
         {
           colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
           txtPolicy = ICON_FA_BAN;
           hovPolicy = "Process is blacklisted";
         }
-        else if (policies_64[proc64.first] == Whitelist)
+        else if (proc.second.policy == Whitelist)
         {
           colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
           txtPolicy = ICON_FA_CHECK;
           hovPolicy = "Process is whitelisted";
         }
 
-        ImVec4 colText    =    (hoveredPID == proc64.first)                                   ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
-                                                                                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)     ;
-        ImVec4 colStatus  = (_Active64.count (proc64.first))                                  ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)     :
-                                  (details_64[proc64.first] == "Possibly stuck injection...") ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)     :
-                                                                                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
+        ImVec4 colText    =    (hoveredPID == proc.first)   ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
+                                                              ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
+        ImVec4 colStatus  = (proc.second.status == 0)       ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)     : // Active
+                                  (proc.second.status == 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    : // Inactive
+                                                              ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)     ; // Stuck?
 
         ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
         ImGui::SameLine        ( );        
@@ -1303,7 +1227,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%i", proc64.first);
+        ImGui::TextColored     (colText, "%i", proc.first);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
@@ -1312,18 +1236,18 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%s", "64-bit");
+        ImGui::TextColored     (colText, "%s", proc.second.arch.c_str());
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%s", admin_64 [proc64.first] ? "Yes" : "No");
+        ImGui::TextColored     (colText, "%s", proc.second.admin ? "Yes" : "No");
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        ImGui::TextColored     (_Active64.count (proc64.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
-                                                               : colText,
-                                             "%s", SK_WideCharToUTF8(proc64.second).c_str());
-        SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
+        ImGui::TextColored     (proc.second.status == 0 ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                        : colText,
+                                             "%s", SK_WideCharToUTF8 (proc.second.filename).c_str());
+        SKIF_ImGui_SetHoverTip (proc.second.tooltip);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         /* Printing details is disabled temporarily since it's used for "Possible stuck injection..." which isn't accurate
@@ -1331,95 +1255,6 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGui::TextColored     (colText, "%s", details_64[proc64.first].c_str());
         if (strlen (details_64[proc64.first].c_str()) > 73)
           SKIF_ImGui_SetHoverTip (details_64[proc64.first]);
-        */
-
-        ImGui::PopID  ( );
-      }
-
-      for ( auto& proc32 : executables_32 )
-      {
-        std::string pretty_str       = ICON_FA_WINDOWS,
-                    pretty_str_hover = "Windows";
-
-        if (StrStrIA(tooltips_32[proc32.first].c_str(), "SteamApps") != NULL)
-        {
-          pretty_str       = ICON_FA_STEAM;
-          pretty_str_hover = "Steam";
-        }
-        else if (SKIF_Debug_IsXboxApp(tooltips_32[proc32.first], SK_WideCharToUTF8(proc32.second)))
-        {
-          pretty_str       = ICON_FA_XBOX;
-          pretty_str_hover = "Xbox";
-        }
-
-        ImGui::PushID (proc32.first);
-
-        ImVec2 curPos = ImGui::GetCursorPos ( );
-        ImGui::Selectable   ("", (hoveredPID == proc32.first), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
-        _ProcessMenu (proc32);
-        if (ImGui::IsItemHovered ( ))
-          hoveredPID = proc32.first;
-        ImGui::SetCursorPos (curPos);
-
-        ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
-        std::string txtPolicy = "",
-                    hovPolicy = "";
-          
-        if (policies_32[proc32.first] == Blacklist)
-        {
-          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
-          txtPolicy = ICON_FA_BAN;
-          hovPolicy = "Process is blacklisted";
-        }
-        else if (policies_32[proc32.first] == Whitelist)
-        {
-          colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
-          txtPolicy = ICON_FA_CHECK;
-          hovPolicy = "Process is whitelisted";
-        }
-
-        ImVec4 colText    =    (hoveredPID == proc32.first)                                   ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
-                                                                                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)     ;
-        ImVec4 colStatus  = (_Active32.count (proc32.first))                                  ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)     :
-                                  (details_32[proc32.first] == "Possibly stuck injection...") ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)     :
-                                                                                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
-
-        ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
-        ImGui::SameLine        ( );        
-        ImGui::TextColored     (colPolicy, txtPolicy.c_str());
-        if (!hovPolicy.empty())
-          SKIF_ImGui_SetHoverTip (hovPolicy.c_str());
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%i", proc32.first);
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
-        SKIF_ImGui_SetHoverTip (pretty_str_hover);
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%s", "32-bit");
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%s", admin_32 [proc32.first] ? "Yes" : "No");
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (_Active32.count (proc32.first) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
-                                                               : colText,
-                                             "%s", SK_WideCharToUTF8(proc32.second).c_str());
-        SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        /* Printing details is disabled temporarily since it's used for "Possible stuck injection..." which isn't accurate
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (colText, "%s", details_32[proc32.first].c_str());
-        if (strlen (details_32[proc32.first].c_str()) > 73)
-          SKIF_ImGui_SetHoverTip (details_32[proc32.first]);
         */
 
         ImGui::PopID  ( );
@@ -1451,7 +1286,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         ImGui::Text        ("Do you want to end");
         ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), SK_WideCharToUTF8(static_proc.second).c_str());
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), SK_WideCharToUTF8(static_proc.second.filename).c_str());
         ImGui::SameLine    ( );
         ImGui::Text        ("?");
         SKIF_ImGui_Spacing ( );
@@ -1467,7 +1302,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         {
           SK_TerminatePID (static_proc.first, 0x0);
 
-          static_proc = { 0, L"" };
+          static_proc = { 0, standby_record_s{} };
           ImGui::CloseCurrentPopup ( );
         }
 
@@ -1478,7 +1313,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
-          static_proc = { 0, L"" };
+          static_proc = { 0, standby_record_s{} };
           ImGui::CloseCurrentPopup ( );
         }
 
@@ -1486,7 +1321,4 @@ SKIF_UI_Tab_DrawMonitor (void)
       }
     }
   }
-
-  return
-    S_OK;
 }

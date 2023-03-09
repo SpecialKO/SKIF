@@ -2858,7 +2858,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_ChangeTo == Debug)
             SKIF_Tab_ChangeTo = None;
 
-          extern HRESULT
+          extern void
             SKIF_UI_Tab_DrawMonitor (void);
             SKIF_UI_Tab_DrawMonitor (    );
 
