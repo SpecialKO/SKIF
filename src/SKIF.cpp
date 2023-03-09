@@ -112,8 +112,6 @@ int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
-extern void SKIF_ProcessCommandLine (const char* szCmd);
-
 int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = Always,                 2 = When unfocused
      SKIF_iGhostVisibility         = 0, // 0 = Never,                       1 = Always,                 2 = While service is running
      SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                         3 = ImGui Classic
@@ -1134,8 +1132,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
           {
             // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
             // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(suppress : 4996)
-            fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+#pragma warning(suppress : 4996) // suppress doesn't work, so just disable the line so we don't throw errors at compilation
+            //fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
           }
 
           std::wstring line;
@@ -1173,35 +1171,6 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
           }
 
           fPatrons.close ();
-
-        /*/ Old method
-        FILE *fPatrons =
-        _wfopen (L"patrons.txt", L"rb");
-
-        if (fPatrons != nullptr)
-        {
-          std::string out;
-#ifdef _WIN64
-          _fseeki64 (fPatrons, 0, SEEK_END);
-#else
-          fseek     (fPatrons, 0, SEEK_END);
-#endif
-
-          size_t size =
-            gsl::narrow_cast <size_t> (
-#ifdef _WIN64
-            _ftelli64 (fPatrons)      );
-#else
-            ftell     (fPatrons)      );
-#endif
-          rewind      (fPatrons);
-          out.resize (size);
-          fread (out.data (), size, 1, fPatrons);
-          out += '\0';
-          fclose (fPatrons);
-
-          patrons = out;
-        */
         }
       }
 
@@ -2745,9 +2714,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                       0.0f ) )
          )
       {
-        SKIF_ProcessCommandLine ("SKIF.UI.SmallMode Toggle");
-
-        _registry.regKVSmallMode.putData (  SKIF_bSmallMode);
+        SKIF_bSmallMode = ! SKIF_bSmallMode;
+        _registry.regKVSmallMode.putData (SKIF_bSmallMode);
 
         changedMode = true;
 
