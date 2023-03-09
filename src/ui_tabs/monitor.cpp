@@ -541,24 +541,9 @@ SKIF_UI_Tab_DrawMonitor (void)
     auto&     details_32 = snapshot.    details_32;
     auto&       admin_64 = snapshot.      admin_64;
     auto&       admin_32 = snapshot.      admin_32;
-
-//    size_t num_pids =
-//      SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
-  
-    //static DWORD dwMonitored = 0;
-
-    /*
-    ImGui::Separator (                   );
-    console.Draw     ("Prototype Console");
-    ImGui::Separator (                   );
-    */
     
-    extern void
-      SKIF_ImGui_Columns           (int columns_count, const char* id, bool border, bool resizeble = false);
-    extern void
-      SKIF_UI_DrawPlatformStatus   (void);
-    extern void
-      SKIF_UI_DrawComponentVersion (void);
+    extern void SKIF_UI_DrawPlatformStatus   (void);
+    extern void SKIF_UI_DrawComponentVersion (void);
 
     //ImGui::NewLine          ( );
 
@@ -663,9 +648,6 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
         SKIF_putStopOnInjection (SKIF_bStopOnInjection);
 
-      //SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
-      //                        "when Special K is injected into a whitelisted game.");
-
       ImGui::SameLine         ( );
 
       ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -673,8 +655,6 @@ SKIF_UI_Tab_DrawMonitor (void)
                               "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
 
       ImGui::SameLine         ( );
-      //ImGui::Spacing          ( );
-      //ImGui::SameLine         ( );
     }
 
     extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
@@ -688,15 +668,6 @@ SKIF_UI_Tab_DrawMonitor (void)
     );
 
     ImGui::TreePop    ( );
-
-    /*
-    ImGui::BeginChildFrame (0x97848, ImVec2 (150.0f, ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale), ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::TextColored (ImColor (255, 207, 72), ICON_FA_FOLDER_OPEN);
-    ImGui::SameLine    ( );
-    static bool thing;
-    ImGui::Selectable ("Config Root", thing,  ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_SpanAvailWidth);
-    ImGui::EndChildFrame ();
-    */
 
     ImGui::PopStyleColor    ( );
 
@@ -747,129 +718,22 @@ SKIF_UI_Tab_DrawMonitor (void)
     static std::string handle_dump;
     static std::string standby_list;
     static      USHORT EventIndex = GetTypeIndexByName (L"Event");
+    
+    // Check active 64-bit injections...
+    size_t num_pids =
+      SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
 
-    extern void
-      SKIF_ImGui_SetHoverTip(const std::string_view& szText);
-
-#if 0
-#ifdef _WIN64
-    if (ImGui::CollapsingHeader("Active 64-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
-#else
-    if (ImGui::CollapsingHeader("Active 32-bit Global Injections", ImGuiTreeNodeFlags_DefaultOpen))
-#endif
+    while (num_pids > 0)
     {
-      ImGui::PushStyleColor (
-        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                              );
-
-      ImGui::Text        (" %s", "PID");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 ( 55.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("%s", "Type");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("%s", "Process Name");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("%s", "Steam ID");
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("%s", "Window Title");
-    //ImGui::SameLine    ( );
-    //ImGui::ItemSize    (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-    //ImGui::SameLine    ( );
-    //ImGui::Text        ("%s", "UWP Package Name");
-      
-      ImGui::PopStyleColor  ( );
-
-      ImGui::Separator      ( );
-
-      ImGui::PushStyleColor (
-        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
-                              );
-
-      if (num_pids == 0)
-#ifdef _WIN64
-        ImGui::Text        ("64-bit Special K is currently not active in any injected process.");
-#else
-        ImGui::Text        ("32-bit Special K is currently not active in any injected process.");
-#endif
-
-      while (num_pids > 0)
-      {
-        DWORD dwPID =
-     snapshot.dwPIDs [--num_pids];
+      DWORD dwPID =
+        snapshot.dwPIDs[--num_pids];
 
 #ifdef _WIN64
-        _Active64.emplace (dwPID);
+      _Active64.emplace(dwPID);
 #else
-        _Active32.emplace (dwPID);
+      _Active32.emplace(dwPID);
 #endif
-
-        auto *pRecord =
-          SK_Inject_GetRecord (dwPID);
-
-        std::string pretty_str       = ICON_FA_WINDOWS,
-                    pretty_str_hover = "Windows";
-
-        if (pRecord->platform.steam_appid != 0x0 &&
-            pRecord->platform.steam_appid != INT_MAX)
-        {
-          pretty_str       = ICON_FA_STEAM;
-          pretty_str_hover = "Steam";
-        }
-        else if (pRecord->platform.uwp_full_name[0] != L'\0' ||
-#ifdef _WIN64
-                 SKIF_Debug_IsXboxApp(tooltips_64[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
-#else
-                 SKIF_Debug_IsXboxApp(tooltips_32[dwPID], SK_WideCharToUTF8(pRecord->process.name)))
-#endif
-        {
-          pretty_str       = ICON_FA_XBOX;
-          pretty_str_hover = "Xbox";
-        }
-
-#ifdef _WIN64
-        if (executables_64.count (dwPID))
-#else
-        if (executables_32.count (dwPID))
-#endif
-        {
-          ImGui::Text     (" %i", pRecord->process.id);
-          ImGui::SameLine ( );
-          ImGui::ItemSize (ImVec2 ( 60.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-          ImGui::SameLine ( );
-          ImGui::Text     (" %s", pretty_str.c_str());
-          SKIF_ImGui_SetHoverTip (pretty_str_hover);
-          ImGui::SameLine ( );
-          ImGui::ItemSize (ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-          ImGui::SameLine ( );
-          ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.name).c_str());
-        //SKIF_ImGui_SetHoverTip (tooltips_64[dwPID]);
-          ImGui::SameLine ( );
-          ImGui::ItemSize (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-          ImGui::SameLine ( );
-          ImGui::Text     ("%d", pRecord->platform.steam_appid);
-          ImGui::SameLine ( );
-          ImGui::ItemSize (ImVec2 (450.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-          ImGui::SameLine ( );
-          ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->process.win_title).c_str());
-        //ImGui::SameLine ( );
-        //ImGui::ItemSize (ImVec2 (650.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()) );
-        //ImGui::SameLine ( );
-        //ImGui::Text     ("%s", SK_WideCharToUTF8(pRecord->platform.uwp_full_name).c_str());
-        }
-      }
-
-      ImGui::PopStyleColor ( );
-
-      SKIF_ImGui_Spacing   ( );
     }
-#endif
 
     if (EventIndex != USHRT_MAX)
     {
@@ -1462,10 +1326,12 @@ SKIF_UI_Tab_DrawMonitor (void)
         SKIF_ImGui_SetHoverTip (tooltips_64 [proc64.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        /* Printing details is disabled temporarily since it's used for "Possible stuck injection..." which isn't accurate
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", details_64[proc64.first].c_str());
         if (strlen (details_64[proc64.first].c_str()) > 73)
           SKIF_ImGui_SetHoverTip (details_64[proc64.first]);
+        */
 
         ImGui::PopID  ( );
       }
@@ -1549,10 +1415,12 @@ SKIF_UI_Tab_DrawMonitor (void)
         SKIF_ImGui_SetHoverTip (tooltips_32 [proc32.first]);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        /* Printing details is disabled temporarily since it's used for "Possible stuck injection..." which isn't accurate
         ImGui::SameLine        ( );
         ImGui::TextColored     (colText, "%s", details_32[proc32.first].c_str());
         if (strlen (details_32[proc32.first].c_str()) > 73)
           SKIF_ImGui_SetHoverTip (details_32[proc32.first]);
+        */
 
         ImGui::PopID  ( );
       }
