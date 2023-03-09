@@ -2129,59 +2129,107 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           ImGui::Separator ( );
 
-          static bool defaults_d3d8     = PathFileExists (LR"(Global\default_d3d8.ini)"),
-                      defaults_d3d9     = PathFileExists (LR"(Global\default_d3d9.ini)"),
-                      defaults_dxgi     = PathFileExists (LR"(Global\default_dxgi.ini)"),
-                      defaults_ddraw    = PathFileExists (LR"(Global\default_ddraw.ini)"),
-                      defaults_dinput8  = PathFileExists (LR"(Global\default_dinput8.ini)"),
-                      defaults_opengl32 = PathFileExists (LR"(Global\default_opengl32.ini)"),
-                      defaults_specialk = PathFileExists (LR"(Global\default_specialk.ini)");
-
-          static SKIF_DirectoryWatch SKIF_GlobalWatch;
-
-          if (SKIF_GlobalWatch.isSignaled (L"Global"))
+          struct Preset
           {
-            defaults_d3d8     = PathFileExists (LR"(Global\default_d3d8.ini)"),
-            defaults_d3d9     = PathFileExists (LR"(Global\default_d3d9.ini)"),
-            defaults_dxgi     = PathFileExists (LR"(Global\default_dxgi.ini)"),
-            defaults_ddraw    = PathFileExists (LR"(Global\default_ddraw.ini)"),
-            defaults_dinput8  = PathFileExists (LR"(Global\default_dinput8.ini)"),
-            defaults_opengl32 = PathFileExists (LR"(Global\default_opengl32.ini)"),
-            defaults_specialk = PathFileExists (LR"(Global\default_specialk.ini)");
+            std::string  Name;
+            std::wstring Path;
+
+            Preset (std::wstring n, std::wstring p)
+            {
+              Name = SK_WideCharToUTF8 (n);
+              Path = p;
+            };
+          };
+
+          // Static stuff :D
+          static SKIF_DirectoryWatch SKIF_GlobalWatch;
+          static SKIF_DirectoryWatch SKIF_CustomWatch;
+          static std::vector<Preset> DefaultPresets;
+          static std::vector<Preset> CustomPresets;
+          static bool runOnceDefaultPresets = true;
+          static bool runOnceCustomPresets = true;
+
+          // Directory watches -- updates the vectors automatically
+          if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
+          {
+            runOnceDefaultPresets = false;
+
+            HANDLE hFind = INVALID_HANDLE_VALUE;
+            WIN32_FIND_DATA ffd;
+            std::vector<Preset> tmpPresets;
+            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", path_cache.specialk_userdata);
+
+            hFind = FindFirstFile((PresetFolder + L"default_*.ini").c_str(), &ffd);
+
+            if (INVALID_HANDLE_VALUE != hFind)
+            {
+              do {
+                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", path_cache.specialk_userdata, ffd.cFileName) };
+                tmpPresets.push_back(newPreset);
+              } while (FindNextFile (hFind, &ffd));
+
+              DefaultPresets = tmpPresets;
+              FindClose (hFind);
+            }
           }
 
-          if (defaults_d3d8 || defaults_d3d9 || defaults_dxgi || defaults_ddraw || defaults_dinput8 || defaults_opengl32 || defaults_specialk)
+          if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
           {
-            if (ImGui::BeginMenu ("Apply Default Preset"))
+            runOnceCustomPresets = false;
+
+            HANDLE hFind = INVALID_HANDLE_VALUE;
+            WIN32_FIND_DATA ffd;
+            std::vector<Preset> tmpPresets;
+            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", path_cache.specialk_userdata);
+
+            hFind = FindFirstFile((PresetFolder + L"*.ini").c_str(), &ffd);
+
+            if (INVALID_HANDLE_VALUE != hFind)
             {
-              if (defaults_specialk)
+              do {
+                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", path_cache.specialk_userdata, ffd.cFileName) };
+                tmpPresets.push_back(newPreset);
+              } while (FindNextFile (hFind, &ffd));
+
+              CustomPresets = tmpPresets;
+              FindClose (hFind);
+            }
+          }
+          
+          if ((! DefaultPresets.empty() || ! CustomPresets.empty()))
+          {
+            if (ImGui::BeginMenu("Apply Preset"))
+            {
+              // Default Presets
+              if (! DefaultPresets.empty())
               {
-                if (ImGui::Selectable ("SpecialK.ini"))
-                  CopyFile (LR"(Global\default_specialk.ini)", SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-              
-                if (defaults_d3d8 || defaults_d3d9 || defaults_dxgi || defaults_ddraw || defaults_dinput8 || defaults_opengl32)
+                for (auto preset : DefaultPresets)
+                {
+                  if (ImGui::Selectable (preset.Name.c_str()))
+                  {
+                    CopyFile (preset.Path.c_str(), SK_UTF8ToWideChar(cache.config.full_path).c_str(), FALSE);
+                    PLOG_VERBOSE << "Copying " << preset.Path << " over to " << SK_UTF8ToWideChar(cache.config.full_path) << ", overwriting any existing file in the process.";
+                  }
+                }
+
+                if (! CustomPresets.empty())
                   ImGui::Separator ( );
               }
 
-              if (defaults_d3d8     && ImGui::Selectable ("D3D8.ini"))
-                CopyFile (LR"(Global\default_d3d8.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
+              // Custom Presets
+              if (! CustomPresets.empty())
+              {
+                for (auto preset : CustomPresets)
+                {
+                  if (ImGui::Selectable (preset.Name.c_str()))
+                  {
+                    CopyFile (preset.Path.c_str(), SK_UTF8ToWideChar(cache.config.full_path).c_str(), FALSE);
+                    PLOG_VERBOSE << "Copying " << preset.Path << " over to " << SK_UTF8ToWideChar(cache.config.full_path) << ", overwriting any existing file in the process.";
+                  }
+                }
+              }
 
-              if (defaults_d3d9     && ImGui::Selectable ("D3D9.ini"))
-                CopyFile (LR"(Global\default_d3d9.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-
-              if (defaults_dxgi     && ImGui::Selectable ("DXGI.ini"))
-                CopyFile (LR"(Global\default_dxgi.ini)",     SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-
-              if (defaults_ddraw    && ImGui::Selectable ("DDraw.ini"))
-                CopyFile (LR"(Global\default_ddraw.ini)",    SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-
-              if (defaults_dinput8  && ImGui::Selectable ("DInput8.ini"))
-                CopyFile (LR"(Global\default_dinput8.ini)",  SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-
-              if (defaults_opengl32 && ImGui::Selectable ("OpenGL32.ini"))
-                CopyFile (LR"(Global\default_opengl32.ini)", SK_UTF8ToWideChar (cache.config.full_path).c_str(), FALSE);
-
-              ImGui::EndMenu ();
+              ImGui::EndMenu ( );
             }
 
             ImGui::Separator ( );
