@@ -118,7 +118,8 @@ int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = 
      SKIF_iDimCovers               = 0, // 0 = Never,                       1 = Always,                 2 = On mouse hover
      SKIF_iCheckForUpdates         = 1, // 0 = Never,                       1 = Weekly,                 2 = On each launch
      SKIF_iAutoStopBehavior        = 1, // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
-     SKIF_iLogging                 = 4; // 0 = None,       1 = Fatal,       2 = Error,       3 = Warning,       4 = Info,       5 = Debug,       6 = Verbose
+     SKIF_iLogging                 = 4, // 0 = None,       1 = Fatal,       2 = Error,       3 = Warning,       4 = Info,       5 = Debug,       6 = Verbose
+     SKIF_iProcessSort             = 0; // 0 = Status,     1 = PID,         2 = Arch,        3 = Admin,         4 = Name
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -150,7 +151,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bPreferGOGGalaxyLaunch   = false,
      SKIF_bMinimizeOnGameLaunch    = false,
      SKIF_bDisableVSYNC            = false,
-     SKIF_bDisableCFAWarning       = false; // Controlled Folder Access warning
+     SKIF_bDisableCFAWarning       = false, // Controlled Folder Access warning
+     SKIF_bProcessSortAscending    = true;
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;

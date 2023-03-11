@@ -63,7 +63,7 @@ SKIF_UI_Tab_DrawSettings (void)
       PLOG_INFO << SKIF_LOG_SEPARATOR;
       PLOG_INFO << "MPO Capabilities:";
       PLOG_INFO << "MPO MaxPlanes: "    << MPOcaps.MaxPlanes;
-      PLOG_INFO << "MPO MaxRGBPlanes: " << MPOcaps.MaxRGBPlanes;
+      PLOG_INFO << "MPO MaxRGBPlanes: " << MPOcaps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
       PLOG_INFO << "MPO MaxYUVPlanes: " << MPOcaps.MaxYUVPlanes;
       PLOG_INFO << "MPO Stretch: "      << MPOcaps.MaxStretchFactor << "x - " << MPOcaps.MaxShrinkFactor << "x";
       PLOG_INFO << SKIF_LOG_SEPARATOR;
@@ -939,16 +939,6 @@ SKIF_UI_Tab_DrawSettings (void)
         if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
           pfuState = Pending;
       }
-
-      /*
-      if (SKIF_Util_IsWindows10OrGreater ( )) // On Windows 10, use the native PowerShell cmdlet Add-LocalGroupMember since it supports SIDs
-        exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")";
-      else                               // Windows 8.1 lacks Add-LocalGroupMember, so fall back on using WMI (to retrieve the localized names of the group and user) and NET to add the user to the group
-        exeArgs  = LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "$Group = (Get-WmiObject -Class Win32_Group -Filter 'LocalAccount = True AND SID = \"S-1-5-32-559\"').Name; $User = (Get-WmiObject -Class Win32_SystemAccount -Filter 'LocalAccount = True AND SID = \"S-1-5-4\"').Name; net localgroup \"$Group\" \"$User\" /add")";
-
-      if (ShellExecuteW (nullptr, L"runas", L"powershell", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32) // COM exception is thrown?
-        pfuState = Pending;
-      */
     }
 
     // Disable button for granted + pending states
@@ -996,16 +986,21 @@ SKIF_UI_Tab_DrawSettings (void)
     */
     ImGui::TreePop     ();
 
+    std::string MPOline = SK_FormatString("%d %s  %s",
+                                          MPOcaps.MaxRGBPlanes,
+                                         (MPOcaps.MaxRGBPlanes == 1) ?           "plane" : "planes",
+                                         (MPOcaps.MaxRGBPlanes  > 2) ? ICON_FA_THUMBS_UP : ICON_FA_THUMBS_DOWN);
+
     ImGui::BeginGroup  ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     ImGui::SameLine    ();
     ImGui::Text        ("MPO Planes Supported:");
     ImGui::SameLine    ();
     ImGui::TextColored (
-      (MPOcaps.MaxPlanes > 1)
+      (MPOcaps.MaxRGBPlanes > 1)
         ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
         : ImColor::HSV(0.11F, 1.F, 1.F),
-      (std::to_string(MPOcaps.MaxPlanes) + " plane" + ((MPOcaps.MaxPlanes > 1) ? "s  " ICON_FA_THUMBS_UP : "  " ICON_FA_THUMBS_DOWN)).c_str()
+          MPOline.c_str()
     );
     ImGui::EndGroup    ();
 

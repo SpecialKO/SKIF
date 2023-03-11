@@ -476,6 +476,14 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
 
+  KeyValue <bool> regKVProcessSortAscending =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Process Sort Ascending)" );
+
+  KeyValue <int> regKVProcessSort =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Process Sort)" );
+
   KeyValue <int> regKVLastSelected =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Last Selected)" );

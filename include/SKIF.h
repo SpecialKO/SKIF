@@ -139,6 +139,7 @@ extern int SKIF_iDimCovers;
 extern int SKIF_iCheckForUpdates;
 extern int SKIF_iAutoStopBehavior;
 extern int SKIF_iLogging;
+extern int SKIF_iProcessSort;
 
 extern uint32_t SKIF_iLastSelected;
 extern bool SKIF_bRememberLastSelected;
@@ -163,6 +164,7 @@ extern bool SKIF_bCloseToTray;
 extern bool SKIF_bLowBandwidthMode;
 extern bool SKIF_bPreferGOGGalaxyLaunch;
 extern bool SKIF_bMinimizeOnGameLaunch;
+extern bool SKIF_bProcessSortAscending;
 
 // Not a saved setting, this indicates the DXGI runtime supports tearing
 extern BOOL SKIF_bAllowTearing;
