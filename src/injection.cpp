@@ -177,9 +177,10 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
   static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
 
+  std::error_code e;
   // Create any missing directories
-  if (! std::filesystem::exists (            workDir))
-        std::filesystem::create_directories (workDir);
+  if (! std::filesystem::exists (            workDir, e))
+        std::filesystem::create_directories (workDir, e);
 
   SetLastError (NO_ERROR);
 
@@ -1240,9 +1241,10 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   static std::wstring root_dir =
          std::wstring (path_cache.specialk_userdata) + LR"(\Global\)";
 
+  std::error_code ec;
   // Create any missing directories
-  if (! std::filesystem::exists (            root_dir))
-        std::filesystem::create_directories (root_dir);
+  if (! std::filesystem::exists (            root_dir, ec))
+        std::filesystem::create_directories (root_dir, ec);
 
   std::wofstream list_file(
     (whitelist_) ? (root_dir + LR"(\whitelist.ini)").c_str()

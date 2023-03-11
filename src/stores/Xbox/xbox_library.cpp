@@ -245,9 +245,10 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       // Create necessary directories if they do not exist
                       if (!icon || !cover)
                       {
+                        std::error_code ec;
                         // Create any missing directories
-                        if (! std::filesystem::exists (            targetPath))
-                              std::filesystem::create_directories (targetPath);
+                        if (! std::filesystem::exists (            targetPath, ec))
+                              std::filesystem::create_directories (targetPath, ec);
                       }
 
                       if (!icon)
@@ -332,9 +333,10 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 {
   std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(PackageName).c_str());
 
+  std::error_code ec;
   // Create any missing directories
-  if (! std::filesystem::exists (            targetAssetPath))
-        std::filesystem::create_directories (targetAssetPath);
+  if (! std::filesystem::exists (            targetAssetPath, ec))
+        std::filesystem::create_directories (targetAssetPath, ec);
 
   // Download JSON for the cover
   if (! PathFileExists ((targetAssetPath + L"store.json").c_str()))

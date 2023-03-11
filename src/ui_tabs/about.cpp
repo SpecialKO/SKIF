@@ -294,7 +294,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
       ICON_FA_EXCLAMATION_CIRCLE " ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Stop the service before playing a multiplayer game.");
+  ImGui::Text             ("Do not use Special K in multiplayer games!");
   ImGui::EndGroup         ( );
 
   SKIF_ImGui_SetHoverTip (
@@ -309,9 +309,9 @@ SKIF_UI_Tab_DrawAbout (void)
       ICON_FA_EXTERNAL_LINK_ALT " "      );
   ImGui::SameLine         ( );
   if (ImGui::Selectable   ("More on the wiki"))
-    SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+    SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
+  SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   ImGui::EndGroup         ( );
   
   /*
@@ -446,7 +446,22 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO");
-  ImGui::EndGroup         ( );          
+  ImGui::EndGroup         ( );
+
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         (0.0f, 10.0f);
+  //ImGui::SetCursorPosX    (ImGui::GetCursorPosX ( ) + 1.0f);
+  ImGui::TextColored      (
+    (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+      ICON_FA_FILE_CONTRACT " ");
+  ImGui::SameLine         (0.0f, 10.0f);
+  if (ImGui::Selectable   ("Privacy Policy"))
+    SKIF_Util_OpenURI     (L"https://wiki.special-k.info/Privacy");
+
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/Privacy");
+  ImGui::EndGroup         ( );
 
   ImGui::SetCursorPosY    (fY4);
     

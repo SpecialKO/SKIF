@@ -358,26 +358,6 @@ void SKIF_ImGui_ServiceMenu (void)
 
     if (ImGui::Selectable("Force Stop Service"))
       _inject._StartStopInject (true);
-    
-    extern void SKIF_putStopOnInjection(bool in);
-
-    /*
-#ifdef _WIN64
-    if (_inject.SKVer64 >= "21.08.12" &&
-      _inject.SKVer32 >= "21.08.12")
-#else
-    if (_inject.SKVer32 >= "21.08.12")
-#endif
-    {
-      ImGui::Separator ( );
-
-      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
-        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
-
-      SKIF_ImGui_SetHoverTip ("If this is enabled the service will stop automatically\n"
-                              "when Special K is injected into a whitelisted game.");
-    }
-    */
 
     ImGui::EndPopup ( );
   }

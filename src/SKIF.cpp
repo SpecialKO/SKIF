@@ -542,10 +542,9 @@ SKIF_ImGui_InitFonts =
   std::filesystem::path fontDir
           (path_cache.specialk_userdata);
 
-  std::error_code ec;
-
   fontDir /= L"Fonts";
 
+  std::error_code ec;
   // Create any missing directories
   if (! std::filesystem::exists (            fontDir, ec))
         std::filesystem::create_directories (fontDir, ec);
@@ -1058,8 +1057,9 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
 
       // Create any missing directories
-      if (! std::filesystem::exists (            root))
-            std::filesystem::create_directories (root);
+      std::error_code ec;
+      if (! std::filesystem::exists (            root, ec))
+            std::filesystem::create_directories (root, ec);
 
       bool downloadNewFiles = false;
 
@@ -1709,20 +1709,23 @@ void SKIF_Initialize (void)
     SK_Generate8Dot3    (path_cache.skif_workdir_org);
     SK_Generate8Dot3    (path_cache.specialk_install);
 
-    bool fallback = false;
+    bool fallback = true;
     // Cache the Special K user data path
-    try
+    std::filesystem::path testDir  (path_cache.specialk_install);
+    std::filesystem::path testFile (testDir);
+
+    testDir  /= L"SKIFTMPDIR";
+    testFile /= L"SKIFTMPFILE.tmp";
+
+    // Try to delete any existing tmp folder or file (won't throw an exception at least)
+    RemoveDirectory (testDir.c_str());
+    DeleteFile      (testFile.wstring().c_str());
+
+    std::error_code ec;
+    // See if we can create a folder
+    if (! std::filesystem::exists (            testDir, ec) &&
+          std::filesystem::create_directories (testDir, ec))
     {
-      std::filesystem::path testDir  (path_cache.specialk_install);
-      std::filesystem::path testFile (testDir);
-
-      testDir  /= L"SKIFTMPDIR";
-      testFile /= L"SKIFTMPFILE.tmp";
-
-      // See if we can create a folder
-      if (! std::filesystem::exists (            testDir))
-            std::filesystem::create_directories (testDir); // will throw exception if it fails
-
       // Delete it
       RemoveDirectory (testDir.c_str());
 
@@ -1744,20 +1747,13 @@ void SKIF_Initialize (void)
         // Delete it
         DeleteFile (testFile.wstring().c_str());
 
-        // Use current path if we have write permissions
+        // Use current path as we have write permissions
         wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
                     path_cache.specialk_install, _TRUNCATE );
-      }
 
-      else {
-        fallback = true;
+        // No need to rely on the fallback
+        fallback = false;
       }
-    }
-    catch (const std::exception& e)
-    {
-      UNREFERENCED_PARAMETER(e);
-
-      fallback = true;
     }
 
     if (fallback)
@@ -1770,8 +1766,8 @@ void SKIF_Initialize (void)
                   fallbackDir.c_str(), _TRUNCATE);
         
       // Create any missing directories
-      if (! std::filesystem::exists (            fallbackDir))
-            std::filesystem::create_directories (fallbackDir);
+      if (! std::filesystem::exists (            fallbackDir, ec))
+            std::filesystem::create_directories (fallbackDir, ec);
     }
 
 

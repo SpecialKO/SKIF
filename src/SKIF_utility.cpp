@@ -684,6 +684,33 @@ SKIF_Util_IsProcessAdmin (DWORD PID)
   return bRet;
 }
 
+bool SKIF_Util_IsProcessX86 (HANDLE process)
+{
+    SYSTEM_INFO si = { 0 };
+    GetNativeSystemInfo (&si);
+
+    if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
+        return true;
+
+    BOOL bIsWow64 = FALSE;
+
+    typedef BOOL(WINAPI * Win32_IsWow64Process_lpfn) (HANDLE, PBOOL);
+    Win32_IsWow64Process_lpfn
+          IsWow64Process =
+    (Win32_IsWow64Process_lpfn)GetProcAddress (GetModuleHandle(TEXT("kernel32")),
+          "IsWow64Process");
+
+    if (IsWow64Process != nullptr)
+    {
+      if (! IsWow64Process (process, &bIsWow64))
+      {
+        PLOG_ERROR << "IsWow64Process failed: " << SKIF_Util_GetLastError ( );
+      }
+    }
+
+    return bIsWow64;
+}
+
 PROCESSENTRY32W
 SKIF_Util_FindProcessByName (const wchar_t* wszName)
 {
@@ -720,9 +747,10 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
   {
     std::filesystem::path target = targetPath;
 
+    std::error_code ec;
     // Create any missing directories
-    if (! std::filesystem::exists (            target.parent_path()))
-          std::filesystem::create_directories (target.parent_path());
+    if (! std::filesystem::exists (            target.parent_path(), ec))
+          std::filesystem::create_directories (target.parent_path(), ec);
     
     // GDI+ Image Encoder CLSIDs (haven't changed forever)
     //
