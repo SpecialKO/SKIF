@@ -1353,8 +1353,13 @@ SKIF_UI_Tab_DrawMonitor (void)
         hovStatus = "Active";
         break;
       case 1: // Inert Global Injection
-        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase);
-        hovStatus = "Inert";
+        if (_inject.bCurrentState) {
+          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase);
+          hovStatus = "Inert";
+        } else {
+          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
+          hovStatus = "Stuck (end the process to eject Special K)";
+        }
         break;
       case 2: // Potentially stuck
         if (_inject.bCurrentState) {
