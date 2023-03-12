@@ -12,9 +12,152 @@
 
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait);
 
+struct Monitor_MPO_Support
+{
+  std::string                    Name;
+  std::string                    DevicePath;
+  UINT                           MaxPlanes;
+  UINT                           MaxRGBPlanes;
+  UINT                           MaxYUVPlanes;
+  float                          MaxStretchFactor;
+  float                          MaxShrinkFactor;
+  D3DKMT_MULTIPLANE_OVERLAY_CAPS OverlayCaps;
+};
+
+std::vector <Monitor_MPO_Support>
+GetMPOSupport (bool forced = false)
+{
+  static bool checkedMPOs = false;
+  static std::vector <Monitor_MPO_Support> Monitors;
+
+  if (! checkedMPOs || forced)
+  {
+    checkedMPOs = true;
+
+    std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
+    std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
+    LONG result = ERROR_SUCCESS;
+
+    Monitors.clear();
+
+    do
+    {
+      // Determine how many path and mode structures to allocate
+      UINT32 pathCount, modeCount;
+      result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+
+      if (result != ERROR_SUCCESS)
+      {
+        PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetLastError();
+        return Monitors;
+      }
+
+      // Allocate the path and mode arrays
+      pathArray.resize(pathCount);
+      modeArray.resize(modeCount);
+
+      // Get all active paths and their modes
+      result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+                                                            &modeCount, modeArray.data(), nullptr);
+
+      // The function may have returned fewer paths/modes than estimated
+      pathArray.resize(pathCount);
+      modeArray.resize(modeCount);
+
+      // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+      // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+    } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "Unexpected failure: " << SKIF_Util_GetLastError();
+      return Monitors;
+    }
+
+    // For each active path
+    for (auto& path : pathArray)
+    {
+      // Find the target (monitor) friendly name
+      DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
+      targetName.header.adapterId = path.targetInfo.adapterId;
+      targetName.header.id = path.targetInfo.id;
+      targetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+      targetName.header.size = sizeof(targetName);
+      result = DisplayConfigGetDeviceInfo(&targetName.header);
+      std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown");
+
+      if (result != ERROR_SUCCESS)
+      {
+        PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetLastError();
+        return Monitors;
+      }
+
+      // Find the adapter device name
+      DISPLAYCONFIG_ADAPTER_NAME adapterName = {};
+      adapterName.header.adapterId = path.targetInfo.adapterId;
+      adapterName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
+      adapterName.header.size = sizeof(adapterName);
+
+      result = DisplayConfigGetDeviceInfo(&adapterName.header);
+
+      if (result != ERROR_SUCCESS)
+      {
+        PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetLastError();
+        return Monitors;
+      }
+
+      PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+      PLOG_VERBOSE << "Monitor Name: " << monitorName;
+      PLOG_VERBOSE << "Adapter Path: " << adapterName.adapterDevicePath;
+      //PLOG_VERBOSE << "Target: "       << path.targetInfo.id;
+      //PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+
+      // Open a handle to the adapter using its LUID
+      D3DKMT_OPENADAPTERFROMLUID openAdapter;
+      openAdapter.AdapterLuid = adapterName.header.adapterId;
+      if (D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+      {
+        Monitor_MPO_Support new_monitor;
+        D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS caps = {};
+        caps.hAdapter      = openAdapter.hAdapter;
+        caps.VidPnSourceId = path.sourceInfo.id;
+        D3DKMTGetMultiPlaneOverlayCaps(&caps);
+
+        PLOG_VERBOSE << "MPO Capabilities:";
+        PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
+        PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
+        PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
+        PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
+        PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+
+        new_monitor.Name             = SK_WideCharToUTF8 (monitorName);
+        new_monitor.DevicePath       = SK_WideCharToUTF8 (adapterName.adapterDevicePath);
+        new_monitor.MaxPlanes        = caps.MaxPlanes;
+        new_monitor.MaxRGBPlanes     = caps.MaxRGBPlanes;
+        new_monitor.MaxYUVPlanes     = caps.MaxYUVPlanes;
+        new_monitor.MaxStretchFactor = caps.MaxStretchFactor;
+        new_monitor.MaxShrinkFactor  = caps.MaxShrinkFactor;
+        new_monitor.OverlayCaps      = caps.OverlayCaps;
+
+        Monitors.emplace_back(new_monitor);
+      }
+    }
+  }
+
+  return Monitors;
+}
+
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
+  static std::vector<Monitor_MPO_Support> monitors = GetMPOSupport ( );
+
+  if (RefreshMPOSupport || SKIF_Tab_Selected != Settings)
+  {
+    monitors = GetMPOSupport (true);
+    RefreshMPOSupport = false;
+  }
+
   static std::wstring
             driverBinaryPath    = L"";
 
@@ -26,49 +169,6 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static driverStatus        = NotInstalled,
          driverStatusPending = NotInstalled;
-
-  
-  static bool checkedMPOs = false;
-  static D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS MPOcaps = {};
-
-  if (! checkedMPOs)
-  {
-    checkedMPOs = true;
-
-    LUID adapterLuid = { 0 };
-    IDXGIDevice* pDXGIDevice = nullptr;
-    if (SUCCEEDED(SKIF_D3D11_GetDevice(false)->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice)))
-    {
-        IDXGIAdapter* pDXGIAdapter = nullptr;
-        if (SUCCEEDED(pDXGIDevice->GetAdapter(&pDXGIAdapter)))
-        {
-            DXGI_ADAPTER_DESC adapterDesc = {};
-            if (SUCCEEDED(pDXGIAdapter->GetDesc(&adapterDesc)))
-            {
-                adapterLuid = adapterDesc.AdapterLuid;
-            }
-            pDXGIAdapter->Release();
-        }
-        pDXGIDevice->Release();
-    }
-
-    // Open a handle to the adapter using its LUID
-    D3DKMT_OPENADAPTERFROMLUID openAdapter;
-    openAdapter.AdapterLuid = adapterLuid;
-    if (D3DKMTOpenAdapterFromLuid(&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
-    {
-      MPOcaps.hAdapter = openAdapter.hAdapter;
-      D3DKMTGetMultiPlaneOverlayCaps(&MPOcaps);
-
-      PLOG_INFO << SKIF_LOG_SEPARATOR;
-      PLOG_INFO << "MPO Capabilities:";
-      PLOG_INFO << "MPO MaxPlanes: "    << MPOcaps.MaxPlanes;
-      PLOG_INFO << "MPO MaxRGBPlanes: " << MPOcaps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
-      PLOG_INFO << "MPO MaxYUVPlanes: " << MPOcaps.MaxYUVPlanes;
-      PLOG_INFO << "MPO Stretch: "      << MPOcaps.MaxStretchFactor << "x - " << MPOcaps.MaxShrinkFactor << "x";
-      PLOG_INFO << SKIF_LOG_SEPARATOR;
-    }
-  }
 
   // Check if the WinRing0_1_2_0 kernel driver service is installed or not
   auto _CheckDriver = [](Status& _status, bool forced = false)->std::wstring
@@ -210,14 +310,13 @@ SKIF_UI_Tab_DrawSettings (void)
   {
     driverBinaryPath    = _CheckDriver (driverStatus, true);
     driverStatusPending =               driverStatus;
-
-    //_inject._RefreshSKDLLVersions ();
   }
 
   SKIF_Tab_Selected = Settings;
   if (SKIF_Tab_ChangeTo == Settings)
     SKIF_Tab_ChangeTo = None;
 
+#pragma region Section: Top / General
   // SKIF Options
   //if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
   //{
@@ -474,7 +573,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::Spacing ();
   ImGui::Spacing ();
+#pragma endregion
 
+#pragma region Section: Appearances
   if (ImGui::CollapsingHeader ("Appearance###SKIF_SettingsHeader-1"))
   {
     ImGui::PushStyleColor   (
@@ -685,12 +786,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Columns       (1);
 
     ImGui::PopStyleColor ( );
-
   }
 
   ImGui::Spacing ();
   ImGui::Spacing ();
+#pragma endregion
 
+#pragma region Section: Advanced
   if (ImGui::CollapsingHeader ("Advanced###SKIF_SettingsHeader-2"))
   {
     ImGui::PushStyleColor   (
@@ -781,445 +883,14 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Columns          (1);
 
     ImGui::PopStyleColor    ( );
-
-    ImGui::Spacing  ();
-    ImGui::Spacing  ();
-
-    ImGui::Separator   ();
-
-    // PresentMon prerequisites
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-            
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "SwapChain Presentation Monitor"
-    );
-            
-    ImGui::PushStyleColor (
-      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
-                            );
-
-    ImGui::TextWrapped    (
-      "Special K can give users an insight into how frames are presented by tracking ETW events and changes as they occur."
-    );
-
-    ImGui::Spacing     ();
-    ImGui::Spacing     ();
-
-    SKIF_ImGui_Columns      (2, nullptr, true);
-
-            
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Tell at a glance whether:"
-    );
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
-    ImGui::SameLine    ();
-    ImGui::TextWrapped ("DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed.");
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetHoverTip("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'");
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
-
-    if (ImGui::IsItemClicked      ())
-      SKIF_Util_OpenURI           (L"https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
-    ImGui::SameLine    ();
-    ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetHoverTip(
-                        "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'"
-                        "\nFSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'"
-    );
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
-
-    if (ImGui::IsItemClicked      ())
-      SKIF_Util_OpenURI           (L"https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-    ImGui::SameLine    ();
-    ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetHoverTip("Appears as 'Composed: Flip', 'Composed: Composition Atlas',"
-                            "\n'Composed: Copy with CPU GDI', or 'Composed: Copy with GPU GDI'");
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-            
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Requirement:"
-    );
-
-    static BOOL  pfuAccessToken = FALSE;
-    static BYTE  pfuSID[SECURITY_MAX_SID_SIZE];
-    static BYTE  intSID[SECURITY_MAX_SID_SIZE];
-    static DWORD pfuSize = sizeof(pfuSID);
-    static DWORD intSize = sizeof(intSID);
-
-    SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinBuiltinPerfLoggingUsersSid, NULL, &pfuSID, &pfuSize));
-    SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinInteractiveSid,             NULL, &intSID, &intSize));
-    SK_RunOnce (CheckTokenMembership (NULL, &pfuSID, &pfuAccessToken));
-
-    enum pfuPermissions {
-      Missing,
-      Granted,
-      Pending
-    } static pfuState = (pfuAccessToken) ? Granted : Missing;
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Granted 'Performance Log Users' permission?");
-    ImGui::SameLine    ();
-    if      (pfuState == Granted)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Yes");
-    else if (pfuState == Missing)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "No");
-    else // (pfuState == Pending)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "Restart required"); //"Yes, but a sign out from Windows is needed to allow the changes to take effect.");
-    ImGui::EndGroup    ();
-
-    ImGui::Spacing  ();
-    ImGui::Spacing  ();
-
-    // Disable button for granted + pending states
-    if (pfuState != Missing)
-    {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
-
-    std::string btnPfuLabel = (pfuState == Granted) ?                                ICON_FA_CHECK " Permissions granted!" // Granted
-                                                    : (pfuState == Missing) ?   ICON_FA_SHIELD_ALT " Grant permissions"    // Missing
-                                                                            : ICON_FA_SIGN_OUT_ALT " Sign out to apply";   // Pending
-
-    if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
-                                                         25 * SKIF_ImGui_GlobalDPIScale)))
-    {
-      std::wstring exeArgs;
-
-      TCHAR pfuName[MAX_PATH],
-            intName[MAX_PATH];
-      DWORD pfuNameLength = sizeof(pfuName),
-            intNameLength = sizeof(intName);
-
-      // Unused variables
-      SID_NAME_USE pfuSnu, intSnu;
-      TCHAR pfuDomainName[MAX_PATH], 
-            intDomainName[MAX_PATH];
-      DWORD pfuDomainNameLength = sizeof(pfuDomainName),
-            intDomainNameLength = sizeof(intDomainName);
-
-      // Because non-English languages has localized user and group names, we need to retrieve those first
-      if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
-          LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
-      {
-        exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
-
-        // Use 'net' to grant the proper permissions
-        if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
-          pfuState = Pending;
-      }
-    }
-
-    // Disable button for granted + pending states
-    else if (pfuState != Missing)
-    {
-      ImGui::PopStyleVar();
-      ImGui::PopItemFlag();
-    }
-
-    else
-    {
-      SKIF_ImGui_SetHoverTip(
-        "Administrative privileges are required on the system to toggle this."
-      );
-    }
-
-    ImGui::EndGroup ();
-
-    ImGui::NextColumn  ();
-
-    ImGui::TreePush    ();
-            
-
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
-    ImGui::SameLine    ( );
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
-
-    ImGui::TreePush    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Hardware: Independent Flip");
-
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Hardware Composed: Independent Flip");
-
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Hardware: Legacy Flip");
-
-    /* Extremely uncommon so currently not included in the list
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
-    */
-    ImGui::TreePop     ();
-
-    std::string MPOline = SK_FormatString("%d %s  %s",
-                                          MPOcaps.MaxRGBPlanes,
-                                         (MPOcaps.MaxRGBPlanes == 1) ?           "plane" : "planes",
-                                         (MPOcaps.MaxRGBPlanes  > 2) ? ICON_FA_THUMBS_UP : ICON_FA_THUMBS_DOWN);
-
-    ImGui::BeginGroup  ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-    ImGui::SameLine    ();
-    ImGui::Text        ("MPO Planes Supported:");
-    ImGui::SameLine    ();
-    ImGui::TextColored (
-      (MPOcaps.MaxRGBPlanes > 1)
-        ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)
-        : ImColor::HSV(0.11F, 1.F, 1.F),
-          MPOline.c_str()
-    );
-    ImGui::EndGroup    ();
-
-    SKIF_ImGui_SetHoverTip ("Multi-Plane Overlays (MPOs) are additional dedicated hardware scanout planes\n"
-                            "enabling the GPU to partially take over composition from the DWM. This allows\n"
-                            "games to bypass the DWM in various mixed scenarios or window modes,\n"
-                            "eliminating the input latency that would otherwise be incurred, such as when\n"
-                            "notifications or window-based overlays (e.g. Game Bar) appear above the game.\n"
-                            "\n"
-                            "MPOs requires a newer GPU, such as an Nvidia 20-series card or newer."
-    );
-
-    SKIF_ImGui_Spacing ();
-            
-    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_THUMBS_DOWN);
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
-
-    ImGui::TreePush    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Composed: Flip");
-
-    /* Disabled as PresentMon doesn't detect this any longer as of May 2022.
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Composed: Composition Atlas");
-    */
-
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Composed: Copy with GPU GDI");
-
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Composed: Copy with CPU GDI");
-    ImGui::TreePop     ();
-
-    ImGui::TreePop     ();
-
-    ImGui::Columns     (1);
-
-#ifdef _WIN64
-    ImGui::Spacing  ();
-    ImGui::Spacing  ();
-
-    ImGui::Separator   ();
-
-    // WinRing0
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-            
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Extended CPU Hardware Reporting"
-    );
-
-    ImGui::TextWrapped    (
-      "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
-    );
-
-    ImGui::Spacing     ();
-    ImGui::Spacing     ();
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware.");
-    ImGui::EndGroup    ();
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Requirement:"
-    );
-
-    ImGui::BeginGroup  ();
-    ImGui::Spacing     ();
-    ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Kernel Driver:");
-    ImGui::SameLine    ();
-
-    static std::string btnDriverLabel;
-    static std::wstring wszDriverTaskCmd;
-    //static LPCSTR szDriverTaskFunc;
-
-    // Status is pending...
-    if (driverStatus != driverStatusPending)
-    {
-      btnDriverLabel = ICON_FA_SPINNER " Please Wait...";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Pending...");
-    }
-
-    // Driver is installed
-    else if (driverStatus == Installed)
-    {
-      btnDriverLabel    = ICON_FA_SHIELD_ALT " Uninstall Driver";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
-      wszDriverTaskCmd = L"Uninstall";
-    }
-
-    // Other driver is installed
-    else if (driverStatus == OtherDriverInstalled)
-    {
-      btnDriverLabel    = ICON_FA_BAN " Unavailable";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
-      ImGui::Spacing     ();
-      ImGui::SameLine    ();
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
-      ImGui::SameLine    ();
-      ImGui::Text        ("Conflict With:");
-      ImGui::SameLine    ();
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), SK_WideCharToUTF8 (driverBinaryPath).c_str ());
-    }
-
-    // Driver is not installed
-    else {
-      btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
-      wszDriverTaskCmd = L"Install";
-    }
-
-    ImGui::EndGroup ();
-
-    ImGui::Spacing  ();
-    ImGui::Spacing  ();
-
-    // Disable button if the required files are missing, status is pending, or if another driver is installed
-    if (  driverStatusPending != driverStatus ||
-          OtherDriverInstalled == driverStatus )
-    {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
-
-    // Show button
-    bool driverButton =
-      ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
-                                                       25 * SKIF_ImGui_GlobalDPIScale));
-
-    //
-    // COM Elevation Moniker will handle this unless UAC level is at maximum,
-    //   then user must respond to UAC prompt (probably in a background window).
-    //
-    SKIF_ImGui_SetHoverTip (
-      "Administrative privileges are required on the system to enable this."
-    );
-
-    if ( driverButton )
-    {
-      std::filesystem::path SKIFdrv = std::filesystem::path(std::filesystem::current_path().wstring() + LR"(\Drivers\WinRing0\SKIFdrv.exe)");
-
-      if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
-        driverStatusPending =
-              (driverStatus == Installed) ?
-                            NotInstalled  : Installed;
-
-      /* Old method before SKIFdrv.exe
-      auto hModWinRing0 =
-        LoadLibraryW (L"SpecialK64.dll");
-
-      using DriverTaskFunc_pfn = void (*)(void);
-            DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
-              GetProcAddress (hModWinRing0, szDriverTaskFunc);
-
-      if (DriverTask != nullptr)
-      {
-        DriverTask ();
-        //DriverTask (); // Not needed any longer
-
-        // Batch call succeeded -- change driverStatusPending to the
-        //   opposite of driverStatus to signal that a new state is pending.
-        driverStatusPending =
-              (driverStatus == Installed) ?
-                              NotInstalled : Installed;
-      }
-
-      FreeLibrary (hModWinRing0);
-      */
-    }
-
-    // Disabled button
-    //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
-    else if (    driverStatusPending != driverStatus ||
-                OtherDriverInstalled == driverStatus )
-    {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
-    }
-
-    // Show warning about another driver being installed
-    if (OtherDriverInstalled == driverStatus)
-    {
-      ImGui::SameLine   ();
-      ImGui::BeginGroup ();
-      ImGui::Spacing    ();
-      ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
-                                                "Option is unavailable as another application have already installed a copy of the driver."
-      );
-      ImGui::EndGroup   ();
-    }
-
-    ImGui::EndGroup ();
-#endif
-
-    ImGui::PopStyleColor ();
   }
 
   ImGui::Spacing ();
   ImGui::Spacing ();
+#pragma endregion
 
-  // Whitelist/Blacklist
-  if (ImGui::CollapsingHeader ("Whitelist / Blacklist###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
+#pragma region Section: Whitelist / Blacklist
+  if (ImGui::CollapsingHeader ("Whitelist / Blacklist###SKIF_SettingsHeader-5")) //, ImGuiTreeNodeFlags_DefaultOpen)) // Disabled auto-open for this section
   {
     static bool white_edited = false,
                 black_edited = false,
@@ -1559,4 +1230,537 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::EndGroup       ( );
   }
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
+#pragma endregion
+  
+#pragma region Section: Extended CPU Hardware Reporting [64-bit only]
+#ifdef _WIN64
+  if (ImGui::CollapsingHeader ("Extended CPU Hardware Reporting###SKIF_SettingsHeader-4"))
+  {
+    ImGui::PushStyleColor (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                            );
+
+    SKIF_ImGui_Spacing      ( );
+
+    // WinRing0
+    ImGui::BeginGroup  ();
+
+    ImGui::TextWrapped    (
+      "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
+    );
+
+    ImGui::Spacing     ();
+    ImGui::Spacing     ();
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware.");
+    ImGui::EndGroup    ();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Requirement:"
+    );
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Kernel Driver:");
+    ImGui::SameLine    ();
+
+    static std::string btnDriverLabel;
+    static std::wstring wszDriverTaskCmd;
+    //static LPCSTR szDriverTaskFunc;
+
+    // Status is pending...
+    if (driverStatus != driverStatusPending)
+    {
+      btnDriverLabel = ICON_FA_SPINNER " Please Wait...";
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Pending...");
+    }
+
+    // Driver is installed
+    else if (driverStatus == Installed)
+    {
+      btnDriverLabel    = ICON_FA_SHIELD_ALT " Uninstall Driver";
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
+      wszDriverTaskCmd = L"Uninstall";
+    }
+
+    // Other driver is installed
+    else if (driverStatus == OtherDriverInstalled)
+    {
+      btnDriverLabel    = ICON_FA_BAN " Unavailable";
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
+      ImGui::Spacing     ();
+      ImGui::SameLine    ();
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+      ImGui::SameLine    ();
+      ImGui::Text        ("Conflict With:");
+      ImGui::SameLine    ();
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), SK_WideCharToUTF8 (driverBinaryPath).c_str ());
+    }
+
+    // Driver is not installed
+    else {
+      btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
+      wszDriverTaskCmd = L"Install";
+    }
+
+    ImGui::EndGroup ();
+
+    ImGui::Spacing  ();
+    ImGui::Spacing  ();
+
+    // Disable button if the required files are missing, status is pending, or if another driver is installed
+    if (  driverStatusPending != driverStatus ||
+          OtherDriverInstalled == driverStatus )
+    {
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+    }
+
+    // Show button
+    bool driverButton =
+      ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
+                                                       25 * SKIF_ImGui_GlobalDPIScale));
+
+    //
+    // COM Elevation Moniker will handle this unless UAC level is at maximum,
+    //   then user must respond to UAC prompt (probably in a background window).
+    //
+    SKIF_ImGui_SetHoverTip (
+      "Administrative privileges are required on the system to enable this."
+    );
+
+    if ( driverButton )
+    {
+      std::filesystem::path SKIFdrv = std::filesystem::path(std::filesystem::current_path().wstring() + LR"(\Drivers\WinRing0\SKIFdrv.exe)");
+
+      if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+        driverStatusPending =
+              (driverStatus == Installed) ?
+                            NotInstalled  : Installed;
+
+      /* Old method before SKIFdrv.exe
+      auto hModWinRing0 =
+        LoadLibraryW (L"SpecialK64.dll");
+
+      using DriverTaskFunc_pfn = void (*)(void);
+            DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
+              GetProcAddress (hModWinRing0, szDriverTaskFunc);
+
+      if (DriverTask != nullptr)
+      {
+        DriverTask ();
+        //DriverTask (); // Not needed any longer
+
+        // Batch call succeeded -- change driverStatusPending to the
+        //   opposite of driverStatus to signal that a new state is pending.
+        driverStatusPending =
+              (driverStatus == Installed) ?
+                              NotInstalled : Installed;
+      }
+
+      FreeLibrary (hModWinRing0);
+      */
+    }
+
+    // Disabled button
+    //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
+    else if (    driverStatusPending != driverStatus ||
+                OtherDriverInstalled == driverStatus )
+    {
+      ImGui::PopStyleVar ();
+      ImGui::PopItemFlag ();
+    }
+
+    // Show warning about another driver being installed
+    if (OtherDriverInstalled == driverStatus)
+    {
+      ImGui::SameLine   ();
+      ImGui::BeginGroup ();
+      ImGui::Spacing    ();
+      ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
+                                                "Option is unavailable as another application have already installed a copy of the driver."
+      );
+      ImGui::EndGroup   ();
+    }
+
+    ImGui::EndGroup ();
+
+    ImGui::PopStyleColor ();
+  }
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
+#endif
+#pragma endregion
+  
+#pragma region Section: SwapChain Presentation Monitor
+  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
+  {
+    ImGui::PushStyleColor (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                            );
+
+    SKIF_ImGui_Spacing      ( );
+
+    // PresentMon prerequisites
+    ImGui::BeginGroup  ();
+
+    SKIF_ImGui_Columns      (2, nullptr, true);
+
+            
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Tell at a glance whether:"
+    );
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+    ImGui::SameLine    ();
+    ImGui::TextWrapped ("DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed.");
+    ImGui::EndGroup    ();
+
+    SKIF_ImGui_SetHoverTip("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'");
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
+
+    if (ImGui::IsItemClicked      ())
+      SKIF_Util_OpenURI           (L"https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+    ImGui::SameLine    ();
+    ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
+    ImGui::EndGroup    ();
+
+    SKIF_ImGui_SetHoverTip(
+                        "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'"
+                        "\nFSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'"
+    );
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
+
+    if (ImGui::IsItemClicked      ())
+      SKIF_Util_OpenURI           (L"https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::SameLine    ();
+    ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
+    ImGui::EndGroup    ();
+
+    SKIF_ImGui_SetHoverTip("Appears as 'Composed: Flip', 'Composed: Composition Atlas',"
+                            "\n'Composed: Copy with CPU GDI', or 'Composed: Copy with GPU GDI'");
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+            
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Requirement:"
+    );
+
+    static BOOL  pfuAccessToken = FALSE;
+    static BYTE  pfuSID[SECURITY_MAX_SID_SIZE];
+    static BYTE  intSID[SECURITY_MAX_SID_SIZE];
+    static DWORD pfuSize = sizeof(pfuSID);
+    static DWORD intSize = sizeof(intSID);
+
+    SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinBuiltinPerfLoggingUsersSid, NULL, &pfuSID, &pfuSize));
+    SK_RunOnce (CreateWellKnownSid   (WELL_KNOWN_SID_TYPE::WinInteractiveSid,             NULL, &intSID, &intSize));
+    SK_RunOnce (CheckTokenMembership (NULL, &pfuSID, &pfuAccessToken));
+
+    enum pfuPermissions {
+      Missing,
+      Granted,
+      Pending
+    } static pfuState = (pfuAccessToken) ? Granted : Missing;
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Granted 'Performance Log Users' permission?");
+    ImGui::SameLine    ();
+    if      (pfuState == Granted)
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Yes");
+    else if (pfuState == Missing)
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "No");
+    else // (pfuState == Pending)
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "Restart required"); //"Yes, but a sign out from Windows is needed to allow the changes to take effect.");
+    ImGui::EndGroup    ();
+
+    ImGui::Spacing  ();
+    ImGui::Spacing  ();
+
+    // Disable button for granted + pending states
+    if (pfuState != Missing)
+    {
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+    }
+
+    std::string btnPfuLabel = (pfuState == Granted) ?                                ICON_FA_CHECK " Permissions granted!" // Granted
+                                                    : (pfuState == Missing) ?   ICON_FA_SHIELD_ALT " Grant permissions"    // Missing
+                                                                            : ICON_FA_SIGN_OUT_ALT " Sign out to apply";   // Pending
+
+    if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
+                                                         25 * SKIF_ImGui_GlobalDPIScale)))
+    {
+      std::wstring exeArgs;
+
+      TCHAR pfuName[MAX_PATH],
+            intName[MAX_PATH];
+      DWORD pfuNameLength = sizeof(pfuName),
+            intNameLength = sizeof(intName);
+
+      // Unused variables
+      SID_NAME_USE pfuSnu, intSnu;
+      TCHAR pfuDomainName[MAX_PATH], 
+            intDomainName[MAX_PATH];
+      DWORD pfuDomainNameLength = sizeof(pfuDomainName),
+            intDomainNameLength = sizeof(intDomainName);
+
+      // Because non-English languages has localized user and group names, we need to retrieve those first
+      if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
+          LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
+      {
+        exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
+
+        // Use 'net' to grant the proper permissions
+        if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+          pfuState = Pending;
+      }
+    }
+
+    // Disable button for granted + pending states
+    else if (pfuState != Missing)
+    {
+      ImGui::PopStyleVar();
+      ImGui::PopItemFlag();
+    }
+
+    else
+    {
+      SKIF_ImGui_SetHoverTip(
+        "Administrative privileges are required on the system to toggle this."
+      );
+    }
+
+    ImGui::EndGroup ();
+
+    ImGui::NextColumn  ();
+
+    ImGui::TreePush    ();
+            
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
+    ImGui::SameLine    ( );
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
+
+    ImGui::TreePush    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Hardware: Independent Flip");
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Hardware Composed: Independent Flip");
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Hardware: Legacy Flip");
+
+    /* Extremely uncommon but included in the list anyway */
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
+    
+    ImGui::TreePop     ();
+
+    SKIF_ImGui_Spacing ();
+            
+    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_THUMBS_DOWN);
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
+
+    ImGui::TreePush    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Composed: Flip");
+
+    /* Disabled as PresentMon doesn't detect this any longer as of May 2022.
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Composed: Composition Atlas");
+    */
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Composed: Copy with GPU GDI");
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Composed: Copy with CPU GDI");
+    ImGui::TreePop     ();
+
+    ImGui::TreePop     ();
+
+    ImGui::Columns     (1);
+    
+    ImGui::Spacing  ();
+    ImGui::Spacing  ();
+
+    ImGui::Separator   ();
+
+    // Multi-Plane Overlay (MPO) section
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+            
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Multi-Plane Overlay (MPO) Support"
+    );
+
+    ImGui::TextWrapped    (
+      "Multi-plane overlays (MPOs) are additional dedicated hardware scanout planes"
+      " enabling the GPU to partially take over composition from the DWM. This allows"
+      " games to bypass the DWM in various mixed scenarios or window modes,"
+      " eliminating the input latency that would otherwise be incurred."
+    );
+
+    SKIF_ImGui_Spacing ();
+    
+    SKIF_ImGui_Columns (2, nullptr, true);
+
+    ImGui::BeginGroup  ();
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Support among connected displays:"
+    );
+
+    ImGui::Text ("Display");
+    ImGui::SameLine    ( );
+    ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine    ( );
+    ImGui::Text ("Planes");
+    ImGui::SameLine    ( );
+    ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine    ( );
+    ImGui::Text ("RGB");
+    ImGui::SameLine    ( );
+    ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine    ( );
+    ImGui::Text ("YUV");
+    ImGui::SameLine    ( );
+    ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine    ( );
+    ImGui::Text ("Stretch");
+    ImGui::SameLine    ( );
+    ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine    ( );
+    ImGui::Text ("Capabilities");
+
+    for (auto& monitor : monitors)
+    {
+      ImVec4 colName = (monitor.MaxRGBPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                  : ImColor::HSV (0.11F, 1.F, 1.F);
+
+      ImGui::BeginGroup  ();
+      ImGui::TextColored (colName, monitor.Name.c_str());
+      ImGui::SameLine    ( );
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("%u", monitor.MaxPlanes);
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("%u", monitor.MaxRGBPlanes);
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("%u", monitor.MaxYUVPlanes);
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("%.1fx - %.1fx", monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+      ImGui::SameLine    ( );
+      ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("<not implemented>");
+    }
+
+    ImGui::EndGroup    ();
+
+    ImGui::NextColumn  ();
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                        "Requirement:"
+    );
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("AMD: Unknown");
+    ImGui::EndGroup    ();
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Intel: Intel Core 6th gen or newer");
+    ImGui::EndGroup    ();
+
+    ImGui::BeginGroup  ();
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::SameLine    ();
+    ImGui::Text        ("Nvidia: RTX 20 series or newer");
+    ImGui::EndGroup    ();
+
+    ImGui::TextWrapped ("Support depends on the GPU and display configuration."
+                        " Using uncommon display configurations,"
+                        " such as using 10 bpc in SDR mode,"
+                        " can invalidate MPO capabilities for a display.");
+
+    ImGui::Columns     (1);
+
+    ImGui::Spacing     ();
+    ImGui::Spacing     ();
+
+    ImGui::EndGroup    ();
+
+    ImGui::PopStyleColor ();
+  }
+#pragma endregion
+
 }

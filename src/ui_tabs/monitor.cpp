@@ -312,11 +312,11 @@ std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
 
   for (wchar_t letter = L'A'; letter <= L'Z'; ++letter)
   {
-      dosPath[0] = letter;
-      if (QueryDosDeviceW(dosPath.c_str(), devicePath, MAX_PATH)) // may want to properly handle errors instead ... e.g. check ERROR_INSUFFICIENT_BUFFER
-      {
-          result[dosPath] = std::wstring(devicePath) + LR"(\)";
-      }
+    dosPath[0] = letter;
+    if (QueryDosDeviceW(dosPath.c_str(), devicePath, MAX_PATH)) // may want to properly handle errors instead ... e.g. check ERROR_INSUFFICIENT_BUFFER
+    {
+      result[dosPath] = std::wstring(devicePath) + LR"(\)";
+    }
   }
   return result;
 }
@@ -477,10 +477,10 @@ SKIF_UI_Tab_DrawMonitor (void)
     std::wstring  path;
     std::string   pathUTF8;
     std::string   tooltip;
-    //std::string   details;
+    std::string   details;
     std::string   arch;
     bool          admin;
-    int           status = 255; // 0 - Unknown   1 - Active Global    2 - Local   3 - Inert   255 - Stuck?
+    int           status = 255; // 1 - Active Global    2 - Local   3 - Inert   254 - Stuck?      255 - Unknown
     inject_policy policy = DontCare;
   };
 
@@ -521,6 +521,14 @@ SKIF_UI_Tab_DrawMonitor (void)
                            " and uses a render API will see Special K active. Remaning processes have it inert and can"
                            " be ignored unless an issue is being experienced."
   );
+
+  SKIF_ImGui_Spacing      ( );
+
+  if (ImGui::Checkbox ("Show remaining processes",  &SKIF_bProcessIncludeAll))
+    _registry.regKVProcessIncludeAll.putData        (SKIF_bProcessIncludeAll);
+
+  SKIF_ImGui_SetHoverTip ("If this is enabled the below list will also include uninjected processes.\n"
+                          "This is indicated by the lack of a " ICON_FA_CIRCLE " icon under the Status column.");
 
   ImGui::NewLine          ( );
   /*
@@ -679,7 +687,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         do
         {
-          if (SKIF_Tab_Selected != Debug || ! active_listing)
+          if (SKIF_Tab_Selected != Monitor || ! active_listing)
           {
             Sleep (RefreshIntervalInMsec * 4);
             continue;
@@ -780,9 +788,18 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                 HANDLE hProcessSrc =
                     OpenProcess (
-                        PROCESS_DUP_HANDLE | // Required to open handles
-                        PROCESS_QUERY_INFORMATION, FALSE,
+                        PROCESS_DUP_HANDLE | // Required to open handles (will fail on elevated processes)
+                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
                       pe32.th32ProcessID );
+
+                // If we cannot open the process with PROCESS_DUP_HANDLE, it's probably because it's running elevated. Let's try without it
+                if (! hProcessSrc)
+                {
+                  hProcessSrc =
+                    OpenProcess (
+                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
+                      pe32.th32ProcessID );
+                }
 
                 if (! hProcessSrc) continue;
                 
@@ -946,7 +963,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                 }
 
                 // If some form of injection was detected, add it to the list
-                if (true)//proc.status != 0)
+                if (SKIF_bProcessIncludeAll || proc.status != 255)
                 {
                   wchar_t                                wszProcessName [MAX_PATH] = { };
                   GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
@@ -966,10 +983,10 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                   proc.pid      = pe32.th32ProcessID;
                   proc.arch     = SKIF_Util_IsProcessX86 (hProcessSrc) ? "32-bit" : "64-bit";
+                  proc.filename = (friendlyPath.empty()) ? L"<unknown>" : friendlyPath;
                   proc.path     = friendlyPath;
                   proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
                   proc.tooltip  = proc.pathUTF8;
-                  proc.filename = wszProcessName;
                   proc.admin    = SKIF_Util_IsProcessAdmin (pe32.th32ProcessID);
 
                   if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
@@ -983,6 +1000,15 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                   // Strip all null terminator \0 characters from the string
                   proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
+
+                  if (proc.filename == L"SKIFsvc32.exe" || proc.filename == L"SKIFsvc64.exe")
+                    proc.details = "Special K Global Injection Service Host";
+
+                  if (proc.filename == L"SKIFdrv.exe")
+                    proc.details = "Special K Driver Manager";
+
+                  if (proc.admin && ! IsUserAnAdmin ( ))
+                    proc.details = "<access denied>";
 
                   Processes.emplace_back(proc);
                 }
@@ -1042,7 +1068,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                   }
                 }
 
-                // Process wasn't found (e.g. running elevated), so let's add it with some basic info
+                // Process wasn't found (e.g. running in a different security context), so let's add it with some basic info
                 if (! foundInVector)
                 {
                   standby_record_s proc;
@@ -1055,6 +1081,53 @@ SKIF_UI_Tab_DrawMonitor (void)
 #else
                   proc.arch     = "32-bit";
 #endif
+
+                  // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to even open elevated processes
+                  HANDLE hProcessSrc =
+                    OpenProcess (
+                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                      dwPID );
+
+                  if (hProcessSrc)
+                  {
+                    wchar_t                                wszProcessName [MAX_PATH] = { };
+                    GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+
+                    std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                    for (auto& device : deviceMap)
+                    {
+                      if (friendlyPath.find(device.second) != std::wstring::npos)
+                      {
+                        friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                        // Strip all null terminator \0 characters from the string
+                        friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
+                        break;
+                      }
+                    }
+                    
+                    proc.filename = (friendlyPath.empty()) ? L"<unknown>" : friendlyPath;
+                    proc.path     = friendlyPath;
+                    proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
+                    proc.tooltip  = proc.pathUTF8;
+
+                    if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
+                      proc.policy = Blacklist;
+                    else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
+                      proc.policy = Whitelist;
+                    else
+                      proc.policy = DontCare;
+
+                    PathStripPathW (proc.filename.data());
+
+                    // Strip all null terminator \0 characters from the string
+                    proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
+
+                    if (proc.details == "<access denied>")
+                      proc.details.clear();
+
+                    CloseHandle (hProcessSrc);
+                  }
 
                   Processes.emplace_back (proc);
                 }
@@ -1426,14 +1499,15 @@ SKIF_UI_Tab_DrawMonitor (void)
                                             "%s", SK_WideCharToUTF8 (proc.filename).c_str());
       if (! proc.tooltip.empty())
         SKIF_ImGui_SetHoverTip (proc.tooltip);
-      /* Disabled Detail column (cannot find any use for it)
+      /* Detail column is so far only used for special purposes */
       ImGui::SameLine        ( );
       ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "%s", proc.second.details.c_str());
-      if (proc.second.details.length() > 73)
-        SKIF_ImGui_SetHoverTip (proc.second.details);
-      */
+      ImGui::TextColored     (colText, "%s", proc.details.c_str());
+      if (proc.details.length() > 73)
+        SKIF_ImGui_SetHoverTip (proc.details);
+      else if (proc.details == "<access denied>")
+        SKIF_ImGui_SetHoverTip("Injection status cannot be determined due to a lack of permissions");
 
       ImGui::PopID  ( );
     }

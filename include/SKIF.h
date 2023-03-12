@@ -99,6 +99,7 @@ extern HWND        SKIF_hWnd;
 extern HWND        SKIF_Notify_hWnd;
 
 extern bool RepopulateGames;
+extern bool RefreshMPOSupport;
 
 void SKIF_UI_DrawPlatformStatus    (void);
 void SKIF_UI_DrawComponentVersion  (void);
@@ -165,6 +166,7 @@ extern bool SKIF_bLowBandwidthMode;
 extern bool SKIF_bPreferGOGGalaxyLaunch;
 extern bool SKIF_bMinimizeOnGameLaunch;
 extern bool SKIF_bProcessSortAscending;
+extern bool SKIF_bProcessIncludeAll;
 
 // Not a saved setting, this indicates the DXGI runtime supports tearing
 extern BOOL SKIF_bAllowTearing;
@@ -189,10 +191,10 @@ extern PopupState ConfirmPopup;
 
 enum UITab {
   None,
-  Injection,
+  Library,
+  Monitor,
   Settings,
-  Help,
-  Debug
+  About,
 };
 
 extern UITab SKIF_Tab_Selected;

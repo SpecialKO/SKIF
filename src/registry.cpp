@@ -41,7 +41,10 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   extern bool SKIF_bPreferGOGGalaxyLaunch;
   extern bool SKIF_bMinimizeOnGameLaunch;
   extern bool SKIF_bProcessSortAscending;
-
+  extern bool SKIF_bProcessIncludeAll;
+  
+  if (regKVProcessIncludeAll.hasData())
+    SKIF_bProcessIncludeAll     =   regKVProcessIncludeAll.getData       ( );
   if (regKVProcessSortAscending.hasData())
     SKIF_bProcessSortAscending  =   regKVProcessSortAscending.getData    ( );
   SKIF_iProcessSort             =   regKVProcessSort.getData             ( );

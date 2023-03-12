@@ -152,7 +152,8 @@ bool SKIF_bRememberLastSelected    = false,
      SKIF_bMinimizeOnGameLaunch    = false,
      SKIF_bDisableVSYNC            = false,
      SKIF_bDisableCFAWarning       = false, // Controlled Folder Access warning
-     SKIF_bProcessSortAscending    = true;
+     SKIF_bProcessSortAscending    = true,
+     SKIF_bProcessIncludeAll       = false;
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;
@@ -168,7 +169,8 @@ std::wstring GOGGalaxy_UserID      = L"";
 bool GOGGalaxy_Installed           = false;
 
 DWORD    RepopulateGamesWasSet     = 0;
-bool     RepopulateGames           = false;
+bool     RepopulateGames           = false,
+         RefreshMPOSupport         = false;
 uint32_t SelectNewSKIFGame         = 0;
 
 bool  HoverTipActive               = false;
@@ -204,7 +206,7 @@ extern        SK_ICommandProcessor*
 
 PopupState UpdatePromptPopup    = PopupState::Closed;
 PopupState HistoryPopup         = PopupState::Closed;
-UITab SKIF_Tab_Selected = Injection,
+UITab SKIF_Tab_Selected = Library,
       SKIF_Tab_ChangeTo = None;
 
 HMODULE hModSKIF     = nullptr;
@@ -2460,7 +2462,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         if (monitor != nullptr)
         {
-          HMONITOR currentMonitor = MonitorFromWindow(SKIF_hWnd, MONITOR_DEFAULTTONULL);
+          HMONITOR currentMonitor = MonitorFromWindow (SKIF_hWnd, MONITOR_DEFAULTTONULL);
 
           if (currentMonitor != NULL)
           {
@@ -2701,7 +2703,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
            (              io.KeysDown[VK_F5]  && io.KeysDownDuration[VK_F5]  == 0.0f)
          )
       {
-        RepopulateGames = true;
+        if (SKIF_Tab_Selected == Library)
+        RepopulateGames   = true;
+        if (SKIF_Tab_Selected == Settings)
+          RefreshMPOSupport = true;
       }
 
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
@@ -2815,20 +2820,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, (SKIF_Tab_ChangeTo == Injection) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, (SKIF_Tab_ChangeTo == Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           if (! SKIF_bFirstLaunch)
           {
-            // Select the Help tab on first launch
+            // Select the About tab on first launch
             SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
-            SKIF_Tab_ChangeTo = Help;
+            SKIF_Tab_ChangeTo = About;
 
             // Store in the registry so this only occur once.
             _registry.regKVFirstLaunch.putData(SKIF_bFirstLaunch);
           }
 
-          SKIF_Tab_Selected = Injection;
-          if (SKIF_Tab_ChangeTo == Injection)
+          SKIF_Tab_Selected = Library;
+          if (SKIF_Tab_ChangeTo == Library)
             SKIF_Tab_ChangeTo = None;
 
           extern void
@@ -2839,11 +2844,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, (SKIF_Tab_ChangeTo == Debug) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, (SKIF_Tab_ChangeTo == Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          if (SKIF_Tab_Selected != Debug) // hModSpecialK == nullptr
+          if (SKIF_Tab_Selected != Monitor) // hModSpecialK == nullptr
           {
             SetTimer (SKIF_hWnd,
                       IDT_REFRESH_DEBUG,
@@ -2852,8 +2857,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             );
           }
 
-          SKIF_Tab_Selected = Debug;
-          if (SKIF_Tab_ChangeTo == Debug)
+          SKIF_Tab_Selected = Monitor;
+          if (SKIF_Tab_ChangeTo == Monitor)
             SKIF_Tab_ChangeTo = None;
 
           extern void
@@ -2883,12 +2888,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, (SKIF_Tab_ChangeTo == Help) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, (SKIF_Tab_ChangeTo == About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          SKIF_Tab_Selected = Help;
-          if (SKIF_Tab_ChangeTo == Help)
+          SKIF_Tab_Selected = About;
+          if (SKIF_Tab_ChangeTo == About)
             SKIF_Tab_ChangeTo = None;
 
           // About Tab
@@ -2994,8 +2999,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ( ICON_FA_PLUS_SQUARE " Add Game"))
         {
           AddGamePopup = PopupState::Open;
-          if (SKIF_Tab_Selected != Injection)
-            SKIF_Tab_ChangeTo = Injection;
+          if (SKIF_Tab_Selected != Library)
+            SKIF_Tab_ChangeTo = Library;
         }
         ImGui::PopStyleVar  ( );
 
