@@ -1763,7 +1763,7 @@ SKIF_UI_Tab_DrawSettings (void)
         monitor_caps += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
 
       if (monitor.OverlayCaps.Immediate)
-        monitor_caps += "Supports immediate flips of the MPO plane. [IMMEDIATE]\n";
+        monitor_caps += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
       // When TRUE, the HW supports immediate flips of the MPO plane.
       // If the flip contains changes that cannot be performed as an immediate flip,
       //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
