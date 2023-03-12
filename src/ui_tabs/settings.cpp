@@ -361,6 +361,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::NextColumn    ( );
 
+  ImGui::TreePush      ( );
+
   // New column
           
   ImGui::BeginGroup    ( );
@@ -567,6 +569,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::TreePop       ( );
 
+  ImGui::TreePop    ( );
+
   ImGui::Columns    (1);
 
   ImGui::PopStyleColor();
@@ -693,6 +697,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TreePop       ( );
 
     ImGui::NextColumn    ( );
+
+    ImGui::TreePush      ( );
             
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
@@ -783,6 +789,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePop       ( );
 
+    ImGui::TreePop       ( );
+
     ImGui::Columns       (1);
 
     ImGui::PopStyleColor ( );
@@ -842,6 +850,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
+    ImGui::TreePush         ( );
+
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
                                             &SKIF_bAllowBackgroundService))
       _registry.regKVAllowBackgroundService.putData (  SKIF_bAllowBackgroundService);
@@ -879,6 +889,8 @@ SKIF_UI_Tab_DrawSettings (void)
         }
         ImGui::EndCombo  ( );
     }
+
+    ImGui::TreePop          ( );
 
     ImGui::Columns          (1);
 
@@ -1574,7 +1586,6 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::NextColumn  ();
 
     ImGui::TreePush    ();
-            
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
@@ -1648,7 +1659,7 @@ SKIF_UI_Tab_DrawSettings (void)
       "Multi-plane overlays (MPOs) are additional dedicated hardware scanout planes"
       " enabling the GPU to partially take over composition from the DWM. This allows"
       " games to bypass the DWM in various mixed scenarios or window modes,"
-      " eliminating the input latency that would otherwise be incurred."
+      " eliminating the presentation latency that would otherwise be incurred."
     );
 
     SKIF_ImGui_Spacing ();
@@ -1686,8 +1697,85 @@ SKIF_UI_Tab_DrawSettings (void)
 
     for (auto& monitor : monitors)
     {
-      ImVec4 colName = (monitor.MaxRGBPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
-                                                  : ImColor::HSV (0.11F, 1.F, 1.F);
+      std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
+                                                                     :   "%.1fx - %.1fx";
+      ImVec4 colName            = (monitor.MaxRGBPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                             : ImColor::HSV (0.11F, 1.F, 1.F);
+
+      std::string monitor_caps = "";
+
+      /*
+            UINT Rotation                        : 1;    // Full rotation
+            UINT RotationWithoutIndependentFlip  : 1;    // Rotation, but without simultaneous IndependentFlip support
+            UINT VerticalFlip                    : 1;    // Can flip the data vertically
+            UINT HorizontalFlip                  : 1;    // Can flip the data horizontally
+            UINT StretchRGB                      : 1;    // Supports stretching RGB formats
+            UINT StretchYUV                      : 1;    // Supports stretching YUV formats
+            UINT BilinearFilter                  : 1;    // Bilinear filtering
+            UINT HighFilter                      : 1;    // Better than bilinear filtering
+            UINT Shared                          : 1;    // MPO resources are shared across VidPnSources
+            UINT Immediate                       : 1;    // Immediate flip support
+            UINT Plane0ForVirtualModeOnly        : 1;    // Stretching plane 0 will also stretch the HW cursor and should only be used for virtual mode support
+            UINT Version3DDISupport              : 1;    // Driver supports the 2.2 MPO DDIs
+      */
+
+      // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
+
+      // dxdiagn.dll also lists these capabilities:
+      // DEINTERLACE STEREO == ?
+      // FULLSCREEN_POST_COMPOSITION == ?
+      // HW_CURSOR == ?
+      // LEGACY_OVERLAY == ?
+
+      // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
+
+      if (monitor.MaxRGBPlanes > 0)
+        monitor_caps += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
+
+      if (monitor.MaxYUVPlanes > 0)
+        monitor_caps += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
+
+      if (monitor.OverlayCaps.Rotation)
+        monitor_caps += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
+
+      if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
+        monitor_caps += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
+
+      if (monitor.OverlayCaps.VerticalFlip)
+        monitor_caps += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
+
+      if (monitor.OverlayCaps.HorizontalFlip)
+        monitor_caps += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
+
+      if (monitor.OverlayCaps.StretchRGB)
+        monitor_caps += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
+
+      if (monitor.OverlayCaps.StretchYUV)
+        monitor_caps += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
+
+      if (monitor.OverlayCaps.BilinearFilter)
+        monitor_caps += "Supports bilinear filtering. [BILINEAR]\n";
+
+      if (monitor.OverlayCaps.HighFilter)
+        monitor_caps += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
+
+      if (monitor.OverlayCaps.Shared)
+        monitor_caps += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
+
+      if (monitor.OverlayCaps.Immediate)
+        monitor_caps += "Supports immediate flips of the MPO plane. [IMMEDIATE]\n";
+      // When TRUE, the HW supports immediate flips of the MPO plane.
+      // If the flip contains changes that cannot be performed as an immediate flip,
+      //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
+
+      if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
+        monitor_caps += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
+      // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
+      //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
+      //   stretching/shrinking is used for virtual mode support.
+
+      if (monitor.OverlayCaps.Version3DDISupport)
+        monitor_caps += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
 
       ImGui::BeginGroup  ();
       ImGui::TextColored (colName, monitor.Name.c_str());
@@ -1707,20 +1795,23 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("%.1fx - %.1fx", monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+      ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (380.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("<not implemented>");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      SKIF_ImGui_SetHoverTip (monitor_caps.c_str());
     }
 
     ImGui::EndGroup    ();
 
     ImGui::NextColumn  ();
 
+    ImGui::TreePush    ();
+
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Requirement:"
+                        "Minimum requirement:"
     );
 
     ImGui::BeginGroup  ();
@@ -1728,29 +1819,39 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
-    ImGui::Text        ("AMD: Unknown");
+    ImGui::Text        ("AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers");
     ImGui::EndGroup    ();
+    // Exact hardware models are unknown, but a bunch of dxdiag.txt files dropped online suggests Radeon RX Vega and newer had MPO support.
+    // ID3D13Sylveon on the DirectX Discord mentioned that driver support was added in 22.20, so AMD Software: Adrenalin Edition 22.5.2.
+    // Might be disabled starting with 22.40 (22.12.1+) with multiple monitors, due to outstanding ISV issues causing stability problems.
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Intel: Intel Core 6th gen or newer");
+    ImGui::Text        ("Intel: HD Graphics 510-515 (Core 6th gen)");
     ImGui::EndGroup    ();
+    // From https://www.intel.com/content/www/us/en/developer/articles/training/tutorial-migrating-your-apps-to-directx-12-part-4.html
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Nvidia: RTX 20 series or newer");
+    ImGui::Text        ("Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers");
     ImGui::EndGroup    ();
+    // Official Nvidia requirement from their driver release notes is Volta and later GPUs and the Release 460 driver and later
+    // As Volta only had the Titan V and Quadro GV100 models we can just say GTX 16/RTX 20 series
+    
+    ImGui::Spacing     ();
 
     ImGui::TextWrapped ("Support depends on the GPU and display configuration."
-                        " Using uncommon display configurations,"
-                        " such as using 10 bpc in SDR mode,"
-                        " can invalidate MPO capabilities for a display.");
+                        " Using unusual display configurations, such as using"
+                        " 10 bpc in SDR mode, can prevent MPO capabilities"
+                        " from engaging for a display.");
+
+    ImGui::TreePop     ();
 
     ImGui::Columns     (1);
 
