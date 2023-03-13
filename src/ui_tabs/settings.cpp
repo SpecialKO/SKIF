@@ -15,6 +15,7 @@ extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait);
 struct Monitor_MPO_Support
 {
   std::string                    Name;
+  std::string                    NameShort;
   std::string                    DevicePath;
   UINT                           MaxPlanes;
   UINT                           MaxRGBPlanes;
@@ -22,6 +23,7 @@ struct Monitor_MPO_Support
   float                          MaxStretchFactor;
   float                          MaxShrinkFactor;
   D3DKMT_MULTIPLANE_OVERLAY_CAPS OverlayCaps;
+  std::string                    OverlayCapsAsString;
 };
 
 std::vector <Monitor_MPO_Support>
@@ -58,7 +60,7 @@ GetMPOSupport (bool forced = false)
 
       // Get all active paths and their modes
       result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
-                                                            &modeCount, modeArray.data(), nullptr);
+                                                           &modeCount, modeArray.data(), nullptr);
 
       // The function may have returned fewer paths/modes than estimated
       pathArray.resize(pathCount);
@@ -80,11 +82,12 @@ GetMPOSupport (bool forced = false)
       // Find the target (monitor) friendly name
       DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
       targetName.header.adapterId = path.targetInfo.adapterId;
-      targetName.header.id = path.targetInfo.id;
-      targetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
-      targetName.header.size = sizeof(targetName);
-      result = DisplayConfigGetDeviceInfo(&targetName.header);
-      std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown");
+      targetName.header.id        = path.targetInfo.id;
+      targetName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+      targetName.header.size      = sizeof (targetName);
+      result = DisplayConfigGetDeviceInfo (&targetName.header);
+      std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName
+                                                                        : L"Unknown");
 
       if (result != ERROR_SUCCESS)
       {
@@ -94,11 +97,11 @@ GetMPOSupport (bool forced = false)
 
       // Find the adapter device name
       DISPLAYCONFIG_ADAPTER_NAME adapterName = {};
-      adapterName.header.adapterId = path.targetInfo.adapterId;
-      adapterName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
-      adapterName.header.size = sizeof(adapterName);
+      adapterName.header.adapterId           = path.targetInfo.adapterId;
+      adapterName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
+      adapterName.header.size                = sizeof (adapterName);
 
-      result = DisplayConfigGetDeviceInfo(&adapterName.header);
+      result = DisplayConfigGetDeviceInfo (&adapterName.header);
 
       if (result != ERROR_SUCCESS)
       {
@@ -110,36 +113,113 @@ GetMPOSupport (bool forced = false)
       PLOG_VERBOSE << "Monitor Name: " << monitorName;
       PLOG_VERBOSE << "Adapter Path: " << adapterName.adapterDevicePath;
       //PLOG_VERBOSE << "Target: "       << path.targetInfo.id;
-      //PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
 
       // Open a handle to the adapter using its LUID
-      D3DKMT_OPENADAPTERFROMLUID openAdapter;
+      D3DKMT_OPENADAPTERFROMLUID openAdapter = {};
       openAdapter.AdapterLuid = adapterName.header.adapterId;
       if (D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
       {
-        Monitor_MPO_Support new_monitor;
         D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS caps = {};
         caps.hAdapter      = openAdapter.hAdapter;
         caps.VidPnSourceId = path.sourceInfo.id;
-        D3DKMTGetMultiPlaneOverlayCaps(&caps);
 
-        PLOG_VERBOSE << "MPO Capabilities:";
-        PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
-        PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
-        PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
-        PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
-        PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+        if (D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+        {
+          PLOG_VERBOSE << "MPO Capabilities:";
+          PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
+          PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
+          PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
+          PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
+          PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+          
+          Monitor_MPO_Support monitor;
+          monitor.Name                = SK_WideCharToUTF8 (monitorName);
+          monitor.NameShort           = (monitor.Name.length() >= 14) ? monitor.Name.substr(0, 11) + "..."
+                                                                      : monitor.Name;
+          monitor.DevicePath          = SK_WideCharToUTF8 (adapterName.adapterDevicePath);
+          monitor.MaxPlanes           = caps.MaxPlanes;
+          monitor.MaxRGBPlanes        = caps.MaxRGBPlanes;
+          monitor.MaxYUVPlanes        = caps.MaxYUVPlanes;
+          monitor.MaxStretchFactor    = caps.MaxStretchFactor;
+          monitor.MaxShrinkFactor     = caps.MaxShrinkFactor;
+          monitor.OverlayCaps         = caps.OverlayCaps;
+          monitor.OverlayCapsAsString = "";
 
-        new_monitor.Name             = SK_WideCharToUTF8 (monitorName);
-        new_monitor.DevicePath       = SK_WideCharToUTF8 (adapterName.adapterDevicePath);
-        new_monitor.MaxPlanes        = caps.MaxPlanes;
-        new_monitor.MaxRGBPlanes     = caps.MaxRGBPlanes;
-        new_monitor.MaxYUVPlanes     = caps.MaxYUVPlanes;
-        new_monitor.MaxStretchFactor = caps.MaxStretchFactor;
-        new_monitor.MaxShrinkFactor  = caps.MaxShrinkFactor;
-        new_monitor.OverlayCaps      = caps.OverlayCaps;
+          /*
+                UINT Rotation                        : 1;    // Full rotation
+                UINT RotationWithoutIndependentFlip  : 1;    // Rotation, but without simultaneous IndependentFlip support
+                UINT VerticalFlip                    : 1;    // Can flip the data vertically
+                UINT HorizontalFlip                  : 1;    // Can flip the data horizontally
+                UINT StretchRGB                      : 1;    // Supports stretching RGB formats
+                UINT StretchYUV                      : 1;    // Supports stretching YUV formats
+                UINT BilinearFilter                  : 1;    // Bilinear filtering
+                UINT HighFilter                      : 1;    // Better than bilinear filtering
+                UINT Shared                          : 1;    // MPO resources are shared across VidPnSources
+                UINT Immediate                       : 1;    // Immediate flip support
+                UINT Plane0ForVirtualModeOnly        : 1;    // Stretching plane 0 will also stretch the HW cursor and should only be used for virtual mode support
+                UINT Version3DDISupport              : 1;    // Driver supports the 2.2 MPO DDIs
+          */
 
-        Monitors.emplace_back(new_monitor);
+          // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
+
+          // dxdiagn.dll also lists these capabilities:
+          // DEINTERLACE STEREO == ?
+          // FULLSCREEN_POST_COMPOSITION == ?
+          // HW_CURSOR == ?
+          // LEGACY_OVERLAY == ?
+
+          // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
+
+          if (monitor.MaxRGBPlanes > 0)
+            monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
+
+          if (monitor.MaxYUVPlanes > 0)
+            monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
+
+          if (monitor.OverlayCaps.Rotation)
+            monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
+
+          if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
+            monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
+
+          if (monitor.OverlayCaps.VerticalFlip)
+            monitor.OverlayCapsAsString += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
+
+          if (monitor.OverlayCaps.HorizontalFlip)
+            monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
+
+          if (monitor.OverlayCaps.StretchRGB)
+            monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
+
+          if (monitor.OverlayCaps.StretchYUV)
+            monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
+
+          if (monitor.OverlayCaps.BilinearFilter)
+            monitor.OverlayCapsAsString += "Supports bilinear filtering. [BILINEAR]\n";
+
+          if (monitor.OverlayCaps.HighFilter)
+            monitor.OverlayCapsAsString += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
+
+          if (monitor.OverlayCaps.Shared)
+            monitor.OverlayCapsAsString += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
+
+          if (monitor.OverlayCaps.Immediate)
+            monitor.OverlayCapsAsString += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
+          // When TRUE, the HW supports immediate flips of the MPO plane.
+          // If the flip contains changes that cannot be performed as an immediate flip,
+          //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
+
+          if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
+            monitor.OverlayCapsAsString += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
+          // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
+          //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
+          //   stretching/shrinking is used for virtual mode support.
+
+          if (monitor.OverlayCaps.Version3DDISupport)
+            monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
+
+          Monitors.emplace_back (monitor);
+        }
       }
     }
   }
@@ -1673,27 +1753,27 @@ SKIF_UI_Tab_DrawSettings (void)
                         "Support among connected displays:"
     );
 
-    ImGui::Text ("Display");
+    ImGui::Text        ("Display");
     ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
-    ImGui::Text ("Planes");
+    ImGui::Text        ("Planes");
     ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
-    ImGui::Text ("RGB");
+    ImGui::Text        ("RGB");
     ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
-    ImGui::Text ("YUV");
+    ImGui::Text        ("YUV");
     ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
-    ImGui::Text ("Stretch");
+    ImGui::Text        ("Stretch");
     ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
-    ImGui::Text ("Capabilities");
+    ImGui::Text        ("Capabilities");
 
     for (auto& monitor : monitors)
     {
@@ -1702,84 +1782,10 @@ SKIF_UI_Tab_DrawSettings (void)
       ImVec4 colName            = (monitor.MaxRGBPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
                                                              : ImColor::HSV (0.11F, 1.F, 1.F);
 
-      std::string monitor_caps = "";
-
-      /*
-            UINT Rotation                        : 1;    // Full rotation
-            UINT RotationWithoutIndependentFlip  : 1;    // Rotation, but without simultaneous IndependentFlip support
-            UINT VerticalFlip                    : 1;    // Can flip the data vertically
-            UINT HorizontalFlip                  : 1;    // Can flip the data horizontally
-            UINT StretchRGB                      : 1;    // Supports stretching RGB formats
-            UINT StretchYUV                      : 1;    // Supports stretching YUV formats
-            UINT BilinearFilter                  : 1;    // Bilinear filtering
-            UINT HighFilter                      : 1;    // Better than bilinear filtering
-            UINT Shared                          : 1;    // MPO resources are shared across VidPnSources
-            UINT Immediate                       : 1;    // Immediate flip support
-            UINT Plane0ForVirtualModeOnly        : 1;    // Stretching plane 0 will also stretch the HW cursor and should only be used for virtual mode support
-            UINT Version3DDISupport              : 1;    // Driver supports the 2.2 MPO DDIs
-      */
-
-      // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
-
-      // dxdiagn.dll also lists these capabilities:
-      // DEINTERLACE STEREO == ?
-      // FULLSCREEN_POST_COMPOSITION == ?
-      // HW_CURSOR == ?
-      // LEGACY_OVERLAY == ?
-
-      // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
-
-      if (monitor.MaxRGBPlanes > 0)
-        monitor_caps += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
-
-      if (monitor.MaxYUVPlanes > 0)
-        monitor_caps += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
-
-      if (monitor.OverlayCaps.Rotation)
-        monitor_caps += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
-
-      if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
-        monitor_caps += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
-
-      if (monitor.OverlayCaps.VerticalFlip)
-        monitor_caps += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
-
-      if (monitor.OverlayCaps.HorizontalFlip)
-        monitor_caps += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
-
-      if (monitor.OverlayCaps.StretchRGB)
-        monitor_caps += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
-
-      if (monitor.OverlayCaps.StretchYUV)
-        monitor_caps += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
-
-      if (monitor.OverlayCaps.BilinearFilter)
-        monitor_caps += "Supports bilinear filtering. [BILINEAR]\n";
-
-      if (monitor.OverlayCaps.HighFilter)
-        monitor_caps += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
-
-      if (monitor.OverlayCaps.Shared)
-        monitor_caps += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
-
-      if (monitor.OverlayCaps.Immediate)
-        monitor_caps += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
-      // When TRUE, the HW supports immediate flips of the MPO plane.
-      // If the flip contains changes that cannot be performed as an immediate flip,
-      //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
-
-      if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
-        monitor_caps += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
-      // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
-      //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
-      //   stretching/shrinking is used for virtual mode support.
-
-      if (monitor.OverlayCaps.Version3DDISupport)
-        monitor_caps += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
-
       ImGui::BeginGroup  ();
-      ImGui::TextColored (colName, monitor.Name.c_str());
-      ImGui::SameLine    ( );
+      ImGui::TextColored (colName, monitor.NameShort.c_str());
+      if (monitor.Name.length() >= 14)
+        SKIF_ImGui_SetHoverTip (monitor.Name.c_str());
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
@@ -1800,7 +1806,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::ItemSize    (ImVec2 (380.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-      SKIF_ImGui_SetHoverTip (monitor_caps.c_str());
+      SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
     }
 
     ImGui::EndGroup    ();
@@ -1823,7 +1829,6 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup    ();
     // Exact hardware models are unknown, but a bunch of dxdiag.txt files dropped online suggests Radeon RX Vega and newer had MPO support.
     // ID3D13Sylveon on the DirectX Discord mentioned that driver support was added in 22.20, so AMD Software: Adrenalin Edition 22.5.2.
-    // Might be disabled starting with 22.40 (22.12.1+) with multiple monitors, due to outstanding ISV issues causing stability problems.
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
@@ -1847,9 +1852,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing     ();
 
     ImGui::TextWrapped ("Support depends on the GPU and display configuration."
-                        " Using unusual display configurations, such as using"
-                        " 10 bpc in SDR mode, can prevent MPO capabilities"
-                        " from engaging for a display.");
+                        " Using unusual display configurations, such as 10 bpc"
+                        " in SDR mode, can prevent MPO capabilities from engaging"
+                        " for the display.");
 
     ImGui::TreePop     ();
 

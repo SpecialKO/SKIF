@@ -3898,6 +3898,10 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_DISPLAYCHANGE:
+      RefreshMPOSupport = true;
+      break;
+
     case WM_SKIF_MINIMIZE:
       if (SKIF_bCloseToTray && ! SKIF_isTrayed)
       {
