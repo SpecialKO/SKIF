@@ -10,8 +10,6 @@
 #include <d3dkmthk.h>
 #include "../../version.h"
 
-extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait);
-
 struct Monitor_MPO_Support
 {
   std::string                    Name;
