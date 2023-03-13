@@ -1757,15 +1757,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ( );
     ImGui::Text        ("Planes");
     ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("RGB");
-    ImGui::SameLine    ( );
     ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("YUV");
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine    ( );
     ImGui::Text        ("Stretch");
     ImGui::SameLine    ( );
@@ -1785,26 +1777,29 @@ SKIF_UI_Tab_DrawSettings (void)
       if (monitor.Name.length() >= 14)
         SKIF_ImGui_SetHoverTip (monitor.Name.c_str());
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
       ImGui::Text        ("%u", monitor.MaxPlanes);
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine    ( );
-      ImGui::Text        ("%u", monitor.MaxRGBPlanes);
-      ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("%u", monitor.MaxYUVPlanes);
+      if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
+        ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+      else
+        ImGui::Text        ("Not Supported");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine    ( );
-      ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
-      ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (380.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine    ( );
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-      SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
+      if (monitor.MaxPlanes > 1)
+      {
+        ImGui::ItemSize    (ImVec2 (390.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+        SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
+      }
+      else {
+        ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine    ( );
+        ImGui::Text        ("Not Supported");
+      }
     }
 
     ImGui::EndGroup    ();
