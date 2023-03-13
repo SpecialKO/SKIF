@@ -2187,6 +2187,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     static UINT uiLastMsg = 0x0;
     auto _TranslateAndDispatch = [&](void) -> bool
     {
+      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch before the loop!\n").c_str());
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
       {
@@ -2197,7 +2198,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         DispatchMessage  (&msg);
 
         uiLastMsg = msg.message;
+        //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch while looooop!\n").c_str());
       }
+
+      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(msg.message) + L"\n").c_str());
+      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch after the loop!\n").c_str());
 
       return
         ( msg.message != WM_QUIT );
@@ -2229,13 +2234,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
       hSwapWait.m_h,
       hInjectAck.m_h
     };
+    
 
+    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] MsgWaitForMultipleObjects is upcoming!\n").c_str());
     //DWORD dwWait =
     MsgWaitForMultipleObjects (              0,
                               //(hSwapWait.m_h != 0) ? 1
                                                   //: 0,
                                     hWaitStates, TRUE,
-                                (HiddenFramesContinueRendering == false) ?
+                                (HiddenFramesContinueRendering == false &&
+                                             RefreshMPOSupport == false) ? 
                                                                 INFINITE : 5, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
@@ -2281,6 +2289,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
+    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch is upcoming!\n").c_str());
+
     if (! _TranslateAndDispatch ())
       break;
 
@@ -2300,6 +2310,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
       continue;
     }
+
+    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] got past the waiting!\n").c_str());
 
     // Set DPI related variables
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
@@ -3663,19 +3675,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return 0;
         }, nullptr, 0x0, nullptr
       );
-
+      
+      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] Final MsgWaitForMultipleObjects is upcoming!\n").c_str());
       while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
                 WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
                                                               INFINITE, QS_ALLINPUT ) )
       {
+        //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] Final _TranslateAndDispatch is upcoming!\n").c_str());
         if (! _TranslateAndDispatch ())
           break;
-
+        
+        else if (msg.message == WM_DISPLAYCHANGE || RefreshMPOSupport)
+        {
+          //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] msg.message == WM_DISPLAYCHANGE -- BREEEEAAAAAK!\n").c_str());
+          break;
+        }
         else if (msg.message == WM_SETCURSOR)                                 break;
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
         else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) break;
         else if (msg.message == WM_TIMER)                                     break;
+        else {
+          //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(msg.message) + L"\n").c_str());
+        }
       }
     }
   }
@@ -3899,7 +3921,9 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   switch (msg)
   {
     case WM_DISPLAYCHANGE:
-      RefreshMPOSupport = true;
+      if (SKIF_Tab_Selected == Settings)
+        RefreshMPOSupport = true;
+      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] WM_DISPLAYCHANGE seen!\n").c_str());
       break;
 
     case WM_SKIF_MINIMIZE:
