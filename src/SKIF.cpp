@@ -2242,8 +2242,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                               //(hSwapWait.m_h != 0) ? 1
                                                   //: 0,
                                     hWaitStates, TRUE,
-                                (HiddenFramesContinueRendering == false &&
-                                             RefreshMPOSupport == false) ? 
+                                (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
+                                             RefreshMPOSupport == false) ? // We need to allow RefreshMPOSupport through as well as it is used for WM_DISPLAYCHANGE
                                                                 INFINITE : 5, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
@@ -3685,11 +3685,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! _TranslateAndDispatch ())
           break;
         
-        else if (msg.message == WM_DISPLAYCHANGE || RefreshMPOSupport)
-        {
-          //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] msg.message == WM_DISPLAYCHANGE -- BREEEEAAAAAK!\n").c_str());
-          break;
-        }
+        else if (msg.message == WM_DISPLAYCHANGE || RefreshMPOSupport)        break; // msg.message is 0 for some weird reason -- go by RefreshMPOSupport instead
         else if (msg.message == WM_SETCURSOR)                                 break;
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
@@ -3922,8 +3918,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   {
     case WM_DISPLAYCHANGE:
       if (SKIF_Tab_Selected == Settings)
-        RefreshMPOSupport = true;
-      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] WM_DISPLAYCHANGE seen!\n").c_str());
+        RefreshMPOSupport = true; // Only set this if the Settings tab is actually selected
       break;
 
     case WM_SKIF_MINIMIZE:
