@@ -716,7 +716,7 @@ SKIF_UI_Tab_DrawMonitor (void)
           static DWORD dwPidOfMe =
             GetCurrentProcessId (); // Actual Pid
 
-#pragma region Collect All Handles
+#pragma region Collect All Event Handles
           NTSTATUS ntStatusHandles;
 
           ULONG      handle_info_size ( SystemHandleInformationSize );
@@ -764,7 +764,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
 #pragma endregion
 
-#pragma region Detect Special K Module (fallback)
+#pragma region Detect Special K Module and Handle (primary method)
 
           PROCESSENTRY32W pe32 = { };
           MODULEENTRY32W  me32 = { };
@@ -1001,8 +1001,11 @@ SKIF_UI_Tab_DrawMonitor (void)
                   // Strip all null terminator \0 characters from the string
                   proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
 
-                  if (proc.filename == L"SKIFsvc32.exe" || proc.filename == L"SKIFsvc64.exe")
-                    proc.details = "Special K Global Injection Service Host";
+                  if (proc.filename == L"SKIFsvc32.exe")
+                    proc.details = "Special K 32-bit Global Injection Service Host";
+
+                  if (proc.filename == L"SKIFsvc64.exe")
+                    proc.details = "Special K 64-bit Global Injection Service Host";
 
                   if (proc.filename == L"SKIFdrv.exe")
                     proc.details = "Special K Driver Manager";
