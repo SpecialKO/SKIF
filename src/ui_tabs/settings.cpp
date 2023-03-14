@@ -1816,15 +1816,18 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePush    ();
 
+    ImGui::PushStyleColor (ImGuiCol_Text,
+      ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+
     ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption),
                         "Minimum requirement:"
     );
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
     ImGui::Text        ("AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers");
     ImGui::EndGroup    ();
@@ -1834,7 +1837,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
     ImGui::Text        ("Intel: HD Graphics 510-515 (Core 6th gen)");
     ImGui::EndGroup    ();
@@ -1843,7 +1846,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"• ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"• ");
     ImGui::SameLine    ();
     ImGui::Text        ("Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers");
     ImGui::EndGroup    ();
@@ -1856,6 +1859,8 @@ SKIF_UI_Tab_DrawSettings (void)
                         " Using unusual display configurations, such as 10 bpc"
                         " in SDR mode, can prevent MPO capabilities from engaging"
                         " for the display.");
+
+    ImGui::PopStyleColor ();
 
     ImGui::TreePop     ();
 
