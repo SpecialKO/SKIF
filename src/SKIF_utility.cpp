@@ -44,7 +44,7 @@ SKIF_Util_GetErrorAsWStr (DWORD error)
 
   message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
 
-  message = L" [" + std::to_wstring(error) + L"] " + message;
+  message = L"[" + std::to_wstring(error) + L"] " + message;
 
   return message;
 }
