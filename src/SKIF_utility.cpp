@@ -32,19 +32,37 @@ SKIF_Util_TowLower     (std::wstring_view input)
 }
 
 std::wstring
-SKIF_Util_GetLastError (void)
+SKIF_Util_GetErrorAsWStr (DWORD error)
 {
   LPWSTR messageBuffer = nullptr;
 
   size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                NULL, GetLastError ( ), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+                                NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
 
   std::wstring message (messageBuffer, size);
   LocalFree (messageBuffer);
 
   message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
 
-  message = L" [" + std::to_wstring(GetLastError()) + L"] " + message;
+  message = L" [" + std::to_wstring(error) + L"] " + message;
+
+  return message;
+}
+
+std::wstring
+SKIF_Util_GetError (long error)
+{
+  LPWSTR messageBuffer = nullptr;
+
+  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+
+  std::wstring message (messageBuffer, size);
+  LocalFree (messageBuffer);
+
+  message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
+
+  message = L" [" + std::to_wstring(error) + L"] " + message;
 
   return message;
 }
@@ -704,7 +722,7 @@ bool SKIF_Util_IsProcessX86 (HANDLE process)
     {
       if (! IsWow64Process (process, &bIsWow64))
       {
-        PLOG_ERROR << "IsWow64Process failed: " << SKIF_Util_GetLastError ( );
+        PLOG_ERROR << "IsWow64Process failed: " << SKIF_Util_GetErrorAsWStr ( );
       }
     }
 

@@ -99,7 +99,7 @@ extern HWND        SKIF_hWnd;
 extern HWND        SKIF_Notify_hWnd;
 
 extern bool RepopulateGames;
-extern bool RefreshMPOSupport;
+extern bool RefreshSettingsTab;
 
 void SKIF_UI_DrawPlatformStatus    (void);
 void SKIF_UI_DrawComponentVersion  (void);

@@ -225,7 +225,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     ShellExecuteExW (&sexi);
 #endif // _WIN64
 
-  PLOG_DEBUG << SKIF_Util_GetLastError ();
+  PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
 
   if (currentRunningState)
     runState = RunningState::Stopping;

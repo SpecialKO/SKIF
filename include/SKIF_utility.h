@@ -11,7 +11,7 @@
 
 std::string  SKIF_Util_ToLower               (std::string_view  input);
 std::wstring SKIF_Util_TowLower              (std::wstring_view input);
-std::wstring SKIF_Util_GetLastError          (void);
+std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( ));
 DWORD        SKIF_Util_timeGetTime           (void);
 std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);

@@ -12,8 +12,9 @@
 
 struct Monitor_MPO_Support
 {
-  std::string                    Name;
-  std::string                    NameShort;
+  std::string                    Name;  // EDID names are limited to 13 characters, which is perfect for us
+  UINT                           Index; // Doesn't really correspond to anything important...
+  std::string                    DeviceNameGdi;
   std::string                    DevicePath;
   UINT                           MaxPlanes;
   UINT                           MaxRGBPlanes;
@@ -24,218 +25,222 @@ struct Monitor_MPO_Support
   std::string                    OverlayCapsAsString;
 };
 
-std::vector <Monitor_MPO_Support>
-GetMPOSupport (bool forced = false)
+std::vector <Monitor_MPO_Support> Monitors;
+
+bool
+GetMPOSupport (void)
 {
-  static bool checkedMPOs = false;
-  static std::vector <Monitor_MPO_Support> Monitors;
+  std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
+  std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
+  LONG result = ERROR_SUCCESS;
 
-  if (! checkedMPOs || forced)
+  Monitors.clear();
+
+  do
   {
-    checkedMPOs = true;
-
-    std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
-    std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
-    LONG result = ERROR_SUCCESS;
-
-    Monitors.clear();
-
-    do
-    {
-      // Determine how many path and mode structures to allocate
-      UINT32 pathCount, modeCount;
-      result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
-
-      if (result != ERROR_SUCCESS)
-      {
-        PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetLastError();
-        return Monitors;
-      }
-
-      // Allocate the path and mode arrays
-      pathArray.resize(pathCount);
-      modeArray.resize(modeCount);
-
-      // Get all active paths and their modes
-      result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
-                                                           &modeCount, modeArray.data(), nullptr);
-
-      // The function may have returned fewer paths/modes than estimated
-      pathArray.resize(pathCount);
-      modeArray.resize(modeCount);
-
-      // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
-      // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
-    } while (result == ERROR_INSUFFICIENT_BUFFER);
+    // Determine how many path and mode structures to allocate
+    UINT32 pathCount, modeCount;
+    result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
 
     if (result != ERROR_SUCCESS)
     {
-      PLOG_ERROR << "Unexpected failure: " << SKIF_Util_GetLastError();
-      return Monitors;
+      PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetErrorAsWStr (result);
+      return false;
     }
 
-    // For each active path
-    for (auto& path : pathArray)
+    // Allocate the path and mode arrays
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // Get all active paths and their modes
+    result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+                                                          &modeCount, modeArray.data(), nullptr);
+
+    // The function may have returned fewer paths/modes than estimated
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+    // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+  } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+  if (result != ERROR_SUCCESS)
+  {
+    PLOG_ERROR << "QueryDisplayConfig failed: " << SKIF_Util_GetErrorAsWStr (result);
+    return false;
+  }
+
+  // For each active path
+  for (auto& path : pathArray)
+  {
+    // Find the target (monitor) friendly name
+    DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
+    targetName.header.adapterId            = path.targetInfo.adapterId;
+    targetName.header.id                   = path.targetInfo.id;
+    targetName.header.type                 = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+    targetName.header.size                 = sizeof (targetName);
+
+    result = DisplayConfigGetDeviceInfo (&targetName.header);
+
+    std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName
+                                                                      : L"Unknown");
+
+    if (result != ERROR_SUCCESS)
     {
-      // Find the target (monitor) friendly name
-      DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
-      targetName.header.adapterId = path.targetInfo.adapterId;
-      targetName.header.id        = path.targetInfo.id;
-      targetName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
-      targetName.header.size      = sizeof (targetName);
-      result = DisplayConfigGetDeviceInfo (&targetName.header);
-      std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName
-                                                                        : L"Unknown");
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
+      return false;
+    }
 
-      if (result != ERROR_SUCCESS)
+    // Find the adapter device name
+    DISPLAYCONFIG_ADAPTER_NAME adapterName = {};
+    adapterName.header.adapterId           = path.targetInfo.adapterId;
+    adapterName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
+    adapterName.header.size                = sizeof (adapterName);
+
+    result = DisplayConfigGetDeviceInfo (&adapterName.header);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
+      return false;
+    }
+
+    // Find the source device name
+    DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName = {};
+    sourceName.header.adapterId            = path.sourceInfo.adapterId;
+    sourceName.header.id                   = path.sourceInfo.id;
+    sourceName.header.type                 = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+    sourceName.header.size                 = sizeof (sourceName);
+
+    result = DisplayConfigGetDeviceInfo (&sourceName.header);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
+      return false;
+    }
+
+    PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+    PLOG_VERBOSE << "Monitor Name: " << monitorName;
+    PLOG_VERBOSE << "Adapter Path: " << adapterName.adapterDevicePath;
+    PLOG_VERBOSE << "Source Name:  " << sourceName.viewGdiDeviceName;
+
+    //PLOG_VERBOSE << "Target: "       << path.targetInfo.id;
+
+    // Open a handle to the adapter using its LUID
+    D3DKMT_OPENADAPTERFROMLUID openAdapter = {};
+    openAdapter.AdapterLuid = adapterName.header.adapterId;
+    if (D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+    {
+      D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS caps = {};
+      caps.hAdapter      = openAdapter.hAdapter;
+      caps.VidPnSourceId = path.sourceInfo.id;
+
+      if (D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
       {
-        PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetLastError();
-        return Monitors;
-      }
-
-      // Find the adapter device name
-      DISPLAYCONFIG_ADAPTER_NAME adapterName = {};
-      adapterName.header.adapterId           = path.targetInfo.adapterId;
-      adapterName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
-      adapterName.header.size                = sizeof (adapterName);
-
-      result = DisplayConfigGetDeviceInfo (&adapterName.header);
-
-      if (result != ERROR_SUCCESS)
-      {
-        PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetLastError();
-        return Monitors;
-      }
-
-      PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
-      PLOG_VERBOSE << "Monitor Name: " << monitorName;
-      PLOG_VERBOSE << "Adapter Path: " << adapterName.adapterDevicePath;
-      //PLOG_VERBOSE << "Target: "       << path.targetInfo.id;
-
-      // Open a handle to the adapter using its LUID
-      D3DKMT_OPENADAPTERFROMLUID openAdapter = {};
-      openAdapter.AdapterLuid = adapterName.header.adapterId;
-      if (D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
-      {
-        D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS caps = {};
-        caps.hAdapter      = openAdapter.hAdapter;
-        caps.VidPnSourceId = path.sourceInfo.id;
-
-        if (D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
-        {
-          PLOG_VERBOSE << "MPO Capabilities:";
-          PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
-          PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting
-          PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
-          PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
-          PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+        PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
+        PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?
+        PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
+        PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
+        PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
           
-          Monitor_MPO_Support monitor;
-          monitor.Name                = SK_WideCharToUTF8 (monitorName);
-          monitor.NameShort           = (monitor.Name.length() >= 14) ? monitor.Name.substr(0, 11) + "..."
-                                                                      : monitor.Name;
-          monitor.DevicePath          = SK_WideCharToUTF8 (adapterName.adapterDevicePath);
-          monitor.MaxPlanes           = caps.MaxPlanes;
-          monitor.MaxRGBPlanes        = caps.MaxRGBPlanes;
-          monitor.MaxYUVPlanes        = caps.MaxYUVPlanes;
-          monitor.MaxStretchFactor    = caps.MaxStretchFactor;
-          monitor.MaxShrinkFactor     = caps.MaxShrinkFactor;
-          monitor.OverlayCaps         = caps.OverlayCaps;
-          monitor.OverlayCapsAsString = "";
+        Monitor_MPO_Support monitor;
+        monitor.Name                = SK_WideCharToUTF8 (monitorName);
+        monitor.Index               = path.sourceInfo.cloneGroupId;
+        monitor.DevicePath          = SK_WideCharToUTF8 (adapterName.adapterDevicePath);
+        monitor.DeviceNameGdi       = SK_WideCharToUTF8 (sourceName.viewGdiDeviceName);
+        monitor.MaxPlanes           = caps.MaxPlanes;
+        monitor.MaxRGBPlanes        = caps.MaxRGBPlanes;
+        monitor.MaxYUVPlanes        = caps.MaxYUVPlanes;
+        monitor.MaxStretchFactor    = caps.MaxStretchFactor;
+        monitor.MaxShrinkFactor     = caps.MaxShrinkFactor;
+        monitor.OverlayCaps         = caps.OverlayCaps;
+        monitor.OverlayCapsAsString = "";
 
-          /*
-                UINT Rotation                        : 1;    // Full rotation
-                UINT RotationWithoutIndependentFlip  : 1;    // Rotation, but without simultaneous IndependentFlip support
-                UINT VerticalFlip                    : 1;    // Can flip the data vertically
-                UINT HorizontalFlip                  : 1;    // Can flip the data horizontally
-                UINT StretchRGB                      : 1;    // Supports stretching RGB formats
-                UINT StretchYUV                      : 1;    // Supports stretching YUV formats
-                UINT BilinearFilter                  : 1;    // Bilinear filtering
-                UINT HighFilter                      : 1;    // Better than bilinear filtering
-                UINT Shared                          : 1;    // MPO resources are shared across VidPnSources
-                UINT Immediate                       : 1;    // Immediate flip support
-                UINT Plane0ForVirtualModeOnly        : 1;    // Stretching plane 0 will also stretch the HW cursor and should only be used for virtual mode support
-                UINT Version3DDISupport              : 1;    // Driver supports the 2.2 MPO DDIs
-          */
+        /*
+              UINT Rotation                        : 1;    // Full rotation
+              UINT RotationWithoutIndependentFlip  : 1;    // Rotation, but without simultaneous IndependentFlip support
+              UINT VerticalFlip                    : 1;    // Can flip the data vertically
+              UINT HorizontalFlip                  : 1;    // Can flip the data horizontally
+              UINT StretchRGB                      : 1;    // Supports stretching RGB formats
+              UINT StretchYUV                      : 1;    // Supports stretching YUV formats
+              UINT BilinearFilter                  : 1;    // Bilinear filtering
+              UINT HighFilter                      : 1;    // Better than bilinear filtering
+              UINT Shared                          : 1;    // MPO resources are shared across VidPnSources
+              UINT Immediate                       : 1;    // Immediate flip support
+              UINT Plane0ForVirtualModeOnly        : 1;    // Stretching plane 0 will also stretch the HW cursor and should only be used for virtual mode support
+              UINT Version3DDISupport              : 1;    // Driver supports the 2.2 MPO DDIs
+        */
 
-          // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
+        // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
 
-          // dxdiagn.dll also lists these capabilities:
-          // DEINTERLACE STEREO == ?
-          // FULLSCREEN_POST_COMPOSITION == ?
-          // HW_CURSOR == ?
-          // LEGACY_OVERLAY == ?
+        // dxdiagn.dll also lists these capabilities:
+        // DEINTERLACE STEREO == ?
+        // FULLSCREEN_POST_COMPOSITION == ?
+        // HW_CURSOR == ?
+        // LEGACY_OVERLAY == ?
 
-          // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
+        // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
 
-          if (monitor.MaxRGBPlanes > 0)
-            monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
+        if (monitor.MaxRGBPlanes > 0)
+          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
 
-          if (monitor.MaxYUVPlanes > 0)
-            monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
+        if (monitor.MaxYUVPlanes > 0)
+          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
 
-          if (monitor.OverlayCaps.Rotation)
-            monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
+        if (monitor.OverlayCaps.Rotation)
+          monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
 
-          if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
-            monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
+        if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
+          monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
 
-          if (monitor.OverlayCaps.VerticalFlip)
-            monitor.OverlayCapsAsString += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
+        if (monitor.OverlayCaps.VerticalFlip)
+          monitor.OverlayCapsAsString += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
 
-          if (monitor.OverlayCaps.HorizontalFlip)
-            monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
+        if (monitor.OverlayCaps.HorizontalFlip)
+          monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
 
-          if (monitor.OverlayCaps.StretchRGB)
-            monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
+        if (monitor.OverlayCaps.StretchRGB)
+          monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
 
-          if (monitor.OverlayCaps.StretchYUV)
-            monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
+        if (monitor.OverlayCaps.StretchYUV)
+          monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
 
-          if (monitor.OverlayCaps.BilinearFilter)
-            monitor.OverlayCapsAsString += "Supports bilinear filtering. [BILINEAR]\n";
+        if (monitor.OverlayCaps.BilinearFilter)
+          monitor.OverlayCapsAsString += "Supports bilinear filtering. [BILINEAR]\n";
 
-          if (monitor.OverlayCaps.HighFilter)
-            monitor.OverlayCapsAsString += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
+        if (monitor.OverlayCaps.HighFilter)
+          monitor.OverlayCapsAsString += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
 
-          if (monitor.OverlayCaps.Shared)
-            monitor.OverlayCapsAsString += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
+        if (monitor.OverlayCaps.Shared)
+          monitor.OverlayCapsAsString += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
 
-          if (monitor.OverlayCaps.Immediate)
-            monitor.OverlayCapsAsString += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
-          // When TRUE, the HW supports immediate flips of the MPO plane.
-          // If the flip contains changes that cannot be performed as an immediate flip,
-          //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
+        if (monitor.OverlayCaps.Immediate)
+          monitor.OverlayCapsAsString += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
+        // When TRUE, the HW supports immediate flips of the MPO plane.
+        // If the flip contains changes that cannot be performed as an immediate flip,
+        //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
 
-          if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
-            monitor.OverlayCapsAsString += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
-          // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
-          //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
-          //   stretching/shrinking is used for virtual mode support.
+        if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
+          monitor.OverlayCapsAsString += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
+        // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
+        //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
+        //   stretching/shrinking is used for virtual mode support.
 
-          if (monitor.OverlayCaps.Version3DDISupport)
-            monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
+        if (monitor.OverlayCaps.Version3DDISupport)
+          monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
 
-          Monitors.emplace_back (monitor);
-        }
+        Monitors.emplace_back (monitor);
       }
     }
   }
 
-  return Monitors;
+  return true;
 }
 
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
-  static std::vector<Monitor_MPO_Support> monitors = GetMPOSupport ( );
-
-  if (RefreshMPOSupport || SKIF_Tab_Selected != Settings)
-  {
-    monitors = GetMPOSupport (true);
-    RefreshMPOSupport = false;
-  }
-
   static std::wstring
             driverBinaryPath    = L"";
 
@@ -349,29 +354,29 @@ SKIF_UI_Tab_DrawSettings (void)
                 */
               }
               else {
-                PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetLastError ( );
+                PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
               }
 
               LocalFree (lpsc);
             }
             else {
-              PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetLastError ( );
+              PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr ( );
             }
           }
           else {
-            PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetLastError();
+            PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr();
           }
 
           CloseServiceHandle (svcWinRing0);
         }
         else {
-          PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetLastError();
+          PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetErrorAsWStr();
         }
 
         CloseServiceHandle (schSCManager);
       }
       else {
-        PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetLastError ( );
+        PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
       }
     }
 
@@ -383,11 +388,13 @@ SKIF_UI_Tab_DrawSettings (void)
   if (driverStatusPending != driverStatus)
     driverBinaryPath = _CheckDriver (driverStatus);
 
-  // Reset and refresh things when visiting from another tab
-  if (SKIF_Tab_Selected != Settings)
+  // Refresh things when visiting from another tab or when forced
+  if (SKIF_Tab_Selected != Settings || RefreshSettingsTab)
   {
+    GetMPOSupport ( );
     driverBinaryPath    = _CheckDriver (driverStatus, true);
     driverStatusPending =               driverStatus;
+    RefreshSettingsTab = false;
   }
 
   SKIF_Tab_Selected = Settings;
@@ -1765,7 +1772,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ( );
     ImGui::Text        ("Capabilities");
 
-    for (auto& monitor : monitors)
+    for (auto& monitor : Monitors)
     {
       std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
                                                                      :   "%.1fx - %.1fx";
@@ -1773,9 +1780,10 @@ SKIF_UI_Tab_DrawSettings (void)
                                                              : ImColor::HSV (0.11F, 1.F, 1.F);
 
       ImGui::BeginGroup  ();
-      ImGui::TextColored (colName, monitor.NameShort.c_str());
-      if (monitor.Name.length() >= 14)
-        SKIF_ImGui_SetHoverTip (monitor.Name.c_str());
+      //ImGui::Text        ("%u", monitor.Index);
+      //ImGui::SameLine    ( );
+      ImGui::TextColored (colName, monitor.Name.c_str());
+      SKIF_ImGui_SetHoverTip (monitor.DeviceNameGdi.c_str());
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );

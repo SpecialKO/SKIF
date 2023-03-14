@@ -1959,13 +1959,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           else {
             PLOG_ERROR << "Failed to copy " << wszPathToGlobalDLL << " to " << SK_UTF8ToWideChar (cache.dll.full_path);
-            PLOG_ERROR << SKIF_Util_GetLastError();
+            PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
           }
         }
 
         else {
           PLOG_ERROR << "Failed to retrieve binary type from " << SK_UTF8ToWideChar (cache.dll.full_path) << " -- returned: " << iBinaryType;
-          PLOG_ERROR << SKIF_Util_GetLastError();
+          PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
         }
       };
 

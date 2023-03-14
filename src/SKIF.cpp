@@ -170,7 +170,7 @@ bool GOGGalaxy_Installed           = false;
 
 DWORD    RepopulateGamesWasSet     = 0;
 bool     RepopulateGames           = false,
-         RefreshMPOSupport         = false;
+         RefreshSettingsTab        = false;
 uint32_t SelectNewSKIFGame         = 0;
 
 bool  HoverTipActive               = false;
@@ -2243,7 +2243,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                   //: 0,
                                     hWaitStates, TRUE,
                                 (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
-                                             RefreshMPOSupport == false) ? // We need to allow RefreshMPOSupport through as well as it is used for WM_DISPLAYCHANGE
+                                             RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
                                                                 INFINITE : 5, QS_ALLINPUT );
 
     // Injection acknowledgment; shutdown injection
@@ -2716,9 +2716,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
          )
       {
         if (SKIF_Tab_Selected == Library)
-        RepopulateGames   = true;
+          RepopulateGames   = true;
+
         if (SKIF_Tab_Selected == Settings)
-          RefreshMPOSupport = true;
+          RefreshSettingsTab = true;
       }
 
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
@@ -3685,7 +3686,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! _TranslateAndDispatch ())
           break;
         
-        else if (msg.message == WM_DISPLAYCHANGE || RefreshMPOSupport)        break; // msg.message is 0 for some weird reason -- go by RefreshMPOSupport instead
+        else if (msg.message == WM_DISPLAYCHANGE || RefreshSettingsTab)        break; // msg.message is 0 for some weird reason -- go by RefreshSettingsTab instead
         else if (msg.message == WM_SETCURSOR)                                 break;
         else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
         else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
@@ -3918,7 +3919,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   {
     case WM_DISPLAYCHANGE:
       if (SKIF_Tab_Selected == Settings)
-        RefreshMPOSupport = true; // Only set this if the Settings tab is actually selected
+        RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
       break;
 
     case WM_SKIF_MINIMIZE:
