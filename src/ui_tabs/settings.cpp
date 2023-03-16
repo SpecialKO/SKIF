@@ -227,8 +227,9 @@ GetMPOSupport (void)
         //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
         //   stretching/shrinking is used for virtual mode support.
 
+        // Monitor supports the new DDIs, though we have no idea how to further query that kind of support yet...
         if (monitor.OverlayCaps.Version3DDISupport)
-          monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs. [HDR (MPO3)]\n";
+          monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs.";
 
         Monitors.emplace_back (monitor);
       }
