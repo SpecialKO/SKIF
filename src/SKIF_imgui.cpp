@@ -1,5 +1,4 @@
 #include <SKIF_imgui.h>
-#include <SKIF_utility.h>
 
 void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 {
@@ -160,6 +159,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   extern bool        HoverTipActive;
   extern DWORD       HoverTipDuration;
   extern std::string SKIF_StatusBarText;
+  extern DWORD       SKIF_Util_timeGetTime (void);
 
   if ( SKIF_ImGui_IsHoverable () && (! SKIF_bSmallMode) )
   {

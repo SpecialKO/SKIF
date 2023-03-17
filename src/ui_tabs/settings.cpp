@@ -25,8 +25,18 @@ struct Monitor_MPO_Support
   std::string                    OverlayCapsAsString;
 };
 
-std::vector <Monitor_MPO_Support> Monitors;
+enum DrvInstallState {
+  NotInstalled,
+  Installed,
+  OtherDriverInstalled,
+  ObsoleteInstalled
+};
 
+std::vector <Monitor_MPO_Support> Monitors;
+DrvInstallState driverStatus        = NotInstalled,
+                driverStatusPending = NotInstalled;
+
+// Check the MPO capabilities of the system
 bool
 GetMPOSupport (void)
 {
@@ -232,168 +242,169 @@ GetMPOSupport (void)
   return true;
 }
 
+// Check if the SK_WinRing0 driver service is installed or not
+std::wstring
+GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinRing0")
+{
+  std::wstring       binaryPath = L"";
+  SC_HANDLE        schSCManager = NULL,
+                    svcWinRing0 = NULL;
+  LPQUERY_SERVICE_CONFIG   lpsc = {  };
+  DWORD                    dwBytesNeeded,
+                            cbBufSize {};
+
+  // Reset the current status to not installed.
+  ptrStatus = NotInstalled;
+
+  // Retrieve the install folder.
+  static std::wstring dirNameInstall  = std::filesystem::path (path_cache.specialk_install ).filename();
+  static std::wstring dirNameUserdata = std::filesystem::path (path_cache.specialk_userdata).filename();
+
+  // Get a handle to the SCM database.
+  schSCManager =
+    OpenSCManager (
+      nullptr,             // local computer
+      nullptr,             // servicesActive database
+      STANDARD_RIGHTS_READ // enumerate services
+    );
+
+  if (nullptr != schSCManager)
+  {
+    // Get a handle to the service.
+    svcWinRing0 =
+      OpenService (
+        schSCManager,        // SCM database
+        svcName.c_str(),     // name of service - Old: WinRing0_1_2_0, New: SK_WinRing0
+        SERVICE_QUERY_CONFIG // query config
+      );
+
+    if (nullptr != svcWinRing0)
+    {
+      // Attempt to get the configuration information to get an idea of what buffer size is required.
+      if (! QueryServiceConfig (
+              svcWinRing0,
+                nullptr, 0,
+                  &dwBytesNeeded )
+          )
+      {
+        if (ERROR_INSUFFICIENT_BUFFER == GetLastError ( ))
+        {
+          cbBufSize = dwBytesNeeded;
+          lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
+
+          // Get the configuration information with the necessary buffer size.
+          if (lpsc != nullptr && 
+                QueryServiceConfig (
+                  svcWinRing0,
+                    lpsc, cbBufSize,
+                      &dwBytesNeeded )
+              )
+          {
+            // Store the binary path of the installed driver.
+            binaryPath = std::wstring (lpsc->lpBinaryPathName);
+            binaryPath = binaryPath.substr(4); // Strip \??\\
+
+            PLOG_VERBOSE << "Driver " << svcName << " supposedly installed at : " << binaryPath;
+
+            if (svcName == L"SK_WinRing0" &&
+                PathFileExists (binaryPath.c_str()))
+            {
+              ptrStatus = Installed; // File exists, so driver is installed
+              PLOG_INFO << "Found driver " << svcName << " installed at : " << binaryPath;
+            }
+
+            // Method used to detect the old copy
+            else {
+              PLOG_VERBOSE << "dirNameInstall:  " << dirNameInstall;
+              PLOG_VERBOSE << "dirNameUserdata: " << dirNameUserdata;
+
+              // Check if the installed driver exists, and it's in SK's folder
+              if (PathFileExists      (binaryPath.c_str()) &&
+                (std::wstring::npos != binaryPath.find (dirNameInstall ) ||
+                  std::wstring::npos != binaryPath.find (dirNameUserdata)))
+              {
+                ptrStatus = ObsoleteInstalled; // File exists, so obsolete driver is installed
+                PLOG_INFO << "Found obsolete driver " << svcName << " installed at : " << binaryPath;
+              }
+            }
+          }
+          else {
+            PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+          }
+
+          LocalFree (lpsc);
+        }
+        else {
+          PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr ( );
+        }
+      }
+      else {
+        PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr();
+      }
+
+      CloseServiceHandle (svcWinRing0);
+    }
+    else if (ERROR_SERVICE_DOES_NOT_EXIST == GetLastError ( ))
+    {
+      //PLOG_INFO << "SK_WinRing0 has not been installed.";
+
+      static bool checkObsoleteOnce = true;
+      // Check if WinRing0_1_2_0 have been installed, but only on the very first check
+      if (checkObsoleteOnce && svcName == L"SK_WinRing0")
+      {
+        checkObsoleteOnce = false;
+        GetDrvInstallState(ptrStatus, L"WinRing0_1_2_0");
+      }
+    }
+    else {
+      PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+    }
+
+    CloseServiceHandle (schSCManager);
+  }
+  else {
+    PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+  }
+
+  return binaryPath;
+};
+
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
   static std::wstring
-            driverBinaryPath    = L"";
-
-  enum Status {
-    NotInstalled,
-    Installed,
-    OtherDriverInstalled
-  }
-
-  static driverStatus        = NotInstalled,
-         driverStatusPending = NotInstalled;
-
-  // Check if the WinRing0_1_2_0 kernel driver service is installed or not
-  auto _CheckDriver = [](Status& _status, bool forced = false)->std::wstring
-  {
-    std::wstring       binaryPath = L"";
-    SC_HANDLE        schSCManager = NULL,
-                      svcWinRing0 = NULL;
-    LPQUERY_SERVICE_CONFIG   lpsc = {  };
-    DWORD                    dwBytesNeeded,
-                              cbBufSize {},
-                              dwError;
-
-    static DWORD dwLastRefresh = 0;
-
-    // Refresh once every 500 ms
-    if (forced || (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))))
-    {
-      dwLastRefresh = SKIF_Util_timeGetTime() + 500;
-
-      // Reset the current status to not installed.
-      _status = NotInstalled;
-
-      // Retrieve the install folder.
-      static std::wstring dirNameInstall  = std::filesystem::path (path_cache.specialk_install ).filename();
-      static std::wstring dirNameUserdata = std::filesystem::path (path_cache.specialk_userdata).filename();
-
-      // Get a handle to the SCM database.
-      schSCManager =
-        OpenSCManager (
-          nullptr,             // local computer
-          nullptr,             // servicesActive database
-          STANDARD_RIGHTS_READ // enumerate services
-        );
-
-      if (nullptr != schSCManager)
-      {
-        // Get a handle to the service.
-        svcWinRing0 =
-          OpenService (
-            schSCManager,        // SCM database
-            L"SK_WinRing0",      // name of service // Old: WinRing0_1_2_0
-            SERVICE_QUERY_CONFIG // query config
-          );
-
-        if (nullptr != svcWinRing0)
-        {
-          // Attempt to get the configuration information to get an idea of what buffer size is required.
-          if (! QueryServiceConfig (
-                  svcWinRing0,
-                    nullptr, 0,
-                      &dwBytesNeeded )
-              )
-          {
-            dwError =
-              GetLastError ();
-
-            if (ERROR_INSUFFICIENT_BUFFER == dwError)
-            {
-              cbBufSize = dwBytesNeeded;
-              lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
-
-              // Get the configuration information with the necessary buffer size.
-              if (lpsc != nullptr && 
-                    QueryServiceConfig (
-                      svcWinRing0,
-                        lpsc, cbBufSize,
-                          &dwBytesNeeded )
-                 )
-              {
-                // Store the binary path of the installed driver.
-                binaryPath = std::wstring (lpsc->lpBinaryPathName);
-                binaryPath = binaryPath.substr(4); // Strip \??\\
-
-                PLOG_INFO << "Found kernel driver SK_WinRing0 installed at: " << binaryPath;
-
-                if (PathFileExists (binaryPath.c_str()))
-                {
-                  _status = Installed; // File exists, so driver is installed
-                }
-                else {
-                  _status = NotInstalled; // File does not actually exist, so driver has been uninstalled
-                }
-
-                /* Old method -- irrelevant now that SK_WinRing0 is the new name
-                // Check if the installed driver exists in the install folder
-                if (binaryPath.find (dirNameInstall ) != std::wstring::npos || 
-                    binaryPath.find (dirNameUserdata) != std::wstring::npos)
-                {
-                  if (PathFileExists (binaryPath.c_str()))
-                  {
-                    _status = Installed; // File exists, so driver is installed
-                  }
-                  else {
-                    _status = NotInstalled; // File does not actually exist, so driver has been uninstalled
-                  }
-                }
-                else {
-                  _status = OtherDriverInstalled; // Other driver installed
-                }
-                */
-              }
-              else {
-                PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
-              }
-
-              LocalFree (lpsc);
-            }
-            else {
-              PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr ( );
-            }
-          }
-          else {
-            PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr();
-          }
-
-          CloseServiceHandle (svcWinRing0);
-        }
-        else {
-          PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetErrorAsWStr();
-        }
-
-        CloseServiceHandle (schSCManager);
-      }
-      else {
-        PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
-      }
-    }
-
-    return binaryPath;
-  };
+            driverBinaryPath    = L"",
+            SKIFdrvFolder = SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", path_cache.specialk_install),
+            SKIFdrv       = SKIFdrvFolder + L"SKIFdrv.exe"; // TODO: Should be reworked to support a separate install location as well; // TODO: Should be reworked to support a separate install location as well
+  
+  static SKIF_DirectoryWatch SKIF_DriverWatch;
 
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
   if (driverStatusPending != driverStatus)
-    driverBinaryPath = _CheckDriver (driverStatus);
+  {
+    static DWORD dwLastDrvRefresh = 0;
+
+    // Refresh once every 500 ms
+    if (dwLastDrvRefresh < SKIF_Util_timeGetTime() && (!ImGui::IsAnyMouseDown() || !SKIF_ImGui_IsFocused()))
+    {
+      dwLastDrvRefresh = SKIF_Util_timeGetTime() + 500;
+      driverBinaryPath = GetDrvInstallState (driverStatus);
+    }
+  }
 
   // Refresh things when visiting from another tab or when forced
-  if (SKIF_Tab_Selected != Settings || RefreshSettingsTab)
+  if (SKIF_Tab_Selected != Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder))
   {
     GetMPOSupport ( );
-    driverBinaryPath    = _CheckDriver (driverStatus, true);
-    driverStatusPending =               driverStatus;
-    RefreshSettingsTab = false;
+    driverBinaryPath    = GetDrvInstallState (driverStatus);
+    driverStatusPending =                     driverStatus;
+    RefreshSettingsTab  = false;
   }
 
   SKIF_Tab_Selected = Settings;
   if (SKIF_Tab_ChangeTo == Settings)
-    SKIF_Tab_ChangeTo = None;
+      SKIF_Tab_ChangeTo  = None;
 
 #pragma region Section: Top / General
   // SKIF Options
@@ -1403,6 +1414,14 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), SK_WideCharToUTF8 (driverBinaryPath).c_str ());
     }
 
+    // Obsolete driver is installed
+    else if (driverStatus == ObsoleteInstalled)
+    {
+      btnDriverLabel    = ICON_FA_SHIELD_ALT " Migrate Driver";
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Obsolete driver installed");
+      wszDriverTaskCmd = L"Migrate Install";
+    }
+
     // Driver is not installed
     else {
       btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
@@ -1416,7 +1435,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ();
 
     // Disable button if the required files are missing, status is pending, or if another driver is installed
-    if (  driverStatusPending != driverStatus ||
+    if (  driverStatusPending  != driverStatus ||
           OtherDriverInstalled == driverStatus )
     {
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
@@ -1427,46 +1446,22 @@ SKIF_UI_Tab_DrawSettings (void)
     bool driverButton =
       ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
                                                        25 * SKIF_ImGui_GlobalDPIScale));
-
-    //
-    // COM Elevation Moniker will handle this unless UAC level is at maximum,
-    //   then user must respond to UAC prompt (probably in a background window).
-    //
     SKIF_ImGui_SetHoverTip (
       "Administrative privileges are required on the system to enable this."
     );
 
     if ( driverButton )
     {
-      std::filesystem::path SKIFdrv = std::filesystem::path(std::filesystem::current_path().wstring() + LR"(\Drivers\WinRing0\SKIFdrv.exe)");
-
-      if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
-        driverStatusPending =
-              (driverStatus == Installed) ?
-                            NotInstalled  : Installed;
-
-      /* Old method before SKIFdrv.exe
-      auto hModWinRing0 =
-        LoadLibraryW (L"SpecialK64.dll");
-
-      using DriverTaskFunc_pfn = void (*)(void);
-            DriverTaskFunc_pfn DriverTask = (DriverTaskFunc_pfn)
-              GetProcAddress (hModWinRing0, szDriverTaskFunc);
-
-      if (DriverTask != nullptr)
+      if (PathFileExists (SKIFdrv.c_str()))
       {
-        DriverTask ();
-        //DriverTask (); // Not needed any longer
-
-        // Batch call succeeded -- change driverStatusPending to the
-        //   opposite of driverStatus to signal that a new state is pending.
-        driverStatusPending =
-              (driverStatus == Installed) ?
-                              NotInstalled : Installed;
+        if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+          driverStatusPending =
+                (driverStatus == Installed) ?
+                              NotInstalled  : Installed;
       }
-
-      FreeLibrary (hModWinRing0);
-      */
+      else {
+        SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Tools#extended-hardware-monitoring-driver");
+      }
     }
 
     // Disabled button
@@ -1488,6 +1483,18 @@ SKIF_UI_Tab_DrawSettings (void)
                                                 "Option is unavailable as another application have already installed a copy of the driver."
       );
       ImGui::EndGroup   ();
+    } 
+
+    // Show warning about another driver being installed
+    else if (ObsoleteInstalled == driverStatus)
+    {
+      ImGui::SameLine();
+      ImGui::BeginGroup();
+      ImGui::Spacing();
+      ImGui::SameLine(); ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+        "An older version of the driver is installed."
+      );
+      ImGui::EndGroup();
     }
 
     ImGui::EndGroup ();
