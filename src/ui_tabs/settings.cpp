@@ -173,14 +173,7 @@ GetMPOSupport (void)
         */
 
         // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
-
-        // dxdiagn.dll also lists these capabilities:
-        // DEINTERLACE STEREO == ?
-        // FULLSCREEN_POST_COMPOSITION == ?
-        // HW_CURSOR == ?
-        // LEGACY_OVERLAY == ?
-
-        // The uppercase titles is how the capability is reported through dxdiag.exe / dxdiagn.dll
+        // The uppercase titles is how the capability seems to be reported through dxdiag.exe / dxdiagn.dll (educated guess)
 
         if (monitor.MaxRGBPlanes > 0)
           monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
