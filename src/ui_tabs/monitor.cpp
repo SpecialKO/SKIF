@@ -1145,7 +1145,9 @@ SKIF_UI_Tab_DrawMonitor (void)
           InterlockedExchange (&snapshot_idx, idx);
 
           // Force a repaint
-          SetEvent (SKIF_RefreshEvent);
+          
+          if (! SKIF_ImGui_IsFocused () && ! ImGui::IsAnyItemHovered ( ))
+            SetEvent (SKIF_RefreshEvent);
         } while (true); // Keep thread alive until exit
 
         return 0;

@@ -353,7 +353,7 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
       if (checkObsoleteOnce && svcName == L"SK_WinRing0")
       {
         checkObsoleteOnce = false;
-        GetDrvInstallState(ptrStatus, L"WinRing0_1_2_0");
+        GetDrvInstallState (ptrStatus, L"WinRing0_1_2_0");
       }
     }
     else {

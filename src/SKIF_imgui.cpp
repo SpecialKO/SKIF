@@ -130,8 +130,8 @@ SKIF_ImGui_IsFocused (void)
 bool
 SKIF_ImGui_IsHoverable (void)
 {
-  if (! SKIF_ImGui_IsFocused ())
-    return false;
+  //if (! SKIF_ImGui_IsFocused ())
+  //  return false;
 
   return true;
 }

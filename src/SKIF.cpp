@@ -294,7 +294,7 @@ private:
 
 bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
-CHandle hSwapWait  (0);           // Signalled by a waitable swapchain
+//CHandle hSwapWait  (0);           // Signalled by a waitable swapchain
 
 int __width  = 0;
 int __height = 0;
@@ -311,7 +311,7 @@ HWND        SKIF_hWnd          =  0;
 HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
-CONDITION_VARIABLE SKIF_IsNotFocused = { };
+//CONDITION_VARIABLE SKIF_IsNotFocused = { };
 
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
@@ -2043,13 +2043,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
 
   HWND  hWnd  = SKIF_hWnd;
-  HDC   hDC   =
-    GetWindowDC (hWnd);
+  //HDC   hDC   =
+  //  GetWindowDC (hWnd); // No purpose since it only concerns the 0x0 invisible native Win32 window and not the ImGui stuff
   HICON hIcon =
     LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
   InitializeConditionVariable (&SKIF_IsFocused);
-  InitializeConditionVariable (&SKIF_IsNotFocused);
+  //InitializeConditionVariable (&SKIF_IsNotFocused);
 
   SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
   SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
@@ -2149,19 +2149,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Main loop
   MSG msg = { };
 
-  CComQIPtr <IDXGISwapChain3>
-      pSwap3 (g_pSwapChain);
-  if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
+  /*
+  if (g_pSwapChain != nullptr)
   {
-    pSwap3->SetMaximumFrameLatency (1);
+    CComQIPtr <IDXGISwapChain3>
+        pSwap3 (g_pSwapChain);
 
-    hSwapWait.Attach (
-      pSwap3->GetFrameLatencyWaitableObject ()
-    );
+    if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
+    {
+      // Doesn't work lol
+      pSwap3->SetMaximumFrameLatency (1);
+      hSwapWait.Attach (pSwap3->GetFrameLatencyWaitableObject());
+    }
   }
+  */
 
   ImGuiPlatformMonitor* monitor = nullptr;
   ImVec2 windowPos;
+  ImRect windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool changedMode        = false;
        RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || SKIF_bOpenAtCursorPosition);
@@ -2185,8 +2190,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
+    bool messageSet = false;
+
     auto _TranslateAndDispatch = [&](void) -> bool
     {
+      uiLastMsg = 0x0; // reset uiLastMsg
+
       //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch before the loop!\n").c_str());
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
@@ -2197,6 +2206,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
 
+        messageSet = true;
         uiLastMsg = msg.message;
         //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch while looooop!\n").c_str());
       }
@@ -2212,14 +2222,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       if (hDC != 0)
       {
+        /* Not sure why we're doing this when GetClipBox() is defined in wingdi.h
         using  GetClipBox_pfn = int (WINAPI *)(HDC,LPRECT);
         static GetClipBox_pfn
           SKIF_GetClipBox     = (GetClipBox_pfn)GetProcAddress (
                 LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
               "GetClipBox"                                     );
 
-             RECT              rcClipBox = { };
         SKIF_GetClipBox (hDC, &rcClipBox);
+        */
+
+        RECT rcClipBox = { };
+
+        GetClipBox (hDC, &rcClipBox);
 
         bOccluded =
           IsRectEmpty (&rcClipBox);
@@ -2229,13 +2244,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bOccluded = FALSE;
     };
 
-    const int           max_wait_objs  = 2;
+    auto _IsMouseHovering = [&](void) -> bool
+    {
+      return windowRect.Contains (ImGui::GetMousePos ( ));  //ImGui::IsAnyItemHovered ( ); // windowRect.Contains (ImGui::GetMousePos());
+    };
+
+    const int           max_wait_objs  = 1;
     HANDLE hWaitStates [max_wait_objs] = {
-      hSwapWait.m_h,
+      //hSwapWait.m_h,
       hInjectAck.m_h
     };
     
-
+    /* 2023-03-18 - Disabled and moved to the end
     //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] MsgWaitForMultipleObjects is upcoming!\n").c_str());
     //DWORD dwWait =
     MsgWaitForMultipleObjects (              0,
@@ -2245,6 +2265,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                 (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
                                              RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
                                                                 INFINITE : 5, QS_ALLINPUT );
+    */
 
     // Injection acknowledgment; shutdown injection
     //
@@ -2291,6 +2312,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch is upcoming!\n").c_str());
 
+    /* 2023-03-18 - Disabled (and might be moved to the end)
     if (! _TranslateAndDispatch ())
       break;
 
@@ -2310,6 +2332,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
       continue;
     }
+    */
 
     //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] got past the waiting!\n").c_str());
 
@@ -2861,14 +2884,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
+          /* Replaced by SetEvent (SKIF_RefreshEvent); in monitor.cpp
           if (SKIF_Tab_Selected != Monitor) // hModSpecialK == nullptr
           {
             SetTimer (SKIF_hWnd,
-                      IDT_REFRESH_DEBUG,
+                      IDT_REFRESH_MONITOR,
                       500,
                       (TIMERPROC)NULL
             );
           }
+          */
 
           SKIF_Tab_Selected = Monitor;
           if (SKIF_Tab_ChangeTo == Monitor)
@@ -2887,8 +2912,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           FreeLibrary (hModSpecialK);
           hModSpecialK = nullptr;
-
-          KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
         }
 
         if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, (SKIF_Tab_ChangeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
@@ -3492,6 +3515,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::GetCurrentWindowRead   ()
         );
       windowPos      = ImGui::GetWindowPos ();
+      windowRect.Min = ImGui::GetWindowPos ();
+      windowRect.Max = ImGui::GetWindowPos () + ImGui::GetWindowSize ();
 
       if (! HoverTipActive)
         HoverTipDuration = 0;
@@ -3522,9 +3547,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui::Render ();
 
 
-    bool bRefresh   = (SKIF_isTrayed) ? false : true;
-    bool bDwmTiming = false;
-
+    //bool bRefresh   = (SKIF_isTrayed) ? false : true;
+    //bool bDwmTiming = false;
+    /*
     float fDwmPeriod = 6.0f;
 
     DWM_TIMING_INFO dwm_timing = { };
@@ -3541,12 +3566,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     const auto uiMinMousePeriod =
       SKIF_ImGui_IsFocused () ? static_cast <UINT> (fDwmPeriod * 0.5f)
-                              : static_cast <UINT> (fDwmPeriod * 2.5f);
+                              : static_cast <UINT> (fDwmPeriod * 0.5f); // 2.5f (causes SKIF to render more when unfocused)
+
+    static UINT uiLastMove = 0;
 
     if (uiLastMsg == WM_MOUSEMOVE)
     {
-      static UINT
-          uiLastMove = 0;
       if (uiLastMove > SKIF_Util_timeGetTime () - uiMinMousePeriod)
       {
         bRefresh = false;
@@ -3555,7 +3580,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
       else
         uiLastMove = SKIF_Util_timeGetTime ();
     }
+    
+    else if (renderAdditionalFramesMS > SKIF_Util_timeGetTime ( ))
+    {
+      if (uiLastMove > SKIF_Util_timeGetTime () - uiMinMousePeriod)
+      {
+        bRefresh = false;
+      }
 
+      else
+        uiLastMove = SKIF_Util_timeGetTime ();
+    }
+    */
+
+    //bRefresh = true;
+
+    /* Unused
     if (bDwmTiming)
     {
       static QPC_TIME             dwmLastVBlank = 0;
@@ -3573,10 +3613,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (bRefresh)
         dwmLastVBlank = dwm_timing.qpcVBlank;
     }
+    */
 
     // First message always draws
-    SK_RunOnce (bRefresh = true);
+    //SK_RunOnce (bRefresh = true);
 
+    // Conditional rendering
+    bool bRefresh = (SKIF_isTrayed) ? false : true;
     if (bRefresh)
     {
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
@@ -3594,6 +3637,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
     }
+    
+    static UINT
+      renderAdditionalFramesMS = 0; // Continue to render for another 750ms after the last mouse move event to allow tooltips to appear
+    if (uiLastMsg == WM_MOUSEMOVE)
+      renderAdditionalFramesMS = SKIF_Util_timeGetTime ( ) + 750;
+    else if (SKIF_Util_timeGetTime ( ) > renderAdditionalFramesMS)
+      renderAdditionalFramesMS = 0;
 
     if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
     {
@@ -3613,13 +3663,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
-    _UpdateOcclusionStatus (hDC);
+    //_UpdateOcclusionStatus (hDC);
 
     if ((! bKeepProcessAlive) && hWnd != 0)
       PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
-    else if (bOccluded || IsIconic (hWnd))
-    {
+    //else if (bOccluded || IsIconic (hWnd))
+    //{
       static CHandle event (
                CreateEvent (nullptr, false, false, nullptr)
         );
@@ -3676,27 +3726,75 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return 0;
         }, nullptr, 0x0, nullptr
       );
+
+      // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+      if (ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsAnyItemHovered ( ) && ! SKIF_ImGui_IsFocused ( ) )
+      {
+        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
+      }
+      
+      static bool haveSlept = false;
+      static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
+      PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+      
+      // Moved from the start
+      if (! SKIF_ImGui_IsFocused ( ) && renderAdditionalFramesMS == 0)
+      {
+        haveSlept = true;
+
+        // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
+        SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
+        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+
+        MsgWaitForMultipleObjects (              0,
+                                  //(hSwapWait.m_h != 0) ? 1
+                                                      //: 0,
+                                        hWaitStates, TRUE,
+                                    (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
+                                                RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
+                                                                    INFINITE : 5, QS_ALLINPUT );
+      }
+
+      // Wake up when SKIF gets focused again, disable idle priority + ECO QoS (let the system take over)
+      if (haveSlept && ImGui::IsAnyItemHovered ( ))
+      {
+        haveSlept = false;
+        
+        SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+        PowerThrottling.ControlMask = 0;
+        PowerThrottling.StateMask   = 0;
+        SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+      }
       
       //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] Final MsgWaitForMultipleObjects is upcoming!\n").c_str());
-      while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
-                WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
-                                                              INFINITE, QS_ALLINPUT ) )
-      {
+
+      //while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
+      //          WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
+      //                                                        INFINITE, QS_ALLINPUT ) )
+      //{
         //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] Final _TranslateAndDispatch is upcoming!\n").c_str());
+      
+      // Pump the message queue
+      _TranslateAndDispatch ();
+
+      /*
         if (! _TranslateAndDispatch ())
-          break;
+          void; //break;
         
-        else if (msg.message == WM_DISPLAYCHANGE || RefreshSettingsTab)        break; // msg.message is 0 for some weird reason -- go by RefreshSettingsTab instead
-        else if (msg.message == WM_SETCURSOR)                                 break;
-        else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) break;
-        else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   break;
-        else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) break;
-        else if (msg.message == WM_TIMER)                                     break;
-        else {
-          //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(msg.message) + L"\n").c_str());
-        }
-      }
-    }
+        else if (msg.message == WM_DISPLAYCHANGE || RefreshSettingsTab)       void; //break; // msg.message is 0 for some weird reason -- go by RefreshSettingsTab instead
+        else if (msg.message == WM_SETCURSOR)                                 void; //break;
+        else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) void; //break;
+        else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   void; //break;
+        else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) void; //break;
+        else if (msg.message == WM_TIMER)                                     void; //break;
+      */
+        //else if (messageSet)
+            //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
+          //break;
+      //}
+    //}
   }
 
   PLOG_INFO << "Writing last selected game to registry: " << SKIF_iLastSelected;
@@ -3706,7 +3804,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_DEBUG);
 
   PLOG_INFO << "Shutting down ImGui...";
   ImGui_ImplDX11_Shutdown   (    );
@@ -3721,8 +3818,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   DestroyWindow             (SKIF_Notify_hWnd);
 
   PLOG_INFO << "Destroying main window...";
-  if (hDC != 0)
-    ReleaseDC               (hWnd, hDC);
+  //if (hDC != 0)
+  //  ReleaseDC               (hWnd, hDC);
   DestroyWindow             (hWnd);
 
   PLOG_INFO << "Destroying ImGui context...";
@@ -3736,6 +3833,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
+/*
 using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
 using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
                                                   CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
@@ -3745,11 +3843,13 @@ using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_
 
 CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
 D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
+*/
 
 // Helper functions
 
 bool CreateDeviceD3D (HWND hWnd)
 {
+  /*
   HMODULE hModD3D11 =
     LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
@@ -3759,12 +3859,13 @@ bool CreateDeviceD3D (HWND hWnd)
   SKIF_CreateDXGIFactory1 =
       (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
       "CreateDXGIFactory1");
-
+  */
+  
   CComPtr <IDXGIFactory5>
                pFactory5;
 
   if ( SUCCEEDED (
-    SKIF_CreateDXGIFactory1 (
+    CreateDXGIFactory1 (
        IID_IDXGIFactory5,
      (void **)&pFactory5.p ) ) )
                pFactory5->CheckFeatureSupport (
@@ -3814,7 +3915,7 @@ bool CreateDeviceD3D (HWND hWnd)
                                         : DXGI_SWAP_EFFECT_DISCARD; // DXGI_SWAP_EFFECT_DISCARD does not work atm
 
   UINT createDeviceFlags = 0;
-//createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+  createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
@@ -3823,11 +3924,13 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
+  /*
   SKIF_D3D11CreateDeviceAndSwapChain =
       (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
       "D3D11CreateDeviceAndSwapChain");
-
-  if ( SKIF_D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  */
+  
+  if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
@@ -3994,7 +4097,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
-        case IDT_REFRESH_DEBUG:
         case IDT_REFRESH_GAMES:
 
           if (wParam == IDT_REFRESH_GAMES && RepopulateGamesWasSet != 0)
@@ -4067,6 +4169,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       ::PostQuitMessage (0);
       return 0;
 
+    /*
     case WM_DPICHANGED:
       if (ImGui::GetIO ().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
       {
@@ -4082,6 +4185,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                            SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
       }
       break;
+    */
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);
