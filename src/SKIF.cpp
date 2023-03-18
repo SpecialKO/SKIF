@@ -2183,7 +2183,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Force a one-time check before we enter the main loop
   _inject.TestServletRunlevel (true);
-  
+
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
 
@@ -3860,7 +3860,7 @@ bool CreateDeviceD3D (HWND hWnd)
       (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
       "CreateDXGIFactory1");
   */
-  
+
   CComPtr <IDXGIFactory5>
                pFactory5;
 
@@ -3915,7 +3915,9 @@ bool CreateDeviceD3D (HWND hWnd)
                                         : DXGI_SWAP_EFFECT_DISCARD; // DXGI_SWAP_EFFECT_DISCARD does not work atm
 
   UINT createDeviceFlags = 0;
-  createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+
+  // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
+  //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
 
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
@@ -3929,7 +3931,7 @@ bool CreateDeviceD3D (HWND hWnd)
       (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
       "D3D11CreateDeviceAndSwapChain");
   */
-  
+
   if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
