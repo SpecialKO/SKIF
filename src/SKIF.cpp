@@ -3637,13 +3637,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
     }
-    
-    static UINT
-      renderAdditionalFramesMS = 0; // Continue to render for another 750ms after the last mouse move event to allow tooltips to appear
-    if (uiLastMsg == WM_MOUSEMOVE)
-      renderAdditionalFramesMS = SKIF_Util_timeGetTime ( ) + 750;
-    else if (SKIF_Util_timeGetTime ( ) > renderAdditionalFramesMS)
-      renderAdditionalFramesMS = 0;
 
     if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
     {
@@ -3726,40 +3719,52 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return 0;
         }, nullptr, 0x0, nullptr
       );
-
-      // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-      if (ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsAnyItemHovered ( ) && ! SKIF_ImGui_IsFocused ( ) )
-      {
-        // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
-        //   But we do close the RemoveGame popup since that's not as critical.
-        if (AddGamePopup    != PopupState::Opened &&
-            ConfirmPopup    != PopupState::Opened &&
-            ModifyGamePopup != PopupState::Opened )
-          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
-      }
+    
+      // Continue to render for another 1000ms after the last mouse move event to allow tooltips to appear
+      static UINT
+        renderAdditionalFramesMS = 0;
+      if (uiLastMsg == WM_MOUSEMOVE)
+        renderAdditionalFramesMS = SKIF_Util_timeGetTime ( ) + 1000;
+      else if (SKIF_Util_timeGetTime ( ) > renderAdditionalFramesMS)
+        renderAdditionalFramesMS = 0;
       
       static bool haveSlept = false;
       static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
       PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-      
-      // Moved from the start
-      if (! SKIF_ImGui_IsFocused ( ) && renderAdditionalFramesMS == 0)
+
+      // Handle unfocused activites
+      if (! SKIF_ImGui_IsFocused ( ))
       {
-        haveSlept = true;
+        // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+        if (! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
+        {
+          // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
+          //   But we do close the RemoveGame popup since that's not as critical.
+          if (AddGamePopup    != PopupState::Opened &&
+              ConfirmPopup    != PopupState::Opened &&
+              ModifyGamePopup != PopupState::Opened )
+            ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
+        }
 
-        // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
-        SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
-        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-        PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-        SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+        if (renderAdditionalFramesMS == 0)
+        {
+          haveSlept = true;
 
-        MsgWaitForMultipleObjects (              0,
-                                  //(hSwapWait.m_h != 0) ? 1
-                                                      //: 0,
-                                        hWaitStates, TRUE,
-                                    (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
-                                                RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
-                                                                    INFINITE : 5, QS_ALLINPUT );
+          // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
+          SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
+          PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+          PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+          SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+
+          // Moved from the start
+          MsgWaitForMultipleObjects (              0,
+                                    //(hSwapWait.m_h != 0) ? 1
+                                                        //: 0,
+                                          hWaitStates, TRUE,
+                                      (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
+                                                  RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
+                                                                      INFINITE : 5, QS_ALLINPUT );
+        }
       }
 
       // Wake up when SKIF gets focused again, disable idle priority + ECO QoS (let the system take over)
@@ -4008,13 +4013,15 @@ LRESULT
 WINAPI
 WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&
       msg != WM_MOUSEMOVE
     )
   {
-    //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+    //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
   }
 
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))

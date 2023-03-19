@@ -49,7 +49,7 @@ auto constexpr XUSER_INDEXES =
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = true;
+static bool                 g_Focused = false; // 2023-03-19: Changed from "true" in an attempt to fix SKIF getting stuck in a "focused" state on launch
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
@@ -95,11 +95,11 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
         dwPidOfMe = GetCurrentProcessId ();
 
       // Don't poll the gamepad when we're not focused.
-      if (dwWindowOwnerPid != dwPidOfMe)
-        lastFocus = false;
+      lastFocus = (dwWindowOwnerPid == dwPidOfMe);
+      g_Focused = lastFocus;
     }
-
-    lastFocus = true;
+    else // In the case that GetForegroundWindow () fails, assume g_Focused is correct
+      lastFocus = g_Focused;
   }
 
   return lastFocus;
@@ -626,7 +626,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   case WM_CLOSE:
     extern bool bKeepProcessAlive;
     extern bool SKIF_bAllowBackgroundService;
-    //extern SKIF_InjectionContext _inject;
 
     // Handle attempt to close the window
     if (hwnd != nullptr)
@@ -640,18 +639,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       PostMessage (hwnd, WM_QUIT, 0, 0);
       return 1;
     }
-
-    // Handle second attempt to close the window, by defaulting as if the exit prompt was disabled
-    /*
-    else if (hwnd != nullptr && ! bKeepWindowAlive)
-    {
-      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService)
-        _inject._StartStopInject (true);
-
-      bKeepProcessAlive = false;
-      return 1;
-    }
-    */
     break;
 
   case WM_SETFOCUS:
