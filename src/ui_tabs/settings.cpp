@@ -185,11 +185,11 @@ GetMPOSupport (void)
         // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
         // The uppercase titles is how the capability seems to be reported through dxdiag.exe / dxdiagn.dll (educated guess)
 
-        if (monitor.MaxRGBPlanes > 0)
-          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " plane" + ((monitor.MaxRGBPlanes != 1) ? "s" : "") + " containing RGB data. [RGB]\n";
+        if (monitor.MaxRGBPlanes > 1)
+          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " planes containing RGB data. [RGB]\n";
 
-        if (monitor.MaxYUVPlanes > 0)
-          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " plane" + ((monitor.MaxYUVPlanes != 1) ? "s" : "") + " containing YUV data. [YUV]\n";
+        if (monitor.MaxYUVPlanes > 1)
+          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " planes containing YUV data. [YUV]\n";
 
         if (monitor.OverlayCaps.Rotation)
           monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
@@ -203,10 +203,10 @@ GetMPOSupport (void)
         if (monitor.OverlayCaps.HorizontalFlip)
           monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
 
-        if (monitor.OverlayCaps.StretchRGB)
+        if (monitor.OverlayCaps.StretchRGB && monitor.MaxRGBPlanes > 1)
           monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
 
-        if (monitor.OverlayCaps.StretchYUV)
+        if (monitor.OverlayCaps.StretchYUV && monitor.MaxYUVPlanes > 1)
           monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
 
         if (monitor.OverlayCaps.BilinearFilter)
@@ -1777,8 +1777,8 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
                                                                      :   "%.1fx - %.1fx";
-      ImVec4 colName            = (monitor.MaxRGBPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
-                                                             : ImColor::HSV (0.11F, 1.F, 1.F);
+      ImVec4 colName            = (monitor.MaxPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                          : ImColor::HSV (0.11F, 1.F, 1.F);
 
       ImGui::BeginGroup  ();
       //ImGui::Text        ("%u", monitor.Index);
