@@ -2846,6 +2846,60 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::EndChildFrame ();
 
         SKIF_ImGui_ServiceMenu ();
+
+        // Shelly the Ghost (Small Mode)
+
+        ImGui::SetCursorPosX (2.0f);
+
+        ImGui::SetCursorPosY (
+          7.0f * SKIF_ImGui_GlobalDPIScale
+        );
+
+        ImGui::Text ("");
+
+        if (                          SKIF_iGhostVisibility == 1 ||
+            (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
+        {
+          // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
+          ImGui::SameLine();
+
+          // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
+          float fMaxPos = SKIF_vecCurrentMode.x - 136.0f * SKIF_ImGui_GlobalDPIScale;
+
+          static float direction = -1.0f;
+          static float fMinPos   =  0.0f;
+
+          static float fNewPos   =
+                     ( fMaxPos   -
+                       fMinPos ) * 0.5f;
+
+                   fNewPos +=
+                       direction * SKIF_ImGui_GlobalDPIScale;
+
+          if (     fNewPos < fMinPos)
+          {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }
+          else if (fNewPos > fMaxPos)
+          {        fNewPos = fMaxPos - direction * 2.0f; direction = -direction; }
+
+          ImGui::SameLine    ( 0.0f, fNewPos );
+
+          auto current_time =
+            SKIF_Util_timeGetTime ();
+
+          ImGui::SetCursorPosY (
+            ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
+                               );
+
+          ImVec4 vGhostColor =
+            ImColor::HSV (   (float)(current_time % 1400)/ 2800.f,
+                (.5f + (sin ((float)(current_time % 750) /  250.f)) * .5f) / 2.f,
+                   1.f );
+
+          if (SKIF_iStyle == 2)
+            vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+
+          ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
+        }
       } // End Small Mode
 
       // Begin Large Mode
@@ -2940,8 +2994,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         // Shelly the Ghost
-
-        
 
         float title_len = (tinyDPIFonts) ? ImGui::CalcTextSize(SKIF_WINDOW_TITLE_SHORT_A).x : ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
         float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
