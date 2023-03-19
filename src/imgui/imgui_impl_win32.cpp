@@ -49,7 +49,7 @@ auto constexpr XUSER_INDEXES =
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = false; // 2023-03-19: Changed from "true" in an attempt to fix SKIF getting stuck in a "focused" state on launch
+static bool                 g_Focused = true; // 2023-03-19: Changed from "true" in an attempt to fix SKIF getting stuck in a "focused" state on launch
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
@@ -71,9 +71,12 @@ static HMODULE                   g_hModXInput = nullptr;
 
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
-  if (! g_Focused)
-    return false;
+  // The g_Focused state should be trustworthy after the initial 60 frames or so
+  //   This is an ugly workaround to ensure we don't run the below code every single frame
+  if (ImGui::GetFrameCount () > 60)
+    return g_Focused;
 
+  // Fallback which only executes the first couple of frames
   static INT64 lastTime  = std::numeric_limits <INT64>::max ();
   static bool  lastFocus = false;
 
@@ -607,13 +610,15 @@ ImGui_ImplWin32_NewFrame (void)
 // PS: We treat DBLCLK messages as regular mouse down messages, so this code will work on windows classes that have the CS_DBLCLKS flag set. Our own example app code doesn't set this flag.
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&
       msg != WM_MOUSEMOVE
     )
   {
-    //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+    //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
   }
 
   if (ImGui::GetCurrentContext ( ) == NULL)

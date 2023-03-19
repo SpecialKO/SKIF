@@ -2599,7 +2599,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
 
-      HiddenFramesContinueRendering = (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems > 0);
+      HiddenFramesContinueRendering = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
       HoverTipActive = false;
 
       // Update current monitors/worksize etc;
@@ -2622,7 +2622,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y / fDpiScaleFactor) / ((float)SKIF_hLargeMode / fDpiScaleFactor + 40.0f / fDpiScaleFactor);
       } else {
-        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindow()->Viewport->DpiScale : 1.0f;
+        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindowRead()->Viewport->DpiScale : 1.0f;
       }
 
       // Rescale the style on DPI changes
@@ -3266,7 +3266,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec2 ( UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale,
                    0.0f )
       );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
                                      ImGuiWindowFlags_NoResize |
@@ -3464,7 +3464,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
                    0.0f )
       );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Changelog###History", nullptr,
                                      ImGuiWindowFlags_NoResize |
@@ -3843,7 +3843,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
-/*
 using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
 using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
                                                   CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
@@ -3853,13 +3852,11 @@ using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_
 
 CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
 D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
-*/
 
 // Helper functions
 
 bool CreateDeviceD3D (HWND hWnd)
 {
-  /*
   HMODULE hModD3D11 =
     LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
@@ -3869,13 +3866,12 @@ bool CreateDeviceD3D (HWND hWnd)
   SKIF_CreateDXGIFactory1 =
       (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
       "CreateDXGIFactory1");
-  */
 
   CComPtr <IDXGIFactory5>
                pFactory5;
 
   if ( SUCCEEDED (
-    CreateDXGIFactory1 (
+    SKIF_CreateDXGIFactory1 (
        IID_IDXGIFactory5,
      (void **)&pFactory5.p ) ) )
                pFactory5->CheckFeatureSupport (
@@ -3936,13 +3932,11 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
-  /*
   SKIF_D3D11CreateDeviceAndSwapChain =
       (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
       "D3D11CreateDeviceAndSwapChain");
-  */
 
-  if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  if (SKIF_D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,

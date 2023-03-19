@@ -278,7 +278,7 @@ void SKIF_ImGui_OptImage (ImTextureID user_texture_id, const ImVec2& size, const
 void
 SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeble)
 {
-  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  ImGuiWindow* window = ImGui::GetCurrentWindowRead();
   IM_ASSERT(columns_count >= 1);
 
   ImGuiColumnsFlags flags = (border ? 0 : ImGuiColumnsFlags_NoBorder);

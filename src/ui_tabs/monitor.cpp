@@ -1532,7 +1532,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::OpenPopup         ("SKIF Task Manager");
 
     ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
-    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
     if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr,
                                     ImGuiWindowFlags_NoResize |

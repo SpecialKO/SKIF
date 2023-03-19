@@ -1392,7 +1392,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     update      = false;
   }
 
-  if (loadTexture && populated && (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
+  if (loadTexture && populated && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
     loadTexture = false;
 
@@ -1737,7 +1737,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::OpenPopup         ("KeyboardHint");
 
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindow()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal("KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
       {
