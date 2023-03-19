@@ -185,10 +185,12 @@ GetMPOSupport (void)
         // "RGB" and "YUV" capabilities seems inferred from the MaxRGBPlanes and MaxYUVPlanes variables
         // The uppercase titles is how the capability seems to be reported through dxdiag.exe / dxdiagn.dll (educated guess)
 
-        if (monitor.MaxRGBPlanes > 1)
+        // See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dxgiddi/ne-dxgiddi-dxgi_ddi_multiplane_overlay_feature_caps
+
+        if (monitor.MaxRGBPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
           monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " planes containing RGB data. [RGB]\n";
 
-        if (monitor.MaxYUVPlanes > 1)
+        if (monitor.MaxYUVPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
           monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " planes containing YUV data. [YUV]\n";
 
         if (monitor.OverlayCaps.Rotation)
@@ -203,10 +205,10 @@ GetMPOSupport (void)
         if (monitor.OverlayCaps.HorizontalFlip)
           monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
 
-        if (monitor.OverlayCaps.StretchRGB && monitor.MaxRGBPlanes > 1)
+        if (monitor.OverlayCaps.StretchRGB && monitor.MaxRGBPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
           monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
 
-        if (monitor.OverlayCaps.StretchYUV && monitor.MaxYUVPlanes > 1)
+        if (monitor.OverlayCaps.StretchYUV && monitor.MaxYUVPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
           monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
 
         if (monitor.OverlayCaps.BilinearFilter)

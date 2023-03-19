@@ -3730,7 +3730,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // If there is any popups opened when SKIF is unfocused and not hovered, close them.
       if (ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsAnyItemHovered ( ) && ! SKIF_ImGui_IsFocused ( ) )
       {
-        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
+        // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
+        //   But we do close the RemoveGame popup since that's not as critical.
+        if (AddGamePopup    != PopupState::Opened &&
+            ConfirmPopup    != PopupState::Opened &&
+            ModifyGamePopup != PopupState::Opened )
+          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
       }
       
       static bool haveSlept = false;
