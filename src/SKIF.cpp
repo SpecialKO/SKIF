@@ -2086,7 +2086,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   (void)io; // WTF does this do?!
 
-  io.IniFilename = "SKIF.ini";                                   // nullptr to disable imgui.ini
+  io.IniFilename = "SKIF.ini";                                // nullptr to disable imgui.ini
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
 //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
