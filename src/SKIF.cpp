@@ -2244,11 +2244,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bOccluded = FALSE;
     };
 
-    auto _IsMouseHovering = [&](void) -> bool
-    {
-      return windowRect.Contains (ImGui::GetMousePos ( ));  //ImGui::IsAnyItemHovered ( ); // windowRect.Contains (ImGui::GetMousePos());
-    };
-
     const int           max_wait_objs  = 1;
     HANDLE hWaitStates [max_wait_objs] = {
       //hSwapWait.m_h,
@@ -3685,7 +3680,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
           ImGui::UpdatePlatformWindows        ();
-          ImGui::RenderPlatformWindowsDefault ();
+          ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
         }
       }
     }

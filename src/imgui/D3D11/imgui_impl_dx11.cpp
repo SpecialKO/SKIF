@@ -1432,11 +1432,13 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     bNoVSYNC = false;
   }
   
+  /*
   else if (bNoVSYNC) // Sorta emulates the old behaviour, but not really
   {
     bNoVSYNC = false;
     Interval = 0;
   }
+  */
 
   if (data->WaitHandle)
   {
