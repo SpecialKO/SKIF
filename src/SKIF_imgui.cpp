@@ -127,15 +127,6 @@ SKIF_ImGui_IsFocused (void)
   return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
 
-bool
-SKIF_ImGui_IsHoverable (void)
-{
-  //if (! SKIF_ImGui_IsFocused ())
-  //  return false;
-
-  return true;
-}
-
 void
 SKIF_ImGui_SetMouseCursorHand (bool allow_overlap)
 {
@@ -161,35 +152,32 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   extern std::string SKIF_StatusBarText;
   extern DWORD       SKIF_Util_timeGetTime (void);
 
-  if ( SKIF_ImGui_IsHoverable () && (! SKIF_bSmallMode) )
+  if (ImGui::IsItemHovered ())
   {
-    if (ImGui::IsItemHovered ())
+    if (! SKIF_bDisableTooltips)
     {
-      if (! SKIF_bDisableTooltips)
-      {
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
-        HoverTipActive = true;
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+      HoverTipActive = true;
 
-        if ( HoverTipDuration == 0)
-          HoverTipDuration = SKIF_Util_timeGetTime ( );
+      if ( HoverTipDuration == 0)
+        HoverTipDuration = SKIF_Util_timeGetTime ( );
 
-        else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
-          ImGui::SetTooltip (
-            "%hs", szText.data ()
-          );
-
-        ImGui::PopStyleColor  ();
-      }
-
-      else
-      {
-        SKIF_StatusBarText =
-          "Info: ";
-
-        SKIF_ImGui_SetHoverText (
-          szText.data (), true
+      else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
+        ImGui::SetTooltip (
+          "%hs", szText.data ()
         );
-      }
+
+      ImGui::PopStyleColor  ();
+    }
+
+    else
+    {
+      SKIF_StatusBarText =
+        "Info: ";
+
+      SKIF_ImGui_SetHoverText (
+        szText.data (), true
+      );
     }
   }
 }

@@ -316,6 +316,10 @@
     <ResourceCompile>
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
     </ResourceCompile>
+    <PreBuildEvent>
+      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+      <Message>Terminates any existing instance of SKIF</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTex\BC.h" />

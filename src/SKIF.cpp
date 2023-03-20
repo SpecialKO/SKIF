@@ -3666,7 +3666,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //SK_RunOnce (bRefresh = true);
 
     // Conditional rendering
-    bool bRefresh = (SKIF_isTrayed) ? false : true;
+    bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
     if (bRefresh)
     {
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
@@ -3804,13 +3804,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
 
           // Moved from the start
-          MsgWaitForMultipleObjects (              0,
-                                    //(hSwapWait.m_h != 0) ? 1
-                                                        //: 0,
-                                          hWaitStates, TRUE,
-                                      (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
-                                                  RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
-                                                                      INFINITE : 5, QS_ALLINPUT );
+          if (! HiddenFramesContinueRendering)
+            MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
         }
       }
 
@@ -3824,7 +3819,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PowerThrottling.StateMask   = 0;
         SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
       }
-      
+
       //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] Final MsgWaitForMultipleObjects is upcoming!\n").c_str());
 
       //while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
@@ -3832,9 +3827,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //                                                        INFINITE, QS_ALLINPUT ) )
       //{
         //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] Final _TranslateAndDispatch is upcoming!\n").c_str());
-      
+
       // Pump the message queue
-      _TranslateAndDispatch ();
+      _TranslateAndDispatch ( );
+      
 
       /*
         if (! _TranslateAndDispatch ())
