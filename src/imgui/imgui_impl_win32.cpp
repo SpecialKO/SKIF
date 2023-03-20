@@ -49,7 +49,7 @@ auto constexpr XUSER_INDEXES =
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = true; // 2023-03-19: Changed from "true" in an attempt to fix SKIF getting stuck in a "focused" state on launch
+static bool                 g_Focused = true;
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
@@ -296,6 +296,19 @@ ImGui_ImplWin32_UpdateMousePos (void)
   POINT                 mouse_screen_pos = { };
   if (!::GetCursorPos (&mouse_screen_pos))
     return;
+
+  // If we are unfocused, see if we are currently hovering over one of our viewports
+  if (! g_Focused)
+  {
+    if (HWND hovered_hwnd = ::WindowFromPoint (mouse_screen_pos))
+    {
+      if (NULL == ImGui::FindViewportByPlatformHandle ((void *)hovered_hwnd))
+      {
+        io.MousePos = ImVec2 (-FLT_MAX, -FLT_MAX);
+        return; // We are not in fact hovering over anything, so reset position and abort
+      }
+    }
+  }
 
   if (HWND focused_hwnd = ::GetForegroundWindow ( ))
   {
