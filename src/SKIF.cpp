@@ -105,6 +105,8 @@ bool startedMinimized = false;
 bool SKIF_UpdateReady = false;
 bool showUpdatePrompt = false;
 bool changedUpdateChannel = false;
+bool msgDontRedraw = false;
+bool coverFadeActive = false;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -2191,23 +2193,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
-    bool messageSet = false;
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
-      uiLastMsg = 0x0; // reset uiLastMsg
-
       //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch before the loop!\n").c_str());
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
       {
+        // Workaround for a bug in System Informer where it sends a fake WM_MOUSEMOVE message to the window the cursor is over
+        if (msg.message == WM_MOUSEMOVE)
+        {
+          static LPARAM lParamPrev;
+          static WPARAM wParamPrev;
+          if (msg.lParam == lParamPrev && msg.wParam == wParamPrev)
+            msgDontRedraw = true; // WM_MOUSEMOVE has identical data as the previous message -- ignore message
+          else {
+            lParamPrev = msg.lParam;
+            wParamPrev = msg.wParam;
+          } 
+        }
+
         if (! IsWindow (hWnd))
           return false;
 
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
 
-        messageSet = true;
         uiLastMsg = msg.message;
         //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch while looooop!\n").c_str());
       }
@@ -2908,7 +2919,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, (SKIF_Tab_ChangeTo == Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           if (! SKIF_bFirstLaunch)
           {
@@ -2932,20 +2943,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, (SKIF_Tab_ChangeTo == Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
-
-          /* Replaced by SetEvent (SKIF_RefreshEvent); in monitor.cpp
-          if (SKIF_Tab_Selected != Monitor) // hModSpecialK == nullptr
-          {
-            SetTimer (SKIF_hWnd,
-                      IDT_REFRESH_MONITOR,
-                      500,
-                      (TIMERPROC)NULL
-            );
-          }
-          */
 
           SKIF_Tab_Selected = Monitor;
           if (SKIF_Tab_ChangeTo == Monitor)
@@ -2966,7 +2966,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, (SKIF_Tab_ChangeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2976,7 +2976,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, (SKIF_Tab_ChangeTo == About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -3713,119 +3713,123 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     //else if (bOccluded || IsIconic (hWnd))
     //{
-      static CHandle event (
-               CreateEvent (nullptr, false, false, nullptr)
-        );
+    //static CHandle event (
+    //          CreateEvent (nullptr, false, false, nullptr)
+    //  );
 
-      static auto thread =
-        _beginthreadex ( nullptr, 0x0, [](void *) -> unsigned
+    static auto thread =
+      _beginthreadex ( nullptr, 0x0, [](void *) -> unsigned
+      {
+        CRITICAL_SECTION            GamepadInputPump = { };
+        InitializeCriticalSection (&GamepadInputPump);
+        EnterCriticalSection      (&GamepadInputPump);
+        DWORD pkgLast = 0, pkgNew = 0;
+
+        while (IsWindow (SKIF_hWnd))
         {
-          CRITICAL_SECTION            GamepadInputPump = { };
-          InitializeCriticalSection (&GamepadInputPump);
-          EnterCriticalSection      (&GamepadInputPump);
-          DWORD pkgLast = 0, pkgNew = 0;
+          extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
+                        //ImGui_ImplWin32_UpdateGamepads ();
 
-          while (IsWindow (SKIF_hWnd))
+          pkgNew = ImGui_ImplWin32_UpdateGamepads ( );
+
+          if (pkgLast != pkgNew)
           {
-            extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-                         //ImGui_ImplWin32_UpdateGamepads ();
+            pkgLast = pkgNew;
+            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+            PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+          }
 
-            pkgNew = ImGui_ImplWin32_UpdateGamepads ( );
+          /*
+          SetEvent           (event);
+          {
+            //PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
+            ResetEvent         (SKIF_RefreshEvent);
+            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr); // 2023-03-23: temporarily disabled
+          }
 
-            if (pkgLast != pkgNew)
+          if (! SKIF_ImGui_IsFocused ())
+          {
+            SK_RunOnce (SKIF_Util_CompactWorkingSet ());
+
+            // 1000 ms refresh while unfocused
+            while (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT)
             {
-              pkgLast = pkgNew;
-              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
-              PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+              SleepConditionVariableCS (
+                &SKIF_IsFocused, &GamepadInputPump,
+                  1000
+              );
             }
+          }
 
-            /*
-            SetEvent           (event);
-            {
-              //PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
-              ResetEvent         (SKIF_RefreshEvent);
-              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr); // 2023-03-23: temporarily disabled
-            }
-
-            if (! SKIF_ImGui_IsFocused ())
-            {
-              SK_RunOnce (SKIF_Util_CompactWorkingSet ());
-
-              // 1000 ms refresh while unfocused
-              while (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT)
-              {
-                SleepConditionVariableCS (
-                  &SKIF_IsFocused, &GamepadInputPump,
-                    1000
-                );
-              }
-            }
-
-            // A forced refresh is allowed to happen instantly, otherwise wait 5 ms or
-            //   force refreshing while mouse is clicked.
-            if (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT && (0x0 == GetAsyncKeyState (0)))
-            {
-              // XInput tends to have ~3-7 ms of latency between updates
-              //   best-case, try to delay the next poll until there's
-              //     new data.
-              Sleep (5);
-            }
-            */
-
+          // A forced refresh is allowed to happen instantly, otherwise wait 5 ms or
+          //   force refreshing while mouse is clicked.
+          if (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT && (0x0 == GetAsyncKeyState (0)))
+          {
             // XInput tends to have ~3-7 ms of latency between updates
             //   best-case, try to delay the next poll until there's
             //     new data.
             Sleep (5);
           }
+          */
 
-          LeaveCriticalSection  (&GamepadInputPump);
-          DeleteCriticalSection (&GamepadInputPump);
+          // XInput tends to have ~3-7 ms of latency between updates
+          //   best-case, try to delay the next poll until there's
+          //     new data.
+          Sleep (5);
+        }
 
-          _endthreadex (0x0);
+        LeaveCriticalSection  (&GamepadInputPump);
+        DeleteCriticalSection (&GamepadInputPump);
 
-          return 0;
-        }, nullptr, 0x0, nullptr
-      );
+        _endthreadex (0x0);
 
-      // Handle dynamic pausing
-      bool pause = false;
+        return 0;
+      }, nullptr, 0x0, nullptr
+    );
+
+    // Handle dynamic pausing
+    bool pause = false;
     
-      // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
-      static UINT
-        renderAdditionalFramesMS = 0;
-      static int
-        renderAdditionalFrames = 0;
-      if ( uiLastMsg == WM_SETCURSOR  || // uiLastMsg == WM_TIMER ||
-           uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
-          (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
-          (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST) )
-        renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3;
-      else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
-        renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // Ugly hax for bDisableVSYNC
-      else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
-        renderAdditionalFrames = 0;
+    // We want SKIF to continue rendering in some specific scenarios
+    static int
+      renderAdditionalFrames = 0;
+    if ( uiLastMsg == WM_SETCURSOR  ||
+         uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
+        (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
+        (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
+    else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // Ugly hax for bDisableVSYNC
+    else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
+      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the background is currently currently undergoing a fade effect, continue to render some additional frames
+    else if (coverFadeActive)
+      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the cover is currently undergoing a fade effect, continue to render some additional frames
+    else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
+      renderAdditionalFrames = 0;
 
-      // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-      if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
-      {
-        // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
-        //   But we do close the RemoveGame popup since that's not as critical.
-        if (AddGamePopup    != PopupState::Opened &&
-            ConfirmPopup    != PopupState::Opened &&
-            ModifyGamePopup != PopupState::Opened )
-          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
-      }
+    // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
+    {
+      // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
+      //   But we do close the RemoveGame popup since that's not as critical.
+      if (AddGamePopup    != PopupState::Opened &&
+          ConfirmPopup    != PopupState::Opened &&
+          ModifyGamePopup != PopupState::Opened )
+        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
+    }
 
-      // Pause if we had a pending tooltip and it have appeared
-      if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
-        pause = true;
-      // Pause if we have no pending tooltip nor any additional frames to render
-      if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
-        pause = true;
-      // Don't pause if there's hidden frames that needs rendering
-      if (HiddenFramesContinueRendering)
-        pause = false;
-
+    // Pause if we had a pending tooltip and it have appeared
+    if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
+      pause = true;
+    // Pause if we have no pending tooltip nor any additional frames to render
+    if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
+      pause = true;
+    // Don't pause if there's hidden frames that needs rendering
+    if (HiddenFramesContinueRendering)
+      pause = false;
+        
+    do
+    {
       // Pause rendering
       if (pause)
       {
@@ -3838,44 +3842,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
 
-        // Wait for a message in the queue before waking up
+        // Sleep until a message is in the queue
         MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
 
-        // Wake up when SKIF gets focused again, disable idle priority + ECO QoS (let the system take over)
+        // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
         PowerThrottling.ControlMask = 0;
         PowerThrottling.StateMask   = 0;
         SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
       }
-
-      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] Final MsgWaitForMultipleObjects is upcoming!\n").c_str());
-
-      //while ( IsWindow (hWnd) && ! SKIF_ImGui_IsFocused ( ) && ! HiddenFramesContinueRendering &&
-      //          WAIT_OBJECT_0 != MsgWaitForMultipleObjects ( 1, &event.m_h, FALSE,
-      //                                                        INFINITE, QS_ALLINPUT ) )
-      //{
-        //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] Final _TranslateAndDispatch is upcoming!\n").c_str());
+        
+      // Reset stuff that's set as part of pumping the message queue
+      msgDontRedraw = false;
+      uiLastMsg     = 0x0;
 
       // Pump the message queue
       _TranslateAndDispatch ( );
-      
 
-      /*
-        if (! _TranslateAndDispatch ())
-          void; //break;
-        
-        else if (msg.message == WM_DISPLAYCHANGE || RefreshSettingsTab)       void; //break; // msg.message is 0 for some weird reason -- go by RefreshSettingsTab instead
-        else if (msg.message == WM_SETCURSOR)                                 void; //break;
-        else if (msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) void; //break;
-        else if (msg.message >= WM_KEYFIRST   && msg.message <= WM_KEYLAST)   void; //break;
-        else if (msg.message == WM_SETFOCUS   || msg.message == WM_KILLFOCUS) void; //break;
-        else if (msg.message == WM_TIMER)                                     void; //break;
-      */
-        //else if (messageSet)
-            //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
-          //break;
-      //}
-    //}
+    } while (msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
 
   PLOG_INFO << "Writing last selected game to registry: " << SKIF_iLastSelected;
@@ -4080,25 +4064,31 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
 
+  /*
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&
       msg != WM_MOUSEMOVE
     )
   {
-    //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+    OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
   }
+
+  if (ImGui::GetCurrentContext() != NULL)
+  {
+    OutputDebugString((L"[WndProc][" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Message spotted : " + std::to_wstring(msg) + L" w wParam : " + std::to_wstring(wParam) + L"\n").c_str());
+  }
+  */
 
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
 
-  if (ImGui::GetCurrentContext() != NULL)
-  {
-    //OutputDebugString((L"[WndProc][" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Message spotted : " + std::to_wstring(msg) + L" w wParam : " + std::to_wstring(wParam) + L"\n").c_str());
-  }
-
   switch (msg)
   {
+    case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
+      msgDontRedraw = true;
+      break;
+
     case WM_DISPLAYCHANGE:
       if (SKIF_Tab_Selected == Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
@@ -4230,7 +4220,7 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // Disables the native move modal loop of Windows and
         // use the RepositionSKIF approach to move the window
         // to the center of the display the cursor is on.
-        PostMessage(hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
+        PostMessage (hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
         return 0;
       }
       break;
@@ -4269,6 +4259,8 @@ LRESULT
 WINAPI
 SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+
   switch (msg)
   {
     case WM_SKIF_NOTIFY_ICON:
