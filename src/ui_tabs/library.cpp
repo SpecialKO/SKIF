@@ -1198,8 +1198,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (SKIF_iDimCovers == 2)
   {
-    coverFadeActive = false;
-
     if (ImGui::IsItemHovered ( ))
     {
       if (fTint < 1.0f)

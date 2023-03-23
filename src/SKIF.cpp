@@ -2193,6 +2193,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
+    coverFadeActive = false; // Assume there's no cover fade effect active
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
