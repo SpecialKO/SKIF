@@ -1198,17 +1198,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (SKIF_iDimCovers == 2)
   {
-    if (ImGui::IsItemHovered() && fTint < 1.0f)
+    coverFadeActive = false;
+
+    if (ImGui::IsItemHovered ( ))
     {
-      fTint = fTint + 0.01f;
-      coverFadeActive = true;
+      if (fTint < 1.0f)
+      {
+        fTint = fTint + 0.01f;
+        coverFadeActive = true;
+      }
     }
     else if (fTint > fTintMin)
     {
       fTint = fTint - 0.01f;
       coverFadeActive = true;
-    } else
-      coverFadeActive = false;
+    }
   }
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
