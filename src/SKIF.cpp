@@ -175,6 +175,7 @@ uint32_t SelectNewSKIFGame         = 0;
 
 bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
+int   HoverTipVisibleFrames        = 0;
 
 // Notification icon stuff
 #define SKIF_NOTIFY_ICON                    0x1330
@@ -2244,11 +2245,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bOccluded = FALSE;
     };
 
+    /*
     const int           max_wait_objs  = 1;
     HANDLE hWaitStates [max_wait_objs] = {
       //hSwapWait.m_h,
       hInjectAck.m_h
     };
+    */
     
     /* 2023-03-18 - Disabled and moved to the end
     //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] MsgWaitForMultipleObjects is upcoming!\n").c_str());
@@ -3766,14 +3769,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return 0;
         }, nullptr, 0x0, nullptr
       );
-    
-      // Continue to render for another 1000ms after the last mouse move event to allow tooltips to appear
-      static UINT
-        renderAdditionalFramesMS = 0;
-      if (uiLastMsg == WM_MOUSEMOVE)
-        renderAdditionalFramesMS = SKIF_Util_timeGetTime ( ) + 1000;
-      else if (SKIF_Util_timeGetTime ( ) > renderAdditionalFramesMS)
-        renderAdditionalFramesMS = 0;
       
       static bool haveSlept = false;
       static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
@@ -3782,6 +3777,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Handle unfocused activites
       if (! SKIF_ImGui_IsFocused ( ))
       {
+        bool pause = false;
+    
+        // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
+        static UINT
+          renderAdditionalFramesMS = 0;
+        static int
+          renderAdditionalFrames = 0;
+        if (uiLastMsg == WM_MOUSEMOVE)
+          renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3;
+        else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
+          renderAdditionalFrames = 0;
+
         // If there is any popups opened when SKIF is unfocused and not hovered, close them.
         if (! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
         {
@@ -3793,7 +3800,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
         }
 
-        if (renderAdditionalFramesMS == 0)
+        // Pause if we had a pending tooltip and it have appeared
+        if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
+          pause = true;
+        // Pause if we have no pending tooltip nor any additional frames to render
+        if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
+          pause = true;
+
+        if (pause)
         {
           haveSlept = true;
 

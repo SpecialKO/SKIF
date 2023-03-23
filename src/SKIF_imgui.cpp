@@ -127,6 +127,21 @@ SKIF_ImGui_IsFocused (void)
   return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
 
+bool
+SKIF_ImGui_IsMouseHovered (void)
+{
+  POINT                 mouse_screen_pos = { };
+  if (!::GetCursorPos (&mouse_screen_pos))
+    return false;
+
+  // See if we are currently hovering over one of our viewports
+  if (HWND hovered_hwnd = ::WindowFromPoint (mouse_screen_pos))
+    if (NULL != ImGui::FindViewportByPlatformHandle ((void *)hovered_hwnd))
+      return true; // We are in fact hovering over something
+
+  return false;
+}
+
 void
 SKIF_ImGui_SetMouseCursorHand (bool allow_overlap)
 {
@@ -147,13 +162,17 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
 {
   extern bool        SKIF_bSmallMode;
   extern bool        SKIF_bDisableTooltips;
-  extern bool        HoverTipActive;
-  extern DWORD       HoverTipDuration;
+  extern bool        HoverTipActive;        // Used to track if an item is being hovered
+  extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
+  extern int         HoverTipVisibleFrames; // Used to count how many frames the tooltip have been visible (to only pause rendering after a tooltip has appeared)
   extern std::string SKIF_StatusBarText;
   extern DWORD       SKIF_Util_timeGetTime (void);
+  static std::string itemHovered;           // ImGui doesn't use IDs for Text() and the like, so this is our gimmick solution to keep track of the current hovered item
 
   if (ImGui::IsItemHovered ())
   {
+    itemHovered = szText;
+
     if (! SKIF_bDisableTooltips)
     {
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
@@ -163,9 +182,12 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
         HoverTipDuration = SKIF_Util_timeGetTime ( );
 
       else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
+      {
+        HoverTipVisibleFrames++;
         ImGui::SetTooltip (
           "%hs", szText.data ()
         );
+      }
 
       ImGui::PopStyleColor  ();
     }
@@ -179,6 +201,13 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
         szText.data (), true
       );
     }
+  }
+
+  // If we no longer hover over this particular item, reset the tracking
+  else if (! itemHovered.empty() && itemHovered == szText)
+  {
+    itemHovered.clear();
+    HoverTipVisibleFrames = 0;
   }
 }
 
