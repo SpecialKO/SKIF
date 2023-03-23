@@ -3723,17 +3723,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
           CRITICAL_SECTION            GamepadInputPump = { };
           InitializeCriticalSection (&GamepadInputPump);
           EnterCriticalSection      (&GamepadInputPump);
+          DWORD pkgLast = 0, pkgNew = 0;
 
           while (IsWindow (SKIF_hWnd))
           {
             extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-                         ImGui_ImplWin32_UpdateGamepads ();
+                         //ImGui_ImplWin32_UpdateGamepads ();
 
+            pkgNew = ImGui_ImplWin32_UpdateGamepads ( );
+
+            if (pkgLast != pkgNew)
+            {
+              pkgLast = pkgNew;
+              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+              PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            }
+
+            /*
             SetEvent           (event);
             {
               //PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
               ResetEvent         (SKIF_RefreshEvent);
-              SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr); // 2023-03-23: temporarily disabled
             }
 
             if (! SKIF_ImGui_IsFocused ())
@@ -3759,6 +3770,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
               //     new data.
               Sleep (5);
             }
+            */
+
+            // XInput tends to have ~3-7 ms of latency between updates
+            //   best-case, try to delay the next poll until there's
+            //     new data.
+            Sleep (5);
           }
 
           LeaveCriticalSection  (&GamepadInputPump);
@@ -3769,65 +3786,62 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return 0;
         }, nullptr, 0x0, nullptr
       );
-      
-      static bool haveSlept = false;
-      static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
-      PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 
-      // Handle unfocused activites
-      if (! SKIF_ImGui_IsFocused ( ))
-      {
-        bool pause = false;
+      // Handle dynamic pausing
+      bool pause = false;
     
-        // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
-        static UINT
-          renderAdditionalFramesMS = 0;
-        static int
-          renderAdditionalFrames = 0;
-        if (uiLastMsg == WM_MOUSEMOVE)
-          renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3;
-        else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
-          renderAdditionalFrames = 0;
+      // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
+      static UINT
+        renderAdditionalFramesMS = 0;
+      static int
+        renderAdditionalFrames = 0;
+      if ( uiLastMsg == WM_SETCURSOR  || // uiLastMsg == WM_TIMER ||
+           uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
+          (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
+          (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST) )
+        renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3;
+      else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
+        renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // Ugly hax for bDisableVSYNC
+      else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
+        renderAdditionalFrames = 0;
 
-        // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-        if (! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
-        {
-          // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
-          //   But we do close the RemoveGame popup since that's not as critical.
-          if (AddGamePopup    != PopupState::Opened &&
-              ConfirmPopup    != PopupState::Opened &&
-              ModifyGamePopup != PopupState::Opened )
-            ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
-        }
-
-        // Pause if we had a pending tooltip and it have appeared
-        if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
-          pause = true;
-        // Pause if we have no pending tooltip nor any additional frames to render
-        if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
-          pause = true;
-
-        if (pause)
-        {
-          haveSlept = true;
-
-          // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
-          SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
-          PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
-
-          // Moved from the start
-          if (! HiddenFramesContinueRendering)
-            MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
-        }
+      // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+      if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
+      {
+        // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
+        //   But we do close the RemoveGame popup since that's not as critical.
+        if (AddGamePopup    != PopupState::Opened &&
+            ConfirmPopup    != PopupState::Opened &&
+            ModifyGamePopup != PopupState::Opened )
+          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
       }
 
-      // Wake up when SKIF gets focused again, disable idle priority + ECO QoS (let the system take over)
-      if (haveSlept && ImGui::IsAnyItemHovered ( ))
+      // Pause if we had a pending tooltip and it have appeared
+      if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
+        pause = true;
+      // Pause if we have no pending tooltip nor any additional frames to render
+      if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
+        pause = true;
+      // Don't pause if there's hidden frames that needs rendering
+      if (HiddenFramesContinueRendering)
+        pause = false;
+
+      // Pause rendering
+      if (pause)
       {
-        haveSlept = false;
-        
+        static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
+        PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+
+        // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
+        SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
+        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+
+        // Wait for a message in the queue before waking up
+        MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
+
+        // Wake up when SKIF gets focused again, disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
         PowerThrottling.ControlMask = 0;
         PowerThrottling.StateMask   = 0;
@@ -4179,11 +4193,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             PostMessage (hWnd, WM_NULL, 0x0, 0x0);
             return 1;
           }
-
-          // If we have a refresh pending, check for a new state (when we're unfocused) -- replaced with transition logic in TestServletRunLevel
-          //else if (wParam == IDT_REFRESH_PENDING) {
-          //    _inject.TestServletRunlevel (true);
-          //}
 
           return 0;
       }
