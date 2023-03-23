@@ -127,7 +127,7 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
 
     SetTimer (SKIF_hWnd,
               IDT_REFRESH_ONDEMAND,
-              500,
+              1000,
               (TIMERPROC) NULL
     );
   }
