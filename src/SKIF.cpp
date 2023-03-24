@@ -2149,24 +2149,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImVec4 clear_color         =
     ImVec4 (0.45F, 0.55F, 0.60F, 1.00F);
 
-  // Main loop
+  // Message queue/pump
   MSG msg = { };
 
-  /*
-  if (g_pSwapChain != nullptr)
-  {
-    CComQIPtr <IDXGISwapChain3>
-        pSwap3 (g_pSwapChain);
-
-    if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
-    {
-      // Doesn't work lol
-      pSwap3->SetMaximumFrameLatency (1);
-      hSwapWait.Attach (pSwap3->GetFrameLatencyWaitableObject());
-    }
-  }
-  */
-
+  // Variables related to the display SKIF is visible on
   ImGuiPlatformMonitor* monitor = nullptr;
   ImVec2 windowPos;
   ImRect windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
@@ -2182,6 +2168,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
+  // We always have hidden frames that require to continue rendering on init
   bool HiddenFramesContinueRendering = true;
 
   // Force a one-time check before we enter the main loop
@@ -2190,6 +2177,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
 
+  // Main loop
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
@@ -2230,52 +2218,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       return
         ( msg.message != WM_QUIT );
     };
-
-    auto _UpdateOcclusionStatus = [&](HDC hDC)
-    {
-      if (hDC != 0)
-      {
-        /* Not sure why we're doing this when GetClipBox() is defined in wingdi.h
-        using  GetClipBox_pfn = int (WINAPI *)(HDC,LPRECT);
-        static GetClipBox_pfn
-          SKIF_GetClipBox     = (GetClipBox_pfn)GetProcAddress (
-                LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-              "GetClipBox"                                     );
-
-        SKIF_GetClipBox (hDC, &rcClipBox);
-        */
-
-        RECT rcClipBox = { };
-
-        GetClipBox (hDC, &rcClipBox);
-
-        bOccluded =
-          IsRectEmpty (&rcClipBox);
-      }
-
-      else
-        bOccluded = FALSE;
-    };
-
-    /*
-    const int           max_wait_objs  = 1;
-    HANDLE hWaitStates [max_wait_objs] = {
-      //hSwapWait.m_h,
-      hInjectAck.m_h
-    };
-    */
-    
-    /* 2023-03-18 - Disabled and moved to the end
-    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] MsgWaitForMultipleObjects is upcoming!\n").c_str());
-    //DWORD dwWait =
-    MsgWaitForMultipleObjects (              0,
-                              //(hSwapWait.m_h != 0) ? 1
-                                                  //: 0,
-                                    hWaitStates, TRUE,
-                                (HiddenFramesContinueRendering == false && // Needed to ensure SKIF doesn't get stuck on launch due to the hidden frames
-                                             RefreshSettingsTab == false) ? // We need to allow RefreshSettingsTab through as well as it is used for WM_DISPLAYCHANGE
-                                                                INFINITE : 5, QS_ALLINPUT );
-    */
 
     // Injection acknowledgment; shutdown injection
     //
@@ -3707,17 +3649,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
-    //_UpdateOcclusionStatus (hDC);
-
+    // If process should stop, post WM_QUIT
     if ((! bKeepProcessAlive) && hWnd != 0)
       PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
-    //else if (bOccluded || IsIconic (hWnd))
-    //{
-    //static CHandle event (
-    //          CreateEvent (nullptr, false, false, nullptr)
-    //  );
-
+    // GamepadInputPump child thread
     static auto thread =
       _beginthreadex ( nullptr, 0x0, [](void *) -> unsigned
       {
@@ -3729,9 +3665,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         while (IsWindow (SKIF_hWnd))
         {
           extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-                        //ImGui_ImplWin32_UpdateGamepads ();
-
-          pkgNew = ImGui_ImplWin32_UpdateGamepads ( );
+          pkgNew     = ImGui_ImplWin32_UpdateGamepads ( );
 
           if (pkgLast != pkgNew)
           {
@@ -3740,38 +3674,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
             PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
-          /*
-          SetEvent           (event);
-          {
-            //PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
-            ResetEvent         (SKIF_RefreshEvent);
-            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr); // 2023-03-23: temporarily disabled
-          }
-
+          // Sleep until we're woken up by WM_SETFOCUS if SKIF is unfocused
           if (! SKIF_ImGui_IsFocused ())
           {
             SK_RunOnce (SKIF_Util_CompactWorkingSet ());
 
-            // 1000 ms refresh while unfocused
-            while (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT)
-            {
-              SleepConditionVariableCS (
-                &SKIF_IsFocused, &GamepadInputPump,
-                  1000
-              );
-            }
+            SleepConditionVariableCS (
+              &SKIF_IsFocused, &GamepadInputPump,
+                INFINITE
+            );
           }
-
-          // A forced refresh is allowed to happen instantly, otherwise wait 5 ms or
-          //   force refreshing while mouse is clicked.
-          if (WaitForSingleObject (SKIF_RefreshEvent, 0x0) == WAIT_TIMEOUT && (0x0 == GetAsyncKeyState (0)))
-          {
-            // XInput tends to have ~3-7 ms of latency between updates
-            //   best-case, try to delay the next poll until there's
-            //     new data.
-            Sleep (5);
-          }
-          */
 
           // XInput tends to have ~3-7 ms of latency between updates
           //   best-case, try to delay the next poll until there's
@@ -3790,11 +3702,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Handle dynamic pausing
     bool pause = false;
-    
-    // We want SKIF to continue rendering in some specific scenarios
     static int
       renderAdditionalFrames = 0;
-
+    
+    // We want SKIF to continue rendering in some specific scenarios
     ImGuiWindow* wnd = ImGui::FindWindowByName("###KeyboardHint");
     if (wnd != nullptr && wnd->Active)
       renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the keyboard hint/search is active
