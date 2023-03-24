@@ -312,7 +312,7 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   _LoadList (false);
 }
 
-void
+bool
 SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
 {
   static DWORD dwFailed   = NULL;
@@ -430,6 +430,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         
       extern HWND SKIF_hWnd;
       KillTimer  (SKIF_hWnd, IDT_REFRESH_PENDING);
+      return true;
     }
     // Switch the state over if the service has been
     //   toggled in the background through another method
@@ -485,6 +486,8 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       dwFailed = NULL;
     }
   }
+
+  return false;
 };
 
 void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)

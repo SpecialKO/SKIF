@@ -2168,8 +2168,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
-  // We always have hidden frames that require to continue rendering on init
-  bool HiddenFramesContinueRendering = true;
+  // Variable related to continue/pause rendering behaviour
+  bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
+  bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
 
   // Force a one-time check before we enter the main loop
   _inject.TestServletRunlevel (true);
@@ -2262,32 +2263,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
-    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch is upcoming!\n").c_str());
-
-    /* 2023-03-18 - Disabled (and might be moved to the end)
-    if (! _TranslateAndDispatch ())
-      break;
-
-    if (msg.message == WM_SETCURSOR)
-    {
-      if (! ImGui::IsAnyItemHovered ())
-      {
-        //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
-        continue;
-      }
-    }
-
-    if ((msg.message == WM_SETFOCUS || msg.message == WM_KILLFOCUS) ||
-        (msg.message == WM_TIMER))
-    {
-      SetEvent (SKIF_RefreshEvent);
-      //PLOG_VERBOSE << "Skipping rendering frame " << ImGui::GetFrameCount() << " as a result of " << msg.message;
-      continue;
-    }
-    */
-
-    //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] got past the waiting!\n").c_str());
-
     // Set DPI related variables
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
@@ -2350,6 +2325,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       failedLoadFonts = false;
       failedLoadFontsPrompt = true;
     }
+
+#pragma region New UI Frame
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  ();
@@ -2710,7 +2687,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         changedMode = true;
 
-        // Hide the window for the 3 following frames as ImGui determines the sizes of items etc.
+        // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
         //   This prevent flashing and elements appearing too large during those frames.
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
 
@@ -2777,6 +2754,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::BeginGroup ();
 
       // Begin Small Mode
+#pragma region UI: Small Mode
+
       if (SKIF_bSmallMode)
       {
         auto smallMode_id =
@@ -2854,7 +2833,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       } // End Small Mode
 
+#pragma endregion
+
       // Begin Large Mode
+#pragma region UI: Large Mode
+
       else
       {
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
@@ -2993,6 +2976,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::EndTabBar          ( );
       } // End Large Mode
+
+#pragma endregion
 
       ImGui::EndGroup             ( );
 
@@ -3147,7 +3132,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.
-      _inject.TestServletRunlevel       ();
+      svcTransitionFromPendingState = _inject.TestServletRunlevel ();
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
       static SKIF_DirectoryWatch root_folder, version_folder;
@@ -3534,86 +3519,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::End();
     }
 
+#pragma endregion
+
     SK_RunOnce (_inject._InitializeJumpList ( ));
 
     // Actual rendering is conditional, this just processes input
     ImGui::Render ();
 
-
-    //bool bRefresh   = (SKIF_isTrayed) ? false : true;
-    //bool bDwmTiming = false;
-    /*
-    float fDwmPeriod = 6.0f;
-
-    DWM_TIMING_INFO dwm_timing = { };
-                    dwm_timing.cbSize = sizeof (DWM_TIMING_INFO);
-
-    if (SUCCEEDED (SK_DWM_GetCompositionTimingInfo (&dwm_timing)))
-    {
-      // Do NOT sync vs. DWM, MPOs break this stuff!
-    //bDwmTiming = true;
-      fDwmPeriod =
-        1000.0f / ( static_cast <float> (dwm_timing.rateRefresh.uiNumerator) /
-                    static_cast <float> (dwm_timing.rateRefresh.uiDenominator) );
-    }
-
-    const auto uiMinMousePeriod =
-      SKIF_ImGui_IsFocused () ? static_cast <UINT> (fDwmPeriod * 0.5f)
-                              : static_cast <UINT> (fDwmPeriod * 0.5f); // 2.5f (causes SKIF to render more when unfocused)
-
-    static UINT uiLastMove = 0;
-
-    if (uiLastMsg == WM_MOUSEMOVE)
-    {
-      if (uiLastMove > SKIF_Util_timeGetTime () - uiMinMousePeriod)
-      {
-        bRefresh = false;
-      }
-
-      else
-        uiLastMove = SKIF_Util_timeGetTime ();
-    }
-    
-    else if (renderAdditionalFramesMS > SKIF_Util_timeGetTime ( ))
-    {
-      if (uiLastMove > SKIF_Util_timeGetTime () - uiMinMousePeriod)
-      {
-        bRefresh = false;
-      }
-
-      else
-        uiLastMove = SKIF_Util_timeGetTime ();
-    }
-    */
-
-    //bRefresh = true;
-
-    /* Unused
-    if (bDwmTiming)
-    {
-      static QPC_TIME             dwmLastVBlank = 0;
-
-      if (dwm_timing.qpcVBlank <= dwmLastVBlank)
-        bRefresh = false;
-
-      //if (bRefresh && hSwapWait.m_h != 0)
-      //{
-      //  // Wait on SwapChain
-      //  bRefresh =
-      //    (WaitForSingleObject (hSwapWait.m_h, 0) != WAIT_TIMEOUT);
-      //}
-
-      if (bRefresh)
-        dwmLastVBlank = dwm_timing.qpcVBlank;
-    }
-    */
-
-    // First message always draws
-    //SK_RunOnce (bRefresh = true);
-
     // Conditional rendering
     bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
-    if (bRefresh)
+    if ( bRefresh)
     {
       g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
@@ -3706,22 +3621,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = 0;
     
     // We want SKIF to continue rendering in some specific scenarios
-    ImGuiWindow* wnd = ImGui::FindWindowByName("###KeyboardHint");
+    ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
     if (wnd != nullptr && wnd->Active)
-      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the keyboard hint/search is active
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the keyboard hint/search is active
     else if (uiLastMsg == WM_SETCURSOR  ||
              uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
             (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
             (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some input, to ensure any hover states gets cleared
     else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // Ugly hax for bDisableVSYNC
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // If we received any gamepad input or an input is held down (ugly hax for bDisableVSYNC though)
+    else if (svcTransitionFromPendingState)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
     else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
-      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the background is currently currently undergoing a fade effect
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (coverFadeActive)
-      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the cover is currently undergoing a fade effect
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
+
+    /*
+    if (uiLastMsg == WM_SKIF_GAMEPAD)
+      OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");
+    else if (uiLastMsg != 0x0)
+      OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
+    */
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
@@ -3731,7 +3655,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (AddGamePopup    != PopupState::Opened &&
           ConfirmPopup    != PopupState::Opened &&
           ModifyGamePopup != PopupState::Opened )
-        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), false);
+        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
 
     // Pause if we had a pending tooltip and it have appeared
@@ -4148,24 +4072,6 @@ WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
       ::PostQuitMessage (0);
       return 0;
-
-    /*
-    case WM_DPICHANGED:
-      if (ImGui::GetIO ().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
-      {
-        //SKIF_ImGui_GlobalDPIScale = (float)HIWORD(wParam) / 96.0f * 100.0f;
-        //const int dpi = HIWORD(wParam);
-        //printf("WM_DPICHANGED to %d (%.0f%%)\n", dpi, (float)dpi / 96.0f * 100.0f);
-        const RECT *suggested_rect =
-             (RECT *)lParam;
-
-        ::SetWindowPos ( hWnd, nullptr,
-                           suggested_rect->left,                         suggested_rect->top,
-                           suggested_rect->right - suggested_rect->left, suggested_rect->bottom - suggested_rect->top,
-                           SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS );
-      }
-      break;
-    */
   }
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);

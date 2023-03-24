@@ -93,7 +93,7 @@ struct SKIF_InjectionContext {
 
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
 
-  void     TestServletRunlevel    (bool forcedCheck = false);
+  bool     TestServletRunlevel    (bool forcedCheck = false); // Returns true ONLY if we transitioned over from a pending state
   void    _DanceOfTheDLLFiles     (void);
   void    _RefreshSKDLLVersions   (void);
   void    _GlobalInjectionCtl     (void);
