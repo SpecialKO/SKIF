@@ -753,6 +753,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         EnterCriticalSection      (&ProcessRefreshJob);
 
         SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
+        SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
         extern std::wstring SKIF_GetProductName (const wchar_t* wszName);
 
@@ -1230,6 +1231,8 @@ SKIF_UI_Tab_DrawMonitor (void)
           Sleep (refreshIntervalInMsec);
 
         } while (IsWindow (SKIF_hWnd)); // Keep thread alive until exit
+
+        SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
         LeaveCriticalSection  (&ProcessRefreshJob);
         DeleteCriticalSection (&ProcessRefreshJob);
