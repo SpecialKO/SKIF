@@ -182,7 +182,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   main_viewport->PlatformHandle = main_viewport->PlatformHandleRaw = (void *)g_hWnd;
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    ImGui_ImplWin32_InitPlatformInterface ( );
+    ImGui_ImplWin32_InitPlatformInterface ( ); // Creates another overarching window for SKIF
 
 // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array that we will update during the application lifetime.
   io.KeyMap [ImGuiKey_Tab]         = VK_TAB;
@@ -1054,6 +1054,7 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     WS_EX_NOREDIRECTIONBITMAP;
 }
 
+// This is called for all viewports that gets created
 static void
 ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 {
@@ -1097,6 +1098,12 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
       parent_window,     nullptr,
       ::GetModuleHandle (nullptr), nullptr
     ); // Parent window, Menu, Instance, Param
+
+  // If this is the overarching ImGui Platform window (main window; meaning SKIF_hWnd is the parent), store the handle globally
+  extern HWND SKIF_ImGui_hWnd;
+  extern HWND SKIF_hWnd;
+  if (parent_window == SKIF_hWnd)
+      SKIF_ImGui_hWnd = data->Hwnd;
 
   data->HwndOwned                 = true;
   viewport->PlatformRequestResize = false;
@@ -1430,6 +1437,9 @@ LRESULT
 CALLBACK
 ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  // This is the message procedure for the main ImGui Platform window as well as
+  //   any additional viewport windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
+
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&

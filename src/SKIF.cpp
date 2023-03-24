@@ -311,6 +311,7 @@ float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
 HWND        SKIF_hWnd          =  0;
+HWND        SKIF_ImGui_hWnd    =  0;
 HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
@@ -2140,7 +2141,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplWin32_Init (hWnd);
+  ImGui_ImplWin32_Init (hWnd); // This ends up creating a separate window/hWnd as well
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
   SKIF_ImGui_InitFonts (18.0F);
@@ -2186,35 +2187,52 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
-      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch before the loop!\n").c_str());
       while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
                             msg.message  !=  WM_QUIT)
       {
+        if (! IsWindow (hWnd))
+          return false;
+
+        /*
+        if (     msg.hwnd ==        SKIF_hWnd)
+          OutputDebugString (L"Message bound for WndProc ( )!\n");
+        else if (msg.hwnd == SKIF_Notify_hWnd)
+          OutputDebugString (L"Message bound for SKIF_Notify_WndProc ( )!\n");
+        else if (msg.hwnd ==  SKIF_ImGui_hWnd)
+          OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )!\n");
+        else
+          OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )!\n");
+        */
+
+        // There are three different window procedures that a message can be dispatched to based on the HWND of the message
+        //                                       WndProc ( )  <=         SKIF_hWnd                         :: Handles messages meant for the "main" (aka hidden) SKIF 0x0 window that resides in the top left corner of the display
+        //                           SKIF_Notify_WndProc ( )  <=  SKIF_Notify_hWnd                         :: Handles messages meant for the notification icon.
+        // ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )  <=   SKIF_ImGui_hWnd, Other HWNDs            :: Handles messages meant for the overarching ImGui Platform window of SKIF, as well as any
+        //                                                                                                      additional swapchain windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
+        // ImGui_ImplWin32_WndProcHandler                ( )  <=  SKIF_hWnd, SKIF_ImGui_hWnd, Other HWNDs  :: Gets called by the two main window procedures:
+        //                                                                                                      - WndProc ( )
+        //                                                                                                      - ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
+        // 
+        TranslateMessage (&msg);
+        DispatchMessage  (&msg);
+
         // Workaround for a bug in System Informer where it sends a fake WM_MOUSEMOVE message to the window the cursor is over
         if (msg.message == WM_MOUSEMOVE)
         {
           static LPARAM lParamPrev;
           static WPARAM wParamPrev;
-          if (msg.lParam == lParamPrev && msg.wParam == wParamPrev)
-            msgDontRedraw = true; // WM_MOUSEMOVE has identical data as the previous message -- ignore message
+          // Ignore the message if WM_MOUSEMOVE has identical data as the previous msg
+          if (msg.lParam == lParamPrev &&
+              msg.wParam == wParamPrev)
+            msgDontRedraw = true;
           else {
             lParamPrev = msg.lParam;
             wParamPrev = msg.wParam;
           } 
         }
 
-        if (! IsWindow (hWnd))
-          return false;
-
-        TranslateMessage (&msg);
-        DispatchMessage  (&msg);
-
         uiLastMsg = msg.message;
-        //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch while looooop!\n").c_str());
       }
-
-      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() +L"] What is msg.message? MSG: " + std::to_wstring(msg.message) + L"\n").c_str());
-      //OutputDebugString((L"[" + std::to_wstring(ImGui::GetFrameCount()) + L"][" + SKIF_Util_timeGetTimeAsWStr() + L"] _TranslateAndDispatch after the loop!\n").c_str());
 
       return
         ( msg.message != WM_QUIT );
@@ -3904,6 +3922,8 @@ LRESULT
 WINAPI
 WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  // This is the message procedure for the (invisible) 0x0 SKIF window
+  
   //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
 
   /*
@@ -4083,6 +4103,8 @@ LRESULT
 WINAPI
 SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  // This is the message procedure for the notification icon
+  
   //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
 
   switch (msg)

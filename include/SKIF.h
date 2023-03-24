@@ -96,6 +96,7 @@ extern float SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string SKIF_StatusBarText;
 extern std::string SKIF_StatusBarHelp;
 extern HWND        SKIF_hWnd;
+extern HWND        SKIF_ImGui_hWnd;
 extern HWND        SKIF_Notify_hWnd;
 
 extern bool RepopulateGames;
