@@ -19,6 +19,9 @@
 #include <tchar.h>
 #include <limits>
 #include <array>
+#include <algorithm>
+#include <format>
+#include <injection.h>
 
 auto constexpr XUSER_INDEXES =
   std::array <DWORD, 4> { 0, 1, 2, 3 };
@@ -543,9 +546,6 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
 INT64 current_time;
 INT64 current_time_ms;
 
-#include <algorithm>
-#include <injection.h>
-
 void
 ImGui_ImplWin32_NewFrame (void)
 {
@@ -623,8 +623,16 @@ ImGui_ImplWin32_NewFrame (void)
 // PS: We treat DBLCLK messages as regular mouse down messages, so this code will work on windows classes that have the CS_DBLCLKS flag set. Our own example app code doesn't set this flag.
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
-  
+  // This is called by SKIF_WndProc ( ) as well as ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
+  // It gets called for the main (invisible) 0x0 SKIF window, main viewport, as well as any additional viewport windows.
+
+  /*
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+  */
+
+  /*
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&
@@ -633,6 +641,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   {
     //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
   }
+  */
 
   if (ImGui::GetCurrentContext ( ) == NULL)
     return 0;
@@ -1439,7 +1448,14 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 {
   // This is the message procedure for the main ImGui Platform window as well as
   //   any additional viewport windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
+  
+  /*
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
+  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+  */
 
+  /*
   if (msg != WM_NULL        && 
       msg != WM_NCHITTEST   &&
       msg != WM_MOUSEFIRST  &&
@@ -1448,6 +1464,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   {
     //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: " + std::to_wstring(msg) + L" w wParam: " + std::to_wstring(wParam) + L"\n").c_str());
   }
+  */
 
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;

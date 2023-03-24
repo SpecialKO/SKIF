@@ -180,12 +180,12 @@ DWORD HoverTipDuration             = 0;
 int   HoverTipVisibleFrames        = 0;
 
 // Notification icon stuff
-#define SKIF_NOTIFY_ICON                    0x1330
-#define SKIF_NOTIFY_EXIT                    0x1331
-#define SKIF_NOTIFY_START                   0x1332
-#define SKIF_NOTIFY_STOP                    0x1333
-#define SKIF_NOTIFY_STARTWITHSTOP           0x1334
-#define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150)
+#define SKIF_NOTIFY_ICON                    0x1330 // 4912
+#define SKIF_NOTIFY_EXIT                    0x1331 // 4913
+#define SKIF_NOTIFY_START                   0x1332 // 4914
+#define SKIF_NOTIFY_STOP                    0x1333 // 4915
+#define SKIF_NOTIFY_STARTWITHSTOP           0x1334 // 4916
+#define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150) // 1360
 bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
 HMENU hMenu;
@@ -278,7 +278,7 @@ void CreateRenderTarget        (void);
 void CleanupRenderTarget       (void);
 void ResizeSwapChain           (HWND hWnd, int width, int height);
 LRESULT WINAPI
-     WndProc                   (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+     SKIF_WndProc              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI
      SKIF_Notify_WndProc       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -1965,7 +1965,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Create application window
   WNDCLASSEX wc =
   { sizeof (WNDCLASSEX),
-            CS_CLASSDC, WndProc,
+            CS_CLASSDC, SKIF_WndProc,
             0L,         0L,
     hModSKIF, nullptr,  nullptr,
               nullptr,  nullptr,
@@ -2195,7 +2195,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         /*
         if (     msg.hwnd ==        SKIF_hWnd)
-          OutputDebugString (L"Message bound for WndProc ( )!\n");
+          OutputDebugString (L"Message bound for SKIF_WndProc ( )!\n");
         else if (msg.hwnd == SKIF_Notify_hWnd)
           OutputDebugString (L"Message bound for SKIF_Notify_WndProc ( )!\n");
         else if (msg.hwnd ==  SKIF_ImGui_hWnd)
@@ -2205,22 +2205,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
         */
 
         // There are three different window procedures that a message can be dispatched to based on the HWND of the message
-        //                                       WndProc ( )  <=         SKIF_hWnd                         :: Handles messages meant for the "main" (aka hidden) SKIF 0x0 window that resides in the top left corner of the display
+        //                                  SKIF_WndProc ( )  <=         SKIF_hWnd                         :: Handles messages meant for the "main" (aka hidden) SKIF 0x0 window that resides in the top left corner of the display
         //                           SKIF_Notify_WndProc ( )  <=  SKIF_Notify_hWnd                         :: Handles messages meant for the notification icon.
         // ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )  <=   SKIF_ImGui_hWnd, Other HWNDs            :: Handles messages meant for the overarching ImGui Platform window of SKIF, as well as any
         //                                                                                                      additional swapchain windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
         // ImGui_ImplWin32_WndProcHandler                ( )  <=  SKIF_hWnd, SKIF_ImGui_hWnd, Other HWNDs  :: Gets called by the two main window procedures:
-        //                                                                                                      - WndProc ( )
+        //                                                                                                      - SKIF_WndProc ( )
         //                                                                                                      - ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
         // 
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
 
-        // Workaround for a bug in System Informer where it sends a fake WM_MOUSEMOVE message to the window the cursor is over
         if (msg.message == WM_MOUSEMOVE)
         {
           static LPARAM lParamPrev;
           static WPARAM wParamPrev;
+
+          // Workaround for a bug in System Informer where it sends a fake WM_MOUSEMOVE message to the window the cursor is over
           // Ignore the message if WM_MOUSEMOVE has identical data as the previous msg
           if (msg.lParam == lParamPrev &&
               msg.wParam == wParamPrev)
@@ -2228,7 +2229,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           else {
             lParamPrev = msg.lParam;
             wParamPrev = msg.wParam;
-          } 
+          }
+
+          // Don't refresh main SKIF window if the mouse is being moved over the notification icon.
+          // -- Doesn't work apparently?
+          //if (msg.hwnd == SKIF_Notify_hWnd)
+          //  msgDontRedraw = true;
         }
 
         uiLastMsg = msg.message;
@@ -3920,11 +3926,15 @@ ImGui_ImplWin32_WndProcHandler (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 LRESULT
 WINAPI
-WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   // This is the message procedure for the (invisible) 0x0 SKIF window
   
-  //OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  /*
+  OutputDebugString((L"[SKIF_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
+  OutputDebugString((L"[SKIF_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
+  OutputDebugString((L"[SKIF_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+  */
 
   /*
   if (msg != WM_NULL        && 
@@ -4105,11 +4115,16 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   // This is the message procedure for the notification icon
   
-  //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+  /*
+  OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
+  OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
+  OutputDebugString((L"[SKIF_Notify_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+  */
 
   switch (msg)
   {
     case WM_SKIF_NOTIFY_ICON:
+      msgDontRedraw = true; // Don't redraw the main window when we're interacting with the notification icon
       switch (lParam)
       {
         case WM_LBUTTONDBLCLK:
