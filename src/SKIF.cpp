@@ -3794,17 +3794,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // We want SKIF to continue rendering in some specific scenarios
     static int
       renderAdditionalFrames = 0;
-    if ( uiLastMsg == WM_SETCURSOR  ||
-         uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
-        (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
-        (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // Continue to render for 3 additional frames after mouse movement to ensure any hover states gets cleared
+
+    ImGuiWindow* wnd = ImGui::FindWindowByName("###KeyboardHint");
+    if (wnd != nullptr && wnd->Active)
+      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the keyboard hint/search is active
+    else if (uiLastMsg == WM_SETCURSOR  ||
+             uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
+            (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
+            (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some input, to ensure any hover states gets cleared
     else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // Ugly hax for bDisableVSYNC
     else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
-      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the background is currently currently undergoing a fade effect, continue to render some additional frames
+      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the background is currently currently undergoing a fade effect
     else if (coverFadeActive)
-      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the cover is currently undergoing a fade effect, continue to render some additional frames
+      renderAdditionalFrames = ImGui::GetFrameCount() + 3; // If the cover is currently undergoing a fade effect
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
 

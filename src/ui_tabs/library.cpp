@@ -1741,11 +1741,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       std::string strText = result.text.substr(0, len),
                   strHelp = result.text.substr (len, result.text.length () - len);
 
-      ImGui::OpenPopup         ("KeyboardHint");
+      ImGui::OpenPopup         ("###KeyboardHint");
 
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-      if (ImGui::BeginPopupModal("KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
+      if (ImGui::BeginPopupModal("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
       {
         ImGui::TextColored ( ImColor::HSV(0.0f, 0.0f, 0.75f), // ImColor(53, 255, 3)
                                 "%s", strText.c_str ()
