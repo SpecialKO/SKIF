@@ -246,9 +246,14 @@ SKIF_HTTP_GetAppLibImg (uint32_t app_id, std::wstring_view path)
                            path.data (),
                        MAX_PATH );
 
+    // Download the artwork in the current thread
+    SKIF_Steam_FetchBoxArt (get);
+
+    /* Previous threaded approach -- no longer needed as SKIF_HTTP_GetAppLibImg() executes in a separate child thread
     _beginthreadex (
        nullptr, 0, (_beginthreadex_proc_type)SKIF_Steam_FetchBoxArt,
            get, 0x0, nullptr
                    );
+    */
   }
 }

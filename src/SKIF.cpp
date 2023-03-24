@@ -105,8 +105,8 @@ bool startedMinimized = false;
 bool SKIF_UpdateReady = false;
 bool showUpdatePrompt = false;
 bool changedUpdateChannel = false;
-bool msgDontRedraw = false;
-bool coverFadeActive = false;
+bool msgDontRedraw    = false;
+bool coverFadeActive  = false;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -3624,7 +3624,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
     if (wnd != nullptr && wnd->Active)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the keyboard hint/search is active
-    else if (uiLastMsg == WM_SETCURSOR  ||
+    else if (uiLastMsg == WM_SETCURSOR  || 
              uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
             (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
             (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
@@ -3637,15 +3637,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (coverFadeActive)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
+    else if (uiLastMsg == WM_SKIF_COVER)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 10; // If the cover is currently loading in
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
 
-    /*
-    if (uiLastMsg == WM_SKIF_GAMEPAD)
-      OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");
-    else if (uiLastMsg != 0x0)
-      OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
-    */
+    //if (uiLastMsg == WM_SKIF_GAMEPAD)
+    //  OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");
+    //else if (uiLastMsg == WM_SKIF_COVER)
+    //  OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_COVER\n");
+    //else if (uiLastMsg != 0x0)
+    //  OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))

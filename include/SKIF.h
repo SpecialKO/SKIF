@@ -126,6 +126,7 @@ constexpr UINT WM_SKIF_LAUNCHER      = WM_USER + 0x1026;
 constexpr UINT WM_SKIF_REFRESHGAMES  = WM_USER + 0x1027;
 constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_GAMEPAD       = WM_USER + 0x2049;
+constexpr UINT WM_SKIF_COVER         = WM_USER + 0x2050;
 constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
 constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 

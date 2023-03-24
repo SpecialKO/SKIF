@@ -136,6 +136,9 @@ LoadLibraryTexture (
 
   if (pApp != nullptr)
     appid = pApp->id;
+  
+  //if (libTexToLoad == LibraryTexture::Cover)
+  //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Attempting to load library texture...\n").c_str());
 
   // SKIF
   if (       appid == SKIF_STEAM_APPID &&
@@ -404,6 +407,9 @@ LoadLibraryTexture (
 
   if (succeeded)
   {
+    //if (libTexToLoad == LibraryTexture::Cover)
+    //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Loading the source image succeeded...\n").c_str());
+
     DirectX::ScratchImage* pImg   =
                                 &img;
     DirectX::ScratchImage   converted_img;
@@ -493,6 +499,9 @@ LoadLibraryTexture (
         //CComPtr <ID3D11ShaderResourceView>
         //    pOrigTexSRV (pLibTexSRV.p);
                          //pLibTexSRV = nullptr; // Crashes on Intel
+
+        //if (libTexToLoad == LibraryTexture::Cover)
+        //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Game cover loaded\n").c_str());
 
       if (    pTex2D.p == nullptr ||
         FAILED (
@@ -824,6 +833,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static bool     update         = true;
   static bool     updateInjStrat = false;
+  static bool     loadCover      = false;
+  static uint32_t lastCover      = 0;
 
   struct {
     uint32_t    appid = SKIF_STEAM_APPID;
@@ -1282,7 +1293,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
 
-            update = true;
+            update    = true;
+            lastCover = 0; // Needed as otherwise SKIF would not reload the cover
           }
         }
       }
@@ -1319,7 +1331,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // If any file was removed
             if (d1 || d2)
-              update  = true;
+            {
+              update    = true;
+              lastCover = 0; // Needed as otherwise SKIF would not reload the cover
+            }
           }
         }
         else
@@ -1390,17 +1405,23 @@ SKIF_UI_Tab_DrawLibrary (void)
   float fZ =
   ImGui::GetCursorPosX (                                                  );
 
-  static bool loadTexture = false;
   if (update)
   {
     //SKIF_GameManagement_ShowScreenshot (L"");
-    loadTexture = true;
     update      = false;
+
+    // Ensure we aren't already loading this cover
+    if (lastCover != pApp->id)
+    {
+      loadCover = true;
+      lastCover = pApp->id;
+    }
   }
 
-  if (loadTexture && populated && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
-  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
-    loadTexture = false;
+  if (loadCover && populated && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
+  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
+    // Note from 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
+    loadCover = false;
 
     if ( appinfo != nullptr && pApp->store == "Steam")
     {
@@ -1441,7 +1462,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       //  a black/non-existent cover will be displayed in-between.
       // 
       // But at least SKIF does not run the risk of crashing as often :)
-      //PLOG_VERBOSE << "pTexSRV -> nullptr (was " << pTexSRV << ")";
       pTexSRV = nullptr;
 
       std::wstring load_str;
@@ -1626,6 +1646,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         vecCoverUv0 = _vecCoverUv0;
         vecCoverUv1 = _vecCoverUv1;
         pTexSRV     = _pTexSRV;
+
+        // Force a refresh when the cover has been swapped in
+        PostMessage (SKIF_hWnd, WM_SKIF_COVER, 0x0, 0x0);
       }
 
       else if (_pTexSRV.p != nullptr)
