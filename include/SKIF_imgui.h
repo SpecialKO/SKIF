@@ -12,7 +12,7 @@ void SKIF_ImGui_StyleColorsDark    (ImGuiStyle* dst = nullptr);
 bool SKIF_ImGui_IsFocused          (void);
 bool SKIF_ImGui_IsMouseHovered     (void);
 bool SKIF_ImGui_IsAnyInputDown     (void);
-void SKIF_ImGui_SetMouseCursorHand (bool allow_overlap = false);
+void SKIF_ImGui_SetMouseCursorHand (void);
 void SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
 void SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
 bool SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);

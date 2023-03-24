@@ -163,13 +163,11 @@ SKIF_ImGui_IsAnyInputDown (void)
 }
 
 void
-SKIF_ImGui_SetMouseCursorHand (bool allow_overlap)
+SKIF_ImGui_SetMouseCursorHand (void)
 {
-  // It is not clear what purpose IsMouseHoveringRect() was used for here, but it was implemented back in January 2022,
-  //  see the following commit https://github.com/SpecialKO/SKIF/commit/a2eac724aad8f4295dcc1679a7e6e82ce4926c91
-  // "allow_overlap" is used to allow that behaviour in the specific scenarios it was intended for (if we ever figure that out)
-  if ((allow_overlap && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax())) ||
-      ImGui::IsItemHovered ( ) )
+  // Only change the cursor if the current item is actually being hovered **and** the cursor is the one hovering it.
+  // IsItemHovered() fixes cursor changing for overlapping items, and IsMouseHoveringRect() fixes cursor changing due to keyboard/gamepad selections
+  if (ImGui::IsItemHovered ( ) && ImGui::IsMouseHoveringRect (ImGui::GetItemRectMin( ), ImGui::GetItemRectMax( )))
   {
     ImGui::SetMouseCursor (
       ImGuiMouseCursor_Hand
