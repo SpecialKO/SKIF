@@ -43,6 +43,7 @@
 #include <psapi.h>
 
 extern SKIF_InjectionContext _inject;
+CONDITION_VARIABLE ProcRefreshPaused = { };
 
 enum class SK_RenderAPI
 {
@@ -462,8 +463,29 @@ void
 SKIF_UI_Tab_DrawMonitor (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
+  static std::atomic<DWORD> refreshIntervalInMsec;
 
-  static bool  active_listing = true;
+  static bool setInitialRefreshInterval = true;
+  if (setInitialRefreshInterval)
+  {   setInitialRefreshInterval = false;
+    if (     SKIF_iProcessRefreshInterval == 0) // Paused
+      refreshIntervalInMsec = 0;
+    else if (SKIF_iProcessRefreshInterval == 1) // Slow (5s)
+      refreshIntervalInMsec = 5000;
+    else if (SKIF_iProcessRefreshInterval == 2) // Normal (1s)
+      refreshIntervalInMsec = 1000;
+    else                                        // Treat everything else as High (0.5s)
+      refreshIntervalInMsec = 500;
+
+    InitializeConditionVariable (&ProcRefreshPaused);
+  }
+  
+  if (SKIF_Tab_Selected != Monitor && SKIF_iProcessRefreshInterval != 0)
+    WakeConditionVariable (&ProcRefreshPaused);
+
+  SKIF_Tab_Selected = Monitor;
+  if (SKIF_Tab_ChangeTo == Monitor)
+    SKIF_Tab_ChangeTo = None;
 
   enum inject_policy {
     Blacklist,
@@ -524,35 +546,88 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_Spacing      ( );
 
+  ImGui::BeginGroup       ( );
+
   if (ImGui::Checkbox ("Show remaining processes",  &SKIF_bProcessIncludeAll))
     _registry.regKVProcessIncludeAll.putData        (SKIF_bProcessIncludeAll);
 
   SKIF_ImGui_SetHoverTip ("If this is enabled the below list will also include uninjected processes.\n"
                           "This is indicated by the lack of a " ICON_FA_CIRCLE " icon under the Status column.");
+  
+  ImGui::EndGroup         ( );
 
-  ImGui::NewLine          ( );
-  /*
-  ImGui::TextColored      (
+  ImGui::SameLine         ( );
+
+  ImGui::BeginGroup       ( );
+  ImGui::TreePush         ( );
+
+  const char* RefreshInterval[] = { "Paused",   // 0 (never)
+                                    "Slow",     // 1 (5s)
+                                    "Normal",   // 2 (1s)
+                                    "High"      // 3 (0.5s; not implemented)
+  };
+  static const char* RefreshIntervalCurrent = RefreshInterval[SKIF_iProcessRefreshInterval];
+          
+  ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                            "Status Indicator:"
-                            );
+      "Update speed:"
+  );
 
-  SKIF_ImGui_Spacing      ( );
+  ImGui::SameLine    ( );
 
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CIRCLE " ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("indicates processes where Special K is currently active.");
+  ImGui::SetNextItemWidth (150.0f * SKIF_ImGui_GlobalDPIScale);
 
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), ICON_FA_CIRCLE " ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("indicates processes where Special K is inert.");
+  if (ImGui::BeginCombo ("##SKIF_iProcRefreshIntervalCombo", RefreshIntervalCurrent)) // The second parameter is the label previewed before opening the combo.
+  {
+    for (int n = 0; n < IM_ARRAYSIZE (RefreshInterval); n++)
+    {
+      bool is_selected = (RefreshIntervalCurrent == RefreshInterval[n]); // You can store your selection however you want, outside or inside your objects
+      if (ImGui::Selectable (RefreshInterval[n], is_selected))
+      {
+        // Unpause the child thread that refreshes processes
+        if (SKIF_iProcessRefreshInterval == 0 && n != 0)
+          WakeConditionVariable (&ProcRefreshPaused);
 
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), ICON_FA_CIRCLE " ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("indicates processes where Special K is possibly stuck if the service is no longer running.");
+        SKIF_iProcessRefreshInterval = n;
+        _registry.regKVProcessRefreshInterval.putData  (SKIF_iProcessRefreshInterval);
+        RefreshIntervalCurrent = RefreshInterval[SKIF_iProcessRefreshInterval];
+        
+        if (     SKIF_iProcessRefreshInterval == 0) // Paused
+          refreshIntervalInMsec = 0;
+        else if (SKIF_iProcessRefreshInterval == 1) // Slow (5s)
+          refreshIntervalInMsec = 5000;
+        else if (SKIF_iProcessRefreshInterval == 2) // Normal (1s)
+          refreshIntervalInMsec = 1000;
+        else                                        // Treat everything else as High (0.5s)
+          refreshIntervalInMsec = 500;
+      }
+      if (is_selected)
+          ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+    }
+    ImGui::EndCombo  ( );
+  }
+
+  if (SKIF_iProcessRefreshInterval == 0)
+  {
+    ImGui::SameLine         ( );
+    ImGui::BeginGroup       ( );
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImColor::HSV (0.11F,   1.F, 1.F),
+      ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::EndGroup         ( );
+
+    SKIF_ImGui_SetHoverTip (
+      "Real-time updates are paused."
+    );
+  }
+
+  ImGui::TreePop          ( );
+  ImGui::EndGroup         ( );
 
   ImGui::NewLine          ( );
-  */
+
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                             "Toggle Service:"
@@ -673,10 +748,13 @@ SKIF_UI_Tab_DrawMonitor (void)
         [](LPVOID)
       -> DWORD
       {
-        extern std::wstring SKIF_GetProductName (const wchar_t* wszName);
+        CRITICAL_SECTION            ProcessRefreshJob = { };
+        InitializeCriticalSection (&ProcessRefreshJob);
+        EnterCriticalSection      (&ProcessRefreshJob);
 
-        static constexpr auto
-          RefreshIntervalInMsec = 500UL; // 250UL
+        SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
+
+        extern std::wstring SKIF_GetProductName (const wchar_t* wszName);
 
         struct known_dll_s {
           std::wstring path;
@@ -687,10 +765,12 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         do
         {
-          if (SKIF_Tab_Selected != Monitor || ! active_listing)
+          if (SKIF_Tab_Selected != Monitor || ! refreshIntervalInMsec)
           {
-            Sleep (RefreshIntervalInMsec * 4);
-            continue;
+            SleepConditionVariableCS (
+              &ProcRefreshPaused, &ProcessRefreshJob,
+                INFINITE
+            );
           }
 
           long idx =
@@ -1140,16 +1220,19 @@ SKIF_UI_Tab_DrawMonitor (void)
 
 #pragma endregion
 
-          Sleep (RefreshIntervalInMsec);
-
+          // Swap in the results
           InterlockedExchange (&snapshot_idx, idx);
 
           // Force a repaint
-          
-          //if (! SKIF_ImGui_IsFocused () && ! ImGui::IsAnyItemHovered ( ))
-          //SetEvent (SKIF_RefreshEvent);
           PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
-        } while (true); // Keep thread alive until exit
+
+          // Sleep until it's time to check again
+          Sleep (refreshIntervalInMsec);
+
+        } while (IsWindow (SKIF_hWnd)); // Keep thread alive until exit
+
+        LeaveCriticalSection  (&ProcessRefreshJob);
+        DeleteCriticalSection (&ProcessRefreshJob);
 
         return 0;
       }, nullptr, 0x0, nullptr
@@ -1296,235 +1379,237 @@ SKIF_UI_Tab_DrawMonitor (void)
     prevAscending = SKIF_bProcessSortAscending;
   };
 
-  active_listing = ImGui::CollapsingHeader ("Processes###ActiveProcessMonitoring", ImGuiTreeNodeFlags_DefaultOpen);
 
-  if (active_listing)
-  {
+  // ActiveProcessMonitoring
+#pragma region Process List
 
-    ImGui::PushStyleColor (
-      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                            );
+  ImGui::PushStyleColor (
+    ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                          );
 
-    static bool bHLStatus, bHLPID, bHLArch, bHLAdmin, bHLName;
+  static bool bHLStatus, bHLPID, bHLArch, bHLAdmin, bHLName;
 
-    static ImVec4 colHLNormal = ImGui::GetStyleColorVec4 (ImGuiCol_Text),
-                  colHLActive = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption);
+  static ImVec4 colHLNormal = ImGui::GetStyleColorVec4 (ImGuiCol_Text),
+                colHLActive = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption);
 
-    ImGui::TextColored ((bHLStatus) ? colHLActive : colHLNormal, "Status");
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverTip ("Sort by injection status");
-    if (ImGui::IsItemClicked ()) _ChangeSort (0);
-    if (ImGui::IsItemHovered ()) bHLStatus = true; else bHLStatus = false;
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 ( 70.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::TextColored ((bHLPID) ? colHLActive : colHLNormal, "PID");
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverTip ("Sort by process ID");
-    if (ImGui::IsItemClicked ()) _ChangeSort (1);
-    if (ImGui::IsItemHovered ()) bHLPID = true; else bHLPID = false;
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (125.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("%s", "Type");
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::TextColored ((bHLArch) ? colHLActive : colHLNormal, "Arch");
-    SKIF_ImGui_SetHoverTip ("Sort by CPU architecture");
-    SKIF_ImGui_SetMouseCursorHand ( );
-    if (ImGui::IsItemClicked ()) _ChangeSort (2);
-    if (ImGui::IsItemHovered ()) bHLArch = true; else bHLArch = false;
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (220.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::TextColored ((bHLAdmin) ? colHLActive : colHLNormal, "Admin");
-    SKIF_ImGui_SetHoverTip ("Sort by elevation");
-    SKIF_ImGui_SetMouseCursorHand ( );
-    if (ImGui::IsItemClicked ()) _ChangeSort (3);
-    if (ImGui::IsItemHovered ()) bHLAdmin = true; else bHLAdmin = false;
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::TextColored ((bHLName) ? colHLActive : colHLNormal, "Process Name");
-    SKIF_ImGui_SetHoverTip ("Sort by process name");
-    SKIF_ImGui_SetMouseCursorHand ( );
-    if (ImGui::IsItemClicked ()) _ChangeSort (4);
-    if (ImGui::IsItemHovered ()) bHLName = true; else bHLName = false;
-    /* Disabled Detail column (cannot find any use for it)
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("%s", "Details");
-    */
+  ImGui::TextColored ((bHLStatus) ? colHLActive : colHLNormal, "Status");
+  SKIF_ImGui_SetMouseCursorHand ( );
+  SKIF_ImGui_SetHoverTip ("Sort by injection status");
+  if (ImGui::IsItemClicked ()) _ChangeSort (0);
+  if (ImGui::IsItemHovered ()) bHLStatus = true; else bHLStatus = false;
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 ( 70.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::TextColored ((bHLPID) ? colHLActive : colHLNormal, "PID");
+  SKIF_ImGui_SetMouseCursorHand ( );
+  SKIF_ImGui_SetHoverTip ("Sort by process ID");
+  if (ImGui::IsItemClicked ()) _ChangeSort (1);
+  if (ImGui::IsItemHovered ()) bHLPID = true; else bHLPID = false;
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (125.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::Text        ("%s", "Type");
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::TextColored ((bHLArch) ? colHLActive : colHLNormal, "Arch");
+  SKIF_ImGui_SetHoverTip ("Sort by CPU architecture");
+  SKIF_ImGui_SetMouseCursorHand ( );
+  if (ImGui::IsItemClicked ()) _ChangeSort (2);
+  if (ImGui::IsItemHovered ()) bHLArch = true; else bHLArch = false;
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (220.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::TextColored ((bHLAdmin) ? colHLActive : colHLNormal, "Admin");
+  SKIF_ImGui_SetHoverTip ("Sort by elevation");
+  SKIF_ImGui_SetMouseCursorHand ( );
+  if (ImGui::IsItemClicked ()) _ChangeSort (3);
+  if (ImGui::IsItemHovered ()) bHLAdmin = true; else bHLAdmin = false;
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::TextColored ((bHLName) ? colHLActive : colHLNormal, "Process Name");
+  SKIF_ImGui_SetHoverTip ("Sort by process name");
+  SKIF_ImGui_SetMouseCursorHand ( );
+  if (ImGui::IsItemClicked ()) _ChangeSort (4);
+  if (ImGui::IsItemHovered ()) bHLName = true; else bHLName = false;
+  /* Disabled Detail column (cannot find any use for it)
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
+  ImGui::Text        ("%s", "Details");
+  */
 
-    ImGui::PopStyleColor ( );
+  ImGui::PopStyleColor ( );
 
-    ImGui::Separator   ( );
+  ImGui::Separator   ( );
 
-    SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                                 ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+  SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                                ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
       
-    ImGui::PushStyleColor (
-      ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
-                            );
+  ImGui::PushStyleColor (
+    ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
+                          );
 
-    if (EventIndex == USHRT_MAX)
-      ImGui::Text ("Error occurred when trying to locate type index for events!");
-    else if (processes.empty ())
-      ImGui::Text ("Special K is currently not injected in any process.");
+  if (EventIndex == USHRT_MAX)
+    ImGui::Text ("Error occurred when trying to locate type index for events!");
+  else if (processes.empty () && SKIF_iProcessRefreshInterval == 0)
+    ImGui::Text ("Real-time updates are paused.");
+  else if (processes.empty ())
+    ImGui::Text ("Special K is currently not injected in any process.");
     
-    switch (SKIF_iProcessSort)
-    {
-    case 0: // Status
-      std::sort (processes.begin(), processes.end(), _SortByStatus);
-      break;
-    case 1: // PID
-      std::sort (processes.begin(), processes.end(), _SortByPID);
-      break;
-    case 2: // Arch
-      std::sort (processes.begin(), processes.end(), _SortByArch);
-      break;
-    case 3: // Admin
-      std::sort (processes.begin(), processes.end(), _SortByAdmin);
-      break;
-    case 4: // Process Name
-      std::sort (processes.begin(), processes.end(), _SortByName);
-      break;
-    }
-
-    for ( auto& proc : processes )
-    {
-      std::string pretty_str       = ICON_FA_WINDOWS,
-                  pretty_str_hover = "Windows";
-        
-      if (StrStrIA(proc.tooltip.c_str(), "SteamApps") != NULL)
-      {
-        pretty_str       = ICON_FA_STEAM;
-        pretty_str_hover = "Steam";
-      }
-      else if (SKIF_Debug_IsXboxApp(proc.tooltip, SK_WideCharToUTF8(proc.filename)))
-      {
-        pretty_str       = ICON_FA_XBOX;
-        pretty_str_hover = "Xbox";
-      }
-
-      ImGui::PushID (proc.pid);
-
-      ImVec2 curPos = ImGui::GetCursorPos ( );
-      ImGui::Selectable   ("", (hoveredPID == proc.pid), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
-      _ProcessMenu (proc);
-      if (ImGui::IsItemHovered ( ))
-        hoveredPID = proc.pid;
-      ImGui::SetCursorPos (curPos);
-
-      ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
-      std::string txtPolicy = "",
-                  hovPolicy = "";
-          
-      if (proc.policy == Blacklist)
-      {
-        colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
-        txtPolicy = ICON_FA_BAN;
-        hovPolicy = "Process is blacklisted";
-      }
-      else if (proc.policy == Whitelist)
-      {
-        colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
-        txtPolicy = ICON_FA_CHECK;
-        hovPolicy = "Process is whitelisted";
-      }
-
-      ImVec4 colText         =    (hoveredPID == proc.pid)    ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
-                                                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
-
-      ImVec4 colStatus      = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-      std::string hovStatus = "";
-
-      switch (proc.status)
-      {
-      case 1: // Active Global Injection
-        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
-        hovStatus = "Active";
-        break;
-      case 2: // Local Injection
-        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info);
-        hovStatus = "Local";
-        break;
-      case 3: // Inert Global Injection
-        if (_inject.bCurrentState) {
-          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase);
-          hovStatus = "Inert";
-        } else {
-          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
-          hovStatus = "Stuck (end the process to eject Special K)";
-        }
-        break;
-      case 254: // Potentially stuck
-        if (_inject.bCurrentState) {
-          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
-          hovStatus = "Inert (potentially stuck)";
-        } else {
-          colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
-          hovStatus = "Stuck (end the process to eject Special K)";
-        }
-        break;
-      case 255: // Default / Unknown / Uninjected processes
-        break;
-      }
-
-      ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
-      if (! hovStatus.empty())
-        SKIF_ImGui_SetHoverTip (hovStatus.c_str());
-      ImGui::SameLine        ( );        
-      ImGui::TextColored     (colPolicy, txtPolicy.c_str());
-      if (! hovPolicy.empty())
-        SKIF_ImGui_SetHoverTip (hovPolicy.c_str());
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "%i", proc.pid);
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
-      SKIF_ImGui_SetHoverTip (pretty_str_hover);
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "%s", proc.arch.c_str());
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "%s", proc.admin ? "Yes" : "No");
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     ((proc.status <= 2) ? colStatus
-                                                 : colText,
-                                            "%s", SK_WideCharToUTF8 (proc.filename).c_str());
-      if (! proc.tooltip.empty())
-        SKIF_ImGui_SetHoverTip (proc.tooltip);
-      /* Detail column is so far only used for special purposes */
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (colText, "%s", proc.details.c_str());
-      if (proc.details.length() > 73)
-        SKIF_ImGui_SetHoverTip (proc.details);
-      else if (proc.details == "<access denied>")
-        SKIF_ImGui_SetHoverTip("Injection status cannot be determined due to a lack of permissions");
-
-      ImGui::PopID  ( );
-    }
-
-    if (! ImGui::IsAnyItemHovered ( ))
-      hoveredPID = 0;
-
-    ImGui::PopStyleColor ( );
-
-    ImGui::EndChildFrame ( );
+  switch (SKIF_iProcessSort)
+  {
+  case 0: // Status
+    std::sort (processes.begin(), processes.end(), _SortByStatus);
+    break;
+  case 1: // PID
+    std::sort (processes.begin(), processes.end(), _SortByPID);
+    break;
+  case 2: // Arch
+    std::sort (processes.begin(), processes.end(), _SortByArch);
+    break;
+  case 3: // Admin
+    std::sort (processes.begin(), processes.end(), _SortByAdmin);
+    break;
+  case 4: // Process Name
+    std::sort (processes.begin(), processes.end(), _SortByName);
+    break;
   }
+
+  for ( auto& proc : processes )
+  {
+    std::string pretty_str       = ICON_FA_WINDOWS,
+                pretty_str_hover = "Windows";
+        
+    if (StrStrIA(proc.tooltip.c_str(), "SteamApps") != NULL)
+    {
+      pretty_str       = ICON_FA_STEAM;
+      pretty_str_hover = "Steam";
+    }
+    else if (SKIF_Debug_IsXboxApp(proc.tooltip, SK_WideCharToUTF8(proc.filename)))
+    {
+      pretty_str       = ICON_FA_XBOX;
+      pretty_str_hover = "Xbox";
+    }
+
+    ImGui::PushID (proc.pid);
+
+    ImVec2 curPos = ImGui::GetCursorPos ( );
+    ImGui::Selectable   ("", (hoveredPID == proc.pid), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+    _ProcessMenu (proc);
+    if (ImGui::IsItemHovered ( ))
+      hoveredPID = proc.pid;
+    ImGui::SetCursorPos (curPos);
+
+    ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
+    std::string txtPolicy = "",
+                hovPolicy = "";
+          
+    if (proc.policy == Blacklist)
+    {
+      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
+      txtPolicy = ICON_FA_BAN;
+      hovPolicy = "Process is blacklisted";
+    }
+    else if (proc.policy == Whitelist)
+    {
+      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+      txtPolicy = ICON_FA_CHECK;
+      hovPolicy = "Process is whitelisted";
+    }
+
+    ImVec4 colText         =    (hoveredPID == proc.pid)    ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
+                                                              ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
+
+    ImVec4 colStatus      = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    std::string hovStatus = "";
+
+    switch (proc.status)
+    {
+    case 1: // Active Global Injection
+      colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+      hovStatus = "Active";
+      break;
+    case 2: // Local Injection
+      colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info);
+      hovStatus = "Local";
+      break;
+    case 3: // Inert Global Injection
+      if (_inject.bCurrentState) {
+        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase);
+        hovStatus = "Inert";
+      } else {
+        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
+        hovStatus = "Stuck (end the process to eject Special K)";
+      }
+      break;
+    case 254: // Potentially stuck
+      if (_inject.bCurrentState) {
+        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+        hovStatus = "Inert (potentially stuck)";
+      } else {
+        colStatus = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
+        hovStatus = "Stuck (end the process to eject Special K)";
+      }
+      break;
+    case 255: // Default / Unknown / Uninjected processes
+      break;
+    }
+
+    ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
+    if (! hovStatus.empty())
+      SKIF_ImGui_SetHoverTip (hovStatus.c_str());
+    ImGui::SameLine        ( );        
+    ImGui::TextColored     (colPolicy, txtPolicy.c_str());
+    if (! hovPolicy.empty())
+      SKIF_ImGui_SetHoverTip (hovPolicy.c_str());
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 ( 65.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "%i", proc.pid);
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "  %s", pretty_str.c_str());
+    SKIF_ImGui_SetHoverTip (pretty_str_hover);
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "%s", proc.arch.c_str());
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "%s", proc.admin ? "Yes" : "No");
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     ((proc.status <= 2) ? colStatus
+                                                : colText,
+                                          "%s", SK_WideCharToUTF8 (proc.filename).c_str());
+    if (! proc.tooltip.empty())
+      SKIF_ImGui_SetHoverTip (proc.tooltip);
+    /* Detail column is so far only used for special purposes */
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "%s", proc.details.c_str());
+    if (proc.details.length() > 73)
+      SKIF_ImGui_SetHoverTip (proc.details);
+    else if (proc.details == "<access denied>")
+      SKIF_ImGui_SetHoverTip("Injection status cannot be determined due to a lack of permissions");
+
+    ImGui::PopID  ( );
+  }
+
+  if (! ImGui::IsAnyItemHovered ( ))
+    hoveredPID = 0;
+
+  ImGui::PopStyleColor ( );
+
+  ImGui::EndChildFrame ( );
+
+#pragma endregion
     
   // Confirm prompt
 

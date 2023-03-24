@@ -966,20 +966,20 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::BeginCombo ("##SKIF_iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
     {
-        for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
+      for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
+      {
+        bool is_selected = (LogSeverityCurrent == LogSeverity[n]); // You can store your selection however you want, outside or inside your objects
+        if (ImGui::Selectable (LogSeverity[n], is_selected))
         {
-            bool is_selected = (LogSeverityCurrent == LogSeverity[n]); // You can store your selection however you want, outside or inside your objects
-            if (ImGui::Selectable (LogSeverity[n], is_selected))
-            {
-              SKIF_iLogging = n;
-              _registry.regKVLogging.putData  (SKIF_iLogging);
-              LogSeverityCurrent = LogSeverity[SKIF_iLogging];
-              plog::get()->setMaxSeverity((plog::Severity)SKIF_iLogging);
-            }
-            if (is_selected)
-                ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+          SKIF_iLogging = n;
+          _registry.regKVLogging.putData  (SKIF_iLogging);
+          LogSeverityCurrent = LogSeverity[SKIF_iLogging];
+          plog::get()->setMaxSeverity((plog::Severity)SKIF_iLogging);
         }
-        ImGui::EndCombo  ( );
+        if (is_selected)
+            ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+      }
+      ImGui::EndCombo  ( );
     }
 
     ImGui::TreePop          ( );

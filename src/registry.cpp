@@ -13,6 +13,7 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   extern int SKIF_iAutoStopBehavior;
   extern int SKIF_iLogging;
   extern int SKIF_iProcessSort;
+  extern int SKIF_iProcessRefreshInterval;
 
   //XXX: These are all defined extern in SKIF.h, consider including that header instead?
   //TODO: Move everything over to be defined as part of registry.h instead.
@@ -43,11 +44,13 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   extern bool SKIF_bProcessSortAscending;
   extern bool SKIF_bProcessIncludeAll;
   
+  SKIF_iProcessSort             =   regKVProcessSort.getData             ( );
   if (regKVProcessIncludeAll.hasData())
     SKIF_bProcessIncludeAll     =   regKVProcessIncludeAll.getData       ( );
   if (regKVProcessSortAscending.hasData())
     SKIF_bProcessSortAscending  =   regKVProcessSortAscending.getData    ( );
-  SKIF_iProcessSort             =   regKVProcessSort.getData             ( );
+  if (regKVProcessRefreshInterval.hasData())
+    SKIF_iProcessRefreshInterval=   regKVProcessRefreshInterval.getData    ( );
 
   SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
   SKIF_bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );

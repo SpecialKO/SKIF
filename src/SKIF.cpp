@@ -116,12 +116,13 @@ int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
 int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = Always,                 2 = When unfocused
      SKIF_iGhostVisibility         = 0, // 0 = Never,                       1 = Always,                 2 = While service is running
-     SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                         3 = ImGui Classic
+     SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
      SKIF_iDimCovers               = 0, // 0 = Never,                       1 = Always,                 2 = On mouse hover
      SKIF_iCheckForUpdates         = 1, // 0 = Never,                       1 = Weekly,                 2 = On each launch
      SKIF_iAutoStopBehavior        = 1, // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
-     SKIF_iLogging                 = 4, // 0 = None,       1 = Fatal,       2 = Error,       3 = Warning,       4 = Info,       5 = Debug,       6 = Verbose
-     SKIF_iProcessSort             = 0; // 0 = Status,     1 = PID,         2 = Arch,        3 = Admin,         4 = Name
+     SKIF_iLogging                 = 4, // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
+     SKIF_iProcessSort             = 0, // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
+     SKIF_iProcessRefreshInterval  = 2; // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
 uint32_t
      SKIF_iLastSelected            = SKIF_STEAM_APPID;
 bool SKIF_bRememberLastSelected    = false,
@@ -1042,6 +1043,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                            0,
     [](LPVOID lpUser)->unsigned
     {
+      SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCheck");
+
       SKIF_UpdateCheckResults* _res = (SKIF_UpdateCheckResults*)lpUser;
 
       CoInitializeEx (nullptr,
@@ -1840,6 +1843,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   UNREFERENCED_PARAMETER (hInstance);
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
+
+  SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
   if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
@@ -2897,10 +2902,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          SKIF_Tab_Selected = Monitor;
-          if (SKIF_Tab_ChangeTo == Monitor)
-            SKIF_Tab_ChangeTo = None;
-
           extern void
             SKIF_UI_Tab_DrawMonitor (void);
             SKIF_UI_Tab_DrawMonitor (    );
@@ -3599,6 +3600,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         CRITICAL_SECTION            GamepadInputPump = { };
         InitializeCriticalSection (&GamepadInputPump);
         EnterCriticalSection      (&GamepadInputPump);
+        
+        SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
+
         DWORD pkgLast = 0, pkgNew = 0;
 
         while (IsWindow (SKIF_hWnd))
@@ -3674,6 +3678,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //  OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+    // TODO: Investigate if this is what causes dropdown lists from collapsing after SKIF has launched
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
     {
       // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
@@ -3693,7 +3698,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Don't pause if there's hidden frames that needs rendering
     if (HiddenFramesContinueRendering)
       pause = false;
-        
+    
     do
     {
       // Pause rendering

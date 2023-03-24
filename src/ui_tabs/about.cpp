@@ -276,11 +276,7 @@ SKIF_UI_Tab_DrawAbout (void)
                            "The frontend also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
 
   ImGui::SetCursorPosY    (fY1);
-          
-  ImGui::TextColored      (
-    ImColor::HSV (0.11F,   1.F, 1.F),
-    ICON_FA_EXCLAMATION_TRIANGLE " ");
-  ImGui::SameLine         ( );
+
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                   "Multiplayer games:");
@@ -291,9 +287,9 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-      ICON_FA_EXCLAMATION_CIRCLE " ");
-  ImGui::SameLine         ( );
+    ImColor::HSV (0.11F,   1.F, 1.F),
+    ICON_FA_EXCLAMATION_TRIANGLE " ");
+  ImGui::SameLine         (0.0f, 6.0f);
   ImGui::Text             ("Do not use Special K in multiplayer games!");
   ImGui::EndGroup         ( );
 

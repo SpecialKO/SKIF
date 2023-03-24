@@ -514,6 +514,8 @@ SKIF_Util_OpenURI_Threaded (
                          0,
   [](LPVOID lpUser)->unsigned
   {
+    SetThreadDescription (GetCurrentThread (), L"SKIF_OpenURI_Threaded");
+
     LPCWSTR _path = (LPCWSTR)lpUser;
 
     CoInitializeEx (nullptr,

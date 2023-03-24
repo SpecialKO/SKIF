@@ -484,6 +484,10 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Sort Ascending)" );
 
+  KeyValue <int> regKVProcessRefreshInterval =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Process Refresh Interval)" );
+
   KeyValue <int> regKVProcessSort =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Sort)" );

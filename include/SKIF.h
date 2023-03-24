@@ -143,6 +143,7 @@ extern int SKIF_iCheckForUpdates;
 extern int SKIF_iAutoStopBehavior;
 extern int SKIF_iLogging;
 extern int SKIF_iProcessSort;
+extern int SKIF_iProcessRefreshInterval;
 
 extern uint32_t SKIF_iLastSelected;
 extern bool SKIF_bRememberLastSelected;
