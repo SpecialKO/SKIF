@@ -1420,9 +1420,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
-  if (loadCover && populated && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) && ! InterlockedExchangeAdd (&icon_thread, 0))
+  if (loadCover && populated /* && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) */ && ! InterlockedExchangeAdd (&icon_thread, 0))
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
     // Note from 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
+    // Note from 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
     loadCover = false;
 
     if ( appinfo != nullptr && pApp->store == "Steam")
