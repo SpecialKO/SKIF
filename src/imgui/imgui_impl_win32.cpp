@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <format>
 #include <injection.h>
+#include <sk_utility/utility.h>
 
 auto constexpr XUSER_INDEXES =
   std::array <DWORD, 4> { 0, 1, 2, 3 };
@@ -74,15 +75,21 @@ static HMODULE                   g_hModXInput = nullptr;
 
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
-  // The g_Focused state should be trustworthy after the initial 60 frames or so
-  //   This is an ugly workaround to ensure we don't run the below code every single frame
-  if (ImGui::GetFrameCount () > 60)
+  //extern HWND SKIF_hWnd;
+  extern HWND SKIF_ImGui_hWnd;
+  static int uglyAssWorkaround = 0;
+
+  // The g_Focused state should be trustworthy after the initial 500 frames or so
+  //  This is an ugly workaround to ensure we don't run the below code every single frame
+  //   and instead trust on WM_SETFOCUS and WM_KILLFOCUS to be correct
+  if (uglyAssWorkaround == 2 || SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount ( ) > 500)
     return g_Focused;
 
   // Fallback which only executes the first couple of frames
   static INT64 lastTime  = std::numeric_limits <INT64>::max ();
   static bool  lastFocus = false;
 
+  // Executes once per frame
   if (lastTime != g_Time)
   {   lastTime  = g_Time;
     if (HWND focused_hwnd = ::GetForegroundWindow ())
@@ -100,9 +107,29 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
       static DWORD
         dwPidOfMe = GetCurrentProcessId ();
 
-      // Don't poll the gamepad when we're not focused.
       lastFocus = (dwWindowOwnerPid == dwPidOfMe);
-      g_Focused = lastFocus;
+
+      if (g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
+      {
+        // Ugly-ass workaround for the window never receiving WM_KILLFOCUS on launch if it gets unfocused quickly
+        // We also need to send a WM_SETFOCUS when it regains focus because apparently Windows doesn't send it either...?
+        // Only do it for the first 1000 frames...
+        if (g_Focused && uglyAssWorkaround == 0)
+        {
+          uglyAssWorkaround++;
+          //OutputDebugString (L"Ugly-ass workaround... Sending WM_KILLFOCUS !\n");
+          PLOG_INFO << "Ugly-ass workaround... Sending WM_KILLFOCUS !";
+          //SK_RunOnce (SendMessage (SKIF_ImGui_hWnd, WM_KILLFOCUS, 0, 0));
+        }
+        else if (uglyAssWorkaround == 1)
+        {
+          uglyAssWorkaround++;
+          // If we have run the ugly-ass workaround, we need to send an additional WM_SETFOCUS to restore things once SKIF regains focus
+          //OutputDebugString (L"Ugly-ass workaround... Sending WM_SETFOCUS !\n");
+          PLOG_INFO << "Ugly-ass workaround... Sending WM_SETFOCUS !";
+          //SK_RunOnce (SendMessage (SKIF_ImGui_hWnd, WM_SETFOCUS, 0, 0));
+        }
+      }
     }
     else // In the case that GetForegroundWindow () fails, assume g_Focused is correct
       lastFocus = g_Focused;
@@ -1448,12 +1475,17 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 {
   // This is the message procedure for the main ImGui Platform window as well as
   //   any additional viewport windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
+
+  extern HWND SKIF_hWnd;
+  extern HWND SKIF_ImGui_hWnd;
+  extern HWND SKIF_Notify_hWnd;
   
-  /*
-  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
-  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
-  OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
-  */
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L") " + ((HWND)wParam == SKIF_hWnd ? L"== SKIF_hWnd" : ((HWND)wParam == SKIF_ImGui_hWnd ? L"== SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L"== SKIF_Notify_hWnd" : L"")) + L"\n").c_str());
+  //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
 
   /*
   if (msg != WM_NULL        && 

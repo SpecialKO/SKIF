@@ -459,6 +459,94 @@ USHORT GetTypeIndexByName (std::wstring TypeName)
   return ret;
 }
 
+enum inject_policy {
+  Blacklist,
+  DontCare,
+  Whitelist
+};
+
+struct standby_record_s {
+  DWORD         pid;
+  std::wstring  filename;
+  std::wstring  path;
+  std::string   pathUTF8;
+  std::string   tooltip;
+  std::string   details;
+  std::string   arch;
+  bool          admin;
+  int           status = 255; // 1 - Active Global    2 - Local   3 - Inert   254 - Stuck?      255 - Unknown
+  inject_policy policy = DontCare;
+  int           sortedBy  = -1;    // Only first item is ever read/written to
+  bool          sortedAsc = false; // Only first item is ever read/written to
+};
+
+void SortProcesses (std::vector <standby_record_s> &processes)
+{
+  // Always sort ascending
+  auto _SortByStatus = [&](const standby_record_s &a, const standby_record_s& b) -> bool
+  {
+    //if (SKIF_bProcessSortAscending)
+      return a.status < b.status;
+
+    //return a.status > b.status;
+  };
+
+  auto _SortByPID = [&](const standby_record_s &a, const standby_record_s& b) -> bool
+  {
+    if (SKIF_bProcessSortAscending)
+      return a.pid < b.pid;
+
+    return a.pid > b.pid;
+  };
+
+  auto _SortByArch = [&](const standby_record_s &a, const standby_record_s& b) -> bool
+  {
+    if (SKIF_bProcessSortAscending)
+      return a.arch < b.arch;
+
+    return a.arch > b.arch;
+  };
+
+  auto _SortByAdmin = [&](const standby_record_s &a, const standby_record_s& b) -> bool
+  {
+    if (SKIF_bProcessSortAscending)
+      return a.admin < b.admin;
+
+    return a.admin > b.admin;
+  };
+
+  auto _SortByName = [&](const standby_record_s &a, const standby_record_s& b) -> bool
+  {
+    // Need to transform to lowercase
+    std::wstring la = SKIF_Util_TowLower(a.filename),
+                 lb = SKIF_Util_TowLower(b.filename);
+
+    if (SKIF_bProcessSortAscending)
+      return la < lb;
+
+    return la > lb;
+  };
+
+  if (! processes.empty())
+  {
+    if (SKIF_iProcessSort == 0)      // Status
+      std::sort (processes.begin(), processes.end(), _SortByStatus);
+    else if (SKIF_iProcessSort == 1) // PID
+      std::sort (processes.begin(), processes.end(), _SortByPID);
+    else if (SKIF_iProcessSort == 2) // Arch
+      std::sort (processes.begin(), processes.end(), _SortByArch);
+    else if (SKIF_iProcessSort == 3) // Admin
+      std::sort (processes.begin(), processes.end(), _SortByAdmin);
+    else if (SKIF_iProcessSort == 4) // Process Name
+      std::sort (processes.begin(), processes.end(), _SortByName);
+    else                             // Status (in case someone messes with the registry)
+      std::sort (processes.begin(), processes.end(), _SortByStatus);
+
+    processes[0].sortedBy  = SKIF_iProcessSort;
+    processes[0].sortedAsc = SKIF_bProcessSortAscending;
+  }
+}
+
 void
 SKIF_UI_Tab_DrawMonitor (void)
 {
@@ -487,39 +575,27 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (SKIF_Tab_ChangeTo == Monitor)
     SKIF_Tab_ChangeTo = None;
 
-  enum inject_policy {
-    Blacklist,
-    DontCare,
-    Whitelist
-  };
-
-  struct standby_record_s {
-    DWORD         pid;
-    std::wstring  filename;
-    std::wstring  path;
-    std::string   pathUTF8;
-    std::string   tooltip;
-    std::string   details;
-    std::string   arch;
-    bool          admin;
-    int           status = 255; // 1 - Active Global    2 - Local   3 - Inert   254 - Stuck?      255 - Unknown
-    inject_policy policy = DontCare;
-  };
-
   static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
 
-  // Double-buffer updates so we can go lock-free
+  // Triple-buffer updates so we can go lock-free
   //
   struct injection_snapshot_s {
     //std::map <DWORD, standby_record_s> Processes;
     std::vector <standby_record_s> Processes;
     DWORD dwPIDs [MAX_INJECTED_PROCS] = { };
-  } static snapshots [2];
+  } static snapshots [3];
 
-  static volatile LONG snapshot_idx = 0;
+  //static volatile LONG snapshot_idx = 0;
+  static std::atomic<int> snapshot_idx_reading = 0,
+                          snapshot_idx_written = 0;
 
-  auto &snapshot =
-    snapshots [ReadAcquire (&snapshot_idx)];
+  // Always read from the last written index
+  int nowReading = snapshot_idx_written.load ( );
+  snapshot_idx_reading.store (nowReading);
+
+  auto& snapshot =
+    snapshots [nowReading];
+    //snapshots [ReadAcquire (&snapshot_idx)];
 
   auto&      processes = snapshot.Processes;
     
@@ -774,11 +850,21 @@ SKIF_UI_Tab_DrawMonitor (void)
             );
           }
 
-          long idx =
-            ( ReadAcquire (&snapshot_idx) + 1 ) % 2;
+          static int lastWritten = 0;
+          int currReading        = snapshot_idx_reading.load ( );
+
+          // This is some half-assed attempt of implementing triple-buffering where we don't overwrite our last finished snapshot.
+          // If the main thread is currently reading from the next intended target, we skip that one as it means we have somehow
+          //   managed to loop all the way around before the main thread started reading our last written result.
+          int currWriting = (currReading == (lastWritten + 1) % 3)
+                                          ? (lastWritten + 2) % 3  // Jump over very next one as it is currently being read from
+                                          : (lastWritten + 1) % 3; // It is fine to write to the very next one
+
+          //long idx =
+            //( ReadAcquire (&snapshot_idx) + 1 ) % 2;
 
           auto &snapshot =
-            snapshots [idx];
+            snapshots [currWriting];
 
           auto& Processes      = snapshot.Processes;
 
@@ -1221,8 +1307,13 @@ SKIF_UI_Tab_DrawMonitor (void)
 
 #pragma endregion
 
+          // Sort the results
+          SortProcesses (Processes);
+
           // Swap in the results
-          InterlockedExchange (&snapshot_idx, idx);
+          //InterlockedExchange (&snapshot_idx, idx);
+          lastWritten = currWriting;
+          snapshot_idx_written.store (lastWritten);
 
           // Force a repaint
           PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
@@ -1317,65 +1408,22 @@ SKIF_UI_Tab_DrawMonitor (void)
     }
   };
 
-  // Always sort ascending
-  auto _SortByStatus = [&](const standby_record_s &a, const standby_record_s& b) -> bool
-  {
-    //if (SKIF_bProcessSortAscending)
-      return a.status < b.status;
-
-    //return a.status > b.status;
-  };
-
-  auto _SortByPID = [&](const standby_record_s &a, const standby_record_s& b) -> bool
-  {
-    if (SKIF_bProcessSortAscending)
-      return a.pid < b.pid;
-
-    return a.pid > b.pid;
-  };
-
-  auto _SortByArch = [&](const standby_record_s &a, const standby_record_s& b) -> bool
-  {
-    if (SKIF_bProcessSortAscending)
-      return a.arch < b.arch;
-
-    return a.arch > b.arch;
-  };
-
-  auto _SortByAdmin = [&](const standby_record_s &a, const standby_record_s& b) -> bool
-  {
-    if (SKIF_bProcessSortAscending)
-      return a.admin < b.admin;
-
-    return a.admin > b.admin;
-  };
-
-  auto _SortByName = [&](const standby_record_s &a, const standby_record_s& b) -> bool
-  {
-    // Need to transform to lowercase
-    std::wstring la = SKIF_Util_TowLower(a.filename),
-                 lb = SKIF_Util_TowLower(b.filename);
-
-    if (SKIF_bProcessSortAscending)
-      return la < lb;
-
-    return la > lb;
-  };
-
   auto _ChangeSort = [&](const int& method) -> void
   {
     static int  prevMethod    = SKIF_iProcessSort;
     static bool prevAscending = SKIF_bProcessSortAscending;
 
-    SKIF_iProcessSort = method;
-
-    if (SKIF_iProcessSort == prevMethod)
+    if (method == 0 || method != prevMethod)
+      SKIF_bProcessSortAscending = true; // Always sort ascending first
+    else if (method == prevMethod)
       SKIF_bProcessSortAscending = ! SKIF_bProcessSortAscending;
 
-    if (SKIF_iProcessSort != prevMethod)
+    if (method != prevMethod) {
+      SKIF_iProcessSort = method;
       _registry.regKVProcessSort.putData          (SKIF_iProcessSort);
-
-    if (SKIF_bProcessSortAscending != prevAscending)
+      _registry.regKVProcessSortAscending.putData (SKIF_bProcessSortAscending);
+    }
+    else if (SKIF_bProcessSortAscending != prevAscending)
       _registry.regKVProcessSortAscending.putData (SKIF_bProcessSortAscending);
 
     prevMethod    = SKIF_iProcessSort;
@@ -1460,25 +1508,10 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::Text ("Real-time updates are paused.");
   else if (processes.empty ())
     ImGui::Text ("Special K is currently not injected in any process.");
-    
-  switch (SKIF_iProcessSort)
-  {
-  case 0: // Status
-    std::sort (processes.begin(), processes.end(), _SortByStatus);
-    break;
-  case 1: // PID
-    std::sort (processes.begin(), processes.end(), _SortByPID);
-    break;
-  case 2: // Arch
-    std::sort (processes.begin(), processes.end(), _SortByArch);
-    break;
-  case 3: // Admin
-    std::sort (processes.begin(), processes.end(), _SortByAdmin);
-    break;
-  case 4: // Process Name
-    std::sort (processes.begin(), processes.end(), _SortByName);
-    break;
-  }
+
+  // This will ensure that the new sort order is applied immediately and only sorted once
+  if (! processes.empty ( ) && (processes[0].sortedBy != SKIF_iProcessSort || processes[0].sortedAsc != SKIF_bProcessSortAscending))
+    SortProcesses (processes);
 
   for ( auto& proc : processes )
   {
