@@ -182,14 +182,14 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   extern bool        SKIF_bDisableTooltips;
   extern bool        HoverTipActive;        // Used to track if an item is being hovered
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
-  extern int         HoverTipVisibleFrames; // Used to count how many frames the tooltip have been visible (to only pause rendering after a tooltip has appeared)
+  //extern int         HoverTipVisibleFrames; // Used to count how many frames the tooltip have been visible (to only pause rendering after a tooltip has appeared)
   extern std::string SKIF_StatusBarText;
   extern DWORD       SKIF_Util_timeGetTime (void);
-  static std::string itemHovered;           // ImGui doesn't use IDs for Text() and the like, so this is our gimmick solution to keep track of the current hovered item
+  //static std::string itemHovered;           // ImGui doesn't use IDs for Text() and the like, so this is our gimmick solution to keep track of the current hovered item
 
   if (ImGui::IsItemHovered ())
   {
-    itemHovered = szText;
+   // itemHovered = szText;
 
     if (! SKIF_bDisableTooltips)
     {
@@ -197,11 +197,19 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
       HoverTipActive = true;
 
       if ( HoverTipDuration == 0)
+      {
         HoverTipDuration = SKIF_Util_timeGetTime ( );
 
+        // Use a timer to force SKIF to refresh once the duration has passed
+        SetTimer (SKIF_hWnd,
+            IDT_REFRESH_TOOLTIP,
+            550,
+            (TIMERPROC) NULL
+        );
+      }
       else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
       {
-        HoverTipVisibleFrames++;
+        //HoverTipVisibleFrames++;
         ImGui::SetTooltip (
           "%hs", szText.data ()
         );
@@ -222,11 +230,13 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   }
 
   // If we no longer hover over this particular item, reset the tracking
+  /*
   else if (! itemHovered.empty() && itemHovered == szText)
   {
     itemHovered.clear();
     HoverTipVisibleFrames = 0;
   }
+  */
 }
 
 void

@@ -120,6 +120,7 @@ extern CreateDXGIFactory1_pfn
 const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;
 const UINT_PTR IDT_REFRESH_GAMES    = 1340;
+const UINT_PTR IDT_REFRESH_TOOLTIP  = 1341;
 
 constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
 constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
@@ -198,10 +199,11 @@ enum UITab {
   Monitor,
   Settings,
   About,
+  SmallMode
 };
 
 extern UITab SKIF_Tab_Selected;
 extern UITab SKIF_Tab_ChangeTo;
 
 // Call SetEvent (...) on this to force a redraw, even if window is not focused
-extern CHandle SKIF_RefreshEvent;
+//extern CHandle SKIF_RefreshEvent;

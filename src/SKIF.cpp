@@ -90,9 +90,9 @@
 const GUID IID_IDXGIFactory5 =
   { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
 
-CHandle SKIF_RefreshEvent (
-         CreateEvent (nullptr, true, false, nullptr)
-  );
+//CHandle SKIF_RefreshEvent (
+//         CreateEvent (nullptr, true, false, nullptr)
+//  );
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RepositionSKIF   = false;
@@ -2788,6 +2788,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (SKIF_bSmallMode)
       {
+        SKIF_Tab_Selected = SmallMode;
+
         auto smallMode_id =
           ImGui::GetID ("###Small_Mode_Frame");
 
@@ -3653,7 +3655,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
     if (wnd != nullptr && wnd->Active)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the keyboard hint/search is active
-    else if (uiLastMsg == WM_SETCURSOR  || 
+    else if (uiLastMsg == WM_SETCURSOR  || uiLastMsg == WM_TIMER      ||
              uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
             (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
             (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
@@ -3691,10 +3693,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Pause if we had a pending tooltip and it have appeared
-    if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
-      pause = true;
+    //if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
+    //  pause = true;
     // Pause if we have no pending tooltip nor any additional frames to render
-    if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
+    //if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
+    //  pause = true;
+    
+    // Pause if we don't need to render any additional frames
+    if (renderAdditionalFrames == 0)
       pause = true;
     // Don't pause if there's hidden frames that needs rendering
     if (HiddenFramesContinueRendering)
@@ -3745,6 +3751,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
 
   PLOG_INFO << "Shutting down ImGui...";
   ImGui_ImplDX11_Shutdown   (    );
@@ -4003,14 +4011,14 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject   (true);
       break;
 
-    case WM_SKIF_REFRESHGAMES:
+    case WM_SKIF_REFRESHGAMES: // TODO: Contemplate this design, and its position in the new design with situational pausing. Concerns WM_SKIF_REFRESHGAMES / IDT_REFRESH_GAMES.
       RepopulateGamesWasSet = SKIF_Util_timeGetTime();
       RepopulateGames = true;
       SelectNewSKIFGame = (uint32_t)wParam;
 
       SetTimer (SKIF_hWnd,
           IDT_REFRESH_GAMES,
-          16,
+          50,
           (TIMERPROC) NULL
       );
       break;
@@ -4045,26 +4053,23 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
       switch (wParam)
       {
+        case IDT_REFRESH_TOOLTIP:
+          // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
+          if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)
+            msgDontRedraw = true;
+          
+          KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
+          return 0;
+        case IDT_REFRESH_GAMES: // TODO: Contemplate this design, and its position in the new design with situational pausing. Concerns WM_SKIF_REFRESHGAMES / IDT_REFRESH_GAMES.
+          if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_Util_timeGetTime())
+          {
+            RepopulateGamesWasSet = 0;
+            KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
+          }
+          return 0;
         case IDT_REFRESH_ONDEMAND:
         case IDT_REFRESH_PENDING:
-        case IDT_REFRESH_GAMES:
-
-          if (wParam == IDT_REFRESH_GAMES && RepopulateGamesWasSet != 0)
-          {
-            if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_Util_timeGetTime())
-            {
-              RepopulateGamesWasSet = 0;
-              KillTimer  (SKIF_hWnd, IDT_REFRESH_GAMES);
-            }
-          }
-
-          // SKIF is focused -- eat my NULL and don't redraw at all!
-          if (SKIF_ImGui_IsFocused ( ))
-          {
-            PostMessage (hWnd, WM_NULL, 0x0, 0x0);
-            return 1;
-          }
-
+          // These are just dummy events to cause SKIF to refresh for a couple of frames more periodically
           return 0;
       }
       break;
