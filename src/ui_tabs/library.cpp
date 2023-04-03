@@ -1211,17 +1211,29 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (SKIF_iDimCovers == 2)
   {
-    if (ImGui::IsItemHovered ( ))
+    // Every ~16 ms, increase/decrease the cover fade effect (makes it frame rate independent)
+    static DWORD timeLastTick;
+    DWORD timeCurr = SKIF_Util_timeGetTime ( );
+    bool isHovered = ImGui::IsItemHovered  ( );
+
+    if (isHovered && fTint < 1.0f)
     {
-      if (fTint < 1.0f)
+      if (timeCurr - timeLastTick > 16)
       {
         fTint = fTint + 0.01f;
-        coverFadeActive = true;
+        timeLastTick = timeCurr;
       }
+
+      coverFadeActive = true;
     }
-    else if (fTint > fTintMin)
+    else if (! isHovered && fTint > fTintMin)
     {
-      fTint = fTint - 0.01f;
+      if (timeCurr - timeLastTick > 16)
+      {
+        fTint = fTint - 0.01f;
+        timeLastTick = timeCurr;
+      }
+
       coverFadeActive = true;
     }
   }

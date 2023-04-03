@@ -3661,7 +3661,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some input, to ensure any hover states gets cleared
     else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + (SKIF_bDisableVSYNC ? 120 : 3); // If we received any gamepad input or an input is held down (ugly hax for bDisableVSYNC though)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received any gamepad input or an input is held down
     else if (svcTransitionFromPendingState)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
     else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
@@ -3672,6 +3672,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 10; // If the cover is currently loading in
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
+
+    // Clear gamepad/nav input for the next frame as we're done with it
+    memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
 
     //if (uiLastMsg == WM_SKIF_GAMEPAD)
     //  OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");

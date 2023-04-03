@@ -4565,7 +4565,7 @@ void ImGui::EndFrame()
     // Clear Input data for next frame
     g.IO.MouseWheel = g.IO.MouseWheelH = 0.0f;
     g.IO.InputQueueCharacters.resize(0);
-    memset(g.IO.NavInputs, 0, sizeof(g.IO.NavInputs));
+    //memset(g.IO.NavInputs, 0, sizeof(g.IO.NavInputs)); // Moved to manual clearing later
 }
 
 void ImGui::Render()

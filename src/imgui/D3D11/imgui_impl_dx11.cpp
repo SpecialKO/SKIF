@@ -1424,8 +1424,11 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     ImGui::GetIO ();
 
   // While mouse is down (i.e. dragging), use VSYNC
-  if ( ImGui::IsAnyMouseDown ()                  ||
-       io.NavInputs [ImGuiNavInput_Menu] != 0.0f ||
+  
+  /*
+  if ( ImGui::IsAnyMouseDown ()                      ||
+       io.NavInputs [ImGuiNavInput_Menu]     != 0.0f || // X
+       io.NavInputs [ImGuiNavInput_Activate] != 0.0f || // A
        io.KeyCtrl )
   {
     Interval = std::max (Interval, 1U);
@@ -1439,6 +1442,13 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     Interval = 0;
   }
   */
+
+  // Alternate mode -- just force SyncInterval=0 without DXGI_PRESENT_ALLOW_TEARING
+  if (bNoVSYNC)
+  {
+    bNoVSYNC = false;
+    Interval = 0;
+  }
 
   if (data->WaitHandle)
   {

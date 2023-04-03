@@ -816,7 +816,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if (SKIF_bAllowTearing)
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-      SKIF_ImGui_SetHoverTip ("Controls UI latency for specific types of displays");
+      SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
       ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                               "UI Refresh Mode:"
@@ -835,13 +835,13 @@ SKIF_UI_Tab_DrawSettings (void)
       if (ImGui::RadioButton ("VRR Compatibility", &SKIF_iSyncMode, Sync_VRR_Compat))
         _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = false));
       SKIF_ImGui_SetHoverTip (
-        "Sluggish UI, but avoids variable-refresh signal loss"
+        "Avoids signal loss and flickering on VRR displays"
       );
       ImGui::SameLine        ( );
       if (ImGui::RadioButton ("VSYNC Off",         &SKIF_iSyncMode, Sync_None))
         _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = true));
       SKIF_ImGui_SetHoverTip (
-        "Improved UI response on low fixed-refresh rate displays"
+        "Improves UI response on low fixed-refresh rate displays"
       );
       ImGui::TreePop         ( );
       ImGui::Spacing         ( );
