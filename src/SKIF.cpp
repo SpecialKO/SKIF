@@ -2767,6 +2767,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         AddGamePopup = PopupState::Open;
       }
 
+      if (ImGui::IsKeyPressedMap (ImGuiKey_Escape))
+      {
+        if (AddGamePopup    != PopupState::Closed ||
+            ModifyGamePopup != PopupState::Closed ||
+            RemoveGamePopup != PopupState::Closed)
+          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
+      }
+
       ImGui::SameLine ();
 
       if ( (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f) ||

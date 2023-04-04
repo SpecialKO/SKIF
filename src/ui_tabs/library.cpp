@@ -4558,6 +4558,9 @@ Cache=false)";
 
     ImGui::EndPopup ( );
   }
+  else {
+    RemoveGamePopup = PopupState::Closed;
+  }
 
 
   if (AddGamePopup == PopupState::Open && ! ImGui::IsAnyPopupOpen ( ))
@@ -4780,6 +4783,9 @@ Cache=false)";
     ImGui::TreePop     ( );
 
     ImGui::EndPopup    ( );
+  }
+  else {
+   AddGamePopup = PopupState::Closed;
   }
 
 
@@ -5019,6 +5025,9 @@ Cache=false)";
     ImGui::TreePop     ( );
 
     ImGui::EndPopup    ( );
+  }
+  else {
+    ModifyGamePopup = PopupState::Closed;
   }
 
   extern uint32_t SelectNewSKIFGame;
