@@ -607,11 +607,19 @@ ImGui_ImplWin32_NewFrame (void)
   current_time /
       ( g_TicksPerSecond / 1000LL );
 
-  // Read keyboard modifiers inputs
-  io.KeyCtrl  = ( ::GetKeyState (VK_CONTROL) & 0x8000 ) != 0;
-  io.KeyShift = ( ::GetKeyState (VK_SHIFT)   & 0x8000 ) != 0;
-  io.KeyAlt   = ( ::GetKeyState (VK_MENU)    & 0x8000 ) != 0;
-  io.KeySuper = false;
+  // Reset keyboard modifiers inputs
+  io.KeyCtrl  = false;
+  io.KeyShift = false;
+  io.KeyAlt   = false;
+  io.KeySuper = false; // Isn't actually used, so always set this to false
+
+  // Read keyboard modifiers inputs (but only if we're focused)
+  if (g_Focused)
+  {
+    io.KeyCtrl  = ( ::GetKeyState (VK_CONTROL) & 0x8000 ) != 0;
+    io.KeyShift = ( ::GetKeyState (VK_SHIFT)   & 0x8000 ) != 0;
+    io.KeyAlt   = ( ::GetKeyState (VK_MENU)    & 0x8000 ) != 0;
+  }
 
   // io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc handler below.
 
