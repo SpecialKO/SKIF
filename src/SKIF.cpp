@@ -2730,6 +2730,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
         */
       }
 
+      if ( (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
+         )
+      {
+        if (SKIF_Tab_Selected != UITab_Library)
+            SKIF_Tab_ChangeTo  = UITab_Library;
+      }
+
+      if ( (io.KeyCtrl && io.KeysDown['2']    && io.KeysDownDuration['2']    == 0.0f)
+         )
+      {
+        if (SKIF_Tab_Selected != UITab_Monitor)
+            SKIF_Tab_ChangeTo  = UITab_Monitor;
+      }
+
+      if ( (io.KeyCtrl && io.KeysDown['3']    && io.KeysDownDuration['3']    == 0.0f)
+         )
+      {
+        if (SKIF_Tab_Selected != UITab_Settings)
+            SKIF_Tab_ChangeTo  = UITab_Settings;
+      }
+
+      if ( (io.KeyCtrl && io.KeysDown['4']    && io.KeysDownDuration['4']    == 0.0f)
+         )
+      {
+        if (SKIF_Tab_Selected != UITab_About)
+            SKIF_Tab_ChangeTo  = UITab_About;
+      }
+
+      if ( (io.KeyCtrl && io.KeysDown['A']    && io.KeysDownDuration['A']    == 0.0f)
+         )
+      {
+        if (SKIF_Tab_Selected != UITab_Library)
+            SKIF_Tab_ChangeTo  = UITab_Library;
+
+        AddGamePopup = PopupState::Open;
+      }
+
       ImGui::SameLine ();
 
       if ( (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f) ||
