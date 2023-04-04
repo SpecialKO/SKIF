@@ -13,7 +13,9 @@
 
 #pragma comment (lib, "Gdiplus.lib")
 
-std::vector<HANDLE> vWatchHandles;
+#include "SKIF.h"
+
+std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
 // Generic Utilities
 
@@ -1084,7 +1086,7 @@ SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destinatio
 // Directory Watch
 
 bool
-SKIF_DirectoryWatch::isSignaled (std::wstring_view path)
+SKIF_DirectoryWatch::isSignaled (std::wstring_view path, bool globalWait)
 {
   bool bRet = false;
 
@@ -1116,7 +1118,10 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view path)
         hChangeNotification
       );
 
-      vWatchHandles.push_back (hChangeNotification);
+      bGlobalWait = globalWait;
+
+      if (bGlobalWait)
+        vWatchHandles[SKIF_Tab_Selected].second.push_back(hChangeNotification);
     }
   }
 
@@ -1128,14 +1133,14 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
   if (      hChangeNotification != INVALID_HANDLE_VALUE)
     FindCloseChangeNotification (hChangeNotification);
 
-  if (! vWatchHandles.empty())
-    vWatchHandles.erase (std::remove(vWatchHandles.begin(), vWatchHandles.end(), hChangeNotification), vWatchHandles.end());
+  if (bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
 }
 
 
 // Registry Watch
 
-SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter )
+SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool globalWait )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
@@ -1148,13 +1153,16 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
 
   reset ();
 
-  vWatchHandles.push_back (hEvent.m_h);
+  bGlobalWait = globalWait;
+
+  if (bGlobalWait)
+    vWatchHandles[SKIF_Tab_Selected].second.push_back(hEvent.m_h);
 }
 
 SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
-  if (! vWatchHandles.empty())
-    vWatchHandles.erase (std::remove(vWatchHandles.begin(), vWatchHandles.end(), hEvent.m_h), vWatchHandles.end());
+  if (bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), hEvent.m_h), vWatchHandles[SKIF_Tab_Selected].second.end());
 }
 
 void

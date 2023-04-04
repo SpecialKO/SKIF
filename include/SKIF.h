@@ -194,16 +194,19 @@ extern PopupState ModifyGamePopup;
 extern PopupState ConfirmPopup;
 
 enum UITab {
-  None,
-  Library,
-  Monitor,
-  Settings,
-  About,
-  SmallMode
+  UITab_None,
+  UITab_Library,
+  UITab_Monitor,
+  UITab_Settings,
+  UITab_About,
+  UITab_SmallMode,
+  UITab_COUNT      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
 };
 
 extern UITab SKIF_Tab_Selected;
 extern UITab SKIF_Tab_ChangeTo;
+
+extern std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
 // Call SetEvent (...) on this to force a redraw, even if window is not focused
 //extern CHandle SKIF_RefreshEvent;

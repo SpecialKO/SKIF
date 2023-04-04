@@ -705,7 +705,7 @@ bool Steam_isLibrariesSignaled (void)
 
       bool countFiles = false;
 
-      if (steam_libs_watch[i].isSignaled (wszManifestDir))
+      if (steam_libs_watch[i].isSignaled (wszManifestDir, true))
         countFiles = true;
 
       if (countFiles || ! hasInitialized)
@@ -866,7 +866,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     //if (Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
-    if (! SKIF_bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
+    if (! SKIF_bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled (SKIF_EGS_AppDataPath, true))
       RepopulateGames = true;
 
     if (! SKIF_bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
@@ -2202,7 +2202,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           static bool runOnceCustomPresets = true;
 
           // Directory watches -- updates the vectors automatically
-          if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
+          if (SKIF_GlobalWatch.isSignaled (LR"(Global)", false) || runOnceDefaultPresets)
           {
             runOnceDefaultPresets = false;
 
@@ -2225,7 +2225,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
 
-          if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
+          if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)", false) || runOnceCustomPresets)
           {
             runOnceCustomPresets = false;
 

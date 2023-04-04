@@ -208,10 +208,10 @@ struct SKIF_Signals {
 extern        SK_ICommandProcessor*
   __stdcall SK_GetCommandProcessor (void);
 
-PopupState UpdatePromptPopup    = PopupState::Closed;
-PopupState HistoryPopup         = PopupState::Closed;
-UITab SKIF_Tab_Selected = Library,
-      SKIF_Tab_ChangeTo = None;
+PopupState UpdatePromptPopup = PopupState::Closed;
+PopupState HistoryPopup      = PopupState::Closed;
+UITab SKIF_Tab_Selected      = UITab_Library,
+      SKIF_Tab_ChangeTo      = UITab_None;
 
 HMODULE hModSKIF     = nullptr;
 HMODULE hModSpecialK = nullptr;
@@ -2692,10 +2692,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
            (              io.KeysDown[VK_F5]  && io.KeysDownDuration[VK_F5]  == 0.0f)
          )
       {
-        if (SKIF_Tab_Selected == Library)
+        if (SKIF_Tab_Selected == UITab_Library)
           RepopulateGames   = true;
 
-        if (SKIF_Tab_Selected == Settings)
+        if (SKIF_Tab_Selected == UITab_Settings)
           RefreshSettingsTab = true;
       }
 
@@ -2783,7 +2783,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (SKIF_bSmallMode)
       {
-        SKIF_Tab_Selected = SmallMode;
+        SKIF_Tab_Selected = UITab_SmallMode;
 
         auto smallMode_id =
           ImGui::GetID ("###Small_Mode_Frame");
@@ -2872,21 +2872,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           if (! SKIF_bFirstLaunch)
           {
             // Select the About tab on first launch
             SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
-            SKIF_Tab_ChangeTo = About;
+            SKIF_Tab_ChangeTo = UITab_About;
 
             // Store in the registry so this only occur once.
             _registry.regKVFirstLaunch.putData(SKIF_bFirstLaunch);
           }
 
-          SKIF_Tab_Selected = Library;
-          if (SKIF_Tab_ChangeTo == Library)
-            SKIF_Tab_ChangeTo = None;
+          SKIF_Tab_Selected = UITab_Library;
+          if (SKIF_Tab_ChangeTo == UITab_Library)
+            SKIF_Tab_ChangeTo = UITab_None;
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
@@ -2896,7 +2896,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2915,7 +2915,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2925,13 +2925,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          SKIF_Tab_Selected = About;
-          if (SKIF_Tab_ChangeTo == About)
-            SKIF_Tab_ChangeTo = None;
+          SKIF_Tab_Selected = UITab_About;
+          if (SKIF_Tab_ChangeTo == UITab_About)
+            SKIF_Tab_ChangeTo = UITab_None;
 
           // About Tab
           SKIF_UI_Tab_DrawAbout   ( );
@@ -3036,8 +3036,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ( ICON_FA_PLUS_SQUARE " Add Game"))
         {
           AddGamePopup = PopupState::Open;
-          if (SKIF_Tab_Selected != Library)
-            SKIF_Tab_ChangeTo = Library;
+          if (SKIF_Tab_Selected != UITab_Library)
+            SKIF_Tab_ChangeTo = UITab_Library;
         }
         ImGui::PopStyleVar  ( );
 
@@ -3158,8 +3158,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
       svcTransitionFromPendingState = _inject.TestServletRunlevel ();
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
+      // 
+      // TODO: This directory watch gets assigned to the current tab only, meaning it won't
+      //       trigger an automated refresh if the user switches tabs before it is signaled.
+      // 
+      //       This also means the main DLL refresh watch is tied to the tab SKIF opens up
+      //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
       static SKIF_DirectoryWatch root_folder, version_folder;
-      if (root_folder.isSignaled (path_cache.specialk_install))
+      if (root_folder.isSignaled (path_cache.specialk_install, true))
       {
         // If the Special K DLL file is currently loaded, unload it
         if (hModSpecialK != 0)
@@ -3180,7 +3186,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         )
 
         // Download has finished, prompt about starting the installer here.
-        if (version_folder.isSignaled (updateRoot) &&
+        // 
+        // TODO: This directory watch gets assigned to the current tab only, meaning it won't
+        //       trigger an automated refresh if the user switches tabs before it is signaled
+        // 
+        //       This also means the update watch is tied to the tab SKIF opens up
+        //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
+        if (version_folder.isSignaled (updateRoot, true) &&
             PathFileExists ((updateRoot + newVersion.filename).c_str()))
           SKIF_UpdateReady = showUpdatePrompt = true;
         else if (changedUpdateChannel)
@@ -3720,13 +3732,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
 
-        extern std::vector<HANDLE> vWatchHandles;
-
-        //OutputDebugString ((L"vWatchHandles.size(): " + std::to_wstring(vWatchHandles.size()) + L"\n").c_str());
+        //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
 
         // Sleep until a message is in the queue
         //MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
-        MsgWaitForMultipleObjects (vWatchHandles.size(), vWatchHandles.data(), FALSE, INFINITE, QS_ALLINPUT);
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), FALSE, INFINITE, QS_ALLINPUT);
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
@@ -3985,7 +3995,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_DISPLAYCHANGE:
-      if (SKIF_Tab_Selected == Settings)
+      if (SKIF_Tab_Selected == UITab_Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
       break;
 

@@ -633,12 +633,12 @@ SKIF_UI_Tab_DrawMonitor (void)
     InitializeConditionVariable (&ProcRefreshPaused);
   }
   
-  if (SKIF_Tab_Selected != Monitor && SKIF_iProcessRefreshInterval != 0)
+  if (SKIF_Tab_Selected != UITab_Monitor && SKIF_iProcessRefreshInterval != 0)
     WakeConditionVariable (&ProcRefreshPaused);
 
-  SKIF_Tab_Selected = Monitor;
-  if (SKIF_Tab_ChangeTo == Monitor)
-    SKIF_Tab_ChangeTo = None;
+  SKIF_Tab_Selected = UITab_Monitor;
+  if (SKIF_Tab_ChangeTo == UITab_Monitor)
+    SKIF_Tab_ChangeTo = UITab_None;
 
   static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
 
@@ -910,7 +910,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         do
         {
-          if (SKIF_Tab_Selected != Monitor || ! refreshIntervalInMsec)
+          if (SKIF_Tab_Selected != UITab_Monitor || ! refreshIntervalInMsec)
           {
             SleepConditionVariableCS (
               &ProcRefreshPaused, &ProcessRefreshJob,

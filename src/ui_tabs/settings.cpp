@@ -396,7 +396,7 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   // Refresh things when visiting from another tab or when forced
-  if (SKIF_Tab_Selected != Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder))
+  if (SKIF_Tab_Selected != UITab_Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true))
   {
     GetMPOSupport ( );
     driverBinaryPath    = GetDrvInstallState (driverStatus);
@@ -404,9 +404,9 @@ SKIF_UI_Tab_DrawSettings (void)
     RefreshSettingsTab  = false;
   }
 
-  SKIF_Tab_Selected = Settings;
-  if (SKIF_Tab_ChangeTo == Settings)
-      SKIF_Tab_ChangeTo  = None;
+  SKIF_Tab_Selected = UITab_Settings;
+  if (SKIF_Tab_ChangeTo == UITab_Settings)
+      SKIF_Tab_ChangeTo  = UITab_None;
 
 #pragma region Section: Top / General
   // SKIF Options

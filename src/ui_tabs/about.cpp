@@ -50,7 +50,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
   SKIF_ImGui_SetMouseCursorHand ( );
-  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = Library;
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
   ImGui::Text             ("and launch a game!");
   ImGui::SameLine         ( );
@@ -77,7 +77,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
   SKIF_ImGui_SetMouseCursorHand ( );
-  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = Library;
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
   ImGui::Text             ("tab.");
 
@@ -114,7 +114,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ICON_FA_GAMEPAD " Library"
   );
   SKIF_ImGui_SetMouseCursorHand ( );
-  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = Library;
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
   ImGui::Text             ("tab.");
 
@@ -133,7 +133,7 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
     AddGamePopup = PopupState::Open;
-    SKIF_Tab_ChangeTo = Library;
+    SKIF_Tab_ChangeTo = UITab_Library;
   }
   ImGui::SameLine         ( );
   ImGui::Text             ("to add the game to the list.");

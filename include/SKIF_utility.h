@@ -71,9 +71,10 @@ struct SKIF_DirectoryWatch
 {
   ~SKIF_DirectoryWatch (void);
 
-  bool isSignaled (std::wstring_view path);
+  bool isSignaled (std::wstring_view path, bool globalWait);
 
   HANDLE hChangeNotification = INVALID_HANDLE_VALUE;
+  bool   bGlobalWait         = false;
 };
 
 
@@ -84,7 +85,8 @@ struct SKIF_RegistryWatch {
               const wchar_t* wszSubKey,
               const wchar_t* wszEventName,
                         BOOL bWatchSubtree  = TRUE,
-                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET );
+                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
+                       bool  globalWait     = false );
 
   ~SKIF_RegistryWatch (void);
 
@@ -101,6 +103,7 @@ struct SKIF_RegistryWatch {
 
   CRegKey hKeyBase;
   CHandle hEvent;
+  bool    bGlobalWait = false;
 };
 
 
