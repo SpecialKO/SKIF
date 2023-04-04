@@ -86,6 +86,8 @@ struct SKIF_RegistryWatch {
                         BOOL bWatchSubtree  = TRUE,
                        DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET );
 
+  ~SKIF_RegistryWatch (void);
+
   void registerNotify (void);
   void reset          (void);
   bool isSignaled     (void);

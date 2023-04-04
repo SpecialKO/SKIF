@@ -530,6 +530,8 @@ using   app_ptr_t = app_entry_t const*;
 // define character size
 #define CHAR_SIZE 128
 
+#pragma region Trie Keyboard Hint Search
+
 // A Class representing a Trie node
 class Trie
 {
@@ -668,6 +670,108 @@ struct {
 
 Trie labels;
 
+#pragma endregion
+
+
+// Temporarily disabled since this gets triggered on game launch/shutdown as well...
+bool Steam_isLibrariesSignaled (void)
+{
+#define MAX_STEAM_LIBRARIES 16
+  
+  extern bool SKIF_bDisableSteamLibrary;
+
+  if ( SKIF_bDisableSteamLibrary )
+    return false;
+
+  bool isSignaled = false;
+
+  steam_library_t* steam_lib_paths = nullptr;
+  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+  static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
+  static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
+  static bool                hasInitialized = false;
+
+  if (! steam_lib_paths)
+    return false;
+
+  if (steam_libs != 0)
+  {
+    for (int i = 0; i < steam_libs; i++)
+    {
+      wchar_t    wszManifestDir [MAX_PATH + 2] = { };
+      swprintf ( wszManifestDir, MAX_PATH + 2,
+                    LR"(%s\steamapps)",
+                (wchar_t *)steam_lib_paths [i] );
+
+      bool countFiles = false;
+
+      if (steam_libs_watch[i].isSignaled (wszManifestDir))
+        countFiles = true;
+
+      if (countFiles || ! hasInitialized)
+      {
+        int prevCount = steam_libs_files[i];
+        int currCount = 0;
+
+        std::error_code dirError;
+        std::filesystem::directory_iterator iterator = 
+          std::filesystem::directory_iterator (wszManifestDir, dirError);
+
+        // Only iterate over the files if the directory exists and is accessible
+        if (! dirError)
+        {
+          for (auto& directory_entry : iterator)
+            if (directory_entry.is_regular_file())
+              currCount++;
+
+          steam_libs_files[i] = currCount;
+        }
+
+        if (hasInitialized && prevCount != currCount)
+          isSignaled = true;
+      }
+    }
+  }
+
+  hasInitialized = true;
+
+  return isSignaled;
+};
+
+// TODO: Move this into, like, steam_library.cpp or something
+std::vector <std::pair <std::string, app_record_s>>
+Steam_GetInstalledAppIDs (void)
+{
+  extern bool SKIF_bDisableSteamLibrary;
+    
+  std::vector <std::pair <std::string, app_record_s>> ret;
+
+  if ( SKIF_bDisableSteamLibrary )
+    return ret;
+
+  std::set <uint32_t> unique_apps;
+
+  for ( auto app : SK_Steam_GetInstalledAppIDs ( ))
+  {
+    // Skip Steamworks Common Redists
+    if (app == 228980) continue;
+
+    // Skip IDs related to apps, DLCs, music, and tools (including Special K for now)
+    if (std::find(std::begin(steam_apps_ignorable), std::end(steam_apps_ignorable), app) != std::end(steam_apps_ignorable)) continue;
+
+    if (unique_apps.emplace (app).second)
+    {
+      // Opening the manifests to read the names is a
+      //   lengthy operation, so defer names and icons
+      ret.emplace_back (
+        "Loading...", app
+      );
+    }
+  }
+
+  return ret;
+};
+
 void
 SKIF_UI_Tab_DrawLibrary (void)
 {
@@ -706,108 +810,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       )
   );
 
-  //ImGui::DockSpace(ImGui::GetID("Foobar?!"), ImVec2(600, 900), ImGuiDockNodeFlags_KeepAliveOnly | ImGuiDockNodeFlags_NoResize);
-
   auto& io =
     ImGui::GetIO ();
-
-  //static float max_app_name_len = 640.0f / 2.0f;
-
-  static std::vector <AppId_t> appids;
-
-  extern bool SKIF_bDisableSteamLibrary;
-
-  auto _Steam_isLibrariesSignaled = [&](void) -> bool
-  {
-#define MAX_STEAM_LIBRARIES 16
-
-    bool isSignaled = false;
-
-    steam_library_t* steam_lib_paths = nullptr;
-    int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
-    static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
-    static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
-    static bool                hasInitialized = false;
-
-    if (! steam_lib_paths)
-      return false;
-
-    if (steam_libs != 0)
-    {
-      for (int i = 0; i < steam_libs; i++)
-      {
-        wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-        swprintf ( wszManifestDir,
-                     LR"(%s\steamapps)",
-                 (wchar_t *)steam_lib_paths [i] );
-
-        bool countFiles = false;
-
-        if (steam_libs_watch[i].isSignaled (wszManifestDir))
-          countFiles = true;
-
-        if (countFiles || ! hasInitialized)
-        {
-          int prevCount = steam_libs_files[i];
-          int currCount = 0;
-
-          std::error_code dirError;
-          std::filesystem::directory_iterator iterator = 
-            std::filesystem::directory_iterator (wszManifestDir, dirError);
-
-          // Only iterate over the files if the directory exists and is accessible
-          if (! dirError)
-          {
-            for (auto& directory_entry : iterator)
-              if (directory_entry.is_regular_file())
-                currCount++;
-
-            steam_libs_files[i] = currCount;
-          }
-
-          if (hasInitialized && prevCount != currCount)
-            isSignaled = true;
-        }
-      }
-    }
-
-    hasInitialized = true;
-
-    return isSignaled;
-  };
-
-  auto _Steam_GetInstalledAppIDs = [&](void) ->
-    std::vector <std::pair <std::string, app_record_s>>
-  { std::vector <std::pair <std::string, app_record_s>> ret;
-
-    std::set <uint32_t> unique_apps;
-
-    if ( SKIF_bDisableSteamLibrary )
-      return ret;
-
-    appids =
-      SK_Steam_GetInstalledAppIDs ();
-
-    for ( auto app : appids )
-    {
-      // Skip Steamworks Common Redists
-      if (app == 228980) continue;
-
-      // Skip IDs related to apps, DLCs, music, and tools (including Special K for now)
-      if (std::find(std::begin(steam_apps_ignorable), std::end(steam_apps_ignorable), app) != std::end(steam_apps_ignorable)) continue;
-
-      if (unique_apps.emplace (app).second)
-      {
-        // Opening the manifests to read the names is a
-        //   lengthy operation, so defer names and icons
-        ret.emplace_back (
-          "Loading...", app
-        );
-      }
-    }
-
-    return ret;
-  };
 
   static volatile LONG icon_thread  = 1;
   static volatile LONG need_sort    = 0;
@@ -859,7 +863,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
     // Temporarily disabled since this gets triggered on game launch/shutdown as well...
-    //if (! SKIF_bDisableSteamLibrary && _Steam_isLibrariesSignaled ())
+    //if (Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
     if (! SKIF_bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled ( SKIF_EGS_AppDataPath ))
@@ -875,7 +879,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // Clear cached lists
     apps.clear   ();
-    appids.clear ();
 
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
@@ -892,7 +895,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     PLOG_INFO << "Populating library list...";
 
-    apps      = _Steam_GetInstalledAppIDs ();
+    apps      = Steam_GetInstalledAppIDs ();
 
     for (auto& app : apps)
       if (app.second.id == SKIF_STEAM_APPID)
@@ -1211,14 +1214,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (SKIF_iDimCovers == 2)
   {
-    // Every ~16 ms, increase/decrease the cover fade effect (makes it frame rate independent)
+    // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
     static DWORD timeLastTick;
     DWORD timeCurr = SKIF_Util_timeGetTime ( );
     bool isHovered = ImGui::IsItemHovered  ( );
 
     if (isHovered && fTint < 1.0f)
     {
-      if (timeCurr - timeLastTick > 16)
+      if (timeCurr - timeLastTick > 15)
       {
         fTint = fTint + 0.01f;
         timeLastTick = timeCurr;
@@ -1228,7 +1231,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
     else if (! isHovered && fTint > fTintMin)
     {
-      if (timeCurr - timeLastTick > 16)
+      if (timeCurr - timeLastTick > 15)
       {
         fTint = fTint - 0.01f;
         timeLastTick = timeCurr;
@@ -2714,10 +2717,6 @@ Cache=false)";
     // ID = 0 is assigned to corrupted entries, do not list these.
     if (app.second.id == 0)
       continue;
-
-    // If not game, skip
-  //if (app.second.type != "Game")
-  //  continue; // This doesn't work since its reliant on loading the manifest, which is only done when an item is actually selected
     
     bool selected = (selection.appid == app.second.id &&
                      selection.store == app.second.store);

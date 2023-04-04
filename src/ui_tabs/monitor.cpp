@@ -158,6 +158,17 @@ void SKIF_ImportFromNtDll_Impl (_T& pfn, const char* name)
 #define SKIF_ImportFromNtDll(proc) \
  SKIF_ImportFromNtDll_Impl(  proc,#proc )
 
+
+enum SKIF_PROCESS_INFORMATION_CLASS
+{
+    ProcessBasicInformation                     = 0x00, //  0
+    ProcessDebugPort                            = 0x07, //  7
+    ProcessWow64Information                     = 0x1A, // 26
+    ProcessImageFileName                        = 0x1B, // 27
+    ProcessBreakOnTermination                   = 0x1D, // 29
+    ProcessSubsystemInformation                 = 0x4B  // 75
+};
+
 enum SYSTEM_INFORMATION_CLASS
 { SystemBasicInformation                = 0,
   SystemPerformanceInformation          = 2,
@@ -182,6 +193,25 @@ typedef enum _OBJECT_INFORMATION_CLASS {
   ObjectHandleFlagInformation,
   ObjectSessionInformation,
 } OBJECT_INFORMATION_CLASS;
+
+using NtResumeProcess_pfn =
+  NTSTATUS (NTAPI *)(
+       IN  HANDLE                    Handle
+  );
+
+using NtSuspendProcess_pfn =
+  NTSTATUS (NTAPI *)(
+       IN  HANDLE                    Handle
+  );
+
+using NtQueryInformationProcess_pfn =
+  NTSTATUS (NTAPI *)(
+       IN  HANDLE                    Handle,
+       IN  SKIF_PROCESS_INFORMATION_CLASS ProcessInformationClass, // PROCESSINFOCLASS 
+       OUT PVOID                     ProcessInformation,
+       IN  ULONG                     ProcessInformationLength,
+       OUT PULONG                    ReturnLength OPTIONAL
+  );
 
 using NtQuerySystemInformation_pfn =
   NTSTATUS (NTAPI *)(
@@ -211,9 +241,12 @@ using NtDuplicateObject_pfn =
         IN  ULONG       Options       OPTIONAL
   );
 
-NtQuerySystemInformation_pfn NtQuerySystemInformation = nullptr;
-NtDuplicateObject_pfn        NtDuplicateObject        = nullptr;
-NtQueryObject_pfn            NtQueryObject            = nullptr;
+NtQueryInformationProcess_pfn NtQueryInformationProcess = nullptr;
+NtQuerySystemInformation_pfn  NtQuerySystemInformation  = nullptr;
+NtDuplicateObject_pfn         NtDuplicateObject         = nullptr;
+NtQueryObject_pfn             NtQueryObject             = nullptr;
+NtSuspendProcess_pfn          NtSuspendProcess          = nullptr;
+NtResumeProcess_pfn           NtResumeProcess           = nullptr;
 
 typedef struct _SK_SYSTEM_HANDLE_TABLE_ENTRY_INFO
 {
@@ -299,6 +332,38 @@ using _ByteArray = std::vector <uint8_t>;
 
 std::string   SKIF_PresentDebugStr [2];
 volatile LONG SKIF_PresentIdx    =   0;
+
+// Required to check suspended processes
+typedef LONG       KPRIORITY;
+typedef struct _PROCESS_BASIC_INFORMATION {
+  NTSTATUS ExitStatus;
+  PVOID PebBaseAddress;
+  ULONG_PTR AffinityMask;
+  KPRIORITY BasePriority;
+  ULONG_PTR UniqueProcessId;
+  ULONG_PTR InheritedFromUniqueProcessId;
+} PROCESS_BASIC_INFORMATION;
+
+typedef struct _PROCESS_EXTENDED_BASIC_INFORMATION {
+    SIZE_T Size;    // Ignored as input, written with structure size on output
+    PROCESS_BASIC_INFORMATION BasicInfo;
+    union {
+        ULONG Flags;
+        struct {
+            ULONG IsProtectedProcess : 1;
+            ULONG IsWow64Process : 1;
+            ULONG IsProcessDeleting : 1;
+            ULONG IsCrossSessionCreate : 1;
+            ULONG IsFrozen : 1;
+            ULONG IsBackground : 1;
+            ULONG IsStronglyNamed : 1;
+            ULONG IsSecureProcess : 1;
+            ULONG IsSubsystemProcess : 1;
+            ULONG SpareBits : 23;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+} PROCESS_EXTENDED_BASIC_INFORMATION, *PPROCESS_EXTENDED_BASIC_INFORMATION;
+
 
 
 // CC BY-SA 4.0: https://stackoverflow.com/a/59908355/15133327
@@ -810,9 +875,12 @@ SKIF_UI_Tab_DrawMonitor (void)
     std::once_flag init_ntdll;
   std::call_once ( init_ntdll, [](void)
   {
+    SKIF_ImportFromNtDll (NtQueryInformationProcess);
     SKIF_ImportFromNtDll (NtQuerySystemInformation);
     SKIF_ImportFromNtDll (NtQueryObject);
     SKIF_ImportFromNtDll (NtDuplicateObject);
+    SKIF_ImportFromNtDll (NtSuspendProcess);
+    SKIF_ImportFromNtDll (NtResumeProcess);
   }              );
 
   static      USHORT EventIndex = GetTypeIndexByName (L"Event");
@@ -1169,17 +1237,52 @@ SKIF_UI_Tab_DrawMonitor (void)
                   proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
 
                   if (proc.filename == L"SKIFsvc32.exe")
-                    proc.details = "Special K 32-bit Global Injection Service Host";
+                    proc.details = "Special K 32-bit Global Injection Service Host ";
 
                   if (proc.filename == L"SKIFsvc64.exe")
-                    proc.details = "Special K 64-bit Global Injection Service Host";
+                    proc.details = "Special K 64-bit Global Injection Service Host ";
 
                   if (proc.filename == L"SKIFdrv.exe")
-                    proc.details = "Special K Driver Manager";
+                    proc.details = "Special K Driver Manager ";
 
                   if (proc.admin && ! IsUserAnAdmin ( ))
-                    proc.details = "<access denied>";
+                    proc.details += "<access denied> ";
 
+                  // Check if process is suspended
+                  NTSTATUS ntStatusInfoProc;
+                  PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
+
+                  ntStatusInfoProc = 
+                    NtQueryInformationProcess (
+                      hProcessSrc,
+                        ProcessBasicInformation,
+                        &pebi,
+                        sizeof(pebi),
+                        0                     );
+
+                  if (NT_SUCCESS (ntStatusInfoProc) && pebi.Size >= sizeof (pebi))
+                  {
+                    // This does not detect all suspended processes, e.g. suspended using NtSuspendProcess()
+                    if (pebi.IsFrozen)
+                      proc.details += "<suspended> ";
+
+                    if (pebi.IsProtectedProcess)
+                      proc.details += "<protected> ";
+
+                    if (pebi.IsWow64Process)
+                      proc.details += "<wow64> ";
+
+                    if (pebi.IsProcessDeleting)
+                      proc.details += "<zombie process> ";
+
+                    if (pebi.IsBackground)
+                      proc.details += "<background> ";
+
+                    if (pebi.IsSecureProcess)
+                      proc.details += "<secure> ";
+                  }
+
+                  // Add it to the list
                   Processes.emplace_back(proc);
                 }
 
@@ -1311,7 +1414,6 @@ SKIF_UI_Tab_DrawMonitor (void)
           SortProcesses (Processes);
 
           // Swap in the results
-          //InterlockedExchange (&snapshot_idx, idx);
           lastWritten = currWriting;
           snapshot_idx_written.store (lastWritten);
 
@@ -1386,6 +1488,41 @@ SKIF_UI_Tab_DrawMonitor (void)
         }
 
         ImGui::Separator ( );
+
+        /*
+
+        if (ImGui::BeginMenu    (ICON_FA_WRENCH " Debug:"))
+        {
+          if (ImGui::Selectable (ICON_FA_PAUSE " Suspend"))
+          {
+            HANDLE hProcessSrc =
+                OpenProcess (
+                    PROCESS_SUSPEND_RESUME, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
+                  proc.pid );
+
+            NtSuspendProcess (hProcessSrc);
+
+            CloseHandle (hProcessSrc);
+          }
+
+          if (ImGui::Selectable (ICON_FA_PLAY " Resume"))
+          {
+            HANDLE hProcessSrc =
+                OpenProcess (
+                    PROCESS_SUSPEND_RESUME, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
+                  proc.pid );
+
+            NtResumeProcess (hProcessSrc);
+
+            CloseHandle (hProcessSrc);
+          }
+
+          ImGui::EndMenu ( );
+        }
+
+        ImGui::Separator ( );
+
+        */
 
         if (ImGui::Selectable  (ICON_FA_FOLDER_OPEN " Browse"))
           SKIF_Util_ExplorePath (SK_UTF8ToWideChar (p.parent_path().string()).c_str());

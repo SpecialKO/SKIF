@@ -187,7 +187,7 @@ SK_Steam_GetInstalledAppIDs (void)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-      swprintf ( wszManifestDir,
+      swprintf ( wszManifestDir, MAX_PATH + 2,
                    LR"(%s\steamapps)",
                (wchar_t *)steam_lib_paths [i] );
 

@@ -1420,8 +1420,8 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
              : SKIF_bCanFlipDiscard ? 2
                                     : 0; // Non-Flip is ALWAYS VSYNC'd
 
-  auto& io =
-    ImGui::GetIO ();
+  //auto& io =
+  //  ImGui::GetIO ();
 
   // While mouse is down (i.e. dragging), use VSYNC
   
@@ -1435,7 +1435,6 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     bNoVSYNC = false;
   }
   
-  /*
   else if (bNoVSYNC) // Sorta emulates the old behaviour, but not really
   {
     bNoVSYNC = false;

@@ -13,6 +13,8 @@
 
 #pragma comment (lib, "Gdiplus.lib")
 
+std::vector<HANDLE> vWatchHandles;
+
 // Generic Utilities
 
 std::string
@@ -1113,6 +1115,8 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view path)
       FindNextChangeNotification (
         hChangeNotification
       );
+
+      vWatchHandles.push_back (hChangeNotification);
     }
   }
 
@@ -1123,6 +1127,9 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 {
   if (      hChangeNotification != INVALID_HANDLE_VALUE)
     FindCloseChangeNotification (hChangeNotification);
+
+  if (! vWatchHandles.empty())
+    vWatchHandles.erase (std::remove(vWatchHandles.begin(), vWatchHandles.end(), hChangeNotification), vWatchHandles.end());
 }
 
 
@@ -1140,6 +1147,14 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
                             FALSE, wszEventName );
 
   reset ();
+
+  vWatchHandles.push_back (hEvent.m_h);
+}
+
+SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
+{
+  if (! vWatchHandles.empty())
+    vWatchHandles.erase (std::remove(vWatchHandles.begin(), vWatchHandles.end(), hEvent.m_h), vWatchHandles.end());
 }
 
 void

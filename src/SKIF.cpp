@@ -2236,11 +2236,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             lParamPrev = msg.lParam;
             wParamPrev = msg.wParam;
           }
-
-          // Don't refresh main SKIF window if the mouse is being moved over the notification icon.
-          // -- Doesn't work apparently?
-          //if (msg.hwnd == SKIF_Notify_hWnd)
-          //  msgDontRedraw = true;
         }
 
         uiLastMsg = msg.message;
@@ -3725,14 +3720,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
 
+        extern std::vector<HANDLE> vWatchHandles;
+
+        //OutputDebugString ((L"vWatchHandles.size(): " + std::to_wstring(vWatchHandles.size()) + L"\n").c_str());
+
         // Sleep until a message is in the queue
-        MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
+        //MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
+        MsgWaitForMultipleObjects (vWatchHandles.size(), vWatchHandles.data(), FALSE, INFINITE, QS_ALLINPUT);
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
         PowerThrottling.ControlMask = 0;
         PowerThrottling.StateMask   = 0;
         SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+
+        // Always render 3 additional frames after we wake up
+        renderAdditionalFrames = ImGui::GetFrameCount() + 3;
         
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
