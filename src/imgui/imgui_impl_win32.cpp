@@ -987,16 +987,18 @@ ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 
   else
   {
+    /*
     using  GetDeviceCaps_pfn = int (WINAPI *)(HDC,int);
     static GetDeviceCaps_pfn
           SKIF_GetDeviceCaps = (GetDeviceCaps_pfn)GetProcAddress (
                 LoadLibraryEx ( L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
               "GetDeviceCaps"                                    );
+    */
 
-    const HDC dc =    ::GetDC         (nullptr);
-            xdpi = SKIF_GetDeviceCaps (dc, LOGPIXELSX);
-            ydpi = SKIF_GetDeviceCaps (dc, LOGPIXELSY);
-                   ::ReleaseDC        (nullptr, dc);
+    const HDC dc = ::GetDC         (nullptr);
+            xdpi = ::GetDeviceCaps (dc, LOGPIXELSX);
+            ydpi = ::GetDeviceCaps (dc, LOGPIXELSY);
+                   ::ReleaseDC     (nullptr, dc);
   }
 
   IM_ASSERT (xdpi == ydpi); // Please contact me if you hit this assert!

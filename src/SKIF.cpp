@@ -242,6 +242,7 @@ HRESULT
 WINAPI
 SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 {
+  /*
   static HMODULE hModDwmApi =
     LoadLibraryW (L"dwmapi.dll");
 
@@ -254,12 +255,15 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
          reinterpret_cast <DwmGetCompositionTimingInfo_pfn> (
       GetProcAddress ( hModDwmApi,
                           "DwmGetCompositionTimingInfo" )   );
+  */
 
   pTimingInfo->cbSize =
     sizeof (DWM_TIMING_INFO);
 
   return
     DwmGetCompositionTimingInfo ( 0, pTimingInfo );
+
+
 }
 
 
@@ -1854,7 +1858,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
-  ImGui_ImplWin32_EnableDpiAwareness ();
+  // 2023-04-05: Shouldn't be needed as DPI-awareness is set through the embedded appmanifest file // Aemony
+  //ImGui_ImplWin32_EnableDpiAwareness ();
 
   GetSystemMetricsForDpi =
  (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
@@ -3843,6 +3848,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
+/*
 using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
 using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
                                                   CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
@@ -3852,11 +3858,13 @@ using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_
 
 CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
 D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
+*/
 
 // Helper functions
 
 bool CreateDeviceD3D (HWND hWnd)
 {
+  /*
   HMODULE hModD3D11 =
     LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
@@ -3866,12 +3874,13 @@ bool CreateDeviceD3D (HWND hWnd)
   SKIF_CreateDXGIFactory1 =
       (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
       "CreateDXGIFactory1");
+  */
 
   CComPtr <IDXGIFactory5>
                pFactory5;
 
   if ( SUCCEEDED (
-    SKIF_CreateDXGIFactory1 (
+    CreateDXGIFactory1 (
        IID_IDXGIFactory5,
      (void **)&pFactory5.p ) ) )
                pFactory5->CheckFeatureSupport (
@@ -3932,11 +3941,13 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
+  /*
   SKIF_D3D11CreateDeviceAndSwapChain =
       (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
       "D3D11CreateDeviceAndSwapChain");
+  */
 
-  if (SKIF_D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,

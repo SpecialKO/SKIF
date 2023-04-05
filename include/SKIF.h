@@ -113,9 +113,11 @@ BOOL  SKIF_IsHDR              (void);
 extern float fAspect;
 extern float fBottomDist;
 
+/*
 using  CreateDXGIFactory1_pfn = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
 extern CreateDXGIFactory1_pfn
   SKIF_CreateDXGIFactory1;
+*/
 
 const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
 const UINT_PTR IDT_REFRESH_PENDING  = 1338;

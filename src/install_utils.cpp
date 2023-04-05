@@ -34,6 +34,7 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
+  /*
   static VerQueryValueW_pfn
     SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
@@ -43,6 +44,7 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
     SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "GetFileVersionInfoExW"                                            );
+  */
 
   UINT cbTranslatedBytes = 0,
        cbProductBytes    = 0,
@@ -60,19 +62,19 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    SKIF_GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
-                                   wszName,
-                                     0x00,
-                    static_cast <DWORD> (cbData.size ()),
-                                         cbData.data () );
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                              wszName,
+                                0x00,
+              static_cast <DWORD> (cbData.size ()),
+                                    cbData.data () );
 
   if (! bRet) return L"";
 
-  if ( SKIF_VerQueryValueW ( cbData.data (),
-                             TEXT ("\\VarFileInfo\\Translation"),
-            static_cast_p2p <void> (&lpTranslate),
-                                    &cbTranslatedBytes ) &&
-                                     cbTranslatedBytes   && lpTranslate )
+  if ( VerQueryValueW ( cbData.data (),
+                          TEXT ("\\VarFileInfo\\Translation"),
+        static_cast_p2p <void> (&lpTranslate),
+                                &cbTranslatedBytes ) &&
+                                  cbTranslatedBytes   && lpTranslate )
   {
     wchar_t        wszPropName [64] = { };
     _snwprintf_s ( wszPropName, 63,
@@ -80,10 +82,10 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
                      lpTranslate   [0].wLanguage,
                        lpTranslate [0].wCodePage );
 
-    SKIF_VerQueryValueW ( cbData.data (),
-                            wszPropName,
-           static_cast_p2p <void> (&wszProduct),
-                                   &cbProductBytes );
+    VerQueryValueW ( cbData.data (),
+                       wszPropName,
+      static_cast_p2p <void> (&wszProduct),
+                              &cbProductBytes );
 
     if ( cbProductBytes && (StrStrIW (wszProduct, L"Special K")) )
     {
@@ -92,10 +94,10 @@ SKIF_GetSpecialKDLLVersion (const wchar_t* wszName)
                          lpTranslate   [0].wLanguage,
                            lpTranslate [0].wCodePage );
 
-      SKIF_VerQueryValueW ( cbData.data (),
-                              wszPropName,
-             static_cast_p2p <void> (&wszVersion),
-                                     &cbVersionBytes );
+      VerQueryValueW ( cbData.data (),
+                         wszPropName,
+        static_cast_p2p <void> (&wszVersion),
+                                &cbVersionBytes );
 
       if (cbVersionBytes)
         return wszVersion;
@@ -111,6 +113,7 @@ SKIF_GetFileVersion (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
+  /*
   static VerQueryValueW_pfn
     SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
@@ -120,6 +123,7 @@ SKIF_GetFileVersion (const wchar_t* wszName)
     SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "GetFileVersionInfoExW"                                            );
+  */
 
   UINT cbTranslatedBytes = 0,
        cbVersionBytes    = 0;
@@ -135,7 +139,7 @@ SKIF_GetFileVersion (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    SKIF_GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
                                    wszName,
                                      0x00,
                     static_cast <DWORD> (cbData.size ()),
@@ -143,7 +147,7 @@ SKIF_GetFileVersion (const wchar_t* wszName)
 
   if (! bRet) return L"";
 
-  if ( SKIF_VerQueryValueW ( cbData.data (),
+  if ( VerQueryValueW ( cbData.data (),
                              TEXT ("\\VarFileInfo\\Translation"),
             static_cast_p2p <void> (&lpTranslate),
                                     &cbTranslatedBytes ) &&
@@ -155,7 +159,7 @@ SKIF_GetFileVersion (const wchar_t* wszName)
                         lpTranslate   [0].wLanguage,
                           lpTranslate [0].wCodePage );
 
-    SKIF_VerQueryValueW ( cbData.data (),
+    VerQueryValueW ( cbData.data (),
                             wszPropName,
             static_cast_p2p <void> (&wszVersion),
                                     &cbVersionBytes );
@@ -173,6 +177,7 @@ SKIF_GetProductName (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
+  /*
   static VerQueryValueW_pfn
     SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
@@ -182,6 +187,7 @@ SKIF_GetProductName (const wchar_t* wszName)
     SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "GetFileVersionInfoExW"                                            );
+  */
 
   UINT cbTranslatedBytes = 0,
        cbProductBytes    = 0;
@@ -197,7 +203,7 @@ SKIF_GetProductName (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    SKIF_GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
                                    wszName,
                                      0x00,
                     static_cast <DWORD> (cbData.size ()),
@@ -205,7 +211,7 @@ SKIF_GetProductName (const wchar_t* wszName)
 
   if (! bRet) return L"";
 
-  if ( SKIF_VerQueryValueW ( cbData.data (),
+  if ( VerQueryValueW ( cbData.data (),
                              TEXT ("\\VarFileInfo\\Translation"),
             static_cast_p2p <void> (&lpTranslate),
                                     &cbTranslatedBytes ) &&
@@ -217,7 +223,7 @@ SKIF_GetProductName (const wchar_t* wszName)
                      lpTranslate   [0].wLanguage,
                        lpTranslate [0].wCodePage );
 
-    SKIF_VerQueryValueW ( cbData.data (),
+    VerQueryValueW ( cbData.data (),
                             wszPropName,
            static_cast_p2p <void> (&wszProduct),
                                    &cbProductBytes );

@@ -1076,7 +1076,7 @@ ImGui_ImplDX11_Init ( ID3D11Device *device,
   g_pd3dDevice        = device;
   g_pd3dDeviceContext = device_context;
 
-  SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+  CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     ImGui_ImplDX11_InitPlatformInterface ();
@@ -1114,7 +1114,7 @@ void ImGui_ImplDX11_NewFrame (void)
      pFactory1.Release ();
     g_pFactory.Release ();
 
-    SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+    CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
 
     ImGuiContext& g = *GImGui;
     for (int i = 0; i < g.Viewports.Size; i++)

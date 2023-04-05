@@ -77,6 +77,7 @@ SKIF_Util_timeGetTime (void)
   static LARGE_INTEGER qpcFreq = { };
          LARGE_INTEGER li      = { };
 
+  /*
   using timeGetTime_pfn =
           DWORD (WINAPI *)(void);
   static timeGetTime_pfn
@@ -96,6 +97,12 @@ SKIF_Util_timeGetTime (void)
 
     return winmm_timeGetTime != nullptr ?
            winmm_timeGetTime ()         : static_cast <DWORD> (-1);
+  }
+  */
+
+  if ( qpcFreq.QuadPart == 1)
+  {
+    return timeGetTime ();
   }
 
   if (QueryPerformanceCounter (&li))
