@@ -1269,8 +1269,8 @@ SKIF_UI_Tab_DrawMonitor (void)
                     if (pebi.IsProtectedProcess)
                       proc.details += "<protected> ";
 
-                    if (pebi.IsWow64Process)
-                      proc.details += "<wow64> ";
+                    //if (pebi.IsWow64Process)
+                    //  proc.details += "<wow64> ";
 
                     if (pebi.IsProcessDeleting)
                       proc.details += "<zombie process> ";
@@ -1306,6 +1306,8 @@ SKIF_UI_Tab_DrawMonitor (void)
 
           if (hModSpecialK != nullptr)
           {
+            // This retrieves a list of the 32 latest injected processes.
+            // There is no guarantee any of these are still running.
               SKX_GetInjectedPIDs_pfn
               SKX_GetInjectedPIDs     =
             (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
@@ -1399,10 +1401,45 @@ SKIF_UI_Tab_DrawMonitor (void)
                     if (proc.details == "<access denied>")
                       proc.details.clear();
 
-                    CloseHandle (hProcessSrc);
-                  }
+                    // Check if process is suspended
+                    NTSTATUS ntStatusInfoProc;
+                    PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
 
-                  Processes.emplace_back (proc);
+                    ntStatusInfoProc = 
+                      NtQueryInformationProcess (
+                        hProcessSrc,
+                          ProcessBasicInformation,
+                          &pebi,
+                          sizeof(pebi),
+                          0                     );
+
+                    if (NT_SUCCESS (ntStatusInfoProc) && pebi.Size >= sizeof (pebi))
+                    {
+                      // This does not detect all suspended processes, e.g. suspended using NtSuspendProcess()
+                      if (pebi.IsFrozen)
+                        proc.details += "<suspended> ";
+
+                      if (pebi.IsProtectedProcess)
+                        proc.details += "<protected> ";
+
+                      //if (pebi.IsWow64Process)
+                      //  proc.details += "<wow64> ";
+
+                      if (pebi.IsProcessDeleting)
+                        proc.details += "<zombie process> ";
+
+                      if (pebi.IsBackground)
+                        proc.details += "<background> ";
+
+                      if (pebi.IsSecureProcess)
+                        proc.details += "<secure> ";
+                    }
+
+                    CloseHandle (hProcessSrc);
+
+                    Processes.emplace_back (proc);
+                  }
+                  // Only add the process to the list if we could actually open a handle to it.
                 }
               }
             }
