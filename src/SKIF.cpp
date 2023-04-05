@@ -219,6 +219,7 @@ HMODULE hModSpecialK = nullptr;
 // Texture related locks to prevent driver crashes
 concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
 
+/* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
 using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
 static GetSystemMetricsForDpi_pfn
        GetSystemMetricsForDpi = nullptr;
@@ -231,18 +232,20 @@ static GetSystemMetricsForDpi_pfn
 
 #define SK_FULLSCREEN_X(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CXFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CXFULLSCREEN)
 #define SK_FULLSCREEN_Y(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CYFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CYFULLSCREEN)
+*/
 
 #define GCL_HICON           (-14)
 
+/* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
 #ifndef WM_DPICHANGED
 #define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
 #endif
+
 
 HRESULT
 WINAPI
 SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 {
-  /*
   static HMODULE hModDwmApi =
     LoadLibraryW (L"dwmapi.dll");
 
@@ -255,7 +258,6 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
          reinterpret_cast <DwmGetCompositionTimingInfo_pfn> (
       GetProcAddress ( hModDwmApi,
                           "DwmGetCompositionTimingInfo" )   );
-  */
 
   pTimingInfo->cbSize =
     sizeof (DWM_TIMING_INFO);
@@ -265,7 +267,7 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 
 
 }
-
+*/
 
 float fAspect     = 16.0f / 9.0f;
 float fBottomDist = 0.0f;
@@ -281,7 +283,7 @@ bool CreateDeviceD3D           (HWND hWnd);
 void CleanupDeviceD3D          (void);
 void CreateRenderTarget        (void);
 void CleanupRenderTarget       (void);
-void ResizeSwapChain           (HWND hWnd, int width, int height);
+//void ResizeSwapChain           (HWND hWnd, int width, int height);
 LRESULT WINAPI
      SKIF_WndProc              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI
@@ -304,8 +306,8 @@ bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
 //CHandle hSwapWait  (0);           // Signalled by a waitable swapchain
 
-int __width  = 0;
-int __height = 0;
+//int __width  = 0;
+//int __height = 0;
 
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
 // Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
@@ -1861,9 +1863,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // 2023-04-05: Shouldn't be needed as DPI-awareness is set through the embedded appmanifest file // Aemony
   //ImGui_ImplWin32_EnableDpiAwareness ();
 
+  /* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
   GetSystemMetricsForDpi =
- (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
- "GetSystemMetricsForDpi");
+   (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
+   "GetSystemMetricsForDpi");
+  */
 
   //CoInitializeEx (nullptr, 0x0);
 
@@ -2003,8 +2007,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
-  DWORD dwStyle   = SK_BORDERLESS,
-        dwStyleEx = SK_BORDERLESS_EX;
+  DWORD dwStyle   = ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | WS_SYSMENU ),
+        dwStyleEx = ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE );
 
   if (nCmdShow != SW_SHOWMINNOACTIVE &&
       nCmdShow != SW_SHOWNOACTIVATE  &&
@@ -2015,6 +2019,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (SKIF_isTrayed)
     dwStyle &= ~WS_VISIBLE;
 
+
+  /* 2023-04-05: I'm pretty sure this whole block is unnecessary // Aemony
   HMONITOR hMonitor =
     MonitorFromWindow (hWndOrigForeground, MONITOR_DEFAULTTONEAREST);
 
@@ -2023,7 +2029,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     miex.cbSize = sizeof (miex);
 
   UINT dpi = 0;
-
   if ( GetMonitorInfoW (hMonitor, &miex) )
   {
     float fdpiX =
@@ -2037,13 +2042,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //int cyLogical = ( miex.rcMonitor.bottom -
     //                  miex.rcMonitor.top   );
   }
+  */
 
   SKIF_hWnd             =
     CreateWindowExW (                    dwStyleEx,
       wc.lpszClassName, _L("Special K"), dwStyle,
+      /* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
       SK_FULLSCREEN_X (dpi) / 2 - __width  / 2,
       SK_FULLSCREEN_Y (dpi) / 2 - __height / 2,
                    __width, __height,
+      */
+                         0, 0,
+                         0, 0,
                    nullptr, nullptr,
               wc.hInstance, nullptr
     );
@@ -2564,7 +2574,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Update current monitors/worksize etc;
       monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
 
-      // Move the invisible Win32 parent window over to the current monitor.
+      // Move the invisible Win32 parent window SKIF_hWnd over to the current monitor.
       //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
       if (monitor->MainPos.x != ImGui::GetMainViewport()->Pos.x ||
           monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
