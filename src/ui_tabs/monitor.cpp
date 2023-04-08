@@ -1282,8 +1282,9 @@ SKIF_UI_Tab_DrawMonitor (void)
                       proc.details += "<secure> ";
                   }
 
-                  // Add it to the list
-                  Processes.emplace_back(proc);
+                  // Add it to the list, but only if it's not a zombie process
+                  if (! pebi.IsProcessDeleting)
+                    Processes.emplace_back(proc);
                 }
 
                 CloseHandle (hProcessSrc);
