@@ -1313,7 +1313,7 @@ SKIF_UI_Tab_DrawMonitor (void)
             (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
             "SKX_GetInjectedPIDs");
 
-              /* Unused
+            /* Unused
               SK_Inject_GetRecord     =
             (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
             "SK_Inject_GetRecord");
@@ -1332,115 +1332,10 @@ SKIF_UI_Tab_DrawMonitor (void)
               {
                 DWORD dwPID =
                   snapshot.dwPIDs[--num_pids];
-                bool foundInVector = false;
 
                 for (auto& proc : Processes)
-                {
                   if (proc.pid == dwPID)
-                  {
                     proc.status   = 1; // Active
-                    foundInVector = true;
-                  }
-                }
-
-                // Process wasn't found (e.g. running in a different security context), so let's add it with some basic info
-                if (! foundInVector)
-                {
-                  standby_record_s proc;
-                  proc.pid      = dwPID;
-                  proc.status   = 1; // Active
-                  proc.filename = L"<unknown>";
-                  proc.admin    = SKIF_Util_IsProcessAdmin (dwPID);
-#ifdef _WIN64
-                  proc.arch     = "64-bit";
-#else
-                  proc.arch     = "32-bit";
-#endif
-
-                  // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to even open elevated processes
-                  HANDLE hProcessSrc =
-                    OpenProcess (
-                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
-                      dwPID );
-
-                  if (hProcessSrc)
-                  {
-                    wchar_t                                wszProcessName [MAX_PATH] = { };
-                    GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
-
-                    std::wstring friendlyPath = std::wstring(wszProcessName);
-
-                    for (auto& device : deviceMap)
-                    {
-                      if (friendlyPath.find(device.second) != std::wstring::npos)
-                      {
-                        friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                        // Strip all null terminator \0 characters from the string
-                        friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
-                        break;
-                      }
-                    }
-                    
-                    proc.filename = (friendlyPath.empty()) ? L"<unknown>" : friendlyPath;
-                    proc.path     = friendlyPath;
-                    proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
-                    proc.tooltip  = proc.pathUTF8;
-
-                    if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
-                      proc.policy = Blacklist;
-                    else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
-                      proc.policy = Whitelist;
-                    else
-                      proc.policy = DontCare;
-
-                    PathStripPathW (proc.filename.data());
-
-                    // Strip all null terminator \0 characters from the string
-                    proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
-
-                    if (proc.details == "<access denied>")
-                      proc.details.clear();
-
-                    // Check if process is suspended
-                    NTSTATUS ntStatusInfoProc;
-                    PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
-
-                    ntStatusInfoProc = 
-                      NtQueryInformationProcess (
-                        hProcessSrc,
-                          ProcessBasicInformation,
-                          &pebi,
-                          sizeof(pebi),
-                          0                     );
-
-                    if (NT_SUCCESS (ntStatusInfoProc) && pebi.Size >= sizeof (pebi))
-                    {
-                      // This does not detect all suspended processes, e.g. suspended using NtSuspendProcess()
-                      if (pebi.IsFrozen)
-                        proc.details += "<suspended> ";
-
-                      if (pebi.IsProtectedProcess)
-                        proc.details += "<protected> ";
-
-                      //if (pebi.IsWow64Process)
-                      //  proc.details += "<wow64> ";
-
-                      if (pebi.IsProcessDeleting)
-                        proc.details += "<zombie process> ";
-
-                      if (pebi.IsBackground)
-                        proc.details += "<background> ";
-
-                      if (pebi.IsSecureProcess)
-                        proc.details += "<secure> ";
-                    }
-
-                    CloseHandle (hProcessSrc);
-
-                    Processes.emplace_back (proc);
-                  }
-                  // Only add the process to the list if we could actually open a handle to it.
-                }
               }
             }
           }
