@@ -1254,7 +1254,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
                  : (root_dir + LR"(\blacklist.ini)").c_str()
   );
 
-  if (list_file.is_open())
+  if (list_file.is_open ())
   {
     // Requires Windows 10 1903+ (Build 18362)
     if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
@@ -1267,7 +1267,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
     else
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(suppress : 4996)
+#pragma warning(disable : 4996)
       list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 
@@ -1344,7 +1344,7 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
     else
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(suppress : 4996)
+#pragma warning(disable : 4996)
       list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 

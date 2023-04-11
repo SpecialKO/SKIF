@@ -436,6 +436,10 @@ auto SKIF_ImGui_LoadFont =
 
   wchar_t wszFullPath [ MAX_PATH + 2 ] = { };
 
+  //OutputDebugString(L"Input: ");
+  //OutputDebugString(filename.c_str());
+  //OutputDebugString(L"\n");
+
   if (GetFileAttributesW (              filename.c_str ()) != INVALID_FILE_ATTRIBUTES)
      wcsncpy_s ( wszFullPath, MAX_PATH, filename.c_str (),
                              _TRUNCATE );
@@ -453,6 +457,10 @@ auto SKIF_ImGui_LoadFont =
       *wszFullPath = L'\0';
   }
 
+  //OutputDebugString(L"Font path: ");
+  //OutputDebugString(wszFullPath);
+  //OutputDebugString(L"\n");
+
   if (*wszFullPath != L'\0')
   {
     return
@@ -467,9 +475,8 @@ auto SKIF_ImGui_LoadFont =
 
 ImFont* fontConsolas = nullptr;
 
-auto
-SKIF_ImGui_InitFonts =
-[ ](float fontSize)
+void
+SKIF_ImGui_InitFonts (float fontSize)
 {
   static UINT acp = GetACP();
 
@@ -500,69 +507,84 @@ SKIF_ImGui_InitFonts =
   ImFontConfig
   font_cfg           = {  };
   font_cfg.MergeMode = true;
-
-  // Core character set
-  SKIF_ImGui_LoadFont     (((tinyDPIFonts) ? L"Verdana.ttf" : L"Tahoma.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
-
-  // Load extended character sets when SKIF is not used as a launcher
-  if (! _Signal.Launcher || _Signal.AddSKIFGame)
-  {
-    // Cyrillic character set
-    if (SKIF_bFontCyrillic)
-      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesCyrillic                (), &font_cfg);
-  
-    // Japanese character set
-    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (SKIF_bFontJapanese && acp == 932)
-    {
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-    }
-
-    // Simplified Chinese character set
-    // Also includes almost all of the Japanese characters except for some Kanjis
-    if (SKIF_bFontChineseSimplified)
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
-
-    // Japanese character set
-    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (SKIF_bFontJapanese && acp != 932)
-    {
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-    }
-    
-    // All Chinese character sets
-    if (SKIF_bFontChineseAll)
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseFull             (), &font_cfg);
-
-    // Korean character set
-    // On 32-bit builds this does not include Hangul syllables due to system limitaitons
-    if (SKIF_bFontKorean)
-      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, SK_ImGui_GetGlyphRangesKorean                   (), &font_cfg);
-
-    // Thai character set
-    if (SKIF_bFontThai)
-      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesThai                    (), &font_cfg);
-
-    // Vietnamese character set
-    if (SKIF_bFontVietnamese)
-      SKIF_ImGui_LoadFont   (L"Tahoma.ttf",   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
-  }
   
   std::filesystem::path fontDir
           (path_cache.specialk_userdata);
 
   fontDir /= L"Fonts";
 
+  std::wstring standardFont = (tinyDPIFonts) ? L"Verdana.ttf" : L"Tahoma.ttf";
+
   std::error_code ec;
   // Create any missing directories
   if (! std::filesystem::exists (            fontDir, ec))
         std::filesystem::create_directories (fontDir, ec);
+
+  // Core character set
+  SKIF_ImGui_LoadFont     (standardFont, fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
+  //SKIF_ImGui_LoadFont     ((fontDir / L"NotoSans-Regular.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
+
+  // Load extended character sets when SKIF is not used as a launcher
+  if (! _Signal.Launcher || _Signal.AddSKIFGame)
+  {
+    // Cyrillic character set
+    if (SKIF_bFontCyrillic)
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesCyrillic                 (), &font_cfg);
+      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesCyrillic        (), &font_cfg);
+  
+    // Japanese character set
+    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
+    if (SKIF_bFontJapanese && acp == 932)
+    {
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
+      ///*
+      if (SKIF_Util_IsWindows10OrGreater ( ))
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      else
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      //*/
+    }
+
+    // Simplified Chinese character set
+    // Also includes almost all of the Japanese characters except for some Kanjis
+    if (SKIF_bFontChineseSimplified)
+      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon        (), &font_cfg);
+
+    // Japanese character set
+    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
+    if (SKIF_bFontJapanese && acp != 932)
+    {
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
+      ///*
+      if (SKIF_Util_IsWindows10OrGreater ( ))
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      else
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+      //*/
+    }
+    
+    // All Chinese character sets
+    if (SKIF_bFontChineseAll)
+      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseFull             (), &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseFull        (), &font_cfg);
+
+    // Korean character set
+    // On 32-bit builds this does not include Hangul syllables due to system limitaitons
+    if (SKIF_bFontKorean)
+      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, SK_ImGui_GetGlyphRangesKorean                   (), &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, io.Fonts->SK_ImGui_GetGlyphRangesKorean        (), &font_cfg);
+
+    // Thai character set
+    if (SKIF_bFontThai)
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesThai                    (), &font_cfg);
+      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSansThai-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesThai      (), &font_cfg);
+
+    // Vietnamese character set
+    if (SKIF_bFontVietnamese)
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
+      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesVietnamese    (), &font_cfg);
+  }
 
   static auto
     skif_fs_wb = ( std::ios_base::binary
@@ -611,7 +633,8 @@ SKIF_ImGui_InitFonts =
   io.Fonts->AddFontDefault ();
 
   fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx());
-};
+  //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
+}
 
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
@@ -1050,7 +1073,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
                            0,
     [](LPVOID lpUser)->unsigned
     {
-      SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCheck");
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCheck");
 
       SKIF_UpdateCheckResults* _res = (SKIF_UpdateCheckResults*)lpUser;
 
@@ -1150,8 +1173,8 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
           {
             // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
             // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(suppress : 4996) // suppress doesn't work, so just disable the line so we don't throw errors at compilation
-            //fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+#pragma warning(disable : 4996)
+            fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
           }
 
           std::wstring line;
@@ -1850,8 +1873,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   UNREFERENCED_PARAMETER (hInstance);
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
-
-  SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
+  
+  SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
   if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
@@ -2165,7 +2188,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplWin32_Init (hWnd); // This ends up creating a separate window/hWnd as well
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
-  SKIF_ImGui_InitFonts (18.0F);
+#define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
+
+  SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
 
   // Our state
   ImVec4 clear_color         =
@@ -2328,7 +2353,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       PLOG_VERBOSE << "DPI scale detected as being at or above 100%; using font scale 18.0F";
 
-      SKIF_ImGui_InitFonts (18.0F);
+      SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -2338,7 +2363,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     else if (invalidateFonts)
     {
       PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : 18.0F);
+      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -2358,7 +2383,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bFontVietnamese        = false;
 
       PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : 18.0F);
+      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -3671,7 +3696,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         InitializeCriticalSection (&GamepadInputPump);
         EnterCriticalSection      (&GamepadInputPump);
         
-        SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
+        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
 
         DWORD pkgLast = 0, pkgNew = 0;
 
@@ -3921,7 +3946,7 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 1;
   sd.Flags                              =
-                   SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                          SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                                         : 0x0;
   sd.Flags |=
                      SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
@@ -4165,7 +4190,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
              (UINT)HIWORD (lParam),
             DXGI_FORMAT_UNKNOWN, ((SKIF_bAllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
                                                        : 0x0) |
-                                      ((SKIF_bCanFlipDiscard) ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+                                             ((SKIF_bCanFlip) ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                                                               : 0x0)
         );
         CreateRenderTarget ();

@@ -40,6 +40,17 @@ DrvInstallState driverStatus        = NotInstalled,
 bool
 GetMPOSupport (void)
 {
+  using D3DKMTGetMultiPlaneOverlayCaps_pfn =
+    NTSTATUS (WINAPI *)(D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS*);
+
+  static D3DKMTGetMultiPlaneOverlayCaps_pfn
+    SKIF_D3DKMTGetMultiPlaneOverlayCaps =
+        (D3DKMTGetMultiPlaneOverlayCaps_pfn)GetProcAddress (LoadLibraryEx (L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "D3DKMTGetMultiPlaneOverlayCaps");
+
+  if (SKIF_D3DKMTGetMultiPlaneOverlayCaps == nullptr)
+    return false;
+
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
   std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
   LONG result = ERROR_SUCCESS;
@@ -50,7 +61,7 @@ GetMPOSupport (void)
   {
     // Determine how many path and mode structures to allocate
     UINT32 pathCount, modeCount;
-    result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+    result = GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
 
     if (result != ERROR_SUCCESS)
     {
@@ -146,7 +157,7 @@ GetMPOSupport (void)
       caps.hAdapter      = openAdapter.hAdapter;
       caps.VidPnSourceId = path.sourceInfo.id;
 
-      if (D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+      if (SKIF_D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
       {
         PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
         PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?

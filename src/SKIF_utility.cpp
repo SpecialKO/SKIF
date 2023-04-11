@@ -525,7 +525,7 @@ SKIF_Util_OpenURI_Threaded (
                          0,
   [](LPVOID lpUser)->unsigned
   {
-    SetThreadDescription (GetCurrentThread (), L"SKIF_OpenURI_Threaded");
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_OpenURI_Threaded");
 
     LPCWSTR _path = (LPCWSTR)lpUser;
 
@@ -607,6 +607,23 @@ SKIF_Util_CompactWorkingSet (void)
     EmptyWorkingSet (
       GetCurrentProcess ()
     );
+}
+
+HRESULT
+SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
+{
+  using SetThreadDescription_pfn =
+    HRESULT (WINAPI *)(HANDLE hThread, PCWSTR lpThreadDescription);
+
+  static SetThreadDescription_pfn
+    SKIF_SetThreadDescription =
+        (SetThreadDescription_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetThreadDescription");
+
+  if (SKIF_SetThreadDescription == nullptr)
+    return false;
+  
+  return SKIF_SetThreadDescription (hThread, lpThreadDescription);
 }
 
 BOOL

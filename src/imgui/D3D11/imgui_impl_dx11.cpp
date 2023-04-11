@@ -1178,7 +1178,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                          : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
                                          : DXGI_SWAP_EFFECT_DISCARD;
   swap_desc.Flags =
-    SKIF_bCanFlipDiscard ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+           SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
                          : 0x0;
 
   swap_desc.Flags |=
@@ -1283,14 +1283,14 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                            &data->RTView );
   }
 
-  CComQIPtr <IDXGISwapChain3>
-      pSwap3 (data->SwapChain);
-  if (pSwap3 != nullptr && SKIF_bCanFlipDiscard)
+  CComQIPtr <IDXGISwapChain2>
+      pSwap2 (data->SwapChain);
+  if (pSwap2 != nullptr && SKIF_bCanFlip)
   {
-    pSwap3->SetMaximumFrameLatency (1);
+    pSwap2->SetMaximumFrameLatency (1);
 
     data->WaitHandle =
-      pSwap3->GetFrameLatencyWaitableObject ();
+      pSwap2->GetFrameLatencyWaitableObject ();
   }
 }
 
@@ -1408,6 +1408,8 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
+  // TODO: Clean up this whole function
+
   extern bool SKIF_bDisableVSYNC;
 
   bool bNoVSYNC =
@@ -1449,10 +1451,16 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     Interval = 0;
   }
 
+  extern BOOL SKIF_Util_IsWindows10OrGreater (void);
+
+  // Force V-Sync on Windows 8.1
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    Interval = 1;
+
   if (data->WaitHandle)
   {
-    CComQIPtr <IDXGISwapChain3>
-      pSwap3 (data->SwapChain);
+    CComQIPtr <IDXGISwapChain2>
+      pSwap2 (data->SwapChain);
 
     DWORD dwWaitState =
       WaitForSingleObject (data->WaitHandle, INFINITE);
@@ -1460,7 +1468,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     if (dwWaitState == WAIT_OBJECT_0)
     {
       DXGI_PRESENT_PARAMETERS       pparams = { };
-      pSwap3->Present1 ( Interval, (SKIF_bCanFlip ? DXGI_PRESENT_RESTART       : 0x0) |
+      pSwap2->Present1 ( Interval, (SKIF_bCanFlip ? DXGI_PRESENT_RESTART       : 0x0) |
                                    (     bNoVSYNC ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
                                    &pparams );
       data->PresentCount++;

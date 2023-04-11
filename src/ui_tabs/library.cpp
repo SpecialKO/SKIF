@@ -949,7 +949,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // We're going to stream icons in asynchronously on this thread
     _beginthread ([](void*)->void
     {
-      SetThreadDescription (GetCurrentThread (), L"SKIF_LibRefreshWorker");
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibRefreshWorker");
 
       CoInitializeEx (nullptr, 0x0);
 
@@ -1454,8 +1454,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     // We're going to stream the cover in asynchronously on this thread
     _beginthread ([](void*)->void
     {
-      SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
       CoInitializeEx (nullptr, 0x0);
+
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
 
       PLOG_INFO << "Thread started!";
       PLOG_INFO << "Streaming game cover asynchronously...";

@@ -109,7 +109,9 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
 
       lastFocus = (dwWindowOwnerPid == dwPidOfMe);
 
-      if (g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
+      BOOL IsWindows10OrGreater ( );
+
+      if (IsWindows10OrGreater ( ) && g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
       {
         // Ugly-ass workaround for the window never receiving WM_KILLFOCUS on launch if it gets unfocused quickly
         // We also need to send a WM_SETFOCUS when it regains focus because apparently Windows doesn't send it either...?

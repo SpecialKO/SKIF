@@ -40,6 +40,7 @@ void         SKIF_Util_OpenURI_Threaded            (                const LPCWST
 
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
+HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);
 BOOL            SKIF_Util_IsWindows8Point1OrGreater   (void);
 BOOL            SKIF_Util_IsWindows10OrGreater        (void);
 BOOL            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
