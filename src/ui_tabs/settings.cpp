@@ -334,7 +334,7 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
               // Check if the installed driver exists, and it's in SK's folder
               if (PathFileExists      (binaryPath.c_str()) &&
                 (std::wstring::npos != binaryPath.find (dirNameInstall ) ||
-                  std::wstring::npos != binaryPath.find (dirNameUserdata)))
+                 std::wstring::npos != binaryPath.find (dirNameUserdata)))
               {
                 ptrStatus = ObsoleteInstalled; // File exists, so obsolete driver is installed
                 PLOG_INFO << "Found obsolete driver " << svcName << " installed at : " << binaryPath;
@@ -388,7 +388,8 @@ SKIF_UI_Tab_DrawSettings (void)
   static std::wstring
             driverBinaryPath    = L"",
             SKIFdrvFolder = SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", path_cache.specialk_install),
-            SKIFdrv       = SKIFdrvFolder + L"SKIFdrv.exe"; // TODO: Should be reworked to support a separate install location as well; // TODO: Should be reworked to support a separate install location as well
+            SKIFdrv       = SKIFdrvFolder + L"SKIFdrv.exe", // TODO: Should be reworked to support a separate install location as well
+            SYSdrv        = SKIFdrvFolder + L"WinRing0x64.sys"; // TODO: Should be reworked to support a separate install location as well
   
   static SKIF_DirectoryWatch SKIF_DriverWatch;
 
@@ -1465,7 +1466,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if ( driverButton )
     {
-      if (PathFileExists (SKIFdrv.c_str()))
+      if (PathFileExists (SKIFdrv.c_str()) && PathFileExists (SYSdrv.c_str()))
       {
         if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
           driverStatusPending =
@@ -1740,8 +1741,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Columns     (1);
     
-    ImGui::Spacing  ();
-    ImGui::Spacing  ();
+    ImGui::Spacing     ();
+    ImGui::Spacing     ();
 
     ImGui::Separator   ();
 
@@ -1772,56 +1773,63 @@ SKIF_UI_Tab_DrawSettings (void)
                         "Support among connected displays:"
     );
 
-    ImGui::Text        ("Display");
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("Planes");
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("Stretch");
-    ImGui::SameLine    ( );
-    ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine    ( );
-    ImGui::Text        ("Capabilities");
-
-    for (auto& monitor : Monitors)
+    if (SKIF_Util_IsWindows10OrGreater ( ))
     {
-      std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
-                                                                     :   "%.1fx - %.1fx";
-      ImVec4 colName            = (monitor.MaxPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
-                                                          : ImColor::HSV (0.11F, 1.F, 1.F);
-
-      ImGui::BeginGroup  ();
-      //ImGui::Text        ("%u", monitor.Index);
-      //ImGui::SameLine    ( );
-      ImGui::TextColored (colName, monitor.Name.c_str());
-      SKIF_ImGui_SetHoverTip (monitor.DeviceNameGdi.c_str());
+      ImGui::Text        ("Display");
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("%u", monitor.MaxPlanes);
+      ImGui::Text        ("Planes");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
-        ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
-      else
-        ImGui::Text        ("Not Supported");
+      ImGui::Text        ("Stretch");
       ImGui::SameLine    ( );
-      if (monitor.MaxPlanes > 1)
+      ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine    ( );
+      ImGui::Text        ("Capabilities");
+
+      for (auto& monitor : Monitors)
       {
-        ImGui::ItemSize    (ImVec2 (390.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-        SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
+        std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
+                                                                       :   "%.1fx - %.1fx";
+        ImVec4 colName            = (monitor.MaxPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                            : ImColor::HSV (0.11F, 1.F, 1.F);
+
+        ImGui::BeginGroup    ( );
+        //ImGui::Text        ("%u", monitor.Index);
+        //ImGui::SameLine    ( );
+        ImGui::TextColored   (colName, monitor.Name.c_str());
+        SKIF_ImGui_SetHoverTip (monitor.DeviceNameGdi.c_str());
+        ImGui::SameLine      ( );
+        ImGui::ItemSize      (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine      ( );
+        ImGui::Text          ("%u", monitor.MaxPlanes);
+        ImGui::SameLine      ( );
+        ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine      ( );
+        if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
+          ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+        else
+          ImGui::Text        ("Not Supported");
+        ImGui::SameLine      ( );
+        if (monitor.MaxPlanes > 1)
+        {
+          ImGui::ItemSize    (ImVec2 (390.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+          ImGui::SameLine    ( );
+          ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
+        }
+        else {
+          ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+          ImGui::SameLine    ( );
+          ImGui::Text        ("Not Supported");
+        }
+        ImGui::EndGroup      ( );
       }
-      else {
-        ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine    ( );
-        ImGui::Text        ("Not Supported");
-      }
+    }
+    else {
+      ImGui::Text      ("Reporting MPO capabilities requires Windows 10 or newer.");
     }
 
     ImGui::EndGroup    ();
