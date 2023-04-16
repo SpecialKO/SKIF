@@ -2861,6 +2861,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // End of top right window buttons
 
+      // Prepare Shelly color and Y position
+      const float fGhostTimeStep = 0.01f;
+      static float fGhostTime    = 0.0f;
+
+      float fGhostYPos = 4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 1);
+
+      ImVec4 vGhostColor = ImColor::ImColor (
+          0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
+          0.5f * (std::sin(6 * (fGhostTime / 2.5f + 1.0f / 3.0f)) + 1),
+          0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
+        );
+
+      if (SKIF_iStyle == 2)
+        vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+
       ImGui::BeginGroup ();
 
       // Begin Small Mode
@@ -2926,20 +2941,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::SameLine    ( 0.0f, fNewPos );
 
+
+          /* Original method:
           auto current_time =
             SKIF_Util_timeGetTime ();
 
           ImGui::SetCursorPosY (
             ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
                                );
-
           ImVec4 vGhostColor =
             ImColor::HSV (   (float)(current_time % 1400)/ 2800.f,
                 (.5f + (sin ((float)(current_time % 750) /  250.f)) * .5f) / 2.f,
                    1.f );
+          */
 
-          if (SKIF_iStyle == 2)
-            vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+          ImGui::SetCursorPosY (
+            ImGui::GetCursorPosY () + fGhostYPos
+                               );
 
           ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
         }
@@ -3064,6 +3082,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::SameLine    ( 0.0f, fNewPos );
 
+          /*
           auto current_time =
             SKIF_Util_timeGetTime ();
 
@@ -3078,6 +3097,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (SKIF_iStyle == 2)
             vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+          */
+          
+          ImGui::SetCursorPosY (
+            ImGui::GetCursorPosY () + fGhostYPos
+                               );
 
           ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
         }
@@ -3088,6 +3112,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #pragma endregion
 
       ImGui::EndGroup             ( );
+
+      // Increase Shelly timestep for next frame
+      fGhostTime += fGhostTimeStep;
 
       // Status Bar at the bottom
       if ( ! SKIF_bSmallMode        &&
@@ -3381,6 +3408,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec4      compareColor;
         bool        compareNewer = false;
 
+        if (UpdatePromptPopup == PopupState::Open)
+        {
+          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+          ImGuiWindow* window = ImGui::FindWindowByName ("###UpdatePrompt");
+          if (window != nullptr && ! window->Appearing)
+            UpdatePromptPopup = PopupState::Opened;
+        }
+
         if (SKIF_Util_CompareVersionStrings (newVersion.version, currentVersion) > 0)
         {
           compareLabel = "This version is newer than currently installed.";
@@ -3570,6 +3605,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
+
+        if (HistoryPopup == PopupState::Open)
+        {
+          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+          ImGuiWindow* window = ImGui::FindWindowByName ("###History");
+          if (window != nullptr && ! window->Appearing)
+            HistoryPopup = PopupState::Opened;
+        }
+
         SKIF_ImGui_Spacing ();
 
         if (! newVersion.history.empty())
@@ -3781,9 +3825,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
       //   But we do close the RemoveGame popup since that's not as critical.
-      if (AddGamePopup    != PopupState::Opened &&
-          ConfirmPopup    != PopupState::Opened &&
-          ModifyGamePopup != PopupState::Opened )
+      if (AddGamePopup      != PopupState::Opened &&
+          ConfirmPopup      != PopupState::Opened &&
+          ModifyGamePopup   != PopupState::Opened &&
+          UpdatePromptPopup != PopupState::Opened &&
+          HistoryPopup      != PopupState::Opened )
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
 
