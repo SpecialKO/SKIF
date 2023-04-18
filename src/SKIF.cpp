@@ -107,6 +107,7 @@ bool showUpdatePrompt = false;
 bool changedUpdateChannel = false;
 bool msgDontRedraw    = false;
 bool coverFadeActive  = false;
+int  startupFadeIn    = 0;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -670,8 +671,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.AddSKIFGame =
     StrStrIW (lpCmdLine, L"AddGame=") != NULL;
 
-  _Signal.Launcher =
-    StrStrIW (lpCmdLine, L".exe")     != NULL;
+  // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
+  //   so only set Launcher if AddSKIFGame is false.
+  if (! _Signal.AddSKIFGame)
+    _Signal.Launcher =
+      StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   if ( (  hwndAlreadyExists != 0 ) &&
        ( ! _Signal.Launcher )      &&
@@ -1038,13 +1042,15 @@ void SKIF_putStopOnInjection (bool in)
 }
 
 std::string patrons;
-volatile LONG update_thread = 0;              // 0 = No update check has run,        1 = Update check is running,       2 = Update check has completed
-volatile LONG update_thread_patreon = 0;      // 0 = patrons.txt is not ready,       1 = patrons.txt is ready 
+std::atomic<int> update_thread         = 0; // 0 = No update check has run,            1 = Update check is running,       2 = Update check has completed
+std::atomic<int> update_thread_new     = 0; // 0 = No new update check is needed run,  1 = A new update check should start if the current one is complete
+std::atomic<int> update_thread_patreon = 0; // 0 = patrons.txt is not ready,           1 = patrons.txt is ready 
+
 std::vector <std::pair<std::string, std::string>> updateChannels;
 
 std::string SKIF_GetPatrons ( )
 {
-  if (InterlockedExchangeAdd (&update_thread_patreon, 0) == 1)
+  if (update_thread_patreon.load ( ) == 1)
     return patrons;
   else
     return "";
@@ -1060,8 +1066,10 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
   static SKIF_UpdateCheckResults results;
 
-  if (InterlockedCompareExchange (&update_thread, 1, 0) == 0)
+  if (update_thread.load ( ) == 0)
   {
+    update_thread.store (1);
+
     if (changedUpdateChannel)
     {
       results.filename.clear();
@@ -1216,7 +1224,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       }
 
       // Indicate patrons variable is ready to be accessed from the main thread
-      InterlockedExchange (&update_thread_patreon, 1);
+      update_thread_patreon.store (1);
 
       // Update repository.json
       if (downloadNewFiles)
@@ -1371,17 +1379,30 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
       }
       
       PLOG_DEBUG << "Update Thread Stopped!";
-      InterlockedExchange (&update_thread, 2);
+      update_thread.store (2);
       _endthreadex(0);
 
       return 0;
     }, (LPVOID)&results, NULL, NULL);
   }
 
-  if (InterlockedExchangeAdd (&update_thread, 0) == 2)
+  // If the check is complete, return the results
+  if (update_thread.load ( ) == 2)
+  {
+    // If a new refresh has been requested, reset the progress, but only if the current one is done
+    if (update_thread_new.load ( ) == 1)
+    {
+      update_thread.store (0);
+      update_thread_new.store (0);
+
+      // Don't return the current results as it's outdated
+      return SKIF_UpdateCheckResults ( );
+    }
+
     return results;
-  else
-    return SKIF_UpdateCheckResults();
+  }
+
+  return SKIF_UpdateCheckResults ( );
 }
 
 void SKIF_CreateUpdateNotifyMenu (void)
@@ -1903,8 +1924,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
-  // We don't want Steam's overlay to draw upon SKIF
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+  // We don't want Steam's overlay to draw upon SKIF,
+  //   but only if not used as a launcher.
+  if (! _Signal.Launcher)
+    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   // First round
   if (_Signal.Minimize)
@@ -2218,6 +2241,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
   bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
+  int  updaterExpectingNewFile      = 10;     // This is used to continue rendering for a few frames if we're expecting a new version file
 
   // Force a one-time check before we enter the main loop
   _inject.TestServletRunlevel (true);
@@ -2585,11 +2609,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
                          ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
       );
-
-      if (newVersion.filename.empty())
-      {
-        newVersion = SKIF_CheckForUpdates ();
-      }
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
 
@@ -2987,9 +3006,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _registry.regKVFirstLaunch.putData(SKIF_bFirstLaunch);
           }
 
+          extern float fTint;
+          if (SKIF_Tab_Selected != UITab_Library)
+          {
+            // Reset the dimmed cover when going back to the tab
+            if (SKIF_iDimCovers == 2)
+              fTint = 0.75f;
+          }
+
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)
             SKIF_Tab_ChangeTo = UITab_None;
+            
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
@@ -3161,7 +3189,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // End Add Game
 
         // Begin Pulsating Refresh Icon
-        if (InterlockedExchangeAdd (&update_thread, 0) == 1)
+        if (update_thread.load ( ) == 1)
         {
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX () +
@@ -3276,7 +3304,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // 
       //       This also means the main DLL refresh watch is tied to the tab SKIF opens up
       //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
-      static SKIF_DirectoryWatch root_folder, version_folder;
+      static SKIF_DirectoryWatch root_folder;
       if (root_folder.isSignaled (path_cache.specialk_install, true))
       {
         // If the Special K DLL file is currently loaded, unload it
@@ -3291,22 +3319,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata);
-      if (! newVersion.filename.empty())
+
+      // Set up the update directory watch
+      static SKIF_DirectoryWatch version_folder (updateRoot, true, true);
+
+      // Update newVersion on every frame
+      newVersion = SKIF_CheckForUpdates ();
+
+      if (version_folder.isSignaled (updateRoot, true, true, FALSE, FILE_NOTIFY_CHANGE_SIZE))
+        updaterExpectingNewFile = 10;
+
+      // Only proceed if we expect a new version
+      if (! newVersion.filename.empty ())
       {
         SK_RunOnce(
           SKIF_UpdateReady = showUpdatePrompt = PathFileExists ((updateRoot + newVersion.filename).c_str())
         )
 
         // Download has finished, prompt about starting the installer here.
-        // 
-        // TODO: This directory watch gets assigned to the current tab only, meaning it won't
-        //       trigger an automated refresh if the user switches tabs before it is signaled
-        // 
-        //       This also means the update watch is tied to the tab SKIF opens up
-        //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
-        if (version_folder.isSignaled (updateRoot, true) &&
-            PathFileExists ((updateRoot + newVersion.filename).c_str()))
+        if (updaterExpectingNewFile > 0 && PathFileExists ((updateRoot + newVersion.filename).c_str()))
+        {
           SKIF_UpdateReady = showUpdatePrompt = true;
+          updaterExpectingNewFile = 0;
+        }
         else if (changedUpdateChannel)
         {
           changedUpdateChannel = false;
@@ -3394,8 +3429,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
-                                     ImGuiWindowFlags_NoResize |
-                                     ImGuiWindowFlags_NoMove |
+                                     ImGuiWindowFlags_NoResize         |
+                                     ImGuiWindowFlags_NoMove           |
                                      ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
@@ -3802,10 +3837,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
     else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
-    else if (coverFadeActive)
+    else if (SKIF_Tab_Selected == UITab_Library && (startupFadeIn == 1 || coverFadeActive))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
     else if (uiLastMsg == WM_SKIF_COVER)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 10; // If the cover is currently loading in
+    else if (updaterExpectingNewFile > 0)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + updaterExpectingNewFile--; // If we are expecting a new update file
+    /*
+    else if (  AddGamePopup == PopupState::Open ||
+               ConfirmPopup == PopupState::Open ||
+            ModifyGamePopup == PopupState::Open ||
+          UpdatePromptPopup == PopupState::Open ||
+               HistoryPopup == PopupState::Open )
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If a popup is transitioning to an opened state
+    */
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
 
@@ -3825,11 +3870,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
       //   But we do close the RemoveGame popup since that's not as critical.
-      if (AddGamePopup      != PopupState::Opened &&
-          ConfirmPopup      != PopupState::Opened &&
-          ModifyGamePopup   != PopupState::Opened &&
+      if (     AddGamePopup != PopupState::Opened &&
+               ConfirmPopup != PopupState::Opened &&
+            ModifyGamePopup != PopupState::Opened &&
           UpdatePromptPopup != PopupState::Opened &&
-          HistoryPopup      != PopupState::Opened )
+               HistoryPopup != PopupState::Opened )
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
 
@@ -3865,9 +3910,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
 
-        // Sleep until a message is in the queue
-        //MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
+        // Sleep until a message is in the queue or a change notification occurs
         MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), FALSE, INFINITE, QS_ALLINPUT);
+        //MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
@@ -3899,6 +3944,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
+  KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
   KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
 
   PLOG_INFO << "Shutting down ImGui...";
@@ -4206,6 +4252,13 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
       switch (wParam)
       {
+        case IDT_REFRESH_UPDATER:
+          // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
+          if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)
+            msgDontRedraw = true;
+          
+          KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
+          return 0;
         case IDT_REFRESH_TOOLTIP:
           // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
           if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)

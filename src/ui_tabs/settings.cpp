@@ -570,14 +570,14 @@ SKIF_UI_Tab_DrawSettings (void)
 
           // Trigger a new check for updates
           extern bool changedUpdateChannel, SKIF_UpdateReady, showUpdatePrompt;
-          extern volatile LONG update_thread;
+          extern std::atomic<int> update_thread_new;
           extern SKIF_UpdateCheckResults newVersion;
 
           changedUpdateChannel = true;
           SKIF_UpdateReady     = showUpdatePrompt = false;
           newVersion.filename.clear();
           newVersion.description.clear();
-          InterlockedExchange (&update_thread, 0);
+          update_thread_new.store (1);
         }
 
         if (is_selected)

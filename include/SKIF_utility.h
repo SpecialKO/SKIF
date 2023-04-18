@@ -70,24 +70,35 @@ void         SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_vi
 
 struct SKIF_DirectoryWatch
 {
+  SKIF_DirectoryWatch  (void);
+  SKIF_DirectoryWatch  (std::wstring_view wstrPath,
+                                     bool bGlobalWait    = false,
+                                     bool bWaitAllTabs   = false,
+                                     BOOL bWatchSubtree  = FALSE,
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
   ~SKIF_DirectoryWatch (void);
 
-  bool isSignaled (std::wstring_view path, bool globalWait);
+  bool isSignaled      (std::wstring_view wstrPath,
+                                     bool bGlobalWait    = false,
+                                     bool bWaitAllTabs   = false,
+                                     BOOL bWatchSubtree  = FALSE,
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
 
-  HANDLE hChangeNotification = INVALID_HANDLE_VALUE;
-  bool   bGlobalWait         = false;
+  HANDLE _hChangeNotification = INVALID_HANDLE_VALUE;
+  bool   _bGlobalWait         = false;
+  bool   _bWaitAllTabs        = false;
 };
 
 
 // Registry Watch
 
 struct SKIF_RegistryWatch {
-  SKIF_RegistryWatch ( HKEY   hRootKey,
-              const wchar_t* wszSubKey,
-              const wchar_t* wszEventName,
-                        BOOL bWatchSubtree  = TRUE,
-                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
-                       bool  globalWait     = false );
+   SKIF_RegistryWatch (HKEY hRootKey,
+             const wchar_t* wszSubKey,
+             const wchar_t* wszEventName,
+                       BOOL bWatchSubtree  = TRUE,
+                      DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
+                       bool bGlobalWait    = false );
 
   ~SKIF_RegistryWatch (void);
 
@@ -102,9 +113,9 @@ struct SKIF_RegistryWatch {
     DWORD        filter_mask;
   } _init;
 
-  CRegKey hKeyBase;
-  CHandle hEvent;
-  bool    bGlobalWait = false;
+  CRegKey _hKeyBase;
+  CHandle _hEvent;
+  bool    _bGlobalWait = false;
 };
 
 

@@ -1109,43 +1109,93 @@ SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destinatio
 
 // Directory Watch
 
+SKIF_DirectoryWatch::SKIF_DirectoryWatch (void)
+{
+
+}
+
+SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+{
+  _hChangeNotification =
+    FindFirstChangeNotificationW (
+      std::wstring(wstrPath).c_str(), bWatchSubtree,
+        dwNotifyFilter
+    );
+
+  if (_hChangeNotification != INVALID_HANDLE_VALUE)
+  {
+    FindNextChangeNotification (
+      _hChangeNotification
+    );
+
+    _bGlobalWait  = bGlobalWait;
+    _bWaitAllTabs = bWaitAllTabs;
+
+    if (_bGlobalWait)
+    {
+      if (_bWaitAllTabs)
+      {
+        for each (auto& vWatchHandle in vWatchHandles)
+        {
+          vWatchHandle.second.push_back (_hChangeNotification);
+        }
+      }
+      else {
+        vWatchHandles[SKIF_Tab_Selected].second.push_back (_hChangeNotification);
+      }
+    }
+  }
+}
+
 bool
-SKIF_DirectoryWatch::isSignaled (std::wstring_view path, bool globalWait)
+SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
   bool bRet = false;
 
-  if (hChangeNotification != INVALID_HANDLE_VALUE)
+  if (_hChangeNotification != INVALID_HANDLE_VALUE)
   {
     bRet =
       ( WAIT_OBJECT_0 ==
-          WaitForSingleObject (hChangeNotification, 0) );
+          WaitForSingleObject (_hChangeNotification, 0) );
 
     if (bRet)
     {
       FindNextChangeNotification (
-        hChangeNotification
+        _hChangeNotification
       );
     }
   }
 
-  else if (! path.empty())
+  else if (! wstrPath.empty())
   {
-    hChangeNotification =
+    _hChangeNotification =
       FindFirstChangeNotificationW (
-        std::wstring(path).c_str(), FALSE,
-          FILE_NOTIFY_CHANGE_FILE_NAME
+        std::wstring(wstrPath).c_str(), bWatchSubtree,
+        dwNotifyFilter
       );
 
-    if (hChangeNotification != INVALID_HANDLE_VALUE)
+    if (_hChangeNotification != INVALID_HANDLE_VALUE)
     {
       FindNextChangeNotification (
-        hChangeNotification
+        _hChangeNotification
       );
 
-      bGlobalWait = globalWait;
+      _bGlobalWait  = bGlobalWait;
+      _bWaitAllTabs = bWaitAllTabs;
 
-      if (bGlobalWait)
-        vWatchHandles[SKIF_Tab_Selected].second.push_back(hChangeNotification);
+      if (_bGlobalWait)
+      {
+        if (_bWaitAllTabs)
+        {
+          for each (auto& vWatchHandle in vWatchHandles)
+          {
+            vWatchHandle.second.push_back (_hChangeNotification);
+          }
+        }
+        else {
+          vWatchHandles[SKIF_Tab_Selected].second.push_back (_hChangeNotification);
+        }
+      }
     }
   }
 
@@ -1154,61 +1204,74 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view path, bool globalWait)
 
 SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 {
-  if (      hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (hChangeNotification);
+  if (      _hChangeNotification != INVALID_HANDLE_VALUE)
+    FindCloseChangeNotification (_hChangeNotification);
 
-  if (bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
-    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
+  if (_bGlobalWait)
+  {
+    if (_bWaitAllTabs)
+    {
+      for each (auto& vWatchHandle in vWatchHandles)
+      {
+        if (! vWatchHandle.second.empty())
+          vWatchHandle.second.erase(std::remove(vWatchHandle.second.begin(), vWatchHandle.second.end(), _hChangeNotification), vWatchHandle.second.end());
+      }
+    }
+    else if (! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    {
+      vWatchHandles[SKIF_Tab_Selected].second.erase(std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
+    }
+  }
 }
 
 
 // Registry Watch
 
-SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool globalWait )
+SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
   _init.watch_subtree = bWatchSubtree;
   _init.filter_mask   = dwNotifyFilter;
 
-  hEvent.m_h =
+  _hEvent.m_h =
       CreateEvent ( nullptr, TRUE,
                             FALSE, wszEventName );
 
   reset ();
 
-  bGlobalWait = globalWait;
+  _bGlobalWait = bGlobalWait;
 
-  if (bGlobalWait)
-    vWatchHandles[SKIF_Tab_Selected].second.push_back(hEvent.m_h);
+  if (_bGlobalWait)
+    vWatchHandles[SKIF_Tab_Selected].second.push_back(_hEvent.m_h);
 }
 
 SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
-  if (bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
-    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), hEvent.m_h), vWatchHandles[SKIF_Tab_Selected].second.end());
+  if (_bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hEvent.m_h), vWatchHandles[SKIF_Tab_Selected].second.end());
 }
 
 void
 SKIF_RegistryWatch::registerNotify (void)
 {
-  hKeyBase.NotifyChangeKeyValue (
+  _hKeyBase.NotifyChangeKeyValue (
     _init.watch_subtree,
       _init.filter_mask,
-        hEvent.m_h
+        _hEvent.m_h
   );
 }
 
 void
 SKIF_RegistryWatch::reset (void)
 {
-  hKeyBase.Close ();
+  _hKeyBase.Close ();
 
-  if ((intptr_t)hEvent.m_h > 0)
-    ResetEvent (hEvent.m_h);
+  if ((intptr_t)_hEvent.m_h > 0)
+    ResetEvent (_hEvent.m_h);
 
   LSTATUS lStat =
-    hKeyBase.Open ( _init.root,
+    _hKeyBase.Open (_init.root,
                     _init.sub_key.c_str (), KEY_NOTIFY );
 
   if (lStat == ERROR_SUCCESS)
@@ -1222,7 +1285,7 @@ SKIF_RegistryWatch::isSignaled (void)
 {
   bool signaled =
     WaitForSingleObjectEx (
-      hEvent.m_h, 0UL, FALSE
+      _hEvent.m_h, 0UL, FALSE
     ) == WAIT_OBJECT_0;
 
   if (signaled)

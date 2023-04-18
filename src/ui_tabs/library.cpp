@@ -66,7 +66,9 @@ static bool clickedGameLaunch,
             clickedGalaxyLaunch,
             clickedGalaxyLaunchWoSK = false,
             openedGameContextMenu   = false;
-
+const float fTintMin                = 0.75f;
+      float fTint                   = 1.0f;
+      float fAlpha                  = 0.0f;
 
 PopupState IconMenu        = PopupState::Closed;
 PopupState ServiceMenu     = PopupState::Closed;
@@ -705,6 +707,9 @@ bool Steam_isLibrariesSignaled (void)
 
       bool countFiles = false;
 
+      if (steam_libs_watch[i]._hChangeNotification == INVALID_HANDLE_VALUE)
+        steam_libs_watch[i] = SKIF_DirectoryWatch (wszManifestDir, true);
+
       if (steam_libs_watch[i].isSignaled (wszManifestDir, true))
         countFiles = true;
 
@@ -1172,8 +1177,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   extern int   SKIF_iDimCovers;
   extern bool  coverFadeActive;
   static int   tmpSKIF_iDimCovers = SKIF_iDimCovers;
-  const  float fTintMin = 0.75f;
-  static float fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
   
   static
     app_record_s* pApp = nullptr;
@@ -1208,23 +1211,43 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     vecCoverUv1, // Bottom Right coordinates
                                                     (selection.appid == SKIF_STEAM_APPID)
                                                     ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
-                                                    : ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
+                                                    : ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
                                   (! SKIF_bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
+  // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
+  static DWORD timeLastTick;
+  DWORD timeCurr = SKIF_Util_timeGetTime();
+  bool isHovered = ImGui::IsItemHovered();
+  bool incTick = false;
+  extern int startupFadeIn;
+
+  if (startupFadeIn == 0 && pTexSRV.p != nullptr)
+    startupFadeIn = 1;
+
+  if (startupFadeIn == 1)
+  {
+    if (fAlpha < 1.0f && pTexSRV.p != nullptr)
+    {
+      if (timeCurr - timeLastTick > 15)
+      {
+        fAlpha += 0.05f;
+        incTick = true;
+      }
+    }
+
+    if (fAlpha >= 1.0f)
+      startupFadeIn = 2;
+  }
+
   if (SKIF_iDimCovers == 2)
   {
-    // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
-    static DWORD timeLastTick;
-    DWORD timeCurr = SKIF_Util_timeGetTime ( );
-    bool isHovered = ImGui::IsItemHovered  ( );
-
     if (isHovered && fTint < 1.0f)
     {
       if (timeCurr - timeLastTick > 15)
       {
         fTint = fTint + 0.01f;
-        timeLastTick = timeCurr;
+        incTick = true;
       }
 
       coverFadeActive = true;
@@ -1234,12 +1257,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (timeCurr - timeLastTick > 15)
       {
         fTint = fTint - 0.01f;
-        timeLastTick = timeCurr;
+        incTick = true;
       }
 
       coverFadeActive = true;
     }
   }
+
+  // Increment the tick
+  if (incTick)
+    timeLastTick = timeCurr;
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ImGui::OpenPopup ("CoverMenu");
