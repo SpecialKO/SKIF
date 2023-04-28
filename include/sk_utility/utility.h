@@ -201,9 +201,11 @@ std::wstring
         __stdcall
                SK_GetDLLVersionStr          (const wchar_t* wszName);
 
+/*
 const wchar_t*
         __stdcall
                SK_GetCanonicalDLLForRole    (enum DLL_ROLE role);
+*/
 
 const wchar_t* SK_DescribeHRESULT           (HRESULT hr);
 

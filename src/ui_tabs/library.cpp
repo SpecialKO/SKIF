@@ -36,7 +36,7 @@
 #include <stores/Steam/asset_fetch.h>
 #include <stores/Steam/apps_ignore.h>
 #include <stores/GOG/gog_library.h>
-#include <stores/EGS/egs_library.h>
+#include <stores/EGS/epic_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -58,6 +58,8 @@
 #include <patreon.png.h>
 #include <sk_icon.jpg.h>
 #include <sk_boxart.png.h>
+
+#include <games.h>
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -95,13 +97,13 @@ extern std::string     SKIF_StatusBarText;
 extern std::wstring    SKIF_EGS_AppDataPath;
 
 extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
+extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
 static std::wstring sshot_file = L"";
 
 std::atomic<int> textureLoadQueueLength{ 1 };
 
-int getTextureLoadQueuePos() {
+int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
 }
 
@@ -780,6 +782,30 @@ Steam_GetInstalledAppIDs (void)
 void
 SKIF_UI_Tab_DrawLibrary (void)
 {
+  SKIF_GamesCollection& _games = SKIF_GamesCollection::GetInstance();
+
+  // Always read from the last written index
+  int nowReading = _games.snapshot_idx_written.load ( );
+  _games.snapshot_idx_reading.store (nowReading);
+
+  if (RepopulateGames)
+    _games.RefreshGames ( );
+
+  /*
+  std::vector <std::unique_ptr<app_generic_s>> &apps_new =
+    _games.GetGames ( );
+  */
+
+  std::vector <std::unique_ptr<app_generic_s>>* apps_new = _games.GetGames ( );
+
+  if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
+  {
+    for (auto const& app : *apps_new) {
+      OutputDebugString(SK_UTF8ToWideChar(app->names.normal).c_str());
+      OutputDebugString(L"\n");
+    }
+  }
+
   /*
   if (! sshot_file.empty ())
   {
@@ -858,7 +884,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static bool     populated      = false;
 
-  extern bool RepopulateGames;
   extern bool SKIF_bDisableEGSLibrary;
   extern bool SKIF_bDisableGOGLibrary;
   extern bool SKIF_bDisableXboxLibrary;
@@ -2773,9 +2798,9 @@ Cache=false)";
 
     ImVec4 _color =
       ( app.second._status.updating != 0x0 )
-                  ? ImColor::HSV (0.6f, .6f, 1.f) :
+                  ? ImVec4 (ImColor::HSV (0.6f, .6f, 1.f)) :
       ( app.second._status.running  != 0x0 )
-                  ? ImColor::HSV (0.3f, 1.f, 1.f) :
+                  ? ImVec4 (ImColor::HSV (0.3f, 1.f, 1.f)) :
                     ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     // Game Title
@@ -4004,7 +4029,7 @@ Cache=false)";
                  ICON_FA_DISCORD
                              );
         ImGui::TextColored (
-               (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImColor (247, 241, 169),
+               (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
                  ICON_FA_DISCOURSE
                              );
         ImGui::TextColored (

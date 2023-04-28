@@ -1566,7 +1566,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       // Task #1: Start Injection
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
-        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
@@ -1584,7 +1584,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       // Task #2: Start Injection (with auto stop)
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
-        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Temp Start");                            // Set the arguments  
@@ -1603,7 +1603,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       // Task #3: Stop Injection
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
-        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
@@ -1621,7 +1621,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
       // Task #4: Exit
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
-        CComQIPtr <IPropertyStore>   pPropStore = pLink;                        // The link title is kept in the object's property store, so QI for that interface.
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Quit");                                  // Set the arguments  
@@ -1636,7 +1636,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink      .Release         ( );
       }
 
-      CComQIPtr <IObjectArray>       pTasksArray = pObjColl;                    // Get an IObjectArray interface for AddUserTasks.
+      CComQIPtr <IObjectArray>       pTasksArray = pObjColl.p;                  // Get an IObjectArray interface for AddUserTasks.
       pDestList   ->AddUserTasks    (pTasksArray);                              // Add the tasks to the jump list.
       pDestList   ->CommitList      ( );                                        // Save the jump list.
       pTasksArray  .Release         ( );

@@ -135,7 +135,12 @@ constexpr UINT WM_SKIF_COVER         = WM_USER + 0x2050;
 constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
 constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 
-constexpr wchar_t* SKIF_WindowClass =
+// Platform toolset: Visual Studio 2022 (v143)
+//constexpr wchar_t* SKIF_WindowClass =
+//           L"SK_Injection_Frontend";
+
+// Platform toolset: Visual Studio 2019 (v142)
+static LPCWSTR SKIF_WindowClass =
              L"SK_Injection_Frontend";
 
 // Settings

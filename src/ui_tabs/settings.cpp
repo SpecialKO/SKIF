@@ -40,6 +40,7 @@ DrvInstallState driverStatus        = NotInstalled,
 bool
 GetMPOSupport (void)
 {
+  // D3DKMTGetMultiPlaneOverlayCaps (Windows 10+)
   using D3DKMTGetMultiPlaneOverlayCaps_pfn =
     NTSTATUS (WINAPI *)(D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS*);
 
@@ -48,7 +49,17 @@ GetMPOSupport (void)
         (D3DKMTGetMultiPlaneOverlayCaps_pfn)GetProcAddress (LoadLibraryEx (L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "D3DKMTGetMultiPlaneOverlayCaps");
 
-  if (SKIF_D3DKMTGetMultiPlaneOverlayCaps == nullptr)
+  // D3DKMTOpenAdapterFromLuid (Windows 8+)
+  using D3DKMTOpenAdapterFromLuid_pfn =
+    NTSTATUS (WINAPI *)(D3DKMT_OPENADAPTERFROMLUID*);
+
+  static D3DKMTOpenAdapterFromLuid_pfn
+    SKIF_D3DKMTOpenAdapterFromLuid =
+        (D3DKMTOpenAdapterFromLuid_pfn)GetProcAddress (LoadLibraryEx (L"gdi32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "D3DKMTOpenAdapterFromLuid");
+
+  if (SKIF_D3DKMTOpenAdapterFromLuid      == nullptr ||
+      SKIF_D3DKMTGetMultiPlaneOverlayCaps == nullptr)
     return false;
 
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
@@ -151,7 +162,7 @@ GetMPOSupport (void)
     // Open a handle to the adapter using its LUID
     D3DKMT_OPENADAPTERFROMLUID openAdapter = {};
     openAdapter.AdapterLuid = adapterName.header.adapterId;
-    if (D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
+    if (SKIF_D3DKMTOpenAdapterFromLuid (&openAdapter) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
     {
       D3DKMT_GET_MULTIPLANE_OVERLAY_CAPS caps = {};
       caps.hAdapter      = openAdapter.hAdapter;
@@ -825,7 +836,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing       ( );
 
     // Only show if OS supports tearing in windowed mode
-    if (SKIF_bAllowTearing)
+    if (true) // SKIF_bAllowTearing
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
       SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1794,7 +1805,7 @@ SKIF_UI_Tab_DrawSettings (void)
         std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
                                                                        :   "%.1fx - %.1fx";
         ImVec4 colName            = (monitor.MaxPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
-                                                            : ImColor::HSV (0.11F, 1.F, 1.F);
+                                                            : ImVec4 (ImColor::HSV (0.11F, 1.F, 1.F));
 
         ImGui::BeginGroup    ( );
         //ImGui::Text        ("%u", monitor.Index);

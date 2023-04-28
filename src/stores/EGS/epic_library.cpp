@@ -1,5 +1,5 @@
 
-#include <stores/egs/egs_library.h>
+#include <stores/egs/epic_library.h>
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
@@ -281,4 +281,19 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
   {
 
   }
+}
+
+void app_epic_s::launchGame(void)
+{
+
+}
+
+ID3D11ShaderResourceView* app_epic_s::getCover(void)
+{
+  return nullptr;
+}
+
+ID3D11ShaderResourceView* app_epic_s::getIcon(void)
+{
+  return nullptr;
 }

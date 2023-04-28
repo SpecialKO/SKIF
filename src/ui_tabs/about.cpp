@@ -405,7 +405,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImColor (247, 241, 169),
+    (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
       ICON_FA_DISCOURSE " " );
   ImGui::SameLine         ( );
 

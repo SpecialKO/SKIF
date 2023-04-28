@@ -162,9 +162,11 @@ bool SKIF_bRememberLastSelected    = false,
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 BOOL SKIF_bSuppressServiceNotification = FALSE;
 
-BOOL SKIF_bAllowTearing            = FALSE,
-     SKIF_bCanFlip                 = FALSE,
-     SKIF_bCanFlipDiscard          = FALSE;
+BOOL SKIF_bCanFlip                 = FALSE, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
+     SKIF_bCanWaitSwapchain        = FALSE, // Waitable Swapchain            Windows 8.1+
+     SKIF_bCanFlipDiscard          = FALSE, // Flip Discard                  Windows 10+
+     SKIF_bAllowTearing            = FALSE; // DWM Tearing                   Windows 10+
+     
 
 // GOG Galaxy stuff
 std::wstring GOGGalaxy_Path        = L"";
@@ -179,7 +181,6 @@ uint32_t SelectNewSKIFGame         = 0;
 
 bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
-int   HoverTipVisibleFrames        = 0;
 
 // Notification icon stuff
 #define SKIF_NOTIFY_ICON                    0x1330 // 4912
@@ -1897,12 +1898,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
+  /*
   if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
     PLOG_INFO << "Unsupported version of Windows detected. Special K requires at least Windows 8.1; please update to a newer version.";
     MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
     return 0;
   }
+  */
 
   // 2023-04-05: Shouldn't be needed as DPI-awareness is set through the embedded appmanifest file // Aemony
   //ImGui_ImplWin32_EnableDpiAwareness ();
@@ -1926,8 +1929,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // We don't want Steam's overlay to draw upon SKIF,
   //   but only if not used as a launcher.
-  if (! _Signal.Launcher)
-    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+  //if (! _Signal.Launcher) // Shouldn't be needed, and might cause Steam to hook SKIF...
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   // First round
   if (_Signal.Minimize)
@@ -3877,13 +3880,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                HistoryPopup != PopupState::Opened )
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
-
-    // Pause if we had a pending tooltip and it have appeared
-    //if (renderAdditionalFrames == 0 &&   HoverTipActive && HoverTipVisibleFrames  > 3)
-    //  pause = true;
-    // Pause if we have no pending tooltip nor any additional frames to render
-    //if (renderAdditionalFrames == 0 && ! HoverTipActive && HoverTipVisibleFrames == 0)
-    //  pause = true;
     
     // Pause if we don't need to render any additional frames
     if (renderAdditionalFrames == 0)
@@ -3899,26 +3895,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][PAUSE] Rendering paused!\n").c_str());
 
+        // SetProcessInformation (Windows 8+)
+        using SetProcessInformation_pfn =
+          BOOL (WINAPI *)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+
+        static SetProcessInformation_pfn
+          SKIF_SetProcessInformation =
+              (SetProcessInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+              "SetProcessInformation");
+
         static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
         PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 
         // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
         SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
-        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-        PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-        SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+        if (SKIF_SetProcessInformation != nullptr)
+        {
+          PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+          PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+          SKIF_SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+        }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
 
         // Sleep until a message is in the queue or a change notification occurs
         MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), FALSE, INFINITE, QS_ALLINPUT);
-        //MsgWaitForMultipleObjects (0, NULL, TRUE, INFINITE, QS_ALLINPUT);
+        //MsgWaitForMultipleObjects (0, NULL, FALSE, INFINITE, QS_ALLINPUT);
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-        PowerThrottling.ControlMask = 0;
-        PowerThrottling.StateMask   = 0;
-        SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+        if (SKIF_SetProcessInformation != nullptr)
+        {
+          PowerThrottling.ControlMask = 0;
+          PowerThrottling.StateMask   = 0;
+          SKIF_SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+        }
 
         // Always render 3 additional frames after we wake up
         renderAdditionalFrames = ImGui::GetFrameCount() + 3;
@@ -3975,74 +3986,66 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
-/*
-using CreateDXGIFactory1_pfn            = HRESULT (WINAPI *)(REFIID riid, _COM_Outptr_ void **ppFactory);
-using D3D11CreateDeviceAndSwapChain_pfn = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT,
-                                                  CONST D3D_FEATURE_LEVEL*,                     UINT, UINT,
-                                                  CONST DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**,
-                                                                               ID3D11Device**,
-                                                        D3D_FEATURE_LEVEL*,    ID3D11DeviceContext**);
-
-CreateDXGIFactory1_pfn            SKIF_CreateDXGIFactory1;
-D3D11CreateDeviceAndSwapChain_pfn SKIF_D3D11CreateDeviceAndSwapChain;
-*/
-
 // Helper functions
 
 bool CreateDeviceD3D (HWND hWnd)
 {
-  /*
-  HMODULE hModD3D11 =
-    LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-
-  HMODULE hModDXGI =
-    LoadLibraryEx (L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-
-  SKIF_CreateDXGIFactory1 =
-      (CreateDXGIFactory1_pfn)GetProcAddress (hModDXGI,
-      "CreateDXGIFactory1");
-  */
-
   CComPtr <IDXGIFactory5>
                pFactory5;
 
-  if ( SUCCEEDED (
-    CreateDXGIFactory1 (
-       IID_IDXGIFactory5,
-     (void **)&pFactory5.p ) ) )
-               pFactory5->CheckFeatureSupport (
-                          DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                                        &SKIF_bAllowTearing,
-                                sizeof ( SKIF_bAllowTearing )
-                                              );
+  CreateDXGIFactory1 ( IID_IDXGIFactory5, (void **)&pFactory5.p );
 
-  SKIF_bCanFlip               =
-    SKIF_Util_IsWindows8Point1OrGreater () != FALSE,
-  SKIF_bCanFlipDiscard        =
-    SKIF_Util_IsWindows10OrGreater      () != FALSE;
+  SKIF_bCanFlip                 =               TRUE;
+
+  if (SKIF_bCanFlip)
+  {
+    SKIF_bCanWaitSwapchain      =
+      SKIF_Util_IsWindows8Point1OrGreater () != FALSE,
+    SKIF_bCanFlipDiscard        =
+      SKIF_Util_IsWindows10OrGreater      () != FALSE;
+
+    // SKIF_bAllowTearing
+    if (SKIF_Util_IsWindows10OrGreater ( ))
+      pFactory5->CheckFeatureSupport (
+                            DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                                          &SKIF_bAllowTearing,
+                                  sizeof ( SKIF_bAllowTearing )
+                                                );
+  }
 
   // Overrides
-//SKIF_bAllowTearing          = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
-//SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
-//SKIF_bCanFlip               = FALSE; // Flip Sequential
+  //SKIF_bAllowTearing            = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
+  //SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
+  //SKIF_bCanFlip               = FALSE; // Flip Sequential
+  //SKIF_bCanWaitSwapchain      = FALSE; // Waitable Swapchain
 
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
-  sd.BufferCount                        =
-                          SKIF_bCanFlip ?  2   // 3
-                                        :  1 ; // 2
-  sd.BufferDesc.Width                   =  4 ;
-  sd.BufferDesc.Height                  =  4 ;
+  sd.BufferDesc.Width                   = 4 ;
+  sd.BufferDesc.Height                  = 4 ;
   sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
   sd.BufferDesc.RefreshRate.Numerator   = 0;
   sd.BufferDesc.RefreshRate.Denominator = 1;
-  sd.Flags                              =
-                          SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                        : 0x0;
-  sd.Flags |=
-                     SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                                        : 0x0;
+  sd.Flags                              = 0x0;
+
+  if (SKIF_bCanFlip)
+  { // Flip
+    sd.BufferCount                      = 2; // 3
+    sd.SwapEffect                       =
+                   SKIF_bCanFlipDiscard ? DXGI_SWAP_EFFECT_FLIP_DISCARD
+                                        : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+
+    if (SKIF_bCanWaitSwapchain)
+      sd.Flags                         |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+    if (SKIF_bAllowTearing)
+      sd.Flags                         |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+  }
+  else { // BitBlt
+    sd.BufferCount                      = 1; // 2
+    sd.SwapEffect                       = DXGI_SWAP_EFFECT_DISCARD;
+  }
 
   sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT |
                                           DXGI_USAGE_BACK_BUFFER;
@@ -4050,11 +4053,6 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.SampleDesc.Count                   = 1;
   sd.SampleDesc.Quality                 = 0;
   sd.Windowed                           = TRUE;
-
-  sd.SwapEffect                         =
-   SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
-                        : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
-                                        : DXGI_SWAP_EFFECT_DISCARD; // DXGI_SWAP_EFFECT_DISCARD does not work atm
 
   UINT createDeviceFlags = 0;
 
@@ -4067,12 +4065,6 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
-
-  /*
-  SKIF_D3D11CreateDeviceAndSwapChain =
-      (D3D11CreateDeviceAndSwapChain_pfn)GetProcAddress (hModD3D11,
-      "D3D11CreateDeviceAndSwapChain");
-  */
 
   if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
@@ -4253,11 +4245,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (wParam)
       {
         case IDT_REFRESH_UPDATER:
-          // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
-          if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)
-            msgDontRedraw = true;
-          
-          KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
           return 0;
         case IDT_REFRESH_TOOLTIP:
           // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
@@ -4283,14 +4270,23 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
       {
+        UINT swap_flags = 0x0;
+
+        if (SKIF_bCanFlip)
+        {
+          if (SKIF_bCanWaitSwapchain)
+            swap_flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+          if (SKIF_bAllowTearing)
+            swap_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+        }
+
         CleanupRenderTarget ();
         g_pSwapChain->ResizeBuffers (
           0, (UINT)LOWORD (lParam),
              (UINT)HIWORD (lParam),
-            DXGI_FORMAT_UNKNOWN, ((SKIF_bAllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                                                       : 0x0) |
-                                             ((SKIF_bCanFlip) ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                                                              : 0x0)
+            DXGI_FORMAT_UNKNOWN,
+            swap_flags
         );
         CreateRenderTarget ();
       }

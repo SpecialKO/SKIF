@@ -8,3 +8,4 @@ template <class _Tp>
 struct tex_ref_s {
   float getAspectRatio (void);
 };
+

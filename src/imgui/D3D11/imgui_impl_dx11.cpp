@@ -40,6 +40,7 @@
 extern BOOL SKIF_bAllowTearing;
 extern BOOL SKIF_bCanFlip;
 extern BOOL SKIF_bCanFlipDiscard;
+extern BOOL SKIF_bCanWaitSwapchain;
 
 #include <atlbase.h>
 #include <dxgi1_6.h>
@@ -1168,22 +1169,30 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.SampleDesc.Quality = 0;
 
   swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swap_desc.BufferCount  =
-           SKIF_bCanFlip ? 3
-                         : 1;
   swap_desc.OutputWindow = hWnd;
   swap_desc.Windowed     = TRUE;
-  swap_desc.SwapEffect   =
-    SKIF_bCanFlipDiscard ?                 DXGI_SWAP_EFFECT_FLIP_DISCARD
-                         : SKIF_bCanFlip ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
-                                         : DXGI_SWAP_EFFECT_DISCARD;
-  swap_desc.Flags =
-           SKIF_bCanFlip ? DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-                         : 0x0;
+  swap_desc.Flags        = 0x0;
 
-  swap_desc.Flags |=
-      SKIF_bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-                         : 0x0;
+  // Flip
+  if (SKIF_bCanFlip)
+  {
+    swap_desc.BufferCount  = 2;
+    swap_desc.SwapEffect   =
+      SKIF_bCanFlipDiscard ? DXGI_SWAP_EFFECT_FLIP_DISCARD
+                           : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+
+    if (SKIF_bCanWaitSwapchain)
+      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+    if (SKIF_bAllowTearing)
+      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+  }
+
+  // BitBlt
+  else {
+    swap_desc.BufferCount  = 1;
+    swap_desc.SwapEffect   = DXGI_SWAP_EFFECT_DISCARD;
+  }
 
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
@@ -1192,6 +1201,9 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
              &data->SwapChain );
 
   // Create the render target
+#pragma region HDR stuff?
+#if 0
+
   if (data->SwapChain != nullptr)
   {
       data->HDR = FALSE;
@@ -1258,6 +1270,9 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     }
   }
 
+#endif
+#pragma endregion
+
   if (data->SwapChain)
   {
     if (! data->HDR)
@@ -1285,7 +1300,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   CComQIPtr <IDXGISwapChain2>
       pSwap2 (data->SwapChain);
-  if (pSwap2 != nullptr && SKIF_bCanFlip)
+  if (pSwap2 != nullptr && SKIF_bCanWaitSwapchain)
   {
     pSwap2->SetMaximumFrameLatency (1);
 
@@ -1408,54 +1423,31 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  // TODO: Clean up this whole function
-
   extern bool SKIF_bDisableVSYNC;
 
-  bool bNoVSYNC =
-    SKIF_bAllowTearing ? ( SKIF_bDisableVSYNC ? true
-                                              : false )
-                       : false;
+  UINT Interval = 2; // Flip VRR Mode
 
-  UINT Interval =
-    bNoVSYNC ? 0
-             : SKIF_bCanFlipDiscard ? 2
-                                    : 0; // Non-Flip is ALWAYS VSYNC'd
+  if (! SKIF_bCanFlip)
+    Interval = 1; // BitBlt Mode
 
-  //auto& io =
-  //  ImGui::GetIO ();
-
-  // While mouse is down (i.e. dragging), use VSYNC
-  
-  /*
-  if ( ImGui::IsAnyMouseDown ()                      ||
-       io.NavInputs [ImGuiNavInput_Menu]     != 0.0f || // X
-       io.NavInputs [ImGuiNavInput_Activate] != 0.0f || // A
-       io.KeyCtrl )
-  {
-    Interval = std::max (Interval, 1U);
-    bNoVSYNC = false;
-  }
-  
-  else if (bNoVSYNC) // Sorta emulates the old behaviour, but not really
-  {
-    bNoVSYNC = false;
-    Interval = 0;
-  }
-  */
-
-  // Alternate mode -- just force SyncInterval=0 without DXGI_PRESENT_ALLOW_TEARING
-  if (bNoVSYNC)
-  {
-    bNoVSYNC = false;
-    Interval = 0;
-  }
+  if (SKIF_bDisableVSYNC)
+    Interval = 0; // V-Sync OFF Mode
 
   extern BOOL SKIF_Util_IsWindows10OrGreater (void);
 
-  // Force V-Sync on Windows 8.1
-  if (! SKIF_Util_IsWindows10OrGreater ( ))
-    Interval = 1;
+  // Force V-Sync on Windows 7-8.1
+  //if (! SKIF_Util_IsWindows10OrGreater ( ))
+  //  Interval = 1;
+
+  UINT PresentFlags = 0x0;
+
+  if (SKIF_bCanFlip)
+  {
+    PresentFlags   = DXGI_PRESENT_RESTART;
+
+    if (Interval == 0 && SKIF_bAllowTearing)
+      PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+  }
 
   if (data->WaitHandle)
   {
@@ -1468,8 +1460,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     if (dwWaitState == WAIT_OBJECT_0)
     {
       DXGI_PRESENT_PARAMETERS       pparams = { };
-      pSwap2->Present1 ( Interval, (SKIF_bCanFlip ? DXGI_PRESENT_RESTART       : 0x0) |
-                                   (     bNoVSYNC ? DXGI_PRESENT_ALLOW_TEARING : 0x0),
+      pSwap2->Present1 ( Interval, PresentFlags,
                                    &pparams );
       data->PresentCount++;
     }
@@ -1477,8 +1468,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   else
   {
-    data->SwapChain->Present ( Interval, (SKIF_bCanFlip      ? DXGI_PRESENT_RESTART       : 0x0) |
-                                         (SKIF_bAllowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0x0) );
+    data->SwapChain->Present ( Interval, PresentFlags );
     data->PresentCount++;
   }
 }

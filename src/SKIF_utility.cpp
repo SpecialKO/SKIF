@@ -1135,7 +1135,7 @@ SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, bool bGlob
     {
       if (_bWaitAllTabs)
       {
-        for each (auto& vWatchHandle in vWatchHandles)
+        for (auto& vWatchHandle : vWatchHandles)
         {
           vWatchHandle.second.push_back (_hChangeNotification);
         }
@@ -1187,7 +1187,7 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, b
       {
         if (_bWaitAllTabs)
         {
-          for each (auto& vWatchHandle in vWatchHandles)
+          for (auto& vWatchHandle : vWatchHandles)
           {
             vWatchHandle.second.push_back (_hChangeNotification);
           }
@@ -1211,7 +1211,7 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
   {
     if (_bWaitAllTabs)
     {
-      for each (auto& vWatchHandle in vWatchHandles)
+      for (auto& vWatchHandle : vWatchHandles)
       {
         if (! vWatchHandle.second.empty())
           vWatchHandle.second.erase(std::remove(vWatchHandle.second.begin(), vWatchHandle.second.end(), _hChangeNotification), vWatchHandle.second.end());

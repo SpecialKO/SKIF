@@ -323,3 +323,39 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
     RegCloseKey (hKey);
   }
 }
+
+void app_skif_s::launchGame(void)
+{
+
+}
+
+ID3D11ShaderResourceView*
+app_skif_s::getCover (void)
+{
+  if (this->textures.cover != nullptr)
+    return this->textures.cover.p;
+
+  std::wstring path;
+  std::wstring SKIFCustomPath;
+
+  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, this->id);
+  SKIFCustomPath += L"cover";
+
+  if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+    path =                   SKIFCustomPath + L".png";
+  else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+    path =                   SKIFCustomPath + L".jpg";
+
+  this->textures.isCustomCover = (path != L"\0");
+
+  if (this->textures.isCustomCover && this->loadCoverAsFile (path))
+    return this->textures.cover.p;
+
+  return nullptr;
+}
+
+ID3D11ShaderResourceView*
+app_skif_s::getIcon (void)
+{
+  return nullptr;
+}

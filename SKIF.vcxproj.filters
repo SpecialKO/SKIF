@@ -73,12 +73,6 @@
     <Filter Include="Header Files\Stores\SKIF">
       <UniqueIdentifier>{0f7ca7ac-471b-4d48-a331-a04e51d00142}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Stores\EGS">
-      <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Stores\EGS">
-      <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Stores\Xbox">
       <UniqueIdentifier>{b4cd7025-e1e1-4d32-a8dd-8966cefd74a1}</UniqueIdentifier>
     </Filter>
@@ -111,6 +105,12 @@
     </Filter>
     <Filter Include="Header Files\Plog\Helpers">
       <UniqueIdentifier>{77e9274d-76e4-410e-a38f-9de363a4fa0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stores\Epic">
+      <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\Epic">
+      <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -351,8 +351,8 @@
     <ClInclude Include="include\json.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\EGS\egs_library.h">
-      <Filter>Header Files\Stores\EGS</Filter>
+    <ClInclude Include="include\stores\EGS\epic_library.h">
+      <Filter>Header Files\Stores\Epic</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\apps_ignore.h">
       <Filter>Header Files\Stores\Steam</Filter>
@@ -492,6 +492,12 @@
     <ClInclude Include="include\TextFlow.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\games.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\generic_library2.h">
+      <Filter>Header Files\Stores</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
@@ -563,8 +569,8 @@
     <ClCompile Include="src\stores\SKIF\custom_library.cpp">
       <Filter>Source Files\Stores\SKIF</Filter>
     </ClCompile>
-    <ClCompile Include="src\stores\EGS\egs_library.cpp">
-      <Filter>Source Files\Stores\EGS</Filter>
+    <ClCompile Include="src\stores\EGS\epic_library.cpp">
+      <Filter>Source Files\Stores\Epic</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp">
       <Filter>Source Files\Stores\Xbox</Filter>
@@ -646,6 +652,12 @@
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
       <Filter>Source Files\DXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="src\games.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="include\stores\generic_library2.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

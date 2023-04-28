@@ -1098,8 +1098,13 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
 
-  *out_ex_style |=
-    WS_EX_NOREDIRECTIONBITMAP;
+  extern BOOL SKIF_Util_IsWindows8Point1OrGreater (void);
+  extern BOOL SKIF_bCanFlip;
+
+  // This only exists on Windows 8+, and is only applicable to flip swapchains
+  if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ))
+    *out_ex_style |=
+      WS_EX_NOREDIRECTIONBITMAP;
 }
 
 // This is called for all viewports that gets created
