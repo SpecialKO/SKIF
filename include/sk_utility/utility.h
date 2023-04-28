@@ -95,6 +95,43 @@ enum SK_UNITS {
 };
 
 
+typedef enum DLL_ROLE : unsigned
+{
+  INVALID    = 0x000,
+
+
+  // Graphics APIs
+  DXGI       = 0x001, // D3D 10-12
+  D3D9       = 0x002,
+  OpenGL     = 0x004, // All versions
+  Vulkan     = 0x008,
+  D3D11      = 0x010, // Explicitly d3d11.dll
+  D3D11_CASE = 0x011, // For use in switch statements
+  D3D12      = 0x020, // Explicitly d3d12.dll
+
+  DInput8    = 0x100,
+
+  // Third-party Wrappers (i.e. dgVoodoo2)
+  // -------------------------------------
+  //
+  //  Special K merely exports the correct symbols
+  //    for binary compatibility; it has no native
+  //      support for rendering in these APIs.
+  //
+  D3D8       = 0xC0000010,
+  DDraw      = 0xC0000020,
+  Glide      = 0xC0000040, // All versions
+
+
+  // Behavior Flags
+  PlugIn     = 0x00010000, // Stuff like Tales of Zestiria "Fix"
+  Wrapper    = 0x40000000,
+  ThirdParty = 0x80000000,
+
+  DWORDALIGN = MAXDWORD
+} DLL_ROLE;
+
+
 //
 // NOTE: Most of these functions are not intended to be DLL exported, so returning and
 //         passing std::wstring is permissible for convenience.
@@ -201,11 +238,9 @@ std::wstring
         __stdcall
                SK_GetDLLVersionStr          (const wchar_t* wszName);
 
-/*
 const wchar_t*
         __stdcall
                SK_GetCanonicalDLLForRole    (enum DLL_ROLE role);
-*/
 
 const wchar_t* SK_DescribeHRESULT           (HRESULT hr);
 

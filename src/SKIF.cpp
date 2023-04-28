@@ -90,10 +90,6 @@
 const GUID IID_IDXGIFactory5 =
   { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
 
-//CHandle SKIF_RefreshEvent (
-//         CreateEvent (nullptr, true, false, nullptr)
-//  );
-
 const int SKIF_STEAM_APPID = 1157970;
 bool RepositionSKIF   = false;
 bool tinyDPIFonts     = false;
