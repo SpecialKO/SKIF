@@ -10,8 +10,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
+    <RemoteDebuggerCommand>C:\RemoteTemp\SKIF\$(TargetFileName)</RemoteDebuggerCommand>
+    <RemoteDebuggerWorkingDirectory>C:\RemoteTemp\SKIF\</RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggerServerName>$(REMOTE_DEBUGGER_VM):4026</RemoteDebuggerServerName>
+    <DeploymentDirectory>\\$(REMOTE_DEBUGGER_VM)\RemoteTemp\SKIF\</DeploymentDirectory>
+    <RemoteDebuggerDebuggerType>NativeOnly</RemoteDebuggerDebuggerType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerCommandArguments>
@@ -22,7 +27,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
+    <RemoteDebuggerCommand>C:\RemoteTemp\SKIF\$(TargetFileName)</RemoteDebuggerCommand>
+    <RemoteDebuggerWorkingDirectory>C:\RemoteTemp\SKIF\</RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggerServerName>$(REMOTE_DEBUGGER_VM):4026</RemoteDebuggerServerName>
+    <RemoteDebuggerDebuggerType>NativeOnly</RemoteDebuggerDebuggerType>
+    <DeploymentDirectory>\\$(REMOTE_DEBUGGER_VM)\RemoteTemp\SKIF\</DeploymentDirectory>
+    <AdditionalFiles>
+    </AdditionalFiles>
   </PropertyGroup>
 </Project>

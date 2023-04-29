@@ -1139,6 +1139,14 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   viewport->RendererUserData = data;
 
+  // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer width  inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #1: ]
+  // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #2: ]
+  if (viewport->Size.x == 0.0f || viewport->Size.y == 0.0f)
+  {
+    PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer width inferred from the output window is zero.";
+    return;
+  }
+
   // PlatformHandleRaw should always be a HWND, whereas PlatformHandle might be a higher-level handle (e.g. GLFWWindow*, SDL_Window*).
   // Some back-end will leave PlatformHandleRaw NULL, in which case we assume PlatformHandle will contain the HWND.
   HWND hWnd =
@@ -1146,7 +1154,14 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         (HWND)viewport->PlatformHandleRaw    :
         (HWND)viewport->PlatformHandle );
 
-  IM_ASSERT (hWnd != nullptr);
+  //IM_ASSERT (hWnd != nullptr);
+
+  // DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory. [ MISCELLANEOUS ERROR #6: ]
+  if (hWnd == nullptr)
+  {
+    PLOG_ERROR << "DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory.";
+    return;
+  }
 
   static bool bCanHDR         = FALSE;
   //SKIF_Util_IsWindows10OrGreater      () != FALSE;
@@ -1275,6 +1290,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   if (data->SwapChain)
   {
+#pragma region HDR stuff?
+#if 0
     if (! data->HDR)
     {
       bHDR = FALSE;
@@ -1287,6 +1304,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
                  &data->SwapChain );
     }
+#endif
+#pragma endregion
 
     CComPtr <
       ID3D11Texture2D
@@ -1296,16 +1315,20 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                                );
     g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
                            &data->RTView );
-  }
 
-  CComQIPtr <IDXGISwapChain2>
-      pSwap2 (data->SwapChain);
-  if (pSwap2 != nullptr && SKIF_bCanWaitSwapchain)
-  {
-    pSwap2->SetMaximumFrameLatency (1);
+    if (SKIF_bCanWaitSwapchain)
+    {
+      CComQIPtr <IDXGISwapChain2>
+          pSwap2 (data->SwapChain);
 
-    data->WaitHandle =
-      pSwap2->GetFrameLatencyWaitableObject ();
+      if (pSwap2 != nullptr)
+      {
+        pSwap2->SetMaximumFrameLatency (1);
+
+        data->WaitHandle =
+          pSwap2->GetFrameLatencyWaitableObject ();
+      }
+    }
   }
 }
 
@@ -1449,27 +1472,33 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
       PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
   }
 
-  if (data->WaitHandle)
+  if (data->SwapChain != nullptr)
   {
-    CComQIPtr <IDXGISwapChain2>
-      pSwap2 (data->SwapChain);
-
-    DWORD dwWaitState =
-      WaitForSingleObject (data->WaitHandle, INFINITE);
-
-    if (dwWaitState == WAIT_OBJECT_0)
+    if (data->WaitHandle)
     {
-      DXGI_PRESENT_PARAMETERS       pparams = { };
-      pSwap2->Present1 ( Interval, PresentFlags,
-                                   &pparams );
+      CComQIPtr <IDXGISwapChain2>
+        pSwap2 (data->SwapChain);
+
+      DWORD dwWaitState =
+        WaitForSingleObject (data->WaitHandle, INFINITE);
+
+      if (dwWaitState == WAIT_OBJECT_0)
+      {
+        DXGI_PRESENT_PARAMETERS       pparams = { };
+        pSwap2->Present1 ( Interval, PresentFlags,
+                                     &pparams );
+        data->PresentCount++;
+      }
+    }
+
+    else
+    {
+      data->SwapChain->Present ( Interval, PresentFlags );
       data->PresentCount++;
     }
   }
-
-  else
-  {
-    data->SwapChain->Present ( Interval, PresentFlags );
-    data->PresentCount++;
+  else {
+    PLOG_WARNING << "Swapchain is a nullptr!";
   }
 }
 
