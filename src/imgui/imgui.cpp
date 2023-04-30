@@ -10905,7 +10905,7 @@ void ImGui::SetCurrentViewport(ImGuiWindow* current_window, ImGuiViewportP* view
         return;
     g.CurrentDpiScale = viewport ? viewport->DpiScale : 1.0f;
     g.CurrentViewport = viewport;
-    //IMGUI_DEBUG_LOG_VIEWPORT("SetCurrentViewport changed '%s' 0x%08X\n", current_window ? current_window->Name : NULL, viewport ? viewport->ID : 0);
+    IMGUI_DEBUG_LOG_VIEWPORT("SetCurrentViewport changed '%s' 0x%08X\n", current_window ? current_window->Name : NULL, viewport ? viewport->ID : 0);
 
     // Notify platform layer of viewport changes
     // FIXME-DPI: This is only currently used for experimenting with handling of multiple DPI
@@ -10963,6 +10963,7 @@ static bool ImGui::UpdateTryMergeWindowIntoHostViewport(ImGuiWindow* window, ImG
         for (int n = 0; n < g.Windows.Size; n++)
             if (g.Windows[n]->Viewport == old_viewport)
                 SetWindowViewport(g.Windows[n], viewport);
+
     SetWindowViewport(window, viewport);
     BringWindowToDisplayFront(window);
 
@@ -11077,6 +11078,10 @@ static void ImGui::UpdateViewportsNewFrame()
         viewport->Idx = n;
 
         // Erase unused viewports
+        // Aemony 2023-04-30:
+        //   This causes render data to stick around for more frames than expected,
+        //     such as the waitable object for a waitable swapchain.
+        //   This can cause deadlocks ! :|
         if (n > 0 && viewport->LastFrameActive < g.FrameCount - 2)
         {
             // Clear references to this viewport in windows (window->ViewportId becomes the master data)
@@ -11437,7 +11442,10 @@ void ImGui::UpdatePlatformWindows()
         // Destroy platform window if the viewport hasn't been submitted or if it is hosting a hidden window
         // (the implicit/fallback Debug##Default window will be registering its viewport then be disabled, causing a dummy DestroyPlatformWindow to be made each frame)
         bool destroy_platform_window = false;
-        destroy_platform_window |= (viewport->LastFrameActive < g.FrameCount - 1);
+        // Aemony 2023-04:30:
+        //   Removed - 1 to prevent outdated render data from sticking around.
+        //   Solves deadlocks on waitable swapchains.
+        destroy_platform_window |= (viewport->LastFrameActive < g.FrameCount /* - 1 */);
         destroy_platform_window |= (viewport->Window && !IsWindowActiveAndVisible(viewport->Window));
         if (destroy_platform_window)
         {
@@ -11552,10 +11560,10 @@ void ImGui::UpdatePlatformWindows()
 //
 void ImGui::RenderPlatformWindowsDefault(void* platform_render_arg, void* renderer_render_arg)
 {
-  //// Skip the main viewport (index 0), which is always fully handled by the application!
   ImGuiPlatformIO& platform_io =
     ImGui::GetPlatformIO ();
 
+  //// Skip the main viewport (index 0), which is always fully handled by the application!
   for (int i = 1; i < platform_io.Viewports.Size; i++)
   {
     ImGuiViewport* viewport =

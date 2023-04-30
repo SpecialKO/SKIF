@@ -842,7 +842,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
       ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                              "UI Refresh Mode:"
+                              "UI Refresh Mode: (restart required)"
       );
 
       enum SKIF_SyncModes {

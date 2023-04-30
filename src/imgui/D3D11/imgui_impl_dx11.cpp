@@ -42,6 +42,8 @@ extern BOOL SKIF_bCanFlip;
 extern BOOL SKIF_bCanFlipDiscard;
 extern BOOL SKIF_bCanWaitSwapchain;
 
+extern std::vector<HANDLE> vSwapchainWaitHandles;
+
 #include <atlbase.h>
 #include <dxgi1_6.h>
 
@@ -1143,7 +1145,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #2: ]
   if (viewport->Size.x == 0.0f || viewport->Size.y == 0.0f)
   {
-    PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer width inferred from the output window is zero.";
+    PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height/width inferred from the output window is zero.";
     return;
   }
 
@@ -1163,15 +1165,20 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     return;
   }
 
+  IM_ASSERT ( data->SwapChain == nullptr &&
+              data->RTView    == nullptr );
+
   static bool bCanHDR         = FALSE;
   //SKIF_Util_IsWindows10OrGreater      () != FALSE;
 
-  // Create swap chain
-  DXGI_SWAP_CHAIN_DESC swap_desc = { };
-
+  // Create the swapchain for the viewport
+  DXGI_SWAP_CHAIN_DESC
+    swap_desc                  = { };
   swap_desc.BufferDesc.Width   = (UINT)viewport->Size.x;
   swap_desc.BufferDesc.Height  = (UINT)viewport->Size.y;
   swap_desc.BufferDesc.Format  =
+        DXGI_FORMAT_R8G8B8A8_UNORM;
+  /*
     bCanHDR ?
 #ifdef SKIF_scRGB
         DXGI_FORMAT_R16G16B16A16_FLOAT :
@@ -1179,41 +1186,39 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         DXGI_FORMAT_R10G10B10A2_UNORM  :
 #endif
         DXGI_FORMAT_R8G8B8A8_UNORM;
+  */
 
+  swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+  swap_desc.OutputWindow       = hWnd;
+  swap_desc.Windowed           = TRUE;
+  swap_desc.Flags              = 0x0;
   swap_desc.SampleDesc.Count   = 1;
   swap_desc.SampleDesc.Quality = 0;
 
-  swap_desc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swap_desc.OutputWindow = hWnd;
-  swap_desc.Windowed     = TRUE;
-  swap_desc.Flags        = 0x0;
+  // Assume flip by default
+  swap_desc.BufferCount  = 2; // Must be 2-16 for flip model
 
-  // Flip
-  if (SKIF_bCanFlip)
+  if (SKIF_bCanWaitSwapchain)
+    swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+  if (SKIF_bAllowTearing)
+    swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+  for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
   {
-    swap_desc.BufferCount  = 2;
-    swap_desc.SwapEffect   =
-      SKIF_bCanFlipDiscard ? DXGI_SWAP_EFFECT_FLIP_DISCARD
-                           : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    swap_desc.SwapEffect = _swapEffect;
 
-    if (SKIF_bCanWaitSwapchain)
-      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+    // In case flip failed, fall back to using BitBlt
+    if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
+    {
+      swap_desc.BufferCount = 1;
+      swap_desc.Flags       = 0x0;
+      SKIF_bCanFlip         = false;
+    }
 
-    if (SKIF_bAllowTearing)
-      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+    if (SUCCEEDED (g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
+                              &data->SwapChain ))) break;
   }
-
-  // BitBlt
-  else {
-    swap_desc.BufferCount  = 1;
-    swap_desc.SwapEffect   = DXGI_SWAP_EFFECT_DISCARD;
-  }
-
-  IM_ASSERT ( data->SwapChain == nullptr &&
-              data->RTView    == nullptr );
-
-  g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
-             &data->SwapChain );
 
   // Create the render target
 #pragma region HDR stuff?
@@ -1323,10 +1328,23 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
       if (pSwap2 != nullptr)
       {
+        // The maximum number of back buffer frames that will be queued for the swap chain. This value is 1 by default.
+        // This method is only valid for use on swap chains created with DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.
         pSwap2->SetMaximumFrameLatency (1);
 
         data->WaitHandle =
-          pSwap2->GetFrameLatencyWaitableObject ();
+          pSwap2->GetFrameLatencyWaitableObject ( );
+
+        if (data->WaitHandle)
+        {
+          vSwapchainWaitHandles.push_back (data->WaitHandle);
+
+          // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
+          WaitForSingleObjectEx (data->WaitHandle, INFINITE, true);
+          // Block this thread until the swap chain is finished presenting. Note that it is
+          // important to call this before the first Present in order to minimize the latency
+          // of the swap chain.
+        }
       }
     }
   }
@@ -1343,9 +1361,15 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport)
 
   if (data != nullptr)
   {
-    if (data->WaitHandle) CloseHandle (
+    if (data->WaitHandle) {
+      if (! vSwapchainWaitHandles.empty())
+        vSwapchainWaitHandles.erase(std::remove(vSwapchainWaitHandles.begin(), vSwapchainWaitHandles.end(), data->WaitHandle), vSwapchainWaitHandles.end());
+
+      CloseHandle (
         data->WaitHandle
-    );  data->WaitHandle = 0;
+      );
+    }
+    data->WaitHandle = 0;
 
     if (data->SwapChain)
         data->SwapChain->Release ();
@@ -1446,21 +1470,19 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  extern bool SKIF_bDisableVSYNC;
-
-  UINT Interval = 2; // Flip VRR Mode
-
-  if (! SKIF_bCanFlip)
-    Interval = 1; // BitBlt Mode
-
-  if (SKIF_bDisableVSYNC)
-    Interval = 0; // V-Sync OFF Mode
-
   extern BOOL SKIF_Util_IsWindows10OrGreater (void);
 
-  // Force V-Sync on Windows 7-8.1
-  //if (! SKIF_Util_IsWindows10OrGreater ( ))
-  //  Interval = 1;
+  UINT Interval = 1; // BitBlt Mode
+
+  if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
+    Interval    = 2; // Flip VRR Compatibility Mode (only relevant on Windows 10+)
+
+  if (SKIF_bDisableVSYNC)
+    Interval    = 0; // V-Sync OFF Mode
+
+  /* Temporary override */
+  if (SKIF_bDisableVSYNC)
+    Interval    = 1;
 
   UINT PresentFlags = 0x0;
 
@@ -1474,28 +1496,27 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
   if (data->SwapChain != nullptr)
   {
+    //if (data->WaitHandle)
+    //  WaitForSingleObject (data->WaitHandle, INFINITE);
+
+    data->SwapChain->Present ( Interval, PresentFlags );
+    data->PresentCount++;
+
+    /* 2023-04-30: Does not actually seem to make a difference? We don't use dirty rectangles of Present1() at all
     if (data->WaitHandle)
     {
       CComQIPtr <IDXGISwapChain2>
         pSwap2 (data->SwapChain);
+      
+      // if (WAIT_OBJECT_0 == WaitForSingleObject (data->WaitHandle, INFINITE))
 
-      DWORD dwWaitState =
-        WaitForSingleObject (data->WaitHandle, INFINITE);
-
-      if (dwWaitState == WAIT_OBJECT_0)
-      {
-        DXGI_PRESENT_PARAMETERS       pparams = { };
-        pSwap2->Present1 ( Interval, PresentFlags,
-                                     &pparams );
-        data->PresentCount++;
-      }
-    }
-
-    else
-    {
-      data->SwapChain->Present ( Interval, PresentFlags );
+      // For waitable swapchains we wait in the main loop, so present immediately here
+      DXGI_PRESENT_PARAMETERS       pparams = { };
+      pSwap2->Present1 ( Interval, PresentFlags,
+                                    &pparams );
       data->PresentCount++;
     }
+    */
   }
   else {
     PLOG_WARNING << "Swapchain is a nullptr!";

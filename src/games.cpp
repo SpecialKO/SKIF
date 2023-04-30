@@ -154,8 +154,7 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
 
         // DO STUFF
 
-        OutputDebugString (L"SKIF_LibraryRefreshJob - Refreshed!\n");
-
+        //OutputDebugString (L"SKIF_LibraryRefreshJob - Refreshed!\n");
         
         extern bool SKIF_bDisableSteamLibrary;
     

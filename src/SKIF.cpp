@@ -105,6 +105,9 @@ bool msgDontRedraw    = false;
 bool coverFadeActive  = false;
 int  startupFadeIn    = 0;
 
+// Holds swapchain wait handles
+std::vector<HANDLE> vSwapchainWaitHandles;
+
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
@@ -262,8 +265,6 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 
   return
     DwmGetCompositionTimingInfo ( 0, pTimingInfo );
-
-
 }
 */
 
@@ -2417,8 +2418,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #pragma region New UI Frame
 
     // Start the Dear ImGui frame
-    ImGui_ImplDX11_NewFrame  ();
-    ImGui_ImplWin32_NewFrame ();
+    ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
+    ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
       // Fixes the wobble that occurs when switching between tabs,
@@ -3728,14 +3729,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
     if ( bRefresh)
     {
-      g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
-      g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
+      //g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
+      //g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
 
       if (! startedMinimized && ! SKIF_isTrayed)
       {
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
-        // Update and Render additional Platform Windows
+        // Update, Render and Present the main and any additional Platform Windows
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
           ImGui::UpdatePlatformWindows        ();
@@ -3883,11 +3884,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Don't pause if there's hidden frames that needs rendering
     if (HiddenFramesContinueRendering)
       pause = false;
-    
+
     do
     {
       // Pause rendering
-      if (pause) // ! SKIF_ImGui_IsFocused ( ) && 
+      if (pause)
       {
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][PAUSE] Rendering paused!\n").c_str());
 
@@ -3913,10 +3914,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
-
+        
         // Sleep until a message is in the queue or a change notification occurs
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), FALSE, INFINITE, QS_ALLINPUT);
-        //MsgWaitForMultipleObjects (0, NULL, FALSE, INFINITE, QS_ALLINPUT);
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, INFINITE, QS_ALLINPUT);
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
@@ -3932,7 +3932,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
-        
+      
+      if (bRefresh) //bRefresh)
+      {
+        //auto timePre = SKIF_Util_timeGetTime();
+
+        if (! msgDontRedraw && ! vSwapchainWaitHandles.empty())
+        {
+          //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
+          WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, INFINITE, true);
+        }
+        // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
+
+        //auto timePost = SKIF_Util_timeGetTime();
+        //auto timeDiff = timePost - timePre;
+        //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
+        //OutputDebugString((L"Waited: " + std::to_wstring(timeDiff) + L" ms (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
+      }
+      
       // Reset stuff that's set as part of pumping the message queue
       msgDontRedraw = false;
       uiLastMsg     = 0x0;
@@ -3982,26 +3999,75 @@ wWinMain ( _In_     HINSTANCE hInstance,
   return 0;
 }
 
+
 // Helper functions
+
+// D3D9 test stuff
+//#define SKIF_D3D9_TEST
+#ifdef SKIF_D3D9_TEST
+#pragma comment (lib, "d3d9.lib")
+#define D3D_DEBUG_INFO
+#include <d3d9.h>
+#endif
 
 bool CreateDeviceD3D (HWND hWnd)
 {
+  UNREFERENCED_PARAMETER (hWnd);
+
+#ifdef SKIF_D3D9_TEST
+  /* Test D3D9 debugging */
+  IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
+  if (d3d == nullptr)
+  {
+    OutputDebugString(L"Direct3DCreate9() failed!\n");
+  } else {
+    OutputDebugString(L"Direct3DCreate9() succeeded!?\n");
+  }
+
+  D3DPRESENT_PARAMETERS pp = {};
+  pp.BackBufferWidth = 800;
+  pp.BackBufferHeight = 600;
+  pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+  pp.BackBufferCount = 1;
+  pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+  pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+  pp.hDeviceWindow = NULL;
+  pp.Windowed = TRUE;
+  pp.EnableAutoDepthStencil = TRUE;
+  pp.AutoDepthStencilFormat = D3DFMT_D16;
+
+  IDirect3DDevice9* device = nullptr;
+  // Intentionally passing an invalid parameter to CreateDevice to cause an exception to be thrown by the D3D9 debug layer
+  //HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
+  HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, (D3DDEVTYPE)100, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
+  if (FAILED(hr))
+  {
+    OutputDebugString(L"d3d->CreateDevice() failed!\n");
+  } else {
+    OutputDebugString(L"d3d->CreateDevice() succeeded!?\n");
+  }
+#endif
+
   CComPtr <IDXGIFactory5>
                pFactory5;
 
   CreateDXGIFactory1 ( IID_IDXGIFactory5, (void **)&pFactory5.p );
 
+  // Windows 7 (with the Platform Update) and newer
   SKIF_bCanFlip                 =               TRUE;
 
   if (SKIF_bCanFlip)
   {
+    // Windows 8.1+
     SKIF_bCanWaitSwapchain      =
-      SKIF_Util_IsWindows8Point1OrGreater () != FALSE,
-    SKIF_bCanFlipDiscard        =
-      SKIF_Util_IsWindows10OrGreater      () != FALSE;
+      SKIF_Util_IsWindows8Point1OrGreater ();
 
-    // SKIF_bAllowTearing
-    if (SKIF_Util_IsWindows10OrGreater ( ))
+    // Windows 10+
+    SKIF_bCanFlipDiscard        =
+      SKIF_Util_IsWindows10OrGreater      ();
+
+    // Windows 10+
+    if (pFactory5 != nullptr)
       pFactory5->CheckFeatureSupport (
                             DXGI_FEATURE_PRESENT_ALLOW_TEARING,
                                           &SKIF_bAllowTearing,
@@ -4010,11 +4076,14 @@ bool CreateDeviceD3D (HWND hWnd)
   }
 
   // Overrides
-  //SKIF_bAllowTearing            = FALSE; // Disable ALLOW_TEARING on all systems (this overrides the variable assignment just 10 lines above, pFactory5->CheckFeatureSupport)
+  //SKIF_bAllowTearing          = FALSE; // Allow Tearing
   //SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
-  //SKIF_bCanFlip               = FALSE; // Flip Sequential
+  //SKIF_bCanFlip               = FALSE; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
   //SKIF_bCanWaitSwapchain      = FALSE; // Waitable Swapchain
 
+
+
+  /* 2023-04-30: Disabled since we don't actually ever use the swapchain created here.
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC
     sd                                  = { };
@@ -4025,8 +4094,9 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.BufferDesc.RefreshRate.Denominator = 1;
   sd.Flags                              = 0x0;
 
+  // Flip
   if (SKIF_bCanFlip)
-  { // Flip
+  {
     sd.BufferCount                      = 2; // 3
     sd.SwapEffect                       =
                    SKIF_bCanFlipDiscard ? DXGI_SWAP_EFFECT_FLIP_DISCARD
@@ -4038,7 +4108,9 @@ bool CreateDeviceD3D (HWND hWnd)
     if (SKIF_bAllowTearing)
       sd.Flags                         |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
   }
-  else { // BitBlt
+
+  // BitBlt
+  else {
     sd.BufferCount                      = 1; // 2
     sd.SwapEffect                       = DXGI_SWAP_EFFECT_DISCARD;
   }
@@ -4049,6 +4121,7 @@ bool CreateDeviceD3D (HWND hWnd)
   sd.SampleDesc.Count                   = 1;
   sd.SampleDesc.Quality                 = 0;
   sd.Windowed                           = TRUE;
+  */
 
   UINT createDeviceFlags = 0;
 
@@ -4062,6 +4135,7 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
+  /* 2023-04-30: Disabled since we don't actually ever use the swapchain created here.
   if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
@@ -4070,17 +4144,26 @@ bool CreateDeviceD3D (HWND hWnd)
                                                        &g_pd3dDevice,
                                                                 &featureLevel,
                                                        &g_pd3dDeviceContext) != S_OK ) return false;
+  */
 
-  CreateRenderTarget ();
+  if (D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                              createDeviceFlags, featureLevelArray,
+                                                         sizeof (featureLevelArray) / sizeof featureLevel,
+                                                D3D11_SDK_VERSION,
+                                                       &g_pd3dDevice,
+                                                                &featureLevel,
+                                                       &g_pd3dDeviceContext) != S_OK ) return false;
+
+  //CreateRenderTarget ();
 
   return true;
 }
 
 void CleanupDeviceD3D (void)
 {
-  CleanupRenderTarget ();
+  //CleanupRenderTarget ();
 
-  IUnknown_AtomicRelease ((void **)&g_pSwapChain);
+  //IUnknown_AtomicRelease ((void **)&g_pSwapChain);
   IUnknown_AtomicRelease ((void **)&g_pd3dDeviceContext);
   IUnknown_AtomicRelease ((void **)&g_pd3dDevice);
 }
@@ -4089,9 +4172,9 @@ void CleanupDeviceD3D (void)
 //
 void SKIF_WaitForDeviceInitD3D (void)
 {
-  while ( g_pd3dDevice        == nullptr ||
-          g_pd3dDeviceContext == nullptr ||
-          g_pSwapChain        == nullptr )
+  while ( g_pd3dDevice        == nullptr    ||
+          g_pd3dDeviceContext == nullptr /* ||
+          g_pSwapChain        == nullptr  */ )
   {
     Sleep (10UL);
   }
@@ -4263,6 +4346,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
+    /* 2023-04-29: Disabled as I believe this is not actually triggered, ever. Resizes are handled through Renderer_SetWindowSize
+     * Maybe on multi-monitor setups with mixed DPI scaling?
     case WM_SIZE:
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
       {
@@ -4270,10 +4355,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         if (SKIF_bCanFlip)
         {
-          if (SKIF_bCanWaitSwapchain)
+          if (SKIF_bCanWaitSwapchain) // Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag. 
             swap_flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
-          if (SKIF_bAllowTearing)
+          if (SKIF_bAllowTearing)     //  Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag.
             swap_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
         }
 
@@ -4287,6 +4372,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         CreateRenderTarget ();
       }
       return 0;
+    */
 
     case WM_SYSCOMMAND:
       if ((wParam & 0xfff0) == SC_KEYMENU)

@@ -171,7 +171,11 @@ namespace ImStb
 
 // Debug Logging
 #ifndef IMGUI_DEBUG_LOG
-#define IMGUI_DEBUG_LOG(_FMT,...)       printf("[%05d] " _FMT, GImGui->FrameCount, __VA_ARGS__)
+//#define IMGUI_DEBUG_LOG(_FMT, ...)       printf("[%05d] " _FMT, GImGui->FrameCount, __VA_ARGS__)
+#include <string>
+extern std::wstring SK_UTF8ToWideChar (const std::string& in);
+extern std::string __cdecl SK_FormatString (char const* const _Format, ...);
+#define IMGUI_DEBUG_LOG(_FMT, ...)         OutputDebugString(SK_UTF8ToWideChar(SK_FormatString("[%05d] " _FMT, GImGui->FrameCount, __VA_ARGS__)).c_str())
 #endif
 
 // Debug Logging for selected systems. Remove the '((void)0) //' to enable.
