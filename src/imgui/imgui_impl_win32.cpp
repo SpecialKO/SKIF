@@ -505,10 +505,49 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   {
     if ( g_HasGamepad [idx] && ImGui_XInputGetState (idx, &xinput_state) == ERROR_SUCCESS )
     {
+      // If button state is different, this controller is active...
       if ( xinput_state.dwPacketNumber != g_GamepadHistory [idx].last_state.dwPacketNumber )
       {
-                                  g_GamepadHistory [idx].last_state = xinput_state;
-        QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+        if (                      xinput_state.Gamepad.wButtons !=
+             g_GamepadHistory [idx].last_state.Gamepad.wButtons ||
+                                  xinput_state.Gamepad.bLeftTrigger !=
+             g_GamepadHistory [idx].last_state.Gamepad.bLeftTrigger ||
+                                  xinput_state.Gamepad.bRightTrigger !=
+             g_GamepadHistory [idx].last_state.Gamepad.bRightTrigger )
+        {
+                                    g_GamepadHistory [idx].last_state = xinput_state;
+          QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+        }
+
+        // Analog input may contain jitter, perform deadzone test.
+        else
+        {
+#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
+#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
+#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
+
+          float LX = xinput_state.Gamepad.sThumbLX,
+                LY = xinput_state.Gamepad.sThumbLY;
+          float RX = xinput_state.Gamepad.sThumbRX,
+                RY = xinput_state.Gamepad.sThumbRY;
+
+          float NL = sqrt (LX*LX + LY*LY);
+          float NR = sqrt (RX*RX + RY*RY);
+
+          if (NL > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE ||
+              NR > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
+          {
+                                      g_GamepadHistory [idx].last_state = xinput_state;
+            QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+          }
+
+          // Inside deadzone, record position but do not update the packet count
+          else
+          {
+            g_GamepadHistory [idx].last_state.Gamepad =
+                                 xinput_state.Gamepad;
+          }
+        }
       }
     }
 
