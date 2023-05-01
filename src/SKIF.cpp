@@ -3821,6 +3821,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     bool pause = false;
     static int
       renderAdditionalFrames = 0;
+
+    bool input = SKIF_ImGui_IsAnyInputDown ( );
     
     // We want SKIF to continue rendering in some specific scenarios
     ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
@@ -3831,7 +3833,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
             (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some input, to ensure any hover states gets cleared
-    else if (uiLastMsg == WM_SKIF_GAMEPAD || SKIF_ImGui_IsAnyInputDown ( ))
+    else if (uiLastMsg == WM_SKIF_GAMEPAD || input)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received any gamepad input or an input is held down
     else if (svcTransitionFromPendingState)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
@@ -3941,6 +3943,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
+      
+      // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
+      else if (input) // Throttle to 62 FPS unless a new event is triggered, or user input is posted
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, 15, QS_ALLINPUT);
+
       
       if (bRefresh) //bRefresh)
       {
