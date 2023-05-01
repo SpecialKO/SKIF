@@ -1115,13 +1115,13 @@ void ImGui_ImplDX11_NewFrame (void)
   // Force DXGIFactory and swapchain recreation every time we move monitor
   //   this solves issues with DirectFlip/Independent Flip not engaging
   //   based on the monitor the app launched initially on.
-  extern bool RecreateSwapChains;
+  extern bool 
+         RecreateSwapChains;
 
   if ((( pFactory1.p != nullptr &&
       (! pFactory1->IsCurrent ()) )) ||
-              RecreateSwapChains )
-  {
-    RecreateSwapChains = false;
+         RecreateSwapChains )
+  {      RecreateSwapChains = false;
 
      pFactory1.Release ();
     g_pFactory.Release ();
