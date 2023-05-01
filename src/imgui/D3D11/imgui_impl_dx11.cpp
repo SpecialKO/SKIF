@@ -1111,9 +1111,18 @@ void ImGui_ImplDX11_NewFrame (void)
   CComQIPtr <IDXGIFactory1>
                  pFactory1
               (g_pFactory);
-  if (           pFactory1.p != nullptr &&
-              (! pFactory1->IsCurrent ()) )
+
+  // Force DXGIFactory and swapchain recreation every time we move monitor
+  //   this solves issues with DirectFlip/Independent Flip not engaging
+  //   based on the monitor the app launched initially on.
+  extern bool RecreateSwapChains;
+
+  if ((( pFactory1.p != nullptr &&
+      (! pFactory1->IsCurrent ()) )) ||
+              RecreateSwapChains )
   {
+    RecreateSwapChains = false;
+
      pFactory1.Release ();
     g_pFactory.Release ();
 
@@ -1122,8 +1131,8 @@ void ImGui_ImplDX11_NewFrame (void)
     ImGuiContext& g = *GImGui;
     for (int i = 0; i < g.Viewports.Size; i++)
     {
-      ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
-      ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
+      ImGui_ImplDX11_DestroyWindow (g.Viewports [i]); // Destroys  any  existing swapchains and their wait objects
+      ImGui_ImplDX11_CreateWindow  (g.Viewports [i]); // Recreates any necessary swapchains and their wait objects
     }
   }
 

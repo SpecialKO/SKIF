@@ -861,7 +861,7 @@ SKIF_UI_Tab_DrawSettings (void)
         "Avoids signal loss and flickering on VRR displays"
       );
       ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("VSYNC Off",         &SKIF_iSyncMode, Sync_None))
+      if (ImGui::RadioButton ("Normal",         &SKIF_iSyncMode, Sync_None))
         _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = true));
       SKIF_ImGui_SetHoverTip (
         "Improves UI response on low fixed-refresh rate displays"
