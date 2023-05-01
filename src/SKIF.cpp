@@ -1898,7 +1898,7 @@ typedef enum EFFECTIVE_POWER_MODE {
     EffectivePowerModeMixedReality,   // EFFECTIVE_POWER_MODE_V2
 } EFFECTIVE_POWER_MODE;
 
-EFFECTIVE_POWER_MODE enumEffectivePowerMode;
+std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode;
 std::string sEffectivePowerMode;
 
 #define EFFECTIVE_POWER_MODE_V1 (0x00000001)
@@ -1916,35 +1916,9 @@ VOID WINAPI SKIF_EffectivePowerModeCallback (
 {
   UNREFERENCED_PARAMETER(Context);
 
-  enumEffectivePowerMode = Mode;
+  enumEffectivePowerMode.store(Mode);
 
-  switch (Mode)
-  {
-  case EffectivePowerModeBatterySaver:
-    sEffectivePowerMode = "Battery Saver";
-    break;
-  case EffectivePowerModeBetterBattery:
-    sEffectivePowerMode = "Better Battery";
-    break;
-  case EffectivePowerModeBalanced:
-    sEffectivePowerMode = "Balanced";
-    break;
-  case EffectivePowerModeHighPerformance:
-    sEffectivePowerMode = "High Performance";
-    break;
-  case EffectivePowerModeMaxPerformance:
-    sEffectivePowerMode = "Max Performance";
-    break;
-  case EffectivePowerModeGameMode:
-    sEffectivePowerMode = "Game Mode";
-    break;
-  case EffectivePowerModeMixedReality:
-    sEffectivePowerMode = "Mixed Reality";
-    break;
-  default:
-    sEffectivePowerMode = "Unknown Mode";
-    break;
-  }
+  PostMessage (SKIF_hWnd, WM_NULL, NULL, NULL);
 };
 
 
@@ -3208,7 +3182,37 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SameLine ( );
         
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), ("(" + sEffectivePowerMode + ")").c_str());
+        std::string sMode;
+
+        switch (enumEffectivePowerMode.load())
+        {
+        case EffectivePowerModeBatterySaver:
+          sMode = "Battery Saver";
+          break;
+        case EffectivePowerModeBetterBattery:
+          sMode = "Better Battery";
+          break;
+        case EffectivePowerModeBalanced:
+          sMode = "Balanced";
+          break;
+        case EffectivePowerModeHighPerformance:
+          sMode = "High Performance";
+          break;
+        case EffectivePowerModeMaxPerformance:
+          sMode = "Max Performance";
+          break;
+        case EffectivePowerModeGameMode:
+          sMode = "Game Mode";
+          break;
+        case EffectivePowerModeMixedReality:
+          sMode = "Mixed Reality";
+          break;
+        default:
+          sMode = "Unknown Mode";
+          break;
+        }
+
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), ("(" + sMode + ")").c_str());
 
         if (                          SKIF_iGhostVisibility == 1 ||
             (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
