@@ -3815,7 +3815,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
           packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
 
-          if (packetLast != packetNew)
+          if (packetNew > 0 && packetLast != packetNew)
           {
             packetLast = packetNew;
             //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
@@ -3979,9 +3979,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
-
-      else // Throttle to 62 FPS unless a new event is triggered, or user input is posted
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, 15, QS_ALLINPUT);
       
       // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
       else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
