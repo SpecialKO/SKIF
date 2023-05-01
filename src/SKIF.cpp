@@ -237,7 +237,7 @@ static GetSystemMetricsForDpi_pfn
 
 #define GCL_HICON           (-14)
 
-/* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
+///* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
 #ifndef WM_DPICHANGED
 #define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
 #endif
@@ -266,7 +266,7 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
   return
     DwmGetCompositionTimingInfo ( 0, pTimingInfo );
 }
-*/
+//*/
 
 float fAspect     = 16.0f / 9.0f;
 float fBottomDist = 0.0f;
@@ -1024,6 +1024,27 @@ SKIF_hasControlledFolderAccess (void)
   }
 
   return enabled;
+}
+
+
+void SKIF_GetMonitorRefreshRatePeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
+{
+  DEVMODE 
+    dm        = { };
+    dm.dmSize = sizeof (DEVMODE);
+    
+  HMONITOR
+      hMonitor  = MonitorFromWindow (hwnd, dwFlags);
+  if (hMonitor != NULL)
+  {
+    MONITORINFOEX
+      minfoex        = { };
+      minfoex.cbSize = sizeof (MONITORINFOEX);
+
+    if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
+      if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
+        dwPeriod = (1000 / dm.dmDisplayFrequency);
+  }
 }
 
 
@@ -2211,6 +2232,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplWin32_Init (hWnd); // This ends up creating a separate window/hWnd as well
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
+  DWORD dwDwmPeriod = 16; // Assume 60 Hz by default
+  SKIF_GetMonitorRefreshRatePeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+  //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
   SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
@@ -2622,7 +2647,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
       if (monitor->MainPos.x != ImGui::GetMainViewport()->Pos.x ||
           monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
+      {
         MoveWindow (SKIF_hWnd, (int)monitor->MainPos.x, (int)monitor->MainPos.y, 0, 0, false);
+
+        // Update refresh rate for the current monitor
+        SKIF_GetMonitorRefreshRatePeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
+        //OutputDebugString ((L"Updated refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+      }
 
       float fDpiScaleFactor =
         ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
@@ -3822,18 +3853,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     static int
       renderAdditionalFrames = 0;
 
-    bool input = SKIF_ImGui_IsAnyInputDown ( );
+    bool input = SKIF_ImGui_IsAnyInputDown ( ) || uiLastMsg == WM_SKIF_GAMEPAD ||
+                   (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST)   ||
+                   (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST  );
     
     // We want SKIF to continue rendering in some specific scenarios
     ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
     if (wnd != nullptr && wnd->Active)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the keyboard hint/search is active
-    else if (uiLastMsg == WM_SETCURSOR  || uiLastMsg == WM_TIMER      ||
-             uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS  ||
-            (uiLastMsg >= WM_MOUSEFIRST && uiLastMsg <= WM_MOUSELAST) || 
-            (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST))
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some input, to ensure any hover states gets cleared
-    else if (uiLastMsg == WM_SKIF_GAMEPAD || input)
+    else if (uiLastMsg == WM_SETCURSOR  || uiLastMsg == WM_TIMER   ||
+             uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received some event changes
+    else if (input)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we received any gamepad input or an input is held down
     else if (svcTransitionFromPendingState)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
@@ -3855,6 +3886,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     */
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
+
+    //OutputDebugString((L"Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
 
     // Clear gamepad/nav input for the next frame as we're done with it
     memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
@@ -3887,6 +3920,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (HiddenFramesContinueRendering)
       pause = false;
 
+    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod - 2)); // decrease dwDwmPeriod by 2 to allow some margin of error
+    //OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
+
     do
     {
       // Pause rendering
@@ -3918,14 +3954,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
         
         // Sleep until a message is in the queue or a change notification occurs
-        static DWORD dwWaitTimeoutMsgInput = INFINITE;
-        if (WAIT_FAILED == MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwWaitTimeoutMsgInput, QS_ALLINPUT))
+        static bool bWaitTimeoutMsgInputFallback = false;
+        if (WAIT_FAILED == MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, bWaitTimeoutMsgInputFallback ? dwDwmPeriod : INFINITE, QS_ALLINPUT))
         {
           SK_RunOnce (
           {
             PLOG_ERROR << "Waiting on a new message or change notification failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
-            PLOG_ERROR << "Timeout has permanently been lowered to 16 ms!";
-            dwWaitTimeoutMsgInput = 16;
+            PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+            bWaitTimeoutMsgInputFallback = true;
           });
         }
 
@@ -3945,8 +3981,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
-      else if (input) // Throttle to 62 FPS unless a new event is triggered, or user input is posted
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, 15, QS_ALLINPUT);
+      else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
 
       
       if (bRefresh) //bRefresh)
@@ -3955,15 +3991,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (! msgDontRedraw && ! vSwapchainWaitHandles.empty())
         {
-          static DWORD dwWaitTimeoutSwapChains = INFINITE;
+          static bool bWaitTimeoutSwapChainsFallback = false;
           //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
-          if (WAIT_FAILED == WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, dwWaitTimeoutSwapChains, true))
+          if (WAIT_FAILED == WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : INFINITE, true))
           {
             SK_RunOnce (
             {
               PLOG_ERROR << "Waiting on the swapchain wait objects failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
-              PLOG_ERROR << "Timeout has permanently been lowered to 16 ms!";
-              dwWaitTimeoutSwapChains = 16;
+              PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+              bWaitTimeoutSwapChainsFallback = true;
             });
           }
         }
