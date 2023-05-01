@@ -1888,6 +1888,66 @@ void SKIF_Initialize (void)
   }
 }
 
+typedef enum EFFECTIVE_POWER_MODE {
+    EffectivePowerModeBatterySaver,
+    EffectivePowerModeBetterBattery,
+    EffectivePowerModeBalanced,
+    EffectivePowerModeHighPerformance,
+    EffectivePowerModeMaxPerformance, // EFFECTIVE_POWER_MODE_V1
+    EffectivePowerModeGameMode,
+    EffectivePowerModeMixedReality,   // EFFECTIVE_POWER_MODE_V2
+} EFFECTIVE_POWER_MODE;
+
+EFFECTIVE_POWER_MODE enumEffectivePowerMode;
+std::string sEffectivePowerMode;
+
+#define EFFECTIVE_POWER_MODE_V1 (0x00000001)
+#define EFFECTIVE_POWER_MODE_V2 (0x00000002)
+
+typedef VOID WINAPI EFFECTIVE_POWER_MODE_CALLBACK (
+    _In_     EFFECTIVE_POWER_MODE  Mode,
+    _In_opt_ VOID                 *Context
+);
+
+VOID WINAPI SKIF_EffectivePowerModeCallback (
+    _In_     EFFECTIVE_POWER_MODE  Mode,
+    _In_opt_ VOID                 *Context
+)
+{
+  UNREFERENCED_PARAMETER(Context);
+
+  enumEffectivePowerMode = Mode;
+
+  switch (Mode)
+  {
+  case EffectivePowerModeBatterySaver:
+    sEffectivePowerMode = "Battery Saver";
+    break;
+  case EffectivePowerModeBetterBattery:
+    sEffectivePowerMode = "Better Battery";
+    break;
+  case EffectivePowerModeBalanced:
+    sEffectivePowerMode = "Balanced";
+    break;
+  case EffectivePowerModeHighPerformance:
+    sEffectivePowerMode = "High Performance";
+    break;
+  case EffectivePowerModeMaxPerformance:
+    sEffectivePowerMode = "Max Performance";
+    break;
+  case EffectivePowerModeGameMode:
+    sEffectivePowerMode = "Game Mode";
+    break;
+  case EffectivePowerModeMixedReality:
+    sEffectivePowerMode = "Mixed Reality";
+    break;
+  default:
+    sEffectivePowerMode = "Unknown Mode";
+    break;
+  }
+};
+
+
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -2274,6 +2334,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
+
+  using PowerRegisterForEffectivePowerModeNotifications_pfn =
+    HRESULT (WINAPI *)(ULONG Version, EFFECTIVE_POWER_MODE_CALLBACK *Callback, VOID *Context, VOID **RegistrationHandle);
+
+  static PowerRegisterForEffectivePowerModeNotifications_pfn
+    SKIF_PowerRegisterForEffectivePowerModeNotifications =
+        (PowerRegisterForEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "PowerRegisterForEffectivePowerModeNotifications");
+
+  using PowerUnregisterFromEffectivePowerModeNotifications_pfn =
+    HRESULT (WINAPI *)(VOID *RegistrationHandle);
+
+  static PowerUnregisterFromEffectivePowerModeNotifications_pfn
+    SKIF_PowerUnregisterFromEffectivePowerModeNotifications =
+        (PowerUnregisterFromEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "PowerUnregisterFromEffectivePowerModeNotifications");
+  
+	HANDLE hEffectivePowerModeRegistration = NULL;
+
+  if (SKIF_PowerRegisterForEffectivePowerModeNotifications      != nullptr)
+  {
+    if (SKIF_PowerUnregisterFromEffectivePowerModeNotifications != nullptr)
+    {
+      PLOG_DEBUG << "Registering SKIF for effective power mode notifications";
+      SKIF_PowerRegisterForEffectivePowerModeNotifications (EFFECTIVE_POWER_MODE_V2, SKIF_EffectivePowerModeCallback, NULL, &hEffectivePowerModeRegistration);
+    }
+  }
+
 
   // Main loop
   while (IsWindow (hWnd) && msg.message != WM_QUIT)
@@ -3117,6 +3205,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         );
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A : SKIF_WINDOW_TITLE_A);
+
+        ImGui::SameLine ( );
+        
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), ("(" + sEffectivePowerMode + ")").c_str());
 
         if (                          SKIF_iGhostVisibility == 1 ||
             (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
@@ -4024,6 +4116,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       _TranslateAndDispatch ( );
 
     } while (msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
+  }
+
+  if (hEffectivePowerModeRegistration)
+  {
+    PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications";
+    SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
   }
 
   PLOG_INFO << "Writing last selected game to registry: " << SKIF_iLastSelected;
