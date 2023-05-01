@@ -3932,6 +3932,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
+
+      else // Throttle to 62 FPS unless a new event is triggered, or user input is posted
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, 15, QS_ALLINPUT);
       
       if (bRefresh) //bRefresh)
       {
