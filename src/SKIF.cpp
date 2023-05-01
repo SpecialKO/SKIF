@@ -91,19 +91,20 @@ const GUID IID_IDXGIFactory5 =
   { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
 
 const int SKIF_STEAM_APPID = 1157970;
-bool RepositionSKIF   = false;
-bool tinyDPIFonts     = false;
-bool invalidateFonts  = false;
-bool failedLoadFonts  = false;
+bool RecreateSwapChains    = false;
+bool RepositionSKIF        = false;
+bool tinyDPIFonts          = false;
+bool invalidateFonts       = false;
+bool failedLoadFonts       = false;
 bool failedLoadFontsPrompt = false;
-DWORD invalidatedFonts = 0;
-bool startedMinimized = false;
-bool SKIF_UpdateReady = false;
-bool showUpdatePrompt = false;
-bool changedUpdateChannel = false;
-bool msgDontRedraw    = false;
-bool coverFadeActive  = false;
-int  startupFadeIn    = 0;
+DWORD invalidatedFonts     = 0;
+bool startedMinimized      = false;
+bool SKIF_UpdateReady      = false;
+bool showUpdatePrompt      = false;
+bool changedUpdateChannel  = false;
+bool msgDontRedraw         = false;
+bool coverFadeActive       = false;
+int  startupFadeIn         = 0;
 
 // Holds swapchain wait handles
 std::vector<HANDLE> vSwapchainWaitHandles;
@@ -2653,6 +2654,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Update refresh rate for the current monitor
         SKIF_GetMonitorRefreshRatePeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
         //OutputDebugString ((L"Updated refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+
+        RecreateSwapChains = true;
       }
 
       float fDpiScaleFactor =
@@ -3808,14 +3811,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
 
-        DWORD packetLast = 0, packetNew = 0;
+        DWORD packetLast = 0,
+              packetNew  = 0;
 
         while (IsWindow (SKIF_hWnd))
         {
           extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
           packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
 
-          if (packetNew > 0 && packetLast != packetNew)
+          if (packetNew  > 0  &&
+              packetNew != packetLast)
           {
             packetLast = packetNew;
             //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);

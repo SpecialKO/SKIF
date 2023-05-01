@@ -446,6 +446,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
             _fZeros,
     sizeof (_fZeros));
 
+  /*
   if (! g_Focused)
     return 0;
 
@@ -472,6 +473,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
     if (dwWindowOwnerPid != dwPidOfMe)
       return 0;
   }
+  */
 
  // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
  // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
