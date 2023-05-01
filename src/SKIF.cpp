@@ -3777,16 +3777,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
 
-        DWORD pkgLast = 0, pkgNew = 0;
+        DWORD packetLast = 0, packetNew = 0;
 
         while (IsWindow (SKIF_hWnd))
         {
           extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-          pkgNew     = ImGui_ImplWin32_UpdateGamepads ( );
+          packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
 
-          if (pkgLast != pkgNew)
+          if (packetLast != packetNew)
           {
-            pkgLast = pkgNew;
+            packetLast = packetNew;
             //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
             PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
@@ -3916,7 +3916,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
         
         // Sleep until a message is in the queue or a change notification occurs
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, INFINITE, QS_ALLINPUT);
+        static DWORD dwWaitTimeoutMsgInput = INFINITE;
+        if (WAIT_FAILED == MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwWaitTimeoutMsgInput, QS_ALLINPUT))
+        {
+          SK_RunOnce (
+          {
+            PLOG_ERROR << "Waiting on a new message or change notification failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
+            PLOG_ERROR << "Timeout has permanently been lowered to 16 ms!";
+            dwWaitTimeoutMsgInput = 16;
+          });
+        }
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
@@ -3939,8 +3948,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (! msgDontRedraw && ! vSwapchainWaitHandles.empty())
         {
+          static DWORD dwWaitTimeoutSwapChains = INFINITE;
           //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
-          WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, INFINITE, true);
+          if (WAIT_FAILED == WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, dwWaitTimeoutSwapChains, true))
+          {
+            SK_RunOnce (
+            {
+              PLOG_ERROR << "Waiting on the swapchain wait objects failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
+              PLOG_ERROR << "Timeout has permanently been lowered to 16 ms!";
+              dwWaitTimeoutSwapChains = 16;
+            });
+          }
         }
         // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
 
