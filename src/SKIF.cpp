@@ -87,9 +87,6 @@
 
 #pragma comment (lib, "wininet.lib")
 
-const GUID IID_IDXGIFactory5 =
-  { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
-
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
 bool RepositionSKIF        = false;
@@ -281,8 +278,8 @@ BOOL                    bOccluded              =   FALSE;
 // Forward declarations of helper functions
 bool CreateDeviceD3D           (HWND hWnd);
 void CleanupDeviceD3D          (void);
-void CreateRenderTarget        (void);
-void CleanupRenderTarget       (void);
+//void CreateRenderTarget        (void);
+//void CleanupRenderTarget       (void);
 //void ResizeSwapChain           (HWND hWnd, int width, int height);
 LRESULT WINAPI
      SKIF_WndProc              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -4222,11 +4219,6 @@ bool CreateDeviceD3D (HWND hWnd)
   }
 #endif
 
-  CComPtr <IDXGIFactory5>
-               pFactory5;
-
-  CreateDXGIFactory1 ( IID_IDXGIFactory5, (void **)&pFactory5.p );
-
   // Windows 7 (with the Platform Update) and newer
   SKIF_bCanFlip                 =               TRUE;
 
@@ -4240,13 +4232,22 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_bCanFlipDiscard        =
       SKIF_Util_IsWindows10OrGreater      ();
 
+    CComPtr <IDXGIFactory5>
+                 pFactory5;
+
+    CreateDXGIFactory1 (__uuidof (IDXGIFactory5), (void **)&pFactory5.p );
+
     // Windows 10+
     if (pFactory5 != nullptr)
+    {
       pFactory5->CheckFeatureSupport (
                             DXGI_FEATURE_PRESENT_ALLOW_TEARING,
                                           &SKIF_bAllowTearing,
                                   sizeof ( SKIF_bAllowTearing )
                                                 );
+
+      pFactory5.Release ( );
+    }
   }
 
   // Overrides
@@ -4256,49 +4257,7 @@ bool CreateDeviceD3D (HWND hWnd)
   //SKIF_bCanWaitSwapchain      = FALSE; // Waitable Swapchain
 
 
-
-  /* 2023-04-30: Disabled since we don't actually ever use the swapchain created here.
-  // Setup swap chain
-  DXGI_SWAP_CHAIN_DESC
-    sd                                  = { };
-  sd.BufferDesc.Width                   = 4 ;
-  sd.BufferDesc.Height                  = 4 ;
-  sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
-  sd.BufferDesc.RefreshRate.Numerator   = 0;
-  sd.BufferDesc.RefreshRate.Denominator = 1;
-  sd.Flags                              = 0x0;
-
-  // Flip
-  if (SKIF_bCanFlip)
-  {
-    sd.BufferCount                      = 2; // 3
-    sd.SwapEffect                       =
-                   SKIF_bCanFlipDiscard ? DXGI_SWAP_EFFECT_FLIP_DISCARD
-                                        : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-
-    if (SKIF_bCanWaitSwapchain)
-      sd.Flags                         |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-
-    if (SKIF_bAllowTearing)
-      sd.Flags                         |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-  }
-
-  // BitBlt
-  else {
-    sd.BufferCount                      = 1; // 2
-    sd.SwapEffect                       = DXGI_SWAP_EFFECT_DISCARD;
-  }
-
-  sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT |
-                                          DXGI_USAGE_BACK_BUFFER;
-  sd.OutputWindow                       = hWnd;
-  sd.SampleDesc.Count                   = 1;
-  sd.SampleDesc.Quality                 = 0;
-  sd.Windowed                           = TRUE;
-  */
-
   UINT createDeviceFlags = 0;
-
   // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
   //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
 
@@ -4308,17 +4267,6 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
-
-  /* 2023-04-30: Disabled since we don't actually ever use the swapchain created here.
-  if (D3D11CreateDeviceAndSwapChain ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                              createDeviceFlags, featureLevelArray,
-                                                         sizeof (featureLevelArray) / sizeof featureLevel,
-                                                D3D11_SDK_VERSION,
-                                                  &sd, &g_pSwapChain,
-                                                       &g_pd3dDevice,
-                                                                &featureLevel,
-                                                       &g_pd3dDeviceContext) != S_OK ) return false;
-  */
 
   if (D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
@@ -4364,7 +4312,7 @@ SKIF_D3D11_GetDevice (bool bWait)
     g_pd3dDevice;
 }
 
-
+/*
 void CreateRenderTarget (void)
 {
   ID3D11Texture2D*                           pBackBuffer = nullptr;
@@ -4381,6 +4329,7 @@ void CleanupRenderTarget (void)
 {
   IUnknown_AtomicRelease ((void **)&g_mainRenderTargetView);
 }
+*/
 
 // Win32 message handler
 extern LRESULT
