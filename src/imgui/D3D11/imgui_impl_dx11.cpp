@@ -1125,7 +1125,7 @@ void ImGui_ImplDX11_NewFrame (void)
   if (RecreateSwapChains || RecreateFactory)
   {   RecreateSwapChains = false;
 
-    PLOG_DEBUG << "Destroying any existing windows and swapchains...";
+    PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
 
@@ -1143,7 +1143,7 @@ void ImGui_ImplDX11_NewFrame (void)
       CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
     }
     
-    PLOG_DEBUG << "Recreating any necessary windows and swapchains...";
+    PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
   }
