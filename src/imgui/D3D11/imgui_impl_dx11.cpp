@@ -1108,6 +1108,7 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport);
 
 void ImGui_ImplDX11_NewFrame (void)
 {
+  ImGuiContext& g = *GImGui;
   CComQIPtr <IDXGIFactory1>
                  pFactory1
               (g_pFactory);
@@ -1117,23 +1118,34 @@ void ImGui_ImplDX11_NewFrame (void)
   //   based on the monitor the app launched initially on.
   extern bool 
          RecreateSwapChains;
+  bool   RecreateFactory =
+              ( pFactory1.p != nullptr &&
+              ! pFactory1->IsCurrent () );
 
-  if ((( pFactory1.p != nullptr &&
-      (! pFactory1->IsCurrent ()) )) ||
-         RecreateSwapChains )
-  {      RecreateSwapChains = false;
+  if (RecreateSwapChains || RecreateFactory)
+  {   RecreateSwapChains = false;
 
-     pFactory1.Release ();
-    g_pFactory.Release ();
-
-    CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
-
-    ImGuiContext& g = *GImGui;
+    PLOG_DEBUG << "Destroying any existing windows and swapchains...";
     for (int i = 0; i < g.Viewports.Size; i++)
+      ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
+
+    PLOG_DEBUG << "Clearing ID3D11DeviceContext state and flushing...";
+    g_pd3dDeviceContext->ClearState ( );
+    g_pd3dDeviceContext->Flush      ( );
+
+    if (RecreateFactory)
     {
-      ImGui_ImplDX11_DestroyWindow (g.Viewports [i]); // Destroys  any  existing swapchains and their wait objects
-      ImGui_ImplDX11_CreateWindow  (g.Viewports [i]); // Recreates any necessary swapchains and their wait objects
+      PLOG_DEBUG << "Recreating factory...";
+
+       pFactory1.Release ();
+      g_pFactory.Release ();
+
+      CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
     }
+    
+    PLOG_DEBUG << "Recreating any necessary windows and swapchains...";
+    for (int i = 0; i < g.Viewports.Size; i++)
+      ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
   }
 
   if (! g_pFontSampler)
@@ -1154,7 +1166,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #2: ]
   if (viewport->Size.x == 0.0f || viewport->Size.y == 0.0f)
   {
-    PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height/width inferred from the output window is zero.";
+    //PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height/width inferred from the output window is zero.";
     return;
   }
 
@@ -1170,7 +1182,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory. [ MISCELLANEOUS ERROR #6: ]
   if (hWnd == nullptr)
   {
-    PLOG_ERROR << "DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory.";
+    //PLOG_ERROR << "DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory.";
     return;
   }
 
