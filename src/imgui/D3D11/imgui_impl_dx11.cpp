@@ -54,7 +54,7 @@ extern std::vector<HANDLE> vSwapchainWaitHandles;
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
 static CComPtr <ID3D11DeviceContext>      g_pd3dDeviceContext;
-static CComPtr <IDXGIFactory>             g_pFactory;
+static CComPtr <IDXGIFactory1>            g_pFactory;
 static CComPtr <ID3D11Buffer>             g_pVB;
 static CComPtr <ID3D11Buffer>             g_pIB;
 static CComPtr <ID3D11VertexShader>       g_pVertexShader;
@@ -368,62 +368,53 @@ struct ImGuiViewportDataDx11 {
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
   BOOL                    HDR;
+  DXGI_OUTPUT_DESC1       HDRDesc;
+  FLOAT                   HDRLuma;
+  FLOAT                   HDRMinLuma;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; HDR = FALSE; }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; HDR = FALSE; HDRDesc = {   }; HDRLuma = 0.0f; HDRMinLuma = 0.0f; }
   ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
-};
 
-
-
-FLOAT             fHDRLuma    = 0.0f;
-FLOAT             fHDRMinLuma = 0.0f;
-BOOL              bHDR        = FALSE;
-DXGI_OUTPUT_DESC1 hdrOutDesc  = {   };
-
-BOOL SKIF_IsHDR                     (void)
-{
-  return bHDR;
-}
-
-
-FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
-{
-  if (! SKIF_IsHDR ())
-    return 0.0f;
-
-  return
-    bAllowLocalRange ? hdrOutDesc.MaxLuminance
-                     : hdrOutDesc.MaxFullFrameLuminance;
-}
-
-FLOAT SKIF_GetMinHDRLuminance (void)
-{
-  if (! SKIF_IsHDR ())
-    return 0.0f;
-
-  if (hdrOutDesc.MinLuminance > hdrOutDesc.MaxFullFrameLuminance)
-    std::swap (hdrOutDesc.MinLuminance, hdrOutDesc.MaxFullFrameLuminance);
-
-  return
-    hdrOutDesc.MinLuminance;
-}
-
-void  SKIF_SetHDRWhiteLuma (float fLuma)
-{
-  fHDRLuma = fLuma;
-}
-
-FLOAT SKIF_GetHDRWhiteLuma (void)
-{
-  if (fHDRLuma == 0.0f)
+  FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
   {
-    SKIF_SetHDRWhiteLuma (
-      SKIF_GetMaxHDRLuminance (false) / 2.0f
-    );
+    if (! HDR)
+      return 0.0f;
+
+    return
+      bAllowLocalRange ? HDRDesc.MaxLuminance
+                       : HDRDesc.MaxFullFrameLuminance;
   }
 
-  return fHDRLuma;
-}
+  FLOAT SKIF_GetMinHDRLuminance (void)
+  {
+    if (! HDR)
+      return 0.0f;
+
+    if (         HDRDesc.MinLuminance > HDRDesc.MaxFullFrameLuminance)
+      std::swap (HDRDesc.MinLuminance,  HDRDesc.MaxFullFrameLuminance);
+
+    return
+      HDRDesc.MinLuminance;
+  }
+
+  void  SKIF_SetHDRWhiteLuma (float fLuma)
+  {
+    HDRLuma = fLuma;
+  }
+
+  FLOAT SKIF_GetHDRWhiteLuma (void)
+  {
+    if (HDRLuma == 0.0f)
+    {
+      SKIF_SetHDRWhiteLuma ( 
+        SKIF_GetMaxHDRLuminance (false) / 2.0f
+      );
+    }
+
+    return HDRLuma;
+  }
+};
+
 
 struct VERTEX_CONSTANT_BUFFER {
   float   mvp [4][4];
@@ -622,10 +613,10 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     else
     {
 #ifdef SKIF_scRGB
-      constant_buffer->luminance_scale [0] = (SKIF_GetHDRWhiteLuma    () / 80.0f);
-      constant_buffer->luminance_scale [2] = (SKIF_GetMinHDRLuminance () / 80.0f);
+      constant_buffer->luminance_scale [0] = (data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f);
+      constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
 #else
-      constant_buffer->luminance_scale [0] = -SKIF_GetHDRWhiteLuma ();
+      constant_buffer->luminance_scale [0] = -data->SKIF_GetHDRWhiteLuma ( );
 #endif
       constant_buffer->luminance_scale [1] = 2.2f;
     }
@@ -1079,7 +1070,7 @@ ImGui_ImplDX11_Init ( ID3D11Device *device,
   g_pd3dDevice        = device;
   g_pd3dDeviceContext = device_context;
 
-  CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+  CreateDXGIFactory1 (__uuidof (IDXGIFactory1), (void **)&g_pFactory.p);
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     ImGui_ImplDX11_InitPlatformInterface ();
@@ -1129,6 +1120,8 @@ void ImGui_ImplDX11_NewFrame (void)
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
 
+    ImGui_ImplDX11_InvalidateDeviceObjects ( );
+
     PLOG_DEBUG << "Clearing ID3D11DeviceContext state and flushing...";
     g_pd3dDeviceContext->ClearState ( );
     g_pd3dDeviceContext->Flush      ( );
@@ -1140,7 +1133,7 @@ void ImGui_ImplDX11_NewFrame (void)
        pFactory1.Release ();
       g_pFactory.Release ();
 
-      CreateDXGIFactory1 (__uuidof (IDXGIFactory), (void **)&g_pFactory.p);
+      CreateDXGIFactory1 (__uuidof (IDXGIFactory1), (void **)&g_pFactory.p);
     }
     
     PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
@@ -1189,17 +1182,18 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
-  static bool bCanHDR         = FALSE;
-  //SKIF_Util_IsWindows10OrGreater      () != FALSE;
+  //extern BOOL SKIF_Util_IsWindows10OrGreater (void);
+
+  //static bool bCanHDR         = 
+  //  SKIF_Util_IsWindows10OrGreater      () != FALSE;
 
   // Create the swapchain for the viewport
   DXGI_SWAP_CHAIN_DESC
     swap_desc                  = { };
   swap_desc.BufferDesc.Width   = (UINT)viewport->Size.x;
   swap_desc.BufferDesc.Height  = (UINT)viewport->Size.y;
-  swap_desc.BufferDesc.Format  =
-        DXGI_FORMAT_R8G8B8A8_UNORM;
-  /*
+  swap_desc.BufferDesc.Format  = DXGI_FORMAT_R10G10B10A2_UNORM;
+    /*
     bCanHDR ?
 #ifdef SKIF_scRGB
         DXGI_FORMAT_R16G16B16A16_FLOAT :
@@ -1207,8 +1201,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         DXGI_FORMAT_R10G10B10A2_UNORM  :
 #endif
         DXGI_FORMAT_R8G8B8A8_UNORM;
-  */
-
+        */
   swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.OutputWindow       = hWnd;
   swap_desc.Windowed           = TRUE;
@@ -1232,6 +1225,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     // In case flip failed, fall back to using BitBlt
     if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
     {
+      swap_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
       swap_desc.BufferCount = 1;
       swap_desc.Flags       = 0x0;
       SKIF_bCanFlip         = false;
@@ -1243,31 +1237,26 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   // Create the render target
 #pragma region HDR stuff?
-#if 0
-
+#if 1
   if (data->SwapChain != nullptr)
   {
       data->HDR = FALSE;
 
-    CComPtr   <
-      IDXGIOutput
-    >     pOutput;
-    CComQIPtr <
-      IDXGISwapChain3
-    >     pSwapChain3 (
-     data->SwapChain  );
-    if (  pSwapChain3 != nullptr  )
-          pSwapChain3->GetContainingOutput (
-            &pOutput.p
-          );
+    CComPtr   <IDXGIOutput>     pOutput;
+    CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
 
-    CComQIPtr <
-      IDXGIOutput6
-    >     pOutput6 (
-          pOutput  );
+    if (  pSwapChain3 != nullptr  )
+          pSwapChain3->GetContainingOutput  (&pOutput.p);
+
+    CComQIPtr <IDXGIOutput6>    pOutput6    ( pOutput);
+
     if (  pOutput6 != nullptr  )
     {
       UINT uiHdrFlags = 0x0;
+
+      // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
+      // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
+
 
       pSwapChain3->CheckColorSpaceSupport (
 #ifdef SKIF_scRGB
@@ -1282,18 +1271,14 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
             ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
          )
       {
-        pOutput6->GetDesc1 (&hdrOutDesc);
+        pOutput6->GetDesc1 (&data->HDRDesc);
 
-        extern bool SKIF_bEnableHDR;
-
-        if ( SKIF_bEnableHDR &&
-             hdrOutDesc.ColorSpace ==
+        if (data->HDRDesc.ColorSpace ==
                    DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 ||
-             hdrOutDesc.ColorSpace ==
+            data->HDRDesc.ColorSpace ==
                    DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 )
         {
           data->HDR = TRUE;
-               bHDR = TRUE;
 
           pSwapChain3->SetColorSpace1 (
 #ifdef SKIF_scRGB
@@ -1304,31 +1289,130 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
           );
 
           pOutput6->GetDesc1 (
-            &hdrOutDesc
+            &data->HDRDesc
           );
         }
       }
     }
   }
-
 #endif
 #pragma endregion
 
   if (data->SwapChain)
   {
 #pragma region HDR stuff?
-#if 0
+#if 1
     if (! data->HDR)
     {
-      bHDR = FALSE;
+      OutputDebugString(L"Recreating swapchain\n");
 
       swap_desc.BufferDesc.Format =
         DXGI_FORMAT_R8G8B8A8_UNORM;
 
       data->SwapChain->Release ();
 
+      g_pd3dDeviceContext->ClearState ( );
+      g_pd3dDeviceContext->Flush      ( );
+
       g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
                  &data->SwapChain );
+
+      CComPtr   <IDXGIOutput>     pOutput;
+      CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
+
+      /* Don't do this apparently
+      if (  pSwapChain3 != nullptr  )
+            pSwapChain3->GetContainingOutput  (&pOutput.p);
+      */
+
+      // Retrieve the current default adapter.
+      CComPtr <IDXGIAdapter1> dxgiAdapter;
+      CComQIPtr <IDXGIFactory1>
+                 pFactory1
+              (g_pFactory);
+      ThrowIfFailed (pFactory1->EnumAdapters1 (0, &dxgiAdapter));
+
+      // Iterate through the DXGI outputs associated with the DXGI adapter,
+      // and find the output whose bounds have the greatest overlap with the
+      // app window (i.e. the output for which the intersection area is the
+      // greatest).
+
+      auto _ComputeIntersectionArea =
+            [&](long ax1, long ay1, long ax2, long ay2,
+                long bx1, long by1, long bx2, long by2) -> int
+      {
+        return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
+      };
+
+      UINT i = 0;
+      CComPtr <IDXGIOutput> currentOutput;
+      float bestIntersectArea = -1;
+
+      RECT m_windowBounds;
+      GetWindowRect (hWnd, &m_windowBounds);
+
+      while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+      {
+          // Get the retangle bounds of the app window
+          int ax1 = m_windowBounds.left;
+          int ay1 = m_windowBounds.top;
+          int ax2 = m_windowBounds.right;
+          int ay2 = m_windowBounds.bottom;
+
+          // Get the rectangle bounds of current output
+          DXGI_OUTPUT_DESC desc;
+          ThrowIfFailed(currentOutput->GetDesc(&desc));
+          RECT r  = desc.DesktopCoordinates;
+          int bx1 = r.left;
+          int by1 = r.top;
+          int bx2 = r.right;
+          int by2 = r.bottom;
+
+          // Compute the intersection
+          int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+          if (intersectArea > bestIntersectArea)
+          {
+              pOutput = currentOutput;
+              bestIntersectArea = static_cast<float>(intersectArea);
+          }
+
+          i++;
+      }
+
+      // Having determined the output (display) upon which the app is primarily being 
+      // rendered, retrieve the HDR capabilities of that display by checking the color space.
+      CComQIPtr <IDXGIOutput6>    pOutput6    ( pOutput);
+
+      if (  pOutput6 != nullptr  )
+      {
+        UINT uiHdrFlags = 0x0;
+
+        pSwapChain3->CheckColorSpaceSupport (
+            DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
+            &uiHdrFlags
+        );
+
+        if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
+              ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
+           )
+        {
+          pOutput6->GetDesc1 (&data->HDRDesc);
+
+          if (data->HDRDesc.ColorSpace ==
+                     DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 )
+          {
+            OutputDebugString(L"New Derp\n");
+            pSwapChain3->SetColorSpace1 (
+                        DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
+            );
+
+            pOutput6->GetDesc1 (
+              &data->HDRDesc
+            );
+          }
+        }
+      }
+
     }
 #endif
 #pragma endregion
