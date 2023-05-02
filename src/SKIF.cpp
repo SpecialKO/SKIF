@@ -1045,6 +1045,9 @@ void SKIF_GetMonitorRefreshRatePeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod
     if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
       if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
         dwPeriod = (1000 / dm.dmDisplayFrequency);
+
+    if (dwPeriod == 0)
+      dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
   }
 }
 
@@ -1920,6 +1923,41 @@ VOID WINAPI SKIF_EffectivePowerModeCallback (
 
   PostMessage (SKIF_hWnd, WM_NULL, NULL, NULL);
 };
+
+std::string SKIF_GetEffectivePowerMode (void)
+{
+  std::string sMode;
+
+  switch (enumEffectivePowerMode.load( ))
+  {
+  case EffectivePowerModeBatterySaver:
+    sMode = "Battery Saver";
+    break;
+  case EffectivePowerModeBetterBattery:
+    sMode = "Better Battery";
+    break;
+  case EffectivePowerModeBalanced:
+    sMode = "Balanced";
+    break;
+  case EffectivePowerModeHighPerformance:
+    sMode = "High Performance";
+    break;
+  case EffectivePowerModeMaxPerformance:
+    sMode = "Max Performance";
+    break;
+  case EffectivePowerModeGameMode:
+    sMode = "Game Mode";
+    break;
+  case EffectivePowerModeMixedReality:
+    sMode = "Mixed Reality";
+    break;
+  default:
+    sMode = "Unknown Mode";
+    break;
+  }
+
+  return sMode;
+}
 
 
 bool bKeepWindowAlive  = true,
@@ -3178,41 +3216,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           7.0f * SKIF_ImGui_GlobalDPIScale
         );
 
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A : SKIF_WINDOW_TITLE_A);
-
-        ImGui::SameLine ( );
-        
-        std::string sMode;
-
-        switch (enumEffectivePowerMode.load())
-        {
-        case EffectivePowerModeBatterySaver:
-          sMode = "Battery Saver";
-          break;
-        case EffectivePowerModeBetterBattery:
-          sMode = "Better Battery";
-          break;
-        case EffectivePowerModeBalanced:
-          sMode = "Balanced";
-          break;
-        case EffectivePowerModeHighPerformance:
-          sMode = "High Performance";
-          break;
-        case EffectivePowerModeMaxPerformance:
-          sMode = "Max Performance";
-          break;
-        case EffectivePowerModeGameMode:
-          sMode = "Game Mode";
-          break;
-        case EffectivePowerModeMixedReality:
-          sMode = "Mixed Reality";
-          break;
-        default:
-          sMode = "Unknown Mode";
-          break;
-        }
-
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), ("(" + sMode + ")").c_str());
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
+                              (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
+                                             : SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
 
         if (                          SKIF_iGhostVisibility == 1 ||
             (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
@@ -4021,7 +4027,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (HiddenFramesContinueRendering)
       pause = false;
 
-    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod - 2)); // decrease dwDwmPeriod by 2 to allow some margin of error
+    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
     //OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
 
     do
