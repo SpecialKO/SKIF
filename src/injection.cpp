@@ -686,13 +686,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // Column 1
   ImGui::BeginGroup      ();
-#ifdef _WIN64
-  ImGui::TextUnformatted ( (SKVer32 == SKVer64) ?
-            ( "Special K v " + SKVer32 ).c_str () :
-              "Special K" );
-#else
-  ImGui::TextUnformatted ( ( "Special K v " + SKVer32 ).c_str () );
-#endif
+  ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted ("Config Root:");
   ImGui::TextUnformatted ("32-bit Service:");
@@ -703,7 +697,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
   ImGui::PopStyleColor   ();
   ImGui::ItemSize        (
-    ImVec2 ( 140.f * SKIF_ImGui_GlobalDPIScale,
+    ImVec2 ( 110.f * SKIF_ImGui_GlobalDPIScale,
                0.f )     ); // Column should have min-width 130px (scaled with the DPI)
   ImGui::EndGroup        ();
 
@@ -711,7 +705,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                          
   // Column 2            
   ImGui::BeginGroup      ();
-  ImGui::NewLine         ();
+#ifdef _WIN64
+  if (SKVer32 == SKVer64)
+    ImGui::TextUnformatted (("v " + SKVer32).c_str ());
+  else
+    ImGui::NewLine       ();
+#else
+    ImGui::TextUnformatted (("v " + SKVer32).c_str ());
+#endif
 
   // Config Root
   //static std::wstring root_dir =

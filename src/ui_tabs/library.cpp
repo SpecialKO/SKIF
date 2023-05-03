@@ -2093,12 +2093,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Column 1
       ImGui::BeginGroup       ();
       ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-      ImGui::TextUnformatted  ("Injection Strategy:");
-      ImGui::TextUnformatted  ("Injection DLL:");
+      //ImGui::NewLine          ();
+      ImGui::TextUnformatted  ("Injection:");
+      //ImGui::TextUnformatted  ("Injection DLL:");
       ImGui::TextUnformatted  ("Config Root:");
       ImGui::TextUnformatted  ("Config File:");
       ImGui::PopStyleColor    ();
-      ImGui::ItemSize         (ImVec2 (140.f * SKIF_ImGui_GlobalDPIScale,
+      ImGui::ItemSize         (ImVec2 (110.f * SKIF_ImGui_GlobalDPIScale,
                                          0.f)
                               ); // Column should have min-width 130px (scaled with the DPI)
       ImGui::EndGroup         ();
@@ -2108,11 +2109,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Column 2
       ImGui::BeginGroup       ();
       // Injection Strategy
-      ImGui::TextUnformatted  (cache.injection.type.c_str   ());
+      //ImGui::TextUnformatted  (cache.injection.type.c_str   ());
+      //ImGui::NewLine          ();
 
+      // Injection DLL
       if (! cache.dll.shorthand.empty ())
       {
-        // Injection DLL
         //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
         ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
 
@@ -2121,8 +2123,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         bool openLocalMenu = false;
 
+        std::string uiInjectionText = cache.injection.type._Equal("Local")
+          ? SK_FormatString (R"(%s v %s (%s))", cache.injection.type.c_str(), cache.dll.version.c_str(), cache.dll.shorthand.c_str())
+          : SK_FormatString (R"(%s v %s)", cache.injection.type.c_str(), cache.dll.version.c_str());
+
         ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-        if (ImGui::Selectable (cache.dll.shorthand.c_str(), false, flags))
+        if (ImGui::Selectable (uiInjectionText.c_str(), false, flags))
         {
           openLocalMenu = true;
         }
@@ -2173,6 +2179,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       else
         ImGui::TextUnformatted ("N/A");
 
+      // Config Root
+      // Config File
       if (! cache.config.shorthand.empty ())
       {
         // Config Root
@@ -2418,7 +2426,7 @@ Cache=false)";
 
       // Column should have min-width 100px (scaled with the DPI)
       ImGui::ItemSize         (
-        ImVec2 ( 100.0f * SKIF_ImGui_GlobalDPIScale,
+        ImVec2 ( 130.0f * SKIF_ImGui_GlobalDPIScale,
                    0.0f
                )                );
       ImGui::EndGroup         ( );
@@ -2429,6 +2437,7 @@ Cache=false)";
 
       static bool quickServiceHover = false;
 
+      // Service quick toogle / Waiting for game...
       if (cache.injection.type._Equal ("Global") && ! _inject.isPending())
       {
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
@@ -2462,31 +2471,26 @@ Cache=false)";
       else {
         ImGui::NewLine ( );
       }
+      
 
-      if (! cache.dll.shorthand.empty ())
+      if (cache.injection.type._Equal ("Local"))
       {
-        ImGui::Text           (cache.dll.version.empty () ? "      "
-                                                          : "v %s",
-                               cache.dll.version.c_str ());
-
-        if (cache.injection.type._Equal ("Local"))
+        if (__IsOutdatedLocalDLLFile ( ))
         {
-          if (__IsOutdatedLocalDLLFile ( ))
+          ImGui::SameLine        ( );
+
+          ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
+          if (ImGui::SmallButton (ICON_FA_ARROW_UP))
           {
-            ImGui::SameLine        ( );
-
-            ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
-            if (ImGui::SmallButton (ICON_FA_ARROW_UP))
-            {
-              __UpdateLocalDLLFile ( );
-            }
-            ImGui::PopStyleColor ( );
-
-            SKIF_ImGui_SetHoverTip (("The local DLL file is outdated.\n"
-                                     "Click to update it to v " + _inject.SKVer32 + "."));
+            __UpdateLocalDLLFile ( );
           }
+          ImGui::PopStyleColor ( );
+
+          SKIF_ImGui_SetHoverTip (("The local DLL file is outdated.\n"
+                                    "Click to update it to v " + _inject.SKVer32 + "."));
         }
       }
+
       ImGui::EndGroup         ();
 
       // End of columns
