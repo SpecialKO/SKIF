@@ -1182,18 +1182,17 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
-  //extern BOOL SKIF_Util_IsWindows10OrGreater (void);
+  extern BOOL SKIF_Util_IsWindows10OrGreater (void);
 
-  //static bool bCanHDR         = 
-  //  SKIF_Util_IsWindows10OrGreater      () != FALSE;
+  static bool bCanHDR         = 
+    SKIF_Util_IsWindows10OrGreater      () != FALSE;
 
   // Create the swapchain for the viewport
   DXGI_SWAP_CHAIN_DESC
     swap_desc                  = { };
   swap_desc.BufferDesc.Width   = (UINT)viewport->Size.x;
   swap_desc.BufferDesc.Height  = (UINT)viewport->Size.y;
-  swap_desc.BufferDesc.Format  = DXGI_FORMAT_R10G10B10A2_UNORM;
-    /*
+  swap_desc.BufferDesc.Format  = 
     bCanHDR ?
 #ifdef SKIF_scRGB
         DXGI_FORMAT_R16G16B16A16_FLOAT :
@@ -1201,7 +1200,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         DXGI_FORMAT_R10G10B10A2_UNORM  :
 #endif
         DXGI_FORMAT_R8G8B8A8_UNORM;
-        */
   swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.OutputWindow       = hWnd;
   swap_desc.Windowed           = TRUE;
@@ -1238,19 +1236,69 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // Create the render target
 #pragma region HDR stuff?
 #if 1
-  if (data->SwapChain != nullptr)
+  if (bCanHDR && data->SwapChain != nullptr)
   {
       data->HDR = FALSE;
 
     CComPtr   <IDXGIOutput>     pOutput;
     CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
 
-    if (  pSwapChain3 != nullptr  )
-          pSwapChain3->GetContainingOutput  (&pOutput.p);
+    // Retrieve the current default adapter.
+    CComPtr   <IDXGIAdapter1> dxgiAdapter;
+    CComQIPtr <IDXGIFactory1> pFactory1 (g_pFactory);
+    ThrowIfFailed (pFactory1->EnumAdapters1 (0, &dxgiAdapter));
 
-    CComQIPtr <IDXGIOutput6>    pOutput6    ( pOutput);
+    auto _ComputeIntersectionArea =
+          [&](long ax1, long ay1, long ax2, long ay2,
+              long bx1, long by1, long bx2, long by2) -> int
+    {
+      return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
+    };
 
-    if (  pOutput6 != nullptr  )
+    UINT i = 0;
+    CComPtr <IDXGIOutput> currentOutput;
+    float bestIntersectArea = -1;
+
+    RECT m_windowBounds;
+    GetWindowRect (hWnd, &m_windowBounds);
+    
+    // Iterate through the DXGI outputs associated with the DXGI adapter,
+    // and find the output whose bounds have the greatest overlap with the
+    // app window (i.e. the output for which the intersection area is the
+    // greatest).
+    while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+    {
+      // Get the retangle bounds of the app window
+      int ax1 = m_windowBounds.left;
+      int ay1 = m_windowBounds.top;
+      int ax2 = m_windowBounds.right;
+      int ay2 = m_windowBounds.bottom;
+
+      // Get the rectangle bounds of current output
+      DXGI_OUTPUT_DESC desc;
+      ThrowIfFailed(currentOutput->GetDesc(&desc));
+      RECT r  = desc.DesktopCoordinates;
+      int bx1 = r.left;
+      int by1 = r.top;
+      int bx2 = r.right;
+      int by2 = r.bottom;
+
+      // Compute the intersection
+      int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+      if (intersectArea > bestIntersectArea)
+      {
+        pOutput = currentOutput;
+        bestIntersectArea = static_cast<float>(intersectArea);
+      }
+
+      i++;
+    }
+
+    // Having determined the output (display) upon which the app is primarily being 
+    // rendered, retrieve the HDR capabilities of that display by checking the color space.
+    CComQIPtr <IDXGIOutput6> pOutput6 (pOutput);
+
+    if (pOutput6 != nullptr)
     {
       UINT uiHdrFlags = 0x0;
 
@@ -1300,12 +1348,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   if (data->SwapChain)
   {
-#pragma region HDR stuff?
-#if 1
+#pragma region Undo HDR
+#if 0 // This does not seem to be necessary any longer
     if (! data->HDR)
     {
-      OutputDebugString(L"Recreating swapchain\n");
-
       swap_desc.BufferDesc.Format =
         DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -1316,103 +1362,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
       g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
                  &data->SwapChain );
-
-      CComPtr   <IDXGIOutput>     pOutput;
-      CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
-
-      /* Don't do this apparently
-      if (  pSwapChain3 != nullptr  )
-            pSwapChain3->GetContainingOutput  (&pOutput.p);
-      */
-
-      // Retrieve the current default adapter.
-      CComPtr <IDXGIAdapter1> dxgiAdapter;
-      CComQIPtr <IDXGIFactory1>
-                 pFactory1
-              (g_pFactory);
-      ThrowIfFailed (pFactory1->EnumAdapters1 (0, &dxgiAdapter));
-
-      // Iterate through the DXGI outputs associated with the DXGI adapter,
-      // and find the output whose bounds have the greatest overlap with the
-      // app window (i.e. the output for which the intersection area is the
-      // greatest).
-
-      auto _ComputeIntersectionArea =
-            [&](long ax1, long ay1, long ax2, long ay2,
-                long bx1, long by1, long bx2, long by2) -> int
-      {
-        return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
-      };
-
-      UINT i = 0;
-      CComPtr <IDXGIOutput> currentOutput;
-      float bestIntersectArea = -1;
-
-      RECT m_windowBounds;
-      GetWindowRect (hWnd, &m_windowBounds);
-
-      while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
-      {
-          // Get the retangle bounds of the app window
-          int ax1 = m_windowBounds.left;
-          int ay1 = m_windowBounds.top;
-          int ax2 = m_windowBounds.right;
-          int ay2 = m_windowBounds.bottom;
-
-          // Get the rectangle bounds of current output
-          DXGI_OUTPUT_DESC desc;
-          ThrowIfFailed(currentOutput->GetDesc(&desc));
-          RECT r  = desc.DesktopCoordinates;
-          int bx1 = r.left;
-          int by1 = r.top;
-          int bx2 = r.right;
-          int by2 = r.bottom;
-
-          // Compute the intersection
-          int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
-          if (intersectArea > bestIntersectArea)
-          {
-              pOutput = currentOutput;
-              bestIntersectArea = static_cast<float>(intersectArea);
-          }
-
-          i++;
-      }
-
-      // Having determined the output (display) upon which the app is primarily being 
-      // rendered, retrieve the HDR capabilities of that display by checking the color space.
-      CComQIPtr <IDXGIOutput6>    pOutput6    ( pOutput);
-
-      if (  pOutput6 != nullptr  )
-      {
-        UINT uiHdrFlags = 0x0;
-
-        pSwapChain3->CheckColorSpaceSupport (
-            DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
-            &uiHdrFlags
-        );
-
-        if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
-              ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
-           )
-        {
-          pOutput6->GetDesc1 (&data->HDRDesc);
-
-          if (data->HDRDesc.ColorSpace ==
-                     DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 )
-          {
-            OutputDebugString(L"New Derp\n");
-            pSwapChain3->SetColorSpace1 (
-                        DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
-            );
-
-            pOutput6->GetDesc1 (
-              &data->HDRDesc
-            );
-          }
-        }
-      }
-
     }
 #endif
 #pragma endregion

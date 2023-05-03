@@ -271,7 +271,7 @@ float fBottomDist = 0.0f;
 
 ID3D11Device*           g_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
-IDXGISwapChain*         g_pSwapChain           = nullptr;
+//IDXGISwapChain*         g_pSwapChain           = nullptr;
 ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
 BOOL                    bOccluded              =   FALSE;
 
@@ -4469,8 +4469,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
-    /* 2023-04-29: Disabled as I believe this is not actually triggered, ever. Resizes are handled through Renderer_SetWindowSize
-     * Maybe on multi-monitor setups with mixed DPI scaling?
+   /* 2023-04-29: Disabled as this was never used and only referenced the unused empty "parent swapchain" that was never presented
+    * HDR toggles are handled through ImGui_ImplDX11_NewFrame() and pFactory1->IsCurrent ()
     case WM_SIZE:
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
       {
