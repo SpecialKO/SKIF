@@ -37,10 +37,11 @@
 #include <SKIF.h>
 
 //#define SKIF_scRGB
-extern BOOL SKIF_bAllowTearing;
+extern BOOL SKIF_bCanAllowTearing;
 extern BOOL SKIF_bCanFlip;
 extern BOOL SKIF_bCanFlipDiscard;
 extern BOOL SKIF_bCanWaitSwapchain;
+extern BOOL SKIF_bCanHDR;
 
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
@@ -54,7 +55,7 @@ extern std::vector<HANDLE> vSwapchainWaitHandles;
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
 static CComPtr <ID3D11DeviceContext>      g_pd3dDeviceContext;
-static CComPtr <IDXGIFactory1>            g_pFactory;
+static CComPtr <IDXGIFactory2>            g_pFactory;
 static CComPtr <ID3D11Buffer>             g_pVB;
 static CComPtr <ID3D11Buffer>             g_pIB;
 static CComPtr <ID3D11VertexShader>       g_pVertexShader;
@@ -363,7 +364,7 @@ struct SK_IMGUI_D3D11StateBlock {
 //--------------------------------------------------------------------------------------------------------
 
 struct ImGuiViewportDataDx11 {
-  IDXGISwapChain         *SwapChain;
+  IDXGISwapChain1        *SwapChain;
   ID3D11RenderTargetView *RTView;
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
@@ -1070,7 +1071,7 @@ ImGui_ImplDX11_Init ( ID3D11Device *device,
   g_pd3dDevice        = device;
   g_pd3dDeviceContext = device_context;
 
-  CreateDXGIFactory1 (__uuidof (IDXGIFactory1), (void **)&g_pFactory.p);
+  CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     ImGui_ImplDX11_InitPlatformInterface ();
@@ -1100,8 +1101,8 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport);
 void ImGui_ImplDX11_NewFrame (void)
 {
   ImGuiContext& g = *GImGui;
-  CComQIPtr <IDXGIFactory1>
-                 pFactory1
+  CComQIPtr <IDXGIFactory2>
+                 pFactory2
               (g_pFactory);
 
   // Force DXGIFactory and swapchain recreation every time we move monitor
@@ -1110,8 +1111,8 @@ void ImGui_ImplDX11_NewFrame (void)
   extern bool 
          RecreateSwapChains;
   bool   RecreateFactory =
-              ( pFactory1.p != nullptr &&
-              ! pFactory1->IsCurrent () );
+              ( pFactory2.p != nullptr &&
+              ! pFactory2->IsCurrent () );
 
   if (RecreateSwapChains || RecreateFactory)
   {   RecreateSwapChains = false;
@@ -1130,10 +1131,10 @@ void ImGui_ImplDX11_NewFrame (void)
     {
       PLOG_DEBUG << "Recreating factory...";
 
-       pFactory1.Release ();
+       pFactory2.Release ();
       g_pFactory.Release ();
 
-      CreateDXGIFactory1 (__uuidof (IDXGIFactory1), (void **)&g_pFactory.p);
+      CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
     }
     
     PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
@@ -1182,18 +1183,13 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
-  extern BOOL SKIF_Util_IsWindows10OrGreater (void);
-
-  static bool bCanHDR         = 
-    SKIF_Util_IsWindows10OrGreater      () != FALSE;
-
   // Create the swapchain for the viewport
-  DXGI_SWAP_CHAIN_DESC
+  DXGI_SWAP_CHAIN_DESC1
     swap_desc                  = { };
-  swap_desc.BufferDesc.Width   = (UINT)viewport->Size.x;
-  swap_desc.BufferDesc.Height  = (UINT)viewport->Size.y;
-  swap_desc.BufferDesc.Format  = 
-    bCanHDR ?
+  swap_desc.Width   = (UINT)viewport->Size.x;
+  swap_desc.Height  = (UINT)viewport->Size.y;
+  swap_desc.Format  = 
+    SKIF_bCanHDR ?
 #ifdef SKIF_scRGB
         DXGI_FORMAT_R16G16B16A16_FLOAT :
 #else
@@ -1201,8 +1197,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 #endif
         DXGI_FORMAT_R8G8B8A8_UNORM;
   swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swap_desc.OutputWindow       = hWnd;
-  swap_desc.Windowed           = TRUE;
   swap_desc.Flags              = 0x0;
   swap_desc.SampleDesc.Count   = 1;
   swap_desc.SampleDesc.Quality = 0;
@@ -1213,7 +1207,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   if (SKIF_bCanWaitSwapchain)
     swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
-  if (SKIF_bAllowTearing)
+  if (SKIF_bCanAllowTearing)
     swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
   for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
@@ -1223,29 +1217,30 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     // In case flip failed, fall back to using BitBlt
     if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
     {
-      swap_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+      swap_desc.Format      = DXGI_FORMAT_R8G8B8A8_UNORM;
       swap_desc.BufferCount = 1;
       swap_desc.Flags       = 0x0;
       SKIF_bCanFlip         = false;
     }
 
-    if (SUCCEEDED (g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
+    //if (SUCCEEDED (g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
+    //                          &data->SwapChain ))) break;
+
+    if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                               &data->SwapChain ))) break;
   }
 
   // Create the render target
-#pragma region HDR stuff?
+#pragma region Enable HDR
 #if 1
-  if (bCanHDR && data->SwapChain != nullptr)
+  if (data->SwapChain != nullptr && SKIF_bCanHDR)
   {
-      data->HDR = FALSE;
-
     CComPtr   <IDXGIOutput>     pOutput;
     CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
 
     // Retrieve the current default adapter.
     CComPtr   <IDXGIAdapter1> dxgiAdapter;
-    CComQIPtr <IDXGIFactory1> pFactory1 (g_pFactory);
+    CComQIPtr <IDXGIFactory2> pFactory1 (g_pFactory);
     ThrowIfFailed (pFactory1->EnumAdapters1 (0, &dxgiAdapter));
 
     auto _ComputeIntersectionArea =
@@ -1460,15 +1455,19 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
     {
       CComPtr <ID3D11Texture2D> pBackBuffer;
 
-      DXGI_SWAP_CHAIN_DESC       swap_desc = { };
-      data->SwapChain->GetDesc (&swap_desc);
+      DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
+      data->SwapChain->GetDesc1 (&swap_desc);
 
       data->SwapChain->ResizeBuffers (
         0, (UINT)size.x,
            (UINT)size.y,
-             data->HDR ?
-               DXGI_FORMAT_R16G16B16A16_FLOAT :
-               DXGI_FORMAT_R8G8B8A8_UNORM,
+                  SKIF_bCanHDR ?
+#ifdef SKIF_scRGB
+                    DXGI_FORMAT_R16G16B16A16_FLOAT :
+#else
+                    DXGI_FORMAT_R10G10B10A2_UNORM  :
+#endif
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
                swap_desc.Flags
       );
 
@@ -1479,9 +1478,8 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
       );
 
       if (pBackBuffer == nullptr) {
-        OutputDebugStringA (
-          "ImGui_ImplDX11_SetWindowSize() failed creating buffers."
-        ); return;
+        PLOG_ERROR << "ImGui_ImplDX11_SetWindowSize() failed creating buffers";
+        return;
       }
 
       g_pd3dDevice->CreateRenderTargetView ( pBackBuffer,
@@ -1544,7 +1542,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
   {
     PresentFlags   = DXGI_PRESENT_RESTART;
 
-    if (Interval == 0 && SKIF_bAllowTearing)
+    if (Interval == 0 && SKIF_bCanAllowTearing)
       PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
   }
 

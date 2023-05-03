@@ -836,7 +836,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing       ( );
 
     // Only show if OS supports tearing in windowed mode
-    if (true) // SKIF_bAllowTearing
+    if (true) // SKIF_bCanAllowTearing
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
       SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");

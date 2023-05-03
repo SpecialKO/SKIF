@@ -1480,7 +1480,9 @@ ImGui_ImplWin32_GetWindowDpiScale (ImGuiViewport *viewport)
 // FIXME-DPI: Testing DPI related ideas
 static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 {
-  (void)viewport;
+  UNREFERENCED_PARAMETER (viewport);
+
+  //(void)viewport;
 
   //extern bool       SKIF_bDPIScaling;
   //extern ImGuiStyle SKIF_ImGui_DefaultStyle;

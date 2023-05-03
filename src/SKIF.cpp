@@ -162,7 +162,8 @@ BOOL SKIF_bSuppressServiceNotification = FALSE;
 BOOL SKIF_bCanFlip                 = FALSE, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
      SKIF_bCanWaitSwapchain        = FALSE, // Waitable Swapchain            Windows 8.1+
      SKIF_bCanFlipDiscard          = FALSE, // Flip Discard                  Windows 10+
-     SKIF_bAllowTearing            = FALSE; // DWM Tearing                   Windows 10+
+     SKIF_bCanAllowTearing            = FALSE, // DWM Tearing                   Windows 10+
+     SKIF_bCanHDR                  = FALSE; // High Dynamic Range            Windows 10 1709+ (Build 16299)
      
 
 // GOG Galaxy stuff
@@ -4232,6 +4233,10 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_bCanFlipDiscard        =
       SKIF_Util_IsWindows10OrGreater      ();
 
+    // Windows 10 1709+ (Build 16299)
+    SKIF_bCanHDR                =
+      SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299);
+
     CComPtr <IDXGIFactory5>
                  pFactory5;
 
@@ -4242,8 +4247,8 @@ bool CreateDeviceD3D (HWND hWnd)
     {
       pFactory5->CheckFeatureSupport (
                             DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                                          &SKIF_bAllowTearing,
-                                  sizeof ( SKIF_bAllowTearing )
+                                          &SKIF_bCanAllowTearing,
+                                  sizeof ( SKIF_bCanAllowTearing )
                                                 );
 
       pFactory5.Release ( );
@@ -4251,7 +4256,7 @@ bool CreateDeviceD3D (HWND hWnd)
   }
 
   // Overrides
-  //SKIF_bAllowTearing          = FALSE; // Allow Tearing
+  //SKIF_bCanAllowTearing          = FALSE; // Allow Tearing
   //SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
   //SKIF_bCanFlip               = FALSE; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
   //SKIF_bCanWaitSwapchain      = FALSE; // Waitable Swapchain
@@ -4470,10 +4475,13 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
    /* 2023-04-29: Disabled as this was never used and only referenced the unused empty "parent swapchain" that was never presented
-    * HDR toggles are handled through ImGui_ImplDX11_NewFrame() and pFactory1->IsCurrent ()
+    * HDR toggles are handled through ImGui_ImplDX11_NewFrame() and pFactory1->IsCurrent () */
+#if 0
     case WM_SIZE:
+
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
       {
+        RecreateSwapChains = true;
         UINT swap_flags = 0x0;
 
         if (SKIF_bCanFlip)
@@ -4481,7 +4489,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           if (SKIF_bCanWaitSwapchain) // Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag. 
             swap_flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
-          if (SKIF_bAllowTearing)     //  Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag.
+          if (SKIF_bCanAllowTearing)     //  Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag.
             swap_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
         }
 
@@ -4495,7 +4503,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         CreateRenderTarget ();
       }
       return 0;
-    */
+#endif
 
     case WM_SYSCOMMAND:
       if ((wParam & 0xfff0) == SC_KEYMENU)

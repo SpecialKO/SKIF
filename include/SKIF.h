@@ -170,7 +170,7 @@ extern bool SKIF_bProcessSortAscending;
 extern bool SKIF_bProcessIncludeAll;
 
 // Not a saved setting, this indicates the DXGI runtime supports tearing
-extern BOOL SKIF_bAllowTearing;
+extern BOOL SKIF_bCanAllowTearing;
 
 // This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
 extern BOOL SKIF_bSuppressServiceNotification;
