@@ -8,6 +8,11 @@
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 CONDITION_VARIABLE LibRefreshPaused = { };
 
 void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>> *apps)
@@ -155,12 +160,11 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         // DO STUFF
 
         //OutputDebugString (L"SKIF_LibraryRefreshJob - Refreshed!\n");
-        
-        extern bool SKIF_bDisableSteamLibrary;
     
         std::vector <std::pair <std::string, app_record_s>> ret;
 
-        if (! SKIF_bDisableSteamLibrary)
+        // TODO: Unsafe thread handling which can crash!!
+        if (! _registry.bDisableSteamLibrary)
         {
           std::set <uint32_t> unique_apps;
 
@@ -210,14 +214,14 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         std::vector <std::pair < std::string, app_record_s > > apps;
 
         // Load GOG titles from registry
-        if (! SKIF_bDisableGOGLibrary)
+        if (! _registry.bDisableGOGLibrary)
           SKIF_GOG_GetInstalledAppIDs (&apps);
 
         // Load EGS titles from disk
-        if (! SKIF_bDisableEGSLibrary)
+        if (! _registry.bDisableEGSLibrary)
           SKIF_EGS_GetInstalledAppIDs (&apps);
     
-        if (! SKIF_bDisableXboxLibrary)
+        if (! _registry.bDisableXboxLibrary)
           SKIF_Xbox_GetInstalledAppIDs (&apps);
 
         // Load custom SKIF titles from registry

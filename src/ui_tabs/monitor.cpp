@@ -42,6 +42,11 @@
 #include <appmodel.h>
 #include <psapi.h>
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 extern SKIF_InjectionContext _inject;
 CONDITION_VARIABLE ProcRefreshPaused = { };
 
@@ -550,7 +555,7 @@ void SortProcesses (std::vector <standby_record_s> &processes)
   // Always sort ascending
   auto _SortByStatus = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
-    //if (SKIF_bProcessSortAscending)
+    //if (_registry.bProcessSortAscending)
       return a.status < b.status;
 
     //return a.status > b.status;
@@ -558,7 +563,7 @@ void SortProcesses (std::vector <standby_record_s> &processes)
 
   auto _SortByPID = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
-    if (SKIF_bProcessSortAscending)
+    if (_registry.bProcessSortAscending)
       return a.pid < b.pid;
 
     return a.pid > b.pid;
@@ -566,7 +571,7 @@ void SortProcesses (std::vector <standby_record_s> &processes)
 
   auto _SortByArch = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
-    if (SKIF_bProcessSortAscending)
+    if (_registry.bProcessSortAscending)
       return a.arch < b.arch;
 
     return a.arch > b.arch;
@@ -574,7 +579,7 @@ void SortProcesses (std::vector <standby_record_s> &processes)
 
   auto _SortByAdmin = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
-    if (SKIF_bProcessSortAscending)
+    if (_registry.bProcessSortAscending)
       return a.admin < b.admin;
 
     return a.admin > b.admin;
@@ -586,7 +591,7 @@ void SortProcesses (std::vector <standby_record_s> &processes)
     std::wstring la = SKIF_Util_TowLower(a.filename),
                  lb = SKIF_Util_TowLower(b.filename);
 
-    if (SKIF_bProcessSortAscending)
+    if (_registry.bProcessSortAscending)
       return la < lb;
 
     return la > lb;
@@ -594,21 +599,21 @@ void SortProcesses (std::vector <standby_record_s> &processes)
 
   if (! processes.empty())
   {
-    if (SKIF_iProcessSort == 0)      // Status
+    if (_registry.iProcessSort == 0)      // Status
       std::sort (processes.begin(), processes.end(), _SortByStatus);
-    else if (SKIF_iProcessSort == 1) // PID
+    else if (_registry.iProcessSort == 1) // PID
       std::sort (processes.begin(), processes.end(), _SortByPID);
-    else if (SKIF_iProcessSort == 2) // Arch
+    else if (_registry.iProcessSort == 2) // Arch
       std::sort (processes.begin(), processes.end(), _SortByArch);
-    else if (SKIF_iProcessSort == 3) // Admin
+    else if (_registry.iProcessSort == 3) // Admin
       std::sort (processes.begin(), processes.end(), _SortByAdmin);
-    else if (SKIF_iProcessSort == 4) // Process Name
+    else if (_registry.iProcessSort == 4) // Process Name
       std::sort (processes.begin(), processes.end(), _SortByName);
     else                             // Status (in case someone messes with the registry)
       std::sort (processes.begin(), processes.end(), _SortByStatus);
 
-    processes[0].sortedBy  = SKIF_iProcessSort;
-    processes[0].sortedAsc = SKIF_bProcessSortAscending;
+    processes[0].sortedBy  = _registry.iProcessSort;
+    processes[0].sortedAsc = _registry.bProcessSortAscending;
   }
 }
 
@@ -621,11 +626,11 @@ SKIF_UI_Tab_DrawMonitor (void)
   static bool setInitialRefreshInterval = true;
   if (setInitialRefreshInterval)
   {   setInitialRefreshInterval = false;
-    if (     SKIF_iProcessRefreshInterval == 0) // Paused
+    if (     _registry.iProcessRefreshInterval == 0) // Paused
       refreshIntervalInMsec = 0;
-    else if (SKIF_iProcessRefreshInterval == 1) // Slow (5s)
+    else if (_registry.iProcessRefreshInterval == 1) // Slow (5s)
       refreshIntervalInMsec = 5000;
-    else if (SKIF_iProcessRefreshInterval == 2) // Normal (1s)
+    else if (_registry.iProcessRefreshInterval == 2) // Normal (1s)
       refreshIntervalInMsec = 1000;
     else                                        // Treat everything else as High (0.5s)
       refreshIntervalInMsec = 500;
@@ -633,7 +638,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     InitializeConditionVariable (&ProcRefreshPaused);
   }
   
-  if (SKIF_Tab_Selected != UITab_Monitor && SKIF_iProcessRefreshInterval != 0)
+  if (SKIF_Tab_Selected != UITab_Monitor && _registry.iProcessRefreshInterval != 0)
     WakeConditionVariable (&ProcRefreshPaused);
 
   SKIF_Tab_Selected = UITab_Monitor;
@@ -689,8 +694,8 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::BeginGroup       ( );
 
-  if (ImGui::Checkbox ("Show remaining processes",  &SKIF_bProcessIncludeAll))
-    _registry.regKVProcessIncludeAll.putData        (SKIF_bProcessIncludeAll);
+  if (ImGui::Checkbox ("Show remaining processes",  &_registry.bProcessIncludeAll))
+    _registry.regKVProcessIncludeAll.putData        (_registry.bProcessIncludeAll);
 
   SKIF_ImGui_SetHoverTip ("If this is enabled the below list will also include uninjected processes.\n"
                           "This is indicated by the lack of a " ICON_FA_CIRCLE " icon under the Status column.");
@@ -707,7 +712,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                                     "Normal",   // 2 (1s)
                                     "High"      // 3 (0.5s; not implemented)
   };
-  static const char* RefreshIntervalCurrent = RefreshInterval[SKIF_iProcessRefreshInterval];
+  static const char* RefreshIntervalCurrent = RefreshInterval[_registry.iProcessRefreshInterval];
           
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -726,18 +731,18 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::Selectable (RefreshInterval[n], is_selected))
       {
         // Unpause the child thread that refreshes processes
-        if (SKIF_iProcessRefreshInterval == 0 && n != 0)
+        if (_registry.iProcessRefreshInterval == 0 && n != 0)
           WakeConditionVariable (&ProcRefreshPaused);
 
-        SKIF_iProcessRefreshInterval = n;
-        _registry.regKVProcessRefreshInterval.putData  (SKIF_iProcessRefreshInterval);
-        RefreshIntervalCurrent = RefreshInterval[SKIF_iProcessRefreshInterval];
+        _registry.iProcessRefreshInterval = n;
+        _registry.regKVProcessRefreshInterval.putData  (_registry.iProcessRefreshInterval);
+        RefreshIntervalCurrent = RefreshInterval[_registry.iProcessRefreshInterval];
         
-        if (     SKIF_iProcessRefreshInterval == 0) // Paused
+        if (     _registry.iProcessRefreshInterval == 0) // Paused
           refreshIntervalInMsec = 0;
-        else if (SKIF_iProcessRefreshInterval == 1) // Slow (5s)
+        else if (_registry.iProcessRefreshInterval == 1) // Slow (5s)
           refreshIntervalInMsec = 5000;
-        else if (SKIF_iProcessRefreshInterval == 2) // Normal (1s)
+        else if (_registry.iProcessRefreshInterval == 2) // Normal (1s)
           refreshIntervalInMsec = 1000;
         else                                        // Treat everything else as High (0.5s)
           refreshIntervalInMsec = 500;
@@ -748,7 +753,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::EndCombo  ( );
   }
 
-  if (SKIF_iProcessRefreshInterval == 0)
+  if (_registry.iProcessRefreshInterval == 0)
   {
     ImGui::SameLine         ( );
     ImGui::BeginGroup       ( );
@@ -781,14 +786,12 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  extern bool SKIF_bStopOnInjection;
-
   ImGui::TreePush   ( );
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
   if (ImGui::Button ( ICON_FA_TOGGLE_ON "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
-    _inject._StartStopInject (false, SKIF_bStopOnInjection);
+    _inject._StartStopInject (false, _registry.bStopOnInjection);
   ImGui::PopStyleColor ( );
 
   ImGui::SameLine   ( );
@@ -810,8 +813,8 @@ SKIF_UI_Tab_DrawMonitor (void)
   if ( _inject.SKVer32 >= "21.08.12" )
 #endif
   {
-    if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
-      SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+    if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))
+      SKIF_putStopOnInjection (_registry.bStopOnInjection);
 
     ImGui::SameLine         ( );
 
@@ -1199,7 +1202,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                 }
 
                 // If some form of injection was detected, add it to the list
-                if (SKIF_bProcessIncludeAll || proc.status != 255)
+                if (_registry.bProcessIncludeAll || proc.status != 255)
                 {
                   wchar_t                                wszProcessName [MAX_PATH] = { };
                   GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
@@ -1481,24 +1484,24 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   auto _ChangeSort = [&](const int& method) -> void
   {
-    static int  prevMethod    = SKIF_iProcessSort;
-    static bool prevAscending = SKIF_bProcessSortAscending;
+    static int  prevMethod    = _registry.iProcessSort;
+    static bool prevAscending = _registry.bProcessSortAscending;
 
     if (method == 0 || method != prevMethod)
-      SKIF_bProcessSortAscending = true; // Always sort ascending first
+      _registry.bProcessSortAscending = true; // Always sort ascending first
     else if (method == prevMethod)
-      SKIF_bProcessSortAscending = ! SKIF_bProcessSortAscending;
+      _registry.bProcessSortAscending = ! _registry.bProcessSortAscending;
 
     if (method != prevMethod) {
-      SKIF_iProcessSort = method;
-      _registry.regKVProcessSort.putData          (SKIF_iProcessSort);
-      _registry.regKVProcessSortAscending.putData (SKIF_bProcessSortAscending);
+      _registry.iProcessSort = method;
+      _registry.regKVProcessSort.putData          (_registry.iProcessSort);
+      _registry.regKVProcessSortAscending.putData (_registry.bProcessSortAscending);
     }
-    else if (SKIF_bProcessSortAscending != prevAscending)
-      _registry.regKVProcessSortAscending.putData (SKIF_bProcessSortAscending);
+    else if (_registry.bProcessSortAscending != prevAscending)
+      _registry.regKVProcessSortAscending.putData (_registry.bProcessSortAscending);
 
-    prevMethod    = SKIF_iProcessSort;
-    prevAscending = SKIF_bProcessSortAscending;
+    prevMethod    = _registry.iProcessSort;
+    prevAscending = _registry.bProcessSortAscending;
   };
 
 
@@ -1575,13 +1578,13 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   if (EventIndex == USHRT_MAX)
     ImGui::Text ("Error occurred when trying to locate type index for events!");
-  else if (processes.empty () && SKIF_iProcessRefreshInterval == 0)
+  else if (processes.empty () && _registry.iProcessRefreshInterval == 0)
     ImGui::Text ("Real-time updates are paused.");
   else if (processes.empty ())
     ImGui::Text ("Special K is currently not injected in any process.");
 
   // This will ensure that the new sort order is applied immediately and only sorted once
-  if (! processes.empty ( ) && (processes[0].sortedBy != SKIF_iProcessSort || processes[0].sortedAsc != SKIF_bProcessSortAscending))
+  if (! processes.empty ( ) && (processes[0].sortedBy != _registry.iProcessSort || processes[0].sortedAsc != _registry.bProcessSortAscending))
     SortProcesses (processes);
 
   for ( auto& proc : processes )

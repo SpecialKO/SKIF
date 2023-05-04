@@ -28,7 +28,7 @@
 
 bool
 SK_FileHasSpaces    (const wchar_t *wszLongFileName);
-BOOL
+bool
 SK_FileHas8Dot3Name (const wchar_t *wszLongFileName);
 
 bool

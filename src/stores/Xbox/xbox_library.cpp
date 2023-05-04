@@ -8,6 +8,9 @@
 #include <SKIF.h>
 #include <SKIF_utility.h>
 
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
 /*
 Xbox / MS Store games shared registry struture
@@ -78,7 +81,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                   PLOG_VERBOSE << "Root: " << szData;
 
                   record.store = "Xbox";
-                  record.type = "Game";
+                  record.type  = "Game";
                   record._status.installed = true;
                   record.install_dir = szData;
                   record.install_dir = record.install_dir.substr(4); // Strip \\?\
@@ -175,7 +178,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       lc.valid = true;
                       lc.store = L"Xbox";
 
-                      std::string appId = app.attribute("Id").value();
+                      std::string strAppID = app.attribute("Id").value();
 
                       if (config.load_file((record.install_dir + LR"(MicrosoftGame.config)").c_str()))
                       {
@@ -197,7 +200,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                         for (pugi::xml_node exe = xmlConfigRoot.child("ExecutableList").child("Executable"); exe; exe = exe.next_sibling("Executable"))
                         {
-                          if (exeCount == 1 || appId == exe.attribute("Id").value())
+                          if (exeCount == 1 || strAppID == exe.attribute("Id").value())
                           {
                             lc.executable = SK_UTF8ToWideChar(exe.attribute("Name").value());
 
@@ -364,13 +367,12 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
         if (image["ImagePurpose"].get <std::string_view>()._Equal(R"(Poster)"))
         {
           // Download a downscaled copy of the cover
-          extern bool SKIF_bLowBandwidthMode; // TAKES TOO LONG! :D
 
           // Convert the URL value to a regular string
           std::string assetUrl = image["Uri"]; // will throw exception if "Uri" does not exist
 
           // Strip the first two characters (//)
-          assetUrl = SK_FormatString(R"(https://%s%s)", assetUrl.substr(2).c_str(), ((SKIF_bLowBandwidthMode) ? "?q=90&h=900&w=600" : ""));
+          assetUrl = SK_FormatString(R"(https://%s%s)", assetUrl.substr(2).c_str(), ((_registry.bLowBandwidthMode) ? "?q=90&h=900&w=600" : ""));
 
           SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
         }

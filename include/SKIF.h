@@ -40,7 +40,6 @@
 #include "plog/Appenders/ConsoleAppender.h"
 
 #include <injection.h>
-#include <registry.h>
 
 class SK_AutoCOMInit
 {
@@ -105,11 +104,6 @@ extern bool RefreshSettingsTab;
 void SKIF_UI_DrawPlatformStatus    (void);
 void SKIF_UI_DrawComponentVersion  (void);
 
-void  SKIF_SetHDRWhiteLuma    (float fLuma);
-FLOAT SKIF_GetHDRWhiteLuma    (void);
-FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange);
-BOOL  SKIF_IsHDR              (void);
-
 extern float fAspect;
 extern float fBottomDist;
 
@@ -132,48 +126,8 @@ constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
 constexpr const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
 
-// Settings
-extern int SKIF_iNotifications;
-extern int SKIF_iGhostVisibility;
-extern int SKIF_iStyle;
-extern int SKIF_iDimCovers;
-extern int SKIF_iCheckForUpdates;
-extern int SKIF_iAutoStopBehavior;
-extern int SKIF_iLogging;
-extern int SKIF_iProcessSort;
-extern int SKIF_iProcessRefreshInterval;
-
-extern uint32_t SKIF_iLastSelected;
-extern bool SKIF_bRememberLastSelected;
-extern bool SKIF_bDisableDPIScaling;
-extern bool SKIF_bDisableTooltips;
-extern bool SKIF_bDisableStatusBar;
-extern bool SKIF_bDisableBorders;
-extern bool SKIF_bDisableSteamLibrary;
-extern bool SKIF_bDisableEGSLibrary;
-extern bool SKIF_bDisableGOGLibrary;
-extern bool SKIF_bDisableXboxLibrary;
-extern bool SKIF_bSmallMode;
-extern bool SKIF_bFirstLaunch;
-extern bool SKIF_bEnableDebugMode;
-extern bool SKIF_bAllowMultipleInstances;
-extern bool SKIF_bAllowBackgroundService;
-extern bool SKIF_bEnableHDR;
-extern bool SKIF_bDisableVSYNC;
-extern bool SKIF_bOpenAtCursorPosition;
-extern bool SKIF_bStopOnInjection;
-extern bool SKIF_bCloseToTray;
-extern bool SKIF_bLowBandwidthMode;
-extern bool SKIF_bPreferGOGGalaxyLaunch;
-extern bool SKIF_bMinimizeOnGameLaunch;
-extern bool SKIF_bProcessSortAscending;
-extern bool SKIF_bProcessIncludeAll;
-
-// Not a saved setting, this indicates the DXGI runtime supports tearing
-extern BOOL SKIF_bCanAllowTearing;
-
-// This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
-extern BOOL SKIF_bSuppressServiceNotification;
+// This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
+extern bool SKIF_bSuppressServiceNotification;
 
 
 enum class PopupState {

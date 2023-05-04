@@ -1,114 +1,111 @@
 #include <registry.h>
 
-SKIF_WindowsRegistry _registry;
-
-SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
+SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
-  // Settings
-  extern int SKIF_iNotifications;
-  extern int SKIF_iGhostVisibility;
-  extern int SKIF_iStyle;
-  extern int SKIF_iDimCovers;
-  extern int SKIF_iCheckForUpdates;
-  extern int SKIF_iAutoStopBehavior;
-  extern int SKIF_iLogging;
-  extern int SKIF_iProcessSort;
-  extern int SKIF_iProcessRefreshInterval;
+  // Default settings (multiple options)
+  iNotifications           = 2; // 0 = Never,                       1 = Always,                 2 = When unfocused
+  iGhostVisibility         = 0; // 0 = Never,                       1 = Always,                 2 = While service is running
+  iStyle                   = 0; // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
+  iDimCovers               = 0; // 0 = Never,                       1 = Always,                 2 = On mouse hover
+  iCheckForUpdates         = 1; // 0 = Never,                       1 = Weekly,                 2 = On each launch
+  iAutoStopBehavior        = 1; // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
+  iLogging                 = 4; // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
+  iProcessSort             = 0; // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
+  iProcessRefreshInterval  = 2; // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
+  iHDRMode                 = 1; // 0 = Never,                       1 = Always,                 2 = On mouse hover
 
-  //XXX: These are all defined extern in SKIF.h, consider including that header instead?
-  //TODO: Move everything over to be defined as part of registry.h instead.
-  extern uint32_t SKIF_iLastSelected;
-  extern bool SKIF_bRememberLastSelected;
-  extern bool SKIF_bDisableDPIScaling;
-  extern bool SKIF_bDisableTooltips;
-  extern bool SKIF_bDisableStatusBar;
-  extern bool SKIF_bDisableBorders;
-  extern bool SKIF_bDisableSteamLibrary;
-  extern bool SKIF_bDisableEGSLibrary;
-  extern bool SKIF_bDisableGOGLibrary;
-  extern bool SKIF_bDisableXboxLibrary;
-  extern bool SKIF_bSmallMode;
-  extern bool SKIF_bFirstLaunch;
-  extern bool SKIF_bEnableDebugMode;
-  extern bool SKIF_bAllowMultipleInstances;
-  extern bool SKIF_bAllowBackgroundService;
-  extern bool SKIF_bEnableHDR;
-  extern bool SKIF_bDisableVSYNC;
-  extern bool SKIF_bDisableCFAWarning;
-  extern bool SKIF_bOpenAtCursorPosition;
-  extern bool SKIF_bStopOnInjection;
-  extern bool SKIF_bCloseToTray;
-  extern bool SKIF_bLowBandwidthMode;
-  extern bool SKIF_bPreferGOGGalaxyLaunch;
-  extern bool SKIF_bMinimizeOnGameLaunch;
-  extern bool SKIF_bProcessSortAscending;
-  extern bool SKIF_bProcessIncludeAll;
+  // Default settings (booleans)
+  bRememberLastSelected    = false;
+  bDisableDPIScaling       = false;
+  bDisableTooltips         = false;
+  bDisableStatusBar        = false;
+  bDisableBorders          =  true; // default to true
+  bDisableSteamLibrary     = false;
+  bDisableEGSLibrary       = false;
+  bDisableGOGLibrary       = false;
+  bDisableXboxLibrary      = false;
+  bSmallMode               = false;
+  bFirstLaunch             = false;
+  bEnableDebugMode         = false;
+  bAllowMultipleInstances  = false;
+  bAllowBackgroundService  = false;
+  bOpenAtCursorPosition    = false;
+  bStopOnInjection         = false;
+  bCloseToTray             = false;
+  bLowBandwidthMode        = false;
+  bPreferGOGGalaxyLaunch   = false;
+  bMinimizeOnGameLaunch    = false;
+  bDisableVSYNC            = false;
+  bDisableCFAWarning       = false; // Controlled Folder Access warning
+  bProcessSortAscending    = true;
+  bProcessIncludeAll       = false;
+
   
-  SKIF_iProcessSort             =   regKVProcessSort.getData             ( );
+  iProcessSort             =   regKVProcessSort.getData             ( );
   if (regKVProcessIncludeAll.hasData())
-    SKIF_bProcessIncludeAll     =   regKVProcessIncludeAll.getData       ( );
+    bProcessIncludeAll     =   regKVProcessIncludeAll.getData       ( );
   if (regKVProcessSortAscending.hasData())
-    SKIF_bProcessSortAscending  =   regKVProcessSortAscending.getData    ( );
+    bProcessSortAscending  =   regKVProcessSortAscending.getData    ( );
   if (regKVProcessRefreshInterval.hasData())
-    SKIF_iProcessRefreshInterval=   regKVProcessRefreshInterval.getData    ( );
+    iProcessRefreshInterval=   regKVProcessRefreshInterval.getData    ( );
 
-  SKIF_bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
-  SKIF_bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );
-  
-  if (regKVRememberLastSelected.hasData())
-    SKIF_bRememberLastSelected  =   regKVRememberLastSelected.getData    ( );
+  bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
+  bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );
 
-  SKIF_bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
-  SKIF_bDisableTooltips         =   regKVDisableTooltips.getData         ( );
-  SKIF_bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
-  SKIF_bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
-  SKIF_bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
-  SKIF_bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
+  bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
+  bDisableTooltips         =   regKVDisableTooltips.getData         ( );
+  bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
+  bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
+  bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
+  bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
 
   if (regKVDisableXboxLibrary.hasData())
-    SKIF_bDisableXboxLibrary    =   regKVDisableXboxLibrary.getData      ( );
+    bDisableXboxLibrary    =   regKVDisableXboxLibrary.getData      ( );
 
-  SKIF_bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
-  SKIF_bSmallMode               =   regKVSmallMode.getData               ( );
-  SKIF_bFirstLaunch             =   regKVFirstLaunch.getData             ( );
-  SKIF_bAllowMultipleInstances  =   regKVAllowMultipleInstances.getData  ( );
-  SKIF_bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
-//SKIF_bEnableHDR               =   regKVEnableHDR.getData               ( );
-  SKIF_bDisableVSYNC            =   regKVDisableVSYNC.getData            ( );
-  SKIF_bDisableCFAWarning       =   regKVDisableCFAWarning.getData       ( );
-  SKIF_bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
+  bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
+  bSmallMode               =   regKVSmallMode.getData               ( );
+  bFirstLaunch             =   regKVFirstLaunch.getData             ( );
+  bAllowMultipleInstances  =   regKVAllowMultipleInstances.getData  ( );
+  bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
+
+  if (regKVHDRMode.hasData())
+    iHDRMode               =   regKVHDRMode.getData                 ( );
+
+  bDisableVSYNC            =   regKVDisableVSYNC.getData            ( );
+  bDisableCFAWarning       =   regKVDisableCFAWarning.getData       ( );
+  bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
   
   // If the legacy key has data, but not the new key, move the data over to respect existing user's choices
   if (!regKVDisableStopOnInjection.hasData() && regKVLegacyDisableStopOnInjection.hasData())
     regKVDisableStopOnInjection.putData (regKVLegacyDisableStopOnInjection.getData());
 
-  SKIF_bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
-  SKIF_bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
-  SKIF_bCloseToTray             =   regKVCloseToTray.getData             ( );
+  bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
+  bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
+  bCloseToTray             =   regKVCloseToTray.getData             ( );
 
   if (regKVDisableBorders.hasData())
-    SKIF_bDisableBorders        =   regKVDisableBorders.getData          ( );
+    bDisableBorders        =   regKVDisableBorders.getData          ( );
 
   if (regKVAutoStopBehavior.hasData())
-    SKIF_iAutoStopBehavior      =   regKVAutoStopBehavior.getData        ( );
+    iAutoStopBehavior      =   regKVAutoStopBehavior.getData        ( );
 
   if (regKVNotifications.hasData())
-    SKIF_iNotifications         =   regKVNotifications.getData           ( );
+    iNotifications         =   regKVNotifications.getData           ( );
 
   if (regKVGhostVisibility.hasData())
-    SKIF_iGhostVisibility       =   regKVGhostVisibility.getData         ( );
+    iGhostVisibility       =   regKVGhostVisibility.getData         ( );
 
   if (regKVStyle.hasData())
-    SKIF_iStyle                 =   regKVStyle.getData                   ( );
+    iStyle                 =   regKVStyle.getData                   ( );
 
   if (regKVLogging.hasData())
-    SKIF_iLogging               =   regKVLogging.getData                 ( );
+    iLogging               =   regKVLogging.getData                 ( );
 
   if (regKVDimCovers.hasData())
-    SKIF_iDimCovers             =   regKVDimCovers.getData               ( );
+    iDimCovers             =   regKVDimCovers.getData               ( );
 
   if (regKVCheckForUpdates.hasData())
-    SKIF_iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
+    iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
 
   if (regKVIgnoreUpdate.hasData())
     wsIgnoreUpdate              =   regKVIgnoreUpdate.getWideString      ( );
@@ -116,8 +113,29 @@ SKIF_WindowsRegistry::SKIF_WindowsRegistry (void)
   if (regKVFollowUpdateChannel.hasData())
     wsUpdateChannel             = regKVFollowUpdateChannel.getWideString ( );
 
-  if (SKIF_bRememberLastSelected && regKVLastSelected.hasData())
-    SKIF_iLastSelected          =   regKVLastSelected.getData            ( );
+  /*
+  if (bRememberLastSelected && regKVLastSelected.hasData())
+    iLastSelected          =   regKVLastSelected.getData            ( );
+
+  iLastSelectedStored = iLastSelected;
+  */
+  
+  // Remember Last Selected Game
+  const int STEAM_APPID = 1157970;
+  iLastSelectedGame   = STEAM_APPID; // Default selected game
+  wsLastSelectedStore = L"Steam";         // Default selected store
+
+  if (regKVRememberLastSelected.hasData())
+    bRememberLastSelected  =   regKVRememberLastSelected.getData    ( );
+
+  if (bRememberLastSelected)
+  {
+    if (regKVLastSelectedGame.hasData())
+      iLastSelectedGame         =   regKVLastSelectedGame.getData        ( );
+
+    if (regKVLastSelectedStore.hasData())
+      wsLastSelectedStore       =   regKVLastSelectedStore.getWideString ( );
+  }
 
   // App registration
   if (regKVAppRegistration.hasData())

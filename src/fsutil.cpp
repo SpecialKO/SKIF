@@ -31,7 +31,7 @@ SK_FileHasSpaces (const wchar_t* wszLongFileName)
     StrStrIW (wszLongFileName, L" ") != nullptr;
 }
 
-BOOL
+bool
 SK_FileHas8Dot3Name (const wchar_t* wszLongFileName)
 {
   wchar_t wszShortPath [MAX_PATH + 2] = { };
@@ -40,10 +40,10 @@ SK_FileHas8Dot3Name (const wchar_t* wszLongFileName)
          GetFileAttributesW (wszShortPath) == INVALID_FILE_ATTRIBUTES   ||
          StrStrIW           (wszLongFileName, L" "))
   {
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 HRESULT

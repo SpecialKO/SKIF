@@ -17,6 +17,11 @@
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 // Generic Utilities
 
 std::string
@@ -158,6 +163,18 @@ SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
   }
 
   return woss.str();
+}
+
+unsigned int
+SKIF_Util_ConvertStringToInt   (std::string_view  input)
+{
+  std::string numStr = "";
+
+  for (size_t i = 0; i < input.length ( ); i++)
+    if (isdigit (input[i]) || isalpha (input[i]))
+        numStr += char (input[i]);
+
+  return std::stoi (numStr);
 }
 
 
@@ -626,14 +643,14 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
 }
 
-BOOL
+bool
 SKIF_Util_IsWindows8Point1OrGreater (void)
 {
   SK_RunOnce (
     SetLastError (NO_ERROR)
   );
 
-  static BOOL
+  static bool
     bResult =
       GetProcAddress (
         GetModuleHandleW (L"kernel32.dll"),
@@ -644,14 +661,14 @@ SKIF_Util_IsWindows8Point1OrGreater (void)
   return bResult;
 }
 
-BOOL
+bool
 SKIF_Util_IsWindows10OrGreater (void)
 {
   SK_RunOnce (
     SetLastError (NO_ERROR)
   );
 
-  static BOOL
+  static bool
     bResult =
       GetProcAddress (
         GetModuleHandleW (L"kernel32.dll"),
@@ -666,7 +683,7 @@ SKIF_Util_IsWindows10OrGreater (void)
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
 
-BOOL
+bool
 SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
 {
   NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW) = nullptr;
@@ -683,15 +700,15 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
     if (NT_SUCCESS (RtlGetVersion (&osInfo)))
     {
       return
-        ( osInfo.dwMajorVersion   >  dwMajorVersion ||
+          ( osInfo.dwMajorVersion >  dwMajorVersion ||
           ( osInfo.dwMajorVersion == dwMajorVersion &&
             osInfo.dwMinorVersion >= dwMinorVersion &&
-            osInfo.dwBuildNumber  >= dwBuildNumber  )
+            osInfo.dwBuildNumber  >= dwBuildNumber   )
         );
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 bool
@@ -732,7 +749,8 @@ SKIF_Util_IsProcessAdmin (DWORD PID)
   return bRet;
 }
 
-bool SKIF_Util_IsProcessX86 (HANDLE process)
+bool
+SKIF_Util_IsProcessX86 (HANDLE process)
 {
     SYSTEM_INFO si = { 0 };
     GetNativeSystemInfo (&si);
@@ -913,11 +931,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     return CLEANUP ();
   }
 
-  extern bool SKIF_bLowBandwidthMode;
-
   int flags = INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
 
-  if (SKIF_bLowBandwidthMode)
+  if (_registry.bLowBandwidthMode)
     flags |= INTERNET_FLAG_RESYNCHRONIZE | INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_CACHE_ASYNC;
   else
     flags |= INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE;

@@ -85,6 +85,11 @@
 
 #include "TextFlow.hpp"
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 #pragma comment (lib, "wininet.lib")
 
 const int SKIF_STEAM_APPID = 1157970;
@@ -101,70 +106,35 @@ bool showUpdatePrompt      = false;
 bool changedUpdateChannel  = false;
 bool msgDontRedraw         = false;
 bool coverFadeActive       = false;
+bool SKIF_Shutdown         = false;
 int  startupFadeIn         = 0;
-
-// Holds swapchain wait handles
-std::vector<HANDLE> vSwapchainWaitHandles;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
-#define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
-
-int  SKIF_iNotifications           = 2, // 0 = Never,                       1 = Always,                 2 = When unfocused
-     SKIF_iGhostVisibility         = 0, // 0 = Never,                       1 = Always,                 2 = While service is running
-     SKIF_iStyle                   = 0, // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
-     SKIF_iDimCovers               = 0, // 0 = Never,                       1 = Always,                 2 = On mouse hover
-     SKIF_iCheckForUpdates         = 1, // 0 = Never,                       1 = Weekly,                 2 = On each launch
-     SKIF_iAutoStopBehavior        = 1, // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
-     SKIF_iLogging                 = 4, // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
-     SKIF_iProcessSort             = 0, // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
-     SKIF_iProcessRefreshInterval  = 2; // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
-uint32_t
-     SKIF_iLastSelected            = SKIF_STEAM_APPID;
-bool SKIF_bRememberLastSelected    = false,
-     SKIF_bDisableDPIScaling       = false,
-     SKIF_bDisableTooltips         = false,
-     SKIF_bDisableStatusBar        = false,
-     SKIF_bDisableBorders          =  true, // default to true
-     SKIF_bDisableSteamLibrary     = false,
-     SKIF_bDisableEGSLibrary       = false,
-     SKIF_bDisableGOGLibrary       = false,
-     SKIF_bDisableXboxLibrary      = false,
-     SKIF_bSmallMode               = false,
-     SKIF_bFirstLaunch             = false,
-     SKIF_bEnableDebugMode         = false,
-     SKIF_bAllowMultipleInstances  = false,
-     SKIF_bAllowBackgroundService  = false,
-     SKIF_bEnableHDR               = false,
-     SKIF_bOpenAtCursorPosition    = false,
-     SKIF_bStopOnInjection         = false,
-     SKIF_bCloseToTray             = false,
-     SKIF_bFontChineseSimplified   = false,
+// Fonts
+bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontChineseAll          = false,
      SKIF_bFontCyrillic            = false,
      SKIF_bFontJapanese            = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false,
-     SKIF_bLowBandwidthMode        = false,
-     SKIF_bPreferGOGGalaxyLaunch   = false,
-     SKIF_bMinimizeOnGameLaunch    = false,
-     SKIF_bDisableVSYNC            = false,
-     SKIF_bDisableCFAWarning       = false, // Controlled Folder Access warning
-     SKIF_bProcessSortAscending    = true,
-     SKIF_bProcessIncludeAll       = false;
+     SKIF_bFontVietnamese          = false;
 
-// This is used in conjunction with SKIF_bMinimizeOnGameLaunch to suppress the "Please start game" notification
-BOOL SKIF_bSuppressServiceNotification = FALSE;
+// This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
+bool SKIF_bSuppressServiceNotification = false;
 
-BOOL SKIF_bCanFlip                 = FALSE, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
-     SKIF_bCanWaitSwapchain        = FALSE, // Waitable Swapchain            Windows 8.1+
-     SKIF_bCanFlipDiscard          = FALSE, // Flip Discard                  Windows 10+
-     SKIF_bCanAllowTearing            = FALSE, // DWM Tearing                   Windows 10+
-     SKIF_bCanHDR                  = FALSE; // High Dynamic Range            Windows 10 1709+ (Build 16299)
-     
+// Graphics options set during runtime
+bool SKIF_bCanFlip                 = false, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
+     SKIF_bCanWaitSwapchain        = false, // Waitable Swapchain            Windows 8.1+
+     SKIF_bCanFlipDiscard          = false, // Flip Discard                  Windows 10+
+     SKIF_bCanAllowTearing         = false, // DWM Tearing                   Windows 10+
+     SKIF_bCanHDR                  = false, // High Dynamic Range            Windows 10 1709+ (Build 16299)
+     SKIF_bHDREnabled              = false; // HDR Enabled
+
+// Holds swapchain wait handles
+std::vector<HANDLE> vSwapchainWaitHandles;
 
 // GOG Galaxy stuff
 std::wstring GOGGalaxy_Path        = L"";
@@ -677,7 +647,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   if ( (  hwndAlreadyExists != 0 ) &&
        ( ! _Signal.Launcher )      &&
        ( ! _Signal.AddSKIFGame)    &&
-       ((! SKIF_bAllowMultipleInstances)        ||
+       ((! _registry.bAllowMultipleInstances)        ||
                                    _Signal.Stop || _Signal.Start    ||
                                    _Signal.Quit || _Signal.Minimize
        )
@@ -846,7 +816,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     PLOG_VERBOSE << "SKIF being used as a launcher...";
 
     // Display in small mode
-    SKIF_bSmallMode = true;
+    _registry.bSmallMode = true;
 
     std::wstring cmdLine        = std::wstring(lpCmdLine);
     std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
@@ -1133,10 +1103,10 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
       bool downloadNewFiles = false;
 
-      if (SKIF_iCheckForUpdates != 0 && ! SKIF_bLowBandwidthMode)
+      if (_registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
       {
         // Download files if any does not exist or if we're forcing an update
-        if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || SKIF_iCheckForUpdates == 2)
+        if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
         {
           downloadNewFiles = true;
         }
@@ -1326,7 +1296,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
 
           }
 
-          if (SKIF_iCheckForUpdates != 0 && !SKIF_bLowBandwidthMode)
+          if (_registry.iCheckForUpdates != 0 && !_registry.bLowBandwidthMode)
           {
             // Used to populate history
             bool found = false;
@@ -1480,8 +1450,8 @@ void SKIF_UpdateNotifyIcon (void)
 
 void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 {
-  if ( SKIF_iNotifications == 1 ||                           // Always
-      (SKIF_iNotifications == 2 && ! SKIF_ImGui_IsFocused()) // When Unfocused
+  if ( _registry.iNotifications == 1 ||                           // Always
+      (_registry.iNotifications == 2 && ! SKIF_ImGui_IsFocused()) // When Unfocused
     )
   {
     niData.uFlags       = NIF_INFO;
@@ -1735,7 +1705,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 void SKIF_SetStyle (void)
 {  
   // Setup Dear ImGui style
-  switch (SKIF_iStyle)
+  switch (_registry.iStyle)
   {
   case 3:
     ImGui::StyleColorsClassic  ( );
@@ -1749,7 +1719,7 @@ void SKIF_SetStyle (void)
   case 0:
   default:
     SKIF_ImGui_StyleColorsDark ( );
-    SKIF_iStyle = 0;
+    _registry.iStyle = 0;
   }
 }
 
@@ -2010,9 +1980,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   hWndOrigForeground =
     GetForegroundWindow ();
 
-  plog::get()->setMaxSeverity((plog::Severity) SKIF_iLogging);
+  plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
-  PLOG_INFO << "Max severity to log was set to " << SKIF_iLogging;
+  PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
@@ -2025,7 +1995,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (_Signal.Minimize)
     nCmdShow = SW_SHOWMINNOACTIVE;
 
-  if (nCmdShow == SW_SHOWMINNOACTIVE && SKIF_bCloseToTray)
+  if (nCmdShow == SW_SHOWMINNOACTIVE && _registry.bCloseToTray)
     nCmdShow = SW_HIDE;
 
   // Second round
@@ -2090,7 +2060,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Check if Controlled Folder Access is enabled
-  if (SKIF_bDisableCFAWarning == false && SKIF_hasControlledFolderAccess ( ))
+  if (_registry.bDisableCFAWarning == false && SKIF_hasControlledFolderAccess ( ))
   {
     if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
                                   L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
@@ -2263,7 +2233,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingTransparentPayload =  true;
 
 
-  if (SKIF_bDisableDPIScaling)
+  if (_registry.bDisableDPIScaling)
   {
     io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
   //io.ConfigFlags |=  ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
@@ -2289,7 +2259,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   style.TabRounding     = style.WindowRounding;
   style.FrameRounding   = style.WindowRounding;
   
-  if (SKIF_bDisableBorders)
+  if (_registry.bDisableBorders)
   {
     style.TabBorderSize   = 0.0F;
     style.FrameBorderSize = 0.0F;
@@ -2324,7 +2294,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImRect windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool changedMode        = false;
-       RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || SKIF_bOpenAtCursorPosition);
+       RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Handle cases where a Start / Stop Command Line was Passed,
   //   but no running instance existed to service it yet...
@@ -2374,15 +2344,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 
   // Main loop
-  while (IsWindow (hWnd) && msg.message != WM_QUIT)
+  while (! SKIF_Shutdown && IsWindow (hWnd) )
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
     coverFadeActive = false; // Assume there's no cover fade effect active
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
-      while ( PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE) &&
-                            msg.message  !=  WM_QUIT)
+      while (! SKIF_Shutdown && PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE))
       {
         if (! IsWindow (hWnd))
           return false;
@@ -2429,8 +2398,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         uiLastMsg = msg.message;
       }
 
-      return
-        ( msg.message != WM_QUIT );
+      return ! SKIF_Shutdown; // return false on exit or system shutdown
     };
 
     // Injection acknowledgment; shutdown injection
@@ -2469,7 +2437,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       // MessageDuration * 2 seconds delay to allow Windows to send both notifications properly
       // If notifications are disabled, exit immediately
-      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_Util_timeGetTime() || SKIF_iNotifications == 0)
+      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_Util_timeGetTime() || _registry.iNotifications == 0)
       {
         bExitOnInjection = false;
         PostMessage (hWnd, WM_QUIT, 0, 0);
@@ -2581,14 +2549,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                      SKIF_hLargeMode * SKIF_ImGui_GlobalDPIScale );
 
       // Add the status bar if it is not disabled
-      if ( ! SKIF_bDisableStatusBar )
+      if ( ! _registry.bDisableStatusBar )
       {
         SKIF_vecLargeMode.y += 31.0f * SKIF_ImGui_GlobalDPIScale;
-        SKIF_vecLargeMode.y += (SKIF_bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+        SKIF_vecLargeMode.y += (_registry.bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
       }
 
       SKIF_vecCurrentMode  =
-                    (SKIF_bSmallMode) ? SKIF_vecSmallMode
+                    (_registry.bSmallMode) ? SKIF_vecSmallMode
                                       : SKIF_vecLargeMode;
 
       if (ImGui::GetFrameCount() > 2)
@@ -2695,7 +2663,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                     // Calculate the expected new size using the DPI scale of the monitor
                     ImVec2 tmpWindowSize = 
-                                  (SKIF_bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
+                                  (_registry.bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
                                                                SKIF_hSmallMode * tmpMonitor.DpiScale)
                                                     : ImVec2 ( SKIF_wLargeMode * tmpMonitor.DpiScale,
                                                                SKIF_hLargeMode * tmpMonitor.DpiScale);
@@ -2797,7 +2765,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
 
         // These are not a part of the default style so need to assign them separately
-        if (! SKIF_bDisableBorders)
+        if (! _registry.bDisableBorders)
         {
           style.TabBorderSize                       = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
           style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
@@ -2892,14 +2860,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
            (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
-            ImGui::Button ( (SKIF_bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
+            ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
                                               : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
          )
       {
-        SKIF_bSmallMode = ! SKIF_bSmallMode;
-        _registry.regKVSmallMode.putData (SKIF_bSmallMode);
+        _registry.bSmallMode = ! _registry.bSmallMode;
+        _registry.regKVSmallMode.putData (_registry.bSmallMode);
 
         changedMode = true;
 
@@ -2983,7 +2951,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           || bKeepWindowAlive == false
          )
       {
-        if (SKIF_bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
+        if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
         {
           bKeepWindowAlive = true;
           ShowWindow       (hWnd, SW_MINIMIZE);
@@ -2994,7 +2962,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         else
         {
-          if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+          if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
             _inject._StartStopInject (true);
 
           bKeepProcessAlive = false;
@@ -3003,9 +2971,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::PopStyleVar ();
       
-      if (SKIF_bCloseToTray)
+      if (_registry.bCloseToTray)
         SKIF_ImGui_SetHoverTip ("This app will close to the notification area");
-      else if (_inject.bCurrentState && SKIF_bAllowBackgroundService)
+      else if (_inject.bCurrentState && _registry.bAllowBackgroundService)
         SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
 
       ImGui::SetCursorPos (topCursorPos);
@@ -3024,7 +2992,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
         );
 
-      if (SKIF_iStyle == 2)
+      if (_registry.iStyle == 2)
         vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 
       ImGui::BeginGroup ();
@@ -3032,7 +3000,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Begin Small Mode
 #pragma region UI: Small Mode
 
-      if (SKIF_bSmallMode)
+      if (_registry.bSmallMode)
       {
         SKIF_Tab_Selected = UITab_SmallMode;
 
@@ -3066,8 +3034,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text ("");
 
-        if (                          SKIF_iGhostVisibility == 1 ||
-            (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
+        if (                          _registry.iGhostVisibility == 1 ||
+            (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
         {
           // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
           ImGui::SameLine();
@@ -3128,21 +3096,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
-          if (! SKIF_bFirstLaunch)
+          if (! _registry.bFirstLaunch)
           {
             // Select the About tab on first launch
-            SKIF_bFirstLaunch = ! SKIF_bFirstLaunch;
+            _registry.bFirstLaunch = ! _registry.bFirstLaunch;
             SKIF_Tab_ChangeTo = UITab_About;
 
             // Store in the registry so this only occur once.
-            _registry.regKVFirstLaunch.putData(SKIF_bFirstLaunch);
+            _registry.regKVFirstLaunch.putData(_registry.bFirstLaunch);
           }
 
           extern float fTint;
           if (SKIF_Tab_Selected != UITab_Library)
           {
             // Reset the dimmed cover when going back to the tab
-            if (SKIF_iDimCovers == 2)
+            if (_registry.iDimCovers == 2)
               fTint = 0.75f;
           }
 
@@ -3218,8 +3186,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                               (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
                                              : SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
 
-        if (                          SKIF_iGhostVisibility == 1 ||
-            (_inject.bCurrentState && SKIF_iGhostVisibility == 2) )
+        if (                          _registry.iGhostVisibility == 1 ||
+            (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
         {
           // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
           ImGui::SameLine();
@@ -3257,7 +3225,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 (.5f + (sin ((float)(current_time % 750) /  250.f)) * .5f) / 2.f,
                    1.f );
 
-          if (SKIF_iStyle == 2)
+          if (_registry.iStyle == 2)
             vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
           */
           
@@ -3279,16 +3247,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
       fGhostTime += fGhostTimeStep;
 
       // Status Bar at the bottom
-      if ( ! SKIF_bSmallMode        &&
-           ! SKIF_bDisableStatusBar )
+      if ( ! _registry.bSmallMode        &&
+           ! _registry.bDisableStatusBar )
       {
         // This counteracts math performed on SKIF_vecLargeMode.y at the beginning of the frame
         float statusBarY = ImGui::GetWindowSize().y;
               statusBarY -= 31.0f * SKIF_ImGui_GlobalDPIScale;
-              statusBarY -= (SKIF_bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+              statusBarY -= (_registry.bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
         ImGui::SetCursorPosY (statusBarY);
 
-        if (! SKIF_bDisableBorders)
+        if (! _registry.bDisableBorders)
           ImGui::Separator    (       );
 
         // End Separation
@@ -3882,7 +3850,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
     {
       startedMinimized = false;
-      if ( SKIF_bOpenAtCursorPosition )
+      if ( _registry.bOpenAtCursorPosition )
         RepositionSKIF = true;
     }
 
@@ -4120,21 +4088,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
       msgDontRedraw = false;
       uiLastMsg     = 0x0;
 
-      // Pump the message queue
-      _TranslateAndDispatch ( );
+      // Pump the message queue, and break if we receive a false (WM_QUIT or WM_QUERYENDSESSION)
+      if (! _TranslateAndDispatch ( ))
+        break;
+      
+      // Break if SKIF is no longer a window
+      if (! IsWindow (hWnd))
+        break;
 
-    } while (msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
+    } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
-
-  if (hEffectivePowerModeRegistration)
+  
+  if (! _registry.bLastSelectedWritten)
   {
-    PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications";
-    SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
+    _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+    _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+    _registry.bLastSelectedWritten = true;
+    PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
-
-  PLOG_INFO << "Writing last selected game to registry: " << SKIF_iLastSelected;
-
-  _registry.regKVLastSelected.putData(SKIF_iLastSelected);
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
@@ -4166,6 +4137,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Notify_hWnd = 0;
   SKIF_hWnd = 0;
        hWnd = 0;
+
+  if (hEffectivePowerModeRegistration)
+  {
+    PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications...";
+    SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
+  }
 
   PLOG_INFO << "Terminating process...";
   return 0;
@@ -4221,7 +4198,7 @@ bool CreateDeviceD3D (HWND hWnd)
 #endif
 
   // Windows 7 (with the Platform Update) and newer
-  SKIF_bCanFlip                 =               TRUE;
+  SKIF_bCanFlip                 =         true; // Should never be set to false here
 
   if (SKIF_bCanFlip)
   {
@@ -4256,10 +4233,10 @@ bool CreateDeviceD3D (HWND hWnd)
   }
 
   // Overrides
-  //SKIF_bCanAllowTearing          = FALSE; // Allow Tearing
-  //SKIF_bCanFlipDiscard        = FALSE; // Flip Discard
-  //SKIF_bCanFlip               = FALSE; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
-  //SKIF_bCanWaitSwapchain      = FALSE; // Waitable Swapchain
+  //SKIF_bCanAllowTearing       = false; // Allow Tearing
+  //SKIF_bCanFlipDiscard        = false; // Flip Discard
+  //SKIF_bCanFlip               = false; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
+  //SKIF_bCanWaitSwapchain      = false; // Waitable Swapchain
 
 
   UINT createDeviceFlags = 0;
@@ -4372,6 +4349,32 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_QUIT:
+      SKIF_Shutdown = true;
+      break;
+    case WM_ENDSESSION: 
+      // Session is shutting down -- perform any last minute changes!
+      if (wParam == 1)
+      {
+        PLOG_INFO << "Received system shutdown signal!";
+
+        if (! _registry.bLastSelectedWritten)
+        {
+          _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+          _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+          _registry.bLastSelectedWritten = true;
+          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
+        }
+
+        SKIF_Shutdown = true;
+      }
+      return 0;
+      break;
+    case WM_QUERYENDSESSION: // System wants to shut down and is asking if we can allow it
+      //SKIF_Shutdown = true;
+      PLOG_INFO << "System in querying if we can shut down!";
+      return true;
+      break;
     case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
       msgDontRedraw = true;
       break;
@@ -4382,7 +4385,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_MINIMIZE:
-      if (SKIF_bCloseToTray && ! SKIF_isTrayed)
+      if (_registry.bCloseToTray && ! SKIF_isTrayed)
       {
         ShowWindow       (hWnd, SW_MINIMIZE);
         ShowWindow       (hWnd, SW_HIDE);
@@ -4390,7 +4393,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SKIF_isTrayed    = true;
       }
 
-      else if (! SKIF_bCloseToTray) {
+      else if (! _registry.bCloseToTray) {
         ShowWindowAsync (hWnd, SW_MINIMIZE);
       }
       break;

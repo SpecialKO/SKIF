@@ -9,6 +9,10 @@
 
 #include <gsl/gsl>
 
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 /*
 EGS registry / folder struture
 
@@ -264,9 +268,8 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
             std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
 
             // Download a downscaled copy of the cover
-            extern bool            SKIF_bLowBandwidthMode;
 
-            if (SKIF_bLowBandwidthMode)
+            if (_registry.bLowBandwidthMode)
               assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
             PLOG_DEBUG << "Downloading OfferImageTall asset: " << assetUrl;

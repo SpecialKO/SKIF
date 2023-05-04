@@ -15,6 +15,7 @@ std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( )); /
 DWORD        SKIF_Util_timeGetTime           (void);
 std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
+unsigned int SKIF_Util_ConvertStringToInt    (std::string_view  input); // Assumes that the relevant characters are all ASCII characters!
 
 // Filenames
 
@@ -41,9 +42,9 @@ void         SKIF_Util_OpenURI_Threaded            (                const LPCWST
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
 HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);
-BOOL            SKIF_Util_IsWindows8Point1OrGreater   (void);
-BOOL            SKIF_Util_IsWindows10OrGreater        (void);
-BOOL            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
+bool            SKIF_Util_IsWindows10OrGreater        (void);
+bool            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);

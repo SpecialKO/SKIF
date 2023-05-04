@@ -5,7 +5,10 @@
 #include <SKIF_imgui.h>
 #include <fsutil.h>
 
-extern int SKIF_iStyle;
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
 void
 SKIF_UI_Tab_DrawAbout (void)
@@ -405,7 +408,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
+    (_registry.iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
       ICON_FA_DISCOURSE " " );
   ImGui::SameLine         ( );
 
@@ -434,7 +437,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+    (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
       ICON_FA_GITHUB " "   );
   ImGui::SameLine         ( );
   if (ImGui::Selectable   ("GitHub"))
@@ -449,7 +452,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         (0.0f, 10.0f);
   //ImGui::SetCursorPosX    (ImGui::GetCursorPosX ( ) + 1.0f);
   ImGui::TextColored      (
-    (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+    (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
       ICON_FA_FILE_CONTRACT " ");
   ImGui::SameLine         (0.0f, 10.0f);
   if (ImGui::Selectable   ("Privacy Policy"))

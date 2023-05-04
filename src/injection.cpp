@@ -50,6 +50,11 @@
 #include <sstream>
 #include <strsafe.h>
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 SKIF_InjectionContext _inject;
 
 bool
@@ -115,13 +120,11 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   hInjectAck.Close();
 
-  extern int SKIF_iAutoStopBehavior;
-
   // Create a new handle if requested
   if (newState && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
-      CreateEvent ( nullptr, FALSE, FALSE, (SKIF_iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
+      CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
                                                                          : LR"(Local\SKIF_InjectAck)")
     );
 
@@ -377,7 +380,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
       }
     }
 
-    extern BOOL SKIF_bSuppressServiceNotification;
+    extern bool SKIF_bSuppressServiceNotification;
     extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
     extern CHandle hInjectAck;
 
@@ -407,7 +410,7 @@ SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
         }
 
         else
-          SKIF_bSuppressServiceNotification = FALSE;
+          SKIF_bSuppressServiceNotification = false;
       }
       else
       {
@@ -664,7 +667,6 @@ void
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
   extern float SKIF_ImGui_GlobalDPIScale;
-  extern bool  SKIF_bStopOnInjection;
 
   //running =
     //TestServletRunlevel (run_lvl_changed);
@@ -821,7 +823,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
     if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
-      _StartStopInject (bCurrentState, SKIF_bStopOnInjection);
+      _StartStopInject (bCurrentState, _registry.bStopOnInjection);
   }
 
   else
@@ -831,7 +833,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
 
-  if ( ! bCurrentState && SKIF_bAllowBackgroundService)
+  if ( ! bCurrentState && _registry.bAllowBackgroundService)
       SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
     
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
@@ -881,8 +883,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
     {
 
-      if (ImGui::Checkbox ("Stop automatically", &SKIF_bStopOnInjection))
-        SKIF_putStopOnInjection (SKIF_bStopOnInjection);
+      if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))
+        SKIF_putStopOnInjection (_registry.bStopOnInjection);
 
       ImGui::SameLine        ( );
 
@@ -1008,13 +1010,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::TreePush ("");
 
-  extern bool SKIF_bCloseToTray;
-
   if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the injection service as well", &bAutoStartService))
     changes = true;
     
 
-  if (ImGui::Checkbox((SKIF_bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
+  if (ImGui::Checkbox((_registry.bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
                                             " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
     changes = true;
 
@@ -1073,11 +1073,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   }
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
-  //extern bool SKIF_bEnableDebugMode;
+  //_registry.bEnableDebugMode;
 
   if ( bLogonTaskEnabled     ||
        bAutoStartServiceOnly/* ||
-       SKIF_bEnableDebugMode*/ )
+       _registry.bEnableDebugMode*/ )
   {
 
     if (bLogonTaskEnabled)

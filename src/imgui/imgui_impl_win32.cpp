@@ -22,7 +22,20 @@
 #include <algorithm>
 #include <format>
 #include <injection.h>
-#include <sk_utility/utility.h>
+
+// PLOG
+#ifndef PLOG_ENABLE_WCHAR_INPUT
+#define PLOG_ENABLE_WCHAR_INPUT 1
+#endif
+
+#include <plog/Log.h>
+#include "plog/Initializers/RollingFileInitializer.h"
+#include "plog/Appenders/ConsoleAppender.h"
+
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
 auto constexpr XUSER_INDEXES =
   std::array <DWORD, 4> { 0, 1, 2, 3 };
@@ -50,6 +63,16 @@ auto constexpr XUSER_INDEXES =
 //  2017-10-23: Inputs: Using Win32 ::SetCapture/::GetCapture() to retrieve mouse positions outside the client area when dragging.
 //  2016-11-12: Inputs: Only call Win32 ::SetCursor(NULL) when io.MouseDrawCursor is set.
 
+// External functions
+extern bool SKIF_Util_IsWindows8Point1OrGreater       (void);
+extern bool SKIF_Util_IsWindows10OrGreater            (void);
+extern bool SKIF_Util_IsWindowsVersionOrGreater       (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+
+// Forward Declarations
+static void ImGui_ImplWin32_InitPlatformInterface     (void);
+static void ImGui_ImplWin32_ShutdownPlatformInterface (void);
+static void ImGui_ImplWin32_UpdateMonitors            (void);
+
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
@@ -73,6 +96,7 @@ static XInputGetState_pfn        ImGui_XInputGetState = nullptr;
 static XInputGetCapabilities_pfn ImGui_XInputGetCapabilities = nullptr;
 static HMODULE                   g_hModXInput = nullptr;
 
+// Peripheral Functions
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
   //extern HWND SKIF_hWnd;
@@ -109,9 +133,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
 
       lastFocus = (dwWindowOwnerPid == dwPidOfMe);
 
-      BOOL IsWindows10OrGreater ( );
-
-      if (IsWindows10OrGreater ( ) && g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
+      if (SKIF_Util_IsWindows10OrGreater ( ) && g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
       {
         // Ugly-ass workaround for the window never receiving WM_KILLFOCUS on launch if it gets unfocused quickly
         // We also need to send a WM_SETFOCUS when it regains focus because apparently Windows doesn't send it either...?
@@ -183,11 +205,6 @@ bool    ImGui_ImplWin32_InitXInput (void *hwnd)
 
   return true;
 }
-
-// Forward Declarations
-static void ImGui_ImplWin32_InitPlatformInterface (void);
-static void ImGui_ImplWin32_ShutdownPlatformInterface (void);
-static void ImGui_ImplWin32_UpdateMonitors (void);
 
 // Functions
 bool    ImGui_ImplWin32_Init (void *hwnd)
@@ -730,13 +747,12 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   case WM_CLOSE:
     extern bool bKeepProcessAlive;
-    extern bool SKIF_bAllowBackgroundService;
 
     // Handle attempt to close the window
     if (hwnd != nullptr)
     {
       // Handle the service before we exit
-      if (_inject.bCurrentState && ! SKIF_bAllowBackgroundService )
+      if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
         _inject._StartStopInject (true);
 
       bKeepProcessAlive = false;
@@ -887,61 +903,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 // At this point ImGui_ImplWin32_EnableDpiAwareness() is just a helper called by main.cpp, we don't call it automatically.
 //---------------------------------------------------------------------------------------------------------
 
-///BOOL
-///IsWindowsVersionOrGreater (WORD major, WORD minor, WORD sp)
-///{
-///  OSVERSIONINFOEXW osvi = {
-///           sizeof (osvi), major, minor, 0, 0,
-///                                      { 0 }, sp
-///  };
-///
-///  DWORD
-///    mask = VER_MAJORVERSION | VER_MINORVERSION |
-///           VER_SERVICEPACKMAJOR;
-///  ULONGLONG
-///    cond = VerSetConditionMask (   0, VER_MAJORVERSION,     VER_GREATER_EQUAL);
-///    cond = VerSetConditionMask (cond, VER_MINORVERSION,     VER_GREATER_EQUAL);
-///    cond = VerSetConditionMask (cond, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
-///
-///  return
-///    VerifyVersionInfoW (&osvi, mask, cond);
-///}
-///
-///
-///#define IsWindows8Point1OrGreater()  IsWindowsVersionOrGreater (HIBYTE(0x0602), LOBYTE(0x0602), 0) // _WIN32_WINNT_WINBLUE
-///#define IsWindows10OrGreater()       IsWindowsVersionOrGreater (HIBYTE(0x0A00), LOBYTE(0x0A00), 0) // _WIN32_WINNT_WIN10
-BOOL
-IsWindows8Point1OrGreater (void)
-{
-  SetLastError (NO_ERROR);
-
-  static BOOL
-    bResult =
-      GetProcAddress (
-        GetModuleHandleW (L"kernel32.dll"),
-                           "GetSystemTimePreciseAsFileTime"
-                     ) != nullptr &&
-      GetLastError  () == NO_ERROR;
-
-  return bResult;
-}
-
-BOOL
-IsWindows10OrGreater (void)
-{
-  SetLastError (NO_ERROR);
-
-  static BOOL
-  bResult =
-    GetProcAddress (
-      GetModuleHandleW (L"kernel32.dll"),
-                         "SetThreadDescription"
-                   ) != nullptr &&
-    GetLastError  () == NO_ERROR;
-
-  return bResult;
-}
-
 #ifndef DPI_ENUMS_DECLARED
 typedef enum {
   PROCESS_DPI_UNAWARE           = 0,
@@ -966,54 +927,13 @@ typedef HRESULT               (WINAPI *PFN_SetProcessDpiAwareness)      ( PROCES
 typedef HRESULT               (WINAPI *PFN_GetDpiForMonitor)            ( HMONITOR, MONITOR_DPI_TYPE, UINT *, UINT * );        // Shcore.lib+dll, Windows 8.1
 typedef DPI_AWARENESS_CONTEXT (WINAPI *PFN_SetThreadDpiAwarenessContext)( DPI_AWARENESS_CONTEXT ); // User32.lib+dll, Windows 10 v1607 (Creators Update)
 
-void
-ImGui_ImplWin32_EnableDpiAwareness (void)
-{
-  if (IsWindows10OrGreater()) // FIXME-DPI: This needs a manifest to succeed. Instead we try to grab the function pointer.
-  {
-    static HINSTANCE    user32_dll =
-      ::LoadLibraryW (L"user32.dll"); // Reference counted per-process
-
-    if (PFN_SetThreadDpiAwarenessContext SetThreadDpiAwarenessContextFn =
-      ( PFN_SetThreadDpiAwarenessContext )::GetProcAddress (user32_dll,
-        "SetThreadDpiAwarenessContext")
-      )
-    {
-      SetThreadDpiAwarenessContextFn (
-        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-      );
-
-      return;
-    }
-  }
-
-  if (IsWindows8Point1OrGreater ( ))
-  {
-    static HINSTANCE    shcore_dll =
-      ::LoadLibraryW (L"shcore.dll"); // Reference counted per-process
-
-    if (PFN_SetProcessDpiAwareness SetProcessDpiAwarenessFn =
-      ( PFN_SetProcessDpiAwareness )::GetProcAddress (shcore_dll,
-        "SetProcessDpiAwareness")
-      )
-    {
-      SetProcessDpiAwarenessFn (PROCESS_PER_MONITOR_DPI_AWARE);
-    }
-  }
-
-  else
-  {
-    SetProcessDPIAware ( );
-  }
-}
-
 float
 ImGui_ImplWin32_GetDpiScaleForMonitor (void *monitor)
 {
   UINT xdpi = 96,
        ydpi = 96;
 
-  if (::IsWindows8Point1OrGreater ( ))
+  if (SKIF_Util_IsWindows8Point1OrGreater ( ))
   {
     static HINSTANCE    shcore_dll =
       ::LoadLibraryW (L"shcore.dll"); // Reference counted per-process
@@ -1137,12 +1057,10 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
 
-  #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+  extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
+  extern bool SKIF_bCanFlip;
 
-  extern BOOL SKIF_Util_IsWindows8Point1OrGreater (void);
-  extern BOOL SKIF_bCanFlip;
-
-  // This only exists on Windows 8+, and is only applicable to flip swapchains
+  // This flag is Windows 8+, and only applicable to flip swapchains
   if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ))
     *out_ex_style |=
       WS_EX_NOREDIRECTIONBITMAP;

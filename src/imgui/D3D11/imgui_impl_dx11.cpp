@@ -27,30 +27,54 @@
 //  2018-02-06: Misc: Removed call to ImGui::Shutdown() which is not available from 1.60 WIP, user needs to call CreateContext/DestroyContext themselves.
 //  2016-05-07: DirectX11: Disabling depth-write.
 
-#include <imgui/imgui.h>
-#include <imgui/d3d11/imgui_impl_dx11.h>
+
 #include <Windows.h>
+#include <array>
+#include <xutility>
+#include <exception>
+#include <atlbase.h>
+#include <vector>
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+#include <imgui/d3d11/imgui_impl_dx11.h>
 
 #include <shaders/imgui_pix.h>
 #include <shaders/imgui_vtx.h>
 
-#include <SKIF.h>
+// PLOG
+#ifndef PLOG_ENABLE_WCHAR_INPUT
+#define PLOG_ENABLE_WCHAR_INPUT 1
+#endif
 
+#include <plog/Log.h>
+#include "plog/Initializers/RollingFileInitializer.h"
+#include "plog/Appenders/ConsoleAppender.h"
+
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
+// DirectX
+#include <dxgi1_6.h>
+#include <stdio.h>
+#include <d3d11.h>
+
+// External Variables
 //#define SKIF_scRGB
-extern BOOL SKIF_bCanAllowTearing;
-extern BOOL SKIF_bCanFlip;
-extern BOOL SKIF_bCanFlipDiscard;
-extern BOOL SKIF_bCanWaitSwapchain;
-extern BOOL SKIF_bCanHDR;
+extern bool SKIF_bCanAllowTearing;
+extern bool SKIF_bCanFlip;
+extern bool SKIF_bCanFlipDiscard;
+extern bool SKIF_bCanWaitSwapchain;
+extern bool SKIF_bCanHDR;
 
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
-#include <atlbase.h>
-#include <dxgi1_6.h>
-
-// DirectX
-#include <stdio.h>
-#include <d3d11.h>
+// External functions
+extern bool SKIF_Util_IsWindows8Point1OrGreater       (void);
+extern bool SKIF_Util_IsWindows10OrGreater            (void);
+extern bool SKIF_Util_IsWindowsVersionOrGreater       (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
@@ -74,8 +98,6 @@ static int                                g_VertexBufferSize = 5000,
 #define D3D11_SHADER_MAX_INSTANCES_PER_CLASS 256
 #define D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS \
   D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE
-
-#include <array>
 
 template <typename _Tp, size_t n> using CComPtrArray = std::array <CComPtr <_Tp>, n>;
 
@@ -368,12 +390,12 @@ struct ImGuiViewportDataDx11 {
   ID3D11RenderTargetView *RTView;
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
-  BOOL                    HDR;
+  bool                    HDR;
   DXGI_OUTPUT_DESC1       HDRDesc;
   FLOAT                   HDRLuma;
   FLOAT                   HDRMinLuma;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; HDR = FALSE; HDRDesc = {   }; HDRLuma = 0.0f; HDRMinLuma = 0.0f; }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; HDR = false; HDRDesc = {   }; HDRLuma = 0.0f; HDRMinLuma = 0.0f; }
   ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
 
   FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
@@ -472,8 +494,6 @@ ImGui_ImplDX11_SetupRenderState ( ImDrawData          *draw_data,
   ctx->OMSetDepthStencilState ( g_pDepthStencilState, 0          );
   ctx->RSSetState             ( g_pRasterizerState               );
 }
-
-#include <xutility>
 
 // Render function
 // (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
@@ -613,12 +633,18 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     else
     {
-#ifdef SKIF_scRGB
-      constant_buffer->luminance_scale [0] = (data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f);
-      constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
-#else
-      constant_buffer->luminance_scale [0] = -data->SKIF_GetHDRWhiteLuma ( );
-#endif
+      // scRGB
+      if (_registry.iHDRMode == 2)
+      {
+        constant_buffer->luminance_scale [0] = (data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f);
+        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+      }
+
+      // HDR10
+      else {
+        constant_buffer->luminance_scale [0] = -data->SKIF_GetHDRWhiteLuma ( );
+      }
+
       constant_buffer->luminance_scale [1] = 2.2f;
     }
 
@@ -714,8 +740,6 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
 ////sb.Apply (ctx, _CaptureMask);
 }
-
-#include <exception>
 
 class SK_ComException : public
        std::exception
@@ -1089,7 +1113,6 @@ void ImGui_ImplDX11_Shutdown (void)
   g_pd3dDeviceContext = nullptr;
 }
 
-#include <imgui/imgui_internal.h>
 extern ImGuiContext* GImGui;
 
 static void
@@ -1183,26 +1206,32 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
+  DXGI_FORMAT dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+  if (SKIF_bCanHDR)
+  {
+    // scRGB
+    if (_registry.iHDRMode == 2)
+      dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+    // HDR10
+    else
+      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+  }
+
   // Create the swapchain for the viewport
   DXGI_SWAP_CHAIN_DESC1
     swap_desc                  = { };
-  swap_desc.Width   = (UINT)viewport->Size.x;
-  swap_desc.Height  = (UINT)viewport->Size.y;
-  swap_desc.Format  = 
-    SKIF_bCanHDR ?
-#ifdef SKIF_scRGB
-        DXGI_FORMAT_R16G16B16A16_FLOAT :
-#else
-        DXGI_FORMAT_R10G10B10A2_UNORM  :
-#endif
-        DXGI_FORMAT_R8G8B8A8_UNORM;
+  swap_desc.Width              = (UINT)viewport->Size.x;
+  swap_desc.Height             = (UINT)viewport->Size.y;
+  swap_desc.Format             = dxgi_format;
   swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_desc.Flags              = 0x0;
   swap_desc.SampleDesc.Count   = 1;
   swap_desc.SampleDesc.Quality = 0;
 
   // Assume flip by default
-  swap_desc.BufferCount  = 2; // Must be 2-16 for flip model
+  swap_desc.BufferCount  = 3; // Must be 2-16 for flip model
 
   if (SKIF_bCanWaitSwapchain)
     swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
@@ -1223,17 +1252,15 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       SKIF_bCanFlip         = false;
     }
 
-    //if (SUCCEEDED (g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
-    //                          &data->SwapChain ))) break;
-
     if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                               &data->SwapChain ))) break;
   }
 
   // Create the render target
 #pragma region Enable HDR
-#if 1
-  if (data->SwapChain != nullptr && SKIF_bCanHDR)
+  if (data->SwapChain    != nullptr && // Do we have a swapchain?
+        SKIF_bCanHDR                && // Does the system support HDR?
+      _registry.iHDRMode != 0        ) // HDR support is not disabled, is it?
   {
     CComPtr   <IDXGIOutput>     pOutput;
     CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
@@ -1298,17 +1325,15 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       UINT uiHdrFlags = 0x0;
 
       // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
+      // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
       // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
 
+      DXGI_COLOR_SPACE_TYPE dxgi_cst =
+        (_registry.iHDRMode == 2)
+          ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
+          : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
 
-      pSwapChain3->CheckColorSpaceSupport (
-#ifdef SKIF_scRGB
-          DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,// (FP16 only),
-#else
-          DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
-#endif
-          &uiHdrFlags
-      );
+      pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
 
       if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
             ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
@@ -1316,51 +1341,21 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       {
         pOutput6->GetDesc1 (&data->HDRDesc);
 
-        if (data->HDRDesc.ColorSpace ==
-                   DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 ||
-            data->HDRDesc.ColorSpace ==
-                   DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 )
+        if (data->HDRDesc.ColorSpace == dxgi_cst)
         {
-          data->HDR = TRUE;
+          data->HDR = true;
 
-          pSwapChain3->SetColorSpace1 (
-#ifdef SKIF_scRGB
-                      DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
-#else
-                      DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
-#endif
-          );
+          pSwapChain3->SetColorSpace1 (dxgi_cst);
 
-          pOutput6->GetDesc1 (
-            &data->HDRDesc
-          );
+          pOutput6->GetDesc1 (&data->HDRDesc);
         }
       }
     }
   }
-#endif
 #pragma endregion
 
   if (data->SwapChain)
   {
-#pragma region Undo HDR
-#if 0 // This does not seem to be necessary any longer
-    if (! data->HDR)
-    {
-      swap_desc.BufferDesc.Format =
-        DXGI_FORMAT_R8G8B8A8_UNORM;
-
-      data->SwapChain->Release ();
-
-      g_pd3dDeviceContext->ClearState ( );
-      g_pd3dDeviceContext->Flush      ( );
-
-      g_pFactory->CreateSwapChain ( g_pd3dDevice, &swap_desc,
-                 &data->SwapChain );
-    }
-#endif
-#pragma endregion
-
     CComPtr <
       ID3D11Texture2D
     >              pBackBuffer;
@@ -1455,20 +1450,27 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
     {
       CComPtr <ID3D11Texture2D> pBackBuffer;
 
+      DXGI_FORMAT dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+      if (SKIF_bCanHDR)
+      {
+        // scRGB
+        if (_registry.iHDRMode == 2)
+          dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+        // HDR10
+        else
+          dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+      }
+
       DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
       data->SwapChain->GetDesc1 (&swap_desc);
 
       data->SwapChain->ResizeBuffers (
         0, (UINT)size.x,
            (UINT)size.y,
-                  SKIF_bCanHDR ?
-#ifdef SKIF_scRGB
-                    DXGI_FORMAT_R16G16B16A16_FLOAT :
-#else
-                    DXGI_FORMAT_R10G10B10A2_UNORM  :
-#endif
-                    DXGI_FORMAT_R8G8B8A8_UNORM,
-               swap_desc.Flags
+            dxgi_format,
+              swap_desc.Flags
       );
 
       data->SwapChain->GetBuffer (
@@ -1522,19 +1524,13 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  extern BOOL SKIF_Util_IsWindows10OrGreater (void);
-
   UINT Interval = 1; // BitBlt Mode
 
   if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
     Interval    = 2; // Flip VRR Compatibility Mode (only relevant on Windows 10+)
 
-  if (SKIF_bDisableVSYNC)
-    Interval    = 0; // V-Sync OFF Mode
-
-  /* Temporary override */
-  if (SKIF_bDisableVSYNC)
-    Interval    = 1;
+  if (_registry.bDisableVSYNC)
+    Interval    = 1; // Normal Mode (V-Sync ON)
 
   UINT PresentFlags = 0x0;
 

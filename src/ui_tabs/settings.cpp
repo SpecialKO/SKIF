@@ -10,6 +10,11 @@
 #include <d3dkmthk.h>
 #include "../../version.h"
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 struct Monitor_MPO_Support
 {
   std::string                    Name;  // EDID names are limited to 13 characters, which is perfect for us
@@ -449,8 +454,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
   );
           
-  if ( ImGui::Checkbox ( "Low bandwidth mode",                          &SKIF_bLowBandwidthMode ) )
-    _registry.regKVLowBandwidthMode.putData (                                      SKIF_bLowBandwidthMode );
+  if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
+    _registry.regKVLowBandwidthMode.putData (                                      _registry.bLowBandwidthMode );
           
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -460,17 +465,17 @@ SKIF_UI_Tab_DrawSettings (void)
     "This will also disable automatic downloads of new updates to Special K."
   );
 
-  if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &SKIF_bPreferGOGGalaxyLaunch) )
-    _registry.regKVPreferGOGGalaxyLaunch.putData (SKIF_bPreferGOGGalaxyLaunch);
+  if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
+    _registry.regKVPreferGOGGalaxyLaunch.putData (_registry.bPreferGOGGalaxyLaunch);
 
-  if ( ImGui::Checkbox ( "Remember the last selected game",         &SKIF_bRememberLastSelected ) )
-    _registry.regKVRememberLastSelected.putData (                              SKIF_bRememberLastSelected );
+  if ( ImGui::Checkbox ( "Remember the last selected game",         &_registry.bRememberLastSelected ) )
+    _registry.regKVRememberLastSelected.putData (                    _registry.bRememberLastSelected );
             
-  if ( ImGui::Checkbox ( "Minimize when launching a game",             &SKIF_bMinimizeOnGameLaunch ) )
-    _registry.regKVMinimizeOnGameLaunch.putData (                                      SKIF_bMinimizeOnGameLaunch );
+  if ( ImGui::Checkbox ( "Minimize when launching a game",             &_registry.bMinimizeOnGameLaunch ) )
+    _registry.regKVMinimizeOnGameLaunch.putData (                                      _registry.bMinimizeOnGameLaunch );
             
-  if ( ImGui::Checkbox ( "Close to the notification area", &SKIF_bCloseToTray ) )
-    _registry.regKVCloseToTray.putData (                                               SKIF_bCloseToTray );
+  if ( ImGui::Checkbox ( "Close to the notification area", &_registry.bCloseToTray ) )
+    _registry.regKVCloseToTray.putData (                                               _registry.bCloseToTray );
 
   _inject._StartAtLogonCtrl ( );
 
@@ -490,21 +495,21 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Auto-stop behavior when launching a game:"
   );
-  ImGui::TreePush        ("SKIF_iAutoStopBehavior");
+  ImGui::TreePush        ("_registry.iAutoStopBehavior");
 
-  //if (ImGui::RadioButton ("Never",           &SKIF_iAutoStopBehavior, 0))
-  //  regKVAutoStopBehavior.putData (           SKIF_iAutoStopBehavior);
+  //if (ImGui::RadioButton ("Never",           &_registry.iAutoStopBehavior, 0))
+  //  regKVAutoStopBehavior.putData (           _registry.iAutoStopBehavior);
   // 
   //ImGui::SameLine        ( );
 
-  if (ImGui::RadioButton ("Stop on injection",    &SKIF_iAutoStopBehavior, 1))
-    _registry.regKVAutoStopBehavior.putData (             SKIF_iAutoStopBehavior);
+  if (ImGui::RadioButton ("Stop on injection",    &_registry.iAutoStopBehavior, 1))
+    _registry.regKVAutoStopBehavior.putData (             _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K successfully injects into a game.");
 
   ImGui::SameLine        ( );
-  if (ImGui::RadioButton ("Stop on game exit",      &SKIF_iAutoStopBehavior, 2))
-    _registry.regKVAutoStopBehavior.putData (             SKIF_iAutoStopBehavior);
+  if (ImGui::RadioButton ("Stop on game exit",      &_registry.iAutoStopBehavior, 2))
+    _registry.regKVAutoStopBehavior.putData (             _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K detects that the game is being closed.");
 
@@ -520,7 +525,7 @@ SKIF_UI_Tab_DrawSettings (void)
       "Check for updates to Special K:"
   );
 
-  if (SKIF_bLowBandwidthMode)
+  if (_registry.bLowBandwidthMode)
   {
     // Disable buttons
     ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
@@ -529,15 +534,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::BeginGroup    ( );
 
-  ImGui::TreePush        ("SKIF_iCheckForUpdates");
-  if (ImGui::RadioButton ("Never",                 &SKIF_iCheckForUpdates, 0))
-    _registry.regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+  ImGui::TreePush        ("_registry.iCheckForUpdates");
+  if (ImGui::RadioButton ("Never",                 &_registry.iCheckForUpdates, 0))
+    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
   ImGui::SameLine        ( );
-  if (ImGui::RadioButton ("Weekly",                &SKIF_iCheckForUpdates, 1))
-    _registry.regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+  if (ImGui::RadioButton ("Weekly",                &_registry.iCheckForUpdates, 1))
+    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
   ImGui::SameLine        ( );
-  if (ImGui::RadioButton ("On each launch",        &SKIF_iCheckForUpdates, 2))
-    _registry.regKVCheckForUpdates.putData (                  SKIF_iCheckForUpdates);
+  if (ImGui::RadioButton ("On each launch",        &_registry.iCheckForUpdates, 2))
+    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
   ImGui::TreePop         ( );
 
   ImGui::EndGroup      ( );
@@ -603,7 +608,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TreePop       ( );
   }
 
-  else if (SKIF_iCheckForUpdates > 0) {
+  else if (_registry.iCheckForUpdates > 0) {
     ImGui::TreePush      ("Push_UpdateChannel");
     ImGui::BeginGroup    ( );
     ImGui::TextColored   (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
@@ -612,7 +617,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TreePop       ( );
   }
 
-  if (SKIF_bLowBandwidthMode)
+  if (_registry.bLowBandwidthMode)
   {
     ImGui::PopStyleVar ();
     ImGui::PopItemFlag ();
@@ -627,15 +632,15 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Show Windows notifications:"
   );
-  ImGui::TreePush        ("SKIF_iNotifications");
-  if (ImGui::RadioButton ("Never",          &SKIF_iNotifications, 0))
-    _registry.regKVNotifications.putData (             SKIF_iNotifications);
+  ImGui::TreePush        ("_registry.iNotifications");
+  if (ImGui::RadioButton ("Never",          &_registry.iNotifications, 0))
+    _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::SameLine        ( );
-  if (ImGui::RadioButton ("Always",         &SKIF_iNotifications, 1))
-    _registry.regKVNotifications.putData (             SKIF_iNotifications);
+  if (ImGui::RadioButton ("Always",         &_registry.iNotifications, 1))
+    _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::SameLine        ( );
-  if (ImGui::RadioButton ("When unfocused", &SKIF_iNotifications, 2))
-    _registry.regKVNotifications.putData (             SKIF_iNotifications);
+  if (ImGui::RadioButton ("When unfocused", &_registry.iNotifications, 2))
+    _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::TreePop         ( );
 
   ImGui::Spacing       ( );
@@ -646,9 +651,9 @@ SKIF_UI_Tab_DrawSettings (void)
   );
   ImGui::TreePush      ("");
 
-  if (ImGui::Checkbox        ("Epic", &SKIF_bDisableEGSLibrary))
+  if (ImGui::Checkbox        ("Epic", &_registry.bDisableEGSLibrary))
   {
-    _registry.regKVDisableEGSLibrary.putData    (SKIF_bDisableEGSLibrary);
+    _registry.regKVDisableEGSLibrary.putData    (_registry.bDisableEGSLibrary);
     RepopulateGames = true;
   }
 
@@ -656,9 +661,9 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::Spacing  ( );
   ImGui::SameLine ( );
 
-  if (ImGui::Checkbox         ("GOG", &SKIF_bDisableGOGLibrary))
+  if (ImGui::Checkbox         ("GOG", &_registry.bDisableGOGLibrary))
   {
-    _registry.regKVDisableGOGLibrary.putData    (SKIF_bDisableGOGLibrary);
+    _registry.regKVDisableGOGLibrary.putData    (_registry.bDisableGOGLibrary);
     RepopulateGames = true;
   }
 
@@ -666,9 +671,9 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::Spacing  ( );
   ImGui::SameLine ( );
 
-  if (ImGui::Checkbox       ("Steam", &SKIF_bDisableSteamLibrary))
+  if (ImGui::Checkbox       ("Steam", &_registry.bDisableSteamLibrary))
   {
-    _registry.regKVDisableSteamLibrary.putData  (SKIF_bDisableSteamLibrary);
+    _registry.regKVDisableSteamLibrary.putData  (_registry.bDisableSteamLibrary);
     RepopulateGames = true;
   }
 
@@ -676,9 +681,9 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::Spacing  ( );
   ImGui::SameLine ( );
 
-  if (ImGui::Checkbox        ("Xbox", &SKIF_bDisableXboxLibrary))
+  if (ImGui::Checkbox        ("Xbox", &_registry.bDisableXboxLibrary))
   {
-    _registry.regKVDisableXboxLibrary.putData   (SKIF_bDisableXboxLibrary);
+    _registry.regKVDisableXboxLibrary.putData   (_registry.bDisableXboxLibrary);
     RepopulateGames = true;
   }
 
@@ -710,7 +715,37 @@ SKIF_UI_Tab_DrawSettings (void)
     SK_RunOnce(
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
-            
+
+    extern bool RecreateSwapChains;
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    SKIF_ImGui_SetHoverTip ("Makes the app pop a lot on HDR displays.");
+    ImGui::SameLine        ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "High Dynamic Range:"
+    );
+    ImGui::TreePush        ("iHDRMode");
+    if (ImGui::RadioButton ("Never",                  &_registry.iHDRMode, 0))
+    {
+      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+      RecreateSwapChains = true;
+    }
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("HDR10/BT.2100 (10 bpc)", &_registry.iHDRMode, 1))
+    {
+      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+      RecreateSwapChains = true;
+    }
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("scRGB (16 bpc)",         &_registry.iHDRMode, 2))
+    {
+      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+      RecreateSwapChains = true;
+    }
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+    
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
     ImGui::SameLine        ( );
@@ -718,15 +753,15 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Dim game covers by 25%%:"
     );
-    ImGui::TreePush        ("SKIF_iDimCovers");
-    if (ImGui::RadioButton ("Never",                 &SKIF_iDimCovers, 0))
-      _registry.regKVDimCovers.putData (                        SKIF_iDimCovers);
+    ImGui::TreePush        ("iDimCovers");
+    if (ImGui::RadioButton ("Never",                 &_registry.iDimCovers, 0))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Always",                &SKIF_iDimCovers, 1))
-      _registry.regKVDimCovers.putData (                        SKIF_iDimCovers);
+    if (ImGui::RadioButton ("Always",                &_registry.iDimCovers, 1))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Based on mouse cursor", &SKIF_iDimCovers, 2))
-      _registry.regKVDimCovers.putData (                        SKIF_iDimCovers);
+    if (ImGui::RadioButton ("Based on mouse cursor", &_registry.iDimCovers, 2))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
     ImGui::TreePop         ( );
 
     ImGui::Spacing         ( );
@@ -740,14 +775,14 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush        ("");
 
-    if (ImGui::Checkbox ("HiDPI scaling", &SKIF_bDisableDPIScaling))
+    if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDisableDPIScaling))
     {
       ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 
-      if (SKIF_bDisableDPIScaling)
+      if (_registry.bDisableDPIScaling)
         ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
 
-      _registry.regKVDisableDPIScaling.putData      (SKIF_bDisableDPIScaling);
+      _registry.regKVDisableDPIScaling.putData      (_registry.bDisableDPIScaling);
     }
 
     SKIF_ImGui_SetHoverTip (
@@ -758,8 +793,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("Tooltips", &SKIF_bDisableTooltips))
-      _registry.regKVDisableTooltips.putData (  SKIF_bDisableTooltips);
+    if (ImGui::Checkbox ("Tooltips", &_registry.bDisableTooltips))
+      _registry.regKVDisableTooltips.putData (  _registry.bDisableTooltips);
 
     if (ImGui::IsItemHovered ())
       SKIF_StatusBarText = "Info: ";
@@ -772,8 +807,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("Status bar", &SKIF_bDisableStatusBar))
-      _registry.regKVDisableStatusBar.putData (   SKIF_bDisableStatusBar);
+    if (ImGui::Checkbox ("Status bar", &_registry.bDisableStatusBar))
+      _registry.regKVDisableStatusBar.putData (   _registry.bDisableStatusBar);
 
     SKIF_ImGui_SetHoverTip (
       "Combining this with disabled UI tooltips will hide all context based information or tips."
@@ -783,10 +818,10 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("Borders", &SKIF_bDisableBorders))
+    if (ImGui::Checkbox ("Borders", &_registry.bDisableBorders))
     {
-      _registry.regKVDisableBorders.putData (  SKIF_bDisableBorders);
-      if (SKIF_bDisableBorders)
+      _registry.regKVDisableBorders.putData (  _registry.bDisableBorders);
+      if (_registry.bDisableBorders)
       {
         ImGui::GetStyle().TabBorderSize   = 0.0F;
         ImGui::GetStyle().FrameBorderSize = 0.0F;
@@ -795,12 +830,12 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::GetStyle().TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
         ImGui::GetStyle().FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
       }
-      if (SKIF_iStyle == 0)
+      if (_registry.iStyle == 0)
         SKIF_ImGui_StyleColorsDark ( );
     }
 
-    if (SKIF_bDisableTooltips &&
-        SKIF_bDisableStatusBar)
+    if (_registry.bDisableTooltips &&
+        _registry.bDisableStatusBar)
     {
       ImGui::BeginGroup     ( );
       ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -822,21 +857,22 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Show Shelly the Ghost:"
     );
-    ImGui::TreePush        ("SKIF_iGhostVisibility");
-    if (ImGui::RadioButton ("Never",                    &SKIF_iGhostVisibility, 0))
-      _registry.regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+    ImGui::TreePush        ("_registry.iGhostVisibility");
+    if (ImGui::RadioButton ("Never",                    &_registry.iGhostVisibility, 0))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Always",                   &SKIF_iGhostVisibility, 1))
-      _registry.regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+    if (ImGui::RadioButton ("Always",                   &_registry.iGhostVisibility, 1))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("While service is running", &SKIF_iGhostVisibility, 2))
-      _registry.regKVGhostVisibility.putData (                     SKIF_iGhostVisibility);
+    if (ImGui::RadioButton ("While service is running", &_registry.iGhostVisibility, 2))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::TreePop         ( );
 
     ImGui::Spacing       ( );
 
     // Only show if OS supports tearing in windowed mode
-    if (true) // SKIF_bCanAllowTearing
+    extern bool SKIF_bCanAllowTearing;
+    if (SKIF_bCanAllowTearing)
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
       SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -851,18 +887,18 @@ SKIF_UI_Tab_DrawSettings (void)
       };
 
       int SKIF_iSyncMode =
-        SKIF_bDisableVSYNC ? Sync_None
+        _registry.bDisableVSYNC ? Sync_None
                            : Sync_VRR_Compat;
 
       ImGui::TreePush        ("SKIF_iSyncMode");
       if (ImGui::RadioButton ("VRR Compatibility", &SKIF_iSyncMode, Sync_VRR_Compat))
-        _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = false));
+        _registry.regKVDisableVSYNC.putData ((_registry.bDisableVSYNC = false));
       SKIF_ImGui_SetHoverTip (
         "Avoids signal loss and flickering on VRR displays"
       );
       ImGui::SameLine        ( );
       if (ImGui::RadioButton ("Normal",         &SKIF_iSyncMode, Sync_None))
-        _registry.regKVDisableVSYNC.putData ((SKIF_bDisableVSYNC = true));
+        _registry.regKVDisableVSYNC.putData ((_registry.bDisableVSYNC = true));
       SKIF_ImGui_SetHoverTip (
         "Improves UI response on low fixed-refresh rate displays"
       );
@@ -875,7 +911,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                  "ImGui Light",
                                  "ImGui Classic"
     };
-    static const char* StyleItemsCurrent = StyleItems[SKIF_iStyle];
+    static const char* StyleItemsCurrent = StyleItems[_registry.iStyle];
           
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -883,16 +919,16 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush      ("");
 
-    if (ImGui::BeginCombo ("##SKIF_iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo ("##_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
     {
         for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
         {
             bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
             if (ImGui::Selectable (StyleItems[n], is_selected))
             {
-              SKIF_iStyle = n;
-              _registry.regKVStyle.putData  (SKIF_iStyle);
-              StyleItemsCurrent = StyleItems[SKIF_iStyle];
+              _registry.iStyle = n;
+              _registry.regKVStyle.putData  (_registry.iStyle);
+              StyleItemsCurrent = StyleItems[_registry.iStyle];
               // Apply the new Dear ImGui style
               //SKIF_SetStyle ( );
             }
@@ -930,15 +966,15 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
-    if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &SKIF_bOpenAtCursorPosition ) )
-      _registry.regKVOpenAtCursorPosition.putData (                                            SKIF_bOpenAtCursorPosition );
+    if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &_registry.bOpenAtCursorPosition ) )
+      _registry.regKVOpenAtCursorPosition.putData (                                            _registry.bOpenAtCursorPosition );
 
     if ( ImGui::Checkbox (
             "Allow multiple instances of this app",
-              &SKIF_bAllowMultipleInstances )
+              &_registry.bAllowMultipleInstances )
         )
     {
-      if (! SKIF_bAllowMultipleInstances)
+      if (! _registry.bAllowMultipleInstances)
       {
         // Immediately close out any duplicate instances, they're undesirables
         EnumWindows ( []( HWND   hWnd,
@@ -959,7 +995,7 @@ SKIF_UI_Tab_DrawSettings (void)
       }
 
       _registry.regKVAllowMultipleInstances.putData (
-        SKIF_bAllowMultipleInstances
+        _registry.bAllowMultipleInstances
         );
     }
 
@@ -968,8 +1004,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TreePush         ( );
 
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
-                                            &SKIF_bAllowBackgroundService))
-      _registry.regKVAllowBackgroundService.putData (  SKIF_bAllowBackgroundService);
+                                            &_registry.bAllowBackgroundService))
+      _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
 
     const char* LogSeverity[] = { "None",
                                   "Fatal",
@@ -978,7 +1014,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                   "Info",
                                   "Debug",
                                   "Verbose" };
-    static const char* LogSeverityCurrent = LogSeverity[SKIF_iLogging];
+    static const char* LogSeverityCurrent = LogSeverity[_registry.iLogging];
           
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -987,17 +1023,17 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine();
 
-    if (ImGui::BeginCombo ("##SKIF_iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo ("##_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
     {
       for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
       {
         bool is_selected = (LogSeverityCurrent == LogSeverity[n]); // You can store your selection however you want, outside or inside your objects
         if (ImGui::Selectable (LogSeverity[n], is_selected))
         {
-          SKIF_iLogging = n;
-          _registry.regKVLogging.putData  (SKIF_iLogging);
-          LogSeverityCurrent = LogSeverity[SKIF_iLogging];
-          plog::get()->setMaxSeverity((plog::Severity)SKIF_iLogging);
+          _registry.iLogging = n;
+          _registry.regKVLogging.putData  (_registry.iLogging);
+          LogSeverityCurrent = LogSeverity[_registry.iLogging];
+          plog::get()->setMaxSeverity((plog::Severity)_registry.iLogging);
         }
         if (is_selected)
             ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
@@ -1124,7 +1160,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine   (); ImGui::Text ("Note that these lists do not prevent Special K from being injected into processes.");
     ImGui::EndGroup   ();
 
-    if (SKIF_bDisableTooltips)
+    if (_registry.bDisableTooltips)
     {
       SKIF_ImGui_SetHoverTip (
         "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,"
@@ -1218,8 +1254,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine    ();
     ImGui::BeginGroup  ();
-    ImGui::TextColored ((SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
-    //ImGui::TextColored ((SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
+    ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
+    //ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
     ImGui::EndGroup    ();
 
     ImGui::SameLine    ();

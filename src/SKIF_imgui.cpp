@@ -1,5 +1,9 @@
 #include <SKIF_imgui.h>
 
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 {
     ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
@@ -56,7 +60,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
     colors[ImGuiCol_ScrollbarGrabActive]    = colors[ImGuiCol_HeaderActive];  //ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
 
     // Separators
-    if (SKIF_bDisableBorders)
+    if (_registry.bDisableBorders)
       colors[ImGuiCol_Separator]            = colors[ImGuiCol_WindowBg];
     else
       colors[ImGuiCol_Separator]            = colors[ImGuiCol_Border];
@@ -74,7 +78,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
     colors[ImGuiCol_Tab]                    = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);       //ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.80f);
     colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
 
-    if (SKIF_bDisableBorders)
+    if (_registry.bDisableBorders)
       colors[ImGuiCol_TabActive]            = colors[ImGuiCol_WindowBg];
     else
       colors[ImGuiCol_TabActive]            = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
@@ -178,8 +182,6 @@ SKIF_ImGui_SetMouseCursorHand (void)
 void
 SKIF_ImGui_SetHoverTip (const std::string_view& szText)
 {
-  extern bool        SKIF_bSmallMode;
-  extern bool        SKIF_bDisableTooltips;
   extern bool        HoverTipActive;        // Used to track if an item is being hovered
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
@@ -190,7 +192,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   {
    // itemHovered = szText;
 
-    if (! SKIF_bDisableTooltips)
+    if (! _registry.bDisableTooltips)
     {
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
       HoverTipActive = true;
@@ -232,12 +234,11 @@ void
 SKIF_ImGui_SetHoverText ( const std::string_view& szText,
                                 bool  overrideExistingText )
 {
-  extern bool SKIF_bSmallMode;
   extern std::string SKIF_StatusBarHelp;
 
   if ( ImGui::IsItemHovered ()                                  &&
         ( overrideExistingText || SKIF_StatusBarHelp.empty () ) &&
-        (                       ! SKIF_bSmallMode             )
+        (                       ! _registry.bSmallMode             )
      )
   {
     SKIF_StatusBarHelp.assign (szText);
@@ -385,10 +386,8 @@ void SKIF_ImGui_ServiceMenu (void)
 
     ImGui::Separator ( );
 
-    extern bool SKIF_bStopOnInjection;
-
     if (ImGui::Selectable("Force Start Service"))
-      _inject._StartStopInject (false, SKIF_bStopOnInjection);
+      _inject._StartStopInject (false, _registry.bStopOnInjection);
 
     if (ImGui::Selectable("Force Stop Service"))
       _inject._StartStopInject (true);

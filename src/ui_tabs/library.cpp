@@ -61,6 +61,11 @@
 
 #include <games.h>
 
+// Registry Settings
+#include <registry.h>
+
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
 static bool clickedGameLaunch,
@@ -83,12 +88,7 @@ PopupState ConfirmPopup    = PopupState::Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
-
-extern int             SKIF_iStyle;
-extern bool            SKIF_bLowBandwidthMode;
-extern bool            SKIF_bDisableBorders;
-extern bool            SKIF_bMinimizeOnGameLaunch;
-extern BOOL            SKIF_bSuppressServiceNotification;
+extern bool            SKIF_bSuppressServiceNotification;
 extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -681,10 +681,8 @@ Trie labels;
 bool Steam_isLibrariesSignaled (void)
 {
 #define MAX_STEAM_LIBRARIES 16
-  
-  extern bool SKIF_bDisableSteamLibrary;
 
-  if ( SKIF_bDisableSteamLibrary )
+  if ( _registry.bDisableSteamLibrary )
     return false;
 
   bool isSignaled = false;
@@ -749,11 +747,9 @@ bool Steam_isLibrariesSignaled (void)
 std::vector <std::pair <std::string, app_record_s>>
 Steam_GetInstalledAppIDs (void)
 {
-  extern bool SKIF_bDisableSteamLibrary;
-    
   std::vector <std::pair <std::string, app_record_s>> ret;
 
-  if ( SKIF_bDisableSteamLibrary )
+  if ( _registry.bDisableSteamLibrary )
     return ret;
 
   std::set <uint32_t> unique_apps;
@@ -801,8 +797,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
   {
     for (auto const& app : *apps_new) {
-      OutputDebugString(SK_UTF8ToWideChar(app->names.normal).c_str());
-      OutputDebugString(L"\n");
+      //OutputDebugString(SK_UTF8ToWideChar(app->names.normal).c_str());
+      //OutputDebugString(L"\n");
     }
   }
 
@@ -864,8 +860,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     sort_changed = true;
   }
 
-  extern uint32_t SKIF_iLastSelected;
-
   static bool     update         = true;
   static bool     updateInjStrat = false;
   static bool     loadCover      = false;
@@ -883,10 +877,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   } static selection;
 
   static bool     populated      = false;
-
-  extern bool SKIF_bDisableEGSLibrary;
-  extern bool SKIF_bDisableGOGLibrary;
-  extern bool SKIF_bDisableXboxLibrary;
   
   static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
 
@@ -896,10 +886,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     //if (Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
-    if (! SKIF_bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled (SKIF_EGS_AppDataPath, true))
+    if (! _registry.bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled (SKIF_EGS_AppDataPath, true))
       RepopulateGames = true;
 
-    if (! SKIF_bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
+    if (! _registry.bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
       RepopulateGames = true;
   }
 
@@ -949,14 +939,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Load GOG titles from registry
-    if (! SKIF_bDisableGOGLibrary)
+    if (! _registry.bDisableGOGLibrary)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
     // Load EGS titles from disk
-    if (! SKIF_bDisableEGSLibrary)
+    if (! _registry.bDisableEGSLibrary)
       SKIF_EGS_GetInstalledAppIDs (&apps);
     
-    if (! SKIF_bDisableXboxLibrary)
+    if (! _registry.bDisableXboxLibrary)
       SKIF_Xbox_GetInstalledAppIDs (&apps);
 
     // Load custom SKIF titles from registry
@@ -966,12 +956,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (selection.appid == SKIF_STEAM_APPID)
     {
       for (auto& app : apps)
-        if (app.second.id == SKIF_iLastSelected)
+      {
+        if (app.second.id    ==                    _registry.iLastSelectedGame  &&
+            app.second.store == SK_WideCharToUTF8 (_registry.wsLastSelectedStore))
         {
-          selection.appid = SKIF_iLastSelected;
+          selection.appid = app.second.id;
           selection.store = app.second.store;
           update = true;
         }
+      }
     }
 
     PLOG_INFO << "Finished populating the library list.";
@@ -1199,9 +1192,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_LibraryAssets_CheckForUpdates (true);
   }
 
-  extern int   SKIF_iDimCovers;
   extern bool  coverFadeActive;
-  static int   tmpSKIF_iDimCovers = SKIF_iDimCovers;
+  static int   tmp_iDimCovers = _registry.iDimCovers;
   
   static
     app_record_s* pApp = nullptr;
@@ -1213,15 +1205,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Apply changes when the selected game changes
   if (update)
   {
-    fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
+    fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
   }
 
-  // Apply changes when the SKIF_iDimCovers var has been changed in the Settings tab
-  else if (tmpSKIF_iDimCovers != SKIF_iDimCovers)
+  // Apply changes when the _registry.iDimCovers var has been changed in the Settings tab
+  else if (tmp_iDimCovers != _registry.iDimCovers)
   {
-    fTint = (SKIF_iDimCovers == 0) ? 1.0f : fTintMin;
+    fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
 
-    tmpSKIF_iDimCovers = SKIF_iDimCovers;
+    tmp_iDimCovers = _registry.iDimCovers;
   }
 
   ImGui::BeginGroup    (                                                  );
@@ -1237,7 +1229,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     (selection.appid == SKIF_STEAM_APPID)
                                                     ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
                                                     : ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
-                                  (! SKIF_bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f) // Border
+                                  (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
   // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
@@ -1265,7 +1257,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       startupFadeIn = 2;
   }
 
-  if (SKIF_iDimCovers == 2)
+  if (_registry.iDimCovers == 2)
   {
     if (isHovered && fTint < 1.0f)
     {
@@ -1443,13 +1435,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->textures.isCustomCover)
         ImGui::TextColored (
-          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_UNDO_ALT
                               );
 
@@ -1569,7 +1561,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         
         else {
           // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! SKIF_bLowBandwidthMode &&
+          if ( ! _registry.bLowBandwidthMode &&
                 SUCCEEDED (
                 DirectX::GetMetadataFromWICFile (
                   load_str.c_str (),
@@ -1603,7 +1595,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         
         else {
           // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! SKIF_bLowBandwidthMode &&
+          if ( ! _registry.bLowBandwidthMode &&
                 SUCCEEDED (
                 DirectX::GetMetadataFromWICFile (
                   load_str.c_str (),
@@ -1652,7 +1644,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             ! PathFileExistsW (load_str_2x.c_str ()) )
         {
           // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
-          if ( ! SKIF_bLowBandwidthMode &&
+          if ( ! _registry.bLowBandwidthMode &&
                 SUCCEEDED (
                 DirectX::GetMetadataFromWICFile (
                   load_str.c_str (),
@@ -1679,7 +1671,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
 
           // ... but only if low bandwidth mode is disabled
-          if (! SKIF_bLowBandwidthMode &&
+          if (! _registry.bLowBandwidthMode &&
               GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
               GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
           {
@@ -2447,9 +2439,7 @@ Cache=false)";
 
         if (ImGui::Selectable (cache.injection.status.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
         {
-          extern bool SKIF_bStopOnInjection;
-
-          _inject._StartStopInject (cache.service, SKIF_bStopOnInjection, pApp->launch_configs[0].isElevated(pApp->id));
+          _inject._StartStopInject (cache.service, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated(pApp->id));
 
           cache.app_id = 0;
         }
@@ -2595,11 +2585,10 @@ Cache=false)";
               _inject._StartStopInject (true);
           }
 
-          extern bool SKIF_bPreferGOGGalaxyLaunch;
           extern bool GOGGalaxy_Installed;
 
           // Launch game
-          if (pTargetApp->store == "GOG" && GOGGalaxy_Installed && SKIF_bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
+          if (pTargetApp->store == "GOG" && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
           {
             extern std::wstring GOGGalaxy_Path;
 
@@ -2653,8 +2642,8 @@ Cache=false)";
             ShellExecuteExW (&sexi);
           }
 
-          if (SKIF_bMinimizeOnGameLaunch)
-            SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE);
+          if (_registry.bMinimizeOnGameLaunch)
+            SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -2686,7 +2675,7 @@ Cache=false)";
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( _WIDTH2,
-                                         _HEIGHT ), (! SKIF_bDisableBorders),
+                                         _HEIGHT ), (! _registry.bDisableBorders),
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
@@ -2903,7 +2892,8 @@ Cache=false)";
       selection.appid      = app.second.id;
       selection.store      = app.second.store;
       selected   = true;
-      SKIF_iLastSelected = selection.appid;
+      _registry.iLastSelectedGame   = selection.appid;
+      _registry.wsLastSelectedStore = SK_UTF8ToWideChar (selection.store);
 
       if (update)
       {
@@ -3004,8 +2994,7 @@ Cache=false)";
   float fOriginalY =
     ImGui::GetCursorPosY ( );
 
-  extern bool SKIF_bDisableStatusBar;
-  if (SKIF_bDisableStatusBar)
+  if (_registry.bDisableStatusBar)
   {
     ImGui::BeginGroup      ( );
 
@@ -3387,13 +3376,13 @@ Cache=false)";
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->textures.isCustomIcon)
         ImGui::TextColored (
-          (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_UNDO_ALT
                               );
 
@@ -3458,7 +3447,7 @@ Cache=false)";
   ImGui::BeginChild (
     "###AppListInset2",
       ImVec2 ( _WIDTH2,
-               _HEIGHT2 ), (! SKIF_bDisableBorders),
+               _HEIGHT2 ), (! _registry.bDisableBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NavFlattened      |
@@ -3682,10 +3671,10 @@ Cache=false)";
                                                                           : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
     ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
                                                           200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                                      (! SKIF_bDisableBorders),
+                                                                      (! _registry.bDisableBorders),
                                                       ImGuiWindowFlags_NoScrollbar            |
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
-                        ((pApp->textures.isCustomCover || SKIF_iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
+                        ((pApp->textures.isCustomCover || _registry.iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
@@ -3944,8 +3933,8 @@ Cache=false)";
 
             ShellExecuteExW (&sexi);
 
-            if (SKIF_bMinimizeOnGameLaunch)
-              SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE);
+            if (_registry.bMinimizeOnGameLaunch)
+              SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }
@@ -4033,7 +4022,7 @@ Cache=false)";
                  ICON_FA_DISCORD
                              );
         ImGui::TextColored (
-               (SKIF_iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
+               (_registry.iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
                  ICON_FA_DISCOURSE
                              );
         ImGui::TextColored (
@@ -4041,7 +4030,7 @@ Cache=false)";
                  ICON_FA_PATREON
                              );
         ImGui::TextColored (
-               (SKIF_iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+               (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
                  ICON_FA_GITHUB
                              );
       }
@@ -4473,11 +4462,11 @@ Cache=false)";
       {
 
         ImGui::TextColored (
-         (SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+         (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
            ICON_FA_STEAM_SYMBOL );
 
         ImGui::TextColored (
-         (SKIF_iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+         (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
            ICON_FA_STEAM_SYMBOL );
 
         ImGui::TextColored (

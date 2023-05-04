@@ -4,8 +4,7 @@
 #include <typeindex>
 #include <sstream>
 
-struct SKIF_WindowsRegistry {
-  SKIF_WindowsRegistry (void);
+struct SKIF_RegistrySettings {
 
   template <class _Tp>
     class KeyValue
@@ -369,6 +368,8 @@ struct SKIF_WindowsRegistry {
 #define SKIF_MakeRegKeyI  KeyValue <int>         ::MakeKeyValue
 #define SKIF_MakeRegKeyWS KeyValue <std::wstring>::MakeKeyValue
   
+  // Booleans
+
   // Changed name to avoid the forced behaviour change in SK that broke the
   //   intended user experience as well as launcher mode of SKIF in early 2022
   KeyValue <bool> regKVDisableStopOnInjection =
@@ -448,10 +449,6 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Allow Background Service)" );
 
-  KeyValue <bool> regKVEnableHDR =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(HDR)" );
-
   KeyValue <bool> regKVDisableVSYNC =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable VSYNC)" );
@@ -484,6 +481,8 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Sort Ascending)" );
 
+  // Integers
+
   KeyValue <int> regKVProcessRefreshInterval =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Refresh Interval)" );
@@ -492,7 +491,7 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Sort)" );
 
-  KeyValue <int> regKVLastSelected =
+  KeyValue <int> regKVLastSelectedGame =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Last Selected)" );
 
@@ -524,6 +523,16 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Auto-Stop Behavior)" );
 
+  KeyValue <int> regKVHDRMode =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(HDR)" );
+
+  // Wide Strings
+
+  KeyValue <std::wstring> regKVLastSelectedStore =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                          LR"(Last Selected Store)" );
+
   KeyValue <std::wstring> regKVIgnoreUpdate =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Ignore Update)" );
@@ -541,13 +550,62 @@ struct SKIF_WindowsRegistry {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Path)" );
 
-  // Moved within _registry to solve scoping issues with the previous approach
-  //  following the refactoring of SKIF.h/cpp, registry.h/cpp, and settings.h/cpp
+  // Settings
+  int iNotifications;
+  int iGhostVisibility;
+  int iStyle;
+  int iDimCovers;
+  int iCheckForUpdates;
+  int iAutoStopBehavior;
+  int iLogging;
+  int iProcessSort;
+  int iProcessRefreshInterval;
+  int iHDRMode;
+
+  //TODO: Move everything over to be defined as part of registry.h instead.
+  bool bRememberLastSelected;
+  bool bDisableDPIScaling;
+  bool bDisableTooltips;
+  bool bDisableStatusBar;
+  bool bDisableBorders;
+  bool bDisableSteamLibrary;
+  bool bDisableEGSLibrary;
+  bool bDisableGOGLibrary;
+  bool bDisableXboxLibrary;
+  bool bSmallMode;
+  bool bFirstLaunch;
+  bool bEnableDebugMode;
+  bool bAllowMultipleInstances;
+  bool bAllowBackgroundService;
+  bool bDisableVSYNC;
+  bool bDisableCFAWarning;
+  bool bOpenAtCursorPosition;
+  bool bStopOnInjection;
+  bool bCloseToTray;
+  bool bLowBandwidthMode;
+  bool bPreferGOGGalaxyLaunch;
+  bool bMinimizeOnGameLaunch;
+  bool bProcessSortAscending;
+  bool bProcessIncludeAll;
+  
   std::wstring wsUpdateChannel;
   std::wstring wsIgnoreUpdate;
-
-  // Stored here because why not *shrug*
   std::wstring wsAppRegistration;
   std::wstring wsPath;
+  std::wstring wsLastSelectedStore;
+  unsigned int  iLastSelectedGame;
+  bool          bLastSelectedWritten;
 
-} extern _registry;
+  // Functions
+  static SKIF_RegistrySettings& GetInstance (void)
+  {
+      static SKIF_RegistrySettings instance;
+      return instance;
+  }
+
+  SKIF_RegistrySettings (SKIF_RegistrySettings const&) = delete; // Delete copy constructor
+  SKIF_RegistrySettings (SKIF_RegistrySettings&&)      = delete; // Delete move constructor
+
+private:
+  SKIF_RegistrySettings (void);
+};
