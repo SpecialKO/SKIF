@@ -323,7 +323,6 @@ IsHDRSupported (bool refresh = false)
   // For each active path
   for (auto& path : pathArray)
   {
-    // Find the target (monitor) friendly name
     DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
       getDisplayHDR                   = { };
       getDisplayHDR.header.adapterId  = path.targetInfo.adapterId;
