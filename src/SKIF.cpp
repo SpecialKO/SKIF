@@ -1860,6 +1860,7 @@ void SKIF_Initialize (void)
 }
 
 typedef enum EFFECTIVE_POWER_MODE {
+    EffectivePowerModeNone    = -1,   // Used as default value if querying failed
     EffectivePowerModeBatterySaver,
     EffectivePowerModeBetterBattery,
     EffectivePowerModeBalanced,
@@ -1870,7 +1871,6 @@ typedef enum EFFECTIVE_POWER_MODE {
 } EFFECTIVE_POWER_MODE;
 
 std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode;
-std::string sEffectivePowerMode;
 
 #define EFFECTIVE_POWER_MODE_V1 (0x00000001)
 #define EFFECTIVE_POWER_MODE_V2 (0x00000002)
@@ -1898,6 +1898,9 @@ std::string SKIF_GetEffectivePowerMode (void)
 
   switch (enumEffectivePowerMode.load( ))
   {
+  case EffectivePowerModeNone:
+    sMode = "None";
+    break;
   case EffectivePowerModeBatterySaver:
     sMode = "Battery Saver";
     break;
@@ -2333,6 +2336,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
 	HANDLE hEffectivePowerModeRegistration = NULL;
 
+  enumEffectivePowerMode.store(EffectivePowerModeNone);
   if (SKIF_PowerRegisterForEffectivePowerModeNotifications      != nullptr)
   {
     if (SKIF_PowerUnregisterFromEffectivePowerModeNotifications != nullptr)
@@ -3182,9 +3186,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
           7.0f * SKIF_ImGui_GlobalDPIScale
         );
 
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
-                              (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
-                                             : SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
+        if (SKIF_GetEffectivePowerMode() != "None")
+          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
+                                (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
+                                               : SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
+        else
+          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
+                                (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
+                                               : SKIF_WINDOW_TITLE_A);
 
         if (                          _registry.iGhostVisibility == 1 ||
             (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
