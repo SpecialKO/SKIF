@@ -169,5 +169,6 @@ float4 main (PS_INPUT input) : SV_Target
   }
 
   return
-    ( input.col * out_col );
+    ( float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a) ); // Used to allow 16 bpc format in SDR
+    //( input.col * out_col ); // Original method (results in grey washed out window on SDR 16 bpc)
 };
