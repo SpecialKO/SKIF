@@ -731,7 +731,7 @@ SKIF_UI_Tab_DrawSettings (void)
       RecreateSwapChains = true;
     }
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("HDR10/BT.2100 (10 bpc)", &_registry.iHDRMode, 1))
+    if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
     {
       _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
       RecreateSwapChains = true;

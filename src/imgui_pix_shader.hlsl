@@ -122,6 +122,8 @@ float4 main (PS_INPUT input) : SV_Target
 
   if (viewport.z > 0.f)
   {
+    float4 orig_col = out_col;
+
     if (input.uv2.x > 0.0f && input.uv2.y > 0.0f)
     {
       out_col.rgb =
@@ -145,17 +147,25 @@ float4 main (PS_INPUT input) : SV_Target
     float hdr_scale  = hdr10 ? ( -input.uv3.x / 10000.0 )
                              :    input.uv3.x;
 
-    float hdr_offset = hdr10 ? 0.0f : input.uv3.z / 80.0;
+    // Do not use; EDID minimum black level is -ALWAYS- wrong...
+    float hdr_offset = 0.0f;// hdr10 ? 0.0f : input.uv3.z / 80.0;
 
     hdr_scale -= hdr_offset;
 
-    return
+    out_col.rgba =
       float4 (   ( hdr10 ?
         LinearToST2084 (
           REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale
                        ) :  saturate (out_col.rgb)   * hdr_scale
                  )                                   + hdr_offset,
                             saturate (out_col.a  ) );
+
+    out_col.r = (orig_col.r < 0.000001f) ? 0.0f : out_col.r;
+    out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
+    out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
+
+    return
+      out_col.rgba;
   }
 
   return

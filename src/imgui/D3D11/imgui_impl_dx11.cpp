@@ -1341,7 +1341,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       {
         pOutput6->GetDesc1 (&data->HDRDesc);
 
-        if (data->HDRDesc.ColorSpace == dxgi_cst)
+        // Is the display in HDR mode?
+        if (data->HDRDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
         {
           data->HDR = true;
 
@@ -1356,6 +1357,37 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   if (data->SwapChain)
   {
+    // If we are using 16 bpc format, but the display is not in HDR
+    //   we need to recreate the swapchain
+    if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT && ! data->HDR)
+    {
+      swap_desc.Format =
+        DXGI_FORMAT_R10G10B10A2_UNORM;
+
+      data->SwapChain->Release();
+      data->SwapChain = nullptr;
+
+      g_pd3dDeviceContext->ClearState ( );
+      g_pd3dDeviceContext->Flush      ( );
+
+      for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
+      {
+        swap_desc.SwapEffect = _swapEffect;
+
+        // In case flip failed, fall back to using BitBlt
+        if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
+        {
+          swap_desc.Format      = DXGI_FORMAT_R8G8B8A8_UNORM;
+          swap_desc.BufferCount = 1;
+          swap_desc.Flags       = 0x0;
+          SKIF_bCanFlip         = false;
+        }
+
+        if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
+                                  &data->SwapChain ))) break;
+      }
+    }
+
     CComPtr <
       ID3D11Texture2D
     >              pBackBuffer;
