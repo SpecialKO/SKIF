@@ -91,7 +91,7 @@ GetMPOSupport (void)
 
     // Get all active paths and their modes
     result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
-                                                          &modeCount, modeArray.data(), nullptr);
+                                                         &modeCount, modeArray.data(), nullptr);
 
     // The function may have returned fewer paths/modes than estimated
     pathArray.resize(pathCount);
@@ -271,6 +271,84 @@ GetMPOSupport (void)
   return true;
 }
 
+// Check if one of the connected displays supports HDR
+bool
+IsHDRSupported (bool refresh = false)
+{
+  std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
+  std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
+  LONG result = ERROR_SUCCESS;
+  
+  static bool state = false;
+
+  if (! refresh)
+    return state;
+  
+  state = false;
+
+  do
+  {
+    // Determine how many path and mode structures to allocate
+    UINT32 pathCount, modeCount;
+    result = GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetErrorAsWStr (result);
+      state = false;
+    }
+
+    // Allocate the path and mode arrays
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // Get all active paths and their modes
+    result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+                                                         &modeCount, modeArray.data(), nullptr);
+
+    // The function may have returned fewer paths/modes than estimated
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+    // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+  } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+  if (result != ERROR_SUCCESS)
+  {
+    PLOG_ERROR << "QueryDisplayConfig failed: " << SKIF_Util_GetErrorAsWStr (result);
+    state = false;
+  }
+
+  // For each active path
+  for (auto& path : pathArray)
+  {
+    // Find the target (monitor) friendly name
+    DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+      getDisplayHDR                   = { };
+      getDisplayHDR.header.adapterId  = path.targetInfo.adapterId;
+      getDisplayHDR.header.id         = path.targetInfo.id;
+      getDisplayHDR.header.type       = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+      getDisplayHDR.header.size       = sizeof (getDisplayHDR);
+
+    result = DisplayConfigGetDeviceInfo (&getDisplayHDR.header);
+
+    if (result == ERROR_SUCCESS)
+    {
+      if (getDisplayHDR.advancedColorSupported && getDisplayHDR.advancedColorEnabled)
+      {
+        state = true;
+        break;
+      }
+    }
+    else {
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr(result);
+    }
+  }
+
+  return state;
+}
+
 // Check if the SK_WinRing0 driver service is installed or not
 std::wstring
 GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinRing0")
@@ -408,6 +486,7 @@ SKIF_UI_Tab_DrawSettings (void)
             SYSdrv        = SKIFdrvFolder + L"WinRing0x64.sys"; // TODO: Should be reworked to support a separate install location as well
   
   static SKIF_DirectoryWatch SKIF_DriverWatch;
+  static bool HDRSupported = false;
 
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
@@ -426,7 +505,8 @@ SKIF_UI_Tab_DrawSettings (void)
   // Refresh things when visiting from another tab or when forced
   if (SKIF_Tab_Selected != UITab_Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true))
   {
-    GetMPOSupport ( );
+    GetMPOSupport  (    );
+    IsHDRSupported (true);
     driverBinaryPath    = GetDrvInstallState (driverStatus);
     driverStatusPending =                     driverStatus;
     RefreshSettingsTab  = false;
@@ -716,36 +796,39 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
-    extern bool RecreateSwapChains;
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-    SKIF_ImGui_SetHoverTip ("Makes the app pop a lot on HDR displays.");
-    ImGui::SameLine        ( );
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "High Dynamic Range:"
-    );
-    ImGui::TreePush        ("iHDRMode");
-    if (ImGui::RadioButton ("Never",                  &_registry.iHDRMode, 0))
+    if (IsHDRSupported ( ))
     {
-      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
-      RecreateSwapChains = true;
-    }
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
-    {
-      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
-      RecreateSwapChains = true;
-    }
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("scRGB (16 bpc)",         &_registry.iHDRMode, 2))
-    {
-      _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
-      RecreateSwapChains = true;
-    }
-    ImGui::TreePop         ( );
+      extern bool RecreateSwapChains;
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");
+      ImGui::SameLine        ( );
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          "High Dynamic Range:"
+      );
+      ImGui::TreePush        ("iHDRMode");
+      if (ImGui::RadioButton ("Disabled",               &_registry.iHDRMode, 0))
+      {
+        _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+        RecreateSwapChains = true;
+      }
+      ImGui::SameLine        ( );
+      if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
+      {
+        _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+        RecreateSwapChains = true;
+      }
+      ImGui::SameLine        ( );
+      if (ImGui::RadioButton ("scRGB (16 bpc)",         &_registry.iHDRMode, 2))
+      {
+        _registry.regKVHDRMode.putData (                 _registry.iHDRMode);
+        RecreateSwapChains = true;
+      }
+      ImGui::TreePop         ( );
 
-    ImGui::Spacing         ( );
-    
+      ImGui::Spacing         ( );
+    }
+
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
     ImGui::SameLine        ( );
