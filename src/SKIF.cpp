@@ -161,6 +161,9 @@ bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
 HMENU hMenu;
 
+// Hotkeys
+int SKIF_HotKey_HDR = 1337; // Win + Ctrl + Shift + H
+
 // Cmd line argument stuff
 struct SKIF_Signals {
   BOOL Stop          = FALSE;
@@ -2318,6 +2321,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
 
+  // Register SKIF for effective power notifications on Windows 10 1809+
   using PowerRegisterForEffectivePowerModeNotifications_pfn =
     HRESULT (WINAPI *)(ULONG Version, EFFECTIVE_POWER_MODE_CALLBACK *Callback, VOID *Context, VOID **RegistrationHandle);
 
@@ -2346,6 +2350,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
+  if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+    PLOG_INFO << "Successfully registered global hotkey (WinKey + Ctrl + Shift + H) for toggling HDR on the display the cursor is currently on.";
+  /*
+  * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
+  *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
+  */
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -4116,6 +4127,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
 
+  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
+    PLOG_INFO << "Removed the global hotkey for toggling HDR.";
+
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
@@ -4358,6 +4372,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_HOTKEY:
+      if (wParam == SKIF_HotKey_HDR)
+        SKIF_Util_EnableHDROutput ( );
+    break;
     case WM_QUIT:
       SKIF_Shutdown = true;
       break;
@@ -4546,6 +4564,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       ::PostQuitMessage (0);
       return 0;
   }
+
   return
     ::DefWindowProc (hWnd, msg, wParam, lParam);
 }
