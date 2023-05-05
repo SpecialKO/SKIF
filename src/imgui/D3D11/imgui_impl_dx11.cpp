@@ -1262,13 +1262,12 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         SKIF_bCanHDR                && // Does the system support HDR?
       _registry.iHDRMode != 0        ) // HDR support is not disabled, is it?
   {
-    CComPtr   <IDXGIOutput>     pOutput;
-    CComQIPtr <IDXGISwapChain3> pSwapChain3 (data->SwapChain);
 
     // Retrieve the current default adapter.
-    CComPtr   <IDXGIAdapter1> dxgiAdapter;
+    CComPtr   <IDXGIOutput>   pOutput;
+    CComPtr   <IDXGIAdapter1> pAdapter;
     CComQIPtr <IDXGIFactory2> pFactory1 (g_pFactory);
-    ThrowIfFailed (pFactory1->EnumAdapters1 (0, &dxgiAdapter));
+    ThrowIfFailed (pFactory1->EnumAdapters1 (0, &pAdapter));
 
     auto _ComputeIntersectionArea =
           [&](long ax1, long ay1, long ax2, long ay2,
@@ -1288,7 +1287,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     // and find the output whose bounds have the greatest overlap with the
     // app window (i.e. the output for which the intersection area is the
     // greatest).
-    while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+    while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
     {
       // Get the retangle bounds of the app window
       int ax1 = m_windowBounds.left;
@@ -1332,23 +1331,29 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         (_registry.iHDRMode == 2)
           ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
           : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
+      
+      CComQIPtr <IDXGISwapChain3>
+          pSwapChain3 (data->SwapChain);
 
-      pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
-
-      if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
-            ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
-         )
+      if (pSwapChain3 != nullptr)
       {
-        pOutput6->GetDesc1 (&data->HDRDesc);
+        pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
 
-        // Is the display in HDR mode?
-        if (data->HDRDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
+              ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
+           )
         {
-          data->HDR = true;
-
-          pSwapChain3->SetColorSpace1 (dxgi_cst);
-
           pOutput6->GetDesc1 (&data->HDRDesc);
+
+          // Is the display in HDR mode?
+          if (data->HDRDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+          {
+            data->HDR = true;
+
+            pSwapChain3->SetColorSpace1 (dxgi_cst);
+
+            pOutput6->GetDesc1 (&data->HDRDesc);
+          }
         }
       }
     }
