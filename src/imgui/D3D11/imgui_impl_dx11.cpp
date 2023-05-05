@@ -1207,7 +1207,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
-  DXGI_FORMAT dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // DXGI_FORMAT_R8G8B8A8_UNORM
+  DXGI_FORMAT dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM; // DXGI_FORMAT_R8G8B8A8_UNORM
 
   if (SKIF_bCanHDR)
   {
@@ -1217,7 +1217,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
     // HDR10
     else
-      dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // DXGI_FORMAT_R10G10B10A2_UNORM;
+      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM; // DXGI_FORMAT_R10G10B10A2_UNORM;
   }
 
   // Create the swapchain for the viewport
@@ -1365,7 +1365,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   {
     // If we are using 16 bpc format, but the display is not in HDR
     //   we need to recreate the swapchain
-    if (false && swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT && ! data->HDR)
+    if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT && ! data->HDR)
     {
       swap_desc.Format =
         DXGI_FORMAT_R10G10B10A2_UNORM;
