@@ -1400,16 +1400,16 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     if (SKIF_bCanWaitSwapchain)
     {
       CComQIPtr <IDXGISwapChain2>
-          pSwap2 (data->SwapChain);
+          pSwapChain2 (data->SwapChain);
 
-      if (pSwap2 != nullptr)
+      if (pSwapChain2 != nullptr)
       {
         // The maximum number of back buffer frames that will be queued for the swap chain. This value is 1 by default.
         // This method is only valid for use on swap chains created with DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.
-        pSwap2->SetMaximumFrameLatency (1);
+        pSwapChain2->SetMaximumFrameLatency (1);
 
         data->WaitHandle =
-          pSwap2->GetFrameLatencyWaitableObject ( );
+          pSwapChain2->GetFrameLatencyWaitableObject ( );
 
         if (data->WaitHandle)
         {
