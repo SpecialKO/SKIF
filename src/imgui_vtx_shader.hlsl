@@ -19,7 +19,7 @@ struct PS_INPUT
   float4 col : COLOR0;
   float2 uv  : TEXCOORD0;
   float2 uv2 : TEXCOORD1;
-  float3 uv3 : TEXCOORD2;
+  float4 uv3 : TEXCOORD2;
 };
 
 PS_INPUT main (VS_INPUT input)
@@ -33,7 +33,7 @@ PS_INPUT main (VS_INPUT input)
 
   output.col = input.col;
   output.uv2 = float2 (0.f, 0.f);
-  output.uv3 = Luminance.xyz;
+  output.uv3 = Luminance.xyzw;
 
   return output;
 }

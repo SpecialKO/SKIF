@@ -5,7 +5,7 @@ struct PS_INPUT
   float4 col : COLOR0;
   float2 uv  : TEXCOORD0;
   float2 uv2 : TEXCOORD1;
-  float3 uv3 : TEXCOORD2;
+  float4 uv3 : TEXCOORD2;
 };
 
 cbuffer viewportDims : register (b0)
@@ -168,7 +168,11 @@ float4 main (PS_INPUT input) : SV_Target
       out_col.rgba;
   }
 
+  bool linear_sdr =
+    input.uv3.w > 0;
+
   return
-    //( float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a) ); // Used to allow 16 bpc format in SDR
-    ( input.col * out_col ); // Original method (results in grey washed out window on SDR 16 bpc)
+    linear_sdr ?
+      float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a)
+               :                             ( input.col    *                                        out_col );
 };
