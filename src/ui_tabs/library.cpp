@@ -1043,7 +1043,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
 
           // Strip game names from special symbols (disabled due to breaking some Chinese characters)
-          //const char* chars = (const char *)u8"©®™";
+          //const char* chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)
           //for (unsigned int i = 0; i < strlen(chars); ++i)
             //app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
 
