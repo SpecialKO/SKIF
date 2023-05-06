@@ -527,6 +527,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(HDR)" );
 
+  KeyValue <int> regKVHDRBrightness =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(HDR Brightness)" );
+
   // Wide Strings
 
   KeyValue <std::wstring> regKVLastSelectedStore =
@@ -561,6 +565,7 @@ struct SKIF_RegistrySettings {
   int iProcessSort;
   int iProcessRefreshInterval;
   int iHDRMode;
+  int iHDRBrightness;
 
   //TODO: Move everything over to be defined as part of registry.h instead.
   bool bRememberLastSelected;

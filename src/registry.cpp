@@ -13,6 +13,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   iProcessSort             = 0; // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   iProcessRefreshInterval  = 2; // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
   iHDRMode                 = 1; // 0 = Never,                       1 = Always,                 2 = On mouse hover
+  iHDRBrightness           = 203;
 
   // Default settings (booleans)
   bRememberLastSelected    = false;
@@ -70,6 +71,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVHDRMode.hasData())
     iHDRMode               =   regKVHDRMode.getData                 ( );
+  if (regKVHDRBrightness.hasData())
+    iHDRBrightness         =   regKVHDRBrightness.getData           ( );
 
   bDisableVSYNC            =   regKVDisableVSYNC.getData            ( );
   bDisableCFAWarning       =   regKVDisableCFAWarning.getData       ( );

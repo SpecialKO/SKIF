@@ -637,13 +637,13 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
       // scRGB
       if (_registry.iHDRMode == 2)
       {
-        constant_buffer->luminance_scale [0] = (data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f);
+        constant_buffer->luminance_scale [0] = (_registry.iHDRBrightness          / 80.0f);
         constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
       }
 
       // HDR10
       else {
-        constant_buffer->luminance_scale [0] = -data->SKIF_GetHDRWhiteLuma ( );
+        constant_buffer->luminance_scale [0] = float (-_registry.iHDRBrightness);
       }
 
       constant_buffer->luminance_scale [1] = 2.2f;
