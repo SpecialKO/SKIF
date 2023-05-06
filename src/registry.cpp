@@ -1,5 +1,7 @@
 #include <registry.h>
 
+extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
+
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
   // Default settings (multiple options)
@@ -15,6 +17,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   iSDRMode                 = 1;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
   iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
   iHDRBrightness           = 203; // HDR reference white for BT.2408
+
+  // Windows 7 does not support 10 bpc for flip based swap chains
+  if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
+    iSDRMode = 0;
 
   // Default settings (booleans)
   bRememberLastSelected    = false;
@@ -43,111 +49,106 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bProcessIncludeAll       = false;
 
   
-  iProcessSort             =   regKVProcessSort.getData             ( );
-  if (regKVProcessIncludeAll.hasData())
-    bProcessIncludeAll     =   regKVProcessIncludeAll.getData       ( );
+  iProcessSort             =   regKVProcessSort            .getData ( );
+  if (regKVProcessIncludeAll   .hasData())
+    bProcessIncludeAll     =   regKVProcessIncludeAll      .getData ( );
   if (regKVProcessSortAscending.hasData())
-    bProcessSortAscending  =   regKVProcessSortAscending.getData    ( );
+    bProcessSortAscending  =   regKVProcessSortAscending   .getData ( );
   if (regKVProcessRefreshInterval.hasData())
-    iProcessRefreshInterval=   regKVProcessRefreshInterval.getData    ( );
+    iProcessRefreshInterval=   regKVProcessRefreshInterval .getData ( );
 
-  bLowBandwidthMode        =   regKVLowBandwidthMode.getData        ( );
-  bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch.getData   ( );
+  bLowBandwidthMode        =   regKVLowBandwidthMode       .getData ( );
+  bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch  .getData ( );
 
-  bDisableDPIScaling       =   regKVDisableDPIScaling.getData       ( );
-  bDisableTooltips         =   regKVDisableTooltips.getData         ( );
-  bDisableStatusBar        =   regKVDisableStatusBar.getData        ( );
-  bDisableSteamLibrary     =   regKVDisableSteamLibrary.getData     ( );
-  bDisableEGSLibrary       =   regKVDisableEGSLibrary.getData       ( );
-  bDisableGOGLibrary       =   regKVDisableGOGLibrary.getData       ( );
+  bDisableDPIScaling       =   regKVDisableDPIScaling      .getData ( );
+  bDisableTooltips         =   regKVDisableTooltips        .getData ( );
+  bDisableStatusBar        =   regKVDisableStatusBar       .getData ( );
+  bDisableSteamLibrary     =   regKVDisableSteamLibrary    .getData ( );
+  bDisableEGSLibrary       =   regKVDisableEGSLibrary      .getData ( );
+  bDisableGOGLibrary       =   regKVDisableGOGLibrary      .getData ( );
 
   if (regKVDisableXboxLibrary.hasData())
-    bDisableXboxLibrary    =   regKVDisableXboxLibrary.getData      ( );
+    bDisableXboxLibrary    =   regKVDisableXboxLibrary     .getData ( );
 
-  bEnableDebugMode         =   regKVEnableDebugMode.getData         ( );
-  bSmallMode               =   regKVSmallMode.getData               ( );
-  bFirstLaunch             =   regKVFirstLaunch.getData             ( );
-  bAllowMultipleInstances  =   regKVAllowMultipleInstances.getData  ( );
-  bAllowBackgroundService  =   regKVAllowBackgroundService.getData  ( );
+  bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
+  bSmallMode               =   regKVSmallMode              .getData ( );
+  bFirstLaunch             =   regKVFirstLaunch            .getData ( );
+  bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );
+  bAllowBackgroundService  =   regKVAllowBackgroundService .getData ( );
   
   if (regKVSDRMode.hasData())
-    iSDRMode               =   regKVSDRMode.getData                 ( );
+    iSDRMode               =   regKVSDRMode                .getData ( );
 
   if (regKVHDRMode.hasData())
-    iHDRMode               =   regKVHDRMode.getData                 ( );
+    iHDRMode               =   regKVHDRMode                .getData ( );
   if (regKVHDRBrightness.hasData())
-    iHDRBrightness         =   regKVHDRBrightness.getData           ( );
+    iHDRBrightness         =   regKVHDRBrightness          .getData ( );
 
-  bDisableVSYNC            =   regKVDisableVSYNC.getData            ( );
-  bDisableCFAWarning       =   regKVDisableCFAWarning.getData       ( );
-  bOpenAtCursorPosition    =   regKVOpenAtCursorPosition.getData    ( );
+  bDisableVSYNC            =   regKVDisableVSYNC           .getData ( );
+  bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
+  bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );
   
+  /* 2023-05-06: Disabled as it probably does not serve any purpose any longer
   // If the legacy key has data, but not the new key, move the data over to respect existing user's choices
   if (!regKVDisableStopOnInjection.hasData() && regKVLegacyDisableStopOnInjection.hasData())
     regKVDisableStopOnInjection.putData (regKVLegacyDisableStopOnInjection.getData());
+  */
 
-  bStopOnInjection         = ! regKVDisableStopOnInjection.getData  ( );
-  bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch.getData    ( );
-  bCloseToTray             =   regKVCloseToTray.getData             ( );
+  bStopOnInjection         = ! regKVDisableStopOnInjection .getData ( );
+  bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
+  bCloseToTray             =   regKVCloseToTray            .getData ( );
 
   if (regKVDisableBorders.hasData())
-    bDisableBorders        =   regKVDisableBorders.getData          ( );
+    bDisableBorders        =   regKVDisableBorders         .getData ( );
 
   if (regKVAutoStopBehavior.hasData())
-    iAutoStopBehavior      =   regKVAutoStopBehavior.getData        ( );
+    iAutoStopBehavior      =   regKVAutoStopBehavior       .getData ( );
 
   if (regKVNotifications.hasData())
-    iNotifications         =   regKVNotifications.getData           ( );
+    iNotifications         =   regKVNotifications          .getData ( );
 
   if (regKVGhostVisibility.hasData())
-    iGhostVisibility       =   regKVGhostVisibility.getData         ( );
+    iGhostVisibility       =   regKVGhostVisibility        .getData ( );
 
   if (regKVStyle.hasData())
-    iStyle                 =   regKVStyle.getData                   ( );
+    iStyle                 =   regKVStyle                  .getData ( );
 
   if (regKVLogging.hasData())
-    iLogging               =   regKVLogging.getData                 ( );
+    iLogging               =   regKVLogging                .getData ( );
 
   if (regKVDimCovers.hasData())
-    iDimCovers             =   regKVDimCovers.getData               ( );
+    iDimCovers             =   regKVDimCovers              .getData ( );
 
   if (regKVCheckForUpdates.hasData())
-    iCheckForUpdates       =   regKVCheckForUpdates.getData         ( );
+    iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
 
   if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate              =   regKVIgnoreUpdate.getWideString      ( );
+    wsIgnoreUpdate              =   regKVIgnoreUpdate      .getWideString ( );
 
   if (regKVFollowUpdateChannel.hasData())
-    wsUpdateChannel             = regKVFollowUpdateChannel.getWideString ( );
-
-  /*
-  if (bRememberLastSelected && regKVLastSelected.hasData())
-    iLastSelected          =   regKVLastSelected.getData            ( );
-
-  iLastSelectedStored = iLastSelected;
-  */
+    wsUpdateChannel             = regKVFollowUpdateChannel .getWideString ( );
   
   // Remember Last Selected Game
   const int STEAM_APPID = 1157970;
   iLastSelectedGame   = STEAM_APPID; // Default selected game
-  wsLastSelectedStore = L"Steam";         // Default selected store
+  wsLastSelectedStore = L"Steam";    // Default selected store
 
   if (regKVRememberLastSelected.hasData())
-    bRememberLastSelected  =   regKVRememberLastSelected.getData    ( );
+    bRememberLastSelected  =   regKVRememberLastSelected   .getData ( );
 
   if (bRememberLastSelected)
   {
     if (regKVLastSelectedGame.hasData())
-      iLastSelectedGame         =   regKVLastSelectedGame.getData        ( );
+      iLastSelectedGame         =   regKVLastSelectedGame  .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore       =   regKVLastSelectedStore.getWideString ( );
+      wsLastSelectedStore       =   regKVLastSelectedStore .getWideString ( );
   }
 
   // App registration
   if (regKVAppRegistration.hasData())
-    wsAppRegistration           = regKVAppRegistration.getWideString ( );
+    wsAppRegistration           = regKVAppRegistration     .getWideString ( );
 
   if (regKVPath.hasData())
-    wsPath                      = regKVPath.getWideString ( );
+    wsPath                      = regKVPath                .getWideString ( );
 }
