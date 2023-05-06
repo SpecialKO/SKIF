@@ -1749,7 +1749,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Granted 'Performance Log Users' permission?");
     ImGui::SameLine    ();
