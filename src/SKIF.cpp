@@ -2832,7 +2832,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           ImGui::TreePush("");
           ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m²"))
+          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m\u00B2"))
           {
             SKIF_SetHDRWhiteLuma (fLuma);
             regKVLuma.putData    (fLuma);
