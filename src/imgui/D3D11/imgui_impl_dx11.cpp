@@ -630,6 +630,9 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     {
       constant_buffer->luminance_scale [0] = 1.0f;
       constant_buffer->luminance_scale [1] = 2.2f;
+
+      // If you want linear gamma (FP16) in SDR, set this to 1.0f
+      constant_buffer->luminance_scale [3] = 1.0f;
     }
 
     else

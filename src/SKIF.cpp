@@ -1472,21 +1472,21 @@ void SKIF_UI_DrawComponentVersion (void)
 
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 32-bit");
 
 #ifdef _WIN64
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 64-bit");
 #endif
     
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Frontend (SKIF)");
 
@@ -1515,7 +1515,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"• ");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -2832,7 +2832,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           ImGui::TreePush("");
           ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m²"))
+          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m\u00B2"))
           {
             SKIF_SetHDRWhiteLuma (fLuma);
             regKVLuma.putData    (fLuma);

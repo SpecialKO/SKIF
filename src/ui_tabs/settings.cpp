@@ -1471,13 +1471,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (! white_stored)
     {
-        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"� ");
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"\u2022 ");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "The whitelist could not be saved! Please remove any non-Latin characters and try again.");
     }
 
     if (! black_stored)
     {
-        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"� ");
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),  (const char *)u8"\u2022 ");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "The blacklist could not be saved! Please remove any non-Latin characters and try again.");
     }
 
@@ -1511,7 +1511,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware.");
     ImGui::EndGroup    ();
@@ -1527,7 +1527,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Kernel Driver:");
     ImGui::SameLine    ();
@@ -1558,7 +1558,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
       ImGui::Spacing     ();
       ImGui::SameLine    ();
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
       ImGui::SameLine    ();
       ImGui::Text        ("Conflict With:");
       ImGui::SameLine    ();
@@ -1749,7 +1749,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 
     ImGui::SameLine    ();
     ImGui::Text        ("Granted 'Performance Log Users' permission?");
     ImGui::SameLine    ();
@@ -1829,20 +1829,20 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
     ImGui::TreePush    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Independent Flip");
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware Composed: Independent Flip");
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Legacy Flip");
 
     /* Extremely uncommon but included in the list anyway */
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
     
@@ -1855,21 +1855,21 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
     ImGui::TreePush    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
 
     /* Disabled as PresentMon doesn't detect this any longer as of May 2022.
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Composition Atlas");
     */
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Copy with GPU GDI");
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Copy with CPU GDI");
     ImGui::TreePop     ();
@@ -1986,7 +1986,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers");
     ImGui::EndGroup    ();
@@ -1996,7 +1996,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Intel: HD Graphics 510-515 (Core 6th gen)");
     ImGui::EndGroup    ();
@@ -2005,7 +2005,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"� ");
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers");
     ImGui::EndGroup    ();
