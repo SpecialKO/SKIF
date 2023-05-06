@@ -826,6 +826,14 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::TreePop         ( );
 
       ImGui::Spacing         ( );
+
+      if (ImGui::SliderInt("HDR brightness", &_registry.iHDRBrightness, 100, 400, "%d nits"))
+      {
+        _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
+        RecreateSwapChains = false;
+      }
+
+      ImGui::Spacing         ( );
     }
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
