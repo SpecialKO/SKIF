@@ -523,6 +523,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Auto-Stop Behavior)" );
 
+  KeyValue <int> regKVSDRMode =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(SDR)" );
+
   KeyValue <int> regKVHDRMode =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(HDR)" );
@@ -564,6 +568,7 @@ struct SKIF_RegistrySettings {
   int iLogging;
   int iProcessSort;
   int iProcessRefreshInterval;
+  int iSDRMode;
   int iHDRMode;
   int iHDRBrightness;
 

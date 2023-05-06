@@ -866,6 +866,83 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
   return ret;
 }
 
+// Check if one of the connected displays supports HDR
+bool
+SKIF_Util_IsHDRSupported (bool refresh)
+{
+  std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
+  std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
+  LONG result = ERROR_SUCCESS;
+  
+  static bool state = false;
+
+  if (! refresh)
+    return state;
+  
+  state = false;
+
+  do
+  {
+    // Determine how many path and mode structures to allocate
+    UINT32 pathCount, modeCount;
+    result = GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetErrorAsWStr (result);
+      state = false;
+    }
+
+    // Allocate the path and mode arrays
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // Get all active paths and their modes
+    result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+                                                         &modeCount, modeArray.data(), nullptr);
+
+    // The function may have returned fewer paths/modes than estimated
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+    // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+  } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+  if (result != ERROR_SUCCESS)
+  {
+    PLOG_ERROR << "QueryDisplayConfig failed: " << SKIF_Util_GetErrorAsWStr (result);
+    state = false;
+  }
+
+  // For each active path
+  for (auto& path : pathArray)
+  {
+    DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+      getDisplayHDR                   = { };
+      getDisplayHDR.header.adapterId  = path.targetInfo.adapterId;
+      getDisplayHDR.header.id         = path.targetInfo.id;
+      getDisplayHDR.header.type       = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+      getDisplayHDR.header.size       = sizeof (getDisplayHDR);
+
+    result = DisplayConfigGetDeviceInfo (&getDisplayHDR.header);
+
+    if (result == ERROR_SUCCESS)
+    {
+      if (getDisplayHDR.advancedColorSupported && getDisplayHDR.advancedColorEnabled)
+      {
+        state = true;
+        break;
+      }
+    }
+    else {
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr(result);
+    }
+  }
+
+  return state;
+}
+
 // Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/74605112/15133327
 bool
 SKIF_Util_EnableHDROutput (void)

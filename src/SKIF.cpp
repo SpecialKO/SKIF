@@ -4235,7 +4235,8 @@ bool CreateDeviceD3D (HWND hWnd)
 
     // Windows 10 1709+ (Build 16299)
     SKIF_bCanHDR                =
-      SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299);
+      SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299) &&
+      SKIF_Util_IsHDRSupported            (true);
 
     CComPtr <IDXGIFactory5>
                  pFactory5;
@@ -4245,11 +4246,13 @@ bool CreateDeviceD3D (HWND hWnd)
     // Windows 10+
     if (pFactory5 != nullptr)
     {
+      BOOL supportsTearing = FALSE;
       pFactory5->CheckFeatureSupport (
                             DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                                          &SKIF_bCanAllowTearing,
-                                  sizeof ( SKIF_bCanAllowTearing )
+                                          &supportsTearing,
+                                  sizeof  (supportsTearing)
                                                 );
+      SKIF_bCanAllowTearing = supportsTearing != FALSE;
 
       pFactory5.Release ( );
     }
