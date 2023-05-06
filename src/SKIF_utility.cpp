@@ -943,6 +943,110 @@ SKIF_Util_IsHDRSupported (bool refresh)
   return state;
 }
 
+// Get the SDR white level for a display
+int
+SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
+{
+  std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
+  std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
+  LONG result = ERROR_SUCCESS;
+
+  int nits = 80;
+
+  do
+  {
+    // Determine how many path and mode structures to allocate
+    UINT32 pathCount, modeCount;
+    result = GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+
+    if (result != ERROR_SUCCESS)
+    {
+      PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetErrorAsWStr (result);
+      return nits;
+    }
+
+    // Allocate the path and mode arrays
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // Get all active paths and their modes
+    result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+                                                         &modeCount, modeArray.data(), nullptr);
+
+    // The function may have returned fewer paths/modes than estimated
+    pathArray.resize(pathCount);
+    modeArray.resize(modeCount);
+
+    // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+    // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+  } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+  if (result != ERROR_SUCCESS)
+  {
+    PLOG_ERROR << "QueryDisplayConfig failed: " << SKIF_Util_GetErrorAsWStr (result);
+    return nits;
+  }
+
+  // Enumerate all monitors => (handle, device name)>
+  std::vector<std::tuple<HMONITOR, std::wstring>> monitors;
+  EnumDisplayMonitors(nullptr, nullptr, [](HMONITOR hmon, HDC hdc, LPRECT rc, LPARAM lp)
+  {
+      UNREFERENCED_PARAMETER(hdc);
+      UNREFERENCED_PARAMETER(rc);
+
+      MONITORINFOEX mi = {};
+      mi.cbSize = sizeof(MONITORINFOEX);
+      GetMonitorInfo(hmon, &mi);
+      auto monitors = (std::vector<std::tuple<HMONITOR, std::wstring>>*)lp;
+      monitors->push_back({ hmon, mi.szDevice });
+      return TRUE;
+  }, (LPARAM)&monitors);
+
+  // For each active path
+  for (auto& path : pathArray)
+  {
+    DISPLAYCONFIG_SOURCE_DEVICE_NAME
+      sourceName                  = {};
+      sourceName.header.adapterId = path.targetInfo.adapterId;
+      sourceName.header.id        = path.sourceInfo.id;
+      sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+      sourceName.header.size      =  sizeof (DISPLAYCONFIG_SOURCE_DEVICE_NAME);
+
+    if (ERROR_SUCCESS != DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&sourceName))
+        continue;
+
+    // Find the monitor with this device name
+    auto mon = std::find_if(monitors.begin(), monitors.end(), [&sourceName](std::tuple<HMONITOR, std::wstring> t)
+    {
+        return !std::get<1>(t).compare(sourceName.viewGdiDeviceName);
+    });
+
+    if (std::get<0>(*mon) != hMonitor)
+      continue;
+
+    // At this point we are working with the correct monitor
+
+    DISPLAYCONFIG_SDR_WHITE_LEVEL
+      getSDRWhiteLevel                  = { };
+      getSDRWhiteLevel.header.adapterId = path.targetInfo.adapterId;
+      getSDRWhiteLevel.header.id        = path.targetInfo.id;
+      getSDRWhiteLevel.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+      getSDRWhiteLevel.header.size      =         sizeof (DISPLAYCONFIG_SDR_WHITE_LEVEL);
+        
+    if (ERROR_SUCCESS != DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&getSDRWhiteLevel))
+        break;
+
+    // SDRWhiteLevel represents a multiplier for standard SDR white
+    // peak value i.e. 80 nits represented as fixed point.
+    // To get value in nits use the following conversion
+    // SDRWhiteLevel in nits = (SDRWhiteLevel / 1000) * 80
+    if (getSDRWhiteLevel.SDRWhiteLevel)
+      nits = (getSDRWhiteLevel.SDRWhiteLevel / 1000) * 80;
+  }
+
+  return nits;
+}
+
 // Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/74605112/15133327
 bool
 SKIF_Util_EnableHDROutput (void)
@@ -1039,7 +1143,7 @@ SKIF_Util_EnableHDROutput (void)
         getHDRSupport.header.size         =     sizeof (DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO);
         
       if (ERROR_SUCCESS != DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&getHDRSupport))
-          continue;
+          break;
 
       if (getHDRSupport.advancedColorSupported)
       {
@@ -1053,7 +1157,7 @@ SKIF_Util_EnableHDROutput (void)
           setHDRState.header.type         = DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
           setHDRState.header.size         =     sizeof (DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE);
 
-        if ( ERROR_SUCCESS == DisplayConfigSetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&setHDRState))
+        if (ERROR_SUCCESS == DisplayConfigSetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&setHDRState))
         {
           PLOG_INFO << "Toggled HDR state to " << NewHDRState;
           return true;

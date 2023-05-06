@@ -72,10 +72,11 @@ extern bool SKIF_bCanHDR;
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
 // External functions
-extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
-extern bool SKIF_Util_IsWindows10OrGreater      (void);
-extern bool SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
-extern bool SKIF_Util_IsHDRSupported            (bool refresh = false);
+extern bool SKIF_Util_IsWindows8Point1OrGreater   (void);
+extern bool SKIF_Util_IsWindows10OrGreater        (void);
+extern bool SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool SKIF_Util_IsHDRSupported              (bool refresh = false);
+extern int  SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
@@ -392,13 +393,15 @@ struct ImGuiViewportDataDx11 {
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
   int                     SDRMode;
+  int                     SDRWhiteLevel; // SDR white level in nits for the display
   int                     HDRMode;
   bool                    HDR;
-  DXGI_OUTPUT_DESC1       HDRDesc;
   FLOAT                   HDRLuma;
   FLOAT                   HDRMinLuma;
+  DXGI_OUTPUT_DESC1       DXGIDesc;
+  DXGI_FORMAT             DXGIFormat;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; HDRMode = 0; HDR = false; HDRDesc = {   }; HDRLuma = 0.0f; HDRMinLuma = 0.0f;; }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
   ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
 
   FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
@@ -407,20 +410,20 @@ struct ImGuiViewportDataDx11 {
       return 0.0f;
 
     return
-      bAllowLocalRange ? HDRDesc.MaxLuminance
-                       : HDRDesc.MaxFullFrameLuminance;
+      bAllowLocalRange ? DXGIDesc.MaxLuminance
+                       : DXGIDesc.MaxFullFrameLuminance;
   }
 
   FLOAT SKIF_GetMinHDRLuminance (void)
   {
-    if (! HDR)
+    if (! HDR && SDRWhiteLevel == 80)
       return 0.0f;
 
-    if (         HDRDesc.MinLuminance > HDRDesc.MaxFullFrameLuminance)
-      std::swap (HDRDesc.MinLuminance,  HDRDesc.MaxFullFrameLuminance);
+    if (         DXGIDesc.MinLuminance > DXGIDesc.MaxFullFrameLuminance)
+      std::swap (DXGIDesc.MinLuminance,  DXGIDesc.MaxFullFrameLuminance);
 
     return
-      HDRDesc.MinLuminance;
+      DXGIDesc.MinLuminance;
   }
 
   void  SKIF_SetHDRWhiteLuma (float fLuma)
@@ -646,10 +649,17 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
       }
     }
 
-    // scRGB SDR 16 bpc
-    else if (data->SDRMode == 2)
+    // scRGB 16 bpc special handling
+    else if (data->DXGIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
     {
-      // Known bug -- too dark when used on a HDR display (DWM apparently thinks the format is for a HDR display)
+      // SDR 16 bpc on HDR display
+      if (data->SDRWhiteLevel > 80)
+      {
+        constant_buffer->luminance_scale [0] = (data->SDRWhiteLevel               / 80.0f);
+        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+      }
+
+      // SDR 16 bpc on SDR display
       constant_buffer->luminance_scale [3] = 1.0f;
     }
 
@@ -660,14 +670,14 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                     ) != S_OK
        ) return;
 
-    if (data->HDR)
+    if (data->HDR || data->DXGIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
     {
       static_cast <  float *> (mapped_resource.pData)[0] = 0.0f;
       static_cast <  float *> (mapped_resource.pData)[1] = 0.0f;
       static_cast <  float *> (mapped_resource.pData)[2] =
-        static_cast <float  > (draw_data->DisplaySize.x);
+      static_cast <  float  > (draw_data->DisplaySize.x);
       static_cast <  float *> (mapped_resource.pData)[3] =
-        static_cast <float  > (draw_data->DisplaySize.y);
+      static_cast <  float  > (draw_data->DisplaySize.y);
     }
 
     ctx->Unmap ( g_pPixelConstantBuffer, 0 );
@@ -1223,6 +1233,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     else
       dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // HDR10 (10 bpc)
   }
+
   // SDR formats
   else {
     if      (_registry.iSDRMode == 2)
@@ -1271,12 +1282,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                               &data->SwapChain ))) break;
   }
 
-  // Create the render target
-#pragma region Enable HDR
-  if (data->SwapChain    != nullptr && // Do we have a swapchain?
-        SKIF_bCanHDR                && // Does the system support HDR?
-      _registry.iHDRMode  > 0        ) // HDR support is not disabled, is it?
+  // Do we have a swapchain?
+  if (data->SwapChain != nullptr)
   {
+    data->DXGIFormat = swap_desc.Format;
 
     // Retrieve the current default adapter.
     CComPtr   <IDXGIOutput>   pOutput;
@@ -1338,81 +1347,58 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     {
       UINT uiHdrFlags = 0x0;
 
+      pOutput6->GetDesc1 (&data->DXGIDesc);
+    
+      data->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevelForHMONITOR (data->DXGIDesc.Monitor);
+
+      OutputDebugString(L"SDR White Level: ");
+      OutputDebugString(std::to_wstring(data->SDRWhiteLevel).c_str());
+      OutputDebugString(L"\n");
+
+#pragma region Enable HDR
       // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
       // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
       // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
 
-      DXGI_COLOR_SPACE_TYPE dxgi_cst =
-        (_registry.iHDRMode == 2)
-          ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
-          : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
-      
-      CComQIPtr <IDXGISwapChain3>
-          pSwapChain3 (data->SwapChain);
-
-      if (pSwapChain3 != nullptr)
+      if (SKIF_bCanHDR          && // Does the system support HDR?
+          _registry.iHDRMode  > 0) // HDR support is not disabled, is it?
       {
-        pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
+        DXGI_COLOR_SPACE_TYPE dxgi_cst =
+          (_registry.iHDRMode == 2)
+            ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
+            : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
+      
+        CComQIPtr <IDXGISwapChain3>
+            pSwapChain3 (data->SwapChain);
 
-        if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
-              ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
-           )
+        if (pSwapChain3 != nullptr)
         {
-          pOutput6->GetDesc1 (&data->HDRDesc);
+          pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
 
-          // Is the display in HDR mode?
-          if (data->HDRDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+          if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
+                ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
+             )
           {
-            data->HDR     = true;
-            data->HDRMode = _registry.iHDRMode;
+            pOutput6->GetDesc1 (&data->DXGIDesc);
 
-            pSwapChain3->SetColorSpace1 (dxgi_cst);
+            // Is the display in HDR mode?
+            if (data->DXGIDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+            {
+              data->HDR     = true;
+              data->HDRMode = _registry.iHDRMode;
 
-            pOutput6->GetDesc1 (&data->HDRDesc);
+              pSwapChain3->SetColorSpace1 (dxgi_cst);
+
+              pOutput6->GetDesc1 (&data->DXGIDesc);
+            }
           }
         }
       }
-    }
-  }
 #pragma endregion
+    }
 
-  if (data->SwapChain)
-  {
     if (! data->HDR)
       data->SDRMode = _registry.iSDRMode;
-
-#if 0
-    // If we are using 16 bpc format, but the display is not in HDR
-    //   we need to recreate the swapchain
-    if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT && ! data->HDR)
-    {
-      swap_desc.Format =
-        DXGI_FORMAT_R10G10B10A2_UNORM;
-
-      data->SwapChain->Release();
-      data->SwapChain = nullptr;
-
-      g_pd3dDeviceContext->ClearState ( );
-      g_pd3dDeviceContext->Flush      ( );
-
-      for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
-      {
-        swap_desc.SwapEffect = _swapEffect;
-
-        // In case flip failed, fall back to using BitBlt
-        if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
-        {
-          swap_desc.Format      = DXGI_FORMAT_R8G8B8A8_UNORM;
-          swap_desc.BufferCount = 1;
-          swap_desc.Flags       = 0x0;
-          SKIF_bCanFlip         = false;
-        }
-
-        if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
-                                  &data->SwapChain ))) break;
-      }
-    }
-#endif
 
     CComPtr <
       ID3D11Texture2D
