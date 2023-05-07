@@ -1,6 +1,6 @@
 #include "generic_library2.h"
 
-#include "../DirectXTex/DirectXTex.h"
+#include "DirectXTex.h"
 #include <SKIF_imgui.h>
 
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);

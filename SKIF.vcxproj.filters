@@ -25,9 +25,6 @@
     <Filter Include="Source Files\ImGui\Win32">
       <UniqueIdentifier>{840abb22-849f-4480-95e4-02dd28955bd3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\DXTex">
-      <UniqueIdentifier>{c49090e8-805d-4d4c-bac0-497258bf48b5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Stores">
       <UniqueIdentifier>{489abe81-33aa-408e-b6c8-743add85f42d}</UniqueIdentifier>
     </Filter>
@@ -84,9 +81,6 @@
     </Filter>
     <Filter Include="Source Files\UI Tabs">
       <UniqueIdentifier>{e58a2ba6-a4c1-493c-b8f1-cfd30cdb9f2d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\DXTex">
-      <UniqueIdentifier>{fcae95b5-4150-4db2-ad68-0316bfc404ef}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Stores\Epic">
       <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
@@ -363,30 +357,6 @@
     <ClInclude Include="include\registry.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="DirectXTex\BC.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\BCDirectCompute.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\d3dx12.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\DDS.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\DirectXTex.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\DirectXTexP.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\filters.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXTex\scoped.h">
-      <Filter>Header Files\DXTex</Filter>
-    </ClInclude>
     <ClInclude Include="include\TextFlow.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -488,66 +458,6 @@
     <ClCompile Include="src\registry.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="DirectXTex\BC.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BC4BC5.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BC6HBC7.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\BCDirectCompute.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexImage.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexResize.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
-      <Filter>Source Files\DXTex</Filter>
-    </ClCompile>
     <ClCompile Include="src\games.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
@@ -588,9 +498,6 @@
     </Manifest>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DirectXTex\DirectXTex.inl">
-      <Filter>Header Files\DXTex</Filter>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
 </Project>

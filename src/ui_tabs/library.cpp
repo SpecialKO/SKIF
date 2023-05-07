@@ -28,7 +28,7 @@
 
 #include <injection.h>
 
-#include "../DirectXTex/DirectXTex.h"
+#include "DirectXTex.h"
 
 #include <font_awesome.h>
 
@@ -796,7 +796,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
   {
+    PLOG_VERBOSE << "New library backend discovered the following games:";
     for (auto const& app : *apps_new) {
+      PLOG_VERBOSE << app->names.normal;
       //OutputDebugString(SK_UTF8ToWideChar(app->names.normal).c_str());
       //OutputDebugString(L"\n");
     }

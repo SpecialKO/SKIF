@@ -358,14 +358,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DirectXTex\BC.h" />
-    <ClInclude Include="DirectXTex\BCDirectCompute.h" />
-    <ClInclude Include="DirectXTex\d3dx12.h" />
-    <ClInclude Include="DirectXTex\DDS.h" />
-    <ClInclude Include="DirectXTex\DirectXTex.h" />
-    <ClInclude Include="DirectXTex\DirectXTexP.h" />
-    <ClInclude Include="DirectXTex\filters.h" />
-    <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="include\games.h" />
     <ClInclude Include="include\registry.h" />
     <ClInclude Include="include\SKIF_imgui.h" />
@@ -460,26 +452,6 @@
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DirectXTex\BC.cpp" />
-    <ClCompile Include="DirectXTex\BC4BC5.cpp" />
-    <ClCompile Include="DirectXTex\BC6HBC7.cpp" />
-    <ClCompile Include="DirectXTex\BCDirectCompute.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexImage.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexResize.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp" />
-    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
     <ClCompile Include="include\stores\generic_library2.cpp" />
     <ClCompile Include="src\games.cpp" />
     <ClCompile Include="src\registry.cpp" />
@@ -576,7 +548,6 @@
     <Manifest Include="appcompat.manifest" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="DirectXTex\DirectXTex.inl" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -584,6 +555,7 @@
     <Import Project="packages\plog.1.1.9\build\native\plog.targets" Condition="Exists('packages\plog.1.1.9\build\native\plog.targets')" />
     <Import Project="packages\pugixml.1.13.0\build\native\pugixml.targets" Condition="Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" />
     <Import Project="packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets" Condition="Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" />
+    <Import Project="packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets" Condition="Exists('packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -592,5 +564,6 @@
     <Error Condition="!Exists('packages\plog.1.1.9\build\native\plog.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\plog.1.1.9\build\native\plog.targets'))" />
     <Error Condition="!Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pugixml.1.13.0\build\native\pugixml.targets'))" />
     <Error Condition="!Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets'))" />
+    <Error Condition="!Exists('packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets'))" />
   </Target>
 </Project>
