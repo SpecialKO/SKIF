@@ -157,11 +157,6 @@ GetMPOSupport (void)
       return false;
     }
 
-    PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
-    PLOG_VERBOSE << "Monitor Name: " << monitorName;
-    PLOG_VERBOSE << "Adapter Path: " << adapterName.adapterDevicePath;
-    PLOG_VERBOSE << "Source Name:  " << sourceName.viewGdiDeviceName;
-
     //PLOG_VERBOSE << "Target: "       << path.targetInfo.id;
 
     // Open a handle to the adapter using its LUID
@@ -175,11 +170,16 @@ GetMPOSupport (void)
 
       if (SKIF_D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
       {
-        PLOG_VERBOSE << "MPO MaxPlanes: "    << caps.MaxPlanes;
-        PLOG_VERBOSE << "MPO MaxRGBPlanes: " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?
-        PLOG_VERBOSE << "MPO MaxYUVPlanes: " << caps.MaxYUVPlanes;
-        PLOG_VERBOSE << "MPO Stretch: "      << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
-        PLOG_VERBOSE << SKIF_LOG_SEPARATOR;
+        PLOG_INFO << "+------------------+-------------------------------------+";
+        PLOG_INFO << "| Monitor Name     | " << monitorName;
+        PLOG_INFO << "| Adapter Path     | " << adapterName.adapterDevicePath;
+        PLOG_INFO << "| Source Name      | " <<  sourceName.viewGdiDeviceName;
+        PLOG_INFO << "+------------------+-------------------------------------+";
+        PLOG_INFO << "| MPO MaxPlanes    | " << caps.MaxPlanes;
+        PLOG_INFO << "| MPO MaxRGBPlanes | " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?
+        PLOG_INFO << "| MPO MaxYUVPlanes:| " << caps.MaxYUVPlanes;
+        PLOG_INFO << "| MPO Stretch:     | " << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
+        PLOG_INFO << "+------------------+-------------------------------------+";
           
         Monitor_MPO_Support monitor;
         monitor.Name                = SK_WideCharToUTF8 (monitorName);

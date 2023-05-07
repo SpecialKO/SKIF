@@ -1351,10 +1351,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     
       data->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevelForHMONITOR (data->DXGIDesc.Monitor);
 
-      OutputDebugString(L"SDR White Level: ");
-      OutputDebugString(std::to_wstring(data->SDRWhiteLevel).c_str());
-      OutputDebugString(L"\n");
-
 #pragma region Enable HDR
       // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
       // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
@@ -1409,30 +1405,31 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
                            &data->RTView );
     
-    PLOG_VERBOSE   << "+---------------+-------------------------------------+";
-    PLOG_VERBOSE   << "| Resolution    | " << swap_desc.Width << "x" << swap_desc.Height;
-    PLOG_VERBOSE   << "| Dynamic Range | " << ((data->HDR) ? "HDR" : "SDR");
+    PLOG_INFO   << "+-----------------+-------------------------------------+";
+    PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
+    PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
+    PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
     if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-      PLOG_VERBOSE << "| Format        | DXGI_FORMAT_R16G16B16A16_FLOAT";
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
     else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-      PLOG_VERBOSE << "| Format        | DXGI_FORMAT_R10G10B10A2_UNORM";
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
     else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-      PLOG_VERBOSE << "| Format        | DXGI_FORMAT_R8G8B8A8_UNORM";
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
     else
-      PLOG_VERBOSE << "| Format        | Unexpected format";
-    PLOG_VERBOSE   << "| Buffers       | " << swap_desc.BufferCount;
-    PLOG_VERBOSE   << "| Flags         | " << std::format("{:#x}", swap_desc.Flags);
+      PLOG_INFO << "| Format          | Unexpected format";
+    PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
+    PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
     if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
-      PLOG_VERBOSE << "| Swap Effect   | DXGI_SWAP_EFFECT_FLIP_DISCARD";
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
     else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
-      PLOG_VERBOSE << "| Swap Effect   | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
     else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
-      PLOG_VERBOSE << "| Swap Effect   | DXGI_SWAP_EFFECT_DISCARD";
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
     else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
-      PLOG_VERBOSE << "| Swap Effect   | DXGI_SWAP_EFFECT_SEQUENTIAL";
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
     else 
-      PLOG_VERBOSE << "| Swap Effect   | Unexpected swap effect";
-    PLOG_VERBOSE   << "+---------------+-------------------------------------+";
+      PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
+    PLOG_INFO   << "+-----------------+-------------------------------------+";
 
     if (SKIF_bCanWaitSwapchain)
     {
