@@ -67,6 +67,7 @@ auto constexpr XUSER_INDEXES =
 extern bool SKIF_Util_IsWindows8Point1OrGreater       (void);
 extern bool SKIF_Util_IsWindows10OrGreater            (void);
 extern bool SKIF_Util_IsWindowsVersionOrGreater       (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool SKIF_bCanFlip;
 
 // Forward Declarations
 static void ImGui_ImplWin32_InitPlatformInterface     (void);
@@ -1056,9 +1057,6 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
-
-  extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
-  extern bool SKIF_bCanFlip;
 
   // This flag is Windows 8+, and only applicable to flip swapchains
   if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ))

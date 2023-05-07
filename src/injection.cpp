@@ -1258,7 +1258,7 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   if (list_file.is_open ())
   {
     // Requires Windows 10 1903+ (Build 18362)
-    if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
+    if (SKIF_Util_IsWindows10v1903OrGreater ( ))
     {
       list_file.imbue (
           std::locale (".UTF-8")
@@ -1335,7 +1335,7 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
   if (list_file.is_open ())
   {
     // Requires Windows 10 1903+ (Build 18362)
-    if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
+    if (SKIF_Util_IsWindows10v1903OrGreater ( ))
     {
       list_file.imbue (
           std::locale (".UTF-8")
