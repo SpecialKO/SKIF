@@ -4,7 +4,7 @@
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <SKIF.h>
 #include <SKIF_utility.h>
 

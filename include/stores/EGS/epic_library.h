@@ -5,7 +5,7 @@
 #include <WinInet.h>
 #include <cstdint>
 #include <string>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <SKIF_utility.h>
 #include <stores/generic_library2.h>
 

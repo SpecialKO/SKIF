@@ -330,9 +330,6 @@
     <ClInclude Include="version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\json.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\EGS\epic_library.h">
       <Filter>Header Files\Stores\Epic</Filter>
     </ClInclude>

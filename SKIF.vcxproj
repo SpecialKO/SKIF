@@ -343,7 +343,6 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="include\games.h" />
-    <ClInclude Include="include\json.hpp" />
     <ClInclude Include="include\registry.h" />
     <ClInclude Include="include\SKIF_imgui.h" />
     <ClInclude Include="include\SKIF_utility.h" />
@@ -560,6 +559,7 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\plog.1.1.9\build\native\plog.targets" Condition="Exists('packages\plog.1.1.9\build\native\plog.targets')" />
     <Import Project="packages\pugixml.1.13.0\build\native\pugixml.targets" Condition="Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" />
+    <Import Project="packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets" Condition="Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -567,5 +567,6 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\plog.1.1.9\build\native\plog.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\plog.1.1.9\build\native\plog.targets'))" />
     <Error Condition="!Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pugixml.1.13.0\build\native\pugixml.targets'))" />
+    <Error Condition="!Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets'))" />
   </Target>
 </Project>

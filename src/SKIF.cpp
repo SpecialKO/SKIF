@@ -77,7 +77,7 @@
 #include <cwctype>
 
 #include <unordered_set>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <dwmapi.h>
 #include <ui_tabs/about.h>
