@@ -88,24 +88,6 @@
     <Filter Include="Header Files\DXTex">
       <UniqueIdentifier>{fcae95b5-4150-4db2-ad68-0316bfc404ef}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Plog">
-      <UniqueIdentifier>{5ed52bdf-2101-4642-a4cd-d163a5327a20}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Plog\Appenders">
-      <UniqueIdentifier>{181cb680-e447-4fcb-bc89-10feef802ad5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Plog\Converters">
-      <UniqueIdentifier>{53ad7bd8-597e-4873-a1e9-998d2e9fa630}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Plog\Formatters">
-      <UniqueIdentifier>{1dd4d855-b95b-4442-8d9f-e20146c1110d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Plog\Initializers">
-      <UniqueIdentifier>{feb2b720-f733-4b73-82f5-e925868f8e37}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Plog\Helpers">
-      <UniqueIdentifier>{77e9274d-76e4-410e-a38f-9de363a4fa0a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Stores\Epic">
       <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
     </Filter>
@@ -360,12 +342,6 @@
     <ClInclude Include="include\stores\Xbox\xbox_library.h">
       <Filter>Header Files\Stores\Xbox</Filter>
     </ClInclude>
-    <ClInclude Include="include\pugiconfig.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\pugixml.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\SKIF_utility.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
@@ -384,86 +360,11 @@
     <ClInclude Include="include\vfs.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\plog\Init.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Log.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Logger.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Record.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Severity.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Util.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\WinApi.h">
-      <Filter>Header Files\Plog</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\AndroidAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\ColorConsoleAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\ConsoleAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\DebugOutputAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\EventLogAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\IAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Appenders\RollingFileAppender.h">
-      <Filter>Header Files\Plog\Appenders</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Initializers\RollingFileInitializer.h">
-      <Filter>Header Files\Plog\Initializers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Formatters\CsvFormatter.h">
-      <Filter>Header Files\Plog\Formatters</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Formatters\FuncMessageFormatter.h">
-      <Filter>Header Files\Plog\Formatters</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Formatters\MessageOnlyFormatter.h">
-      <Filter>Header Files\Plog\Formatters</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Formatters\TxtFormatter.h">
-      <Filter>Header Files\Plog\Formatters</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Converters\NativeEOLConverter.h">
-      <Filter>Header Files\Plog\Converters</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Converters\UTF8Converter.h">
-      <Filter>Header Files\Plog\Converters</Filter>
-    </ClInclude>
     <ClInclude Include="include\SKIF_imgui.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\registry.h">
       <Filter>Header Files\Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Initializers\ConsoleInitializer.h">
-      <Filter>Header Files\Plog\Initializers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Helpers\AscDump.h">
-      <Filter>Header Files\Plog\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Helpers\HexDump.h">
-      <Filter>Header Files\Plog\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\plog\Helpers\PrintVar.h">
-      <Filter>Header Files\Plog\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Header Files\DXTex</Filter>
@@ -574,9 +475,6 @@
     </ClCompile>
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp">
       <Filter>Source Files\Stores\Xbox</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pugixml.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\SKIF_utility.cpp">
       <Filter>Source Files\Utility</Filter>
@@ -696,5 +594,6 @@
     <None Include="DirectXTex\DirectXTex.inl">
       <Filter>Header Files\DXTex</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

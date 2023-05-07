@@ -344,33 +344,6 @@
     <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="include\games.h" />
     <ClInclude Include="include\json.hpp" />
-    <ClInclude Include="include\plog\Appenders\AndroidAppender.h" />
-    <ClInclude Include="include\plog\Appenders\ColorConsoleAppender.h" />
-    <ClInclude Include="include\plog\Appenders\ConsoleAppender.h" />
-    <ClInclude Include="include\plog\Appenders\DebugOutputAppender.h" />
-    <ClInclude Include="include\plog\Appenders\EventLogAppender.h" />
-    <ClInclude Include="include\plog\Appenders\IAppender.h" />
-    <ClInclude Include="include\plog\Appenders\RollingFileAppender.h" />
-    <ClInclude Include="include\plog\Converters\NativeEOLConverter.h" />
-    <ClInclude Include="include\plog\Converters\UTF8Converter.h" />
-    <ClInclude Include="include\plog\Formatters\CsvFormatter.h" />
-    <ClInclude Include="include\plog\Formatters\FuncMessageFormatter.h" />
-    <ClInclude Include="include\plog\Formatters\MessageOnlyFormatter.h" />
-    <ClInclude Include="include\plog\Formatters\TxtFormatter.h" />
-    <ClInclude Include="include\plog\Helpers\AscDump.h" />
-    <ClInclude Include="include\plog\Helpers\HexDump.h" />
-    <ClInclude Include="include\plog\Helpers\PrintVar.h" />
-    <ClInclude Include="include\plog\Init.h" />
-    <ClInclude Include="include\plog\Initializers\ConsoleInitializer.h" />
-    <ClInclude Include="include\plog\Initializers\RollingFileInitializer.h" />
-    <ClInclude Include="include\plog\Log.h" />
-    <ClInclude Include="include\plog\Logger.h" />
-    <ClInclude Include="include\plog\Record.h" />
-    <ClInclude Include="include\plog\Severity.h" />
-    <ClInclude Include="include\plog\Util.h" />
-    <ClInclude Include="include\plog\WinApi.h" />
-    <ClInclude Include="include\pugiconfig.hpp" />
-    <ClInclude Include="include\pugixml.hpp" />
     <ClInclude Include="include\registry.h" />
     <ClInclude Include="include\SKIF_imgui.h" />
     <ClInclude Include="include\SKIF_utility.h" />
@@ -486,7 +459,6 @@
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
     <ClCompile Include="include\stores\generic_library2.cpp" />
     <ClCompile Include="src\games.cpp" />
-    <ClCompile Include="src\pugixml.cpp" />
     <ClCompile Include="src\registry.cpp" />
     <ClCompile Include="src\SKIF_imgui.cpp" />
     <ClCompile Include="src\SKIF_utility.cpp" />
@@ -582,8 +554,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="DirectXTex\DirectXTex.inl" />
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\plog.1.1.9\build\native\plog.targets" Condition="Exists('packages\plog.1.1.9\build\native\plog.targets')" />
+    <Import Project="packages\pugixml.1.13.0\build\native\pugixml.targets" Condition="Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\plog.1.1.9\build\native\plog.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\plog.1.1.9\build\native\plog.targets'))" />
+    <Error Condition="!Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pugixml.1.13.0\build\native\pugixml.targets'))" />
+  </Target>
 </Project>
