@@ -312,22 +312,6 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   ImGui::EndGroup         ( );
-  
-  /*
-  ImGui::BeginGroup       ( );
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-    ICON_FA_EXCLAMATION_CIRCLE " ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("The service injects Special K into most user processes.");
-  ImGui::EndGroup         ( );
-
-  SKIF_ImGui_SetHoverTip (
-    "Any that deal with system input or some sort\nof window or keyboard/mouse input activity."
-  );
-  */
 
   ImGui::SetCursorPosY    (fY2);
 
