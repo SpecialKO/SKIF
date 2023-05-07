@@ -29,7 +29,7 @@ jobs:
 
     - name: Build the source code
       run: |
-        nuget restore SpecialK.sln
+        nuget restore SKIF.sln
         msbuild SKIF.sln -p:Configuration="${{ matrix.config }}" -p:Platform="${{ matrix.platform }}" -m
 
     - name: Prepare environment variables for the artifact name
