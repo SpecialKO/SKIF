@@ -43,5 +43,5 @@ jobs:
       with:
         name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}
         path: |
-          /Builds/*.exe
+          Builds/SKIF*.exe
         if-no-files-found: error
