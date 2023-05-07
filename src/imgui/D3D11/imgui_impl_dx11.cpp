@@ -1223,7 +1223,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
 
-  DXGI_FORMAT dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM; // Fallback
+  DXGI_FORMAT dxgi_format;
 
   // HDR formats
   if (SKIF_bCanHDR && _registry.iHDRMode > 0)
@@ -1238,8 +1238,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   else {
     if      (_registry.iSDRMode == 2)
       dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // 16 bpc
-    else if (_registry.iSDRMode == 1)
-      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // 10 bpc
+    else if (_registry.iSDRMode == 1 && SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299))
+      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // 10 bpc (apparently only supported for flip on Win10 1709+
     else
       dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;     // 8 bpc;
   }
@@ -1263,6 +1263,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   if (SKIF_bCanAllowTearing)
     swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+
 
   for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
   {
@@ -1431,7 +1433,9 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
     PLOG_INFO   << "+-----------------+-------------------------------------+";
 
-    if (SKIF_bCanWaitSwapchain)
+    if (SKIF_bCanWaitSwapchain && 
+          (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD    ||
+           swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL ))
     {
       CComQIPtr <IDXGISwapChain2>
           pSwapChain2 (data->SwapChain);
@@ -1440,20 +1444,21 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       {
         // The maximum number of back buffer frames that will be queued for the swap chain. This value is 1 by default.
         // This method is only valid for use on swap chains created with DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.
-        pSwapChain2->SetMaximumFrameLatency (1);
-
-        data->WaitHandle =
-          pSwapChain2->GetFrameLatencyWaitableObject ( );
-
-        if (data->WaitHandle)
+        if (S_OK == pSwapChain2->SetMaximumFrameLatency (1))
         {
-          vSwapchainWaitHandles.push_back (data->WaitHandle);
+          data->WaitHandle =
+            pSwapChain2->GetFrameLatencyWaitableObject  ( );
 
-          // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
-          WaitForSingleObjectEx (data->WaitHandle, INFINITE, true);
-          // Block this thread until the swap chain is finished presenting. Note that it is
-          // important to call this before the first Present in order to minimize the latency
-          // of the swap chain.
+          if (data->WaitHandle)
+          {
+            vSwapchainWaitHandles.push_back (data->WaitHandle);
+
+            // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
+            WaitForSingleObjectEx (data->WaitHandle, INFINITE, true);
+            // Block this thread until the swap chain is finished presenting. Note that it is
+            // important to call this before the first Present in order to minimize the latency
+            // of the swap chain.
+          }
         }
       }
     }
@@ -1516,21 +1521,6 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
     {
       CComPtr <ID3D11Texture2D> pBackBuffer;
 
-#if 0
-      DXGI_FORMAT dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-      if (SKIF_bCanHDR)
-      {
-        // scRGB
-        if (_registry.iHDRMode == 2)
-          dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-
-        // HDR10
-        else
-          dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-      }
-#endif
-
       DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
       data->SwapChain->GetDesc1 (&swap_desc);
 
@@ -1538,7 +1528,7 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
         0, (UINT)size.x,
            (UINT)size.y,
             swap_desc.Format,
-              swap_desc.Flags
+            swap_desc.Flags
       );
 
       data->SwapChain->GetBuffer (

@@ -1165,7 +1165,7 @@ SKIF_UpdateCheckResults SKIF_CheckForUpdates()
         if (fPatrons.is_open ())
         {
           // Requires Windows 10 1903+ (Build 18362)
-          if (SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
+          if (SKIF_Util_IsWindows10v1903OrGreater ( ))
           {
             fPatrons.imbue (
                 std::locale (".UTF-8")
@@ -2188,7 +2188,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
   InitializeConditionVariable (&SKIF_IsFocused);
-  //InitializeConditionVariable (&SKIF_IsNotFocused);
 
   SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
   SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
@@ -2351,7 +2350,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
-  if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+  if (SKIF_Util_IsHDRSupported (true) && RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
     PLOG_INFO << "Successfully registered global hotkey (WinKey + Ctrl + Shift + H) for toggling HDR on the display the cursor is currently on.";
   /*
   * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
@@ -4219,6 +4218,11 @@ bool CreateDeviceD3D (HWND hWnd)
     OutputDebugString(L"d3d->CreateDevice() succeeded!?\n");
   }
 #endif
+  
+  CComPtr <IDXGIFactory2> pFactory2;
+
+  if (S_OK != CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p))
+    return false;
 
   // Windows 7 (with the Platform Update) and newer
   SKIF_bCanFlip                 =         true; // Should never be set to false here
@@ -4235,13 +4239,11 @@ bool CreateDeviceD3D (HWND hWnd)
 
     // Windows 10 1709+ (Build 16299)
     SKIF_bCanHDR                =
-      SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299) &&
+      SKIF_Util_IsWindows10v1709OrGreater (    ) &&
       SKIF_Util_IsHDRSupported            (true);
 
-    CComPtr <IDXGIFactory5>
-                 pFactory5;
-
-    CreateDXGIFactory1 (__uuidof (IDXGIFactory5), (void **)&pFactory5.p );
+    CComQIPtr <IDXGIFactory5>
+                   pFactory5 (pFactory2.p);
 
     // Windows 10+
     if (pFactory5 != nullptr)
@@ -4252,9 +4254,7 @@ bool CreateDeviceD3D (HWND hWnd)
                                           &supportsTearing,
                                   sizeof  (supportsTearing)
                                                 );
-      SKIF_bCanAllowTearing = supportsTearing != FALSE;
-
-      pFactory5.Release ( );
+      SKIF_bCanAllowTearing = (supportsTearing != FALSE);
     }
   }
 
@@ -4264,11 +4264,7 @@ bool CreateDeviceD3D (HWND hWnd)
   //SKIF_bCanFlip               = false; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
   //SKIF_bCanWaitSwapchain      = false; // Waitable Swapchain
 
-
-  UINT createDeviceFlags = 0;
-  // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
-  //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
-
+  // D3D11Device
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL
                     featureLevelArray [4] = {
@@ -4276,17 +4272,77 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
-  if (D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  UINT createDeviceFlags = 0;
+  // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
+  //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
+
+  if (S_OK != D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
                                                        &g_pd3dDevice,
                                                                 &featureLevel,
-                                                       &g_pd3dDeviceContext) != S_OK ) return false;
+                                                       &g_pd3dDeviceContext)) return false;
+
+  // We need to try creating a dummy swapchain before we actually start creating
+  //   viewport windows. This is to ensure a compatible format is used from the
+  //   get go, as e.g. using WS_EX_NOREDIRECTIONBITMAP on a BitBlt window will
+  //   cause it to be hidden entirely.
+
+  if (pFactory2 != nullptr)
+  {
+    CComQIPtr <IDXGISwapChain1>
+                   pSwapChain1;
+
+    // Create a dummy swapchain for the dummy viewport
+    DXGI_SWAP_CHAIN_DESC1
+      swap_desc                  = { };
+    swap_desc.Width              = 8;
+    swap_desc.Height             = 8;
+    swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swap_desc.Flags              = 0x0;
+    swap_desc.SampleDesc.Count   = 1;
+    swap_desc.SampleDesc.Quality = 0;
+
+    // Assume flip by default
+    swap_desc.BufferCount  = 3; // Must be 2-16 for flip model
+
+    if (SKIF_bCanWaitSwapchain)
+      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+    if (SKIF_bCanAllowTearing)
+      swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+    for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
+    {
+      swap_desc.SwapEffect = _swapEffect;
+
+      // In case flip failed, fall back to using BitBlt
+      if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
+      {
+        swap_desc.Format       = DXGI_FORMAT_R8G8B8A8_UNORM;
+        swap_desc.BufferCount  = 1;
+        swap_desc.Flags        = 0x0;
+        SKIF_bCanFlipDiscard   = false;
+        SKIF_bCanFlip          = false;
+        SKIF_bCanHDR           = false;
+        SKIF_bCanWaitSwapchain = false;
+        SKIF_bCanAllowTearing  = false;
+      }
+
+      if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
+                                &pSwapChain1 ))) break;
+    }
+
+    pSwapChain1.Release();
+    pFactory2.Release();
+
+    return true;
+  }
 
   //CreateRenderTarget ();
 
-  return true;
+  return false;
 }
 
 void CleanupDeviceD3D (void)

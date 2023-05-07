@@ -1,6 +1,6 @@
 #include <registry.h>
 
-extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
+extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
 
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
@@ -14,13 +14,15 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   iLogging                 = 4;   // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
   iProcessSort             = 0;   // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   iProcessRefreshInterval  = 2;   // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
-  iSDRMode                 = 1;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
+  iSDRMode                 = 0;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
   iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
   iHDRBrightness           = 203; // HDR reference white for BT.2408
 
-  // Windows 7 does not support 10 bpc for flip based swap chains
-  if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
-    iSDRMode = 0;
+  // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
+  // but it seems that Windows 10 1709+ (Build 16299) also supports
+  // 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model.
+  if (SKIF_Util_IsWindows10v1709OrGreater ( ))
+    iSDRMode = 1; // Default to 10 bpc on Win10 1709+
 
   // Default settings (booleans)
   bRememberLastSelected    = false;

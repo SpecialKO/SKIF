@@ -748,7 +748,9 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVSDRMode.putData (_registry.iSDRMode);
       RecreateSwapChains = true;
     }
-    if (SKIF_Util_IsWindows8Point1OrGreater ( ))
+    // It seems that Windows 10 1709+ (Build 16299) is required to
+    // support 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model
+    if (SKIF_Util_IsWindows10v1709OrGreater ( ))
     {
       ImGui::SameLine        ( );
       if (ImGui::RadioButton ("10 bpc", pointer, 1))
