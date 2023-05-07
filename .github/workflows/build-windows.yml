@@ -21,12 +21,6 @@ jobs:
       with:
         vs-version: '[17.0,18.0)'
 
-    - uses: hendrikmuhs/ccache-action@main
-      with:
-        key: ${{ matrix.config }}-${{ matrix.platform }}
-        max-size: 1G
-        verbose: 1
-
     - name: Build the source code
       run: |
         nuget restore SKIF.sln
