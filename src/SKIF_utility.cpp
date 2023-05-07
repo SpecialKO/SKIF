@@ -651,8 +651,7 @@ SKIF_Util_IsWindows8Point1OrGreater (void)
     SetLastError (NO_ERROR)
   );
 
-  static bool
-    bResult =
+  static bool bResult =
       GetProcAddress (
         GetModuleHandleW (L"kernel32.dll"),
                            "GetSystemTimePreciseAsFileTime"
@@ -669,13 +668,32 @@ SKIF_Util_IsWindows10OrGreater (void)
     SetLastError (NO_ERROR)
   );
 
-  static bool
-    bResult =
+  static bool bResult =
       GetProcAddress (
         GetModuleHandleW (L"kernel32.dll"),
                            "SetThreadDescription"
                      ) != nullptr &&
       GetLastError  () == NO_ERROR;
+
+  return bResult;
+}
+
+// Windows 10 1709+ (Build 16299) or newer
+bool
+SKIF_Util_IsWindows10v1709OrGreater (void)
+{
+  static bool bResult =
+    SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299);
+
+  return bResult;
+}
+
+// Windows 10 1903+ (Build 18362) or newer
+bool
+SKIF_Util_IsWindows10v1903OrGreater (void)
+{
+  static bool bResult =
+    SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362);
 
   return bResult;
 }
@@ -687,18 +705,18 @@ SKIF_Util_IsWindows10OrGreater (void)
 bool
 SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
 {
-  NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW) = nullptr;
+  NTSTATUS(WINAPI *SKIF_RtlGetVersion)(LPOSVERSIONINFOEXW) = nullptr;
 
   OSVERSIONINFOEXW
     osInfo                     = { };
     osInfo.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
 
-  *reinterpret_cast<FARPROC *>(&RtlGetVersion) =
+  *reinterpret_cast<FARPROC *>(&SKIF_RtlGetVersion) =
     GetProcAddress (GetModuleHandleW (L"ntdll"), "RtlGetVersion");
 
-  if (RtlGetVersion != nullptr)
+  if (SKIF_RtlGetVersion != nullptr)
   {
-    if (NT_SUCCESS (RtlGetVersion (&osInfo)))
+    if (NT_SUCCESS (SKIF_RtlGetVersion (&osInfo)))
     {
       return
           ( osInfo.dwMajorVersion >  dwMajorVersion ||
@@ -870,6 +888,9 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 bool
 SKIF_Util_IsHDRSupported (bool refresh)
 {
+  if (! SKIF_Util_IsWindows10v1709OrGreater ( ))
+    return false;
+
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
   std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
   LONG result = ERROR_SUCCESS;
