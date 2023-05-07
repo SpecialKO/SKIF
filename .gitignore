@@ -3,24 +3,8 @@
 ################################################################################
 
 /.vs
-/DirectXTex/Shaders/Compiled/BC7Encode_TryMode456CS.pdb
-/DirectXTex/Shaders/Compiled/BC7Encode_TryMode137CS.pdb
-/DirectXTex/Shaders/Compiled/BC7Encode_TryMode02CS.pdb
-/DirectXTex/Shaders/Compiled/BC7Encode_EncodeBlockCS.pdb
-/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeLE10CS.pdb
-/DirectXTex/Shaders/Compiled/BC6HEncode_TryModeG10CS.pdb
-/DirectXTex/Shaders/Compiled/BC6HEncode_EncodeBlockCS.pdb
-/Release/SKIF.tlog
-/Release
-/x64/Release
-/imgui.ini
-/src/imgui - Copy
-/src/imgui/D3D9
-/include/imgui
-/include/imgui - Copy
-*.tlog
-/include/fonts/bin2header.exe
-/x64/[Dd]ebug/*
-/x64/Debug/SKIF.log
+/Builds/*
+/include/shaders/*.h
 /SKIF.vcxproj.user
-/include/shaders/*
+*.tlog
+*.pdb
