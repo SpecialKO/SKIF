@@ -79,13 +79,13 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <TargetName>$(ProjectName)32</TargetName>
     <OutDir>Builds\</OutDir>
-    <IntDir>Builds\$(Platform)-$(Configuration)</IntDir>
+    <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <OutDir>Builds\</OutDir>
-    <IntDir>Builds\$(Platform)-$(Configuration)</IntDir>
+    <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -95,8 +95,8 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
     <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
-    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
-    <IntDir>Builds\$(Platform)-$(Configuration)</IntDir>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+    <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -105,8 +105,8 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
     <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
-    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
-    <IntDir>Builds\$(Platform)-$(Configuration)</IntDir>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+    <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -149,6 +149,14 @@
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <AdditionalOptions>/DEPENDENTLOADFLAG:0x800 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Message>Terminates any existing instance of SKIF</Message>
+      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Message>Execute post-build events</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -197,6 +205,14 @@
     <ResourceCompile>
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
     </ResourceCompile>
+    <PreBuildEvent>
+      <Message>Terminates any existing instance of SKIF</Message>
+      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Message>Execute post-build events</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -259,11 +275,15 @@
       <AdditionalManifestFiles>appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
-      <Command>signtool sign /n "Open Source Developer" /t http://time.certum.pl/ /fd sha256 /v "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Sign the executable</Message>
+      <Message>Execute post-build events</Message>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+      <Message>Terminates any existing instance of SKIF</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -331,10 +351,10 @@
       <Message>Terminates any existing instance of SKIF</Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>signtool sign /n "Open Source Developer" /t http://time.certum.pl/ /fd sha256 /v "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Sign the executable</Message>
+      <Message>Execute post-build events</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

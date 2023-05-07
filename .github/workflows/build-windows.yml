@@ -17,6 +17,10 @@ jobs:
 
     - uses: Trass3r/setup-cpp@master
 
+    - uses: microsoft/setup-msbuild@v1.1.3
+      with:
+        vs-version: '[17.0,18.0)'
+        
     - uses: microsoft/setup-msbuild@v1.1
 
     - uses: hendrikmuhs/ccache-action@main
@@ -27,6 +31,7 @@ jobs:
 
     - name: Build the source code
       run: |
+        nuget restore SpecialK.sln
         msbuild SKIF.sln -p:Configuration="${{ matrix.config }}" -p:Platform="${{ matrix.platform }}" -m
 
     - name: Prepare environment variables for the artifact name
