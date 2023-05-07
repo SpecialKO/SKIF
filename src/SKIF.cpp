@@ -162,7 +162,7 @@ NOTIFYICONDATA niData;
 HMENU hMenu;
 
 // Hotkeys
-int SKIF_HotKey_HDR = 1337; // Win + Ctrl + Shift + H
+UINT SKIF_HotKey_HDR = 1337; // Win + Ctrl + Shift + H
 
 // Cmd line argument stuff
 struct SKIF_Signals {
