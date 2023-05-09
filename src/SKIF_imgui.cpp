@@ -154,6 +154,7 @@ SKIF_ImGui_IsMouseHovered (void)
 bool
 SKIF_ImGui_IsAnyInputDown (void)
 {
+  /*
   ImGuiContext& g = *GImGui;
 
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
@@ -167,6 +168,7 @@ SKIF_ImGui_IsAnyInputDown (void)
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
       if (g.IO.NavInputs[n])
           return true;
+  */
 
   return false;
 }

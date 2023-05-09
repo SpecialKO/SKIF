@@ -41,6 +41,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_win32.h>
 #include <imgui/imgui_internal.h>
+
 #include <dxgi1_6.h>
 #include <xinput.h>
 
@@ -448,25 +449,23 @@ auto SKIF_ImGui_LoadFont =
 ImFont* fontConsolas = nullptr;
 
 void
-SKIF_ImGui_InitFonts (float fontSize)
+SKIF_ImGui_InitFonts (ImGuiContext* ctx, float fontSize)
 {
   static UINT acp = GetACP();
 
   auto& io =
     ImGui::GetIO ();
 
-  extern ImGuiContext *GImGui;
-
   if (io.Fonts != nullptr)
   {
-    if (GImGui->FontAtlasOwnedByContext)
+    if (ctx->FontAtlasOwnedByContext)
     {
-      if (GImGui->Font != nullptr)
+      if (ctx->Font != nullptr)
       {
-        GImGui->Font->ClearOutputData ();
+        ctx->Font->ClearOutputData ();
 
-        if (GImGui->Font->ContainerAtlas != nullptr)
-            GImGui->Font->ContainerAtlas->Clear ();
+        if (ctx->Font->ContainerAtlas != nullptr)
+            ctx->Font->ContainerAtlas->Clear ();
       }
 
       io.FontDefault = nullptr;
@@ -2229,7 +2228,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.IniFilename = "SKIF.ini";                                // nullptr to disable imgui.ini
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
-//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 //io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
@@ -2286,7 +2285,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
-  SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
+  SKIF_ImGui_InitFonts (p_ImGuiContext, SKIF_FONTSIZE_DEFAULT);
 
   // Our state
   ImVec4 clear_color         =
@@ -2358,6 +2357,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
+
+  bool show_demo_window = true;
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -2515,7 +2516,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bFontVietnamese        = false;
 
       PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
+      SKIF_ImGui_InitFonts (p_ImGuiContext, (tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -2530,6 +2531,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
+
+      ImGui::ShowDemoWindow (&show_demo_window);
+
       // Fixes the wobble that occurs when switching between tabs,
       //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
@@ -2579,7 +2583,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
       // RepositionSKIF -- Step 2: Repositon the window
-      if (false & RepositionSKIF)
+      if (RepositionSKIF)
       {
         // Repositions the window in the center of the monitor the cursor is currently on
         ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
@@ -2588,7 +2592,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
       //     Otherwise window gets positioned wrong on smaller monitors !
-      if (false & changedMode && ImGui::GetFrameCount() > 2)
+      if (changedMode && ImGui::GetFrameCount() > 2)
       {
         changedMode = false;
 
@@ -2662,7 +2666,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (GetMonitorInfo(nearestMonitor, (LPMONITORINFO)&nearestMonitorInfo))
               {
                 // Don't bother if the nearest monitor is also the current monitor
-                if (false & nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
+                if (nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
                 {
                   // Loop through all platform monitors
                   for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
@@ -2724,7 +2728,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HoverTipActive = false;
 
       // Update current monitors/worksize etc;
-      monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
+      if (ImGui::GetCurrentWindowRead  ( )->ViewportAllowPlatformMonitorExtend >= 0)
+        monitor = &ImGui::GetPlatformIO( ).Monitors [ImGui::GetCurrentWindowRead( )->ViewportAllowPlatformMonitorExtend];
 
       // Move the invisible Win32 parent window SKIF_hWnd over to the current monitor.
       //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
@@ -2787,62 +2792,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
         }
       }
-
-#if 0
-      FLOAT SKIF_GetHDRWhiteLuma (void);
-      void  SKIF_SetHDRWhiteLuma (FLOAT);
-
-      static auto regKVLuma =
-        SKIF_MakeRegKeyF (
-          LR"(SOFTWARE\Kaldaien\Special K\)",
-            LR"(ImGui HDR Luminance)"
-        );
-
-      auto _InitFromRegistry =
-        [&](void) ->
-        float
-      {
-        float fLumaInReg =
-          regKVLuma.getData ();
-
-        if (fLumaInReg == 0.0f)
-        {
-          fLumaInReg = SKIF_GetHDRWhiteLuma ();
-          regKVLuma.putData (fLumaInReg);
-        }
-
-        else
-        {
-          SKIF_SetHDRWhiteLuma (fLumaInReg);
-        }
-
-        return fLumaInReg;
-      };
-
-      static float fLuma =
-        _InitFromRegistry ();
-
-      auto _DrawHDRConfig = [&](void)
-      {
-        static bool bFullRange = false;
-
-        FLOAT fMaxLuma =
-          SKIF_GetMaxHDRLuminance (bFullRange);
-
-        if (fMaxLuma != 0.0f)
-        {
-          ImGui::TreePush("");
-          ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m\u00B2"))
-          {
-            SKIF_SetHDRWhiteLuma (fLuma);
-            regKVLuma.putData    (fLuma);
-          }
-          ImGui::TreePop ( );
-          ImGui::Spacing();
-        }
-      };
-#endif
 
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
@@ -3111,10 +3060,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
                                ImGuiTabBarFlags_FittingPolicyResizeDown |
-                               ImGuiTabBarFlags_FittingPolicyScroll );
+                               ImGuiTabBarFlags_FittingPolicyScroll     | ImGuiTabBarFlags_DockNode );
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ",
+                                   nullptr,
+                                     ImGuiTabItemFlags_NoTooltip |
+                                  ((SKIF_Tab_ChangeTo == UITab_Library)
+                                   ? ImGuiTabItemFlags_SetSelected
+                                   : ImGuiTabItemFlags_None)))
         {
           if (! _registry.bFirstLaunch)
           {
@@ -3381,6 +3335,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // End Status Bar Text
       }
 
+      
+      float ffailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
 
       // Font warning
       if (failedLoadFontsPrompt && ! HiddenFramesContinueRendering)
@@ -3388,11 +3344,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         failedLoadFontsPrompt = false;
 
         ImGui::OpenPopup ("###FailedFontsPopup");
+        ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
       }
-      
-
-      float ffailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
-      ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
 
       if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
       {
@@ -3542,6 +3495,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
           UpdateAvailableWidth = calculatedWidth;
 
         ImGui::OpenPopup ("###UpdatePrompt");
+        ImGui::SetNextWindowSize (
+          ImVec2 ( UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale,
+                     0.0f )
+        );
+        ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
 
       // Update Available prompt
@@ -3549,12 +3507,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // 715px    - Release Notes width
       //  15px    - Approx. scrollbar width
       //   7.78px - Approx. character width (700px / 90 characters)
-      ImGui::SetNextWindowSize (
-        ImVec2 ( UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale,
-                   0.0f )
-      );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
       if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
                                      ImGuiWindowFlags_NoResize         |
                                      ImGuiWindowFlags_NoMove           |
@@ -3753,13 +3705,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           HistoryPopupWidth = calcHistoryPopupWidth;
 
         ImGui::OpenPopup ("###History");
+        ImGui::SetNextWindowSize (
+          ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
+                     0.0f )
+        );
+        ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
-      
-      ImGui::SetNextWindowSize (
-        ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
-                   0.0f )
-      );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Changelog###History", nullptr,
                                      ImGuiWindowFlags_NoResize |
@@ -3818,6 +3769,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //  ImGui::GetWindowAllowedExtentRect (
       //    ImGui::GetCurrentWindowRead   ()
       //  );
+      monitor_extent =
+        ImGui::GetPopupAllowedExtentRect (
+          ImGui::GetCurrentWindowRead   ()
+        );
       windowPos      = ImGui::GetWindowPos ();
       windowRect.Min = ImGui::GetWindowPos ();
       windowRect.Max = ImGui::GetWindowPos () + ImGui::GetWindowSize ();
@@ -3907,7 +3862,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         DWORD packetLast = 0,
               packetNew  = 0;
 
-        while (IsWindow (SKIF_hWnd))
+        // TODO: Update and fix compatibility with updated ImGui codebase.
+        //       ImGui in its default config IS NOT THREAD SAFE!
+        while (false)//IsWindow (SKIF_hWnd))
         {
           extern DWORD ImGui_ImplWin32_UpdateGamepads (int n);
           packetNew  = ImGui_ImplWin32_UpdateGamepads (1);
@@ -4018,7 +3975,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (HiddenFramesContinueRendering)
       pause = false;
 
-    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
+    //bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
     //OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
 
     do
@@ -4079,8 +4036,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
-      else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
+      //else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
+      //  MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
 
       
       if (bRefresh) //bRefresh)

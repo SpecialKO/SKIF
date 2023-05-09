@@ -1296,7 +1296,6 @@ ImGuiIO::ImGuiIO()
 // FIXME: Should in theory be called "AddCharacterEvent()" to be consistent with new API
 void ImGuiIO::AddInputCharacter(unsigned int c)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     if (c == 0 || !AppAcceptingEvents)
@@ -1413,7 +1412,6 @@ static ImGuiInputEvent* FindLatestInputEvent(ImGuiContext* ctx, ImGuiInputEventT
 void ImGuiIO::AddKeyAnalogEvent(ImGuiKey key, bool down, float analog_value)
 {
     //if (e->Down) { IMGUI_DEBUG_LOG_IO("AddKeyEvent() Key='%s' %d, NativeKeycode = %d, NativeScancode = %d\n", ImGui::GetKeyName(e->Key), e->Down, e->NativeKeycode, e->NativeScancode); }
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     if (key == ImGuiKey_None || !AppAcceptingEvents)
         return;
@@ -1493,7 +1491,6 @@ void ImGuiIO::SetAppAcceptingEvents(bool accepting_events)
 // Queue a mouse move event
 void ImGuiIO::AddMousePosEvent(float x, float y)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     if (!AppAcceptingEvents)
@@ -1520,7 +1517,6 @@ void ImGuiIO::AddMousePosEvent(float x, float y)
 
 void ImGuiIO::AddMouseButtonEvent(int mouse_button, bool down)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     IM_ASSERT(mouse_button >= 0 && mouse_button < ImGuiMouseButton_COUNT);
@@ -1546,7 +1542,6 @@ void ImGuiIO::AddMouseButtonEvent(int mouse_button, bool down)
 // Queue a mouse wheel event (some mouse/API may only have a Y component)
 void ImGuiIO::AddMouseWheelEvent(float wheel_x, float wheel_y)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
 
@@ -1568,7 +1563,6 @@ void ImGuiIO::AddMouseWheelEvent(float wheel_x, float wheel_y)
 // This is so that duplicate events (e.g. Windows sending extraneous WM_MOUSEMOVE) gets filtered and are not leading to actual source changes.
 void ImGuiIO::AddMouseSourceEvent(ImGuiMouseSource source)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     g.InputEventsNextMouseSource = source;
@@ -1576,7 +1570,6 @@ void ImGuiIO::AddMouseSourceEvent(ImGuiMouseSource source)
 
 void ImGuiIO::AddMouseViewportEvent(ImGuiID viewport_id)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     //IM_ASSERT(g.IO.BackendFlags & ImGuiBackendFlags_HasMouseHoveredViewport);
@@ -1598,7 +1591,6 @@ void ImGuiIO::AddMouseViewportEvent(ImGuiID viewport_id)
 
 void ImGuiIO::AddFocusEvent(bool focused)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
 
