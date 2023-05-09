@@ -1296,6 +1296,7 @@ ImGuiIO::ImGuiIO()
 // FIXME: Should in theory be called "AddCharacterEvent()" to be consistent with new API
 void ImGuiIO::AddInputCharacter(unsigned int c)
 {
+    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
     if (c == 0 || !AppAcceptingEvents)
@@ -1411,8 +1412,8 @@ static ImGuiInputEvent* FindLatestInputEvent(ImGuiContext* ctx, ImGuiInputEventT
 // WE NEED TO ENSURE THAT ALL FUNCTION CALLS ARE FULLFILLING THIS, WHICH IS WHY GetKeyData() HAS AN EXPLICIT CONTEXT.
 void ImGuiIO::AddKeyAnalogEvent(ImGuiKey key, bool down, float analog_value)
 {
-    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     //if (e->Down) { IMGUI_DEBUG_LOG_IO("AddKeyEvent() Key='%s' %d, NativeKeycode = %d, NativeScancode = %d\n", ImGui::GetKeyName(e->Key), e->Down, e->NativeKeycode, e->NativeScancode); }
+    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     if (key == ImGuiKey_None || !AppAcceptingEvents)
         return;
@@ -1545,6 +1546,7 @@ void ImGuiIO::AddMouseButtonEvent(int mouse_button, bool down)
 // Queue a mouse wheel event (some mouse/API may only have a Y component)
 void ImGuiIO::AddMouseWheelEvent(float wheel_x, float wheel_y)
 {
+    Ctx = ImGui::GetCurrentContext(); // SKIF-CUSTOM: Needs this as otherwise Ctx is a nullptr?
     IM_ASSERT(Ctx != NULL);
     ImGuiContext& g = *Ctx;
 
