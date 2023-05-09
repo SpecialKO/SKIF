@@ -1385,6 +1385,9 @@ DWORD ImGui_ImplWin32_UpdateGamepads (int n)
 {
   UNREFERENCED_PARAMETER(n);
 
+//#define EnableLegacyBehavior
+
+#ifdef EnableLegacyBehavior
   ImGuiIO &io =
     ImGui::GetIO ( );
 
@@ -1401,6 +1404,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads (int n)
   memcpy (io.NavInputs,
             _fZeros,
     sizeof (_fZeros));
+#endif
 
   /*
   if (! g_Focused)
@@ -1455,7 +1459,9 @@ DWORD ImGui_ImplWin32_UpdateGamepads (int n)
 
   XINPUT_STATE xinput_state = { };
 
+#ifdef EnableLegacyBehavior
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+#endif
 
   for ( auto idx : XUSER_INDEXES )
   {
@@ -1538,6 +1544,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads (int n)
     const XINPUT_GAMEPAD &gamepad =
       xinput_state.Gamepad;
 
+#ifdef EnableLegacyBehavior
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 
 #define MAP_BUTTON(NAV_NO, BUTTON_ENUM)     { io.NavInputs[NAV_NO] = (gamepad.wButtons & BUTTON_ENUM) ? 1.0f : 0.0f; }
@@ -1560,10 +1567,13 @@ DWORD ImGui_ImplWin32_UpdateGamepads (int n)
     MAP_ANALOG (ImGuiNavInput_LStickDown,  gamepad.sThumbLY, -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, -32767);
 #undef MAP_BUTTON
 #undef MAP_ANALOG
+#endif
   }
 
+#ifdef EnableLegacyBehavior
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
+#endif
 
   return     newest.slot != INFINITE ?
          xinput_state.dwPacketNumber : 0;

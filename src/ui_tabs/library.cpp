@@ -2677,9 +2677,9 @@ Cache=false)";
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
   {
-    bool _GamePadRightClick = ImGui::IsItemFocused ( )                                              &&
-                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
-                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f;
+    bool _GamePadRightClick =   ImGui::IsItemFocused ( )                                               &&
+                              ((ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f  &&
+                                ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f) );
 
     /*
       ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
@@ -2688,9 +2688,11 @@ Cache=false)";
     */
     static constexpr float _LONG_INTERVAL = .15f;
 
-    bool _NavLongActivate = ImGui::IsItemFocused ( )                                                        &&
-                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL &&
-                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL;
+    bool _NavLongActivate =   ImGui::IsItemFocused ( )                                                         &&
+                            ((ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL  &&
+                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL) ||
+                             (ImGui::GetKeyData(ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL  &&
+                              ImGui::GetKeyData(ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL) );
 
     /*
       ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
@@ -2893,9 +2895,9 @@ Cache=false)";
       update = (selection.appid != app.second.id ||
                 selection.store != app.second.store);
 
-      selection.appid      = app.second.id;
-      selection.store      = app.second.store;
-      selected   = true;
+      selection.appid               = app.second.id;
+      selection.store               = app.second.store;
+      selected                      = true;
       _registry.iLastSelectedGame   = selection.appid;
       _registry.wsLastSelectedStore = SK_UTF8ToWideChar (selection.store);
 
@@ -2910,9 +2912,10 @@ Cache=false)";
           // Activate the row of the current game
           ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
 
-          if (! ImGui::IsItemVisible    (    )) {
+          if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
-          } ImGui::SetKeyboardFocusHere (    );
+          
+          //ImGui::SetKeyboardFocusHere (    );
 
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
           //   without an additional keyboard input

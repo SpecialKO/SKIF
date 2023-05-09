@@ -3060,8 +3060,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
                                ImGuiTabBarFlags_FittingPolicyResizeDown |
-                               ImGuiTabBarFlags_FittingPolicyScroll     | ImGuiTabBarFlags_DockNode );
-
+                               ImGuiTabBarFlags_FittingPolicyScroll     );
 
         if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ",
                                    nullptr,
@@ -3120,6 +3119,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
+
         if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
@@ -3129,6 +3129,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
         }
+
 
         if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
@@ -3864,7 +3865,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // TODO: Update and fix compatibility with updated ImGui codebase.
         //       ImGui in its default config IS NOT THREAD SAFE!
-        while (false)//IsWindow (SKIF_hWnd))
+        while (IsWindow (SKIF_hWnd))
         {
           extern DWORD ImGui_ImplWin32_UpdateGamepads (int n);
           packetNew  = ImGui_ImplWin32_UpdateGamepads (1);

@@ -129,11 +129,12 @@ SKIF_ImGui_IsFocused (void)
 {
   //ImGuiIO io = ImGui::GetIO();
   //return io.WantCaptureMouse;
-
-  //return ImGui::IsWindowFocused (ImGuiFocusedFlags_AnyWindow);
-
   extern bool SKIF_ImGui_ImplWin32_IsFocused (void);
-  return SKIF_ImGui_ImplWin32_IsFocused ( );
+
+  if (ImGui::GetCurrentContext() != NULL)
+    return ImGui::IsWindowFocused (ImGuiFocusedFlags_AnyWindow);
+  else
+    return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
 
 bool
@@ -154,18 +155,23 @@ SKIF_ImGui_IsMouseHovered (void)
 bool
 SKIF_ImGui_IsAnyInputDown (void)
 {
-  /*
-  ImGuiContext& g = *GImGui;
+  //ImGuiContext& g = *GImGui;
+  //ImGuiContext* ctx = ImGui::GetCurrentContext();
 
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
+  for (int key = ImGuiKey::ImGuiMod_None; key < ImGuiKey_COUNT; key++)
+    if (ImGui::IsKeyDown((ImGuiKey)key))
+      return true;
+
+  /*
+  for (int n = 0; n < IM_ARRAYSIZE(ctx->IO.MouseDown); n++)
       if (g.IO.MouseDown[n])
           return true;
     
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.KeysDown); n++)
+  for (int n = 0; n < IM_ARRAYSIZE(ctx->IO.KeysDown); n++)
       if (g.IO.KeysDown[n])
           return true;
 
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
+  for (int n = 0; n < IM_ARRAYSIZE(ctx->IO.NavInputs); n++)
       if (g.IO.NavInputs[n])
           return true;
   */
