@@ -46,5 +46,6 @@ SKIF supports detecting and launching games from the following platforms:
 * Uses [JSON for Modern C++](https://github.com/nlohmann/json), licensed under [MIT](https://github.com/nlohmann/json/blob/develop/LICENSE.MIT).
 * Uses [PLOG](https://github.com/SergiusTheBest/plog), licensed under [MIT](https://github.com/SergiusTheBest/plog/blob/master/LICENSE).
 * Uses [pugixml](https://pugixml.org/), licensed under [MIT](https://pugixml.org/license.html).
+* Uses [GSL](https://github.com/microsoft/GSL), licensed under [MIT](https://github.com/microsoft/GSL/blob/main/LICENSE).
 * Uses [TextFlowCpp](https://github.com/catchorg/textflowcpp), licensed under [BSL-1.0](https://github.com/catchorg/textflowcpp/blob/master/LICENSE.txt).
 * Includes various snippets of code from [Stack Overflow](https://stackoverflow.com/), licensed under [Creative Commons Attribution-ShareAlike](https://stackoverflow.com/help/licensing).
