@@ -4,6 +4,7 @@
 
 /.vs
 /Builds/*
+/packages/*
 /include/shaders/*.h
 /SKIF.vcxproj.user
 *.tlog
