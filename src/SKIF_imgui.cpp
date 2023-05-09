@@ -127,6 +127,11 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 bool
 SKIF_ImGui_IsFocused (void)
 {
+  //ImGuiIO io = ImGui::GetIO();
+  //return io.WantCaptureMouse;
+
+  //return ImGui::IsWindowFocused (ImGuiFocusedFlags_AnyWindow);
+
   extern bool SKIF_ImGui_ImplWin32_IsFocused (void);
   return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
@@ -315,12 +320,12 @@ SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeb
 {
   ImGuiWindow* window = ImGui::GetCurrentWindowRead();
   IM_ASSERT(columns_count >= 1);
-
-  ImGuiColumnsFlags flags = (border ? 0 : ImGuiColumnsFlags_NoBorder);
+  
+  ImGuiOldColumnFlags flags = (border ? 0 : ImGuiOldColumnFlags_NoBorder);
   if (! resizeble)
-    flags |= ImGuiColumnsFlags_NoResize;
-  //flags |= ImGuiColumnsFlags_NoPreserveWidths; // NB: Legacy behavior
-  ImGuiColumns* columns = window->DC.CurrentColumns;
+    flags |= ImGuiOldColumnFlags_NoResize;
+  //flags |= ImGuiOldColumnFlags_NoPreserveWidths; // NB: Legacy behavior
+  ImGuiOldColumns* columns = window->DC.CurrentColumns;
   if (columns != NULL && columns->Count == columns_count && columns->Flags == flags)
     return;
 

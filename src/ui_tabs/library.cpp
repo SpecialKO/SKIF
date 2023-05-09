@@ -1762,7 +1762,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   auto _HandleKeyboardInput = [&](void)
   {
-          auto& duration     = io.KeysDownDuration;
            bool bText        = false;
     static char test_ [1024] = {      };
            char out   [2]    = { 0, 0 };
@@ -1782,7 +1781,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     for ( auto c : _text_chars )
     {
-      if (duration [c] == 0.0f)
+      if (ImGui::GetKeyData(ImGuiKey(c))->DownDuration == 0.0f)
       {
         _Append (c);
       }
@@ -2514,18 +2513,15 @@ Cache=false)";
       ImGui::PopStyleVar ();
 
       std::string      buttonLabel = ICON_FA_GAMEPAD "  Launch ";// + pTargetApp->type;
-      ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
-
-      if (pTargetApp->_status.running)
-      {
-          buttonLabel = "Running...";
-          buttonFlags = ImGuiButtonFlags_Disabled;
-          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-      }
+      //ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
 
       // Disable the button for global injection types if the servlets are missing
-      if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
+      if (pTargetApp->_status.running || (! _inject.bHasServlet && ! cache.injection.type._Equal ("Local")))
       {
+        if (pTargetApp->_status.running)
+          buttonLabel = "Running...";
+
+
         ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
         ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
       }
@@ -2534,7 +2530,7 @@ Cache=false)";
       if ( ImGui::ButtonEx (
                   buttonLabel.c_str (),
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
-                                50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags )
+                                50.0f * SKIF_ImGui_GlobalDPIScale ), ImGuiButtonFlags_None )
            ||
         clickedGameLaunch
            ||
@@ -2652,14 +2648,11 @@ Cache=false)";
       }
       
       // Disable the button for global injection types if the servlets are missing
-      if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
+      if (pTargetApp->_status.running || (! _inject.bHasServlet && ! cache.injection.type._Equal ("Local")))
       {
         ImGui::PopStyleVar ();
         ImGui::PopItemFlag ();
       }
-
-      if (pTargetApp->_status.running)
-        ImGui::PopStyleVar ();
 
       if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
           ! openedGameContextMenu)
@@ -2684,16 +2677,25 @@ Cache=false)";
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
   {
-    bool _GamePadRightClick =
+    bool _GamePadRightClick = ImGui::IsItemFocused ( )                                              &&
+                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
+                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f;
+
+    /*
       ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
                                       io.NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
                                             ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
-
+    */
     static constexpr float _LONG_INTERVAL = .15f;
 
-    bool _NavLongActivate =
+    bool _NavLongActivate = ImGui::IsItemFocused ( )                                                        &&
+                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL &&
+                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL;
+
+    /*
       ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
                                       io.NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+    */
 
     bool ret =
       ImGui::IsItemActivated (                      ) ||
@@ -3403,7 +3405,7 @@ Cache=false)";
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );
 
-  if (! ImGui::IsAnyPopupOpen   ( ) &&
+  if (! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) &&
       ! ImGui::IsAnyItemHovered ( ) &&
         ImGui::IsItemClicked    (ImGuiMouseButton_Right))
   {
@@ -3640,13 +3642,14 @@ Cache=false)";
     ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
 
     bool        clicked =
-    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
-                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
-                                                     ImVec2 (0.f,       0.f),
-                                                     ImVec2 (1.f,       1.f),     0,
-                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                  hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
-                                                   : ImVec4 (  .8f,  .8f,  .8f, .66f));
+      ImGui::ImageButton   ("", (ImTextureID)pPatTexSRV.p,
+                                                       ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                                               200.0F * SKIF_ImGui_GlobalDPIScale),
+                                                       ImVec2 (0.f,       0.f),
+                                                       ImVec2 (1.f,       1.f),
+                                                       ImVec4 (0, 0, 0, 0), // Use a transparent background
+                                    hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
+                                                     : ImVec4 (  .8f,  .8f,  .8f, .66f));
 
     // Restore frame border
     ImGui::PopStyleVar   ( );
@@ -4611,7 +4614,7 @@ Cache=false)";
   }
 
 
-  if (AddGamePopup == PopupState::Open && ! ImGui::IsAnyPopupOpen ( ))
+  if (AddGamePopup == PopupState::Open && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
   {
     ImGui::OpenPopup("###AddGamePopup");
     //AddGamePopup = PopupState::Opened; // Set as part of the BeginPopupModal() call below instead

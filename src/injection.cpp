@@ -826,12 +826,15 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       _StartStopInject (bCurrentState, _registry.bStopOnInjection);
   }
 
-  else
+  else {
+    ImGui::BeginDisabled ( );
     ImGui::ButtonEx (runState == Stopping ? ICON_FA_TOGGLE_ON  "  Stopping...###GlobalStartStop" :
                                             ICON_FA_TOGGLE_OFF "  Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
-                        ImGuiButtonFlags_Disabled );
+                        ImGuiButtonFlags_None );
+    ImGui::EndDisabled ( );
+  }
 
   if ( ! bCurrentState && _registry.bAllowBackgroundService)
       SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");

@@ -230,7 +230,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::PopStyleColor    ( );
     
     // We need som additional spacing at the bottom here to push down the Components section in the right column
-    SKIF_ImGui_Spacing      (2.00f);
+    SKIF_ImGui_Spacing      (2.0f);
   }
 
   ImGui::NewLine          ( );

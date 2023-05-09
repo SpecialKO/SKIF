@@ -705,7 +705,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine         ( );
 
   ImGui::BeginGroup       ( );
-  ImGui::TreePush         ( );
+  ImGui::TreePush         ("ProcRefresh");
 
   const char* RefreshInterval[] = { "Paused",   // 0 (never)
                                     "Slow",     // 1 (5s)
@@ -786,7 +786,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TreePush   ( );
+  ImGui::TreePush   ("ForceState");
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
   if (ImGui::Button ( ICON_FA_TOGGLE_ON "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
@@ -1383,16 +1383,16 @@ SKIF_UI_Tab_DrawMonitor (void)
     static bool opened = false;
     static bool openedWithAltMethod = false;
 
-    bool _GamePadRightClick =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
-                                      ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
-                                            ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
+
+    bool _GamePadRightClick = ImGui::IsItemFocused ( )                                              &&
+                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
+                              ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f;
 
     static constexpr float _LONG_INTERVAL = .15f;
 
-    bool _NavLongActivate =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
-                                      ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+    bool _NavLongActivate = ImGui::IsItemFocused ( )                                                        &&
+                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL &&
+                            ImGui::GetKeyData(ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL;
 
     if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
           _GamePadRightClick                            ||

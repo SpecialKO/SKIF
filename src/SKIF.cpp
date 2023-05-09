@@ -243,6 +243,7 @@ SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
 float fAspect     = 16.0f / 9.0f;
 float fBottomDist = 0.0f;
 
+ImGuiContext*           p_ImGuiContext         = nullptr;
 ID3D11Device*           g_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
 //IDXGISwapChain*         g_pSwapChain           = nullptr;
@@ -2217,7 +2218,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
-  ImGui::CreateContext ();
+  p_ImGuiContext = ImGui::CreateContext ();
+
 
   ImGuiIO& io =
     ImGui::GetIO ();
@@ -2470,9 +2472,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       tinyDPIFonts = true;
 
       PLOG_VERBOSE << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts (fontScale); // 11.0F
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
+      //SKIF_ImGui_InitFonts (fontScale); // 11.0F
+      //ImGui::GetIO ().Fonts->Build ();
+      //ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       invalidatedFonts = SKIF_Util_timeGetTime();
     }
@@ -2483,9 +2485,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       PLOG_VERBOSE << "DPI scale detected as being at or above 100%; using font scale 18.0F";
 
-      SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
+      //SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
+      //ImGui::GetIO ().Fonts->Build ();
+      //ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       invalidatedFonts = SKIF_Util_timeGetTime();
     }
@@ -2493,9 +2495,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     else if (invalidateFonts)
     {
       PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
+      //SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
+      //ImGui::GetIO ().Fonts->Build ();
+      //ImGui_ImplDX11_InvalidateDeviceObjects ();
 
       invalidateFonts = false;
       invalidatedFonts = SKIF_Util_timeGetTime();
@@ -2577,7 +2579,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
       // RepositionSKIF -- Step 2: Repositon the window
-      if (RepositionSKIF)
+      if (false & RepositionSKIF)
       {
         // Repositions the window in the center of the monitor the cursor is currently on
         ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
@@ -2586,7 +2588,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
       //     Otherwise window gets positioned wrong on smaller monitors !
-      if (changedMode && ImGui::GetFrameCount() > 2)
+      if (false & changedMode && ImGui::GetFrameCount() > 2)
       {
         changedMode = false;
 
@@ -2611,8 +2613,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region Move SKIF using Windows Key + Arrow Keys
 
-      if ((io.KeysDown[VK_LWIN] && io.KeysDownDuration[VK_LWIN] == 0.0f) ||
-          (io.KeysDown[VK_RWIN] && io.KeysDownDuration[VK_RWIN] == 0.0f))
+      if ((ImGui::GetKeyData(ImGuiKey_LeftSuper)->DownDuration == 0.0f) ||
+          (ImGui::GetKeyData(ImGuiKey_RightSuper)->DownDuration == 0.0f))
         KeyWinKey = true;
       else if (! io.KeysDown[VK_LWIN] && ! io.KeysDown[VK_RWIN])
         KeyWinKey = false;
@@ -2660,7 +2662,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (GetMonitorInfo(nearestMonitor, (LPMONITORINFO)&nearestMonitorInfo))
               {
                 // Don't bother if the nearest monitor is also the current monitor
-                if (nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
+                if (false & nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
                 {
                   // Loop through all platform monitors
                   for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
@@ -2772,8 +2774,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         style.GrabMinSize                           = SKIF_ImGui_DefaultStyle.GrabMinSize                         * SKIF_ImGui_GlobalDPIScale;
         style.GrabRounding                          = SKIF_ImGui_DefaultStyle.GrabRounding                        * SKIF_ImGui_GlobalDPIScale;
         style.TabRounding                           = style.WindowRounding;
-        if (style.TabMinWidthForUnselectedCloseButton != FLT_MAX)
-          style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
+        //if (style.TabMinWidthForUnselectedCloseButton != FLT_MAX)
+        //  style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
         style.DisplayWindowPadding                  = SKIF_ImGui_DefaultStyle.DisplayWindowPadding                * SKIF_ImGui_GlobalDPIScale;
         style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
         style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
@@ -2861,8 +2863,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
       );
 
-      if ( (io.KeyCtrl && io.KeysDown['R']    && io.KeysDownDuration['R']    == 0.0f) ||
-           (              io.KeysDown[VK_F5]  && io.KeysDownDuration[VK_F5]  == 0.0f)
+      if ( (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down            &&
+            ImGui::GetKeyData(ImGuiKey_R)->DownDuration  == 0.0f) ||
+           (ImGui::GetKeyData(ImGuiKey_F5)->DownDuration == 0.0f)
          )
       {
         if (SKIF_Tab_Selected == UITab_Library)
@@ -2872,8 +2875,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           RefreshSettingsTab = true;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
-           (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
+      if ( (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down             && 
+            ImGui::GetKeyData(ImGuiKey_T)->DownDuration == 0.0f)   ||
+           (ImGui::GetKeyData(ImGuiKey_F11)->DownDuration == 0.0f) ||
             ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
                                               : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
@@ -2903,36 +2907,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
         */
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
-         )
+      if (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down &&
+          ImGui::GetKeyData(ImGuiKey_1)->DownDuration == 0.0f)
       {
         if (SKIF_Tab_Selected != UITab_Library)
             SKIF_Tab_ChangeTo  = UITab_Library;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['2']    && io.KeysDownDuration['2']    == 0.0f)
-         )
+      if (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down &&
+          ImGui::GetKeyData(ImGuiKey_2)->DownDuration == 0.0f)
       {
         if (SKIF_Tab_Selected != UITab_Monitor)
             SKIF_Tab_ChangeTo  = UITab_Monitor;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['3']    && io.KeysDownDuration['3']    == 0.0f)
-         )
+      if (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down &&
+          ImGui::GetKeyData(ImGuiKey_3)->DownDuration == 0.0f)
       {
         if (SKIF_Tab_Selected != UITab_Settings)
             SKIF_Tab_ChangeTo  = UITab_Settings;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['4']    && io.KeysDownDuration['4']    == 0.0f)
-         )
+      if (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down &&
+          ImGui::GetKeyData(ImGuiKey_4)->DownDuration == 0.0f)
       {
         if (SKIF_Tab_Selected != UITab_About)
             SKIF_Tab_ChangeTo  = UITab_About;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['A']    && io.KeysDownDuration['A']    == 0.0f)
-         )
+      if (ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down &&
+          ImGui::GetKeyData(ImGuiKey_A)->DownDuration == 0.0f)
       {
         if (SKIF_Tab_Selected != UITab_Library)
             SKIF_Tab_ChangeTo  = UITab_Library;
@@ -2950,7 +2954,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if ( (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f) ||
+      if ((ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down           &&
+           ImGui::GetKeyData(ImGuiKey_N)->DownDuration == 0.0f) ||
             ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                              0.0f ) ) )
       {
@@ -2959,7 +2964,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if ( (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
+      if ((ImGui::GetKeyData(ImGuiKey_LeftCtrl)->Down           &&
+           ImGui::GetKeyData(ImGuiKey_Q)->DownDuration == 0.0f) ||
             ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                           0.0f ) )
           || bKeepWindowAlive == false
@@ -3482,7 +3488,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static size_t NumCharsOnLine       = 0;
       static std::vector<char> vecNotes;
 
-      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -3693,7 +3699,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static size_t HistoryPopupNumCharsOnLine = 0;
       static std::vector<char> vecHistory;
 
-      if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
       {
         //HistoryPopupWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         HistoryPopupWidth = 360.0f;
@@ -3808,10 +3814,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
         _inject._SetTaskbarOverlay      (_inject.bCurrentState);
 
-      monitor_extent =
-        ImGui::GetWindowAllowedExtentRect (
-          ImGui::GetCurrentWindowRead   ()
-        );
+      //monitor_extent =
+      //  ImGui::GetWindowAllowedExtentRect (
+      //    ImGui::GetCurrentWindowRead   ()
+      //  );
       windowPos      = ImGui::GetWindowPos ();
       windowRect.Min = ImGui::GetWindowPos ();
       windowRect.Max = ImGui::GetWindowPos () + ImGui::GetWindowSize ();
@@ -3845,7 +3851,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Actual rendering is conditional, this just processes input
     ImGui::Render ();
-
+    
     // Conditional rendering
     bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
     if ( bRefresh)
@@ -3903,8 +3909,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         while (IsWindow (SKIF_hWnd))
         {
-          extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-          packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
+          extern DWORD ImGui_ImplWin32_UpdateGamepads (int n);
+          packetNew  = ImGui_ImplWin32_UpdateGamepads (1);
 
           if (packetNew  > 0  &&
               packetNew != packetLast)
@@ -3982,7 +3988,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //OutputDebugString((L"Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
 
     // Clear gamepad/nav input for the next frame as we're done with it
-    memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
+    //memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
 
     //if (uiLastMsg == WM_SKIF_GAMEPAD)
     //  OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");
@@ -3993,7 +3999,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     // TODO: Investigate if this is what causes dropdown lists from collapsing after SKIF has launched
-    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
+    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
     {
       // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
       //   But we do close the RemoveGame popup since that's not as critical.

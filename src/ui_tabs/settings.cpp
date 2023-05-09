@@ -483,7 +483,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::NextColumn    ( );
 
-  ImGui::TreePush      ( );
+  ImGui::TreePush      ("SecondColumn");
 
   // New column
           
@@ -928,7 +928,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn    ( );
 
-    ImGui::TreePush      ( );
+    ImGui::TreePush      ("SecondColumnAppearance");
             
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
@@ -1081,7 +1081,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ( );
+    ImGui::TreePush         ("SecondColumnAdvanced");
 
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
                                             &_registry.bAllowBackgroundService))
@@ -1812,13 +1812,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("SwapChainPresent");
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("SwapChainPresentMinimal");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Independent Flip");
@@ -1844,7 +1844,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("SwapChainPresentUndesirable");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
@@ -1963,7 +1963,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("SwapChainPresentMPOs");
 
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
