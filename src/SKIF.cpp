@@ -2358,7 +2358,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
-  bool show_demo_window = true;
+  bool bShowImGuiDemo  = false,
+       bShowImGuiDebug = false,
+       bShowImGuiAbout = false;
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -2531,9 +2533,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
-
-      ImGui::ShowDemoWindow (&show_demo_window);
-
       // Fixes the wobble that occurs when switching between tabs,
       //  as the width/height of the window isn't dynamically calculated.
 #define SKIF_wLargeMode 1038
@@ -2545,6 +2544,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     SKIF_vecLargeMode,
                     SKIF_vecCurrentMode;
       ImRect rectCursorMonitor;
+      
+
+      if (ImGui::GetKeyData (ImGuiKey_F7)->DownDuration == 0.0f)
+        bShowImGuiAbout = ! bShowImGuiAbout;
+      
+      if (ImGui::GetKeyData (ImGuiKey_F8)->DownDuration == 0.0f)
+        bShowImGuiDebug = ! bShowImGuiDebug;
+      
+      if (ImGui::GetKeyData (ImGuiKey_F9)->DownDuration == 0.0f)
+        bShowImGuiDemo  = ! bShowImGuiDemo;
+
+      if (bShowImGuiAbout)
+        ImGui::ShowAboutWindow();
+
+      if (bShowImGuiDebug)
+        ImGui::ShowDebugLogWindow();
+
+      if (bShowImGuiDemo)
+        ImGui::ShowDemoWindow();
 
       // RepositionSKIF -- Step 1: Retrieve monitor of cursor, and set global DPI scale
       if (RepositionSKIF)
@@ -3346,6 +3364,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::OpenPopup ("###FailedFontsPopup");
         ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
+        ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
 
       if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
@@ -3508,11 +3527,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // 715px    - Release Notes width
       //  15px    - Approx. scrollbar width
       //   7.78px - Approx. character width (700px / 90 characters)
-      if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
-                                     ImGuiWindowFlags_NoResize         |
-                                     ImGuiWindowFlags_NoMove           |
-                                     ImGuiWindowFlags_AlwaysAutoResize )
-         )
+      if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
       {
 #ifdef _WIN64
         std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
@@ -3523,13 +3538,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec4      compareColor;
         bool        compareNewer = false;
 
-        if (UpdatePromptPopup == PopupState::Open)
-        {
-          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-          ImGuiWindow* window = ImGui::FindWindowByName ("###UpdatePrompt");
-          if (window != nullptr && ! window->Appearing)
-            UpdatePromptPopup = PopupState::Opened;
-        }
+        // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+        if (UpdatePromptPopup == PopupState::Open && ! ImGui::IsWindowAppearing ( ))
+            UpdatePromptPopup  = PopupState::Opened;
 
         if (SKIF_Util_CompareVersionStrings (newVersion.version, currentVersion) > 0)
         {
@@ -3567,11 +3578,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::Text           ("Changes:");
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
+          /*
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
                                   vecNotes.data(), static_cast<int>(vecNotes.size()),
                                     ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
                                         (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+          */
+          ImGui::InputTextMultiline ( "###UpdatePromptChanges",
+                                      vecNotes.data(), static_cast<int>(vecNotes.size()),
+                                        ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                                            (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
+                                          ImGuiInputTextFlags_ReadOnly );
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
@@ -3713,20 +3731,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
 
-      if (ImGui::BeginPopupModal ( "Changelog###History", nullptr,
-                                     ImGuiWindowFlags_NoResize |
-                                     ImGuiWindowFlags_NoMove |
-                                     ImGuiWindowFlags_AlwaysAutoResize )
-         )
+      if (ImGui::BeginPopupModal ( "Changelog###History", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
       {
-
-        if (HistoryPopup == PopupState::Open)
-        {
-          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-          ImGuiWindow* window = ImGui::FindWindowByName ("###History");
-          if (window != nullptr && ! window->Appearing)
-            HistoryPopup = PopupState::Opened;
-        }
+        // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+        if (HistoryPopup == PopupState::Open && ! ImGui::IsWindowAppearing ( ))
+            HistoryPopup  = PopupState::Opened;
 
         SKIF_ImGui_Spacing ();
 
@@ -3734,11 +3743,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
+          /*
           ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
                                   vecHistory.data(), static_cast<int>(vecHistory.size()),
                                     ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
                          (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+          */
+          ImGui::InputTextMultiline ( "###HistoryChanges",
+                                      vecHistory.data(), static_cast<int>(vecHistory.size()),
+                                        ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                             (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
+                                          ImGuiInputTextFlags_ReadOnly );
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
@@ -3956,7 +3972,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //  OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-    // TODO: Investigate if this is what causes dropdown lists from collapsing after SKIF has launched
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
     {
       // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
@@ -3976,7 +3991,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (HiddenFramesContinueRendering)
       pause = false;
 
-    //bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
+    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
     //OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
 
     do
@@ -4037,8 +4052,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
-      //else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
-      //  MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
+      else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
 
       
       if (bRefresh) //bRefresh)

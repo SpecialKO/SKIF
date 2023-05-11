@@ -1727,14 +1727,10 @@ SKIF_UI_Tab_DrawMonitor (void)
   {
     ImGui::OpenPopup         ("SKIF Task Manager");
 
-    ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+    ImGui::SetNextWindowSize (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
     ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-    if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr,
-                                    ImGuiWindowFlags_NoResize |
-                                    ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_AlwaysAutoResize )
-        )
+    if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
     {
 
       ImGui::Text        ("Do you want to end");
@@ -1744,7 +1740,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       ImGui::Text        ("?");
       SKIF_ImGui_Spacing ( );
       ImGui::TextWrapped ("If an open program is associated with this process, it will close and you will lose any unsaved data. "
-                          "If you end a system process, it might result in system instability. Are you sure you want to continue?");
+                          "If you end a system process, it might result in system instability.\n\nAre you sure you want to continue?");
 
       SKIF_ImGui_Spacing ( );
 

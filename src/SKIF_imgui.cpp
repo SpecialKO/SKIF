@@ -2,6 +2,8 @@
 
 #include <registry.h>
 
+bool SKIF_isFocused = false;
+
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
 void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
@@ -127,14 +129,25 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 bool
 SKIF_ImGui_IsFocused (void)
 {
-  //ImGuiIO io = ImGui::GetIO();
-  //return io.WantCaptureMouse;
   extern bool SKIF_ImGui_ImplWin32_IsFocused (void);
 
-  if (ImGui::GetCurrentContext() != NULL)
-    return ImGui::IsWindowFocused (ImGuiFocusedFlags_AnyWindow);
-  else
-    return SKIF_ImGui_ImplWin32_IsFocused ( );
+  //if (ImGui::GetCurrentContext() != NULL)
+  //  return ImGui::IsWindowFocused (ImGuiFocusedFlags_AnyWindow);
+  //else
+  //  return SKIF_ImGui_ImplWin32_IsFocused ( );
+
+  return SKIF_isFocused;
+
+  //if (ImGui::GetCurrentContext() != NULL)
+  //  return ImGui::GetIO().AppFocusLost;
+  //else
+  //  return SKIF_ImGui_ImplWin32_IsFocused ( );
+}
+
+void
+SKIF_ImGui_SetFocus (bool focused)
+{
+  SKIF_isFocused = focused;
 }
 
 bool

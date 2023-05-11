@@ -745,6 +745,20 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
     case WM_SETFOCUS:
     case WM_KILLFOCUS:
         io.AddFocusEvent(msg == WM_SETFOCUS);
+
+#pragma region SKIF_CUSTOM
+        
+        extern HWND SKIF_hWnd;
+        extern void SKIF_ImGui_SetFocus (bool focused);
+
+        if (msg == WM_SETFOCUS)
+          SKIF_ImGui_SetFocus (true );
+        else if ((HWND)wParam != SKIF_hWnd && (! IsChild (SKIF_hWnd, (HWND)wParam)))
+          SKIF_ImGui_SetFocus (false);
+
+#pragma endregion
+
+
         return 0;
     case WM_CHAR:
         if (::IsWindowUnicode(hwnd))
@@ -1315,7 +1329,8 @@ INT64 current_time;
 INT64 current_time_ms;
 
 // Peripheral Functions
-bool SKIF_ImGui_ImplWin32_IsFocused (void)
+
+bool SKIF_ImGui_ImplWin32_IsFocused_Old (void)
 {
   //extern HWND SKIF_hWnd;
   extern HWND SKIF_ImGui_hWnd;
