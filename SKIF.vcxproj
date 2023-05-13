@@ -359,6 +359,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\games.h" />
+    <ClInclude Include="include\imgui\skif_imgui_impl_dx11.h" />
     <ClInclude Include="include\registry.h" />
     <ClInclude Include="include\SKIF_imgui.h" />
     <ClInclude Include="include\SKIF_utility.h" />
@@ -368,7 +369,6 @@
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
     <ClInclude Include="include\font_awesome.h" />
     <ClInclude Include="include\fsutil.h" />
-    <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
     <ClInclude Include="include\imgui\imgui_impl_win32.h" />
@@ -456,13 +456,13 @@
     <ClCompile Include="src\games.cpp" />
     <ClCompile Include="src\imgui\imgui_demo.cpp" />
     <ClCompile Include="src\imgui\imgui_tables.cpp" />
+    <ClCompile Include="src\imgui\skif_imgui_impl_dx11.cpp" />
     <ClCompile Include="src\registry.cpp" />
     <ClCompile Include="src\SKIF_imgui.cpp" />
     <ClCompile Include="src\SKIF_utility.cpp" />
     <ClCompile Include="src\stores\EGS\epic_library.cpp" />
     <ClCompile Include="sk_console.cpp" />
     <ClCompile Include="src\fsutil.cpp" />
-    <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\imgui\imgui.cpp" />
     <ClCompile Include="src\imgui\imgui_draw.cpp" />
     <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />

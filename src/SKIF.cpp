@@ -55,7 +55,7 @@
 #include <filesystem>
 #include <concurrent_queue.h>
 
-#include "imgui/d3d11/imgui_impl_dx11.h"
+#include "imgui/skif_imgui_impl_dx11.h"
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>

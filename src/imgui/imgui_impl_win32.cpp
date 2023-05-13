@@ -1275,9 +1275,18 @@ static void ImGui_ImplWin32_ShutdownPlatformInterface()
     ImGui::DestroyPlatformWindows();
 }
 
-//---------------------------------------------------------------------------------------------------------
 
-// CUSTOM STUFF
+
+//---------------------------------------------------------------------------------------------------------
+// CUSTOM SKIF STUFF
+//---------------------------------------------------------------------------------------------------------
+//
+// The intention is to keep as few changes as possible from the original source code, to facilitate easier
+//   updates to newer versions of ImGui.
+//
+
+// Includes
+#include <array>
 
 // PLOG
 #ifndef PLOG_ENABLE_WCHAR_INPUT
@@ -1290,7 +1299,6 @@ static void ImGui_ImplWin32_ShutdownPlatformInterface()
 
 // Registry Settings
 #include <registry.h>
-#include <array>
 
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 

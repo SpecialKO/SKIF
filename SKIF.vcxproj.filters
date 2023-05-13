@@ -16,9 +16,6 @@
     <Filter Include="Source Files\ImGui">
       <UniqueIdentifier>{63076e31-4f80-4ca1-b4af-bfe9a9c359b2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\ImGui\D3D11">
-      <UniqueIdentifier>{c1e4600b-6cfe-4460-8df5-01dd30f01d5c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ImGui">
       <UniqueIdentifier>{7e60a39e-3f7a-46ab-abac-6d25a90a2549}</UniqueIdentifier>
     </Filter>
@@ -42,9 +39,6 @@
     </Filter>
     <Filter Include="Header Files\ImGui\Backends">
       <UniqueIdentifier>{50a540e9-c9d2-4223-8bd0-d839f1ae1197}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\ImGui\Backends\D3D11">
-      <UniqueIdentifier>{444c152e-6991-45d2-acb5-69bb839615ac}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Config">
       <UniqueIdentifier>{640440ea-60dc-4dc4-ac3b-e429b4279aa1}</UniqueIdentifier>
@@ -243,9 +237,6 @@
     <ClInclude Include="include\imgui\imstb_truetype.h">
       <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
-      <Filter>Header Files\ImGui\Backends\D3D11</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\Steam\steam_library.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
@@ -366,11 +357,11 @@
     <ClInclude Include="include\stores\generic_library2.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
+    <ClInclude Include="include\imgui\skif_imgui_impl_dx11.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
-      <Filter>Source Files\ImGui\D3D11</Filter>
-    </ClCompile>
     <ClCompile Include="src\imgui\imgui_impl_win32.cpp">
       <Filter>Source Files\ImGui\Win32</Filter>
     </ClCompile>
@@ -461,14 +452,17 @@
     <ClCompile Include="src\games.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="include\stores\generic_library2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\imgui\imgui_tables.cpp">
       <Filter>Source Files\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="src\imgui\imgui_demo.cpp">
       <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\skif_imgui_impl_dx11.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="include\stores\generic_library2.cpp">
+      <Filter>Source Files\Stores</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
