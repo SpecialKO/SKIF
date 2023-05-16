@@ -1,5 +1,6 @@
 #include <registry.h>
 
+extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
 
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
@@ -17,12 +18,17 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   iSDRMode                 = 0;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
   iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
   iHDRBrightness           = 203; // HDR reference white for BT.2408
+  iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
 
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
   // but it seems that Windows 10 1709+ (Build 16299) also supports
   // 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model.
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
     iSDRMode = 1; // Default to 10 bpc on Win10 1709+
+
+  // iUIMode defaults to 1 on Win7 and 8.1, but 2 on 10+
+  if (SKIF_Util_IsWindows10OrGreater ( ))
+    iUIMode  = 2;
 
   // Default settings (booleans)
   bRememberLastSelected    = false;
@@ -45,7 +51,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bLowBandwidthMode        = false;
   bPreferGOGGalaxyLaunch   = false;
   bMinimizeOnGameLaunch    = false;
-  bDisableVSYNC            = false;
+  //bDisableVSYNC            = false;
   bDisableCFAWarning       = false; // Controlled Folder Access warning
   bProcessSortAscending    = true;
   bProcessIncludeAll       = false;
@@ -85,8 +91,11 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iHDRMode               =   regKVHDRMode                .getData ( );
   if (regKVHDRBrightness.hasData())
     iHDRBrightness         =   regKVHDRBrightness          .getData ( );
+  
+  if (regKVUIMode.hasData())
+    iUIMode                =   regKVUIMode                 .getData ( );
 
-  bDisableVSYNC            =   regKVDisableVSYNC           .getData ( );
+  //bDisableVSYNC            =   regKVDisableVSYNC           .getData ( );
   bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
   bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );
   

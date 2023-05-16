@@ -535,6 +535,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(HDR Brightness)" );
 
+  KeyValue <int> regKVUIMode =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Mode)" );
+
   // Wide Strings
 
   KeyValue <std::wstring> regKVLastSelectedStore =
@@ -571,8 +575,8 @@ struct SKIF_RegistrySettings {
   int iSDRMode;
   int iHDRMode;
   int iHDRBrightness;
+  int iUIMode;
 
-  //TODO: Move everything over to be defined as part of registry.h instead.
   bool bRememberLastSelected;
   bool bDisableDPIScaling;
   bool bDisableTooltips;
@@ -587,7 +591,7 @@ struct SKIF_RegistrySettings {
   bool bEnableDebugMode;
   bool bAllowMultipleInstances;
   bool bAllowBackgroundService;
-  bool bDisableVSYNC;
+  //bool bDisableVSYNC;
   bool bDisableCFAWarning;
   bool bOpenAtCursorPosition;
   bool bStopOnInjection;

@@ -95,6 +95,7 @@ extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern std::wstring    SKIF_EGS_AppDataPath;
+extern DWORD           invalidatedDevice;
 
 extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
@@ -811,7 +812,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
   */
 
-  static CComPtr <ID3D11Texture2D>          pTex2D;
+  //static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
   //static ImVec2                             vecTex2D;
 
@@ -5092,6 +5093,33 @@ Cache=false)";
     update = true;
 
     SelectNewSKIFGame = 0;
+  }
+
+  // In case of a device reset, unload all currently loaded textures
+  if (invalidatedDevice == 1)
+  {   invalidatedDevice = 2;
+
+    extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+    if (pTexSRV.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(pTexSRV.p);
+      pTexSRV.p = nullptr;
+    }
+
+    if (pPatTexSRV.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(pPatTexSRV.p);
+      pPatTexSRV.p = nullptr;
+    }
+
+    for (auto& app : apps)
+    {
+      if (app.second.textures.icon.p != nullptr)
+      {
+        SKIF_ResourcesToFree.push(app.second.textures.icon.p);
+        app.second.textures.icon.p = nullptr;
+      }
+    }
   }
 }
 

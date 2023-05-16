@@ -718,6 +718,26 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
+    ImGui::SameLine        ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Dim game covers by 25%%:"
+    );
+    ImGui::TreePush        ("iDimCovers");
+    if (ImGui::RadioButton ("Never",                 &_registry.iDimCovers, 0))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("Always",                &_registry.iDimCovers, 1))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("Based on mouse cursor", &_registry.iDimCovers, 2))
+      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
     extern bool RecreateSwapChains;
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -729,21 +749,22 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     
     static int placeholder = 0;
-    static int* pointer = nullptr;
+    static int* ptrSDR = nullptr;
+    static int* ptrHDR = nullptr;
 
-    if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( ))
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( )))
     {
       // Disable buttons
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
 
-      pointer = &_registry.iHDRMode;
+      ptrSDR = &_registry.iHDRMode;
     }
     else
-      pointer = &_registry.iSDRMode;
+      ptrSDR = &_registry.iSDRMode;
     
     ImGui::TreePush        ("iSDRMode");
-    if (ImGui::RadioButton ("8 bpc", pointer, 0))
+    if (ImGui::RadioButton   ("8 bpc",        ptrSDR, 0))
     {
       _registry.regKVSDRMode.putData (_registry.iSDRMode);
       RecreateSwapChains = true;
@@ -753,21 +774,21 @@ SKIF_UI_Tab_DrawSettings (void)
     if (SKIF_Util_IsWindows10v1709OrGreater ( ))
     {
       ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("10 bpc", pointer, 1))
+      if (ImGui::RadioButton ("10 bpc",       ptrSDR, 1))
       {
         _registry.regKVSDRMode.putData (_registry.iSDRMode);
         RecreateSwapChains = true;
       }
     }
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("16 bpc", pointer, 2))
+    if (ImGui::RadioButton   ("16 bpc",       ptrSDR, 2))
     {
       _registry.regKVSDRMode.putData (_registry.iSDRMode);
       RecreateSwapChains = true;
     }
     ImGui::TreePop         ( );
-
-    if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( ))
+    
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( )))
     {
       ImGui::PopStyleVar ();
       ImGui::PopItemFlag ();
@@ -784,22 +805,34 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
           "High Dynamic Range:"
       );
+
+      if (_registry.iUIMode == 0)
+      {
+        // Disable buttons
+        ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+
+        ptrHDR = &_registry.iUIMode;
+      }
+      else
+        ptrHDR = &_registry.iHDRMode;
+
       ImGui::TreePush        ("iHDRMode");
-      if (ImGui::RadioButton ("No",             &_registry.iHDRMode, 0))
+      if (ImGui::RadioButton ("No",             ptrHDR, 0))
       {
-        _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+        _registry.regKVHDRMode.putData (_registry.iHDRMode);
         RecreateSwapChains = true;
       }
       ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
+      if (ImGui::RadioButton ("HDR10 (10 bpc)", ptrHDR, 1))
       {
-        _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+        _registry.regKVHDRMode.putData (_registry.iHDRMode);
         RecreateSwapChains = true;
       }
       ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("scRGB (16 bpc)", &_registry.iHDRMode, 2))
+      if (ImGui::RadioButton ("scRGB (16 bpc)", ptrHDR, 2))
       {
-        _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+        _registry.regKVHDRMode.putData (_registry.iHDRMode);
         RecreateSwapChains = true;
       }
 
@@ -822,29 +855,15 @@ SKIF_UI_Tab_DrawSettings (void)
       }
 
       ImGui::TreePop         ( );
+    
+      if (_registry.iUIMode == 0)
+      {
+        ImGui::PopStyleVar ();
+        ImGui::PopItemFlag ();
+      }
 
       ImGui::Spacing         ( );
     }
-
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-    SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
-    ImGui::SameLine        ( );
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Dim game covers by 25%%:"
-    );
-    ImGui::TreePush        ("iDimCovers");
-    if (ImGui::RadioButton ("Never",                 &_registry.iDimCovers, 0))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Always",                &_registry.iDimCovers, 1))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Based on mouse cursor", &_registry.iDimCovers, 2))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
-    ImGui::TreePop         ( );
-
-    ImGui::Spacing         ( );
           
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
@@ -950,41 +969,48 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing       ( );
 
-    // Only show if OS supports tearing in windowed mode
-    extern bool SKIF_bCanAllowTearing;
-    if (SKIF_bCanAllowTearing)
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+                            "UI Mode:"
+    );
+
+    extern bool SKIF_bCanFlip;
+    ImGui::TreePush        ("SKIF_iSyncMode");
+    // Flip VRR Compatibility Mode (only relevant on Windows 10+)
+    if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
     {
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
-      SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                              "UI Refresh Mode: (restart required)"
-      );
-
-      enum SKIF_SyncModes {
-        Sync_VRR_Compat = 0,
-        Sync_None       = 1
-      };
-
-      int SKIF_iSyncMode =
-        _registry.bDisableVSYNC ? Sync_None
-                           : Sync_VRR_Compat;
-
-      ImGui::TreePush        ("SKIF_iSyncMode");
-      if (ImGui::RadioButton ("VRR Compatibility", &SKIF_iSyncMode, Sync_VRR_Compat))
-        _registry.regKVDisableVSYNC.putData ((_registry.bDisableVSYNC = false));
+      if (ImGui::RadioButton ("VRR Compatibility", &_registry.iUIMode, 2))
+      {
+        _registry.regKVUIMode.putData (             _registry.iUIMode);
+        RecreateSwapChains = true;
+      }
       SKIF_ImGui_SetHoverTip (
         "Avoids signal loss and flickering on VRR displays"
       );
       ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("Normal",         &SKIF_iSyncMode, Sync_None))
-        _registry.regKVDisableVSYNC.putData ((_registry.bDisableVSYNC = true));
-      SKIF_ImGui_SetHoverTip (
-        "Improves UI response on low fixed-refresh rate displays"
-      );
-      ImGui::TreePop         ( );
-      ImGui::Spacing         ( );
     }
+    if (ImGui::RadioButton ("Normal",              &_registry.iUIMode, 1))
+    {
+      _registry.regKVUIMode.putData (               _registry.iUIMode);
+      RecreateSwapChains = true;
+    }
+    SKIF_ImGui_SetHoverTip (
+      "Improves UI response on low fixed-refresh rate displays"
+    );
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("Safe Mode",           &_registry.iUIMode, 0))
+    {
+      _registry.regKVUIMode.putData (               _registry.iUIMode);
+      RecreateSwapChains = true;
+    }
+    SKIF_ImGui_SetHoverTip (
+      "Compatibility mode for users experiencing issues with the other two modes"
+    );
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
 
     const char* StyleItems[] = { "SKIF Dark",
                                  "ImGui Dark",

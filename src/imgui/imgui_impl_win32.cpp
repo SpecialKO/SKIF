@@ -9,6 +9,7 @@
 //  [X] Platform: Multi-viewport support (multiple windows). Enable with 'io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable'.
 
 #include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 #include <imgui/imgui_impl_win32.h>
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -1059,7 +1060,7 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_ex_style |= WS_EX_TOPMOST;
 
   // This flag is Windows 8+, and only applicable to flip swapchains
-  if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ))
+  if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
     *out_ex_style |=
       WS_EX_NOREDIRECTIONBITMAP;
 }
@@ -1174,6 +1175,8 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
                      &new_ex_style
   );
 
+  static bool hasNoRedirectionBitmap = (bool)(data->DwExStyle & WS_EX_NOREDIRECTIONBITMAP);
+
   // Only reapply the flags that have been changed from our point of view (as other flags are being modified by Windows)
   if ( data->DwStyle   != new_style ||
        data->DwExStyle != new_ex_style )
@@ -1183,6 +1186,16 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
 
     ::SetWindowLongPtrW ( data->Hwnd, GWL_STYLE,   data->DwStyle  );
     ::SetWindowLongPtrW ( data->Hwnd, GWL_EXSTYLE, data->DwExStyle);
+
+    // Force recreating the window if the NoRedirectionBitmap flag has changed
+    if (hasNoRedirectionBitmap != (bool)(data->DwExStyle & WS_EX_NOREDIRECTIONBITMAP))
+    {   hasNoRedirectionBitmap  = (bool)(data->DwExStyle & WS_EX_NOREDIRECTIONBITMAP);
+      ImGuiViewportP* viewportP =
+        static_cast <ImGuiViewportP*> (
+                          viewport
+        );
+      viewportP->LastFrameActive = 0;
+    }
 
     RECT rect =
     { (LONG)  viewport->Pos.x,                      (LONG)  viewport->Pos.y,
@@ -1315,6 +1328,9 @@ ImGui_ImplWin32_GetWindowMinimized (ImGuiViewport *viewport)
 {
   ImGuiViewportDataWin32 *data =
     (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
+
+  if (data == nullptr)
+    return false;
 
   IM_ASSERT (data->Hwnd != 0);
 

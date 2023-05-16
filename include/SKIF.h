@@ -154,6 +154,13 @@ enum UITab {
   UITab_COUNT      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
 };
 
+enum UIMode {
+  UIMode_Normal,
+  UIMode_VRR_Compatibility,
+  UIMode_Safe_Mode,
+  UIMode_COUNT     // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
+};
+
 extern UITab SKIF_Tab_Selected;
 extern UITab SKIF_Tab_ChangeTo;
 

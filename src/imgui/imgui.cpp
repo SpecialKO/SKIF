@@ -11571,7 +11571,7 @@ void ImGui::RenderPlatformWindowsDefault(void* platform_render_arg, void* render
 
     if ((viewport->Flags & ImGuiViewportFlags_Minimized) == 0)
     {
-      if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow (viewport, platform_render_arg); // Main rendering (platform side!) (unused)
+      if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow (viewport, platform_render_arg); // Main rendering      (platform side!) (unused)
       if (platform_io.Platform_SwapBuffers)  platform_io.Platform_SwapBuffers  (viewport, platform_render_arg); // Present/SwapBuffers (platform side!) (unused)
 
       if (platform_io.Renderer_RenderWindow) platform_io.Renderer_RenderWindow (viewport, renderer_render_arg); // ImGui_ImplDX11_RenderWindow ( )

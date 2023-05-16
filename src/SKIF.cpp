@@ -100,6 +100,7 @@ bool invalidateFonts       = false;
 bool failedLoadFonts       = false;
 bool failedLoadFontsPrompt = false;
 DWORD invalidatedFonts     = 0;
+DWORD invalidatedDevice    = 0;
 bool startedMinimized      = false;
 bool SKIF_UpdateReady      = false;
 bool showUpdatePrompt      = false;
@@ -2523,6 +2524,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region New UI Frame
 
+    if (RecreateSwapChains)
+    {
+      // If the device have been removed/reset/hung, we need to invalidate all resources
+      if (S_OK != g_pd3dDevice->GetDeviceRemovedReason ( ))
+      {
+        // Invalidate resources
+        ImGui_ImplDX11_InvalidateDeviceObjects ( );
+        ImGui_ImplDX11_InvalidateDevice        ( );
+        CleanupDeviceD3D                       ( );
+
+        // Signal to ImGui_ImplDX11_NewFrame() that the swapchains needs recreating
+        RecreateSwapChains = true;
+
+        // Recreate
+        CreateDeviceD3D                        (SKIF_hWnd);
+        ImGui_ImplDX11_Init                    (g_pd3dDevice, g_pd3dDeviceContext);
+
+        // This is used to flag that rendering should not occur until
+        // any loaded textures and such also have been unloaded
+        invalidatedDevice = 1;
+      }
+    }
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
     ImGui_ImplWin32_NewFrame (); // Handle input
@@ -3848,7 +3872,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Conditional rendering
     bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
-    if ( bRefresh)
+
+    if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
+      bRefresh = false;
+
+    if ( bRefresh )
     {
       //g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
       //g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
@@ -3882,6 +3910,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << pResource.p;
         pResource.p->Release();
       }
+      
+      if (invalidatedDevice == 2)
+        invalidatedDevice = 0;
     }
 
     // If process should stop, post WM_QUIT
@@ -4077,7 +4108,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, dwDwmPeriod, QS_ALLINPUT);
 
       
-      if (bRefresh) //bRefresh)
+      if (bRefresh)
       {
         //auto timePre = SKIF_Util_timeGetTime();
 
@@ -4183,8 +4214,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 bool CreateDeviceD3D (HWND hWnd)
 {
-  UNREFERENCED_PARAMETER (hWnd);
-
 #ifdef SKIF_D3D9_TEST
   /* Test D3D9 debugging */
   IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
@@ -4282,7 +4311,11 @@ bool CreateDeviceD3D (HWND hWnd)
                                                 D3D11_SDK_VERSION,
                                                        &g_pd3dDevice,
                                                                 &featureLevel,
-                                                       &g_pd3dDeviceContext)) return false;
+                                                       &g_pd3dDeviceContext))
+  {
+    OutputDebugString(L"D3D11CreateDevice failed!\n");
+    return false;
+  }
 
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the
@@ -4294,11 +4327,33 @@ bool CreateDeviceD3D (HWND hWnd)
     CComQIPtr <IDXGISwapChain1>
                    pSwapChain1;
 
+    DXGI_FORMAT dxgi_format;
+
+    // HDR formats
+    if (SKIF_bCanHDR && _registry.iHDRMode > 0)
+    {
+      if      (_registry.iHDRMode == 2)
+        dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // scRGB (16 bpc)
+      else
+        dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // HDR10 (10 bpc)
+    }
+
+    // SDR formats
+    else {
+      if      (_registry.iSDRMode == 2)
+        dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // 16 bpc
+      else if (_registry.iSDRMode == 1 && SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299))
+        dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // 10 bpc (apparently only supported for flip on Win10 1709+
+      else
+        dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;     // 8 bpc;
+    }
+
     // Create a dummy swapchain for the dummy viewport
     DXGI_SWAP_CHAIN_DESC1
       swap_desc                  = { };
     swap_desc.Width              = 8;
     swap_desc.Height             = 8;
+    swap_desc.Format             = dxgi_format;
     swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swap_desc.Flags              = 0x0;
     swap_desc.SampleDesc.Count   = 1;
@@ -4563,14 +4618,17 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
+    case WM_SIZE:
+
+      // Might as well trigger a recreation on WM_SIZE when not minimized
+      // It is possible this catches device reset/hung scenarios
+      if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
+        RecreateSwapChains = true;
+      return 0;
+
    /* 2023-04-29: Disabled as this was never used and only referenced the unused empty "parent swapchain" that was never presented
     * HDR toggles are handled through ImGui_ImplDX11_NewFrame() and pFactory1->IsCurrent () */
 #if 0
-    case WM_SIZE:
-
-      if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
-      {
-        RecreateSwapChains = true;
         UINT swap_flags = 0x0;
 
         if (SKIF_bCanFlip)
