@@ -77,6 +77,7 @@ extern bool SKIF_Util_IsWindows8Point1OrGreater   (void);
 extern bool SKIF_Util_IsWindows10OrGreater        (void);
 extern bool SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 extern bool SKIF_Util_IsHDRSupported              (bool refresh = false);
+extern bool SKIF_Util_IsHDRActive                 (bool refresh = false);
 extern int  SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 
 // Static stuff
@@ -1184,7 +1185,7 @@ void ImGui_ImplDX11_NewFrame (void)
       CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
     }
 
-    SKIF_bCanHDR = SKIF_Util_IsHDRSupported (true);
+    SKIF_bCanHDR = SKIF_Util_IsHDRActive (true);
     
     PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
@@ -1645,31 +1646,31 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
-  data->SwapChain->GetDesc1 (&swap_desc);
-
-  UINT Interval = 1; // Default to V-Sync ON (will only be relevant on Win7 and Win8.1 with default settings)
-
-  if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
-    Interval    = 2; // Flip VRR Compatibility Mode (only relevant on Windows 10+)
-
-  if (_registry.iUIMode == 0 || //   Safe Mode (BitBlt)
-      _registry.iUIMode == 1  ) // Normal Mode
-    Interval    = 1; // V-Sync ON
-
-  UINT PresentFlags = 0x0;
-
-  if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD   ||
-      swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL )
-  {
-    PresentFlags   = DXGI_PRESENT_RESTART;
-
-    if (Interval == 0 && SKIF_bCanAllowTearing)
-      PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
-  }
-
   if (data->SwapChain != nullptr)
   {
+    DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
+    data->SwapChain->GetDesc1 (&swap_desc);
+
+    UINT Interval = 1; // Default to V-Sync ON (will only be relevant on Win7 and Win8.1 with default settings)
+
+    if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
+      Interval    = 2; // Flip VRR Compatibility Mode (only relevant on Windows 10+)
+
+    if (_registry.iUIMode == 0 || //   Safe Mode (BitBlt)
+        _registry.iUIMode == 1  ) // Normal Mode
+      Interval    = 1; // V-Sync ON
+
+    UINT PresentFlags = 0x0;
+
+    if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD   ||
+        swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL )
+    {
+      PresentFlags   = DXGI_PRESENT_RESTART;
+
+      if (Interval == 0 && SKIF_bCanAllowTearing)
+        PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+    }
+
     //if (data->WaitHandle)
     //  WaitForSingleObject (data->WaitHandle, INFINITE);
 

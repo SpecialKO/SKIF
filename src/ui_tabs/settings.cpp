@@ -427,8 +427,8 @@ SKIF_UI_Tab_DrawSettings (void)
   // Refresh things when visiting from another tab or when forced
   if (SKIF_Tab_Selected != UITab_Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true))
   {
-    GetMPOSupport            (    );
-    SKIF_Util_IsHDRSupported (true);
+    GetMPOSupport         (    );
+    SKIF_Util_IsHDRActive (true);
     driverBinaryPath    = GetDrvInstallState (driverStatus);
     driverStatusPending =                     driverStatus;
     RefreshSettingsTab  = false;
@@ -752,7 +752,7 @@ SKIF_UI_Tab_DrawSettings (void)
     static int* ptrSDR = nullptr;
     static int* ptrHDR = nullptr;
 
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( )))
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
     {
       // Disable buttons
       ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
@@ -788,7 +788,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
     ImGui::TreePop         ( );
     
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRSupported ( )))
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
     {
       ImGui::PopStyleVar ();
       ImGui::PopItemFlag ();
@@ -796,7 +796,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
-    if (SKIF_Util_IsHDRSupported ( ))
+    if (SKIF_Util_IsHDRActive ( ))
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
       SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");

@@ -52,6 +52,7 @@ bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
 bool            SKIF_Util_SaveExtractExeIcon          (std::wstring exePath, std::wstring targetPath);
 bool            SKIF_Util_IsHDRSupported              (bool refresh = false);
+bool            SKIF_Util_IsHDRActive                 (bool refresh = false);
 int             SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 bool            SKIF_Util_EnableHDROutput             (void);
 

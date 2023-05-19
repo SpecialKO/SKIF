@@ -2351,8 +2351,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
-  if (SKIF_Util_IsHDRSupported (true) && RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
-    PLOG_INFO << "Successfully registered global hotkey (WinKey + Ctrl + Shift + H) for toggling HDR on the display the cursor is currently on.";
+  if (SKIF_Util_IsWindows10v1709OrGreater ( ))
+    if (SKIF_Util_IsHDRSupported (true))
+      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+        PLOG_INFO << "[HDR_HOTKEY_TOGGLE] Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
+      else
+        PLOG_ERROR << "[HDR_HOTKEY_TOGGLE] Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
+    else
+      PLOG_INFO << "[HDR_HOTKEY_TOGGLE] No HDR capable display detected on the system.";
+  else
+    PLOG_INFO << "[HDR_HOTKEY_TOGGLE] OS does not support HDR display output.";
+  
   /*
   * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
@@ -4269,7 +4278,7 @@ bool CreateDeviceD3D (HWND hWnd)
     // Windows 10 1709+ (Build 16299)
     SKIF_bCanHDR                =
       SKIF_Util_IsWindows10v1709OrGreater (    ) &&
-      SKIF_Util_IsHDRSupported            (true);
+      SKIF_Util_IsHDRActive               (true);
 
     CComQIPtr <IDXGIFactory5>
                    pFactory5 (pFactory2.p);
