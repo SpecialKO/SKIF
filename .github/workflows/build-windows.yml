@@ -39,3 +39,10 @@ jobs:
         path: |
           Builds/SKIF*.exe
         if-no-files-found: error
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}_debug_symbols
+        path: |
+          Builds/SKIF*.pdb
+        if-no-files-found: warn
