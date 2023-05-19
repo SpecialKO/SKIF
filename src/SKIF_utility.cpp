@@ -950,7 +950,7 @@ SKIF_Util_IsHDRSupported (bool refresh)
 
     if (result == ERROR_SUCCESS)
     {
-      if (getDisplayHDR.advancedColorSupported) // && getDisplayHDR.advancedColorEnabled)
+      if (getDisplayHDR.advancedColorSupported)
       {
         state = true;
         break;
@@ -1161,7 +1161,9 @@ SKIF_Util_EnableHDROutput (void)
   POINT mousePosition;
 
   // Retrieve the monitor the mouse cursor is currently located on
-  if (GetCursorPos (&mousePosition))
+  // Use GetPhysicalCursorPos() instead of GetCursorPos() to ensure
+  //   we do not get virtualized coordinates.
+  if (GetPhysicalCursorPos (&mousePosition))
   {
     DWORD result = ERROR_SUCCESS;
 
