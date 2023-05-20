@@ -254,6 +254,12 @@ SKIF_ImGui_Spacing (float multiplier)
   );
 }
 
+void
+SKIF_ImGui_Spacing (void)
+{
+  SKIF_ImGui_Spacing (0.25f);
+}
+
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
 SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags)
