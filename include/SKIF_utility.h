@@ -48,7 +48,8 @@ bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
 bool            SKIF_Util_SaveExtractExeIcon          (std::wstring exePath, std::wstring targetPath);
 bool            SKIF_Util_GetControlledFolderAccess   (void);
-
+void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
+int             SKIF_Util_RegisterApp                 (bool force = false);
 
 // High Dynamic Range (HDR)
 

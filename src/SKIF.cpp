@@ -112,15 +112,6 @@ int addAdditionalFrames    = 0;
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
-// Fonts
-bool SKIF_bFontChineseSimplified   = false,
-     SKIF_bFontChineseAll          = false,
-     SKIF_bFontCyrillic            = false,
-     SKIF_bFontJapanese            = false,
-     SKIF_bFontKorean              = false,
-     SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false;
-
 // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
 bool SKIF_bSuppressServiceNotification = false;
 
@@ -290,318 +281,6 @@ HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 //CONDITION_VARIABLE SKIF_IsNotFocused = { };
-
-void
-SKIF_ImGui_MissingGlyphCallback (wchar_t c)
-{
-  static UINT acp = GetACP();
-
-  static std::unordered_set <wchar_t>
-      unprintable_chars;
-  if (unprintable_chars.emplace (c).second)
-  {
-    using range_def_s =
-      std::pair <const ImWchar*, bool *>;
-
-    static       auto pFonts = ImGui::GetIO ().Fonts;
-
-    static const auto ranges =
-      { // Sorted from least numer of unique characters to the most
-        range_def_s { pFonts->GetGlyphRangesVietnamese              (), &SKIF_bFontVietnamese        },
-        range_def_s { pFonts->GetGlyphRangesCyrillic                (), &SKIF_bFontCyrillic          },
-        range_def_s { pFonts->GetGlyphRangesThai                    (), &SKIF_bFontThai              },
-      ((acp == 932) // Prioritize Japanese for ACP 932
-      ? range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }
-      : range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }),
-      ((acp == 932)
-      ? range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }
-      : range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }),
-        range_def_s { pFonts->GetGlyphRangesKorean                  (), &SKIF_bFontKorean            }
-#ifdef _WIN64
-      // 32-bit SKIF breaks if too many character sets are
-      //   loaded so omit Chinese Full on those versions.
-      , range_def_s { pFonts->GetGlyphRangesChineseFull             (), &SKIF_bFontChineseAll        }
-#endif
-      };
-
-    for ( const auto &[span, enable] : ranges)
-    {
-      ImWchar const *sp =
-        &span [2];
-
-      while (*sp != 0x0)
-      {
-        if ( c <= (wchar_t)(*sp++) &&
-             c >= (wchar_t)(*sp++) )
-        {
-           sp             = nullptr;
-          *enable         = true;
-          invalidateFonts = true;
-
-          break;
-        }
-      }
-
-      if (sp == nullptr)
-        break;
-    }
-  }
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesDefaultEx (void)
-{
-  static const ImWchar ranges [] =
-  {
-    0x0020,  0x00FF, // Basic Latin + Latin Supplement
-    0x0100,  0x03FF, // Latin, IPA, Greek
-    0x2000,  0x206F, // General Punctuation
-    0x2100,  0x21FF, // Letterlike Symbols
-    0x2600,  0x26FF, // Misc. Characters
-    0x2700,  0x27BF, // Dingbats
-    0x207f,  0x2090, // N/A (literally, the symbols for N/A :P)
-    0xc2b1,  0xc2b3, // ²
-    0
-  };
-  return &ranges [0];
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesKorean (void)
-{
-  static const ImWchar ranges[] =
-  {
-      0x0020, 0x00FF, // Basic Latin + Latin Supplement
-      0x3131, 0x3163, // Korean alphabets
-//#ifdef _WIN64
-      0xAC00, 0xD7A3, // Korean characters (Hangul syllables) -- should not be included on 32-bit OSes due to system limitations
-//#endif
-      0,
-  };
-  return &ranges[0];
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesFontAwesome (void)
-{
-  static const ImWchar ranges [] =
-  {
-    ICON_MIN_FA, ICON_MAX_FA,
-    0 // 🔗, 🗙
-  };
-  return &ranges [0];
-}
-
-auto SKIF_ImGui_LoadFont =
-   []( const std::wstring& filename,
-             float         point_size,
-       const ImWchar*      glyph_range,
-             ImFontConfig* cfg = nullptr )
-{
-  auto& io =
-    ImGui::GetIO ();
-
-  wchar_t wszFullPath [ MAX_PATH + 2 ] = { };
-
-  //OutputDebugString(L"Input: ");
-  //OutputDebugString(filename.c_str());
-  //OutputDebugString(L"\n");
-
-  if (GetFileAttributesW (              filename.c_str ()) != INVALID_FILE_ATTRIBUTES)
-     wcsncpy_s ( wszFullPath, MAX_PATH, filename.c_str (),
-                             _TRUNCATE );
-
-  else
-  {
-    wchar_t     wszFontsDir [MAX_PATH] = { };
-    wcsncpy_s ( wszFontsDir, MAX_PATH,
-             SK_GetFontsDir ().c_str (), _TRUNCATE );
-
-    PathCombineW ( wszFullPath,
-                   wszFontsDir, filename.c_str () );
-
-    if (GetFileAttributesW (wszFullPath) == INVALID_FILE_ATTRIBUTES)
-      *wszFullPath = L'\0';
-  }
-
-  //OutputDebugString(L"Font path: ");
-  //OutputDebugString(wszFullPath);
-  //OutputDebugString(L"\n");
-
-  if (*wszFullPath != L'\0')
-  {
-    return
-      io.Fonts->AddFontFromFileTTF ( SK_WideCharToUTF8 (wszFullPath).c_str (),
-                                       point_size,
-                                         cfg,
-                                           glyph_range );
-  }
-
-  return (ImFont *)nullptr;
-};
-
-ImFont* fontConsolas = nullptr;
-
-void
-SKIF_ImGui_InitFonts (float fontSize)
-{
-  static UINT acp = GetACP();
-
-  auto& io =
-    ImGui::GetIO ();
-
-  extern ImGuiContext *GImGui;
-
-  if (io.Fonts != nullptr)
-  {
-    if (GImGui->FontAtlasOwnedByContext)
-    {
-      if (GImGui->Font != nullptr)
-      {
-        GImGui->Font->ClearOutputData ();
-
-        if (GImGui->Font->ContainerAtlas != nullptr)
-            GImGui->Font->ContainerAtlas->Clear ();
-      }
-
-      io.FontDefault = nullptr;
-
-      IM_DELETE (io.Fonts);
-                 io.Fonts = IM_NEW (ImFontAtlas)();
-    }
-  }
-
-  ImFontConfig
-  font_cfg           = {  };
-  font_cfg.MergeMode = true;
-  
-  std::filesystem::path fontDir
-          (path_cache.specialk_userdata);
-
-  fontDir /= L"Fonts";
-
-  std::wstring standardFont = (tinyDPIFonts) ? L"Verdana.ttf" : L"Tahoma.ttf";
-
-  std::error_code ec;
-  // Create any missing directories
-  if (! std::filesystem::exists (            fontDir, ec))
-        std::filesystem::create_directories (fontDir, ec);
-
-  // Core character set
-  SKIF_ImGui_LoadFont     (standardFont, fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
-  //SKIF_ImGui_LoadFont     ((fontDir / L"NotoSans-Regular.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
-
-  // Load extended character sets when SKIF is not used as a launcher
-  if (! _Signal.Launcher || _Signal.AddSKIFGame)
-  {
-    // Cyrillic character set
-    if (SKIF_bFontCyrillic)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesCyrillic                 (), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesCyrillic        (), &font_cfg);
-  
-    // Japanese character set
-    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (SKIF_bFontJapanese && acp == 932)
-    {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      //*/
-    }
-
-    // Simplified Chinese character set
-    // Also includes almost all of the Japanese characters except for some Kanjis
-    if (SKIF_bFontChineseSimplified)
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon        (), &font_cfg);
-
-    // Japanese character set
-    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (SKIF_bFontJapanese && acp != 932)
-    {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
-      //*/
-    }
-    
-    // All Chinese character sets
-    if (SKIF_bFontChineseAll)
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseFull             (), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseFull        (), &font_cfg);
-
-    // Korean character set
-    // On 32-bit builds this does not include Hangul syllables due to system limitaitons
-    if (SKIF_bFontKorean)
-      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, SK_ImGui_GetGlyphRangesKorean                   (), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, io.Fonts->SK_ImGui_GetGlyphRangesKorean        (), &font_cfg);
-
-    // Thai character set
-    if (SKIF_bFontThai)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesThai                    (), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSansThai-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesThai      (), &font_cfg);
-
-    // Vietnamese character set
-    if (SKIF_bFontVietnamese)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesVietnamese    (), &font_cfg);
-  }
-
-  static auto
-    skif_fs_wb = ( std::ios_base::binary
-                 | std::ios_base::out  );
-
-  auto _UnpackFontIfNeeded =
-  [&]( const char*   szFont,
-       const uint8_t akData [],
-       const size_t  cbSize )
-  {
-    if (! std::filesystem::is_regular_file ( fontDir / szFont, ec)        )
-                     std::ofstream ( fontDir / szFont, skif_fs_wb ).
-      write ( reinterpret_cast <const char *> (akData),
-                                               cbSize);
-  };
-
-  auto      awesome_fonts = {
-    std::make_tuple (
-      FONT_ICON_FILE_NAME_FAR, fa_regular_400_ttf,
-                   _ARRAYSIZE (fa_regular_400_ttf) ),
-    std::make_tuple (
-      FONT_ICON_FILE_NAME_FAS, fa_solid_900_ttf,
-                   _ARRAYSIZE (fa_solid_900_ttf) ),
-    std::make_tuple (
-      FONT_ICON_FILE_NAME_FAB, fa_brands_400_ttf,
-                   _ARRAYSIZE (fa_brands_400_ttf) )
-                            };
-
-  std::for_each (
-            awesome_fonts.begin (),
-            awesome_fonts.end   (),
-    [&](const auto& font)
-    {        _UnpackFontIfNeeded (
-      std::get <0> (font),
-      std::get <1> (font),
-      std::get <2> (font)        );
-     SKIF_ImGui_LoadFont (
-                    fontDir/
-      std::get <0> (font),
-                    fontSize - 2.0f,
-        SK_ImGui_GetGlyphRangesFontAwesome (),
-                   &font_cfg
-                         );
-    }           );
-
-  io.Fonts->AddFontDefault ();
-
-  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx());
-  //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
-}
 
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
@@ -896,76 +575,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       PLOG_INFO << "isGlobalBlacklisted: "    << (isGlobalBlacklisted   );
       ExitProcess (0x0);
     }
-  }
-}
-
-int
-SKIF_RegisterApp (bool force = false)
-{
-  static int ret = -1;
-
-  if (ret != -1 && ! force)
-    return ret;
-
-  if (! _inject.bHasServlet)
-  {
-    PLOG_ERROR << "Missing critical service components!";
-    return -1;
-  }
-
-  std::wstring wsExePath = std::wstring (path_cache.skif_executable);
-
-  if (_registry.wsPath            == path_cache.specialk_userdata &&
-      _registry.wsAppRegistration == wsExePath)
-  {
-    ret = 1;
-  }
-
-  else if (force || _registry.wsPath.empty() || _registry.wsAppRegistration.empty())
-  {
-    ret = 1;
-
-    if (_registry.regKVAppRegistration.putData (wsExePath))
-      PLOG_INFO << "App registration was successful: " << wsExePath;
-    else
-    {
-      PLOG_ERROR << "Failed to register SKIF in Windows";
-      ret = 0;
-    }
-
-    if (_registry.regKVPath.putData (path_cache.specialk_userdata))
-      PLOG_INFO << "Updated central Special K userdata location: " << path_cache.specialk_userdata;
-    else
-    {
-      PLOG_ERROR << "Failed to update the central Special K userdata location!";
-      ret = 0;
-    }
-  }
-
-  return ret;
-}
-
-
-void SKIF_GetMonitorRefreshRatePeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
-{
-  DEVMODE 
-    dm        = { };
-    dm.dmSize = sizeof (DEVMODE);
-    
-  HMONITOR
-      hMonitor  = MonitorFromWindow (hwnd, dwFlags);
-  if (hMonitor != NULL)
-  {
-    MONITORINFOEX
-      minfoex        = { };
-      minfoex.cbSize = sizeof (MONITORINFOEX);
-
-    if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
-      if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
-        dwPeriod = (1000 / dm.dmDisplayFrequency);
-
-    if (dwPeriod == 0)
-      dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
   }
 }
 
@@ -1460,77 +1069,6 @@ void SKIF_Initialize (void)
   }
 }
 
-typedef enum EFFECTIVE_POWER_MODE {
-    EffectivePowerModeNone    = -1,   // Used as default value if querying failed
-    EffectivePowerModeBatterySaver,
-    EffectivePowerModeBetterBattery,
-    EffectivePowerModeBalanced,
-    EffectivePowerModeHighPerformance,
-    EffectivePowerModeMaxPerformance, // EFFECTIVE_POWER_MODE_V1
-    EffectivePowerModeGameMode,
-    EffectivePowerModeMixedReality,   // EFFECTIVE_POWER_MODE_V2
-} EFFECTIVE_POWER_MODE;
-
-std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode = EffectivePowerModeNone;
-
-#define EFFECTIVE_POWER_MODE_V1 (0x00000001)
-#define EFFECTIVE_POWER_MODE_V2 (0x00000002)
-
-typedef VOID WINAPI EFFECTIVE_POWER_MODE_CALLBACK (
-    _In_     EFFECTIVE_POWER_MODE  Mode,
-    _In_opt_ VOID                 *Context
-);
-
-VOID WINAPI SKIF_EffectivePowerModeCallback (
-    _In_     EFFECTIVE_POWER_MODE  Mode,
-    _In_opt_ VOID                 *Context
-)
-{
-  UNREFERENCED_PARAMETER(Context);
-
-  enumEffectivePowerMode.store(Mode);
-
-  PostMessage (SKIF_hWnd, WM_SKIF_POWERMODE, NULL, NULL);
-};
-
-std::string SKIF_GetEffectivePowerMode (void)
-{
-  std::string sMode;
-
-  switch (enumEffectivePowerMode.load( ))
-  {
-  case EffectivePowerModeNone:
-    sMode = "None";
-    break;
-  case EffectivePowerModeBatterySaver:
-    sMode = "Battery Saver";
-    break;
-  case EffectivePowerModeBetterBattery:
-    sMode = "Better Battery";
-    break;
-  case EffectivePowerModeBalanced:
-    sMode = "Balanced";
-    break;
-  case EffectivePowerModeHighPerformance:
-    sMode = "High Performance";
-    break;
-  case EffectivePowerModeMaxPerformance:
-    sMode = "Max Performance";
-    break;
-  case EffectivePowerModeGameMode:
-    sMode = "Game Mode";
-    break;
-  case EffectivePowerModeMixedReality:
-    sMode = "Mixed Reality";
-    break;
-  default:
-    sMode = "Unknown Mode";
-    break;
-  }
-
-  return sMode;
-}
-
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -1628,7 +1166,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Current Registry State:";
   PLOG_INFO << "Special K user data:   " << _registry.wsPath;
   PLOG_INFO << "SKIF app registration: " << _registry.wsAppRegistration;
-  SKIF_RegisterApp ( );
+  SKIF_Util_RegisterApp ( );
   PLOG_INFO << SKIF_LOG_SEPARATOR;
 
   // Create application window
@@ -1819,7 +1357,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
   DWORD dwDwmPeriod = 16; // Assume 60 Hz by default
-  SKIF_GetMonitorRefreshRatePeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+  SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
@@ -1863,36 +1401,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_Updater& _updater = 
          SKIF_Updater::GetInstance ( );
 
-  // Register SKIF for effective power notifications on Windows 10 1809+
-  using PowerRegisterForEffectivePowerModeNotifications_pfn =
-    HRESULT (WINAPI *)(ULONG Version, EFFECTIVE_POWER_MODE_CALLBACK *Callback, VOID *Context, VOID **RegistrationHandle);
-
-  static PowerRegisterForEffectivePowerModeNotifications_pfn
-    SKIF_PowerRegisterForEffectivePowerModeNotifications =
-        (PowerRegisterForEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "PowerRegisterForEffectivePowerModeNotifications");
-
-  using PowerUnregisterFromEffectivePowerModeNotifications_pfn =
-    HRESULT (WINAPI *)(VOID *RegistrationHandle);
-
-  static PowerUnregisterFromEffectivePowerModeNotifications_pfn
-    SKIF_PowerUnregisterFromEffectivePowerModeNotifications =
-        (PowerUnregisterFromEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "PowerUnregisterFromEffectivePowerModeNotifications");
-  
-	HANDLE hEffectivePowerModeRegistration = NULL;
-
-#if 0
-  if (SKIF_PowerRegisterForEffectivePowerModeNotifications      != nullptr)
-  {
-    if (SKIF_PowerUnregisterFromEffectivePowerModeNotifications != nullptr)
-    {
-      PLOG_DEBUG << "Registering SKIF for effective power mode notifications";
-      SKIF_PowerRegisterForEffectivePowerModeNotifications (EFFECTIVE_POWER_MODE_V2, SKIF_EffectivePowerModeCallback, NULL, &hEffectivePowerModeRegistration);
-    }
-  }
-#endif
-
+  // Register HDR toggle hotkey
   SKIF_Util_RegisterHDRToggleHotKey (true);
 
   // Main loop
@@ -2293,7 +1802,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         MoveWindow (SKIF_hWnd, (int)monitor->MainPos.x, (int)monitor->MainPos.y, 0, 0, false);
 
         // Update refresh rate for the current monitor
-        SKIF_GetMonitorRefreshRatePeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
+        SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
         //OutputDebugString ((L"Updated refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
         RecreateSwapChains = true;
@@ -2393,19 +1902,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
         //   This prevent flashing and elements appearing too large during those frames.
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
-
-        /* TODO: Fix Launcher creating timers on SKIF_hWnd = 0,
-         * causing SKIF to be unable to close them later if switched out from the mode.
-        
-        // If the user changed mode, cancel the exit action.
-        if (bExitOnInjection)
-          bExitOnInjection = false;
-
-        // Be sure to load all extended character sets when changing mode
-        if (_Signal.Launcher)
-          invalidateFonts = true;
-
-        */
       }
 
       if ( (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
@@ -2701,14 +2197,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           7.0f * SKIF_ImGui_GlobalDPIScale
         );
 
-        if (SKIF_GetEffectivePowerMode() != "None")
-          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
-                                (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
-                                               : SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
-        else
-          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
-                                (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
-                                               : SKIF_WINDOW_TITLE_A);
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
+                              (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
+                                              : SKIF_WINDOW_TITLE_A);
 
         if (                          _registry.iGhostVisibility == 1 ||
             (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
@@ -3685,12 +3176,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Notify_hWnd = 0;
   SKIF_hWnd = 0;
        hWnd = 0;
-
-  if (hEffectivePowerModeRegistration)
-  {
-    PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications...";
-    SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
-  }
 
   PLOG_INFO << "Terminating process...";
   return 0;

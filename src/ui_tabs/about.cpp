@@ -164,8 +164,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  extern int SKIF_RegisterApp (bool force = false);
-  if (SKIF_RegisterApp      ( ) > 0)
+  extern int
+      SKIF_Util_RegisterApp (bool force = false);
+  if (SKIF_Util_RegisterApp ( ) > 0)
   {
     ImGui::TextWrapped      ("Your system is set up to quickly launch injection through Steam.");
 
@@ -226,8 +227,8 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::SameLine         ( );
     
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-    if (ImGui::Button ("  Set this install as default  "))
-      SKIF_RegisterApp (true);
+    if (ImGui::Button       ("  Set this install as default  "))
+      SKIF_Util_RegisterApp (true);
     ImGui::PopStyleColor    ( );
     
     // We need som additional spacing at the bottom here to push down the Components section in the right column

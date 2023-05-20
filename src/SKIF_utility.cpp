@@ -19,6 +19,7 @@ std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
 // Registry Settings
 #include <registry.h>
+#include <fsutil.h>
 
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
@@ -911,6 +912,77 @@ SKIF_Util_GetControlledFolderAccess (void)
     state = 0;
 
   return state;
+}
+
+int
+SKIF_Util_RegisterApp (bool force)
+{
+  static int ret = -1;
+
+  if (ret != -1 && ! force)
+    return ret;
+
+  if (! _inject.bHasServlet)
+  {
+    PLOG_ERROR << "Missing critical service components!";
+    return -1;
+  }
+
+  std::wstring wsExePath = std::wstring (path_cache.skif_executable);
+
+  if (_registry.wsPath            == path_cache.specialk_userdata &&
+      _registry.wsAppRegistration == wsExePath)
+  {
+    ret = 1;
+  }
+
+  else if (force || _registry.wsPath.empty() || _registry.wsAppRegistration.empty())
+  {
+    ret = 1;
+
+    if (_registry.regKVAppRegistration.putData (wsExePath))
+      PLOG_INFO << "App registration was successful: " << wsExePath;
+    else
+    {
+      PLOG_ERROR << "Failed to register SKIF in Windows";
+      ret = 0;
+    }
+
+    if (_registry.regKVPath.putData (path_cache.specialk_userdata))
+      PLOG_INFO << "Updated central Special K userdata location: " << path_cache.specialk_userdata;
+    else
+    {
+      PLOG_ERROR << "Failed to update the central Special K userdata location!";
+      ret = 0;
+    }
+  }
+
+  return ret;
+}
+
+
+void
+SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
+{
+  DEVMODE 
+    dm        = { };
+    dm.dmSize = sizeof (DEVMODE);
+    
+  HMONITOR
+      hMonitor  = MonitorFromWindow (hwnd, dwFlags);
+  if (hMonitor != NULL)
+  {
+    MONITORINFOEX
+      minfoex        = { };
+      minfoex.cbSize = sizeof (MONITORINFOEX);
+
+    if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
+      if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
+        dwPeriod = (1000 / dm.dmDisplayFrequency);
+
+    if (dwPeriod == 0)
+      dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
+  }
 }
 
 

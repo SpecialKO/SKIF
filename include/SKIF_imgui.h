@@ -23,3 +23,15 @@ void SKIF_ImGui_Columns            (int columns_count, const char* id, bool bord
 void SKIF_ImGui_Spacing            (float multiplier);
 void SKIF_ImGui_Spacing            (void);
 void SKIF_ImGui_ServiceMenu        (void);
+void SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = true);
+
+// Fonts
+extern bool SKIF_bFontChineseSimplified,
+            SKIF_bFontChineseAll,
+            SKIF_bFontCyrillic,
+            SKIF_bFontJapanese,
+            SKIF_bFontKorean,
+            SKIF_bFontThai,
+            SKIF_bFontVietnamese;
+
+extern ImFont* fontConsolas;
