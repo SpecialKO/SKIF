@@ -59,24 +59,6 @@ SKIF_Util_GetErrorAsWStr (DWORD error)
   return message;
 }
 
-std::wstring
-SKIF_Util_GetError (long error)
-{
-  LPWSTR messageBuffer = nullptr;
-
-  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
-
-  std::wstring message (messageBuffer, size);
-  LocalFree (messageBuffer);
-
-  message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
-
-  message = L" [" + std::to_wstring(error) + L"] " + message;
-
-  return message;
-}
-
 DWORD
 SKIF_Util_timeGetTime (void)
 {
