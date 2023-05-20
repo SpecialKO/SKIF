@@ -551,41 +551,52 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::EndGroup      ( );
 
   static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-  
-  static bool
-      channelsPopulated = false;
 
-  if (channelsPopulated || (! _updater.IsRunning ( ) && ! _updater.GetChannels ( )->empty( )))
-  {   channelsPopulated = true;
+  bool channelsDisabled = false;
+  if (_updater.IsRunning ( ) || _updater.GetChannels ( )->empty( ))
+    channelsDisabled = true;
 
-    ImGui::TreePush        ("Push_UpdateChannel");
+  ImGui::TreePush        ("Push_UpdateChannel");
 
-    ImGui::BeginGroup    ( );
+  ImGui::BeginGroup    ( );
 
-    if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
-    {
-      for (auto& updateChannel : *_updater.GetChannels ( ))
-      {
-        bool is_selected = (_updater.GetChannel()->first == updateChannel.first);
-
-        if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != _updater.GetChannel( )->first)
-        {
-          _updater.SetChannel (&updateChannel); // Update selection
-          _updater.CheckForUpdates ( );         // Trigger a new check for updates
-        }
-
-        if (is_selected)
-          ImGui::SetItemDefaultFocus ( );
-      }
-
-      ImGui::EndCombo  ( );
-    }
-
-    ImGui::EndGroup      ( );
-
-    ImGui::TreePop       ( );
+  if (channelsDisabled)
+  {
+    // Disable buttons
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
   }
 
+  if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
+  {
+    for (auto& updateChannel : *_updater.GetChannels ( ))
+    {
+      bool is_selected = (_updater.GetChannel()->first == updateChannel.first);
+
+      if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != _updater.GetChannel( )->first)
+      {
+        _updater.SetChannel (&updateChannel); // Update selection
+        _updater.CheckForUpdates ( );         // Trigger a new check for updates
+      }
+
+      if (is_selected)
+        ImGui::SetItemDefaultFocus ( );
+    }
+
+    ImGui::EndCombo  ( );
+  }
+
+  if (channelsDisabled)
+  {
+    ImGui::PopStyleVar ();
+    ImGui::PopItemFlag ();
+  }
+
+  ImGui::EndGroup      ( );
+
+  ImGui::TreePop       ( );
+
+  /*
   else if (_registry.iCheckForUpdates > 0) {
     ImGui::TreePush      ("Push_UpdateChannel");
     ImGui::BeginGroup    ( );
@@ -594,6 +605,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup      ( );
     ImGui::TreePop       ( );
   }
+  */
 
   if (_registry.bLowBandwidthMode)
   {
