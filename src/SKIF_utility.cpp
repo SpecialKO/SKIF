@@ -1294,23 +1294,35 @@ SKIF_Util_GetControlledFolderAccess (void)
     if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
       state = buffer;
 
+    PLOG_DEBUG << "Detected CFA as being " << ((state) ? "enabled" : "disabled");
+
     RegCloseKey (hKey);
-  }
 
-  if (state)
-  {
-    // Regular users / unelevated processes has read access to this key on Windows 10, but not on Windows 11.
-    if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+    if (state)
     {
-      static TCHAR               szExePath[MAX_PATH];
-      GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+      // Regular users / unelevated processes has read access to this key on Windows 10,
+      //   but apparently not on Windows 11 so this check will fail on that OS.
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+      {
+        static TCHAR               szExePath[MAX_PATH];
+        GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
-      if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
-        state = false;
+        if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
+          state = 0;
 
-      RegCloseKey(hKey);
+        if (state)
+          PLOG_DEBUG << "SKIF has been whitelisted";
+        else
+          PLOG_DEBUG << "SKIF has not been whitelisted!";
+
+        RegCloseKey(hKey);
+      }
     }
   }
+
+  // If the state failed to be checked, assume it's disabled
+  if (state == -1)
+    state = 0;
 
   return state;
 }
