@@ -7,6 +7,7 @@
 
 // Registry Settings
 #include <registry.h>
+#include <updater.h>
 
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
@@ -234,8 +235,10 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   ImGui::NewLine          ( );
-  extern bool SKIF_UpdateReady;
-  if (! SKIF_UpdateReady)
+
+  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
+
+  if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
     ImGui::NewLine          ( ); // Omitted to allow the "view release notes..." link to appear without pushing down the Update button
 
   float fY4 = ImGui::GetCursorPosY();

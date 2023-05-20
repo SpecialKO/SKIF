@@ -1855,9 +1855,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    if (                       dwLastUpdate != MAXDWORD &&
+    if (                            dwLastUpdate != MAXDWORD &&
          SKIF_Util_timeGetTime () - dwLastUpdate >
-                               dwTimeout )
+                                    dwTimeout )
     {
       if (result.app_id != 0)
       {

@@ -85,10 +85,10 @@
 
 #include "TextFlow.hpp"
 
-// Registry Settings
 #include <registry.h>
+#include <updater.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
+static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
 #pragma comment (lib, "wininet.lib")
 
@@ -102,13 +102,11 @@ bool failedLoadFontsPrompt = false;
 DWORD invalidatedFonts     = 0;
 DWORD invalidatedDevice    = 0;
 bool startedMinimized      = false;
-bool SKIF_UpdateReady      = false;
-bool showUpdatePrompt      = false;
-bool changedUpdateChannel  = false;
 bool msgDontRedraw         = false;
 bool coverFadeActive       = false;
 bool SKIF_Shutdown         = false;
 int  startupFadeIn         = 0;
+int addAdditionalFrames    = 0;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -945,58 +943,9 @@ SKIF_RegisterApp (bool force = false)
       PLOG_ERROR << "Failed to update the central Special K userdata location!";
       ret = 0;
     }
-
-    /*
-    if (SKIF_Util_CreateShortcut (
-                linkPath.c_str(),
-                wszPath,
-                linkArgs.c_str(),
-                pApp->launch_configs[0].working_dir.c_str(),
-                SK_UTF8ToWideChar(name).c_str(),
-                pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str()
-                ))
-                */
   }
 
   return ret;
-}
-
-bool
-SKIF_hasControlledFolderAccess (void)
-{
-  if (! SKIF_Util_IsWindows10OrGreater ( ))
-    return false;
-
-  HKEY hKey;
-  DWORD buffer = 0;
-  unsigned long size = 1024;
-  bool enabled = false;
-
-  // Check if Controlled Folder Access is enabled
-  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
-  {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
-      enabled = buffer;
-
-    RegCloseKey (hKey);
-  }
-
-  if (enabled)
-  {
-    // Regular users / unelevated processes has read access to this key on Windows 10, but not on Windows 11.
-    if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
-    {
-      static TCHAR               szExePath[MAX_PATH];
-      GetModuleFileName   (NULL, szExePath, _countof(szExePath));
-
-      if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
-        enabled = false;
-
-      RegCloseKey(hKey);
-    }
-  }
-
-  return enabled;
 }
 
 
@@ -1039,365 +988,13 @@ void SKIF_putStopOnInjection (bool in)
 std::string patrons;
 std::atomic<int> update_thread         = 0; // 0 = No update check has run,            1 = Update check is running,       2 = Update check has completed
 std::atomic<int> update_thread_new     = 0; // 0 = No new update check is needed run,  1 = A new update check should start if the current one is complete
-std::atomic<int> update_thread_patreon = 0; // 0 = patrons.txt is not ready,           1 = patrons.txt is ready 
-
-std::vector <std::pair<std::string, std::string>> updateChannels;
+std::atomic<int> update_thread_patreon = 0; // 0 = patrons.txt is not ready,           1 = patrons.txt is ready
 
 std::string SKIF_GetPatrons ( )
 {
-  if (update_thread_patreon.load ( ) == 1)
-    return patrons;
-  else
-    return "";
-}
+  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
 
-SKIF_UpdateCheckResults SKIF_CheckForUpdates()
-{
-  if (_Signal.Launcher            ||
-      _Signal.Temporary           ||
-      _Signal.Stop                ||
-      _Signal.Quit)
-    return SKIF_UpdateCheckResults();
-
-  static SKIF_UpdateCheckResults results;
-
-  if (update_thread.load ( ) == 0)
-  {
-    update_thread.store (1);
-
-    if (changedUpdateChannel)
-    {
-      results.filename.clear();
-      results.description.clear();
-      results.history.clear();
-    }
-
-    _beginthreadex(nullptr,
-                           0,
-    [](LPVOID lpUser)->unsigned
-    {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCheck");
-
-      SKIF_UpdateCheckResults* _res = (SKIF_UpdateCheckResults*)lpUser;
-
-      CoInitializeEx (nullptr,
-        COINIT_APARTMENTTHREADED |
-        COINIT_DISABLE_OLE1DDE
-      );
-
-      PLOG_DEBUG << "Update Thread Started!";
-
-      std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    path_cache.specialk_userdata);
-      std::wstring path         = root + LR"(repository.json)";
-      std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", path_cache.specialk_userdata);
-
-      // Get UNIX-style time
-      time_t ltime;
-      time (&ltime);
-
-      std::wstring url  = L"https://sk-data.special-k.info/repository.json";
-                   url += L"?t=";
-                   url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
-      std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
-
-      // Create any missing directories
-      std::error_code ec;
-      if (! std::filesystem::exists (            root, ec))
-            std::filesystem::create_directories (root, ec);
-
-      bool downloadNewFiles = false;
-
-      if (_registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
-      {
-        // Download files if any does not exist or if we're forcing an update
-        if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
-        {
-          downloadNewFiles = true;
-        }
-
-        else {
-          WIN32_FILE_ATTRIBUTE_DATA fileAttributes{};
-
-          if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
-          {
-            FILETIME ftSystemTime{}, ftAdjustedFileTime{};
-            SYSTEMTIME systemTime{};
-            GetSystemTime (&systemTime);
-
-            if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
-            {
-              ULARGE_INTEGER uintLastWriteTime{};
-
-              // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
-              uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
-              uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
-
-              // Perform 64-bit arithmetic to add 7 days to last modified timestamp
-              uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
-
-              // Copy the results to an FILETIME struct
-              ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
-              ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
-
-              // Compare with system time, and if system time is later (1), then update the local cache
-              if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
-              {
-                downloadNewFiles = true;
-              }
-            }
-          }
-        }
-      }
-
-      // Update patrons.txt
-      if (downloadNewFiles)
-      {
-        PLOG_INFO << "Downloading patrons.txt...";
-        SKIF_Util_GetWebResource (url_patreon, path_patreon);
-      }
-
-      // Read patrons.txt
-      if (patrons.empty( ))
-      {
-        std::wifstream fPatrons(L"patrons.txt");
-        std::vector<std::wstring> lines;
-        std::wstring full_text;
-
-        if (fPatrons.is_open ())
-        {
-          // Requires Windows 10 1903+ (Build 18362)
-          if (SKIF_Util_IsWindows10v1903OrGreater ( ))
-          {
-            fPatrons.imbue (
-                std::locale (".UTF-8")
-            );
-          }
-          else
-          {
-            // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
-            // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(disable : 4996)
-            fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
-          }
-
-          std::wstring line;
-
-          while (fPatrons.good ())
-          {
-            std::getline (fPatrons, line);
-
-            // Skip blank lines, since they would match everything....
-            for (const auto& it : line)
-            {
-              if (iswalpha(it) != 0)
-              {
-                lines.push_back(line);
-                break;
-              }
-            }
-          }
-
-          if (! lines.empty())
-          {
-            // Shuffle the lines using a random number generator
-            auto rd  = std::random_device{};
-            auto gen = std::default_random_engine{ rd() };
-            std::shuffle(lines.begin(), lines.end(), gen);  // Shuffle the vector
-
-            for (const auto& vline : lines) {
-              full_text += vline + L"\n";
-            }
-
-            if (full_text.length() > 0)
-              full_text.resize (full_text.length () - 1);
-
-            patrons = SK_WideCharToUTF8(full_text);
-          }
-
-          fPatrons.close ();
-        }
-      }
-
-      // Indicate patrons variable is ready to be accessed from the main thread
-      update_thread_patreon.store (1);
-
-      // Update repository.json
-      if (downloadNewFiles)
-      {
-        PLOG_INFO << "Downloading repository.json...";
-        SKIF_Util_GetWebResource (url, path);
-      }
-    
-      std::ifstream file(path);
-      nlohmann::ordered_json jf = nlohmann::ordered_json::parse(file, nullptr, false);
-      file.close();
-
-      if (jf.is_discarded ( ))
-      {
-        PLOG_ERROR << "Parse error for repository.json. Deleting file so we retry on next launch...";
-        DeleteFile (path.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
-        return 0;
-      }
-
-      else {
-
-        std::wstring wsCurrentBranch = _registry.wsUpdateChannel;
-        std::string  currentBranch   = SK_WideCharToUTF8 (wsCurrentBranch);
-
-        PLOG_INFO << "Update Channel: " << wsCurrentBranch;
-
-#ifdef _WIN64
-        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
-#else
-        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
-#endif
-
-        try {
-          
-          // Populate update channels
-          try {
-            static bool
-                firstRun = true;
-            if (firstRun)
-            {   firstRun = false;
-
-              bool detectedBranch = false;
-              for (auto& branch : jf["Main"]["Branches"])
-              {
-                updateChannels.emplace_back(branch["Name"].get<std::string>(), branch["Description"].get<std::string>());
-
-                if (branch["Name"].get<std::string_view>()._Equal(currentBranch))
-                  detectedBranch = true;
-              }
-
-              // If we cannot find the branch, move the user over to the closest "parent" branch
-              if (! detectedBranch)
-              {
-                PLOG_ERROR << "Could not find the update channel in repository.json!";
-
-                if (     wsCurrentBranch.find(L"Website")       != std::string::npos
-                      || wsCurrentBranch.find(L"Release")       != std::string::npos)
-                         wsCurrentBranch = L"Website";
-                else if (wsCurrentBranch.find(L"Discord")       != std::string::npos
-                      || wsCurrentBranch.find(L"Testing")       != std::string::npos)
-                         wsCurrentBranch = L"Discord";
-                else if (wsCurrentBranch.find(L"Ancient")       != std::string::npos
-                      || wsCurrentBranch.find(L"Compatibility") != std::string::npos)
-                         wsCurrentBranch = L"Ancient";
-                else
-                         wsCurrentBranch = L"Website";
-
-                PLOG_ERROR << "Using fallback channel: " << wsCurrentBranch;
-
-                _registry.wsIgnoreUpdate = L"";
-
-                currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
-              }
-            }
-          }
-          catch (const std::exception&)
-          {
-
-          }
-
-          if (_registry.iCheckForUpdates != 0 && !_registry.bLowBandwidthMode)
-          {
-            // Used to populate history
-            bool found = false;
-
-            // Detect if any new version is available in the selected channel
-            for (auto& version : jf["Main"]["Versions"])
-            {
-              bool isBranch = false;
-
-              for (auto& branch : version["Branches"])
-                if (branch.get<std::string_view>()._Equal(currentBranch))
-                  isBranch = true;
-        
-              if (isBranch)
-              {
-                std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
-
-                // Check if the version of this branch is different from the current one.
-                // We don't check if the version is *newer* since we need to support downgrading
-                // to other branches as well, which means versions that are older.
-
-                // Limit download to a single version only
-                if (! found)
-                {
-                  if ((SKIF_Util_CompareVersionStrings (branchVersion, currentVersion) != 0 && changedUpdateChannel) ||
-                       SKIF_Util_CompareVersionStrings (branchVersion, currentVersion)  > 0)
-                  {
-                    PLOG_INFO << "Installed version: " << currentVersion;
-                    PLOG_INFO << "Latest version: "    << branchVersion;
-
-                    std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
-                    std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
-
-                    PLOG_INFO << "Downloading installer: " << branchInstaller;
-
-                    _res->version      = branchVersion;
-                    _res->filename     = filename;
-                    _res->description  = SK_UTF8ToWideChar(version["Description"] .get<std::string>());
-                    _res->releasenotes = SK_UTF8ToWideChar(version["ReleaseNotes"].get<std::string>());
-
-                    if (! PathFileExists ((root + filename).c_str()) && _res->description != _registry.wsIgnoreUpdate)
-                      SKIF_Util_GetWebResource (branchInstaller, root + filename);
-
-                    found = true;
-                  }
-                }
-
-                // Found right branch -- no need to check more since versions are sorted newest to oldest
-                if (changedUpdateChannel)
-                  break;
-
-                // Only populate the history stuff on launch -- not when the user has changed update channel
-                else {
-                  _res->history += version["Description"].get<std::string>();
-                  _res->history += "\n";
-                  _res->history += "=================\n";
-                  if (version["ReleaseNotes"].get<std::string>().empty())
-                    _res->history += "No listed changes.";
-                  else
-                    _res->history += version["ReleaseNotes"].get<std::string>();
-                  _res->history += "\n\n\n";
-                }
-              }
-            }
-          }
-        }
-        catch (const std::exception&)
-        {
-
-        }
-      }
-      
-      PLOG_DEBUG << "Update Thread Stopped!";
-      update_thread.store (2);
-      _endthreadex(0);
-
-      return 0;
-    }, (LPVOID)&results, NULL, NULL);
-  }
-
-  // If the check is complete, return the results
-  if (update_thread.load ( ) == 2)
-  {
-    // If a new refresh has been requested, reset the progress, but only if the current one is done
-    if (update_thread_new.load ( ) == 1)
-    {
-      update_thread.store (0);
-      update_thread_new.store (0);
-
-      // Don't return the current results as it's outdated
-      return SKIF_UpdateCheckResults ( );
-    }
-
-    return results;
-  }
-
-  return SKIF_UpdateCheckResults ( );
+  return _updater.GetPatrons ( );
 }
 
 void SKIF_CreateUpdateNotifyMenu (void)
@@ -1526,8 +1123,11 @@ void SKIF_UI_DrawComponentVersion (void)
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     HistoryPopup = PopupState::Open;
   ImGui::EndGroup         ( );
+  
+  static SKIF_Updater& _updater = 
+         SKIF_Updater::GetInstance ( );
 
-  if (SKIF_UpdateReady)
+  if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
   {
     SKIF_ImGui_Spacing      ( );
     
@@ -1535,9 +1135,14 @@ void SKIF_UI_DrawComponentVersion (void)
 
     ImGui::SameLine         ( );
 
+    std::string btnLabel = ICON_FA_WRENCH "  Update";
+
+    if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
+      btnLabel = ICON_FA_WRENCH "  Rollback";
+
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-    if (ImGui::Button (ICON_FA_WRENCH "  Update", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                                               30.0f * SKIF_ImGui_GlobalDPIScale )))
+    if (ImGui::Button (btnLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale,
+                                                 30.0f * SKIF_ImGui_GlobalDPIScale )))
       UpdatePromptPopup = PopupState::Open;
     ImGui::PopStyleColor ( );
   }
@@ -1736,8 +1341,6 @@ void SKIF_Initialize (void)
   {
     CoInitializeEx (nullptr, 0x0);
 
-    updateChannels = {};
-
     hModSKIF =
       GetModuleHandleW (nullptr);
 
@@ -1934,11 +1537,8 @@ std::string SKIF_GetEffectivePowerMode (void)
   return sMode;
 }
 
-
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
-
-SKIF_UpdateCheckResults newVersion;
 
 // Uninstall registry keys
 // Current User: HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4A43527-9457-424A-90A6-17CF02ACF677}_is1
@@ -2011,63 +1611,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (nCmdShow == SW_HIDE)
     startedMinimized = SKIF_isTrayed = true;
 
-  // Clear out old installers
-  {
-    PLOG_INFO << "Clearing out old installers...";
-
-    auto _isWeekOld = [&](FILETIME ftLastWriteTime) -> bool
-    {
-      FILETIME ftSystemTime{}, ftAdjustedFileTime{};
-      SYSTEMTIME systemTime{};
-      GetSystemTime (&systemTime);
-
-      if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
-      {
-        ULARGE_INTEGER uintLastWriteTime{};
-
-        // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
-        uintLastWriteTime.HighPart        = ftLastWriteTime.dwHighDateTime;
-        uintLastWriteTime.LowPart         = ftLastWriteTime.dwLowDateTime;
-
-        // Perform 64-bit arithmetic to add 7 days to last modified timestamp
-        uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
-
-        // Copy the results to an FILETIME struct
-        ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
-        ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
-
-        // Compare with system time, and if system time is later (1), then update the local cache
-        if (CompareFileTime(&ftSystemTime, &ftAdjustedFileTime) == 1)
-        {
-          return true;
-        }
-      }
-
-      return false;
-    };
-
-    HANDLE hFind = INVALID_HANDLE_VALUE;
-    WIN32_FIND_DATA ffd;
-
-    std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata);
-
-    hFind = FindFirstFile((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
-
-    if (INVALID_HANDLE_VALUE != hFind)
-    {
-      if (_isWeekOld    (ffd.ftLastWriteTime))
-        DeleteFile      ((VersionFolder + ffd.cFileName).c_str());
-
-      while (FindNextFile (hFind, &ffd))
-        if (_isWeekOld  (ffd.ftLastWriteTime))
-          DeleteFile    ((VersionFolder + ffd.cFileName).c_str());
-
-      FindClose (hFind);
-    }
-  }
-
   // Check if Controlled Folder Access is enabled
-  if (_registry.bDisableCFAWarning == false && SKIF_hasControlledFolderAccess ( ))
+  if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess ( ))
   {
     if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
                                   L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
@@ -2313,13 +1858,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
   bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
-  int  updaterExpectingNewFile      = 10;     // This is used to continue rendering for a few frames if we're expecting a new version file
 
   // Force a one-time check before we enter the main loop
   _inject.TestServletRunlevel (true);
 
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
+
+  // Initialize the updater
+  static SKIF_Updater& _updater = 
+         SKIF_Updater::GetInstance ( );
 
   // Register SKIF for effective power notifications on Windows 10 1809+
   using PowerRegisterForEffectivePowerModeNotifications_pfn =
@@ -3343,7 +2891,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // End Add Game
 
         // Begin Pulsating Refresh Icon
-        if (update_thread.load ( ) == 1)
+        if (_updater.IsRunning ( ))
         {
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX () +
@@ -3473,42 +3021,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata);
-
-      // Set up the update directory watch
-      static SKIF_DirectoryWatch version_folder (updateRoot, true, true);
-
-      // Update newVersion on every frame
-      newVersion = SKIF_CheckForUpdates ();
-
-      if (version_folder.isSignaled (updateRoot, true, true, FALSE, FILE_NOTIFY_CHANGE_SIZE))
-        updaterExpectingNewFile = 10;
-
-      // Only proceed if we expect a new version
-      if (! newVersion.filename.empty ())
-      {
-        SK_RunOnce(
-          SKIF_UpdateReady = showUpdatePrompt = PathFileExists ((updateRoot + newVersion.filename).c_str())
-        )
-
-        // Download has finished, prompt about starting the installer here.
-        if (updaterExpectingNewFile > 0 && PathFileExists ((updateRoot + newVersion.filename).c_str()))
-        {
-          SKIF_UpdateReady = showUpdatePrompt = true;
-          updaterExpectingNewFile = 0;
-        }
-        else if (changedUpdateChannel)
-        {
-          changedUpdateChannel = false;
-          SKIF_UpdateReady = showUpdatePrompt = PathFileExists((updateRoot + newVersion.filename).c_str());
-        }
-
-        if (showUpdatePrompt && newVersion.description != _registry.wsIgnoreUpdate)
-        {
-          showUpdatePrompt = false;
-          UpdatePromptPopup = PopupState::Open;
-        }
-      }
-
       static float  UpdateAvailableWidth = 0.0f;
       static float  calculatedWidth      = 0.0f;
       static float  NumLines             = 0;
@@ -3526,9 +3038,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           NumLines        = 0.0f;
           NumCharsOnLine  = 0;
 
-          if (! newVersion.releasenotes.empty())
+          if (! _updater.GetResults ( ).release_notes.empty())
           {
-            std::string strNotes = SK_WideCharToUTF8(newVersion.releasenotes);
+            std::string strNotes = _updater.GetResults ( ).release_notes;
 
             // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
             strNotes = TextFlow::Column(strNotes).width(110).toString();
@@ -3595,7 +3107,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif
         std::string compareLabel;
         ImVec4      compareColor;
-        bool        compareNewer = false;
+        bool        compareNewer = (SKIF_Util_CompareVersionStrings (_updater.GetResults().version, currentVersion) > 0);
 
         if (UpdatePromptPopup == PopupState::Open)
         {
@@ -3605,11 +3117,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             UpdatePromptPopup = PopupState::Opened;
         }
 
-        if (SKIF_Util_CompareVersionStrings (newVersion.version, currentVersion) > 0)
+        if (compareNewer)
         {
           compareLabel = "This version is newer than currently installed.";
           compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
-          compareNewer = true;
         }
         else
         {
@@ -3619,18 +3130,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+        std::string updateTxt = " is ready to be installed.";
+
+        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+          updateTxt = " is available for download.";
+
+        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(((_updater.GetResults().description) + updateTxt).c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
 
         ImGui::SetCursorPosX(fX);
 
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), SK_WideCharToUTF8 (newVersion.description).c_str());
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), (_updater.GetResults().description).c_str());
         ImGui::SameLine ( );
-        ImGui::Text ("is ready to be installed.");
+        ImGui::Text (updateTxt.c_str());
 
         SKIF_ImGui_Spacing ();
 
+        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
+            (_updater.GetState ( ) & UpdateFlags_Ignored)    != UpdateFlags_Ignored     )
+        {
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+          ImGui::TextWrapped ("A failed download was detected! Click Download below to try again.");
+          ImGui::Text        ("In case of continued errors, consult SKIF.log for more details.");
+          ImGui::PopStyleColor  ( );
+
+          SKIF_ImGui_Spacing ();
+        }
+
         ImGui::Text     ("Target Folder:");
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
         ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_install).c_str());
         ImGui::PopStyleColor  ( );
 
@@ -3665,22 +3192,38 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SetCursorPosX(fX);
 
-        if (ImGui::Button ("Install", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                                25 * SKIF_ImGui_GlobalDPIScale )))
+        std::string btnLabel = "Install";
+
+        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+          btnLabel = "Download";
+
+        if (ImGui::Button (btnLabel.c_str(), ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                                       25 * SKIF_ImGui_GlobalDPIScale )))
         {
-          if (_inject.bCurrentState)
-            _inject._StartStopInject(true);
+          if (btnLabel == "Download")
+          {
+            _registry.wsIgnoreUpdate = L"";
+            _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
 
-          std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_install);
+            // Trigger a new check for updates (which should download the installer)
+            _updater.CheckForUpdates ( );
+          }
+          else {
+            if (_inject.bCurrentState)
+              _inject._StartStopInject(true);
 
-          SKIF_Util_OpenURI (updateRoot + newVersion.filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
+            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_install);
 
-          //bExitOnInjection = true; // Used to close SKIF once the service had been stopped
+            SKIF_Util_OpenURI (updateRoot + _updater.GetResults().filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
-          //Sleep(50);
-          //bKeepProcessAlive = false;
+            //bExitOnInjection = true; // Used to close SKIF once the service had been stopped
 
-          vecNotes.clear();
+            //Sleep(50);
+            //bKeepProcessAlive = false;
+
+            vecNotes.clear();
+          }
+
           UpdatePromptPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
@@ -3694,7 +3237,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                  25 * SKIF_ImGui_GlobalDPIScale )))
           {
-            _registry.regKVIgnoreUpdate.putData(newVersion.description);
+            _registry.regKVIgnoreUpdate.putData(SK_UTF8ToWideChar(_updater.GetResults().description));
 
             vecNotes.clear();
             UpdatePromptPopup = PopupState::Closed;
@@ -3725,6 +3268,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  HistoryPopupNumLines       = 0;
       static size_t HistoryPopupNumCharsOnLine = 0;
       static std::vector<char> vecHistory;
+      static std::string HistoryPopupTitle;
 
       if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
@@ -3737,9 +3281,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           HistoryPopupNumLines        = 0.0f;
           HistoryPopupNumCharsOnLine  = 0;
 
-          if (! newVersion.history.empty())
+          if (! _updater.GetHistory ( ).empty ( ))
           {
-            std::string strHistory = newVersion.history;
+            std::string strHistory = _updater.GetHistory ( );
 
             // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
             strHistory = TextFlow::Column(strHistory).width(110).toString();
@@ -3779,22 +3323,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if ((calcHistoryPopupWidth * SKIF_ImGui_GlobalDPIScale) > HistoryPopupWidth)
           HistoryPopupWidth = calcHistoryPopupWidth;
 
-        ImGui::OpenPopup ("###History");
-      }
-      
-      ImGui::SetNextWindowSize (
-        ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
-                   0.0f )
-      );
-      ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+        HistoryPopupTitle = "Changelog (" + _updater.GetChannel()->first + ")###History";
 
-      if (ImGui::BeginPopupModal ( "Changelog###History", nullptr,
-                                     ImGuiWindowFlags_NoResize |
-                                     ImGuiWindowFlags_NoMove |
-                                     ImGuiWindowFlags_AlwaysAutoResize )
+        ImGui::OpenPopup ("###History");
+      
+        ImGui::SetNextWindowSize (
+          ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale,
+                      0.0f )
+        );
+        ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      }
+
+      if (ImGui::BeginPopupModal (HistoryPopupTitle.c_str(), nullptr,
+                                  ImGuiWindowFlags_NoResize |
+                                  ImGuiWindowFlags_NoMove |
+                                  ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
-
         if (HistoryPopup == PopupState::Open)
         {
           // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
@@ -3803,9 +3348,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
             HistoryPopup = PopupState::Opened;
         }
 
+        /*
         SKIF_ImGui_Spacing ();
 
-        if (! newVersion.history.empty())
+        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(updateTxt.c_str()).x + ImGui::GetStyle().ItemSpacing.x) / 2;
+
+        ImGui::SetCursorPosX(fX);
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), updateTxt.c_str());
+        */
+
+        std::string verLabel = "You are currently using Special K v " + _inject.SKVer64;
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), verLabel.c_str());
+
+        SKIF_ImGui_Spacing ();
+
+        if (! vecHistory.empty())
         {
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
@@ -3830,6 +3389,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                               25 * SKIF_ImGui_GlobalDPIScale )))
         {
+          vecHistory.clear ( );
           HistoryPopup = PopupState::Closed;
           ImGui::CloseCurrentPopup ();
         }
@@ -4004,10 +3564,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (SKIF_Tab_Selected == UITab_Library && (startupFadeIn == 1 || coverFadeActive))
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
-    else if (uiLastMsg == WM_SKIF_COVER)
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + 10; // If the cover is currently loading in
-    else if (updaterExpectingNewFile > 0)
-      renderAdditionalFrames = ImGui::GetFrameCount ( ) + updaterExpectingNewFile--; // If we are expecting a new update file
+    else if (addAdditionalFrames > 0)
+      renderAdditionalFrames = ImGui::GetFrameCount ( ) + addAdditionalFrames; // Used when the cover is currently loading in, or the update check just completed
     /*
     else if (  AddGamePopup == PopupState::Open ||
                ConfirmPopup == PopupState::Open ||
@@ -4018,6 +3576,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     */
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
       renderAdditionalFrames = 0;
+
+    addAdditionalFrames = 0;
 
     //OutputDebugString((L"Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
 
@@ -4032,16 +3592,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //  OutputDebugString((L"[doWhile] Message spotted: " + std::to_wstring(uiLastMsg) + L"\n").c_str());
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-    // TODO: Investigate if this is what causes dropdown lists from collapsing after SKIF has launched
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
     {
-      // Don't close any popups if AddGame, Confirm, or ModifyGame is shown.
-      //   But we do close the RemoveGame popup since that's not as critical.
-      if (     AddGamePopup != PopupState::Opened &&
+      // But don't close those of interest
+      if (     AddGamePopup != PopupState::Open   &&
+               AddGamePopup != PopupState::Opened &&
+               ConfirmPopup != PopupState::Open   &&
                ConfirmPopup != PopupState::Opened &&
+            ModifyGamePopup != PopupState::Open   &&
             ModifyGamePopup != PopupState::Opened &&
+          UpdatePromptPopup != PopupState::Open   &&
           UpdatePromptPopup != PopupState::Opened &&
-               HistoryPopup != PopupState::Opened )
+               HistoryPopup != PopupState::Open   &&
+               HistoryPopup != PopupState::Opened)
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
     
@@ -4492,6 +4055,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
+  
+  UpdateFlags uFlags = UpdateFlags_Unknown;
 
   switch (msg)
   {
@@ -4499,9 +4064,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );
     break;
+
     case WM_QUIT:
       SKIF_Shutdown = true;
       break;
+
     case WM_ENDSESSION: 
       // Session is shutting down -- perform any last minute changes!
       if (wParam == 1)
@@ -4520,11 +4087,13 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       return 0;
       break;
+
     case WM_QUERYENDSESSION: // System wants to shut down and is asking if we can allow it
       //SKIF_Shutdown = true;
       PLOG_INFO << "System in querying if we can shut down!";
       return true;
       break;
+
     case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
       msgDontRedraw = true;
       break;
@@ -4580,6 +4149,31 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
       // Reload the whitelist as it might have been changed
       _inject._LoadList          (true);
+      break;
+
+    case WM_SKIF_COVER:
+      addAdditionalFrames += 3;
+      break;
+
+    case WM_SKIF_UPDATER:
+      SKIF_Updater::GetInstance ( ).RefreshResults ( ); // Swap in the new results
+
+      uFlags = (UpdateFlags)wParam;
+
+      if (uFlags != UpdateFlags_Unknown)
+      {
+        // Only show the update prompt if we have a file downloaded and we either
+        // forced it (switched channel) or it is not ignored nor an older version
+        if ( (uFlags & UpdateFlags_Downloaded) == UpdateFlags_Downloaded &&
+            ((uFlags & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+            ((uFlags & UpdateFlags_Ignored)    != UpdateFlags_Ignored    &&
+             (uFlags & UpdateFlags_Rollback)   != UpdateFlags_Rollback   )))
+        {
+          UpdatePromptPopup = PopupState::Open;
+          addAdditionalFrames += 3;
+        }
+      }
+
       break;
 
     case WM_SKIF_RESTORE:

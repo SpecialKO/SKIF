@@ -263,7 +263,7 @@ SKIF_GamesCollection::RefreshGames (void)
 std::vector <std::unique_ptr<app_generic_s>>*
 SKIF_GamesCollection::GetGames (void)
 {
-  static injection_snapshot_s& snapshot = snapshots[0];
+  static snapshot_s& snapshot = snapshots[0];
   static int lastRead = 0;
   int lastWritten = snapshot_idx_written.load ( );
 

@@ -366,6 +366,9 @@
     <ClInclude Include="include\stores\generic_library2.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
+    <ClInclude Include="include\updater.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
@@ -463,6 +466,9 @@
     </ClCompile>
     <ClCompile Include="include\stores\generic_library2.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\updater.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

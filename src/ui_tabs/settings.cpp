@@ -12,6 +12,7 @@
 
 // Registry Settings
 #include <registry.h>
+#include <updater.h>
 
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
@@ -549,57 +550,32 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::EndGroup      ( );
 
-  extern std::vector <std::pair<std::string, std::string>> updateChannels;
+  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
+  
+  static bool
+      channelsPopulated = false;
 
-  if (! updateChannels.empty())
-  {
+  if (channelsPopulated || (! _updater.IsRunning ( ) && ! _updater.GetChannels ( )->empty( )))
+  {   channelsPopulated = true;
+
     ImGui::TreePush        ("Push_UpdateChannel");
 
     ImGui::BeginGroup    ( );
 
-    static std::pair<std::string, std::string>  empty           = std::pair("", "");
-    static std::pair<std::string, std::string>* selectedChannel = &empty;
-
-    static bool
-        firstRun = true;
-    if (firstRun)
-    {   firstRun = false;
-      for (auto& updateChannel : updateChannels)
-        if (updateChannel.first == SK_WideCharToUTF8 (_registry.wsUpdateChannel))
-          selectedChannel = &updateChannel;
-    }
-
-    if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", selectedChannel->second.c_str()))
+    if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
     {
-      for (auto& updateChannel : updateChannels)
+      for (auto& updateChannel : *_updater.GetChannels ( ))
       {
-        bool is_selected = (selectedChannel->first == updateChannel.first);
+        bool is_selected = (_updater.GetChannel()->first == updateChannel.first);
 
-        if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != selectedChannel->first)
+        if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != _updater.GetChannel( )->first)
         {
-          // Update selection
-          selectedChannel = &updateChannel;
-
-          // Update channel
-          _registry.wsUpdateChannel = SK_UTF8ToWideChar (selectedChannel->first);
-          _registry.wsIgnoreUpdate  = L"";
-          _registry.regKVFollowUpdateChannel.putData (_registry.wsUpdateChannel);
-          _registry.regKVIgnoreUpdate       .putData (_registry.wsIgnoreUpdate);
-
-          // Trigger a new check for updates
-          extern bool changedUpdateChannel, SKIF_UpdateReady, showUpdatePrompt;
-          extern std::atomic<int> update_thread_new;
-          extern SKIF_UpdateCheckResults newVersion;
-
-          changedUpdateChannel = true;
-          SKIF_UpdateReady     = showUpdatePrompt = false;
-          newVersion.filename.clear();
-          newVersion.description.clear();
-          update_thread_new.store (1);
+          _updater.SetChannel (&updateChannel); // Update selection
+          _updater.CheckForUpdates ( );         // Trigger a new check for updates
         }
 
         if (is_selected)
-            ImGui::SetItemDefaultFocus ( );
+          ImGui::SetItemDefaultFocus ( );
       }
 
       ImGui::EndCombo  ( );

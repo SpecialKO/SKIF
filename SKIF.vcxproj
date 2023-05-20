@@ -402,6 +402,7 @@
     <ClInclude Include="include\ui_tabs\about.h" />
     <ClInclude Include="include\ui_tabs\library.h" />
     <ClInclude Include="include\ui_tabs\settings.h" />
+    <ClInclude Include="include\updater.h" />
     <ClInclude Include="include\vfs.h" />
     <ClInclude Include="steam\isteamapplist.h" />
     <ClInclude Include="steam\isteamapps.h" />
@@ -483,6 +484,7 @@
     <ClCompile Include="src\ui_tabs\monitor.cpp" />
     <ClCompile Include="src\ui_tabs\library.cpp" />
     <ClCompile Include="src\ui_tabs\settings.cpp" />
+    <ClCompile Include="src\updater.cpp" />
     <ClCompile Include="src\vfs.cpp" />
   </ItemGroup>
   <ItemGroup>

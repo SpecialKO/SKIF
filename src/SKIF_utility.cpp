@@ -182,6 +182,11 @@ SKIF_Util_ConvertStringToInt   (std::string_view  input)
 // Handles comparisons of a version string split between dots by
 // looping through the parts that makes up the string one by one.
 // 
+// Outputs:
+//  1 = if string1 is more than string2
+//  0 = if both strings are equal
+// -1 = if string1 is less than string2
+//  
 // Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
 int
 SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
@@ -1268,6 +1273,48 @@ SKIF_Util_EnableHDROutput (void)
   return false;
 }
 
+bool
+SKIF_Util_GetControlledFolderAccess (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  static int state = -1;
+
+  if (state != -1)
+    return state;
+
+  HKEY hKey;
+  DWORD buffer = 0;
+  unsigned long size = 1024;
+
+  // Check if Controlled Folder Access is enabled
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
+  {
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
+      state = buffer;
+
+    RegCloseKey (hKey);
+  }
+
+  if (state)
+  {
+    // Regular users / unelevated processes has read access to this key on Windows 10, but not on Windows 11.
+    if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+    {
+      static TCHAR               szExePath[MAX_PATH];
+      GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+      if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
+        state = false;
+
+      RegCloseKey(hKey);
+    }
+  }
+
+  return state;
+}
+
 
 // Web
 
@@ -1299,8 +1346,6 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 
       std::wstring wsError = (std::wstring(L"WinInet Failure (") + std::to_wstring(dwLastError) + std::wstring(L"): ") + _com_error(dwLastError).ErrorMessage());
 
-      OutputDebugStringW (wsError.c_str ());
-
       PLOG_VERBOSE << wsError;
     }
 
@@ -1308,7 +1353,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
     if (hInetRoot       != nullptr) InternetCloseHandle (hInetRoot);
 
-    skif_get_web_uri_t*     to_delete = nullptr;
+    skif_get_web_uri_t* to_delete = nullptr;
     std::swap   (get,   to_delete);
     delete              to_delete;
 
@@ -1330,9 +1375,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
                                   (DWORD_PTR)&dwInetCtx );
 
   if (hInetHost == nullptr)
-  {
     return CLEANUP ();
-  }
 
   int flags = INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
 
@@ -1357,9 +1400,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
                          &ulTimeout,    sizeof (ULONG) );
 
   if (hInetHTTPGetReq == nullptr)
-  {
     return CLEANUP ();
-  }
 
   if ( HttpSendRequestW ( hInetHTTPGetReq,
                             get->header.c_str(),
@@ -1434,6 +1475,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
       {
         fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
         fclose (fOut);
+
+        CLEANUP (true);
+        return 1;
       }
     }
 
@@ -1446,12 +1490,10 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     }
   }
 
-  CLEANUP (true);
-
-  return 1;
+  return CLEANUP ( );
 }
 
-void
+DWORD
 SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::wstring method, std::wstring header, std::string body)
 {
   auto* get =
@@ -1487,8 +1529,10 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
                            destination.data (),
                        MAX_PATH );
 
-    SKIF_Util_GetWebUri (get);
+    return SKIF_Util_GetWebUri (get);
   }
+
+  return 0;
 }
 
 void

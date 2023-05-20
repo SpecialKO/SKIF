@@ -9,7 +9,7 @@
 struct SKIF_GamesCollection {
 
   // Triple-buffer updates so we can go lock-free
-  struct injection_snapshot_s {
+  struct snapshot_s {
     std::vector <std::unique_ptr<app_generic_s>>* apps;
   } snapshots [3];
   

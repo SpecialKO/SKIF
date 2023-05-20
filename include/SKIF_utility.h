@@ -55,6 +55,7 @@ bool            SKIF_Util_IsHDRSupported              (bool refresh = false);
 bool            SKIF_Util_IsHDRActive                 (bool refresh = false);
 int             SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 bool            SKIF_Util_EnableHDROutput             (void);
+bool            SKIF_Util_GetControlledFolderAccess   (void);
 
 // Web
 
@@ -68,7 +69,7 @@ struct skif_get_web_uri_t {
 };
 
 DWORD WINAPI SKIF_Util_GetWebUri              (skif_get_web_uri_t* get);
-void         SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "");
+DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "");
 void         SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destination);
 
 
