@@ -15,7 +15,6 @@ std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( )); /
 DWORD        SKIF_Util_timeGetTime           (void);
 std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
-unsigned int SKIF_Util_ConvertStringToInt    (std::string_view  input); // Assumes that the relevant characters are all ASCII characters!
 
 // Filenames
 
@@ -32,9 +31,6 @@ HINSTANCE    SKIF_Util_ExplorePath                 (const std::wstring_view& pat
 HINSTANCE    SKIF_Util_ExplorePath_Formatted       (                const wchar_t* const wszFmt, ...);
 HINSTANCE    SKIF_Util_OpenURI_Formatted           (DWORD dwAction, const wchar_t* const wszFmt, ...);
 void         SKIF_Util_OpenURI_Threaded            (                const LPCWSTR path);
-
-
-// Time
 
 
 // Windows

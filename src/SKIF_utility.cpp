@@ -148,18 +148,6 @@ SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
   return woss.str();
 }
 
-unsigned int
-SKIF_Util_ConvertStringToInt   (std::string_view  input)
-{
-  std::string numStr = "";
-
-  for (size_t i = 0; i < input.length ( ); i++)
-    if (isdigit (input[i]) || isalpha (input[i]))
-        numStr += char (input[i]);
-
-  return std::stoi (numStr);
-}
-
 
 // Handles comparisons of a version string split between dots by
 // looping through the parts that makes up the string one by one.
