@@ -1474,7 +1474,7 @@ typedef enum EFFECTIVE_POWER_MODE {
     EffectivePowerModeMixedReality,   // EFFECTIVE_POWER_MODE_V2
 } EFFECTIVE_POWER_MODE;
 
-std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode;
+std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode = EffectivePowerModeNone;
 
 #define EFFECTIVE_POWER_MODE_V1 (0x00000001)
 #define EFFECTIVE_POWER_MODE_V2 (0x00000002)
@@ -1885,7 +1885,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
 	HANDLE hEffectivePowerModeRegistration = NULL;
 
-  enumEffectivePowerMode.store(EffectivePowerModeNone);
+#if 0
   if (SKIF_PowerRegisterForEffectivePowerModeNotifications      != nullptr)
   {
     if (SKIF_PowerUnregisterFromEffectivePowerModeNotifications != nullptr)
@@ -1894,6 +1894,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_PowerRegisterForEffectivePowerModeNotifications (EFFECTIVE_POWER_MODE_V2, SKIF_EffectivePowerModeCallback, NULL, &hEffectivePowerModeRegistration);
     }
   }
+#endif
 
   // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
