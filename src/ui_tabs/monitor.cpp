@@ -645,8 +645,6 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (SKIF_Tab_ChangeTo == UITab_Monitor)
     SKIF_Tab_ChangeTo = UITab_None;
 
-  static std::map <std::wstring, std::wstring> deviceMap = GetDosPathDevicePathMap ( );
-
   // Triple-buffer updates so we can go lock-free
   //
   struct injection_snapshot_s {
@@ -1208,6 +1206,9 @@ SKIF_UI_Tab_DrawMonitor (void)
                   GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
                   std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                  static std::map <std::wstring, std::wstring>
+                    deviceMap = GetDosPathDevicePathMap ( );
 
                   for (auto& device : deviceMap)
                   {
