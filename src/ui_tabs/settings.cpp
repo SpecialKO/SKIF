@@ -1848,7 +1848,7 @@ SKIF_UI_Tab_DrawSettings (void)
     /* Extremely uncommon but included in the list anyway */
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::TextColored (ImColor      (0.68F, 0.68F, 0.68F), "Hardware: Legacy Copy to front buffer");
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "Hardware: Legacy Copy to front buffer");
     
     ImGui::TreePop     ();
 

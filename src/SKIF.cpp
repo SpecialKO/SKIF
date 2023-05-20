@@ -1072,41 +1072,41 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 32-bit");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Special K 32-bit");
 
 #ifdef _WIN64
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Special K 64-bit");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Special K 64-bit");
 #endif
     
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    "Frontend (SKIF)");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Frontend (SKIF)");
 
   ImGui::EndGroup         ( );
   ImGui::SameLine         ( );
   ImGui::BeginGroup       ( );
     
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "v");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    _inject.SKVer32.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer32.c_str());
 
 #ifdef _WIN64
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "v");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    _inject.SKVer64.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer64.c_str());
 #endif
     
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "v");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
   ImGui::ItemSize         (ImVec2 (0.0f, ImGui::GetTextLineHeight ()));
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),    SKIF_VERSION_STR_A " (" __DATE__ ")");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), SKIF_VERSION_STR_A " (" __DATE__ ")");
 
   ImGui::EndGroup         ( );
 
@@ -1115,10 +1115,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "View release notes..."
-  );
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "View release notes...");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     HistoryPopup = PopupState::Open;
@@ -1297,7 +1294,7 @@ void SKIF_UI_DrawPlatformStatus (void)
       ImGui::ItemSize         (ImVec2 (ImGui::CalcTextSize (ICON_FA_CHECK " ") .x, ImGui::GetTextLineHeight()));
       //ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_MINUS " ");
       ImGui::SameLine         ( );
-      ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), (p.Name + " is stopped.").c_str());
+      ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (p.Name + " is stopped.").c_str());
     }
 
 #ifdef _WIN64

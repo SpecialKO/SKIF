@@ -452,11 +452,11 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SetCursorPosY    (fY4);
     
   ImGui::PushStyleColor   (
-    ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
+    ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                             );
     
   ImGui::PushStyleColor   (
-    ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
+    ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)
                             );
 
   ImGui::TextColored (
@@ -465,16 +465,15 @@ SKIF_UI_Tab_DrawAbout (void)
   );
     
   ImGui::PushStyleColor   (
-    ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.4f, 0.4f, 0.4f, 1.0f)
+    ImGuiCol_SKIF_TextBase, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
                             );
     
   ImGui::PushStyleColor   (
-    ImGuiCol_SKIF_TextBase, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.3f, 0.3f, 0.3f, 1.0f)
+    ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                             );
 
   SKIF_ImGui_Spacing      ( );
   
-  //SKIF_UI_DrawPlatformStatus ( );
   SKIF_UI_DrawComponentVersion ( );
 
   ImGui::PopStyleColor    (4);
