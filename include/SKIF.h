@@ -115,6 +115,7 @@ constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
 constexpr UINT WM_SKIF_GAMEPAD       = WM_USER + 0x2049;
 constexpr UINT WM_SKIF_COVER         = WM_USER + 0x2050;
 constexpr UINT WM_SKIF_UPDATER       = WM_USER + 0x2051;
+constexpr UINT WM_SKIF_POWERMODE     = WM_USER + 0x2052;
 
 constexpr const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";

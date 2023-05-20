@@ -1493,7 +1493,7 @@ VOID WINAPI SKIF_EffectivePowerModeCallback (
 
   enumEffectivePowerMode.store(Mode);
 
-  PostMessage (SKIF_hWnd, WM_NULL, NULL, NULL);
+  PostMessage (SKIF_hWnd, WM_SKIF_POWERMODE, NULL, NULL);
 };
 
 std::string SKIF_GetEffectivePowerMode (void)
@@ -2149,7 +2149,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SKIF_vecCurrentMode  =
                     (_registry.bSmallMode) ? SKIF_vecSmallMode
-                                      : SKIF_vecLargeMode;
+                                           : SKIF_vecLargeMode;
 
       if (ImGui::GetFrameCount() > 2)
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
@@ -2363,62 +2363,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
         }
       }
-
-#if 0
-      FLOAT SKIF_GetHDRWhiteLuma (void);
-      void  SKIF_SetHDRWhiteLuma (FLOAT);
-
-      static auto regKVLuma =
-        SKIF_MakeRegKeyF (
-          LR"(SOFTWARE\Kaldaien\Special K\)",
-            LR"(ImGui HDR Luminance)"
-        );
-
-      auto _InitFromRegistry =
-        [&](void) ->
-        float
-      {
-        float fLumaInReg =
-          regKVLuma.getData ();
-
-        if (fLumaInReg == 0.0f)
-        {
-          fLumaInReg = SKIF_GetHDRWhiteLuma ();
-          regKVLuma.putData (fLumaInReg);
-        }
-
-        else
-        {
-          SKIF_SetHDRWhiteLuma (fLumaInReg);
-        }
-
-        return fLumaInReg;
-      };
-
-      static float fLuma =
-        _InitFromRegistry ();
-
-      auto _DrawHDRConfig = [&](void)
-      {
-        static bool bFullRange = false;
-
-        FLOAT fMaxLuma =
-          SKIF_GetMaxHDRLuminance (bFullRange);
-
-        if (fMaxLuma != 0.0f)
-        {
-          ImGui::TreePush("");
-          ImGui::SetNextItemWidth(300.0f * SKIF_ImGui_GlobalDPIScale);
-          if (ImGui::SliderFloat ("###HDR Paper White", &fLuma, 80.0f, fMaxLuma, (const char *)u8"HDR White:\t%04.1f cd/m\u00B2"))
-          {
-            SKIF_SetHDRWhiteLuma (fLuma);
-            regKVLuma.putData    (fLuma);
-          }
-          ImGui::TreePop ( );
-          ImGui::Spacing();
-        }
-      };
-#endif
 
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
@@ -4148,6 +4092,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._LoadList          (true);
       break;
 
+    case WM_SKIF_POWERMODE:
+      if (_registry.bSmallMode)
+        msgDontRedraw = true;
+      break;
+
     case WM_SKIF_COVER:
       addAdditionalFrames += 3;
       break;
@@ -4170,7 +4119,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           addAdditionalFrames += 3;
         }
       }
-
       break;
 
     case WM_SKIF_RESTORE:
