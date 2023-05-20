@@ -859,6 +859,63 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
   return ret;
 }
 
+bool
+SKIF_Util_GetControlledFolderAccess (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  static int state = -1;
+
+  if (state != -1)
+    return state;
+
+  HKEY hKey;
+  DWORD buffer = 0;
+  unsigned long size = 1024;
+
+  // Check if Controlled Folder Access is enabled
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
+  {
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
+      state = buffer;
+
+    PLOG_DEBUG << "Detected CFA as being " << ((state) ? "enabled" : "disabled");
+
+    RegCloseKey (hKey);
+
+    if (state)
+    {
+      // Regular users / unelevated processes has read access to this key on Windows 10,
+      //   but apparently not on Windows 11 so this check will fail on that OS.
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+      {
+        static TCHAR               szExePath[MAX_PATH];
+        GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+
+        if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
+          state = 0;
+
+        if (state)
+          PLOG_DEBUG << "SKIF has been whitelisted";
+        else
+          PLOG_DEBUG << "SKIF has not been whitelisted!";
+
+        RegCloseKey(hKey);
+      }
+    }
+  }
+
+  // If the state failed to be checked, assume it's disabled
+  if (state == -1)
+    state = 0;
+
+  return state;
+}
+
+
+// High Dynamic Range (HDR)
+
 // Check if one of the connected displays supports HDR
 bool
 SKIF_Util_IsHDRSupported (bool refresh)
@@ -1243,58 +1300,31 @@ SKIF_Util_EnableHDROutput (void)
   return false;
 }
 
-bool
-SKIF_Util_GetControlledFolderAccess (void)
+// Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
+void
+SKIF_Util_RegisterHDRToggleHotKey (bool registerHotKey)
 {
-  if (! SKIF_Util_IsWindows10OrGreater ( ))
-    return false;
+  /*
+  * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
+  *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
+  */
 
-  static int state = -1;
-
-  if (state != -1)
-    return state;
-
-  HKEY hKey;
-  DWORD buffer = 0;
-  unsigned long size = 1024;
-
-  // Check if Controlled Folder Access is enabled
-  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
+  if (registerHotKey)
   {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
-      state = buffer;
-
-    PLOG_DEBUG << "Detected CFA as being " << ((state) ? "enabled" : "disabled");
-
-    RegCloseKey (hKey);
-
-    if (state)
-    {
-      // Regular users / unelevated processes has read access to this key on Windows 10,
-      //   but apparently not on Windows 11 so this check will fail on that OS.
-      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
-      {
-        static TCHAR               szExePath[MAX_PATH];
-        GetModuleFileName   (NULL, szExePath, _countof(szExePath));
-
-        if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
-          state = 0;
-
-        if (state)
-          PLOG_DEBUG << "SKIF has been whitelisted";
+    if (SKIF_Util_IsWindows10v1709OrGreater ( ))
+      if (SKIF_Util_IsHDRSupported (true))
+        if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+          PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
         else
-          PLOG_DEBUG << "SKIF has not been whitelisted!";
-
-        RegCloseKey(hKey);
-      }
-    }
+          PLOG_ERROR << "Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
+      else
+        PLOG_INFO << "No HDR capable display detected on the system.";
+    else
+      PLOG_INFO << "OS does not support HDR display output.";
   }
 
-  // If the state failed to be checked, assume it's disabled
-  if (state == -1)
-    state = 0;
-
-  return state;
+  else if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
+    PLOG_INFO << "Removed the HDR toggling hotkey.";
 }
 
 

@@ -160,9 +160,6 @@ bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
 HMENU hMenu;
 
-// Hotkeys
-UINT SKIF_HotKey_HDR = 1337; // Win + Ctrl + Shift + H
-
 // Cmd line argument stuff
 struct SKIF_Signals {
   BOOL Stop          = FALSE;
@@ -1896,22 +1893,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 #endif
 
-  // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
-  if (SKIF_Util_IsWindows10v1709OrGreater ( ))
-    if (SKIF_Util_IsHDRSupported (true))
-      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
-        PLOG_INFO << "[HDR_HOTKEY_TOGGLE] Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
-      else
-        PLOG_ERROR << "[HDR_HOTKEY_TOGGLE] Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
-    else
-      PLOG_INFO << "[HDR_HOTKEY_TOGGLE] No HDR capable display detected on the system.";
-  else
-    PLOG_INFO << "[HDR_HOTKEY_TOGGLE] OS does not support HDR display output.";
-  
-  /*
-  * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
-  *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
-  */
+  SKIF_Util_RegisterHDRToggleHotKey (true);
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -3671,8 +3653,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
 
-  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
-    PLOG_INFO << "Removed the global hotkey for toggling HDR.";
+  SKIF_Util_RegisterHDRToggleHotKey (false);
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);

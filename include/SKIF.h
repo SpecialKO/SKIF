@@ -99,23 +99,29 @@ void SKIF_UI_DrawComponentVersion  (void);
 extern float fAspect;
 extern float fBottomDist;
 
-const UINT_PTR IDT_REFRESH_ONDEMAND = 1337;
-const UINT_PTR IDT_REFRESH_PENDING  = 1338;
-const UINT_PTR IDT_REFRESH_GAMES    = 1340;
-const UINT_PTR IDT_REFRESH_TOOLTIP  = 1341;
-const UINT_PTR IDT_REFRESH_UPDATER  = 1342;
+// Timers / Window Messages / HotKeys
 
-constexpr UINT WM_SKIF_MINIMIZE      = WM_USER +  0x512;
-constexpr UINT WM_SKIF_RESTORE       = WM_USER +  0x513;
-constexpr UINT WM_SKIF_START         = WM_USER + 0x1024;
-constexpr UINT WM_SKIF_TEMPSTART     = WM_USER + 0x1025;
-constexpr UINT WM_SKIF_LAUNCHER      = WM_USER + 0x1026;
-constexpr UINT WM_SKIF_REFRESHGAMES  = WM_USER + 0x1027;
-constexpr UINT WM_SKIF_STOP          = WM_USER + 0x2048;
-constexpr UINT WM_SKIF_GAMEPAD       = WM_USER + 0x2049;
-constexpr UINT WM_SKIF_COVER         = WM_USER + 0x2050;
-constexpr UINT WM_SKIF_UPDATER       = WM_USER + 0x2051;
-constexpr UINT WM_SKIF_POWERMODE     = WM_USER + 0x2052;
+const     UINT_PTR IDT_REFRESH_ONDEMAND =             1337;
+const     UINT_PTR IDT_REFRESH_PENDING  =             1338;
+const     UINT_PTR IDT_REFRESH_GAMES    =             1340;
+const     UINT_PTR IDT_REFRESH_TOOLTIP  =             1341;
+const     UINT_PTR IDT_REFRESH_UPDATER  =             1342;
+
+constexpr UINT     WM_SKIF_MINIMIZE     = WM_USER +  0x512;
+constexpr UINT     WM_SKIF_RESTORE      = WM_USER +  0x513;
+constexpr UINT     WM_SKIF_START        = WM_USER + 0x1024;
+constexpr UINT     WM_SKIF_TEMPSTART    = WM_USER + 0x1025;
+constexpr UINT     WM_SKIF_LAUNCHER     = WM_USER + 0x1026;
+constexpr UINT     WM_SKIF_REFRESHGAMES = WM_USER + 0x1027;
+constexpr UINT     WM_SKIF_STOP         = WM_USER + 0x2048;
+constexpr UINT     WM_SKIF_GAMEPAD      = WM_USER + 0x2049;
+constexpr UINT     WM_SKIF_COVER        = WM_USER + 0x2050;
+constexpr UINT     WM_SKIF_UPDATER      = WM_USER + 0x2051;
+constexpr UINT     WM_SKIF_POWERMODE    = WM_USER + 0x2052;
+
+constexpr  int     SKIF_HotKey_HDR      =             1337; // Win + Ctrl + Shift + H
+
+// Windows
 
 constexpr const wchar_t* SKIF_WindowClass =
              L"SK_Injection_Frontend";
