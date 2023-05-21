@@ -3635,7 +3635,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SIZE:
-
       // Might as well trigger a recreation on WM_SIZE when not minimized
       // It is possible this catches device reset/hung scenarios
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
