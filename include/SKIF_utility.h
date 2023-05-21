@@ -11,7 +11,8 @@
 
 std::string  SKIF_Util_ToLower               (std::string_view  input);
 std::wstring SKIF_Util_TowLower              (std::wstring_view input);
-std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( )); // Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
+std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( ));
+void         SKIF_Util_GetErrorAsMsgBox      (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError());
 DWORD        SKIF_Util_timeGetTime           (void);
 std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);

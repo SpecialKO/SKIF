@@ -40,6 +40,7 @@ SKIF_Util_TowLower     (std::wstring_view input)
   return copy;
 }
 
+// Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
 std::wstring
 SKIF_Util_GetErrorAsWStr (DWORD error)
 {
@@ -56,6 +57,20 @@ SKIF_Util_GetErrorAsWStr (DWORD error)
   message = L"[" + std::to_wstring(error) + L"] " + message;
 
   return message;
+}
+
+void
+SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD error)
+{
+  std::wstring message = SKIF_Util_GetErrorAsWStr (error);
+
+  if (! preMsg.empty())
+    preMsg += L"\n\n";
+
+  message = preMsg + message;
+
+  MessageBox (NULL, message.c_str(),
+                    winTitle.c_str(), MB_OK | MB_ICONERROR);
 }
 
 DWORD
