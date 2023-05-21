@@ -922,10 +922,10 @@ void SKIF_UI_DrawShellyTheGhost (void)
     ImGui::SameLine ( );
 
     // Prepare Shelly color and Y position
-    const float fGhostTimeStep = 0.01f;
-    static float fGhostTime    = 0.0f;
+    const  float fGhostTimeStep = 0.01f;
+    static float fGhostTime     = 0.0f;
 
-    float fGhostYPos = 4.0f;
+    float fGhostYPos = 4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 0.5f);
 
     ImVec4 vGhostColor = ImColor::ImColor (
         0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
@@ -939,22 +939,21 @@ void SKIF_UI_DrawShellyTheGhost (void)
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
     float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - 115.0f * SKIF_ImGui_GlobalDPIScale;
 
-    static float direction = -1.0f;
+    static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
     static float fMinPos   =  0.0f;
+    static float fRelPos   = 50.0f;  // Percentage based (0% -> 100%)
 
-    static float fNewPos   =
-                ( fMaxPos   -
-                  fMinPos ) * 0.5f;
+    // Change direction if we go below 1% or above 99% of the distance
+    if (fRelPos <= 1.0f || fRelPos >= 99.0f)
+      direction = -direction;
 
-              fNewPos +=
-                  direction * SKIF_ImGui_GlobalDPIScale;
+    // Take a new relative step in the new direction
+    fRelPos += direction;
 
-    if (     fNewPos < fMinPos)
-    {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }
-    else if (fNewPos > fMaxPos)
-    {        fNewPos = fMaxPos - direction * 2.0f; direction = -direction; }
+    // Convert relative position for an actual position
+    float fActPos = (fMaxPos - fMinPos) * (fRelPos / 100.0f);
 
-    ImGui::SameLine    (0.0f, fNewPos);
+    ImGui::SameLine    (0.0f, fActPos);
   
     ImGui::SetCursorPosY (
       ImGui::GetCursorPosY ( ) + fGhostYPos
