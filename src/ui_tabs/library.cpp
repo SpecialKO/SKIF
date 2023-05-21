@@ -981,13 +981,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Thread started!";
       PLOG_INFO << "Streaming game icons and names asynchronously...";
-
+      
+      PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
-      SK_RunOnce (
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2)
-      );
-
-      PLOG_INFO << "Loaded the embedded Patreon texture.";
+      if (pPatTexSRV.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2);
 
       for ( auto& app : apps )
       {
@@ -5097,7 +5095,7 @@ Cache=false)";
 
   // In case of a device reset, unload all currently loaded textures
   if (invalidatedDevice == 1)
-  {   invalidatedDevice = 2;
+  {   invalidatedDevice  = 2;
 
     extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
     if (pTexSRV.p != nullptr)
@@ -5120,6 +5118,11 @@ Cache=false)";
         app.second.textures.icon.p = nullptr;
       }
     }
+
+    // Trigger a refresh of the list of games, which will reload all icons and the Patreon texture
+    RepopulateGames = true;
+    // Trigger a refresh of the cover
+    loadCover = true;
   }
 }
 
