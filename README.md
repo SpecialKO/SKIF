@@ -28,15 +28,16 @@ SKIF supports detecting and launching games from the following platforms:
 ## Command line arguments
 
 | Argument&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; | What it does |
-| -------------: | ------------- |
-| `<empty>`  | Launches SKIF.  |
-| `Start`  | Launches SKIF and starts an instance of the injection service. |
-| `Temp` | Used with `Start` to indicate the injection service should auto-stop after a successful injection. |
-| `Stop`  | Launches SKIF stops any running instances of the injection service. Can also be used to attempt to force-eject leftover injections of Special K.  |
-| `Quit`  | Closes any running instances of SKIF. |
-| `Minimize`  | Launches SKIF minimized *or* minimizes any running instances of SKIF, to the taskbar or notification area depending on configuration. |
-| `"<path>.exe"` | Uses SKIF as a launcher to start the injection service, launch another application, and then stop the service. Any arguments specified after the path is proxied to the launched application. Called through `SKIF %COMMAND%` from within the Steam client. |
-| `AddGame="<path>"`  | **Experimental!** Adds the specified application to the library of SKIF as a custom game. |
+| -----------------: | ------------- |
+| `<empty>`          | Launches SKIF. |
+| `Start`            | Launches SKIF and starts an instance of the injection service. |
+| `Temp`             | Used with `Start` to indicate the injection service should auto-stop after a successful injection. |
+| `Stop`             | Launches SKIF stops any running instances of the injection service. Can also be used to attempt to force-eject leftover injections of Special K.  |
+| `Quit`             | Closes any running instances of SKIF. |
+| `Minimize`         | Launches SKIF minimized *or* minimizes any running instances of SKIF, to the taskbar or notification area depending on configuration. |
+| `"<path>.exe"`     | Uses SKIF as a launcher to start the injection service, launch another application, and then stop the service. Any arguments specified after the path is proxied to the launched application. Called through `SKIF %COMMAND%` from within the Steam client. |
+| `AddGame="<path>"` | **Experimental!** Adds the specified application to the library of SKIF as a custom game. |
+| `RestartDisplDrv`  | **Requires elevation!** Restarts the display driver (useful as this can sometimes fix MPOs). |
 
 ## Third-party code
 
@@ -48,4 +49,5 @@ SKIF supports detecting and launching games from the following platforms:
 * Uses [pugixml](https://pugixml.org/), licensed under [MIT](https://pugixml.org/license.html).
 * Uses [GSL](https://github.com/microsoft/GSL), licensed under [MIT](https://github.com/microsoft/GSL/blob/main/LICENSE).
 * Uses [TextFlowCpp](https://github.com/catchorg/textflowcpp), licensed under [BSL-1.0](https://github.com/catchorg/textflowcpp/blob/master/LICENSE.txt).
+* Uses code from [Custom Resolution Utility (CRU)](https://www.monitortests.com/forum/Thread-Custom-Resolution-Utility-CRU), licensed under a [custom license](https://github.com/SpecialKO/SKIF/blob/master/src/drvreset.cpp).
 * Includes various snippets of code from [Stack Overflow](https://stackoverflow.com/), licensed under [Creative Commons Attribution-ShareAlike](https://stackoverflow.com/help/licensing).
