@@ -319,7 +319,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
   //   so only set Launcher if AddSKIFGame is false.
   if (! _Signal.AddSKIFGame)
-    _Signal.Launcher =
+        _Signal.Launcher =
       StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   if ( (  hwndAlreadyExists != 0 ) &&
@@ -1360,10 +1360,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
-#define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
-
-  SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
-
   // Our state
   ImVec4 clear_color         =
     ImVec4 (0.45F, 0.55F, 0.60F, 1.00F);
@@ -1386,6 +1382,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Don't execute again when used as a launcher (prevents false positives from game paths/executables)
   if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
     SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+
+#define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
+
+  // Initialize ImGui fonts
+  SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT, (! _Signal.Launcher) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
