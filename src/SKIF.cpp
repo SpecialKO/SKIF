@@ -88,6 +88,8 @@
 #include <registry.h>
 #include <updater.h>
 
+#include "drvreset.h"
+
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
 #pragma comment (lib, "wininet.lib")
@@ -1168,6 +1170,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
   */
 
   //CoInitializeEx (nullptr, 0x0);
+
+  if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
+  {
+    if (IsUserAnAdmin ( ))
+    {
+      if (! RestartDriver ( ))
+        SKIF_Util_GetErrorAsMsgBox (L"Failed to restart display driver");
+    }
+
+    else {
+      MessageBox(NULL, L"The 'RestartDisplDrv' command line argument requires"
+                       L" elevated permissions to work properly.",
+                       L"Admin privileges required",
+               MB_ICONERROR | MB_OK);
+    }
+
+    // Don't stick around if the RestartDisplDrv command is being used.
+    ExitProcess (0x0);
+  }
 
   hWndOrigForeground =
     GetForegroundWindow ();
