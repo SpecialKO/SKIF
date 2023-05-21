@@ -913,6 +913,60 @@ void SKIF_UI_DrawPlatformStatus (void)
   }
 }
 
+void SKIF_UI_DrawShellyTheGhost (void)
+{
+  if (                        _registry.iGhostVisibility == 1 ||
+    (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
+  {
+    // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
+    ImGui::SameLine ( );
+
+    // Prepare Shelly color and Y position
+    const float fGhostTimeStep = 0.01f;
+    static float fGhostTime    = 0.0f;
+
+    float fGhostYPos = 4.0f;
+
+    ImVec4 vGhostColor = ImColor::ImColor (
+        0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
+        0.5f * (std::sin(6 * (fGhostTime / 2.5f + 1.0f / 3.0f)) + 1),
+        0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
+      );
+
+    if (_registry.iStyle == 2)
+      vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+
+    // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
+    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - 115.0f * SKIF_ImGui_GlobalDPIScale;
+
+    static float direction = -1.0f;
+    static float fMinPos   =  0.0f;
+
+    static float fNewPos   =
+                ( fMaxPos   -
+                  fMinPos ) * 0.5f;
+
+              fNewPos +=
+                  direction * SKIF_ImGui_GlobalDPIScale;
+
+    if (     fNewPos < fMinPos)
+    {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }
+    else if (fNewPos > fMaxPos)
+    {        fNewPos = fMaxPos - direction * 2.0f; direction = -direction; }
+
+    ImGui::SameLine    (0.0f, fNewPos);
+  
+    ImGui::SetCursorPosY (
+      ImGui::GetCursorPosY ( ) + fGhostYPos
+                          );
+
+    ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
+    
+    // Increase Shelly timestep for next frame
+    fGhostTime += fGhostTimeStep;
+  }
+}
+
 
 void SKIF_SetStyle (void)
 {  
@@ -1996,21 +2050,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // End of top right window buttons
 
-      // Prepare Shelly color and Y position
-      const float fGhostTimeStep = 0.01f;
-      static float fGhostTime    = 0.0f;
-
-      float fGhostYPos = 4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 1);
-
-      ImVec4 vGhostColor = ImColor::ImColor (
-          0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
-          0.5f * (std::sin(6 * (fGhostTime / 2.5f + 1.0f / 3.0f)) + 1),
-          0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
-        );
-
-      if (_registry.iStyle == 2)
-        vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-
       ImGui::BeginGroup ();
 
       // Begin Small Mode
@@ -2050,52 +2089,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text ("");
 
-        if (                          _registry.iGhostVisibility == 1 ||
-            (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
-        {
-          // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
-          ImGui::SameLine();
-
-          // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
-          float fMaxPos = SKIF_vecCurrentMode.x - 136.0f * SKIF_ImGui_GlobalDPIScale;
-
-          static float direction = -1.0f;
-          static float fMinPos   =  0.0f;
-
-          static float fNewPos   =
-                     ( fMaxPos   -
-                       fMinPos ) * 0.5f;
-
-                   fNewPos +=
-                       direction * SKIF_ImGui_GlobalDPIScale;
-
-          if (     fNewPos < fMinPos)
-          {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }
-          else if (fNewPos > fMaxPos)
-          {        fNewPos = fMaxPos - direction * 2.0f; direction = -direction; }
-
-          ImGui::SameLine    ( 0.0f, fNewPos );
-
-
-          /* Original method:
-          auto current_time =
-            SKIF_Util_timeGetTime ();
-
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
-                               );
-          ImVec4 vGhostColor =
-            ImColor::HSV (   (float)(current_time % 1400)/ 2800.f,
-                (.5f + (sin ((float)(current_time % 750) /  250.f)) * .5f) / 2.f,
-                   1.f );
-          */
-
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () + fGhostYPos
-                               );
-
-          ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
-        }
+        SKIF_UI_DrawShellyTheGhost ( );
       } // End Small Mode
 
 #pragma endregion
@@ -2200,57 +2194,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
                               (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
-                                              : SKIF_WINDOW_TITLE_A);
-
-        if (                          _registry.iGhostVisibility == 1 ||
-            (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
-        {
-          // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
-          ImGui::SameLine();
-
-          // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
-          float fMaxPos = SKIF_vecCurrentMode.x - ImGui::GetCursorPosX() - 125.0f * SKIF_ImGui_GlobalDPIScale;
-
-          static float direction = -1.0f;
-          static float fMinPos   =  0.0f;
-
-          static float fNewPos   =
-                     ( fMaxPos   -
-                       fMinPos ) * 0.5f;
-
-                   fNewPos +=
-                       direction * SKIF_ImGui_GlobalDPIScale;
-
-          if (     fNewPos < fMinPos)
-          {        fNewPos = fMinPos - direction * 2.0f; direction = -direction; }
-          else if (fNewPos > fMaxPos)
-          {        fNewPos = fMaxPos - direction * 2.0f; direction = -direction; }
-
-          ImGui::SameLine    ( 0.0f, fNewPos );
-
-          /*
-          auto current_time =
-            SKIF_Util_timeGetTime ();
-
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () + 4.0f * sin ((current_time % 500) / 125.f)
-                               );
-
-          ImVec4 vGhostColor =
-            ImColor::HSV (   (float)(current_time % 1400)/ 2800.f,
-                (.5f + (sin ((float)(current_time % 750) /  250.f)) * .5f) / 2.f,
-                   1.f );
-
-          if (_registry.iStyle == 2)
-            vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-          */
-          
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () + fGhostYPos
-                               );
-
-          ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
-        }
+                                             : SKIF_WINDOW_TITLE_A);
+        
+        SKIF_UI_DrawShellyTheGhost ( );
 
         ImGui::EndTabBar          ( );
       } // End Large Mode
@@ -2258,9 +2204,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #pragma endregion
 
       ImGui::EndGroup             ( );
-
-      // Increase Shelly timestep for next frame
-      fGhostTime += fGhostTimeStep;
 
       // Status Bar at the bottom
       if ( ! _registry.bSmallMode        &&

@@ -93,8 +93,9 @@ extern HWND        SKIF_Notify_hWnd;
 extern bool RepopulateGames;
 extern bool RefreshSettingsTab;
 
-void SKIF_UI_DrawPlatformStatus    (void);
 void SKIF_UI_DrawComponentVersion  (void);
+void SKIF_UI_DrawPlatformStatus    (void);
+void SKIF_UI_DrawShellyTheGhost    (void);
 
 extern float fAspect;
 extern float fBottomDist;
