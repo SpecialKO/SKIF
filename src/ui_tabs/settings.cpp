@@ -1928,6 +1928,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (SKIF_Util_IsWindows10OrGreater ( ))
     {
+      ImGui::BeginGroup  ();
+
       ImGui::Text        ("Display");
       ImGui::SameLine    ( );
       ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
@@ -1979,6 +1981,19 @@ SKIF_UI_Tab_DrawSettings (void)
           ImGui::Text        ("Not Supported");
         }
         ImGui::EndGroup      ( );
+      }
+
+      ImGui::EndGroup  ();
+
+      if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+        ImGui::OpenPopup ("ProcessMenu");
+
+      if (ImGui::BeginPopup ("ProcessMenu"))
+      {
+        if (ImGui::Selectable  (ICON_FA_SYNC " Restart display driver"))
+          ShellExecuteW (nullptr, L"runas", path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
+
+        ImGui::EndPopup ( );
       }
     }
     else {
