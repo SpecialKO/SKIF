@@ -14,15 +14,13 @@
 #pragma comment (lib, "Gdiplus.lib")
 
 #include "SKIF.h"
-
-std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
-
-// Registry Settings
 #include <registry.h>
 #include <fsutil.h>
 
+std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
+bool bHDRHotKey = false;
 
 // Generic Utilities
 
@@ -1373,30 +1371,55 @@ SKIF_Util_EnableHDROutput (void)
 }
 
 // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
-void
-SKIF_Util_RegisterHDRToggleHotKey (bool registerHotKey)
+bool
+SKIF_Util_RegisterHDRToggleHotKey (void)
 {
+  if (bHDRHotKey)
+    return true;
+
   /*
   * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
-  if (registerHotKey)
-  {
-    if (SKIF_Util_IsWindows10v1709OrGreater ( ))
-      if (SKIF_Util_IsHDRSupported (true))
-        if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
-          PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
-        else
-          PLOG_ERROR << "Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
+  if (SKIF_Util_IsWindows10v1709OrGreater ( ))
+    if (SKIF_Util_IsHDRSupported (true))
+      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+      {
+        bHDRHotKey = true;
+        PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
+      }
       else
-        PLOG_INFO << "No HDR capable display detected on the system.";
+        PLOG_ERROR << "Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
     else
-      PLOG_INFO << "OS does not support HDR display output.";
+      PLOG_INFO << "No HDR capable display detected on the system.";
+  else
+    PLOG_INFO << "OS does not support HDR display output.";
+
+  return bHDRHotKey;
+}
+
+// Unregisters a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
+bool
+SKIF_Util_UnregisterHDRToggleHotKey (void)
+{
+  if (! bHDRHotKey)
+    return true;
+
+  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
+  {
+    bHDRHotKey = false;
+    PLOG_INFO << "Removed the HDR toggling hotkey.";
   }
 
-  else if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
-    PLOG_INFO << "Removed the HDR toggling hotkey.";
+  return ! bHDRHotKey;
+}
+
+// Get the registration state of the hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
+bool
+SKIF_Util_GetHDRToggleHotKeyState (void)
+{
+  return bHDRHotKey;
 }
 
 

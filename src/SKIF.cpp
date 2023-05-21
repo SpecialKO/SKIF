@@ -1403,7 +1403,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          SKIF_Updater::GetInstance ( );
 
   // Register HDR toggle hotkey
-  SKIF_Util_RegisterHDRToggleHotKey (true);
+  SKIF_Util_RegisterHDRToggleHotKey ( );
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -3145,7 +3145,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
 
-  SKIF_Util_RegisterHDRToggleHotKey (false);
+  SKIF_Util_UnregisterHDRToggleHotKey ( );
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
