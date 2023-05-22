@@ -3066,8 +3066,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! msgDontRedraw && ! vSwapchainWaitHandles.empty())
         {
           static bool bWaitTimeoutSwapChainsFallback = false;
+
+          DWORD res = WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : 1000, true);
+
           //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
-          if (WAIT_FAILED == WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : INFINITE, true))
+          if (res == WAIT_TIMEOUT)
+          {
+            // This is only expected to occur when an issue arises
+            // e.g. the display driver resets and invalidates the
+            // swapchain in the middle of a frame.
+            PLOG_ERROR << "Timed out while waiting on the swapchain wait objects!";
+          }
+          else if (res == WAIT_FAILED)
           {
             SK_RunOnce (
             {
