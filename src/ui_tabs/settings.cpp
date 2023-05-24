@@ -798,9 +798,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (_registry.iUIMode == 0)
       {
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::Text ("HDR support is disabled while the UI is in Safe Mode.");
-        ImGui::PopStyleColor  ( );
+        ImGui::TextDisabled   ("HDR support for the app is disabled while the UI is in Safe Mode.");
       }
 
       else if (SKIF_Util_IsHDRActive ( ))
@@ -845,19 +843,34 @@ SKIF_UI_Tab_DrawSettings (void)
       }
 
       else {
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::Text ("Your display(s) supports HDR, but does not use it.");
-        ImGui::PopStyleColor  ( );
+        ImGui::TextDisabled   ("Your display(s) supports HDR, but does not use it.");
       }
 
       if (SKIF_Util_GetHDRToggleHotKeyState ( ) && _registry.iUIMode != 0)
       {
         ImGui::Spacing         ( );
-
+        /*
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextWrapped    ("FYI: Use WinKey + Ctrl + Shift + H while this app is running to toggle "
+        ImGui::TextWrapped    ("FYI: Use " ICON_FA_WINDOWS " + Ctrl + Shift + H while this app is running to toggle "
                                "HDR for the display the mouse cursor is currently located on.");
         ImGui::PopStyleColor  ( );
+        */
+        
+        ImGui::BeginGroup       ( );
+        ImGui::TextDisabled     ("Use");
+        ImGui::SameLine         ( );
+        ImGui::TextColored      (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+          ICON_FA_WINDOWS " + Ctrl + Shift + H");
+        ImGui::SameLine         ( );
+        ImGui::TextDisabled     ("to toggle HDR for the display the");
+        ImGui::SameLine         ( );
+        ImGui::TextColored      (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+            ICON_FA_MOUSE_POINTER);
+        ImGui::SameLine         ( );
+        ImGui::TextDisabled     ("is at.");
+        ImGui::EndGroup         ( );
       }
 
       ImGui::TreePop         ( );
@@ -1983,12 +1996,23 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::EndGroup      ( );
       }
 
+      // This adds a couple of empty lines to expand the height of the clickable area
+      // where the DisplayDriverMenu is accessible
+      static const int maxMon = 4;
+      if (Monitors.size() < maxMon)
+      {
+        size_t rem = maxMon - Monitors.size();
+
+        for (size_t i = 0; i < rem; i++)
+          ImGui::NewLine();
+      }
+
       ImGui::EndGroup  ();
 
       if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-        ImGui::OpenPopup ("ProcessMenu");
+        ImGui::OpenPopup ("DisplayDriverMenu");
 
-      if (ImGui::BeginPopup ("ProcessMenu"))
+      if (ImGui::BeginPopup ("DisplayDriverMenu"))
       {
         if (ImGui::Selectable  (ICON_FA_SYNC " Restart display driver"))
           ShellExecuteW (nullptr, L"runas", path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);

@@ -77,7 +77,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "1 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Go to the ");
+  ImGui::Text             ("Go to the");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
   SKIF_ImGui_SetMouseCursorHand ( );
@@ -111,7 +111,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "1 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Go to the ");
+  ImGui::Text             ("Go to the");
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -128,7 +128,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "2 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Click on ");
+  ImGui::Text             ("Click on");
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -244,22 +244,60 @@ SKIF_UI_Tab_DrawAbout (void)
 
   float fY4 = ImGui::GetCursorPosY();
           
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_WRENCH);
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    "Compatibility Options:");
+    "Tips and Tricks:");
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::Text             ("Hold down ");
+  if (SKIF_Util_IsHDRSupported())
+  {
+    ImGui::BeginGroup       ( );
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                          (const char *)u8"\u2022 ");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("Use");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      ICON_FA_WINDOWS " + Ctrl + Shift + H");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("to toggle HDR for the display the");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        ICON_FA_MOUSE_POINTER);
+    ImGui::SameLine         ( );
+    ImGui::Text             ("is at.");
+    ImGui::EndGroup         ( );
+
+    ImGui::Spacing          ( );
+    ImGui::Spacing          ( );
+  }
+
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                        (const char *)u8"\u2022 ");
+  ImGui::SameLine         ( );
+  float fX1 = ImGui::GetCursorPosX();
+  ImGui::Text             ("Hold down");
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    ICON_FA_KEYBOARD " CTRL + Shift");
+    ICON_FA_KEYBOARD " Ctrl + Shift");
   ImGui::SameLine         ( );
   ImGui::Text             ("when starting a game to access compatibility options");
+  ImGui::SetCursorPosX    (fX1);
   ImGui::Text             ("or quickly perform a local install of the appropriate wrapper DLL for the game.");
+  ImGui::EndGroup         ( );
 
 
   float pushColumnSeparator =
