@@ -779,6 +779,7 @@ Steam_GetInstalledAppIDs (void)
 void
 SKIF_UI_Tab_DrawLibrary (void)
 {
+#if 0
   SKIF_GamesCollection& _games = SKIF_GamesCollection::GetInstance();
 
   // Always read from the last written index
@@ -804,6 +805,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       //OutputDebugString(L"\n");
     }
   }
+#endif
 
   /*
   if (! sshot_file.empty ())
