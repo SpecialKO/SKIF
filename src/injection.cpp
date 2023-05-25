@@ -837,7 +837,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
       SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
     
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-    ServiceMenu = PopupState::Open;
+    ServiceMenu = PopupState_Open;
 
   if ( ! bHasServlet )
   {

@@ -77,13 +77,13 @@ const float fTintMin                = 0.75f;
       float fTint                   = 1.0f;
       float fAlpha                  = 0.0f;
 
-PopupState IconMenu        = PopupState::Closed;
-PopupState ServiceMenu     = PopupState::Closed;
+PopupState IconMenu        = PopupState_Closed;
+PopupState ServiceMenu     = PopupState_Closed;
 
-PopupState AddGamePopup    = PopupState::Closed;
-PopupState RemoveGamePopup = PopupState::Closed;
-PopupState ModifyGamePopup = PopupState::Closed;
-PopupState ConfirmPopup    = PopupState::Closed;
+PopupState AddGamePopup    = PopupState_Closed;
+PopupState RemoveGamePopup = PopupState_Closed;
+PopupState ModifyGamePopup = PopupState_Closed;
+PopupState ConfirmPopup    = PopupState_Closed;
 
 std::string confirmPopupTitle;
 std::string confirmPopupText;
@@ -1876,9 +1876,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   };
 
-  if (AddGamePopup    == PopupState::Closed &&
-      ModifyGamePopup == PopupState::Closed &&
-      RemoveGamePopup == PopupState::Closed &&
+  if (AddGamePopup    == PopupState_Closed &&
+      ModifyGamePopup == PopupState_Closed &&
+      RemoveGamePopup == PopupState_Closed &&
       ! io.KeyCtrl)
     _HandleKeyboardInput ();
 
@@ -2458,7 +2458,7 @@ Cache=false)";
 
         if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
                ImGui::IsItemClicked (ImGuiMouseButton_Right))
-          ServiceMenu = PopupState::Open;
+          ServiceMenu = PopupState_Open;
       }
 
       else {
@@ -2546,7 +2546,7 @@ Cache=false)";
              pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id).find(L"InvalidPath") != std::wstring::npos )
         {
           confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id, false));
-          ConfirmPopup     = PopupState::Open;
+          ConfirmPopup     = PopupState_Open;
         }
 
         else {
@@ -2713,9 +2713,9 @@ Cache=false)";
 
     if (isIconMenu)
     {
-      if ( IconMenu != PopupState::Opened &&
+      if ( IconMenu != PopupState_Opened &&
            ImGui::IsItemClicked (ImGuiMouseButton_Right))
-           IconMenu = PopupState::Open;
+           IconMenu = PopupState_Open;
     }
 
     else {
@@ -3018,7 +3018,7 @@ Cache=false)";
     ImGui::SetCursorPosX   (ImGui::GetCursorPosX ( ) + (30.0f * SKIF_ImGui_GlobalDPIScale));
 
     if (ImGui::Selectable      ("Add Game"))
-      AddGamePopup = PopupState::Open;
+      AddGamePopup = PopupState_Open;
 
     btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
@@ -3211,10 +3211,10 @@ Cache=false)";
   }
 
 
-  if (IconMenu == PopupState::Open)
+  if (IconMenu == PopupState_Open)
   {
     ImGui::OpenPopup    ("IconMenu");
-    IconMenu = PopupState::Closed;
+    IconMenu = PopupState_Closed;
   }
 
   if (ImGui::BeginPopup ("IconMenu"))
@@ -3428,7 +3428,7 @@ Cache=false)";
 
     ImGui::BeginGroup     ( );
      if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
-       AddGamePopup = PopupState::Open;
+       AddGamePopup = PopupState_Open;
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
@@ -4245,7 +4245,7 @@ Cache=false)";
           if (pApp->store == "SKIF")
           {
             if (ImGui::Selectable ("Properties"))
-              ModifyGamePopup = PopupState::Open;
+              ModifyGamePopup = PopupState_Open;
 
             ImGui::Separator ( );
           }
@@ -4294,13 +4294,13 @@ Cache=false)";
             else
               confirmPopupText = "Failed to create a desktop shortcut!";
 
-            ConfirmPopup = PopupState::Open;
+            ConfirmPopup = PopupState_Open;
           }
 
           if (pApp->store == "SKIF")
           {
             if (ImGui::Selectable ("Remove"))
-              RemoveGamePopup = PopupState::Open;
+              RemoveGamePopup = PopupState_Open;
           }
 
           ImGui::EndMenu ( );
@@ -4488,10 +4488,10 @@ Cache=false)";
   }
 
 
-  if (ConfirmPopup == PopupState::Open)
+  if (ConfirmPopup == PopupState_Open)
   {
     ImGui::OpenPopup("###ConfirmPopup");
-    //ConfirmPopup = PopupState::Opened;
+    //ConfirmPopup = PopupState_Opened;
   }
 
   float fConfirmPopupWidth = ImGui::CalcTextSize(confirmPopupText.c_str()).x + 60.0f * SKIF_ImGui_GlobalDPIScale;
@@ -4499,12 +4499,12 @@ Cache=false)";
 
   if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
-    if (ConfirmPopup == PopupState::Open)
+    if (ConfirmPopup == PopupState_Open)
     {
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ConfirmPopup");
       if (window != nullptr && ! window->Appearing)
-        ConfirmPopup = PopupState::Opened;
+        ConfirmPopup = PopupState_Opened;
     }
 
     ImGui::TreePush    ("");
@@ -4523,7 +4523,7 @@ Cache=false)";
     if (ImGui::Button  ("OK", vButtonSize))
     {
       confirmPopupText = "";
-      ConfirmPopup = PopupState::Closed;
+      ConfirmPopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -4535,10 +4535,10 @@ Cache=false)";
   }
 
 
-  if (RemoveGamePopup == PopupState::Open)
+  if (RemoveGamePopup == PopupState_Open)
   {
     ImGui::OpenPopup("###RemoveGamePopup");
-    RemoveGamePopup = PopupState::Opened;
+    RemoveGamePopup = PopupState_Opened;
   }
 
 
@@ -4587,7 +4587,7 @@ Cache=false)";
         update = true;
       }
 
-      RemoveGamePopup = PopupState::Closed;
+      RemoveGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -4597,7 +4597,7 @@ Cache=false)";
 
     if (ImGui::Button  ("No", vButtonSize))
     {
-      RemoveGamePopup = PopupState::Closed;
+      RemoveGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -4608,14 +4608,14 @@ Cache=false)";
     ImGui::EndPopup ( );
   }
   else {
-    RemoveGamePopup = PopupState::Closed;
+    RemoveGamePopup = PopupState_Closed;
   }
 
 
-  if (AddGamePopup == PopupState::Open && ! ImGui::IsAnyPopupOpen ( ))
+  if (AddGamePopup == PopupState_Open && ! ImGui::IsAnyPopupOpen ( ))
   {
     ImGui::OpenPopup("###AddGamePopup");
-    //AddGamePopup = PopupState::Opened; // Set as part of the BeginPopupModal() call below instead
+    //AddGamePopup = PopupState_Opened; // Set as part of the BeginPopupModal() call below instead
   }
 
   float fAddGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;
@@ -4632,12 +4632,12 @@ Cache=false)";
       exeFileName   - Autogenerated
     */
 
-    if (AddGamePopup == PopupState::Open)
+    if (AddGamePopup == PopupState_Open)
     {
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###AddGamePopup");
       if (window != nullptr && ! window->Appearing)
-        AddGamePopup = PopupState::Opened;
+        AddGamePopup = PopupState_Opened;
     }
 
     static char charName     [MAX_PATH],
@@ -4801,7 +4801,7 @@ Cache=false)";
         pTexSRV.p = nullptr;
       }
 
-      AddGamePopup = PopupState::Closed;
+      AddGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -4823,7 +4823,7 @@ Cache=false)";
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
 
-      AddGamePopup = PopupState::Closed;
+      AddGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -4834,12 +4834,12 @@ Cache=false)";
     ImGui::EndPopup    ( );
   }
   else {
-   AddGamePopup = PopupState::Closed;
+   AddGamePopup = PopupState_Closed;
   }
 
 
 
-  if (ModifyGamePopup == PopupState::Open)
+  if (ModifyGamePopup == PopupState_Open)
     ImGui::OpenPopup ("###ModifyGamePopup");
 
   float fModifyGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;
@@ -4853,7 +4853,7 @@ Cache=false)";
                 //charProfile  [MAX_PATH];
     static bool error = false;
 
-    if (ModifyGamePopup == PopupState::Open)
+    if (ModifyGamePopup == PopupState_Open)
     {
       std::string name = pApp->names.normal;
       try {
@@ -4872,7 +4872,7 @@ Cache=false)";
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");
       if (window != nullptr && ! window->Appearing)
-        ModifyGamePopup = PopupState::Opened;
+        ModifyGamePopup = PopupState_Opened;
     }
 
     ImGui::TreePush    ("");
@@ -5042,7 +5042,7 @@ Cache=false)";
 
         update = true;
 
-        ModifyGamePopup = PopupState::Closed;
+        ModifyGamePopup = PopupState_Closed;
         ImGui::CloseCurrentPopup();
       }
     }
@@ -5065,7 +5065,7 @@ Cache=false)";
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
 
-      ModifyGamePopup = PopupState::Closed;
+      ModifyGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
 
@@ -5076,7 +5076,7 @@ Cache=false)";
     ImGui::EndPopup    ( );
   }
   else {
-    ModifyGamePopup = PopupState::Closed;
+    ModifyGamePopup = PopupState_Closed;
   }
 
   extern uint32_t SelectNewSKIFGame;

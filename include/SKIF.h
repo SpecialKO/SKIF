@@ -130,11 +130,10 @@ constexpr const wchar_t* SKIF_WindowClass =
 // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
 extern bool SKIF_bSuppressServiceNotification;
 
-
-enum class PopupState {
-  Closed,
-  Open,
-  Opened
+enum PopupState {
+  PopupState_Closed,
+  PopupState_Open,
+  PopupState_Opened
 };
 
 extern PopupState IconMenu;

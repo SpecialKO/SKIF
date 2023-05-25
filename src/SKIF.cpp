@@ -170,8 +170,8 @@ struct SKIF_Signals {
 extern        SK_ICommandProcessor*
   __stdcall SK_GetCommandProcessor (void);
 
-PopupState UpdatePromptPopup = PopupState::Closed;
-PopupState HistoryPopup      = PopupState::Closed;
+PopupState UpdatePromptPopup = PopupState_Closed;
+PopupState HistoryPopup      = PopupState_Closed;
 UITab SKIF_Tab_Selected      = UITab_Library,
       SKIF_Tab_ChangeTo      = UITab_None;
 
@@ -726,7 +726,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "View release notes...");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-    HistoryPopup = PopupState::Open;
+    HistoryPopup = PopupState_Open;
   ImGui::EndGroup         ( );
   
   static SKIF_Updater& _updater = 
@@ -748,7 +748,7 @@ void SKIF_UI_DrawComponentVersion (void)
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
     if (ImGui::Button (btnLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale,
                                                  30.0f * SKIF_ImGui_GlobalDPIScale )))
-      UpdatePromptPopup = PopupState::Open;
+      UpdatePromptPopup = PopupState_Open;
     ImGui::PopStyleColor ( );
   }
 }
@@ -2013,14 +2013,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_Tab_Selected != UITab_Library)
             SKIF_Tab_ChangeTo  = UITab_Library;
 
-        AddGamePopup = PopupState::Open;
+        AddGamePopup = PopupState_Open;
       }
 
       if (ImGui::IsKeyPressedMap (ImGuiKey_Escape))
       {
-        if (AddGamePopup    != PopupState::Closed ||
-            ModifyGamePopup != PopupState::Closed ||
-            RemoveGamePopup != PopupState::Closed)
+        if (AddGamePopup    != PopupState_Closed ||
+            ModifyGamePopup != PopupState_Closed ||
+            RemoveGamePopup != PopupState_Closed)
           ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
       }
 
@@ -2256,7 +2256,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
         if (ImGui::Button ( ICON_FA_PLUS_SQUARE " Add Game"))
         {
-          AddGamePopup = PopupState::Open;
+          AddGamePopup = PopupState_Open;
           if (SKIF_Tab_Selected != UITab_Library)
             SKIF_Tab_ChangeTo = UITab_Library;
         }
@@ -2406,7 +2406,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static size_t NumCharsOnLine       = 0;
       static std::vector<char> vecNotes;
 
-      if (UpdatePromptPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (UpdatePromptPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -2488,12 +2488,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec4      compareColor;
         bool        compareNewer = (SKIF_Util_CompareVersionStrings (_updater.GetResults().version, currentVersion) > 0);
 
-        if (UpdatePromptPopup == PopupState::Open)
+        if (UpdatePromptPopup == PopupState_Open)
         {
           // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
           ImGuiWindow* window = ImGui::FindWindowByName ("###UpdatePrompt");
           if (window != nullptr && ! window->Appearing)
-            UpdatePromptPopup = PopupState::Opened;
+            UpdatePromptPopup = PopupState_Opened;
         }
 
         if (compareNewer)
@@ -2603,7 +2603,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             vecNotes.clear();
           }
 
-          UpdatePromptPopup = PopupState::Closed;
+          UpdatePromptPopup = PopupState_Closed;
           ImGui::CloseCurrentPopup ();
         }
 
@@ -2619,7 +2619,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _registry.regKVIgnoreUpdate.putData(SK_UTF8ToWideChar(_updater.GetResults().description));
 
             vecNotes.clear();
-            UpdatePromptPopup = PopupState::Closed;
+            UpdatePromptPopup = PopupState_Closed;
             ImGui::CloseCurrentPopup ();
           }
 
@@ -2634,7 +2634,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
           vecNotes.clear();
-          UpdatePromptPopup = PopupState::Closed;
+          UpdatePromptPopup = PopupState_Closed;
           ImGui::CloseCurrentPopup ();
         }
 
@@ -2649,7 +2649,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::vector<char> vecHistory;
       static std::string HistoryPopupTitle;
 
-      if (HistoryPopup == PopupState::Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         //HistoryPopupWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         HistoryPopupWidth = 360.0f;
@@ -2719,12 +2719,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                   ImGuiWindowFlags_AlwaysAutoResize )
          )
       {
-        if (HistoryPopup == PopupState::Open)
+        if (HistoryPopup == PopupState_Open)
         {
           // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
           ImGuiWindow* window = ImGui::FindWindowByName ("###History");
           if (window != nullptr && ! window->Appearing)
-            HistoryPopup = PopupState::Opened;
+            HistoryPopup = PopupState_Opened;
         }
 
         /*
@@ -2769,7 +2769,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                               25 * SKIF_ImGui_GlobalDPIScale )))
         {
           vecHistory.clear ( );
-          HistoryPopup = PopupState::Closed;
+          HistoryPopup = PopupState_Closed;
           ImGui::CloseCurrentPopup ();
         }
 
@@ -2946,11 +2946,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     else if (addAdditionalFrames > 0)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + addAdditionalFrames; // Used when the cover is currently loading in, or the update check just completed
     /*
-    else if (  AddGamePopup == PopupState::Open ||
-               ConfirmPopup == PopupState::Open ||
-            ModifyGamePopup == PopupState::Open ||
-          UpdatePromptPopup == PopupState::Open ||
-               HistoryPopup == PopupState::Open )
+    else if (  AddGamePopup == PopupState_Open ||
+               ConfirmPopup == PopupState_Open ||
+            ModifyGamePopup == PopupState_Open ||
+          UpdatePromptPopup == PopupState_Open ||
+               HistoryPopup == PopupState_Open )
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If a popup is transitioning to an opened state
     */
     else if (ImGui::GetFrameCount ( ) > renderAdditionalFrames)
@@ -2974,16 +2974,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
     {
       // But don't close those of interest
-      if (     AddGamePopup != PopupState::Open   &&
-               AddGamePopup != PopupState::Opened &&
-               ConfirmPopup != PopupState::Open   &&
-               ConfirmPopup != PopupState::Opened &&
-            ModifyGamePopup != PopupState::Open   &&
-            ModifyGamePopup != PopupState::Opened &&
-          UpdatePromptPopup != PopupState::Open   &&
-          UpdatePromptPopup != PopupState::Opened &&
-               HistoryPopup != PopupState::Open   &&
-               HistoryPopup != PopupState::Opened)
+      if (     AddGamePopup != PopupState_Open   &&
+               AddGamePopup != PopupState_Opened &&
+               ConfirmPopup != PopupState_Open   &&
+               ConfirmPopup != PopupState_Opened &&
+            ModifyGamePopup != PopupState_Open   &&
+            ModifyGamePopup != PopupState_Opened &&
+          UpdatePromptPopup != PopupState_Open   &&
+          UpdatePromptPopup != PopupState_Opened &&
+               HistoryPopup != PopupState_Open   &&
+               HistoryPopup != PopupState_Opened)
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
     
@@ -3556,7 +3556,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             ((uFlags & UpdateFlags_Ignored)    != UpdateFlags_Ignored    &&
              (uFlags & UpdateFlags_Rollback)   != UpdateFlags_Rollback   )))
         {
-          UpdatePromptPopup = PopupState::Open;
+          UpdatePromptPopup = PopupState_Open;
           addAdditionalFrames += 3;
         }
       }

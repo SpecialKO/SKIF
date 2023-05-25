@@ -136,7 +136,7 @@ SKIF_UI_Tab_DrawAbout (void)
   );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-    AddGamePopup = PopupState::Open;
+    AddGamePopup = PopupState_Open;
     SKIF_Tab_ChangeTo = UITab_Library;
   }
   ImGui::SameLine         ( );
@@ -333,7 +333,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImColor::HSV (0.11F,   1.F, 1.F),
-    ICON_FA_EXCLAMATION_TRIANGLE " ");
+      ICON_FA_EXCLAMATION_TRIANGLE " ");
   ImGui::SameLine         (0.0f, 6.0f);
   ImGui::Text             ("Do not use Special K in multiplayer games!");
   ImGui::EndGroup         ( );

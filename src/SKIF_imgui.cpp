@@ -399,10 +399,10 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
 
 void SKIF_ImGui_ServiceMenu (void)
 {
-  if (ServiceMenu == PopupState::Open)
+  if (ServiceMenu == PopupState_Open)
   {
     ImGui::OpenPopup ("ServiceMenu");
-    ServiceMenu = PopupState::Closed;
+    ServiceMenu = PopupState_Closed;
   }
 
   if (ImGui::BeginPopup ("ServiceMenu"))
