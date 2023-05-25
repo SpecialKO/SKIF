@@ -19,7 +19,7 @@ static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 struct Monitor_MPO_Support
 {
   std::string                    Name;  // EDID names are limited to 13 characters, which is perfect for us
-  UINT                           Index; // Doesn't really correspond to anything important...
+  UINT                           Index; // cloneGroupId -- doesn't really correspond to anything important for us...
   std::string                    DeviceNameGdi;
   std::string                    DevicePath;
   UINT                           MaxPlanes;
@@ -29,6 +29,7 @@ struct Monitor_MPO_Support
   float                          MaxShrinkFactor;
   D3DKMT_MULTIPLANE_OVERLAY_CAPS OverlayCaps;
   std::string                    OverlayCapsAsString;
+  bool                           Supported = false; // Pure assumption by us based on various discoveries/experiences
 };
 
 enum DrvInstallState {
@@ -38,6 +39,7 @@ enum DrvInstallState {
   ObsoleteInstalled
 };
 
+bool                              MPORegistryDisabled = false;
 std::vector <Monitor_MPO_Support> Monitors;
 DrvInstallState driverStatus        = NotInstalled,
                 driverStatusPending = NotInstalled;
@@ -194,6 +196,11 @@ GetMPOSupport (void)
         monitor.MaxShrinkFactor     = caps.MaxShrinkFactor;
         monitor.OverlayCaps         = caps.OverlayCaps;
         monitor.OverlayCapsAsString = "";
+
+        // This is pure assumption from us based on discoveries/experiences and this line in the MSFT docs:
+        // "At least one plane must support shrinking and stretching, independent from other planes that might be enabled."
+        if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
+          monitor.Supported = true;
 
         /*
               UINT Rotation                        : 1;    // Full rotation
@@ -429,6 +436,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (SKIF_Tab_Selected != UITab_Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true))
   {
     GetMPOSupport         (    );
+    SKIF_Util_IsMPOsDisabledInRegistry (true);
     SKIF_Util_IsHDRActive (true);
     driverBinaryPath    = GetDrvInstallState (driverStatus);
     driverStatusPending =                     driverStatus;
@@ -1957,12 +1965,13 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SameLine    ( );
       ImGui::Text        ("Capabilities");
 
+      // MPO support is a bloody mystery...
       for (auto& monitor : Monitors)
       {
         std::string stretchFormat = (monitor.MaxStretchFactor < 10.0f) ? "  %.1fx - %.1fx" // two added spaces for sub-10.0x to align them vertically with other displays
                                                                        :   "%.1fx - %.1fx";
-        ImVec4 colName            = (monitor.MaxPlanes > 1) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
-                                                            : ImVec4 (ImColor::HSV (0.11F, 1.F, 1.F));
+        ImVec4 colName            = (monitor.Supported) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
+                                                        : ImVec4 (ImColor::HSV (0.11F, 1.F, 1.F));
 
         ImGui::BeginGroup    ( );
         //ImGui::Text        ("%u", monitor.Index);
@@ -1972,7 +1981,9 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        ImGui::Text          ("%u", monitor.MaxPlanes);
+        ImGui::Text          ("%u", (monitor.Supported) ? monitor.MaxPlanes : 1);
+        if (! monitor.Supported && monitor.MaxPlanes > 1)
+          SKIF_ImGui_SetHoverTip (std::to_string(monitor.MaxPlanes));
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
@@ -2004,7 +2015,7 @@ SKIF_UI_Tab_DrawSettings (void)
         size_t rem = maxMon - Monitors.size();
 
         for (size_t i = 0; i < rem; i++)
-          ImGui::NewLine();
+          ImGui::NewLine ( );
       }
 
       ImGui::EndGroup  ();
@@ -2018,6 +2029,35 @@ SKIF_UI_Tab_DrawSettings (void)
           ShellExecuteW (nullptr, L"runas", path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
 
         ImGui::EndPopup ( );
+      }
+
+      if (SKIF_Util_IsMPOsDisabledInRegistry ( ))
+      {
+        // Move up the line 2 pixels as otherwise a scroll would appear...
+        ImGui::SetCursorPosY    (ImGui::GetCursorPosY ( ) - (2.0f * SKIF_ImGui_GlobalDPIScale));
+        ImGui::BeginGroup       ( );
+        ImGui::Spacing          ( );
+        ImGui::SameLine         ( );
+        ImGui::TextColored      (
+          ImColor::HSV (0.11F,   1.F, 1.F),
+            ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::SameLine         (0.0f, 6.0f);
+        ImGui::Text             ("MPOs are disabled through the registry!");
+        ImGui::EndGroup         ( );
+        SKIF_ImGui_SetHoverTip (R"(HKLM\SOFTWARE\Microsoft\Windows\Dwm\OverlayTestMode)");
+
+        if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+          ImGui::OpenPopup ("OverlayTestModeMenu");
+
+        if (ImGui::BeginPopup ("OverlayTestModeMenu"))
+        {
+          // REG ADD    HLKM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f /t REG_DWORD /d 5
+          // REG DELETE HLKM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f
+          if (ImGui::Selectable  (ICON_FA_CHECK_CIRCLE " Enable MPOs (computer restart required)"))
+            ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode / f)", nullptr, SW_SHOW);
+
+          ImGui::EndPopup ( );
+        }
       }
     }
     else {
