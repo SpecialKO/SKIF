@@ -974,6 +974,61 @@ SKIF_Util_RegisterApp (bool force)
 }
 
 
+typedef unsigned long UpdateFlags;  // -> enum DWMOverlayTestModeFlags_
+
+enum DWMOverlayTestModeFlags_
+{
+  DWMOverlayTestModeFlags_None        = 0,      // No overlay test mode flag is set
+  DWMOverlayTestModeFlags_MPORelated1 = 1 << 0, // Unknown purpose (but MPO related)
+  DWMOverlayTestModeFlags_Unknown1    = 1 << 1, // Unknown purpose
+  DWMOverlayTestModeFlags_MPORelated2 = 1 << 2, // Unknown purpose (but MPO related)
+  DWMOverlayTestModeFlags_Unknown2    = 1 << 4, // Unknown purpose
+  DWMOverlayTestModeFlags_INITIAL     = 1 << 16 // Initial dummy value before we check it
+};
+
+bool
+SKIF_Util_IsMPOsDisabledInRegistry (bool refresh)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  static UpdateFlags flag = DWMOverlayTestModeFlags_INITIAL;
+  static bool  isDisabled = false;
+
+  if (flag != DWMOverlayTestModeFlags_INITIAL && ! refresh)
+    return isDisabled;
+
+  isDisabled = false;
+
+  HKEY hKey;
+  //DWORD buffer = 0;
+  unsigned long size = 1024;
+
+  // Check if DWM's OverlayTestMode has MPOs disabled
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ, &hKey))
+  {
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"OverlayTestMode", NULL, NULL, (LPBYTE)&flag, &size))
+    {
+      if ((flag & DWMOverlayTestModeFlags_MPORelated1) == DWMOverlayTestModeFlags_MPORelated1 &&
+          (flag & DWMOverlayTestModeFlags_MPORelated2) == DWMOverlayTestModeFlags_MPORelated2)
+        isDisabled = true;
+
+      PLOG_VERBOSE << "OverlayTestMode registry value is set to: " << flag;
+    }
+    else {
+      flag = DWMOverlayTestModeFlags_None;
+    }
+
+    RegCloseKey (hKey);
+  }
+  else {
+    flag = DWMOverlayTestModeFlags_None;
+  }
+
+  return isDisabled;
+}
+
+
 void
 SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
 {
