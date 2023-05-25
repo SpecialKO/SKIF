@@ -418,6 +418,8 @@ SKIF_UI_Tab_DrawSettings (void)
   static SKIF_DirectoryWatch SKIF_DriverWatch;
   static bool HDRSupported = false;
 
+  static DWORD dwTriggerNewRefresh = 0; // Set when to trigger a new refresh (0 = DISABLED)
+
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
   if (driverStatusPending != driverStatus)
@@ -433,7 +435,10 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   // Refresh things when visiting from another tab or when forced
-  if (SKIF_Tab_Selected != UITab_Settings || RefreshSettingsTab || SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true))
+  if (SKIF_Tab_Selected != UITab_Settings               ||
+      RefreshSettingsTab                                ||
+      SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true) ||
+      dwTriggerNewRefresh != 0 && dwTriggerNewRefresh < SKIF_Util_timeGetTime ( )    )
   {
     GetMPOSupport         (    );
     SKIF_Util_IsMPOsDisabledInRegistry (true);
@@ -441,6 +446,7 @@ SKIF_UI_Tab_DrawSettings (void)
     driverBinaryPath    = GetDrvInstallState (driverStatus);
     driverStatusPending =                     driverStatus;
     RefreshSettingsTab  = false;
+    dwTriggerNewRefresh = 0;
   }
 
   SKIF_Tab_Selected = UITab_Settings;
@@ -2025,7 +2031,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (ImGui::BeginPopup ("DisplayDriverMenu"))
       {
-        if (ImGui::Selectable  (ICON_FA_SYNC " Restart display driver"))
+        if (ImGui::Selectable (ICON_FA_SYNC " Refresh"))
+          RefreshSettingsTab = true;
+
+        ImGui::Separator ( );
+
+        if (ImGui::Selectable (ICON_FA_REDO " Restart display driver"))
           ShellExecuteW (nullptr, L"runas", path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
 
         ImGui::EndPopup ( );
@@ -2051,10 +2062,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
         if (ImGui::BeginPopup ("OverlayTestModeMenu"))
         {
-          // REG ADD    HLKM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f /t REG_DWORD /d 5
-          // REG DELETE HLKM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f
+          // REG ADD    HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f /t REG_DWORD /d 5
+          // REG DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f
           if (ImGui::Selectable  (ICON_FA_CHECK_CIRCLE " Enable MPOs (computer restart required)"))
-            ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode / f)", nullptr, SW_SHOW);
+          {
+            if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOW) > (HINSTANCE)32)
+            {
+              // Trigger a refresh in 500ms
+              dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500;
+            }
+          }
 
           ImGui::EndPopup ( );
         }
