@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <atomic>
+#include <memory>
 #include <stores/generic_library2.h>
 
 // Singleton struct

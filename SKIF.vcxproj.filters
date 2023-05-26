@@ -467,14 +467,14 @@
     <ClCompile Include="src\games.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="include\stores\generic_library2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\updater.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\drvreset.cpp">
       <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="include\stores\generic_library2.cpp">
+      <Filter>Source Files\Stores</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

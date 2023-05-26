@@ -93,7 +93,7 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
               */
               record.specialk.profile_dir = lc.executable;
 
-              record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
+              record.specialk.injection.injection.type = app_generic_s::sk_install_state_s::Injection::Type::Global;
 
               apps->emplace_back (std::make_unique <app_skif_s>(record));
             }
