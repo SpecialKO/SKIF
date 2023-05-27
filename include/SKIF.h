@@ -41,7 +41,6 @@
 
 #include <injection.h>
 
-extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
 std::string SKIF_GetPatrons        (void);
 void        SKIF_Initialize        (void);

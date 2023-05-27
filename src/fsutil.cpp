@@ -346,10 +346,13 @@ SKIF_CommonPathsCache::SKIF_CommonPathsCache (void)
   // Store the original working directory in a variable, since it's used by custom launch, for example.
   GetCurrentDirectoryW (MAX_PATH, skif_workdir_org);
 
-  // Lets store the full path to SKIF's executable
-  GetModuleFileNameW  (nullptr, specialk_install, MAX_PATH);
-  wcsncpy_s ( skif_executable,   MAX_PATH,
-              specialk_install, _TRUNCATE );
+  // Store the full path to SKIF's executable
+  GetModuleFileNameW  (nullptr, skif_executable, MAX_PATH);
+
+  // Store the full path to the folder SKIF.exe is running from
+  wcsncpy_s (specialk_install,   MAX_PATH,
+              skif_executable, _TRUNCATE );
+  PathRemoveFileSpecW (specialk_install); // Strip SKIF.exe from the path
 
   // Cache the Steam install folder
   extern const wchar_t* SK_GetSteamDir (void);

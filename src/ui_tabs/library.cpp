@@ -4287,14 +4287,12 @@ Cache=false)";
 
             std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
             std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str(), pApp->launch_configs[0].launch_options.c_str());
-            wchar_t wszPath[MAX_PATH + 2] = { };
-            GetModuleFileNameW (hModSKIF, wszPath, MAX_PATH);
 
             confirmPopupTitle = "Create Shortcut";
 
             if (SKIF_Util_CreateShortcut (
                 linkPath.c_str(),
-                wszPath,
+                _path_cache.skif_executable,
                 linkArgs.c_str(),
                 pApp->launch_configs[0].working_dir.c_str(),
                 SK_UTF8ToWideChar(name).c_str(),

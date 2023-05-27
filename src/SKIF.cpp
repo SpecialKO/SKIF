@@ -964,7 +964,6 @@ void SKIF_Initialize (void)
     static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
     
     // Let's change the current working directory to the folder of the executable itself.
-    PathRemoveFileSpecW (         _path_cache.specialk_install);
     SetCurrentDirectory (         _path_cache.specialk_install);
 
     // Generate 8.3 filenames
@@ -1127,10 +1126,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ExitProcess (0x0);
   }
 
-  // Remember what third-party window is currently in the foreground
-  hWndOrigForeground =
-    GetForegroundWindow ();
-
   // This constructs these singleton objects
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
@@ -1143,8 +1138,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // This constructs this singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
+  
+  // Remember what third-party window is currently in the foreground (used when proxying cmd arguments)
+  hWndOrigForeground =
+    GetForegroundWindow ();
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+
+  // Load the SKIF.exe module (used to populate the icon here and there)
+  hModSKIF =
+    GetModuleHandleW (nullptr);
 
   // We don't want Steam's overlay to draw upon SKIF,
   //   but only if not used as a launcher.
@@ -1232,31 +1235,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (SKIF_isTrayed)
     dwStyle &= ~WS_VISIBLE;
 
-
-  /* 2023-04-05: I'm pretty sure this whole block is unnecessary // Aemony
-  HMONITOR hMonitor =
-    MonitorFromWindow (hWndOrigForeground, MONITOR_DEFAULTTONEAREST);
-
-  MONITORINFOEX
-    miex        = {           };
-    miex.cbSize = sizeof (miex);
-
-  UINT dpi = 0;
-  if ( GetMonitorInfoW (hMonitor, &miex) )
-  {
-    float fdpiX =
-      ImGui_ImplWin32_GetDpiScaleForMonitor (hMonitor);
-
-    dpi =
-      static_cast <UINT> (fdpiX * 96.0f);
-
-    //int cxLogical = ( miex.rcMonitor.right  -
-    //                  miex.rcMonitor.left  );
-    //int cyLogical = ( miex.rcMonitor.bottom -
-    //                  miex.rcMonitor.top   );
-  }
-  */
-
   SKIF_hWnd             =
     CreateWindowExW (                    dwStyleEx,
       wc.lpszClassName, _L("Special K"), dwStyle,
@@ -1281,8 +1259,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
 
   HWND  hWnd  = SKIF_hWnd;
-  //HDC   hDC   =
-  //  GetWindowDC (hWnd); // No purpose since it only concerns the 0x0 invisible native Win32 window and not the ImGui stuff
   HICON hIcon =
     LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 

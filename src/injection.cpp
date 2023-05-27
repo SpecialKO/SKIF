@@ -1161,6 +1161,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
      ) )
   {
     extern HWND    SKIF_hWnd;
+    extern HMODULE hModSKIF;
     HICON hIcon = LoadIcon(hModSKIF, MAKEINTRESOURCE(IDI_SKIFON));
 
     if (hIcon != NULL)
