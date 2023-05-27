@@ -306,7 +306,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   _Signal.Temporary =
     StrStrIW (lpCmdLine, L"Temp")     != NULL ||
    (StrStrIW (lpCmdLine, L"Auto")     != NULL &&
-     _registry.bStopOnInjection );
+    _registry.bStopOnInjection                );
 
   _Signal.Stop =
     StrStrIW (lpCmdLine, L"Stop")     != NULL;
@@ -338,7 +338,6 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     PLOG_VERBOSE << "hwndAlreadyExists was found to be true; proxying call...";
 
     if (! _Signal.Start     &&
-        ! _Signal.Temporary &&
         ! _Signal.Stop      &&
         ! _Signal.Quit      &&
         ! _Signal.Minimize  &&
@@ -612,7 +611,6 @@ void SKIF_CreateUpdateNotifyMenu (void)
   if (hMenu != NULL)
     DestroyMenu (hMenu);
 
-  /*
   bool svcRunning         = false,
        svcRunningAutoStop = false,
        svcStopped         = false;
@@ -623,15 +621,14 @@ void SKIF_CreateUpdateNotifyMenu (void)
     svcRunningAutoStop = true;
   else
     svcStopped         = true;
-  */
 
   hMenu = CreatePopupMenu ( );
-//AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Injection");
-//AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
-//AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Injection");
+  AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Service");
+  AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Service (manual stop)");
+  AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Service");
 
-  AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
-  AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
+//AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
+//AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
   AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
   AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
 }
@@ -2889,20 +2886,34 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         while (IsWindow (SKIF_hWnd))
         {
-          extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-          packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
-
-          if (packetNew  > 0  &&
-              packetNew != packetLast)
+          // Only act on new gamepad input if we are actually focused.
+          // This prevents SKIF from acting on gameapd input when unfocused,
+          // but otherwise refreshes due to some status change.
+          if (SKIF_ImGui_IsFocused ( ))
           {
-            packetLast = packetNew;
-            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
-            PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            //OutputDebugString(L"Is focused\n");
+
+            // TODO: Redo implementation -- using ImGui_ImplWin32_UpdateGamepads () here is not thread-safe,
+            // This is basically called twice -- once from the main thread and once here, which introduces
+            // instability (and is doubtless why ImGui upgrade branch crashes). We should instead rely on
+            // two separate calls: one here which doesn't update ImGui's variables, and one in the main
+            // thread which do.
+            extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
+            packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
+
+            if (packetNew  > 0  &&
+                packetNew != packetLast)
+            {
+              packetLast = packetNew;
+              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+              PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            }
           }
 
-          // Sleep until we're woken up by WM_SETFOCUS if SKIF is unfocused
-          if (SKIF_isTrayed || ! SKIF_ImGui_IsFocused () || IsIconic (SKIF_hWnd))
+          // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
+          else
           {
+            //OutputDebugString(L"Entering sleep\n");
             SK_RunOnce (SKIF_Util_CompactWorkingSet ());
 
             SleepConditionVariableCS (
@@ -3274,7 +3285,8 @@ bool CreateDeviceD3D (HWND hWnd)
                                                                 &featureLevel,
                                                        &g_pd3dDeviceContext))
   {
-    OutputDebugString(L"D3D11CreateDevice failed!\n");
+    //OutputDebugString(L"D3D11CreateDevice failed!\n");
+    PLOG_ERROR << "D3D11CreateDevice failed!";
     return false;
   }
 
@@ -3746,11 +3758,12 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (LOWORD(wParam))
       {
         case SKIF_NOTIFY_START:
-          PostMessage (SKIF_hWnd, (_registry.bStopOnInjection) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0, 0);
+          //PostMessage (SKIF_hWnd, (_registry.bStopOnInjection) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0, 0);
+          PostMessage (SKIF_hWnd, WM_SKIF_START, 0, 0);
           break;
-        //case SKIF_NOTIFY_STARTWITHSTOP:
-        //  PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
-        //  break;
+        case SKIF_NOTIFY_STARTWITHSTOP:
+          PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
+          break;
         case SKIF_NOTIFY_STOP:
           PostMessage (SKIF_hWnd, WM_SKIF_STOP, 0, 0);
           break;

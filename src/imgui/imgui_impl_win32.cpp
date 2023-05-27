@@ -78,7 +78,7 @@ static void ImGui_ImplWin32_UpdateMonitors            (void);
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = true;
+static bool                 g_Focused = false;
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
@@ -101,7 +101,11 @@ static HMODULE                   g_hModXInput = nullptr;
 // Peripheral Functions
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
-  //extern HWND SKIF_hWnd;
+  // We should be able to trust g_Focused as it is fed by WM_SETFOCUS and WM_KILLFOCUS
+  return g_Focused;
+
+#if 0
+  extern HWND SKIF_hWnd;
   extern HWND SKIF_ImGui_hWnd;
   static int uglyAssWorkaround = 0;
 
@@ -110,7 +114,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
   //   and instead trust on WM_SETFOCUS and WM_KILLFOCUS to be correct
   if (uglyAssWorkaround == 2 || SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount ( ) > 500)
     return g_Focused;
-
+    
   // Fallback which only executes the first couple of frames
   static INT64 lastTime  = std::numeric_limits <INT64>::max ();
   static bool  lastFocus = false;
@@ -120,8 +124,8 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
   {   lastTime  = g_Time;
     if (HWND focused_hwnd = ::GetForegroundWindow ())
     {
-      if (::IsChild (focused_hwnd,  g_hWnd))
-      {              focused_hwnd = g_hWnd; }
+      if (::IsChild (focused_hwnd,  SKIF_hWnd))  // g_hWnd 
+      {              focused_hwnd = SKIF_hWnd; } // g_hWnd
         DWORD
           dwWindowOwnerPid = 0;
 
@@ -135,6 +139,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
 
       lastFocus = (dwWindowOwnerPid == dwPidOfMe);
 
+      /*
       if (SKIF_Util_IsWindows10OrGreater ( ) && g_Focused != lastFocus && SKIF_ImGui_hWnd != NULL)
       {
         // Ugly-ass workaround for the window never receiving WM_KILLFOCUS on launch if it gets unfocused quickly
@@ -156,12 +161,14 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
           //SK_RunOnce (SendMessage (SKIF_ImGui_hWnd, WM_SETFOCUS, 0, 0));
         }
       }
+      */
     }
     else // In the case that GetForegroundWindow () fails, assume g_Focused is correct
       lastFocus = g_Focused;
   }
 
   return lastFocus;
+#endif
 }
 
 bool    ImGui_ImplWin32_InitXInput (void *hwnd)
@@ -465,13 +472,13 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
             _fZeros,
     sizeof (_fZeros));
 
-  /*
   if (! g_Focused)
     return 0;
 
   if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
     return 0;
-
+  
+  /*
   if (HWND focused_hwnd = ::GetForegroundWindow ())
   {
     if (::IsChild (focused_hwnd,  g_hWnd))
@@ -681,6 +688,9 @@ ImGui_ImplWin32_NewFrame (void)
     io.KeyCtrl  = ( ::GetKeyState (VK_CONTROL) & 0x8000 ) != 0;
     io.KeyShift = ( ::GetKeyState (VK_SHIFT)   & 0x8000 ) != 0;
     io.KeyAlt   = ( ::GetKeyState (VK_MENU)    & 0x8000 ) != 0;
+
+    // Update game controllers (if enabled and available)
+    ImGui_ImplWin32_UpdateGamepads ();
   }
 
   // io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc handler below.
@@ -698,9 +708,6 @@ ImGui_ImplWin32_NewFrame (void)
     g_LastMouseCursor = mouse_cursor;
     ImGui_ImplWin32_UpdateMouseCursor ();
   }
-
-  // Update game controllers (if enabled and available)
-  ImGui_ImplWin32_UpdateGamepads ();
 }
 
 // Allow compilation with old Windows SDK. MinGW doesn't have default _WIN32_WINNT/WINVER versions.
@@ -766,6 +773,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   case WM_SETFOCUS:
     g_Focused = true;
+    //OutputDebugString(L"Gained focus\n");
+    //PLOG_VERBOSE << "Gained focus";
 
     extern CONDITION_VARIABLE  SKIF_IsFocused;
     WakeAllConditionVariable (&SKIF_IsFocused);
@@ -774,9 +783,12 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     break;
 
   case WM_KILLFOCUS:
-    if ((HWND)wParam != g_hWnd && (! IsChild (g_hWnd, (HWND)wParam)))
+    extern HWND SKIF_hWnd;
+    if ((HWND)wParam != SKIF_hWnd && (! IsChild (SKIF_hWnd, (HWND)wParam))) // g_hWnd
     {
       g_Focused = false;
+      //OutputDebugString(L"Killed focus\n");
+      //PLOG_VERBOSE << "Killed focus";
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
