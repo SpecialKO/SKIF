@@ -2901,7 +2901,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
 
           // Sleep until we're woken up by WM_SETFOCUS if SKIF is unfocused
-          if (! SKIF_ImGui_IsFocused ())
+          if (SKIF_isTrayed || ! SKIF_ImGui_IsFocused () || IsIconic (SKIF_hWnd))
           {
             SK_RunOnce (SKIF_Util_CompactWorkingSet ());
 
