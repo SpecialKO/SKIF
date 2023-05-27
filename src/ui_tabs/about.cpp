@@ -236,11 +236,7 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   ImGui::NewLine          ( );
-
-  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-
-  if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
-    ImGui::NewLine          ( ); // Omitted to allow the "view release notes..." link to appear without pushing down the Update button
+  ImGui::NewLine          ( );
 
   float fY4 = ImGui::GetCursorPosY();
           
@@ -488,7 +484,13 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/Privacy");
   ImGui::EndGroup         ( );
 
-  ImGui::SetCursorPosY    (fY4);
+  // Move up a line to allow the "view release notes..." link to appear without pushing down the Update button
+  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
+  if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
+    ImGui::SetCursorPosY (fY4 - ImGui::GetFontSize());
+  else
+    ImGui::SetCursorPosY (fY4);
+
     
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)

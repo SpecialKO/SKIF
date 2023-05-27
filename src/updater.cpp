@@ -424,7 +424,6 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
                 _res.description   = version["Description"] .get<std::string>();
                 _res.release_notes = version["ReleaseNotes"].get<std::string>();
 
-                _res.state |= UpdateFlags_Available;
 
                 if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
                   _res.state |= UpdateFlags_Ignored;
@@ -432,21 +431,31 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
                 if (PathFileExists ((root + filename).c_str()))
                   _res.state |= UpdateFlags_Downloaded;
 
-                if (versionDiff < 0)
+                if (versionDiff > 0)
+                  _res.state |= UpdateFlags_Newer;
+                else
                   _res.state |= UpdateFlags_Rollback;
 
                 if (changedUpdateChannel)
                   _res.state |= UpdateFlags_Forced;
 
-                if (changedUpdateChannel ||
-                  ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
-                   (_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
-                   (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
+                if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+                   ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
+                    (_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
+                    (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
                 {
                   PLOG_INFO << "Downloading installer: " << branchInstaller;
-                  if (SKIF_Util_GetWebResource (branchInstaller, root + filename))
+                  if (SKIF_Util_GetWebResource(branchInstaller, root + filename))
                     _res.state |= UpdateFlags_Downloaded;
+                  else
+                    _res.state |= UpdateFlags_Failed;
                 }
+
+                if ((_res.state & UpdateFlags_Newer)      == UpdateFlags_Newer      ||
+                    (_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+                   ((_res.state & UpdateFlags_Rollback)   == UpdateFlags_Rollback   &&
+                    (_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded ))
+                  _res.state |= UpdateFlags_Available;
               }
 
               parsedFirstVersion = true;

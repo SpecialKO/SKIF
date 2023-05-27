@@ -735,7 +735,7 @@ void SKIF_UI_DrawComponentVersion (void)
   
   static SKIF_Updater& _updater = 
          SKIF_Updater::GetInstance ( );
-
+  
   if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
   {
     SKIF_ImGui_Spacing      ( );
@@ -2528,8 +2528,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
-            (_updater.GetState ( ) & UpdateFlags_Ignored)    != UpdateFlags_Ignored     )
+        if ((_updater.GetState ( ) & UpdateFlags_Failed) == UpdateFlags_Failed)
         {
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
           ImGui::TextWrapped ("A failed download was detected! Click Download below to try again.");

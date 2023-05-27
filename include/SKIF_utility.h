@@ -6,7 +6,6 @@
 #include <atlbase.h>
 #include <Tlhelp32.h>
 
-
 // Generic Utilities
 
 std::string  SKIF_Util_ToLower               (std::string_view  input);
