@@ -20,7 +20,6 @@ enum UpdateFlags_
 // Singleton struct
 struct SKIF_Updater {
 
-
   // Used to contain the results of an update check
   struct results_s {
     UpdateFlags state = UpdateFlags_Unknown;
