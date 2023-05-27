@@ -520,13 +520,13 @@ SKIF_UI_Tab_DrawSettings (void)
   //ImGui::SameLine        ( );
 
   if (ImGui::RadioButton ("Stop on injection",    &_registry.iAutoStopBehavior, 1))
-    _registry.regKVAutoStopBehavior.putData (             _registry.iAutoStopBehavior);
+    _registry.regKVAutoStopBehavior.putData (      _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K successfully injects into a game.");
 
   ImGui::SameLine        ( );
   if (ImGui::RadioButton ("Stop on game exit",      &_registry.iAutoStopBehavior, 2))
-    _registry.regKVAutoStopBehavior.putData (             _registry.iAutoStopBehavior);
+    _registry.regKVAutoStopBehavior.putData (        _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K detects that the game is being closed.");
 

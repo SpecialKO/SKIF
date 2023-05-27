@@ -1564,16 +1564,18 @@ SKIF_InjectionContext::_InitializeJumpList (void)
 
     if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
     {
-      // Task #1: Start Injection
+
+      // Task #2: Start Service (w/ auto stop)
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Start Auto");                            // Set the arguments  
+        pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
-        pLink     ->SetDescription  (L"Starts the global injection service");   // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Start Injection", &pv);
+        pLink     ->SetDescription  (L"Starts the injection service and\n"
+                                     L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Service", &pv);
         pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
         PropVariantClear                                (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1582,18 +1584,17 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink      .Release         ( );
       }
 
-      /*
-      // Task #2: Start Injection (with auto stop)
+      // Task #1: Start Service (w/o autostop)
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Temp Start");                            // Set the arguments  
+        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
-        pLink     ->SetDescription  (L"Starts the global injection service and\n"
-                                     L"automatically stops it after injection.");    // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Start Injection (with auto stop)", &pv);
+        pLink     ->SetDescription  (L"Starts the injection service but\n"
+                                     L"does not stop it after injection.");     // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Service (manual stop)", &pv);
         pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
         PropVariantClear                                (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1601,9 +1602,8 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pPropStore .Release         ( );
         pLink      .Release         ( );
       }
-      */
 
-      // Task #3: Stop Injection
+      // Task #3: Stop Service
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
@@ -1611,8 +1611,8 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
-        pLink     ->SetDescription  (L"Stops the global injection service");    // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Stop Injection", &pv);
+        pLink     ->SetDescription  (L"Stops the injection service");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Stop Service", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
         PropVariantClear                               (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
