@@ -346,10 +346,13 @@ app_skif_s::getCover (void)
   else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
     path =                   SKIFCustomPath + L".jpg";
 
-  this->textures.isCustomCover = (path != L"\0");
-
-  if (this->textures.isCustomCover && this->loadCoverAsFile (path))
+  this->loadCoverFromFile (path);
+  
+  if (this->textures.cover != nullptr)
+  {
+    this->textures.cover.isCustom = (path != L"\0");
     return this->textures.cover.p;
+  }
 
   return nullptr;
 }
@@ -357,5 +360,38 @@ app_skif_s::getCover (void)
 ID3D11ShaderResourceView*
 app_skif_s::getIcon (void)
 {
+  if (this->textures.icon != nullptr)
+    return this->textures.icon;
+
   return nullptr;
+}
+
+bool app_skif_s::loadCover(void)
+{
+
+  return false;
+}
+
+bool app_skif_s::loadIcon(void)
+{
+  
+  std::wstring path;
+  std::wstring SKIFCustomPath;
+
+  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, this->id);
+  SKIFCustomPath += L"cover";
+
+  if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
+    path =                   SKIFCustomPath + L".png";
+  else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
+    path =                   SKIFCustomPath + L".jpg";
+
+  this->loadIconFromFile (path);
+  
+  if (this->textures.cover != nullptr)
+  {
+    this->textures.cover.isCustom = (path != L"\0");
+  }
+
+  return false;
 }

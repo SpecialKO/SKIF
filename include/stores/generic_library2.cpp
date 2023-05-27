@@ -5,7 +5,7 @@
 
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
-bool app_generic_s::loadCoverAsFile (std::wstring path)
+bool app_generic_s::loadCoverFromFile (std::wstring path)
 {
   PLOG_DEBUG << "Texture to load: " << path;
   bool succeeded = false;
@@ -131,7 +131,7 @@ bool app_generic_s::loadCoverAsFile (std::wstring path)
   return false;
 }
 
-bool app_generic_s::loadIconAsFile (std::wstring file)
+bool app_generic_s::loadIconFromFile (std::wstring file)
 {
   return false;
 }

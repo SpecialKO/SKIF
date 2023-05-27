@@ -8,6 +8,7 @@
 #include <atlbase.h>
 #include <d3d11.h>
 #include <vector>
+#include <atomic>
 
 struct app_generic_s {
   //app_generic_s () { };
@@ -79,6 +80,8 @@ struct app_generic_s {
         static_cast <float> (getDesc ().Height);
     }
 
+    bool isCustom = false;
+
   private:
     D3D11_TEXTURE2D_DESC texDesc = { };
   };
@@ -110,8 +113,6 @@ struct app_generic_s {
   struct tex_registry_s {
     tex_ref_s icon;
     tex_ref_s cover;
-    bool      isCustomIcon  = false;
-    bool      isCustomCover = false;
   } textures;
 
   enum class Store {
@@ -172,12 +173,15 @@ struct app_generic_s {
   std::map <int, launch_config_s>
         launch_configs;
 
-  virtual void launchGame (void) = 0;
-  virtual ID3D11ShaderResourceView* getCover (void) = 0;
-  virtual ID3D11ShaderResourceView* getIcon  (void) = 0;
+  virtual void                      launchGame (void) = 0;
+  virtual ID3D11ShaderResourceView* getCover   (void) = 0;
+  virtual ID3D11ShaderResourceView* getIcon    (void) = 0;
+  virtual bool                      loadCover  (void) = 0;
+  virtual bool                      loadIcon   (void) = 0;
 
-  bool loadCoverAsFile (std::wstring path);
-  bool loadIconAsFile  (std::wstring path);
+protected:
+  bool loadCoverFromFile (std::wstring path);
+  bool loadIconFromFile  (std::wstring path);
 };
 
 // GOG entries
@@ -186,6 +190,8 @@ struct app_gog_s : app_generic_s {
   void                      launchGame (void) override;
   ID3D11ShaderResourceView* getCover   (void) override;
   ID3D11ShaderResourceView* getIcon    (void) override;
+  bool                      loadCover  (void) override;
+  bool                      loadIcon   (void) override;
 };
 
 // Steam entries
@@ -222,6 +228,8 @@ struct app_steam_s : app_generic_s {
   void                      launchGame (void) override;
   ID3D11ShaderResourceView* getCover   (void) override;
   ID3D11ShaderResourceView* getIcon    (void) override;
+  bool                      loadCover  (void) override;
+  bool                      loadIcon   (void) override;
 };
 
 // Xbox entries
@@ -233,4 +241,6 @@ struct app_xbox_s : app_generic_s {
   void                      launchGame (void) override;
   ID3D11ShaderResourceView* getCover   (void) override;
   ID3D11ShaderResourceView* getIcon    (void) override;
+  bool                      loadCover  (void) override;
+  bool                      loadIcon   (void) override;
 };
