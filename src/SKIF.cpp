@@ -365,6 +365,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     else {
       if (IsIconic        (hWndOrigForeground))
         ShowWindow        (hWndOrigForeground, SW_SHOWNA);
+      BringWindowToTop    (hWndOrigForeground);
       SetForegroundWindow (hWndOrigForeground);
     }
 
@@ -1697,11 +1698,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
           t = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
-          if (t.Contains(ImGui::GetMousePos()))
-          {
-            SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
 
-            rectCursorMonitor = t;
+          POINT               mouse_screen_pos = { };
+          if (::GetCursorPos(&mouse_screen_pos))
+          {
+            ImVec2 os_pos = ImVec2( (float)mouse_screen_pos.x,
+                                    (float)mouse_screen_pos.y );
+            if (t.Contains(os_pos))
+            {
+              SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+
+              rectCursorMonitor = t;
+            }
           }
         }
       }
@@ -1968,13 +1976,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
            (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
             ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
-                                              : ICON_FA_COMPRESS_ARROWS_ALT,
+                                                   : ICON_FA_COMPRESS_ARROWS_ALT,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
          )
       {
         _registry.bSmallMode = ! _registry.bSmallMode;
         _registry.regKVSmallMode.putData (_registry.bSmallMode);
+        bExitOnInjection = false;
+
+        if (_registry.bSmallMode)
+        {
+          // If we switch to small mode, close all popups
+          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
+        }
+        else {
+          // If we switch back to large mode, re-open a few specific ones
+          if (AddGamePopup == PopupState_Opened)
+            AddGamePopup = PopupState_Open;
+
+          if (UpdatePromptPopup == PopupState_Opened)
+            UpdatePromptPopup = PopupState_Open;
+
+          if (HistoryPopup == PopupState_Opened)
+            HistoryPopup = PopupState_Open;
+        }
 
         changedMode = true;
 
@@ -2410,7 +2436,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static size_t NumCharsOnLine       = 0;
       static std::vector<char> vecNotes;
 
-      if (UpdatePromptPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (UpdatePromptPopup == PopupState_Open && ! _registry.bSmallMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -3594,7 +3620,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
       ShowWindowAsync     (hWnd, SW_RESTORE);
       UpdateWindow        (hWnd);
-
+      
+      BringWindowToTop    (hWnd);
       SetForegroundWindow (hWnd);
       SetActiveWindow     (hWnd);
       break;
