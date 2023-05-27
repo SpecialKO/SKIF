@@ -1519,6 +1519,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Thread started!";
       PLOG_INFO << "Streaming game cover asynchronously...";
 
+      if (pApp == nullptr)
+      {
+        PLOG_ERROR << "Aborting due to pApp being a nullptr!";
+        return;
+      }
+
+      app_record_s* _pApp = pApp;
+
       int queuePos = getTextureLoadQueuePos();
       //PLOG_VERBOSE << "queuePos = " << queuePos;
 
@@ -1545,32 +1553,32 @@ SKIF_UI_Tab_DrawLibrary (void)
       std::wstring load_str;
 
       // SKIF
-      if (pApp->id == SKIF_STEAM_APPID)
+      if (_pApp->id == SKIF_STEAM_APPID)
       {
         load_str = L"_library_600x900_x2.jpg";
       }
 
       // SKIF Custom
-      else if (pApp->store == "SKIF")
+      else if (_pApp->store == "SKIF")
       {
         load_str = L"cover";
       }
 
       // GOG
-      else if (pApp->store == "GOG")
+      else if (_pApp->store == "GOG")
       {
         load_str = L"*_glx_vertical_cover.webp";
       }
 
       // EGS
-      else if (pApp->store == "EGS")
+      else if (_pApp->store == "EGS")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->EGS_AppName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
-          SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+          SKIF_EGS_IdentifyAssetNew (_pApp->EGS_CatalogNamespace, _pApp->EGS_CatalogItemId, _pApp->EGS_AppName, _pApp->EGS_DisplayName);
         }
         
         else {
@@ -1590,21 +1598,21 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 600 ||
                 meta.height == 900)
             {
-              SKIF_EGS_IdentifyAssetNew (pApp->EGS_CatalogNamespace, pApp->EGS_CatalogItemId, pApp->EGS_AppName, pApp->EGS_DisplayName);
+              SKIF_EGS_IdentifyAssetNew (_pApp->EGS_CatalogNamespace, _pApp->EGS_CatalogItemId, _pApp->EGS_AppName, _pApp->EGS_DisplayName);
             }
           }
         }
       }
 
       // Xbox
-      else if (pApp->store == "Xbox")
+      else if (_pApp->store == "Xbox")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Xbox_PackageName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
-          SKIF_Xbox_IdentifyAssetNew (pApp->Xbox_PackageName, pApp->Xbox_StoreId);
+          SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
         }
         
         else {
@@ -1624,17 +1632,17 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 600 ||
                 meta.height == 900)
             {
-              SKIF_Xbox_IdentifyAssetNew (pApp->Xbox_PackageName, pApp->Xbox_StoreId);
+              SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
             }
           }
         }
       }
 
       // Steam
-      else if (pApp->store == "Steam")
+      else if (_pApp->store == "Steam")
       {
         std::wstring load_str_2x (
-          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, pApp->id)
+          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, _pApp->id)
         );
 
         std::error_code ec;
@@ -1647,7 +1655,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str = SK_GetSteamDir ();
 
         load_str   += LR"(/appcache/librarycache/)" +
-          std::to_wstring (pApp->id)                +
+          std::to_wstring (_pApp->id)                +
                                   L"_library_600x900.jpg";
 
         std::wstring load_str_final = load_str;
@@ -1673,7 +1681,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 300 &&
                 meta.height == 450)
             {
-              SKIF_HTTP_GetAppLibImg (pApp->id, load_str_2x);
+              SKIF_HTTP_GetAppLibImg (_pApp->id, load_str_2x);
               load_str_final = load_str_2x;
               //load_str_final = L"_library_600x900_x2.jpg";
             }
@@ -1694,7 +1702,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
             {
               DeleteFile (load_str_2x.c_str ());
-              SKIF_HTTP_GetAppLibImg (pApp->id, load_str_2x);
+              SKIF_HTTP_GetAppLibImg (_pApp->id, load_str_2x);
             }
           }
           
@@ -1707,12 +1715,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     
       LoadLibraryTexture ( LibraryTexture::Cover,
-                              pApp->id,
+                              _pApp->id,
                                 _pTexSRV,
                                   load_str,
                                     _vecCoverUv0,
                                       _vecCoverUv1,
-                                        pApp);
+                                        _pApp);
 
       PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
 
@@ -1739,10 +1747,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       PLOG_INFO << "Finished streaming game cover asynchronously...";
-
-      //InterlockedExchange(&cover_thread, 0);
-
       PLOG_INFO << "Thread stopped!";
+
     }, 0x0, NULL);
   }
 
