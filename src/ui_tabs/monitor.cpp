@@ -45,9 +45,6 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
-extern SKIF_InjectionContext _inject;
 CONDITION_VARIABLE ProcRefreshPaused = { };
 
 enum class SK_RenderAPI
@@ -552,6 +549,8 @@ struct standby_record_s {
 
 void SortProcesses (std::vector <standby_record_s> &processes)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   // Always sort ascending
   auto _SortByStatus = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
@@ -620,6 +619,10 @@ void SortProcesses (std::vector <standby_record_s> &processes)
 void
 SKIF_UI_Tab_DrawMonitor (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
   extern float SKIF_ImGui_GlobalDPIScale;
   static std::atomic<DWORD> refreshIntervalInMsec;
 
@@ -787,7 +790,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::TreePush   ( );
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
-  if (ImGui::Button ( ICON_FA_TOGGLE_ON "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
+  if (ImGui::Button ( ICON_FA_TOGGLE_ON  "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject (false, _registry.bStopOnInjection);
   ImGui::PopStyleColor ( );
@@ -795,7 +798,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine   ( );
     
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-  if (ImGui::Button (ICON_FA_TOGGLE_OFF "  Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
+  if (ImGui::Button ( ICON_FA_TOGGLE_OFF "  Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject(true);
   ImGui::PopStyleColor ( );
@@ -826,11 +829,11 @@ SKIF_UI_Tab_DrawMonitor (void)
   extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
     
   if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Config Root", ImColor(255, 207, 72)))
-    SKIF_Util_ExplorePath (path_cache.specialk_userdata);
+    SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
 
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText       (
-    SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str ()
+    SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
   );
 
   ImGui::TreePop    ( );

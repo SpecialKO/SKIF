@@ -9,11 +9,11 @@
 #include <registry.h>
 #include <updater.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 void
 SKIF_UI_Tab_DrawAbout (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   SKIF_ImGui_Spacing      ( );
 
   SKIF_ImGui_Columns      (2, nullptr, true);

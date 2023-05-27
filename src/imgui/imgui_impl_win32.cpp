@@ -36,8 +36,6 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 auto constexpr XUSER_INDEXES =
   std::array <DWORD, 4> { 0, 1, 2, 3 };
 
@@ -750,7 +748,12 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   if (ImGui::GetCurrentContext ( ) == NULL)
     return 0;
 
+
   ImGuiIO &io = ImGui::GetIO ( );
+
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   switch (msg)
   {
 
@@ -1058,6 +1061,8 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
                DWORD *out_ex_style
 )
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   if (flags & ImGuiViewportFlags_NoDecoration)
     *out_style = WS_POPUP;
   else

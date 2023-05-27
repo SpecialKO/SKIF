@@ -41,41 +41,6 @@
 
 #include <injection.h>
 
-class SK_AutoCOMInit
-{
-public:
-  SK_AutoCOMInit (DWORD dwCoInit = COINIT_MULTITHREADED) :
-           init_flags_ (dwCoInit)
-  {
-    //if (_assert_not_dllmain ())
-    {
-      const HRESULT hr =
-        CoInitializeEx (nullptr, init_flags_);
-
-      if (SUCCEEDED (hr))
-        success_ = true;
-      else
-        init_flags_ = ~init_flags_;
-    }
-  }
-
-  ~SK_AutoCOMInit (void) noexcept
-  {
-    if (success_)
-      CoUninitialize ();
-  }
-
-  bool  isInit       (void) noexcept { return success_;    }
-  DWORD getInitFlags (void) noexcept { return init_flags_; }
-
-protected:
-  //static bool _assert_not_dllmain (void);
-
-private:
-  DWORD init_flags_ = COINIT_MULTITHREADED;
-  bool  success_    = false;
-};
-
 extern HMODULE hModSKIF;
 extern HMODULE hModSpecialK;
 std::string SKIF_GetPatrons        (void);

@@ -90,8 +90,6 @@
 
 #include "drvreset.h"
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-
 #pragma comment (lib, "wininet.lib")
 
 const int SKIF_STEAM_APPID = 1157970;
@@ -167,9 +165,6 @@ struct SKIF_Signals {
   BOOL _Disowned     = FALSE;
 } _Signal;
 
-extern        SK_ICommandProcessor*
-  __stdcall SK_GetCommandProcessor (void);
-
 PopupState UpdatePromptPopup = PopupState_Closed;
 PopupState HistoryPopup      = PopupState_Closed;
 UITab SKIF_Tab_Selected      = UITab_Library,
@@ -181,93 +176,25 @@ HMODULE hModSpecialK = nullptr;
 // Texture related locks to prevent driver crashes
 concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
 
-/* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
-using  GetSystemMetricsForDpi_pfn = int (WINAPI *)(int, UINT);
-static GetSystemMetricsForDpi_pfn
-       GetSystemMetricsForDpi = nullptr;
-
-#define SK_BORDERLESS ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | \
-                        WS_SYSMENU )
-
-#define SK_BORDERLESS_EX      ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE )
-//#define SK_BORDERLESS_WIN8_EX ( SK_BORDERLESS_EX | WS_EX_NOREDIRECTIONBITMAP ) // We don't support Win8.0 or older
-
-#define SK_FULLSCREEN_X(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CXFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CXFULLSCREEN)
-#define SK_FULLSCREEN_Y(dpi) (GetSystemMetricsForDpi != nullptr) ? GetSystemMetricsForDpi (SM_CYFULLSCREEN, (dpi)) : GetSystemMetrics (SM_CYFULLSCREEN)
-*/
-
 #define GCL_HICON           (-14)
-
-///* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
-#ifndef WM_DPICHANGED
-#define WM_DPICHANGED 0x02E0 // From Windows SDK 8.1+ headers
-#endif
-
-
-HRESULT
-WINAPI
-SK_DWM_GetCompositionTimingInfo (DWM_TIMING_INFO *pTimingInfo)
-{
-  static HMODULE hModDwmApi =
-    LoadLibraryW (L"dwmapi.dll");
-
-  typedef HRESULT (WINAPI *DwmGetCompositionTimingInfo_pfn)(
-                   HWND             hwnd,
-                   DWM_TIMING_INFO *pTimingInfo);
-
-  static                   DwmGetCompositionTimingInfo_pfn
-                           DwmGetCompositionTimingInfo =
-         reinterpret_cast <DwmGetCompositionTimingInfo_pfn> (
-      GetProcAddress ( hModDwmApi,
-                          "DwmGetCompositionTimingInfo" )   );
-
-  pTimingInfo->cbSize =
-    sizeof (DWM_TIMING_INFO);
-
-  return
-    DwmGetCompositionTimingInfo ( 0, pTimingInfo );
-}
-//*/
 
 float fAspect     = 16.0f / 9.0f;
 float fBottomDist = 0.0f;
 
 ID3D11Device*           g_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
-//IDXGISwapChain*         g_pSwapChain           = nullptr;
 ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
-BOOL                    bOccluded              =   FALSE;
 
-// Forward declarations of helper functions
-bool CreateDeviceD3D           (HWND hWnd);
-void CleanupDeviceD3D          (void);
-//void CreateRenderTarget        (void);
-//void CleanupRenderTarget       (void);
-//void ResizeSwapChain           (HWND hWnd, int width, int height);
-LRESULT WINAPI
-     SKIF_WndProc              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT WINAPI
-     SKIF_Notify_WndProc       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-class SKIF_AutoWndClass {
-public:
-   SKIF_AutoWndClass (WNDCLASSEX wc) : wc_ (wc) { };
-  ~SKIF_AutoWndClass (void)
-  {
-    UnregisterClass ( wc_.lpszClassName,
-                      wc_.hInstance );
-  }
-
-private:
-  WNDCLASSEX wc_;
-};
+// Forward declarations
+bool                CreateDeviceD3D                   (HWND hWnd);
+void                CleanupDeviceD3D                  (void);
+LRESULT WINAPI      SKIF_WndProc                      (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI      SKIF_Notify_WndProc               (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void                SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine);
+void                SKIF_putStopOnInjection (bool in);
 
 bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
-//CHandle hSwapWait  (0);           // Signalled by a waitable swapchain
-
-//int __width  = 0;
-//int __height = 0;
 
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
 // Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
@@ -282,8 +209,6 @@ HWND        SKIF_ImGui_hWnd    =  0;
 HWND        SKIF_Notify_hWnd   =  0;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
-//CONDITION_VARIABLE SKIF_IsNotFocused = { };
-
 
 ImGuiStyle SKIF_ImGui_DefaultStyle;
 
@@ -293,6 +218,11 @@ void
 SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
   PLOG_DEBUG << "Processing command line arguments: " << lpCmdLine;
+  
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
 
   HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
@@ -300,80 +230,92 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   if (hwndAlreadyExists != 0)
     PLOG_VERBOSE << "hwndAlreadyExists: " << hwndAlreadyExists;
 
-  _Signal.Start =
-    StrStrIW (lpCmdLine, L"Start")    != NULL;
+  static bool runOnce = true;
+  
+  if (runOnce)
+  {
+    runOnce = false;
 
-  _Signal.Temporary =
-    StrStrIW (lpCmdLine, L"Temp")     != NULL ||
-   (StrStrIW (lpCmdLine, L"Auto")     != NULL &&
-    _registry.bStopOnInjection                );
+    _Signal.Start =
+      StrStrIW (lpCmdLine, L"Start")    != NULL;
 
-  _Signal.Stop =
-    StrStrIW (lpCmdLine, L"Stop")     != NULL;
+    _Signal.Temporary =
+      StrStrIW (lpCmdLine, L"Temp")     != NULL ||
+     (StrStrIW (lpCmdLine, L"Auto")     != NULL &&
+      _registry.bStopOnInjection                );
 
-  _Signal.Quit =
-    StrStrIW (lpCmdLine, L"Quit")     != NULL;
+    _Signal.Stop =
+      StrStrIW (lpCmdLine, L"Stop")     != NULL;
 
-  _Signal.Minimize =
-    StrStrIW (lpCmdLine, L"Minimize") != NULL;
+    _Signal.Quit =
+      StrStrIW (lpCmdLine, L"Quit")     != NULL;
 
-  _Signal.AddSKIFGame =
-    StrStrIW (lpCmdLine, L"AddGame=") != NULL;
+    _Signal.Minimize =
+      StrStrIW (lpCmdLine, L"Minimize") != NULL;
 
-  // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
-  //   so only set Launcher if AddSKIFGame is false.
-  if (! _Signal.AddSKIFGame)
-        _Signal.Launcher =
-      StrStrIW (lpCmdLine, L".exe")     != NULL;
+    _Signal.AddSKIFGame =
+      StrStrIW (lpCmdLine, L"AddGame=") != NULL;
+
+    // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
+    //   so only set Launcher if AddSKIFGame is false.
+    if (! _Signal.AddSKIFGame)
+          _Signal.Launcher =
+        StrStrIW (lpCmdLine, L".exe")     != NULL;
+  }
 
   if ( (  hwndAlreadyExists != 0 ) &&
        ( ! _Signal.Launcher )      &&
        ( ! _Signal.AddSKIFGame)    &&
-       ((! _registry.bAllowMultipleInstances)        ||
+       ( ! _registry.bAllowMultipleInstances    ||
                                    _Signal.Stop || _Signal.Start    ||
-                                   _Signal.Quit || _Signal.Minimize
-       )
+                                   _Signal.Quit || _Signal.Minimize  )
      )
   {
     PLOG_VERBOSE << "hwndAlreadyExists was found to be true; proxying call...";
 
+    // If no cmd line argument is used, restore the running instance
     if (! _Signal.Start     &&
         ! _Signal.Stop      &&
-        ! _Signal.Quit      &&
         ! _Signal.Minimize  &&
+        ! _Signal.Quit      &&
         ! _Signal.Launcher)
     {
       //if (IsIconic        (hwndAlreadyExists))
       //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
-      
+
+      DWORD pidAlreadyExists = 0;
+      GetWindowThreadProcessId (hwndAlreadyExists, &pidAlreadyExists);
+
+      // We must allow the existing process to set the foreground window
+      if (pidAlreadyExists)
+        AllowSetForegroundWindow (pidAlreadyExists);
+
       PostMessage (hwndAlreadyExists, WM_SKIF_RESTORE, 0x0, 0x0);
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
-    if (_Signal.Stop)
-      PostMessage (hwndAlreadyExists, WM_SKIF_STOP, 0x0, 0x0);
-
-    if (_Signal.Quit)
-      PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
-
-    if (_Signal.Start)
-      PostMessage (hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
-    
-    if (_Signal.Minimize)
-      PostMessage (hwndAlreadyExists, WM_SKIF_MINIMIZE, 0x0, 0x0);
-
+    // Otherwise restore whatever third-party window was originally in the foreground
     else {
+      if (_Signal.Start)
+        PostMessage (hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
+
+      if (_Signal.Stop)
+        PostMessage (hwndAlreadyExists, WM_SKIF_STOP, 0x0, 0x0);
+    
+      if (_Signal.Minimize)
+        PostMessage (hwndAlreadyExists, WM_SKIF_MINIMIZE, 0x0, 0x0);
+
+      if (_Signal.Quit)
+        PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
+
       if (IsIconic        (hWndOrigForeground))
         ShowWindow        (hWndOrigForeground, SW_SHOWNA);
-      BringWindowToTop    (hWndOrigForeground);
       SetForegroundWindow (hWndOrigForeground);
     }
 
     if (_Signal.Quit || (! _Signal._Disowned))
     {
-      PLOG_INFO << "Terminating due to one of these contions were found to be true:";
-      PLOG_INFO << "_Signal.Quit: "        << (  _Signal.Quit     );
-      PLOG_INFO << "! _Signal._Disowned: " << (! _Signal._Disowned);
+      PLOG_INFO << "Terminating due to this instance having done its job.";
       ExitProcess (0x0);
     }
   }
@@ -495,7 +437,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   // Handle quick launching
   else if (_Signal.Launcher)
   {
-    PLOG_VERBOSE << "SKIF being used as a launcher...";
+    PLOG_VERBOSE << "SKIF is being used as a launcher...";
 
     // Display in small mode
     _registry.bSmallMode = true;
@@ -516,7 +458,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
     // Path does not seem to be absolute -- add the current working directory in front of the path
     if (path.find(L"\\") == std::wstring::npos)
-      path = SK_FormatStringW (LR"(%ws\%ws)", path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
+      path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
 
     std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
 
@@ -585,6 +527,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 
 void SKIF_putStopOnInjection (bool in)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   _registry.regKVDisableStopOnInjection.putData(!in);
 
   // If we're disabling the feature, also disable the legacy key
@@ -611,6 +556,8 @@ void SKIF_CreateUpdateNotifyMenu (void)
 {
   if (hMenu != NULL)
     DestroyMenu (hMenu);
+
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
   bool svcRunning         = false,
        svcRunningAutoStop = false,
@@ -653,6 +600,8 @@ void SKIF_CreateNotifyIcon (void)
 
 void SKIF_UpdateNotifyIcon (void)
 {
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   niData.uFlags        = NIF_ICON;
   if (_inject.bCurrentState)
     niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY));
@@ -664,6 +613,8 @@ void SKIF_UpdateNotifyIcon (void)
 
 void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   if ( _registry.iNotifications == 1 ||                           // Always
       (_registry.iNotifications == 2 && ! SKIF_ImGui_IsFocused()) // When Unfocused
     )
@@ -679,6 +630,8 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 
 void SKIF_UI_DrawComponentVersion (void)
 {
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   ImGui::BeginGroup       ( );
 
   ImGui::Spacing          ( );
@@ -922,6 +875,9 @@ void SKIF_UI_DrawPlatformStatus (void)
 
 void SKIF_UI_DrawShellyTheGhost (void)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   if (                        _registry.iGhostVisibility == 1 ||
     (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
   {
@@ -976,6 +932,8 @@ void SKIF_UI_DrawShellyTheGhost (void)
 
 void SKIF_SetStyle (void)
 {  
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   // Setup Dear ImGui style
   switch (_registry.iStyle)
   {
@@ -1001,40 +959,22 @@ void SKIF_Initialize (void)
   static bool isInitalized = false;
 
   if (! isInitalized)
-  {
-    CoInitializeEx (nullptr, 0x0);
+  {     isInitalized = true;
 
-    hModSKIF =
-      GetModuleHandleW (nullptr);
-
-    // Cache user profile locations
-    SKIF_GetFolderPath ( &path_cache.my_documents       );
-    SKIF_GetFolderPath ( &path_cache.app_data_local     );
-    SKIF_GetFolderPath ( &path_cache.app_data_local_low );
-    SKIF_GetFolderPath ( &path_cache.app_data_roaming   );
-    SKIF_GetFolderPath ( &path_cache.win_saved_games    );
-    SKIF_GetFolderPath ( &path_cache.desktop            );
-
-    // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
-    // Store the original working directory in a variable, since it's used by custom launch, for example.
-    GetCurrentDirectoryW (MAX_PATH, path_cache.skif_workdir_org);
-
-    // Lets store the full path to SKIF's executable
-    GetModuleFileNameW  (nullptr, path_cache.specialk_install, MAX_PATH);
-    wcsncpy_s ( path_cache.skif_executable,   MAX_PATH,
-                path_cache.specialk_install, _TRUNCATE );
+    static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
     
     // Let's change the current working directory to the folder of the executable itself.
-    PathRemoveFileSpecW (         path_cache.specialk_install);
-    SetCurrentDirectory (         path_cache.specialk_install);
+    PathRemoveFileSpecW (         _path_cache.specialk_install);
+    SetCurrentDirectory (         _path_cache.specialk_install);
 
     // Generate 8.3 filenames
-    SK_Generate8Dot3    (path_cache.skif_workdir_org);
-    SK_Generate8Dot3    (path_cache.specialk_install);
+    SK_Generate8Dot3    (_path_cache.skif_workdir_org);
+    SK_Generate8Dot3    (_path_cache.specialk_install);
 
     bool fallback = true;
-    // Cache the Special K user data path
-    std::filesystem::path testDir  (path_cache.specialk_install);
+
+    // See if we can interact with the install folder
+    std::filesystem::path testDir  (_path_cache.specialk_install);
     std::filesystem::path testFile (testDir);
 
     testDir  /= L"SKIFTMPDIR";
@@ -1071,8 +1011,8 @@ void SKIF_Initialize (void)
         DeleteFile (testFile.wstring().c_str());
 
         // Use current path as we have write permissions
-        wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
-                    path_cache.specialk_install, _TRUNCATE );
+        wcsncpy_s ( _path_cache.specialk_userdata, MAX_PATH,
+                    _path_cache.specialk_install, _TRUNCATE );
 
         // No need to rely on the fallback
         fallback = false;
@@ -1083,9 +1023,9 @@ void SKIF_Initialize (void)
     {
       // Fall back to appdata in case of issues
       std::wstring fallbackDir =
-        std::wstring (path_cache.my_documents.path) + LR"(\My Mods\SpecialK\)";
+        std::wstring (_path_cache.my_documents.path) + LR"(\My Mods\SpecialK\)";
 
-      wcsncpy_s ( path_cache.specialk_userdata, MAX_PATH,
+      wcsncpy_s ( _path_cache.specialk_userdata, MAX_PATH,
                   fallbackDir.c_str(), _TRUNCATE);
         
       // Create any missing directories
@@ -1093,15 +1033,9 @@ void SKIF_Initialize (void)
             std::filesystem::create_directories (fallbackDir, ec);
     }
 
-
-    // Cache the Steam install folder
-    wcsncpy_s ( path_cache.steam_install, MAX_PATH,
-                  SK_GetSteamDir (),      _TRUNCATE );
-
-
     // Now we can proceed with initializing the logging
     std::wstring logPath =
-      SK_FormatStringW (LR"(%ws\SKIF.log)", path_cache.specialk_userdata);
+      SK_FormatStringW (LR"(%ws\SKIF.log)", _path_cache.specialk_userdata);
 
     // Delete old log file
     DeleteFile (logPath.c_str());
@@ -1118,14 +1052,12 @@ void SKIF_Initialize (void)
     PLOG_INFO << "Built " __TIME__ ", " __DATE__;
     PLOG_INFO << SKIF_LOG_SEPARATOR;
     PLOG_INFO << "Working directory:  ";
-    PLOG_INFO << "Old:                " << path_cache.skif_workdir_org;
+    PLOG_INFO << "Old:                " << _path_cache.skif_workdir_org;
     PLOG_INFO << "New:                " << std::filesystem::current_path ();
-    PLOG_INFO << "SKIF executable:    " << path_cache.skif_executable;
-    PLOG_INFO << "Special K install:  " << path_cache.specialk_install;
-    PLOG_INFO << "Special K userdata: " << path_cache.specialk_userdata;
+    PLOG_INFO << "SKIF executable:    " << _path_cache.skif_executable;
+    PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
+    PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
     PLOG_INFO << SKIF_LOG_SEPARATOR;
-
-    isInitalized = true;
   }
 }
 
@@ -1174,7 +1106,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
    "GetSystemMetricsForDpi");
   */
 
-  //CoInitializeEx (nullptr, 0x0);
+  CoInitializeEx (nullptr, 0x0);
 
   if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
   {
@@ -1195,12 +1127,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ExitProcess (0x0);
   }
 
+  // Remember what third-party window is currently in the foreground
   hWndOrigForeground =
     GetForegroundWindow ();
+
+  // This constructs these singleton objects
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
+
+  SKIF_Initialize ( ); // Relies on _path_cache and sets up logging
 
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
+
+  // This constructs this singleton object
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
 
   SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
 
@@ -1472,7 +1414,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
 
   // Force a one-time check before we enter the main loop
-  _inject.TestServletRunlevel (true);
+  _inject._TestServletRunlevel (true);
 
   // Fetch SK DLL versions
   _inject._RefreshSKDLLVersions ();
@@ -2406,7 +2348,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.
-      svcTransitionFromPendingState = _inject.TestServletRunlevel ();
+      svcTransitionFromPendingState = _inject._TestServletRunlevel (false);
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
       // 
@@ -2416,7 +2358,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //       This also means the main DLL refresh watch is tied to the tab SKIF opens up
       //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
       static SKIF_DirectoryWatch root_folder;
-      if (root_folder.isSignaled (path_cache.specialk_install, true))
+      if (root_folder.isSignaled (_path_cache.specialk_install, true))
       {
         // If the Special K DLL file is currently loaded, unload it
         if (hModSpecialK != 0)
@@ -2429,7 +2371,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _inject._RefreshSKDLLVersions   ();
       }
 
-      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", path_cache.specialk_userdata);
+      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
       static float  UpdateAvailableWidth = 0.0f;
       static float  calculatedWidth      = 0.0f;
       static float  NumLines             = 0;
@@ -2566,7 +2508,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text     ("Target Folder:");
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
-        ImGui::TextWrapped    (SK_WideCharToUTF8 (path_cache.specialk_install).c_str());
+        ImGui::TextWrapped    (SK_WideCharToUTF8 (_path_cache.specialk_install).c_str());
         ImGui::PopStyleColor  ( );
 
         SKIF_ImGui_Spacing ();
@@ -2620,7 +2562,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (_inject.bCurrentState)
               _inject._StartStopInject(true);
 
-            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", path_cache.specialk_install);
+            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", _path_cache.specialk_install);
 
             SKIF_Util_OpenURI (updateRoot + _updater.GetResults().filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
@@ -3146,6 +3088,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (! _TranslateAndDispatch ( ))
         break;
       
+      // If we added more frames, ensure we exit the loop
+      if (addAdditionalFrames > 0)
+        msgDontRedraw = false;
+
       // Break if SKIF is no longer a window
       if (! IsWindow (hWnd))
         break;
@@ -3211,6 +3157,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 bool CreateDeviceD3D (HWND hWnd)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
 #ifdef SKIF_D3D9_TEST
   /* Test D3D9 debugging */
   IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
@@ -3484,6 +3432,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   
   UpdateFlags uFlags = UpdateFlags_Unknown;
 
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   switch (msg)
   {
     case WM_HOTKEY:
@@ -3615,15 +3566,22 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (SKIF_isTrayed)
       {
         SKIF_isTrayed               = false;
-        ShowWindowAsync (hWnd, SW_SHOW);
+        ShowWindowAsync   (hWnd, SW_SHOW);
       }
 
       ShowWindowAsync     (hWnd, SW_RESTORE);
-      UpdateWindow        (hWnd);
-      
-      BringWindowToTop    (hWnd);
-      SetForegroundWindow (hWnd);
-      SetActiveWindow     (hWnd);
+
+      if (! UpdateWindow        (hWnd))
+        PLOG_DEBUG << "UpdateWindow ( ) failed!";
+
+      if (! SetForegroundWindow (hWnd))
+        PLOG_DEBUG << "SetForegroundWindow ( ) failed!";
+
+      if (! SetActiveWindow     (hWnd))
+        PLOG_DEBUG << "SetActiveWindow ( ) failed: "  << SKIF_Util_GetErrorAsWStr ( );
+
+      if (! BringWindowToTop    (hWnd))
+        PLOG_DEBUG << "BringWindowToTop ( ) failed: " << SKIF_Util_GetErrorAsWStr ( );
       break;
 
     case WM_TIMER:

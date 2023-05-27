@@ -11,8 +11,6 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 CONDITION_VARIABLE LibRefreshPaused = { };
 
 void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>> *apps)
@@ -111,7 +109,8 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
 
 SKIF_GamesCollection::SKIF_GamesCollection (void)
 {
-  PLOG_DEBUG << "SKIF_GamesCollection() RAN";
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   InitializeConditionVariable (&LibRefreshPaused);
 
   // Start the child thread that is responsible for refreshing the library
@@ -202,7 +201,7 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
           SKIF_record.id              = SKIF_STEAM_APPID;
           SKIF_record.names.normal    = "Special K";
           SKIF_record.names.all_upper = "SPECIAL K";
-          SKIF_record.install_dir     = path_cache.specialk_install;
+          SKIF_record.install_dir     = _path_cache.specialk_install;
 
           Apps->emplace_back (std::make_unique <app_steam_s>(SKIF_record));
         }

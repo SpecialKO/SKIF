@@ -18,7 +18,6 @@
 #include <fsutil.h>
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
 
 bool bHDRHotKey = false;
 
@@ -930,6 +929,10 @@ SKIF_Util_GetControlledFolderAccess (void)
 int
 SKIF_Util_RegisterApp (bool force)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
   static int ret = -1;
 
   if (ret != -1 && ! force)
@@ -941,9 +944,9 @@ SKIF_Util_RegisterApp (bool force)
     return -1;
   }
 
-  std::wstring wsExePath = std::wstring (path_cache.skif_executable);
+  std::wstring wsExePath = std::wstring (_path_cache.skif_executable);
 
-  if (_registry.wsPath            == path_cache.specialk_userdata &&
+  if (_registry.wsPath            == _path_cache.specialk_userdata &&
       _registry.wsAppRegistration == wsExePath)
   {
     ret = 1;
@@ -961,8 +964,8 @@ SKIF_Util_RegisterApp (bool force)
       ret = 0;
     }
 
-    if (_registry.regKVPath.putData (path_cache.specialk_userdata))
-      PLOG_INFO << "Updated central Special K userdata location: " << path_cache.specialk_userdata;
+    if (_registry.regKVPath.putData (_path_cache.specialk_userdata))
+      PLOG_INFO << "Updated central Special K userdata location: " << _path_cache.specialk_userdata;
     else
     {
       PLOG_ERROR << "Failed to update the central Special K userdata location!";
@@ -1499,6 +1502,8 @@ DWORD
 WINAPI
 SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   ULONG ulTimeout = 5000UL;
 
   PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };

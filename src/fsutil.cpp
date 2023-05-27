@@ -20,9 +20,42 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <SKIF.h>
-
 #include <sk_utility/utility.h>
+
+class SK_AutoCOMInit
+{
+public:
+  SK_AutoCOMInit (DWORD dwCoInit = COINIT_MULTITHREADED) :
+           init_flags_ (dwCoInit)
+  {
+    //if (_assert_not_dllmain ())
+    {
+      const HRESULT hr =
+        CoInitializeEx (nullptr, init_flags_);
+
+      if (SUCCEEDED (hr))
+        success_ = true;
+      else
+        init_flags_ = ~init_flags_;
+    }
+  }
+
+  ~SK_AutoCOMInit (void) noexcept
+  {
+    if (success_)
+      CoUninitialize ();
+  }
+
+  bool  isInit       (void) noexcept { return success_;    }
+  DWORD getInitFlags (void) noexcept { return init_flags_; }
+
+protected:
+  //static bool _assert_not_dllmain (void);
+
+private:
+  DWORD init_flags_ = COINIT_MULTITHREADED;
+  bool  success_    = false;
+};
 
 bool
 SK_FileHasSpaces (const wchar_t* wszLongFileName)
@@ -299,10 +332,33 @@ SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
   return hr;
 }
 
-path_cache_s path_cache;
+SKIF_CommonPathsCache::SKIF_CommonPathsCache (void)
+{
+  // Cache user profile locations
+  SKIF_GetFolderPath ( &my_documents       );
+  SKIF_GetFolderPath ( &app_data_local     );
+  SKIF_GetFolderPath ( &app_data_local_low );
+  SKIF_GetFolderPath ( &app_data_roaming   );
+  SKIF_GetFolderPath ( &win_saved_games    );
+  SKIF_GetFolderPath ( &desktop            );
+
+  // Launching SKIF through the Win10 start menu can at times default the working directory to system32.
+  // Store the original working directory in a variable, since it's used by custom launch, for example.
+  GetCurrentDirectoryW (MAX_PATH, skif_workdir_org);
+
+  // Lets store the full path to SKIF's executable
+  GetModuleFileNameW  (nullptr, specialk_install, MAX_PATH);
+  wcsncpy_s ( skif_executable,   MAX_PATH,
+              specialk_install, _TRUNCATE );
+
+  // Cache the Steam install folder
+  extern const wchar_t* SK_GetSteamDir (void);
+  wcsncpy_s ( steam_install,       MAX_PATH,
+              SK_GetSteamDir ( ), _TRUNCATE );
+}
 
 void
-SKIF_GetFolderPath (path_cache_s::win_path_s* path)
+SKIF_GetFolderPath (SKIF_CommonPathsCache::win_path_s* path)
 {
   std::wstring dir;
 
@@ -332,11 +388,13 @@ SKIF_GetFolderPath (path_cache_s::win_path_s* path)
 std::wstring
 SK_GetFontsDir (void)
 {
-  if (*path_cache.fonts.path == L'\0')
-    SKIF_GetFolderPath ( &path_cache.fonts );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  if (*_path_cache.fonts.path == L'\0')
+    SKIF_GetFolderPath ( &_path_cache.fonts );
 
   return
-    path_cache.fonts.path;
+    _path_cache.fonts.path;
 }
 
 bool

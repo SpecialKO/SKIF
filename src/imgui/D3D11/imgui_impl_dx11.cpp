@@ -54,8 +54,6 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 // DirectX
 #include <dxgi1_6.h>
 #include <stdio.h>
@@ -511,6 +509,8 @@ ImGui_ImplDX11_SetupRenderState ( ImDrawData          *draw_data,
 void
 ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   ///if (! g_pVertexShader)
   ///{
   ///  if (! ImGui_ImplDX11_CreateDeviceObjects ())
@@ -1208,6 +1208,8 @@ void ImGui_ImplDX11_NewFrame (void)
 static void
 ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   ImGuiViewportDataDx11 *data =
     IM_NEW (ImGuiViewportDataDx11)( );
 
@@ -1641,6 +1643,8 @@ static void
 ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                                       void * )
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   ImGuiViewportDataDx11 *data =
     static_cast <ImGuiViewportDataDx11 *> (
                       viewport->RendererUserData

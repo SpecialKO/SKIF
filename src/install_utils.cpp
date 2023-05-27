@@ -239,6 +239,8 @@ SKIF_GetProductName (const wchar_t* wszName)
 sk_install_state_s
 SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   sk_install_state_s
      install_state;
      install_state = {
@@ -480,7 +482,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 
     install_state.config.dir =
       SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
-                           path_cache.specialk_userdata,
+                           _path_cache.specialk_userdata,
                              name.c_str () );
   }
 

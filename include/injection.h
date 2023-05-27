@@ -27,8 +27,8 @@
 #include <array>
 #include <string>
 
+// Singleton struct
 struct SKIF_InjectionContext {
-  SKIF_InjectionContext (void);
 
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
@@ -69,17 +69,6 @@ struct SKIF_InjectionContext {
           int*       pPid;
   };
 
-  struct pid_directory_watch_s
-  {
-    pid_directory_watch_s  (void);
-    ~pid_directory_watch_s (void);
-
-    bool isSignaled (void);
-
-    std::wstring wsDirectory         = L"";
-    HANDLE       hChangeNotification = INVALID_HANDLE_VALUE;
-  } dir_watch;
-
 #ifdef _WIN64
   std::array <pid_file_watch_s, 2> records;
 #else
@@ -92,8 +81,7 @@ struct SKIF_InjectionContext {
   std::string SKSvc64 = "";
 
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
-
-  bool     TestServletRunlevel    (bool forcedCheck = false); // Returns true ONLY if we transitioned over from a pending state
+  bool    _TestServletRunlevel    (bool forcedCheck); // Returns true ONLY if we transitioned over from a pending state
   void    _DanceOfTheDLLFiles     (void);
   void    _RefreshSKDLLVersions   (void);
   void    _GlobalInjectionCtl     (void);
@@ -110,5 +98,17 @@ struct SKIF_InjectionContext {
   bool    _AddUserListBasedOnPath (std::string fullPath,      bool whitelist_);
   bool    _WhitelistBasedOnPath   (std::string fullPath);
   bool    _BlacklistBasedOnPath   (std::string fullPath);
+  
 
-} extern _inject;
+  static SKIF_InjectionContext& GetInstance (void)
+  {
+      static SKIF_InjectionContext instance;
+      return instance;
+  }
+
+  SKIF_InjectionContext (SKIF_InjectionContext const&) = delete; // Delete copy constructor
+  SKIF_InjectionContext (SKIF_InjectionContext&&)      = delete; // Delete move constructor
+  
+private:
+  SKIF_InjectionContext (void);
+};

@@ -11,8 +11,6 @@
 
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 /*
 EGS registry / folder struture
 
@@ -51,6 +49,8 @@ std::wstring SKIF_EGS_AppDataPath;
 void
 SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   PLOG_INFO << "Detecting Epic games...";
 
   HKEY hKey;
@@ -191,7 +191,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           apps->emplace_back(EGS);
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
-          std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
+          std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
 
           std::error_code ec;
           // Create any missing directories
@@ -214,7 +214,10 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 void
 SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
 {
-  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
 
   std::error_code ec;
   // Create any missing directories

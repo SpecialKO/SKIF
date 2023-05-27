@@ -64,8 +64,6 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
 static bool clickedGameLaunch,
@@ -128,6 +126,8 @@ LoadLibraryTexture (
         ImVec2&                             vCoverUv1,
         app_record_s*                       pApp = nullptr)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
   DirectX::ScratchImage        img = { };
@@ -149,7 +149,7 @@ LoadLibraryTexture (
   if (       appid == SKIF_STEAM_APPID &&
       libTexToLoad != LibraryTexture::Patreon)
   {
-    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", path_cache.specialk_userdata);
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", _path_cache.specialk_userdata);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -170,7 +170,7 @@ LoadLibraryTexture (
   // SKIF Custom
   else if (pApp != nullptr && pApp->store == "SKIF")
   {
-    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, appid);
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, appid);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -198,7 +198,7 @@ LoadLibraryTexture (
   // EGS
   else if (pApp != nullptr && pApp->store == "EGS")
   {
-    std::wstring EGSAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+    std::wstring EGSAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
     SKIFCustomPath = std::wstring(EGSAssetPath);
 
     if (libTexToLoad == LibraryTexture::Cover)
@@ -230,7 +230,7 @@ LoadLibraryTexture (
   // GOG
   else if (pApp != nullptr && pApp->store == "GOG")
   {
-    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", path_cache.specialk_userdata, appid);
+    SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", _path_cache.specialk_userdata, appid);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -279,7 +279,7 @@ LoadLibraryTexture (
   // Xbox
   else if (pApp != nullptr && pApp->store == "Xbox")
   {
-    std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+    std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
     SKIFCustomPath = std::wstring(XboxAssetPath);
 
     if (libTexToLoad == LibraryTexture::Cover)
@@ -330,7 +330,7 @@ LoadLibraryTexture (
       }
     }
 
-    SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata, appid);
+    SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, appid);
     SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", SK_GetSteamDir(), SteamUserID, appid);
 
     if (libTexToLoad == LibraryTexture::Cover)
@@ -681,6 +681,8 @@ Trie labels;
 // Temporarily disabled since this gets triggered on game launch/shutdown as well...
 bool Steam_isLibrariesSignaled (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
 #define MAX_STEAM_LIBRARIES 16
 
   if ( _registry.bDisableSteamLibrary )
@@ -748,6 +750,8 @@ bool Steam_isLibrariesSignaled (void)
 std::vector <std::pair <std::string, app_record_s>>
 Steam_GetInstalledAppIDs (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   std::vector <std::pair <std::string, app_record_s>> ret;
 
   if ( _registry.bDisableSteamLibrary )
@@ -813,6 +817,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_GameManagement_ShowScreenshot (sshot_file);
   }
   */
+  
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   //static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
@@ -933,7 +941,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_record.id              = SKIF_STEAM_APPID;
       SKIF_record.names.normal    = "Special K";
       SKIF_record.names.all_upper = "SPECIAL K";
-      SKIF_record.install_dir     = path_cache.specialk_install;
+      SKIF_record.install_dir     = _path_cache.specialk_install;
       SKIF_record.store           = "Steam";
       SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%s%i", SKIF_record.names.normal.c_str(), SKIF_record.store.c_str(), SKIF_record.id);
 
@@ -1183,6 +1191,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       InterlockedExchange (&icon_thread, 0);
       InterlockedExchange (&need_sort, 1);
 
+      // Force a refresh when the game icons and names have finished being streamed
+      PostMessage (SKIF_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+
       PLOG_INFO << "Thread stopped!";
     }, 0x0, NULL);
 
@@ -1331,17 +1342,17 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
 
           if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           path_cache.specialk_userdata);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (targetPath != L"")
           {
@@ -1374,17 +1385,17 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring targetPath = L"";
 
           if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           path_cache.specialk_userdata);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (PathFileExists (targetPath.c_str()))
           {
@@ -1555,7 +1566,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (pApp->store == "EGS")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
@@ -1589,7 +1600,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (pApp->store == "Xbox")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
@@ -1623,7 +1634,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (pApp->store == "Steam")
       {
         std::wstring load_str_2x (
-          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", path_cache.specialk_userdata, pApp->id)
+          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, pApp->id)
         );
 
         std::error_code ec;
@@ -2265,14 +2276,14 @@ SKIF_UI_Tab_DrawLibrary (void)
             HANDLE hFind = INVALID_HANDLE_VALUE;
             WIN32_FIND_DATA ffd;
             std::vector<Preset> tmpPresets;
-            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", path_cache.specialk_userdata);
+            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", _path_cache.specialk_userdata);
 
             hFind = FindFirstFile((PresetFolder + L"default_*.ini").c_str(), &ffd);
 
             if (INVALID_HANDLE_VALUE != hFind)
             {
               do {
-                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", path_cache.specialk_userdata, ffd.cFileName) };
+                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
                 tmpPresets.push_back(newPreset);
               } while (FindNextFile (hFind, &ffd));
 
@@ -2288,14 +2299,14 @@ SKIF_UI_Tab_DrawLibrary (void)
             HANDLE hFind = INVALID_HANDLE_VALUE;
             WIN32_FIND_DATA ffd;
             std::vector<Preset> tmpPresets;
-            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", path_cache.specialk_userdata);
+            std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
 
             hFind = FindFirstFile((PresetFolder + L"*.ini").c_str(), &ffd);
 
             if (INVALID_HANDLE_VALUE != hFind)
             {
               do {
-                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", path_cache.specialk_userdata, ffd.cFileName) };
+                Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
                 tmpPresets.push_back(newPreset);
               } while (FindNextFile (hFind, &ffd));
 
@@ -3154,7 +3165,7 @@ Cache=false)";
       {
         pApp->specialk.injection.config.dir =
           SK_FormatStringW(LR"(%ws\Profiles\%ws)",
-            path_cache.specialk_userdata,
+            _path_cache.specialk_userdata,
             pApp->specialk.profile_dir.c_str());
       }
 
@@ -3250,17 +3261,17 @@ Cache=false)";
           std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
 
           if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           path_cache.specialk_userdata);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (targetPath != L"")
           {
@@ -3304,17 +3315,17 @@ Cache=false)";
           std::wstring targetPath = L"";
 
           if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           path_cache.specialk_userdata);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
           else if (pApp->store == "GOG")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
           else if (pApp->store == "Steam")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  path_cache.specialk_userdata, pApp->id);
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (PathFileExists(targetPath.c_str()))
           {
@@ -4274,7 +4285,7 @@ Cache=false)";
 
             name = SKIF_Util_StripInvalidFilenameChars (name);
 
-            std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
+            std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
             std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str(), pApp->launch_configs[0].launch_options.c_str());
             wchar_t wszPath[MAX_PATH + 2] = { };
             GetModuleFileNameW (hModSKIF, wszPath, MAX_PATH);
@@ -4867,7 +4878,7 @@ Cache=false)";
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id, false)).c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), 500);
-      //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", path_cache.specialk_userdata, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
+      //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", _path_cache.specialk_userdata, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
       
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");

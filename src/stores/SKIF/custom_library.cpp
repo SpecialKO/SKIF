@@ -7,8 +7,10 @@
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   std::wstring SKIFRegistryKey = SK_FormatStringW (LR"(SOFTWARE\Kaldaien\Special K\Games\%i\)", appid);
-  std::wstring SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, appid);
+  std::wstring SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, appid);
   SKIFCustomPath += L"\0\0";
 
   SHFILEOPSTRUCTW fileOps{};
@@ -332,13 +334,15 @@ void app_skif_s::launchGame(void)
 ID3D11ShaderResourceView*
 app_skif_s::getCover (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   if (this->textures.cover != nullptr)
     return this->textures.cover.p;
 
   std::wstring path;
   std::wstring SKIFCustomPath;
 
-  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, this->id);
+  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, this->id);
   SKIFCustomPath += L"cover";
 
   if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
@@ -374,11 +378,12 @@ bool app_skif_s::loadCover(void)
 
 bool app_skif_s::loadIcon(void)
 {
-  
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   std::wstring path;
   std::wstring SKIFCustomPath;
 
-  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", path_cache.specialk_userdata, this->id);
+  SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, this->id);
   SKIFCustomPath += L"cover";
 
   if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))

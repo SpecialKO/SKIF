@@ -33,7 +33,6 @@ struct SKIF_Updater {
   };
   
   // Public functions
-
   void        RefreshResults  (void);
   void        CheckForUpdates (void);
   bool        IsRunning       (void);

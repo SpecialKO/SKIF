@@ -40,8 +40,8 @@ ModifyPrivilege (
   IN BOOL    fEnable
 );
 
-// Cache of paths that do not change between AppIDs
-struct path_cache_s {
+// Cache of paths that do not change
+struct SKIF_CommonPathsCache {
   struct win_path_s {
     KNOWNFOLDERID   folderid        = { };
     const wchar_t*  legacy_env_var  = L"";
@@ -81,12 +81,31 @@ struct path_cache_s {
   {         FOLDERID_Desktop,
     L"%USERPROFILE%\\Desktop"
   };
+  win_path_s user_startup       =
+  {      FOLDERID_Startup,
+    L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
+  };
+
   wchar_t skif_executable   [MAX_PATH + 2] = { }; // Holds the path to the executable
   wchar_t skif_workdir_org  [MAX_PATH + 2] = { }; // Holds the original work directory (rarely used)
   wchar_t steam_install     [MAX_PATH + 2] = { }; // Holds the install folder for the Steam client
   wchar_t specialk_install  [MAX_PATH + 2] = { }; // Holds the install folder for SK/SKIF, 
   wchar_t specialk_userdata [MAX_PATH + 2] = { }; // Holds the user data folder for SK/SKIF
-} extern path_cache;
+
+  
+  // Functions
+  static SKIF_CommonPathsCache& GetInstance (void)
+  {
+      static SKIF_CommonPathsCache instance;
+      return instance;
+  }
+
+  SKIF_CommonPathsCache (SKIF_CommonPathsCache const&) = delete; // Delete copy constructor
+  SKIF_CommonPathsCache (SKIF_CommonPathsCache&&)      = delete; // Delete move constructor
+
+private:
+  SKIF_CommonPathsCache (void);
+};
 
 HRESULT
 SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
@@ -97,7 +116,7 @@ std::wstring
 SK_GetFontsDir (void);
 
 void
-SKIF_GetFolderPath (path_cache_s::win_path_s* path);
+SKIF_GetFolderPath (SKIF_CommonPathsCache::win_path_s* path);
 
 bool
 SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_StartMenu);

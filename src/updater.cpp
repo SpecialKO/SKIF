@@ -14,14 +14,10 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 CONDITION_VARIABLE UpdaterPaused = { };
 
 SKIF_Updater::SKIF_Updater (void)
 {
-  PLOG_DEBUG << "SKIF_Updater() RAN";
-
   InitializeConditionVariable (&UpdaterPaused);
 
   // Start the child thread that is responsible for checking for updates
@@ -102,6 +98,8 @@ SKIF_Updater::SKIF_Updater (void)
 void
 SKIF_Updater::ClearOldUpdates (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   PLOG_INFO << "Clearing out old installers...";
 
   auto _isWeekOld = [&](FILETIME ftLastWriteTime) -> bool
@@ -138,7 +136,7 @@ SKIF_Updater::ClearOldUpdates (void)
   HANDLE hFind = INVALID_HANDLE_VALUE;
   WIN32_FIND_DATA ffd;
 
-  std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", path_cache.specialk_userdata);
+  std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", _path_cache.specialk_userdata);
 
   hFind = FindFirstFile ((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
 
@@ -158,9 +156,13 @@ SKIF_Updater::ClearOldUpdates (void)
 void
 SKIF_Updater::PerformUpdateCheck (results_s& _res)
 {
-  std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    path_cache.specialk_userdata);
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
   std::wstring path         = root + LR"(repository.json)";
-  std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", path_cache.specialk_userdata);
+  std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
 
   // Get UNIX-style time
   time_t ltime;
@@ -474,6 +476,8 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 void
 SKIF_Updater::RefreshResults (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   int lastWritten = snapshot_idx_written.load ( );
   snapshot_idx_reading.store (lastWritten);
 
@@ -540,6 +544,7 @@ SKIF_Updater::GetChannel (void)
 void
 SKIF_Updater::SetChannel (std::pair<std::string, std::string>* _channel)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   channel = _channel;
 
   // Update registry

@@ -53,63 +53,10 @@
 // Registry Settings
 #include <registry.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
-SKIF_InjectionContext _inject;
-
-bool
-SKIF_InjectionContext::pid_directory_watch_s::isSignaled (void)
-{
-  bool bRet = false;
-
-  if (hChangeNotification != INVALID_HANDLE_VALUE)
-  {
-    bRet =
-      ( WAIT_OBJECT_0 ==
-          WaitForSingleObject (hChangeNotification, 0) );
-
-    if (bRet)
-    {
-      FindNextChangeNotification (
-        hChangeNotification
-      );
-    }
-  }
-
-  PLOG_VERBOSE_IF(bRet) << "=> true";
-
-  return bRet;
-}
-
-SKIF_InjectionContext::pid_directory_watch_s::pid_directory_watch_s (void)
-{
-  // This actually runs first out of the whole executable, so initialize core components.
-  SKIF_Initialize ( );
-
-  wsDirectory = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
-
-  hChangeNotification =
-    FindFirstChangeNotificationW (
-      wsDirectory.c_str(), FALSE,
-        FILE_NOTIFY_CHANGE_FILE_NAME
-    );
-
-  if (hChangeNotification != INVALID_HANDLE_VALUE)
-  {
-    FindNextChangeNotification (
-      hChangeNotification
-    );
-  }
-}
-
-SKIF_InjectionContext::pid_directory_watch_s::~pid_directory_watch_s (void)
-{
-  if (      hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (hChangeNotification);
-}
-
 void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   extern HWND    SKIF_hWnd;
   extern CHandle hInjectAck;
 
@@ -125,7 +72,7 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   {
     hInjectAck.Attach (
       CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
-                                                                         : LR"(Local\SKIF_InjectAck)")
+                                                                              : LR"(Local\SKIF_InjectAck)")
     );
 
     SetTimer (SKIF_hWnd,
@@ -146,6 +93,8 @@ bool SKIF_InjectionContext::isPending(void)
 
 bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
 
   extern HWND SKIF_hWnd;
@@ -176,8 +125,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
 #endif
 
-  static std::wstring instDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_install );
-  static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata);
+  static std::wstring instDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
+  static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata);
   static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
 
   std::error_code e;
@@ -193,14 +142,14 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
     sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
     sexi.lpFile       = SKIFsvc32.c_str();
     sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
-    sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", path_cache.specialk_userdata).c_str(); // L"Servlet"
+    sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata).c_str(); // L"Servlet"
     sexi.nShow        = SW_HIDE;
     sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
                         SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
 #ifdef _WIN64
   // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
-  static bool Proxy64 = (_inject.SKSvc32 >= "1.0.2.0" && instDir == workDir);
+  static bool Proxy64 = (SKSvc32 >= "1.0.2.0" && instDir == workDir);
 
   if (Proxy64 && elevated)
   {
@@ -255,15 +204,12 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
 {
-  SKIF_Initialize ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  PLOG_VERBOSE << "SKIF_InjectionContext RAN!";
 
   bHasServlet =
     PathFileExistsW  (L"Servlet");
-
-  // Cache the Special K user data path
-  //SKIF_GetFolderPath (&path_cache.specialk_userdata);
-  //PathAppendW (        path_cache.specialk_userdata.path,
-  //                       LR"(My Mods\SpecialK)"  );
 
   bLogonTaskEnabled =
     PathFileExistsW (LR"(Servlet\SpecialK.LogOn)");
@@ -283,20 +229,11 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
     PathFileExistsW (L"SpecialK64.dll");
 #endif
 
-  // Force a one-time check on launch
-  //TestServletRunlevel (true);
-
-  // Update bCurrentState to reflect the run level
-  //bCurrentState = (pid32 || pid64);
-  
-  // Force the overlay to update itself as well
-  //_SetTaskbarOverlay (bCurrentState);
-
   // Initialize the PID file watches
   records =
-    {   SK_FormatStringW (LR"(%ws\Servlet\SpecialK32.pid)", path_cache.specialk_userdata), nullptr, &pid32
+    {   SK_FormatStringW (LR"(%ws\Servlet\SpecialK32.pid)", _path_cache.specialk_userdata), nullptr, &pid32
 #ifdef _WIN64
-      , SK_FormatStringW (LR"(%ws\Servlet\SpecialK64.pid)", path_cache.specialk_userdata), nullptr, &pid64,
+      , SK_FormatStringW (LR"(%ws\Servlet\SpecialK64.pid)", _path_cache.specialk_userdata), nullptr, &pid64,
 #endif
     };
 
@@ -316,16 +253,20 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 }
 
 bool
-SKIF_InjectionContext::TestServletRunlevel (bool forcedCheck)
+SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static DWORD dwFailed   = NULL;
   static bool  triedToFix = false;
 
   // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
   if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_Util_timeGetTime())
     forcedCheck = true;
+  
+  static std::wstring servletDir = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
+  static SKIF_DirectoryWatch servlet_folder;
 
-  if (dir_watch.isSignaled () || forcedCheck)
+  if (servlet_folder.isSignaled (servletDir, false) || forcedCheck)
   {
     dwLastSignaled = SKIF_Util_timeGetTime();
 
@@ -666,6 +607,9 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 void
 SKIF_InjectionContext::_GlobalInjectionCtl (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   extern float SKIF_ImGui_GlobalDPIScale;
 
   //running =
@@ -718,17 +662,17 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // Config Root
   //static std::wstring root_dir =
-  //  path_cache.specialk_userdata.path;
+  //  _path_cache.specialk_userdata.path;
 
   if (ImGui::Selectable ("Centralized"))
   {
-    SKIF_Util_ExplorePath (path_cache.specialk_userdata);
+    SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
     //SKIF_Util_OpenURI (root_dir);
   }
 
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText       (
-    SK_WideCharToUTF8 (path_cache.specialk_userdata).c_str ()
+    SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
   );
   //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
@@ -876,10 +820,10 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     extern void SKIF_putStopOnInjection(bool in);
 
 #ifdef _WIN64
-    if (_inject.SKVer64 >= "21.08.12" &&
-        _inject.SKVer32 >= "21.08.12")
+    if (SKVer64 >= "21.08.12" &&
+        SKVer32 >= "21.08.12")
 #else
-    if (_inject.SKVer32 >= "21.08.12")
+    if (SKVer32 >= "21.08.12")
 #endif
     {
 
@@ -911,6 +855,9 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 void
 SKIF_InjectionContext::_StartAtLogonCtrl (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   static bool argsChecked = false;
   static std::wstring args = L"\0";
   static HKEY hKey;
@@ -932,21 +879,16 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     return ret;
   };
 
-  static path_cache_s::win_path_s user_startup  =
-  {            FOLDERID_Startup,
-    L"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
-  };
-
-  SK_RunOnce (SKIF_GetFolderPath (&user_startup));
+  SK_RunOnce (SKIF_GetFolderPath (&_path_cache.user_startup));
 
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
-                               user_startup.path );
+                               _path_cache.user_startup.path );
 
-  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", path_cache.specialk_userdata),
-                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", path_cache.specialk_userdata);
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", _path_cache.specialk_userdata),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", _path_cache.specialk_userdata);
 
-  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", user_startup.path),
-                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", user_startup.path);
+  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", _path_cache.user_startup.path),
+                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", _path_cache.user_startup.path);
 
   static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
                                                  PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||
@@ -1241,9 +1183,11 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
 bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   bool ret = false;
   static std::wstring root_dir =
-         std::wstring (path_cache.specialk_userdata) + LR"(\Global\)";
+         std::wstring (_path_cache.specialk_userdata) + LR"(\Global\)";
 
   std::error_code ec;
   // Create any missing directories
@@ -1322,8 +1266,10 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
 
 void SKIF_InjectionContext::_LoadList(bool whitelist_)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   static std::wstring root_dir =
-           std::wstring(path_cache.specialk_userdata) + LR"(\Global\)";
+           std::wstring(_path_cache.specialk_userdata) + LR"(\Global\)";
 
   std::wifstream list_file(
     (whitelist_) ? (root_dir + LR"(whitelist.ini)").c_str()
@@ -1462,7 +1408,7 @@ bool SKIF_InjectionContext::_AddUserList (std::string pattern, bool whitelist_)
 bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool whitelist_)
 {
   // Check if the path is already included
-  bool ret = _inject._TestUserList (fullPath.c_str(), whitelist_);
+  bool ret = _TestUserList (fullPath.c_str(), whitelist_);
 
   if (! ret)
   {
@@ -1514,7 +1460,7 @@ bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool 
     }
 
     // Add to user list
-    ret = _inject._AddUserList (pattern, whitelist_) && _inject._StoreList (whitelist_);
+    ret = _AddUserList (pattern, whitelist_) && _StoreList (whitelist_);
   }
 
   return ret;

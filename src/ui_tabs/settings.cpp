@@ -14,8 +14,6 @@
 #include <registry.h>
 #include <updater.h>
 
-static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance( );
-
 struct Monitor_MPO_Support
 {
   std::string                    Name;  // EDID names are limited to 13 characters, which is perfect for us
@@ -283,6 +281,8 @@ GetMPOSupport (void)
 std::wstring
 GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinRing0")
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   std::wstring       binaryPath = L"";
   SC_HANDLE        schSCManager = NULL,
                     svcWinRing0 = NULL;
@@ -294,8 +294,8 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
   ptrStatus = NotInstalled;
 
   // Retrieve the install folder.
-  static std::wstring dirNameInstall  = std::filesystem::path (path_cache.specialk_install ).filename();
-  static std::wstring dirNameUserdata = std::filesystem::path (path_cache.specialk_userdata).filename();
+  static std::wstring dirNameInstall  = std::filesystem::path (_path_cache.specialk_install ).filename();
+  static std::wstring dirNameUserdata = std::filesystem::path (_path_cache.specialk_userdata).filename();
 
   // Get a handle to the SCM database.
   schSCManager =
@@ -409,9 +409,13 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
   static std::wstring
             driverBinaryPath    = L"",
-            SKIFdrvFolder = SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", path_cache.specialk_install),
+            SKIFdrvFolder = SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", _path_cache.specialk_install),
             SKIFdrv       = SKIFdrvFolder + L"SKIFdrv.exe", // TODO: Should be reworked to support a separate install location as well
             SYSdrv        = SKIFdrvFolder + L"WinRing0x64.sys"; // TODO: Should be reworked to support a separate install location as well
   
@@ -2037,7 +2041,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::Separator ( );
 
         if (ImGui::Selectable (ICON_FA_REDO " Restart display driver"))
-          ShellExecuteW (nullptr, L"runas", path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
+          ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
 
         ImGui::EndPopup ( );
       }
