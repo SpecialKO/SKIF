@@ -1570,7 +1570,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
+        pLink     ->SetArguments    (L"Start Auto");                            // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
         pLink     ->SetDescription  (L"Starts the global injection service");   // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Injection", &pv);
@@ -1582,6 +1582,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pLink      .Release         ( );
       }
 
+      /*
       // Task #2: Start Injection (with auto stop)
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
@@ -1600,6 +1601,7 @@ SKIF_InjectionContext::_InitializeJumpList (void)
         pPropStore .Release         ( );
         pLink      .Release         ( );
       }
+      */
 
       // Task #3: Stop Injection
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))

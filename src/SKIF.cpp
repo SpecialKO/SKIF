@@ -304,7 +304,9 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
     StrStrIW (lpCmdLine, L"Start")    != NULL;
 
   _Signal.Temporary =
-    StrStrIW (lpCmdLine, L"Temp")     != NULL;
+    StrStrIW (lpCmdLine, L"Temp")     != NULL ||
+   (StrStrIW (lpCmdLine, L"Auto")     != NULL &&
+     _registry.bStopOnInjection );
 
   _Signal.Stop =
     StrStrIW (lpCmdLine, L"Stop")     != NULL;
@@ -610,6 +612,7 @@ void SKIF_CreateUpdateNotifyMenu (void)
   if (hMenu != NULL)
     DestroyMenu (hMenu);
 
+  /*
   bool svcRunning         = false,
        svcRunningAutoStop = false,
        svcStopped         = false;
@@ -620,11 +623,15 @@ void SKIF_CreateUpdateNotifyMenu (void)
     svcRunningAutoStop = true;
   else
     svcStopped         = true;
+  */
 
   hMenu = CreatePopupMenu ( );
-  AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Injection");
-  AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
-  AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Injection");
+//AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Injection");
+//AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Injection (with auto stop)");
+//AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Injection");
+
+  AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
+  AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
   AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
   AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
 }
@@ -3739,11 +3746,11 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (LOWORD(wParam))
       {
         case SKIF_NOTIFY_START:
-          PostMessage (SKIF_hWnd, WM_SKIF_START, 0, 0);
+          PostMessage (SKIF_hWnd, (_registry.bStopOnInjection) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0, 0);
           break;
-        case SKIF_NOTIFY_STARTWITHSTOP:
-          PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
-          break;
+        //case SKIF_NOTIFY_STARTWITHSTOP:
+        //  PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
+        //  break;
         case SKIF_NOTIFY_STOP:
           PostMessage (SKIF_hWnd, WM_SKIF_STOP, 0, 0);
           break;
