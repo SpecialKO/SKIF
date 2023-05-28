@@ -48,17 +48,6 @@
 #include "plog/Initializers/RollingFileInitializer.h"
 #include "plog/Appenders/ConsoleAppender.h"
 
-#if 0
-#include <SpecialK/SpecialK.h>
-#include <SpecialK/ini.h>
-#include <SpecialK/core.h>
-#include <SpecialK/sha1.h>
-#include <SpecialK/framerate.h>
-#include <SpecialK/diagnostics/debug_utils.h>
-#else
-class iSK_INI;
-#endif
-
 #include <atlbase.h>
 
 using HANDLE = void *;
@@ -208,7 +197,6 @@ std::wstring   SK_SYS_GetInstallPath        (void);
 
 const wchar_t* SK_GetHostApp                (void);
 const wchar_t* SK_GetSystemDirectory        (void);
-iSK_INI*       SK_GetDLLConfig              (void);
 
 #pragma intrinsic (_ReturnAddress)
 

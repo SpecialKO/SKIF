@@ -384,7 +384,6 @@
     <ClInclude Include="include\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
     <ClInclude Include="include\sk_boxart.png.h" />
-    <ClInclude Include="include\sk_config\ini.h" />
     <ClInclude Include="include\sk_icon.jpg.h" />
     <ClInclude Include="include\sk_utility\command.h" />
     <ClInclude Include="include\sk_utility\utility.h" />
@@ -471,7 +470,6 @@
     <ClCompile Include="src\injection.cpp" />
     <ClCompile Include="src\install_utils.cpp" />
     <ClCompile Include="src\SKIF.cpp" />
-    <ClCompile Include="src\sk_config\ini.cpp" />
     <ClCompile Include="src\sk_utility\utility.cpp" />
     <ClCompile Include="src\stores\GOG\gog_library.cpp" />
     <ClCompile Include="src\stores\SKIF\custom_library.cpp" />
