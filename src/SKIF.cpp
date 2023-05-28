@@ -482,7 +482,14 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   PLOG_INFO << "Proxying command line arguments...";
 
   if (_Signal.Start)
-    PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
+  {
+    // This means we proxied this cmd to ourselves, in which
+    // case we want to set up bExitOnInjection as well
+    if (_Signal._RunningInstance == SKIF_hWnd)
+      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
+    else
+      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART     : WM_SKIF_START, 0x0, 0x0);
+  }
 
   if (_Signal.Stop)
     PostMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
@@ -1347,6 +1354,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     else {
       _Signal._RunningInstance = SKIF_hWnd;
       SKIF_Startup_ProxyCommandLineArguments ( );
+
+      // If we are starting the service,
+      //   let us start in small mode
+      if (_Signal.Start)
+        _registry.bSmallMode = true;
     }
   }
 
@@ -3556,10 +3568,14 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_TEMPSTART:
+    case WM_SKIF_TEMPSTARTEXIT:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
       else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
         _inject._ToggleInjectAck (true);
+
+      if (msg == WM_SKIF_TEMPSTARTEXIT)
+        bExitOnInjection = true;
       break;
 
     case WM_SKIF_STOP:
