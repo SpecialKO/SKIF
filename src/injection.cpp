@@ -24,10 +24,12 @@
 
 #include "../resource.h"
 
+#include <injection.h>
+
 #include <SKIF.h>
 #include <SKIF_utility.h>
 #include <SKIF_imgui.h>
-#include <injection.h>
+#include <registry.h>
 #include <fsutil.h>
 
 #include <font_awesome.h>
@@ -52,8 +54,15 @@
 #include <sstream>
 #include <strsafe.h>
 
-// Registry Settings
-#include <registry.h>
+// Header Files for Jump List features
+#include <objectarray.h>
+#include <shobjidl.h>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <knownfolders.h>
+#include <shlobj.h>
+
+// Helper Functions
 
 void CALLBACK
 InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
@@ -68,167 +77,8 @@ InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
     PostMessage (SKIF_hWnd, Msg, (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK) ? cIDT_REFRESH_INJECTACK : cIDT_REFRESH_PENDING, NULL);
 }
 
-void SKIF_InjectionContext::_ToggleInjectAck (bool newState)
-{
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  extern HWND    SKIF_hWnd;
-  extern CHandle hInjectAck;
-
-  // Set to its current new state
-  bAckInj = newState;
-
-  // Close any existing timer
-  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_hWnd : NULL, IDT_REFRESH_INJECTACK))
-    IDT_REFRESH_INJECTACK = 0;
-
-  // Close any existing handles
-  hInjectAck.Close();
-
-  // Create a new handle if requested
-  if (newState && hInjectAck.m_h <= 0)
-  {
-    hInjectAck.Attach (
-      CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
-                                                                              : LR"(Local\SKIF_InjectAck)")
-    );
-
-    //OutputDebugString((L"_ToggleOnDemand set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
-    IDT_REFRESH_INJECTACK =
-      SetTimer (SKIF_hWnd,
-                cIDT_REFRESH_INJECTACK,
-                1000,
-                (TIMERPROC) &InjectionTimerProc
-      );
-  }
-}
-
-bool SKIF_InjectionContext::isPending(void)
-{
-  if (runState == Starting || runState == Stopping)
-    return true;
-  else
-    return false;
-}
-
-bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
-{
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-
-  PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
-
-  extern HWND SKIF_hWnd;
-  bool        ret = false;
-  
-  if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
-    IDT_REFRESH_PENDING = 0;
-
-  _ToggleOnDemand ( (! currentRunningState && autoStop) );
-
-#if 0
-  const wchar_t *wszStartStopCommand =
-              LR"(rundll32.exe)";
-
-  const wchar_t *wszStartStopParams32 =
-    currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
-                        : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
-  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
-  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
-  //GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
-  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
-
-  const wchar_t *wszStartStopParams64 =
-    currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
-                        : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
-  wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
-
-  GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
-  PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
-#endif
-
-  static std::wstring instDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
-  static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata);
-  static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
-
-  std::error_code e;
-  // Create any missing directories
-  if (! std::filesystem::exists (            workDir, e))
-        std::filesystem::create_directories (workDir, e);
-
-  SetLastError (NO_ERROR);
-
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
-    sexi.lpFile       = SKIFsvc32.c_str();
-    sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
-    sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata).c_str(); // L"Servlet"
-    sexi.nShow        = SW_HIDE;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
-                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-
-#ifdef _WIN64
-  // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
-  static bool Proxy64 = (SKSvc32 >= "1.0.2.0" && instDir == workDir);
-
-  if (Proxy64 && elevated)
-  {
-    PLOG_VERBOSE << "SKIFsvc >= 1.0.2.0 and curDir == workDir. Using Proxy64 call.";
-
-    sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
-
-    ret =
-      ShellExecuteExW (&sexi);
-  }
-
-  else if ( ShellExecuteExW (&sexi) || currentRunningState )
-  {
-    PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
-
-    // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
-    static std::wstring SKIFsvc64 = instDir + L"SKIFsvc64.exe";
-    sexi.lpFile       = SKIFsvc64.c_str();
-
-    ret =
-      ShellExecuteExW (&sexi);
-  }
-#else
-  ret =
-    ShellExecuteExW (&sexi);
-#endif // _WIN64
-
-  PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
-
-  if (currentRunningState)
-    runState = RunningState::Stopping;
-  else
-    runState = RunningState::Starting;
-
-  extern CHandle hInjectAck;
-
-  if (IDT_REFRESH_ONDEMAND == 0)
-  {
-    //OutputDebugString((L"_StartStopInject set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
-    IDT_REFRESH_PENDING =
-      SetTimer (SKIF_hWnd,
-              cIDT_REFRESH_PENDING,
-              500,
-              (TIMERPROC) &InjectionTimerProc
-    );
-  }
-
-  dwLastSignaled = SKIF_Util_timeGetTime ();
-
-  Sleep (30);
-
-  if (ret)
-    PLOG_INFO  << "The operation was successful.";
-  else
-    PLOG_ERROR << "The operation was unsuccessful.";
-
-  return ret;
-};
+// Class Members
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
 {
@@ -461,6 +311,168 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
   }
 
   return false;
+};
+
+void SKIF_InjectionContext::_ToggleInjectAck (bool newState)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  extern HWND    SKIF_hWnd;
+  extern CHandle hInjectAck;
+
+  // Set to its current new state
+  bAckInj = newState;
+
+  // Close any existing timer
+  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_hWnd : NULL, IDT_REFRESH_INJECTACK))
+    IDT_REFRESH_INJECTACK = 0;
+
+  // Close any existing handles
+  hInjectAck.Close();
+
+  // Create a new handle if requested
+  if (newState && hInjectAck.m_h <= 0)
+  {
+    hInjectAck.Attach (
+      CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
+                                                                              : LR"(Local\SKIF_InjectAck)")
+    );
+
+    //OutputDebugString((L"_ToggleOnDemand set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
+    IDT_REFRESH_INJECTACK =
+      SetTimer (SKIF_hWnd,
+                cIDT_REFRESH_INJECTACK,
+                1000,
+                (TIMERPROC) &InjectionTimerProc
+      );
+  }
+}
+
+bool SKIF_InjectionContext::isPending(void)
+{
+  if (runState == Starting || runState == Stopping)
+    return true;
+  else
+    return false;
+}
+
+bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
+
+  extern HWND SKIF_hWnd;
+  bool        ret = false;
+  
+  if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
+    IDT_REFRESH_PENDING = 0;
+
+  _ToggleInjectAck ( (! currentRunningState && autoStop) );
+
+#if 0
+  const wchar_t *wszStartStopCommand =
+              LR"(rundll32.exe)";
+
+  const wchar_t *wszStartStopParams32 =
+    currentRunningState ? L"../SpecialK32.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK32.dll,RunDLL_InjectionManager Install";
+  wchar_t                   wszStartStopCommand32 [MAX_PATH + 2] = { };
+  GetSystemWow64DirectoryW (wszStartStopCommand32, MAX_PATH);
+  //GetSystemDirectoryW      (wszStartStopCommand32, MAX_PATH);
+  PathAppendW              (wszStartStopCommand32, wszStartStopCommand);
+
+  const wchar_t *wszStartStopParams64 =
+    currentRunningState ? L"../SpecialK64.dll,RunDLL_InjectionManager Remove"
+                        : L"../SpecialK64.dll,RunDLL_InjectionManager Install";
+  wchar_t                   wszStartStopCommand64 [MAX_PATH + 2] = { };
+
+  GetSystemDirectoryW      (wszStartStopCommand64, MAX_PATH);
+  PathAppendW              (wszStartStopCommand64, wszStartStopCommand);
+#endif
+
+  static std::wstring instDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
+  static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata);
+  static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
+
+  std::error_code e;
+  // Create any missing directories
+  if (! std::filesystem::exists (            workDir, e))
+        std::filesystem::create_directories (workDir, e);
+
+  SetLastError (NO_ERROR);
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
+    sexi.lpFile       = SKIFsvc32.c_str();
+    sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
+    sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata).c_str(); // L"Servlet"
+    sexi.nShow        = SW_HIDE;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | /* SEE_MASK_NOCLOSEPROCESS | */
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+
+#ifdef _WIN64
+  // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
+  static bool Proxy64 = (SKSvc32 >= "1.0.2.0" && instDir == workDir);
+
+  if (Proxy64 && elevated)
+  {
+    PLOG_VERBOSE << "SKIFsvc >= 1.0.2.0 and curDir == workDir. Using Proxy64 call.";
+
+    sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
+
+    ret =
+      ShellExecuteExW (&sexi);
+  }
+
+  else if ( ShellExecuteExW (&sexi) || currentRunningState )
+  {
+    PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
+
+    // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
+    static std::wstring SKIFsvc64 = instDir + L"SKIFsvc64.exe";
+    sexi.lpFile       = SKIFsvc64.c_str();
+
+    ret =
+      ShellExecuteExW (&sexi);
+  }
+#else
+  ret =
+    ShellExecuteExW (&sexi);
+#endif // _WIN64
+
+  PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
+
+  if (currentRunningState)
+    runState = RunningState::Stopping;
+  else
+    runState = RunningState::Starting;
+
+  extern CHandle hInjectAck;
+
+  if (IDT_REFRESH_INJECTACK == 0)
+  {
+    //OutputDebugString((L"_StartStopInject set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
+    IDT_REFRESH_PENDING =
+      SetTimer (SKIF_hWnd,
+              cIDT_REFRESH_PENDING,
+              500,
+              (TIMERPROC) &InjectionTimerProc
+    );
+  }
+
+  dwLastSignaled = SKIF_Util_timeGetTime ();
+
+  Sleep (30);
+
+  if (ret)
+    PLOG_INFO  << "The operation was successful.";
+  else
+    PLOG_ERROR << "The operation was unsuccessful.";
+
+  return ret;
 };
 
 void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
@@ -1509,14 +1521,6 @@ bool SKIF_InjectionContext::_BlacklistBasedOnPath (std::string fullPath)
     ? _AddUserListBasedOnPath (fullPath, false)
     : false;
 }
-
-// Header Files for Jump List features
-#include <objectarray.h>
-#include <shobjidl.h>
-#include <propkey.h>
-#include <propvarutil.h>
-#include <knownfolders.h>
-#include <shlobj.h>
 
 void
 SKIF_InjectionContext::_InitializeJumpList (void)

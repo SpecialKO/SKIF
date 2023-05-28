@@ -30,8 +30,8 @@
 // Singleton struct
 struct SKIF_InjectionContext {
 
-  UINT_PTR IDT_REFRESH_ONDEMAND = 0;
-  UINT_PTR IDT_REFRESH_PENDING  = 0;
+  UINT_PTR IDT_REFRESH_INJECTACK = 0;
+  UINT_PTR IDT_REFRESH_PENDING   = 0;
 
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
@@ -64,8 +64,6 @@ struct SKIF_InjectionContext {
     Starting = 3
   } runState;
 
-  bool isPending (void);
-
   struct pid_file_watch_s {
     std::wstring     wsPidFilename;
           FILE*      fPidFile;
@@ -82,7 +80,9 @@ struct SKIF_InjectionContext {
   std::string SKVer64 = "";
   std::string SKSvc32 = "";
   std::string SKSvc64 = "";
+  
 
+  bool    isPending               (void);
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
   bool    _TestServletRunlevel    (bool forcedCheck); // Returns true ONLY if we transitioned over from a pending state
   void    _DanceOfTheDLLFiles     (void);
@@ -92,7 +92,7 @@ struct SKIF_InjectionContext {
   void    _StartAtLogonCtrlLegacy (void);
   HRESULT _SetTaskbarOverlay      (bool show);
   void    _InitializeJumpList     (void);
-  void    _ToggleOnDemand         (bool newState);
+  void    _ToggleInjectAck        (bool newState);
 
   bool    _StoreList              (bool whitelist_);
   void    _LoadList               (bool whitelist_);
