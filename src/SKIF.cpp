@@ -153,18 +153,7 @@ NOTIFYICONDATA niData;
 HMENU hMenu;
 
 // Cmd line argument stuff
-struct SKIF_Signals {
-  BOOL Stop          = FALSE;
-  BOOL Start         = FALSE;
-  BOOL Temporary     = FALSE;
-  BOOL Quit          = FALSE;
-  BOOL Minimize      = FALSE;
-  BOOL Restore       =  TRUE;
-  BOOL Launcher      = FALSE;
-  BOOL AddSKIFGame   = FALSE;
-
-  BOOL _Disowned     = FALSE;
-} _Signal;
+SKIF_Signals _Signal;
 
 PopupState UpdatePromptPopup = PopupState_Closed;
 PopupState HistoryPopup      = PopupState_Closed;
@@ -280,18 +269,22 @@ SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         ! _Signal.Quit      &&
         ! _Signal.Launcher)
     {
-      //if (IsIconic        (hwndAlreadyExists))
-      //  ShowWindow        (hwndAlreadyExists, SW_SHOWNA);
+      // Only try to restore SKIF the first time we process 
+      //   SKIF_Startup_ProxyCommandAndExitIfRunning ( )
+      if (_Signal.Restore)
+      {   _Signal.Restore = false;
+        DWORD pidAlreadyExists = 0;
+        GetWindowThreadProcessId (hwndAlreadyExists, &pidAlreadyExists);
 
-      DWORD pidAlreadyExists = 0;
-      GetWindowThreadProcessId (hwndAlreadyExists, &pidAlreadyExists);
+        // We must allow the existing process to set the foreground window
+        //   as this is part of the WM_SKIF_RESTORE procedure
+        if (pidAlreadyExists)
+          AllowSetForegroundWindow (pidAlreadyExists);
 
-      // We must allow the existing process to set the foreground window
-      if (pidAlreadyExists)
-        AllowSetForegroundWindow (pidAlreadyExists);
+        PLOG_INFO << "Attempting to restore the running instance: " << pidAlreadyExists;
 
-      PostMessage (hwndAlreadyExists, WM_SKIF_RESTORE, 0x0, 0x0);
-      //SetForegroundWindow (hwndAlreadyExists);
+        PostMessage (hwndAlreadyExists, WM_SKIF_RESTORE, 0x0, 0x0);
+      }
     }
 
     // Otherwise proxy the calls and then restore whatever third-party window was originally in the foreground
@@ -308,10 +301,16 @@ SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       if (_Signal.Quit)
         PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
 
-      // TODO: Investigate how this affects things the second time this function is called
-      if (IsIconic        (hWndOrigForeground))
-        ShowWindow        (hWndOrigForeground, SW_SHOWNA);
-      SetForegroundWindow (hWndOrigForeground);
+      // 2023-05-28: Only run this the first time we process
+      //   SKIF_Startup_ProxyCommandAndExitIfRunning ( )
+      // TODO: Investigate how this affects things when it's allowed to run both times vs. only once
+      //       The parth should only really execute when SKIF is used as a launcher or service toggle
+      if (! _Signal._Disowned)
+      {
+        if (IsIconic        (hWndOrigForeground))
+          ShowWindow        (hWndOrigForeground, SW_SHOWNA);
+        SetForegroundWindow (hWndOrigForeground);
+      }
     }
 
     if (_Signal.Quit || (! _Signal._Disowned))
@@ -492,7 +491,7 @@ SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
         else if (! _inject.bCurrentState)
         {
           bExitOnInjection = true;
-          _inject._StartStopInject (false, true);
+          _inject._StartStopInject (false, true); // TODO: Redo this as it currently requires a window for the timer to be set up properly
         }
       }
 
@@ -962,6 +961,8 @@ void SKIF_Initialize (void)
     bool fallback = true;
 
     // See if we can interact with the install folder
+    // This section of the code triggers a refresh of the DLL files for other running SKIF instances
+    // TODO: Find a better way to determine permissions that does not rely on creating dummy files/folders?
     std::filesystem::path testDir  (_path_cache.specialk_install);
     std::filesystem::path testFile (testDir);
 
@@ -1022,10 +1023,14 @@ void SKIF_Initialize (void)
     }
 
     // Now we can proceed with initializing the logging
+    // If SKIF is used as a launcher, use a separate log file
     std::wstring logPath =
-      SK_FormatStringW (LR"(%ws\SKIF.log)", _path_cache.specialk_userdata);
+      SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log)" 
+                                           : LR"(%ws\SKIF.log)",
+            _path_cache.specialk_userdata
+      );
 
-    // Delete old log file
+    // Delete the old log file
     DeleteFile (logPath.c_str());
 
     // Engage logging!
@@ -1046,6 +1051,9 @@ void SKIF_Initialize (void)
     PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
     PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
     PLOG_INFO << SKIF_LOG_SEPARATOR;
+
+    if (_Signal.Launcher)
+      PLOG_INFO << "SKIF is being used as a launcher.";
   }
 }
 
@@ -1122,6 +1130,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
 
+  // Initialize SKIF
   SKIF_Initialize ( ); // Relies on _path_cache and sets up logging
 
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
@@ -1166,30 +1175,33 @@ wWinMain ( _In_     HINSTANCE hInstance,
     startedMinimized = SKIF_isTrayed = true;
 
   // Check if Controlled Folder Access is enabled
-  if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess ( ))
+  if (! _Signal.Launcher)
   {
-    if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
-                                  L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
-                                  L"\n\n"
-                                  L"Do you want to disable this warning for all future launches?"
-                                  L"\n\n"
-                                  L"Microsoft's support page with more information will open when you select any of the options below.",
-                                  L"Warning about Controlled Folder Access",
-               MB_ICONWARNING | MB_YESNOCANCEL))
+    if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess())
     {
-      _registry.regKVDisableCFAWarning.putData (true);
+      if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
+                                    L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
+                                    L"\n\n"
+                                    L"Do you want to disable this warning for all future launches?"
+                                    L"\n\n"
+                                    L"Microsoft's support page with more information will open when you select any of the options below.",
+                                    L"Warning about Controlled Folder Access",
+                 MB_ICONWARNING | MB_YESNOCANCEL))
+      {
+        _registry.regKVDisableCFAWarning.putData (true);
+      }
+
+      SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
     }
 
-    SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
+    // Register SKIF in Windows to enable quick launching.
+    PLOG_INFO << SKIF_LOG_SEPARATOR;
+    PLOG_INFO << "Current Registry State:";
+    PLOG_INFO << "Special K user data:   " << _registry.wsPath;
+    PLOG_INFO << "SKIF app registration: " << _registry.wsAppRegistration;
+    SKIF_Util_RegisterApp ( );
+    PLOG_INFO << SKIF_LOG_SEPARATOR;
   }
-
-  // Register SKIF in Windows to enable quick launching.
-  PLOG_INFO << SKIF_LOG_SEPARATOR;
-  PLOG_INFO << "Current Registry State:";
-  PLOG_INFO << "Special K user data:   " << _registry.wsPath;
-  PLOG_INFO << "SKIF app registration: " << _registry.wsAppRegistration;
-  SKIF_Util_RegisterApp ( );
-  PLOG_INFO << SKIF_LOG_SEPARATOR;
 
   // Create application window
   WNDCLASSEX wc =
@@ -1395,8 +1407,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_Updater& _updater = 
          SKIF_Updater::GetInstance ( );
 
-  // Register HDR toggle hotkey
-  SKIF_Util_RegisterHDRToggleHotKey ( );
+  // Register HDR toggle hotkey (if applicable)
+  if (! _Signal.Launcher)
+    SKIF_Util_RegisterHDRToggleHotKey ( );
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -1412,14 +1425,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return false;
 
         /*
-        if (     msg.hwnd ==        SKIF_hWnd)
-          OutputDebugString (L"Message bound for SKIF_WndProc ( )!\n");
-        else if (msg.hwnd == SKIF_Notify_hWnd)
-          OutputDebugString (L"Message bound for SKIF_Notify_WndProc ( )!\n");
-        else if (msg.hwnd ==  SKIF_ImGui_hWnd)
-          OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )!\n");
-        else
-          OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )!\n");
+        if (msg.message == WM_TIMER)
+        {
+          if (     msg.hwnd == NULL)
+            OutputDebugString (L"Message is a thread message !\n");
+          else if (msg.hwnd ==        SKIF_hWnd)
+            OutputDebugString (L"Message bound for SKIF_WndProc ( ) !\n");
+          else if (msg.hwnd == SKIF_Notify_hWnd)
+            OutputDebugString (L"Message bound for SKIF_Notify_WndProc ( ) !\n");
+          else if (msg.hwnd ==  SKIF_ImGui_hWnd)
+            OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ) !\n");
+          else {
+            OutputDebugString (L"Message bound for another hWnd: ");
+            OutputDebugString (std::format(L"{:x}", *reinterpret_cast<uint64_t*>(&msg.hwnd)).c_str());
+            OutputDebugString (L"\n");
+          }
+  
+          OutputDebugString((L"[_TranslateAndDispatch] Message spotted: 0x" + std::format(L"{:x}", msg.message) + L" (" + std::to_wstring(msg.message) + L")\n").c_str());
+          OutputDebugString((L"[_TranslateAndDispatch]          wParam: 0x" + std::format(L"{:x}", msg.wParam)  + L" (" + std::to_wstring(msg.wParam)  + L")\n").c_str());
+          OutputDebugString((L"[_TranslateAndDispatch]          lParam: 0x" + std::format(L"{:x}", msg.lParam)  + L" (" + std::to_wstring(msg.lParam)  + L")\n").c_str());
+        }
         */
 
         // There are three different window procedures that a message can be dispatched to based on the HWND of the message
@@ -1433,6 +1458,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // 
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
+
+        if (msg.hwnd == 0) // Don't redraw on thread messages
+          msgDontRedraw = true;
 
         if (msg.message == WM_MOUSEMOVE)
         {
@@ -1464,6 +1492,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (                     hInjectAck.m_h != 0 &&
         WaitForSingleObject (hInjectAck.m_h,   0) == WAIT_OBJECT_0)
     {
+      PLOG_INFO << "Injection was acknowledged!";
       hInjectAck.Close ();
       _inject.bAckInjSignaled = true;
       _inject._StartStopInject (true);
@@ -1474,6 +1503,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       static DWORD dwExitDelay = SKIF_Util_timeGetTime();
       static int iDuration = -1;
+
+      PLOG_INFO << "Application is set up to exit on Injection, beginning procedure...";
 
       if (iDuration == -1)
       {
@@ -1899,6 +1930,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.regKVSmallMode.putData (_registry.bSmallMode);
         bExitOnInjection = false;
 
+        PLOG_DEBUG << "Changed UI mode to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
+
         if (_registry.bSmallMode)
         {
           // If we switch to small mode, close all popups
@@ -1914,6 +1947,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (HistoryPopup == PopupState_Opened)
             HistoryPopup = PopupState_Open;
+
+          // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
+          if (_Signal.Launcher)
+          {   _Signal.Launcher = false;
+
+            // Register HDR toggle hotkey (if applicable)
+            SKIF_Util_RegisterHDRToggleHotKey ( );
+
+            // Kickstart the update thread
+            _updater.CheckForUpdates ( );
+          }
         }
 
         changedMode = true;
@@ -3079,8 +3123,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_UnregisterHDRToggleHotKey ( );
 
   PLOG_INFO << "Killing timers...";
-  KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_ONDEMAND);
+  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
   KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
@@ -3554,6 +3598,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_TIMER:
+      msgDontRedraw = false;
       switch (wParam)
       {
         case IDT_REFRESH_UPDATER:
@@ -3572,9 +3617,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
           }
           return 0;
-        case IDT_REFRESH_ONDEMAND:
-        case IDT_REFRESH_PENDING:
-          // These are just dummy events to cause SKIF to refresh for a couple of frames more periodically
+        case cIDT_REFRESH_ONDEMAND:
+        case cIDT_REFRESH_PENDING:
+          // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
           return 0;
       }
       break;
