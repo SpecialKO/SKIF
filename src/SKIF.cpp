@@ -3551,11 +3551,15 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_START:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false);
+      else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
+        _inject._ToggleInjectAck (false);
       break;
 
     case WM_SKIF_TEMPSTART:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
+      else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
+        _inject._ToggleInjectAck (true);
       break;
 
     case WM_SKIF_STOP:
