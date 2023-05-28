@@ -35,6 +35,16 @@ SKIF_Updater::SKIF_Updater (void)
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       static SKIF_Updater& parent = SKIF_Updater::GetInstance();
+      extern SKIF_Signals _Signal;
+
+      // Sleep if SKIF is being used as a lancher
+      if (_Signal.Launcher)
+      {
+        SleepConditionVariableCS (
+          &UpdaterPaused, &UpdaterJob,
+            INFINITE
+        );
+      }
 
       PLOG_DEBUG << "Update Thread Started!";
 

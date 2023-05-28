@@ -39,8 +39,8 @@
 
 // Constants - Timers / Window Messages / HotKeys / Windows
 
-const     UINT_PTR       IDT_REFRESH_ONDEMAND =             1337;
-const     UINT_PTR       IDT_REFRESH_PENDING  =             1338;
+const     UINT_PTR       cIDT_REFRESH_ONDEMAND =             1337;
+const     UINT_PTR       cIDT_REFRESH_PENDING  =             1338;
 const     UINT_PTR       IDT_REFRESH_GAMES    =             1340;
 const     UINT_PTR       IDT_REFRESH_TOOLTIP  =             1341;
 const     UINT_PTR       IDT_REFRESH_UPDATER  =             1342;
@@ -57,9 +57,9 @@ constexpr UINT           WM_SKIF_COVER        = WM_USER + 0x2050;
 constexpr UINT           WM_SKIF_UPDATER      = WM_USER + 0x2051;
 constexpr UINT           WM_SKIF_POWERMODE    = WM_USER + 0x2052;
 
-constexpr  int           SKIF_HotKey_HDR    = 1337; // Win + Ctrl + Shift + H
-constexpr const  char*   SKIF_LOG_SEPARATOR = "----------------------------";
-constexpr const wchar_t* SKIF_WindowClass   = L"SK_Injection_Frontend";
+constexpr  int           SKIF_HotKey_HDR      = 1337; // Win + Ctrl + Shift + H
+constexpr const  char*   SKIF_LOG_SEPARATOR   = "----------------------------";
+constexpr const wchar_t* SKIF_WindowClass     = L"SK_Injection_Frontend";
 
 // Enums
 
@@ -84,6 +84,22 @@ enum UIMode {
   UIMode_VRR_Compatibility,
   UIMode_Safe_Mode,
   UIMode_COUNT     // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
+};
+
+// Structs
+
+struct SKIF_Signals { // Used for command line arguments
+  BOOL Start         = FALSE;
+  BOOL Temporary     = FALSE;
+  BOOL Stop          = FALSE;
+  BOOL Quit          = FALSE;
+  BOOL Minimize      = FALSE;
+  BOOL Restore       =  TRUE; // Only executed once
+  BOOL AddSKIFGame   = FALSE;
+  BOOL Launcher      = FALSE;
+
+  BOOL _Disowned     = FALSE;
+//BOOL _AnySignalled = FALSE;
 };
 
 // External declarations
