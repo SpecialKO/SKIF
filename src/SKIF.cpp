@@ -473,55 +473,85 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   if (! _Signal._RunningInstance)
     return;
 
+  if (! _Signal.Start            && 
+      ! _Signal.Stop             &&
+      ! _Signal.Minimize         &&
+      ! _Signal.Quit)
+    return;
+
   PLOG_INFO << "Proxying command line arguments...";
 
-  // If no cmd line argument is used, restore the running instance
-  if (! _Signal.Start     &&
-      ! _Signal.Stop      &&
-      ! _Signal.Minimize  &&
-      ! _Signal.Quit      &&
-      ! _Signal._GamePath.empty()  &&
-         SKIF_hWnd == 0    )
-  {
-    // We must allow the existing process to set the foreground window
-    //   as this is part of the WM_SKIF_RESTORE procedure
-    DWORD pidAlreadyExists = 0;
-    GetWindowThreadProcessId (_Signal._RunningInstance, &pidAlreadyExists);
-    if (pidAlreadyExists)
-      AllowSetForegroundWindow (pidAlreadyExists);
+  if (_Signal.Start)
+    PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
 
-    PLOG_INFO << "Attempting to restore the running instance: " << pidAlreadyExists;
-    PostMessage (_Signal._RunningInstance, WM_SKIF_RESTORE, 0x0, 0x0);
+  if (_Signal.Stop)
+    PostMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
+    
+  if (_Signal.Minimize)
+  {
+    //PostMessage (_Signal._RunningInstance, WM_SKIF_MINIMIZE, 0x0, 0x0);
+
+    // Send WM_SKIF_MINIMIZE to all running instances (including ourselves)
+    EnumWindows ( []( HWND   hWnd,
+                      LPARAM lParam ) -> BOOL
+    {
+      wchar_t                         wszRealWindowClass [64] = { };
+      if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+        if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+          PostMessage (hWnd, WM_SKIF_MINIMIZE, 0x0, 0x0);
+      return TRUE;
+    }, (LPARAM)SKIF_WindowClass);
   }
 
-  // Otherwise proxy the calls and then restore whatever third-party window was originally in the foreground
-  else {
-    if (_Signal.Start)
-      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
+  if (_Signal.Quit)
+  {
+    // PostMessage (_Signal._RunningInstance, WM_CLOSE, 0x0, 0x0);
 
-    if (_Signal.Stop)
-      PostMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
-    
-    if (_Signal.Minimize)
-      PostMessage (_Signal._RunningInstance, WM_SKIF_MINIMIZE, 0x0, 0x0);
+    // Send WM_CLOSE to all running instances (including ourselves)
+    EnumWindows ( []( HWND   hWnd,
+                      LPARAM lParam ) -> BOOL
+    {
+      wchar_t                         wszRealWindowClass [64] = { };
+      if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+        if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+          PostMessage (hWnd, WM_CLOSE, 0x0, 0x0);
+      return TRUE;
+    }, (LPARAM)SKIF_WindowClass);
+  }
 
-    if (_Signal.Quit)
-      PostMessage (_Signal._RunningInstance, WM_CLOSE, 0x0, 0x0);
-
-    // Restore the foreground state to whatever app had it before
-    if (hWndOrigForeground != 0 && SKIF_hWnd == 0)
+  // Restore the foreground state to whatever app had it before
+  if (SKIF_hWnd == 0)
+  {
+    if (hWndOrigForeground != 0)
     {
       if (IsIconic        (hWndOrigForeground))
         ShowWindow        (hWndOrigForeground, SW_SHOWNA);
       SetForegroundWindow (hWndOrigForeground);
     }
-  }
 
-  if (SKIF_hWnd == 0)
-  {
     PLOG_INFO << "Terminating due to this instance having done its job.";
     ExitProcess (0x0);
   }
+}
+
+void
+SKIF_Startup_RaiseRunningInstance (void)
+{
+  if (! _Signal._RunningInstance)
+    return;
+  
+  // We must allow the existing process to set the foreground window
+  //   as this is part of the WM_SKIF_RESTORE procedure
+  DWORD pidAlreadyExists = 0;
+  GetWindowThreadProcessId (_Signal._RunningInstance, &pidAlreadyExists);
+  if (pidAlreadyExists)
+    AllowSetForegroundWindow (pidAlreadyExists);
+
+  PLOG_INFO << "Attempting to restore the running instance: " << pidAlreadyExists;
+  SendMessage (_Signal._RunningInstance, WM_SKIF_RESTORE, 0x0, 0x0);
+  
+  PLOG_INFO << "Terminating due to this instance having done its job.";
+  ExitProcess (0x0);
 }
 
 
@@ -1151,11 +1181,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Process cmd line arguments (3/4)
   if (_Signal._RunningInstance)
   {
-    SKIF_Startup_LaunchGameService ( );
-    SKIF_Startup_LaunchGame        ( );
-
+    SKIF_Startup_LaunchGameService         ( );
+    SKIF_Startup_LaunchGame                ( );
+    SKIF_Startup_ProxyCommandLineArguments ( );
     if (! _registry.bAllowMultipleInstances)
-      SKIF_Startup_ProxyCommandLineArguments ( );
+      SKIF_Startup_RaiseRunningInstance    ( );
   }
 
   // Initialize the SKIF_IsFocused variable that the gamepad thread will sleep on
@@ -3585,11 +3615,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject.bTaskbarOverlayIcon = false;
 
       if (! SKIF_isTrayed && ! IsIconic (hWnd))
-        RepositionSKIF = true;
+        RepositionSKIF            = true;
 
       if (SKIF_isTrayed)
-      {
-        SKIF_isTrayed               = false;
+      {   SKIF_isTrayed           = false;
         ShowWindowAsync   (hWnd, SW_SHOW);
       }
 
