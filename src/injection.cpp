@@ -55,6 +55,19 @@
 // Registry Settings
 #include <registry.h>
 
+void CALLBACK
+InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
+{
+  UNREFERENCED_PARAMETER (dwTime);
+
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+  
+  // Translates threaded messages created before the window was created when used as a launcher
+  //   into their proper window message counterparts.
+  if (hWnd == NULL && SKIF_hWnd != NULL)
+    PostMessage (SKIF_hWnd, Msg, (wParamIDEvent == _inject.IDT_REFRESH_ONDEMAND) ? cIDT_REFRESH_ONDEMAND : cIDT_REFRESH_PENDING, NULL);
+}
+
 void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -65,8 +78,11 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
   // Set to its current new state
   bAckInj = newState;
 
+  // Close any existing timer
+  if (KillTimer ((IDT_REFRESH_ONDEMAND == cIDT_REFRESH_ONDEMAND) ? SKIF_hWnd : NULL, IDT_REFRESH_ONDEMAND))
+    IDT_REFRESH_ONDEMAND = 0;
+
   // Close any existing handles
-  KillTimer (SKIF_hWnd, IDT_REFRESH_ONDEMAND);
   hInjectAck.Close();
 
   // Create a new handle if requested
@@ -77,11 +93,13 @@ void SKIF_InjectionContext::_ToggleOnDemand (bool newState)
                                                                               : LR"(Local\SKIF_InjectAck)")
     );
 
-    SetTimer (SKIF_hWnd,
-              IDT_REFRESH_ONDEMAND,
-              1000,
-              (TIMERPROC) NULL
-    );
+    //OutputDebugString((L"_ToggleOnDemand set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
+    IDT_REFRESH_ONDEMAND = 
+      SetTimer (SKIF_hWnd,
+                cIDT_REFRESH_ONDEMAND,
+                1000,
+                (TIMERPROC) &InjectionTimerProc
+      );
   }
 }
 
@@ -101,8 +119,9 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
 
   extern HWND SKIF_hWnd;
   bool        ret = false;
-
-  KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING);
+  
+  if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
+    IDT_REFRESH_PENDING = 0;
 
   _ToggleOnDemand ( (! currentRunningState && autoStop) );
 
@@ -186,11 +205,18 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   else
     runState = RunningState::Starting;
 
-  SetTimer (SKIF_hWnd,
-            IDT_REFRESH_PENDING,
-            500,
-            (TIMERPROC) NULL
-  );
+  extern CHandle hInjectAck;
+
+  if (IDT_REFRESH_ONDEMAND == 0)
+  {
+    //OutputDebugString((L"_StartStopInject set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
+    IDT_REFRESH_PENDING =
+      SetTimer (SKIF_hWnd,
+              cIDT_REFRESH_PENDING,
+              500,
+              (TIMERPROC) &InjectionTimerProc
+    );
+  }
 
   dwLastSignaled = SKIF_Util_timeGetTime ();
 
@@ -373,9 +399,10 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
       triedToFix = false;
       
       _SetTaskbarOverlay (bCurrentState);
-        
-      extern HWND SKIF_hWnd;
-      KillTimer  (SKIF_hWnd, IDT_REFRESH_PENDING);
+      
+      if (KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING))
+        IDT_REFRESH_PENDING = 0;
+
       return true;
     }
     // Switch the state over if the service has been

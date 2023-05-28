@@ -30,6 +30,9 @@
 // Singleton struct
 struct SKIF_InjectionContext {
 
+  UINT_PTR IDT_REFRESH_ONDEMAND = 0;
+  UINT_PTR IDT_REFRESH_PENDING  = 0;
+
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
 
