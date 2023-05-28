@@ -265,9 +265,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 #endif
     };
 
-  PLOG_INFO << "Watching 32-bit PID file: " << records[0].wsPidFilename;
+  PLOG_VERBOSE << "Watching 32-bit PID file: " << records[0].wsPidFilename;
 #ifdef _WIN64
-  PLOG_INFO << "Watching 64-bit PID file: " << records[1].wsPidFilename;
+  PLOG_VERBOSE << "Watching 64-bit PID file: " << records[1].wsPidFilename;
 #endif
 
   // Perform the dance of the DLL files
