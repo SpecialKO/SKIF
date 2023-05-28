@@ -476,7 +476,7 @@ SKIF_UI_Tab_DrawSettings (void)
   );
           
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
-    _registry.regKVLowBandwidthMode.putData (                                      _registry.bLowBandwidthMode );
+    _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
           
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
@@ -489,14 +489,31 @@ SKIF_UI_Tab_DrawSettings (void)
   if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
     _registry.regKVPreferGOGGalaxyLaunch.putData (_registry.bPreferGOGGalaxyLaunch);
 
-  if ( ImGui::Checkbox ( "Remember the last selected game",         &_registry.bRememberLastSelected ) )
-    _registry.regKVRememberLastSelected.putData (                    _registry.bRememberLastSelected );
+  if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
+    _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
             
-  if ( ImGui::Checkbox ( "Minimize when launching a game",             &_registry.bMinimizeOnGameLaunch ) )
-    _registry.regKVMinimizeOnGameLaunch.putData (                                      _registry.bMinimizeOnGameLaunch );
-            
+  if ( ImGui::Checkbox ( "Minimize when launching a game",            &_registry.bMinimizeOnGameLaunch ) )
+    _registry.regKVMinimizeOnGameLaunch.putData (                      _registry.bMinimizeOnGameLaunch );
+  
+  if (_registry.bAllowMultipleInstances)
+  {
+    ImGui::BeginGroup   ( );
+    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+  }
+
   if ( ImGui::Checkbox ( "Close to the notification area", &_registry.bCloseToTray ) )
-    _registry.regKVCloseToTray.putData (                                               _registry.bCloseToTray );
+    _registry.regKVCloseToTray.putData (                    _registry.bCloseToTray );
+
+  if (_registry.bAllowMultipleInstances)
+  {
+    ImGui::PopStyleVar     ( );
+    ImGui::PopItemFlag     ( );
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::EndGroup        ( );
+    SKIF_ImGui_SetHoverTip ("Requires 'Allow multiple instances of this app' to be disabled.");
+  }
 
   _inject._StartAtLogonCtrl ( );
 
@@ -557,13 +574,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::TreePush        ("_registry.iCheckForUpdates");
   if (ImGui::RadioButton ("Never",                 &_registry.iCheckForUpdates, 0))
-    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
+    _registry.regKVCheckForUpdates.putData (         _registry.iCheckForUpdates);
   ImGui::SameLine        ( );
   if (ImGui::RadioButton ("Weekly",                &_registry.iCheckForUpdates, 1))
-    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
+    _registry.regKVCheckForUpdates.putData (        _registry.iCheckForUpdates);
   ImGui::SameLine        ( );
   if (ImGui::RadioButton ("On each launch",        &_registry.iCheckForUpdates, 2))
-    _registry.regKVCheckForUpdates.putData (                  _registry.iCheckForUpdates);
+    _registry.regKVCheckForUpdates.putData (        _registry.iCheckForUpdates);
   ImGui::TreePop         ( );
 
   ImGui::EndGroup      ( );
@@ -1106,6 +1123,13 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &_registry.bOpenAtCursorPosition ) )
       _registry.regKVOpenAtCursorPosition.putData (                                            _registry.bOpenAtCursorPosition );
 
+    if (_registry.bCloseToTray)
+    {
+      ImGui::BeginGroup   ( );
+      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+    }
+
     if ( ImGui::Checkbox (
             "Allow multiple instances of this app",
               &_registry.bAllowMultipleInstances )
@@ -1134,6 +1158,16 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVAllowMultipleInstances.putData (
         _registry.bAllowMultipleInstances
         );
+    }
+
+    if (_registry.bCloseToTray)
+    {
+      ImGui::PopStyleVar     ( );
+      ImGui::PopItemFlag     ( );
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      ImGui::EndGroup        ( );
+      SKIF_ImGui_SetHoverTip ("Requires 'Close to the notification area' to be disabled.");
     }
 
     ImGui::NextColumn       ( );

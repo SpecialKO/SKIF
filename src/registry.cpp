@@ -109,6 +109,12 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
   bCloseToTray             =   regKVCloseToTray            .getData ( );
 
+  // Do not allow AllowMultipleInstances and CloseToTray at the same time
+  if (  bAllowMultipleInstances && bCloseToTray)
+  {     bAllowMultipleInstances = false;
+    regKVAllowMultipleInstances .putData (bAllowMultipleInstances);
+  }
+
   if (regKVDisableBorders.hasData())
     bDisableBorders        =   regKVDisableBorders         .getData ( );
 
