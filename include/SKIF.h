@@ -89,17 +89,22 @@ enum UIMode {
 // Structs
 
 struct SKIF_Signals { // Used for command line arguments
-  BOOL Start         = FALSE;
-  BOOL Temporary     = FALSE;
-  BOOL Stop          = FALSE;
-  BOOL Quit          = FALSE;
-  BOOL Minimize      = FALSE;
-  BOOL Restore       =  TRUE; // Only executed once
-  BOOL AddSKIFGame   = FALSE;
-  BOOL Launcher      = FALSE;
+  BOOL Start             = FALSE;
+  BOOL Temporary         = FALSE;
+  BOOL Stop              = FALSE;
+  BOOL Quit              = FALSE;
+  BOOL Minimize          = FALSE;
+//BOOL Restore           =  TRUE; // Only executed once
+  BOOL AddSKIFGame       = FALSE;
+  BOOL Launcher          = FALSE;
 
-  BOOL _Disowned     = FALSE;
-//BOOL _AnySignalled = FALSE;
+//BOOL _Disowned         = FALSE;
+
+  // Helper variables
+  HWND _RunningInstance  = NULL;
+  std::wstring _GamePath    = L"";
+  std::wstring _GameArgs    = L"";
+  std::wstring _GameWorkDir = L"";
 };
 
 // External declarations

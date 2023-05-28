@@ -181,7 +181,6 @@ bool                CreateDeviceD3D                           (HWND hWnd);
 void                CleanupDeviceD3D                          (void);
 LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-void                SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine);
 void                SKIF_putStopOnInjection                   (bool in);
 void                SKIF_Initialize                           (void);
 void                SKIF_UI_DrawComponentVersion              (void);
@@ -230,297 +229,298 @@ SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
   _Signal.AddSKIFGame =
     StrStrIW (lpCmdLine, L"AddGame=") != NULL;
 
-  // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
+  // Both AddSKIFGame and Launcher can include .exe in the argument
   //   so only set Launcher if AddSKIFGame is false.
   if (! _Signal.AddSKIFGame)
         _Signal.Launcher =
       StrStrIW (lpCmdLine, L".exe")     != NULL;
+
+  _Signal._RunningInstance =
+    FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 }
 
 void
-SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
+SKIF_Startup_AddGame (LPWSTR lpCmdLine)
 {
-  PLOG_DEBUG << "Processing command line arguments: " << lpCmdLine;
+  if (! _Signal.AddSKIFGame)
+    return;
+
+  PLOG_INFO << "Adding custom game to SKIF...";
+
+  // O:\WindowsApps\DevolverDigital.MyFriendPedroWin10_1.0.6.0_x64__6kzv4j18v0c96\MyFriendPedro.exe
+
+  std::wstring cmdLine        = std::wstring(lpCmdLine);
+  std::wstring cmdLineArgs    = cmdLine;
+
+  // Transform to lowercase
+  std::wstring cmdLineLower   = SKIF_Util_TowLower (cmdLine);
+
+  std::wstring splitPos1Lower = L"addgame="; // Start split
+  std::wstring splitEXELower  = L".exe";     // Stop split (exe)
+  std::wstring splitLNKLower  = L".lnk";     // Stop split (lnk)
+
+  // Exclude anything before "addgame=", if any
+  cmdLine = cmdLine.substr(cmdLineLower.find(splitPos1Lower) + splitPos1Lower.length());
+
+  // First position is a space -- skip that one
+  if (cmdLine.find(L" ") == 0)
+    cmdLine = cmdLine.substr(1);
+
+  // First position is a quotation mark -- we need to strip those
+  if (cmdLine.find(L"\"") == 0)
+    cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
+
+  // Update lowercase
+  cmdLineLower   = SKIF_Util_TowLower (cmdLine);
+
+  // If .exe is part of the string
+  if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
+  {
+    // Extract proxied arguments, if any
+    cmdLineArgs = cmdLine.substr(cmdLineLower.find(splitEXELower) + splitEXELower.length());
+
+    // Exclude anything past ".exe"
+    cmdLine = cmdLine.substr(0, cmdLineLower.find(splitEXELower) + splitEXELower.length());
+  }
+
+  // If .lnk is part of the string
+  else if (cmdLineLower.find(splitLNKLower) != std::wstring::npos)
+  {
+    // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
+    cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
+      
+    WCHAR wszTarget   [MAX_PATH];
+    WCHAR wszArguments[MAX_PATH];
+
+    SKIF_Util_ResolveShortcut (SKIF_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
+
+    cmdLine     = std::wstring(wszTarget);
+    cmdLineArgs = std::wstring(wszArguments);
+  }
+
+  // Clear var if no valid path was found
+  else {
+    cmdLine.clear();
+  }
+
+  // Only proceed if we have an actual valid path
+  if (cmdLine.length() > 0)
+  {
+    // First position of the arguments is a space -- skip that one
+    if (cmdLineArgs.find(L" ") == 0)
+      cmdLineArgs = cmdLineArgs.substr(1);
+
+    extern std::wstring SKIF_GetProductName    (const wchar_t* wszName);
+    extern int          SKIF_AddCustomAppID    (std::vector<std::pair<std::string, app_record_s>>* apps,
+                                                std::wstring name, std::wstring path, std::wstring args);
+    extern
+      std::vector <
+        std::pair < std::string, app_record_s >
+                  > apps;
+
+    if (PathFileExists (cmdLine.c_str()))
+    {
+      std::wstring productName = SKIF_GetProductName (cmdLine.c_str());
+
+      if (productName == L"")
+        productName = std::filesystem::path (cmdLine).replace_extension().filename().wstring();
+
+      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, productName, cmdLine, cmdLineArgs);
+    
+      // If a running instance of SKIF already exists, terminate this one as it has served its purpose
+      if (SelectNewSKIFGame > 0 && _Signal._RunningInstance != 0)
+      {
+        SendMessage (_Signal._RunningInstance, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
+        PLOG_INFO << "Terminating due to one of these contions were found to be true:";
+        PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
+        PLOG_INFO << "hwndAlreadyExists != 0: " << (_Signal._RunningInstance != 0);
+        ExitProcess (0x0);
+      }
+    }
+
+    else {
+      PLOG_ERROR << "Non-valid path detected: " << cmdLine;
+    }
+  }
+
+  else {
+    PLOG_ERROR << "Non-valid string detected: " << lpCmdLine;
+  }
+}
+
+void
+SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
+{
+  if (! _Signal.Launcher)
+    return;
+
+  PLOG_INFO << "Preparing game path, launch options, and working directory...";
   
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  HWND hwndAlreadyExists =
-    FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
+  std::wstring cmdLine        = std::wstring(lpCmdLine);
+  std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
 
-  if (hwndAlreadyExists != 0)
-    PLOG_VERBOSE << "hwndAlreadyExists: " << hwndAlreadyExists;
+  // First position is a quotation mark -- we need to strip those
+  if (cmdLine.find(L"\"") == 0)
+    cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
-  if ( (  hwndAlreadyExists != 0 ) &&
-       ( ! _Signal.Launcher )      &&
-       ( ! _Signal.AddSKIFGame)    &&
-       ( ! _registry.bAllowMultipleInstances    ||
-                                   _Signal.Stop || _Signal.Start    ||
-                                   _Signal.Quit || _Signal.Minimize  )
-     )
+  // Transform to lowercase
+  std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
+
+  // Extract the target path and any proxied command line arguments
+  std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
+  std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
+
+  // Path does not seem to be absolute -- add the current working directory in front of the path
+  if (path.find(L"\\") == std::wstring::npos)
+    path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
+
+  std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
+
+  PLOG_VERBOSE << "Executable:        " << path;
+  PLOG_VERBOSE << "Command Line Args: " << proxiedCmdLine;
+  PLOG_VERBOSE << "Working Directory: " << workingDirectory;
+
+  bool isLocalBlacklisted  = false,
+       isGlobalBlacklisted = false;
+
+  if (PathFileExists (path.c_str()))
   {
-    PLOG_VERBOSE << "hwndAlreadyExists was found to be true; proxying call...";
+    std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
+                                                    std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                    std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+    );
 
-    // If no cmd line argument is used, restore the running instance
-    if (! _Signal.Start     &&
-        ! _Signal.Stop      &&
-        ! _Signal.Minimize  &&
-        ! _Signal.Quit      &&
-        ! _Signal.Launcher)
+    // Check if the executable is blacklisted
+    isLocalBlacklisted  = PathFileExistsW (blacklistFile.c_str());
+    isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
+
+    if (! isLocalBlacklisted &&
+        ! isGlobalBlacklisted)
     {
-      // Only try to restore SKIF the first time we process 
-      //   SKIF_Startup_ProxyCommandAndExitIfRunning ( )
-      if (_Signal.Restore)
-      {   _Signal.Restore = false;
-        DWORD pidAlreadyExists = 0;
-        GetWindowThreadProcessId (hwndAlreadyExists, &pidAlreadyExists);
+      // Whitelist the path if it haven't been already
+      _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
 
-        // We must allow the existing process to set the foreground window
-        //   as this is part of the WM_SKIF_RESTORE procedure
-        if (pidAlreadyExists)
-          AllowSetForegroundWindow (pidAlreadyExists);
-
-        PLOG_INFO << "Attempting to restore the running instance: " << pidAlreadyExists;
-
-        PostMessage (hwndAlreadyExists, WM_SKIF_RESTORE, 0x0, 0x0);
-      }
-    }
-
-    // Otherwise proxy the calls and then restore whatever third-party window was originally in the foreground
-    else {
-      if (_Signal.Start)
-        PostMessage (hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
-
-      if (_Signal.Stop)
-        PostMessage (hwndAlreadyExists, WM_SKIF_STOP, 0x0, 0x0);
-    
-      if (_Signal.Minimize)
-        PostMessage (hwndAlreadyExists, WM_SKIF_MINIMIZE, 0x0, 0x0);
-
-      if (_Signal.Quit)
-        PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
-
-      // 2023-05-28: Only run this the first time we process
-      //   SKIF_Startup_ProxyCommandAndExitIfRunning ( )
-      // TODO: Investigate how this affects things when it's allowed to run both times vs. only once
-      //       The parth should only really execute when SKIF is used as a launcher or service toggle
-      if (! _Signal._Disowned)
-      {
-        if (IsIconic        (hWndOrigForeground))
-          ShowWindow        (hWndOrigForeground, SW_SHOWNA);
-        SetForegroundWindow (hWndOrigForeground);
-      }
-    }
-
-    if (_Signal.Quit || (! _Signal._Disowned))
-    {
-      PLOG_INFO << "Terminating due to this instance having done its job.";
-      ExitProcess (0x0);
+      _Signal._GamePath    = path;
+      _Signal._GameArgs    = proxiedCmdLine;
+      _Signal._GameWorkDir = workingDirectory;
     }
   }
 
-  else if (_Signal.Quit)
-  {
-    PLOG_VERBOSE << "hwndAlreadyExists was found to be false; handling call...";
+  else {
+    PLOG_ERROR << "Non-valid path detected: " << path;
 
-    if (_Signal.Stop)
-      _inject._StartStopInject (true);
-    
-    PLOG_INFO << "Terminating due to _Signal.Quit";
     ExitProcess (0x0);
   }
+}
 
-  // Handle adding custom game
-  if (_Signal.AddSKIFGame)
+void
+SKIF_Startup_LaunchGameService (void)
+{
+  if (_Signal._GamePath.empty())
+    return;
+
+  PLOG_INFO << "Starting injection service...";
+
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  if (_Signal._RunningInstance)
+    SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, 0x0, 0x0);
+
+  else if (! _inject.bCurrentState)
   {
-    PLOG_VERBOSE << "SKIF being used to add a custom game to SKIF...";
-    // O:\WindowsApps\DevolverDigital.MyFriendPedroWin10_1.0.6.0_x64__6kzv4j18v0c96\MyFriendPedro.exe
+    bExitOnInjection = true;
+    _inject._StartStopInject (false, true);
+  }
+}
 
-    std::wstring cmdLine        = std::wstring(lpCmdLine);
-    std::wstring cmdLineArgs    = cmdLine;
-
-    // Transform to lowercase
-    std::wstring cmdLineLower   = SKIF_Util_TowLower (cmdLine);
-
-    std::wstring splitPos1Lower = L"addgame="; // Start split
-    std::wstring splitEXELower  = L".exe";     // Stop split (exe)
-    std::wstring splitLNKLower  = L".lnk";     // Stop split (lnk)
-
-    // Exclude anything before "addgame=", if any
-    cmdLine = cmdLine.substr(cmdLineLower.find(splitPos1Lower) + splitPos1Lower.length());
-
-    // First position is a space -- skip that one
-    if (cmdLine.find(L" ") == 0)
-      cmdLine = cmdLine.substr(1);
-
-    // First position is a quotation mark -- we need to strip those
-    if (cmdLine.find(L"\"") == 0)
-      cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
-
-    // Update lowercase
-    cmdLineLower   = SKIF_Util_TowLower (cmdLine);
-
-    // If .exe is part of the string
-    if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
-    {
-      // Extract proxied arguments, if any
-      cmdLineArgs = cmdLine.substr(cmdLineLower.find(splitEXELower) + splitEXELower.length());
-
-      // Exclude anything past ".exe"
-      cmdLine = cmdLine.substr(0, cmdLineLower.find(splitEXELower) + splitEXELower.length());
-    }
-
-    // If .lnk is part of the string
-    else if (cmdLineLower.find(splitLNKLower) != std::wstring::npos)
-    {
-      // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
-      cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
+void
+SKIF_Startup_LaunchGame (void)
+{
+  if (_Signal._GamePath.empty())
+    return;
       
-      WCHAR wszTarget   [MAX_PATH];
-      WCHAR wszArguments[MAX_PATH];
+  PLOG_INFO << "Launching game executable: " << _Signal._GamePath;
 
-      SKIF_Util_ResolveShortcut (SKIF_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = _Signal._GamePath.c_str();
+    sexi.lpParameters = _Signal._GameArgs.c_str();
+    sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
+    sexi.nShow        = SW_SHOW;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
-      cmdLine     = std::wstring(wszTarget);
-      cmdLineArgs = std::wstring(wszArguments);
-    }
+  // Launch executable
+  ShellExecuteExW (&sexi);
 
-    // Clear var if no valid path was found
-    else {
-      cmdLine.clear();
-    }
+  // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
+  if (_Signal._RunningInstance)
+  {
+    PLOG_INFO << "Terminating as this instance has fulfilled its purpose.";
 
-    // Only proceed if we have an actual valid path
-    if (cmdLine.length() > 0)
-    {
-      // First position of the arguments is a space -- skip that one
-      if (cmdLineArgs.find(L" ") == 0)
-        cmdLineArgs = cmdLineArgs.substr(1);
+    ExitProcess (0x0);
+  }
+}
 
-      extern std::wstring SKIF_GetProductName    (const wchar_t* wszName);
-      extern int          SKIF_AddCustomAppID    (std::vector<std::pair<std::string, app_record_s>>* apps,
-                                                  std::wstring name, std::wstring path, std::wstring args);
-      extern
-        std::vector <
-          std::pair < std::string, app_record_s >
-                    > apps;
+void
+SKIF_Startup_ProxyCommandLineArguments (void)
+{
+  if (! _Signal._RunningInstance)
+    return;
 
-      if (PathFileExists (cmdLine.c_str()))
-      {
-        std::wstring productName = SKIF_GetProductName (cmdLine.c_str());
+  PLOG_INFO << "Proxying command line arguments...";
 
-        if (productName == L"")
-          productName = std::filesystem::path (cmdLine).replace_extension().filename().wstring();
+  // If no cmd line argument is used, restore the running instance
+  if (! _Signal.Start     &&
+      ! _Signal.Stop      &&
+      ! _Signal.Minimize  &&
+      ! _Signal.Quit      &&
+      ! _Signal._GamePath.empty()  &&
+         SKIF_hWnd == 0    )
+  {
+    // We must allow the existing process to set the foreground window
+    //   as this is part of the WM_SKIF_RESTORE procedure
+    DWORD pidAlreadyExists = 0;
+    GetWindowThreadProcessId (_Signal._RunningInstance, &pidAlreadyExists);
+    if (pidAlreadyExists)
+      AllowSetForegroundWindow (pidAlreadyExists);
 
-        SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&apps, productName, cmdLine, cmdLineArgs);
+    PLOG_INFO << "Attempting to restore the running instance: " << pidAlreadyExists;
+    PostMessage (_Signal._RunningInstance, WM_SKIF_RESTORE, 0x0, 0x0);
+  }
+
+  // Otherwise proxy the calls and then restore whatever third-party window was originally in the foreground
+  else {
+    if (_Signal.Start)
+      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
+
+    if (_Signal.Stop)
+      PostMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
     
-        // If a running instance of SKIF already exists, terminate this one as it has served its purpose
-        if (SelectNewSKIFGame > 0 && hwndAlreadyExists != 0)
-        {
-          SendMessage (hwndAlreadyExists, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
-          PLOG_INFO << "Terminating due to one of these contions were found to be true:";
-          PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
-          PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
-          ExitProcess (0x0);
-        }
-      }
-    }
+    if (_Signal.Minimize)
+      PostMessage (_Signal._RunningInstance, WM_SKIF_MINIMIZE, 0x0, 0x0);
 
-    // Terminate the process if given a non-valid string
-    else {
-      PLOG_INFO << "Terminating due to given a non-valid string!";
-      ExitProcess (0x0);
+    if (_Signal.Quit)
+      PostMessage (_Signal._RunningInstance, WM_CLOSE, 0x0, 0x0);
+
+    // Restore the foreground state to whatever app had it before
+    if (hWndOrigForeground != 0 && SKIF_hWnd == 0)
+    {
+      if (IsIconic        (hWndOrigForeground))
+        ShowWindow        (hWndOrigForeground, SW_SHOWNA);
+      SetForegroundWindow (hWndOrigForeground);
     }
   }
-  
-  // Handle quick launching
-  else if (_Signal.Launcher)
+
+  if (SKIF_hWnd == 0)
   {
-    PLOG_VERBOSE << "SKIF is being used as a launcher...";
-
-    // Display in small mode
-    _registry.bSmallMode = true;
-
-    std::wstring cmdLine        = std::wstring(lpCmdLine);
-    std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
-
-    // First position is a quotation mark -- we need to strip those
-    if (cmdLine.find(L"\"") == 0)
-      cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
-
-    // Transform to lowercase
-    std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
-
-    // Extract the target path and any proxied command line arguments
-    std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
-    std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
-
-    // Path does not seem to be absolute -- add the current working directory in front of the path
-    if (path.find(L"\\") == std::wstring::npos)
-      path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
-
-    std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
-
-    PLOG_VERBOSE << "Executable:        " << path;
-    PLOG_VERBOSE << "Working Directory: " << workingDirectory;
-
-    bool isLocalBlacklisted  = false,
-         isGlobalBlacklisted = false;
-
-    if (PathFileExistsW (path.c_str()))
-    {
-      std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
-                                                     std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
-                                                     std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
-      );
-
-      // Check if the executable is blacklisted
-      isLocalBlacklisted  = PathFileExistsW (blacklistFile.c_str());
-      isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
-
-      if (! isLocalBlacklisted &&
-          ! isGlobalBlacklisted)
-      {
-        // Whitelist the path if it haven't been already
-        _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
-
-        if (hwndAlreadyExists != 0)
-          SendMessage (hwndAlreadyExists, WM_SKIF_LAUNCHER, 0x0, 0x0);
-
-        else if (! _inject.bCurrentState)
-        {
-          bExitOnInjection = true;
-          _inject._StartStopInject (false, true); // TODO: Redo this as it currently requires a window for the timer to be set up properly
-        }
-      }
-
-      SHELLEXECUTEINFOW
-        sexi              = { };
-        sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-        sexi.lpVerb       = L"OPEN";
-        sexi.lpFile       = path.c_str();
-        sexi.lpParameters = proxiedCmdLine.c_str();
-        sexi.lpDirectory  = workingDirectory.c_str();
-        sexi.nShow        = SW_SHOW;
-        sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                            SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-
-      // Launch executable
-      ShellExecuteExW (&sexi);
-      
-      PLOG_INFO << "Launched the given executable!";
-    }
-
-    // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
-    if (hwndAlreadyExists != 0 || isLocalBlacklisted || isGlobalBlacklisted)
-    {
-      PLOG_INFO << "Terminating due to one of these contions were found to be true:";
-      PLOG_INFO << "hwndAlreadyExists != 0: " << (hwndAlreadyExists != 0);
-      PLOG_INFO << "isLocalBlacklisted: "     << (isLocalBlacklisted    );
-      PLOG_INFO << "isGlobalBlacklisted: "    << (isGlobalBlacklisted   );
-      ExitProcess (0x0);
-    }
+    PLOG_INFO << "Terminating due to this instance having done its job.";
+    ExitProcess (0x0);
   }
 }
 
@@ -1123,7 +1123,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ExitProcess (0x0);
   }
   
-  // Process cmd line arguments (1/3) -- this sets up the necessary variables
+  // Process cmd line arguments (1/4) -- this sets up the necessary variables
   SKIF_Startup_ProcessCmdLineArgs (lpCmdLine);
 
   // This constructs these singleton objects
@@ -1140,16 +1140,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // This constructs this singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
   
-  // Remember what third-party window is currently in the foreground
-  //   This is used when proxying cmd arguments to restore original focus
-  hWndOrigForeground =
+  // Process cmd line arguments (2/4)
+  hWndOrigForeground = // Remember what third-party window is currently in the foreground
     GetForegroundWindow ();
-  
-  // Process cmd line arguments (2/3) -- this executes based on the set variables
-  SKIF_Startup_ProxyCommandAndExitIfRunning (lpCmdLine);
-  
-  // At this point we can be sure that SKIF is not solely being used as a short-lived launcher as
-  //   the SKIF_Startup_ProxyCommandAndExitIfRunning would have terminated the process if it were
+  SKIF_Startup_AddGame (lpCmdLine);
+  SKIF_Startup_LaunchGamePreparation (lpCmdLine);
+
+  // If there already an instance of SKIF running we do not
+  //   need to create a window to service the cmd line args
+  // Process cmd line arguments (3/4)
+  if (_Signal._RunningInstance)
+  {
+    SKIF_Startup_LaunchGameService ( );
+    SKIF_Startup_LaunchGame        ( );
+
+    if (! _registry.bAllowMultipleInstances)
+      SKIF_Startup_ProxyCommandLineArguments ( );
+  }
 
   // Initialize the SKIF_IsFocused variable that the gamepad thread will sleep on
   InitializeConditionVariable (&SKIF_IsFocused);
@@ -1248,11 +1255,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_hWnd             =
     CreateWindowExW (                    dwStyleEx,
       wc.lpszClassName, _L("Special K"), dwStyle,
-      /* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
-      SK_FULLSCREEN_X (dpi) / 2 - __width  / 2,
-      SK_FULLSCREEN_Y (dpi) / 2 - __height / 2,
-                   __width, __height,
-      */
                          0, 0,
                          0, 0,
                    nullptr, nullptr,
@@ -1296,6 +1298,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     ShowWindowAsync (hWnd, nCmdShow);
     UpdateWindow    (hWnd);
+  }
+
+  // If there were not an instance of SKIF already running
+  //   we need to handle any remaining tasks here.
+  // Process cmd line arguments (4/4)
+  if (! _Signal._RunningInstance || _registry.bAllowMultipleInstances)
+  {
+    if (! _Signal._GamePath.empty())
+    {
+      SKIF_Startup_LaunchGameService ( );
+      SKIF_Startup_LaunchGame        ( );
+      _registry.bSmallMode = true;
+    }
+
+    // If we are not acting as a launcher,
+    //   send messages to ourselves.
+    else {
+      _Signal._RunningInstance = SKIF_hWnd;
+      SKIF_Startup_ProxyCommandLineArguments ( );
+    }
   }
 
   // Setup Dear ImGui context
@@ -1376,17 +1398,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool    changedMode      = false;
           RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
-
-  // Do not execute when used as a launcher (prevents false positives from game paths/executables)
-  if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
-  {
-    // Handle cases where a Start / Stop Command Line was Passed,
-    //   but no running instance existed to service it yet...
-    _Signal._Disowned = TRUE;
-
-    // Process cmd line arguments (3/3) -- this handles any remaining variables
-    SKIF_Startup_ProxyCommandAndExitIfRunning (lpCmdLine);
-  }
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
