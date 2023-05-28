@@ -567,7 +567,7 @@ void SKIF_putStopOnInjection (bool in)
     _registry.regKVLegacyDisableStopOnInjection.putData(!in);
 
   if (_inject.bCurrentState)
-    _inject._ToggleOnDemand (in);
+    _inject._ToggleInjectAck (in);
 }
 
 void SKIF_CreateUpdateNotifyMenu (void)
@@ -3164,7 +3164,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_UnregisterHDRToggleHotKey ( );
 
   PLOG_INFO << "Killing timers...";
-  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_ONDEMAND);
+  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_INJECTACK);
   KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
@@ -3657,7 +3657,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
           }
           return 0;
-        case cIDT_REFRESH_ONDEMAND:
+        case cIDT_REFRESH_INJECTACK:
         case cIDT_REFRESH_PENDING:
           // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
           return 0;
