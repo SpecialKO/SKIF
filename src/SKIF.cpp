@@ -20,6 +20,9 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
+#include "../resource.h"
+#include "../version.h"
+
 #include <strsafe.h>
 #include <wtypes.h>
 #include <dxgi1_5.h>
@@ -33,8 +36,6 @@
 #include <SKIF_imgui.h>
 
 #include <stores/Steam/steam_library.h>
-
-#include "../version.h"
 #include <injection.h>
 #include <font_awesome.h>
 

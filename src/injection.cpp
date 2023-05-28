@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "../resource.h"
+
 #include <SKIF.h>
 #include <SKIF_utility.h>
 #include <SKIF_imgui.h>
