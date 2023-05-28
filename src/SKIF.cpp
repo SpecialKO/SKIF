@@ -186,12 +186,17 @@ ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
 ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
 
 // Forward declarations
-bool                CreateDeviceD3D                   (HWND hWnd);
-void                CleanupDeviceD3D                  (void);
-LRESULT WINAPI      SKIF_WndProc                      (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT WINAPI      SKIF_Notify_WndProc               (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-void                SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine);
-void                SKIF_putStopOnInjection (bool in);
+
+bool                CreateDeviceD3D                           (HWND hWnd);
+void                CleanupDeviceD3D                          (void);
+LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void                SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine);
+void                SKIF_putStopOnInjection                   (bool in);
+void                SKIF_Initialize                           (void);
+void                SKIF_UI_DrawComponentVersion              (void);
+void                SKIF_UI_DrawPlatformStatus                (void);
+void                SKIF_UI_DrawShellyTheGhost                (void);
 
 bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
 CHandle hInjectAck (0);           // Signalled when a game finishes injection
@@ -215,7 +220,35 @@ ImGuiStyle SKIF_ImGui_DefaultStyle;
 HWND hWndOrigForeground;
 
 void
-SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
+SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
+{
+  _Signal.Start =
+    StrStrIW (lpCmdLine, L"Start")    != NULL;
+
+  _Signal.Temporary =
+    StrStrIW (lpCmdLine, L"Temp")     != NULL;
+
+  _Signal.Stop =
+    StrStrIW (lpCmdLine, L"Stop")     != NULL;
+
+  _Signal.Quit =
+    StrStrIW (lpCmdLine, L"Quit")     != NULL;
+
+  _Signal.Minimize =
+    StrStrIW (lpCmdLine, L"Minimize") != NULL;
+
+  _Signal.AddSKIFGame =
+    StrStrIW (lpCmdLine, L"AddGame=") != NULL;
+
+  // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
+  //   so only set Launcher if AddSKIFGame is false.
+  if (! _Signal.AddSKIFGame)
+        _Signal.Launcher =
+      StrStrIW (lpCmdLine, L".exe")     != NULL;
+}
+
+void
+SKIF_Startup_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
 {
   PLOG_DEBUG << "Processing command line arguments: " << lpCmdLine;
   
@@ -223,45 +256,11 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-
   HWND hwndAlreadyExists =
     FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
 
   if (hwndAlreadyExists != 0)
     PLOG_VERBOSE << "hwndAlreadyExists: " << hwndAlreadyExists;
-
-  static bool runOnce = true;
-  
-  if (runOnce)
-  {
-    runOnce = false;
-
-    _Signal.Start =
-      StrStrIW (lpCmdLine, L"Start")    != NULL;
-
-    _Signal.Temporary =
-      StrStrIW (lpCmdLine, L"Temp")     != NULL ||
-     (StrStrIW (lpCmdLine, L"Auto")     != NULL &&
-      _registry.bStopOnInjection                );
-
-    _Signal.Stop =
-      StrStrIW (lpCmdLine, L"Stop")     != NULL;
-
-    _Signal.Quit =
-      StrStrIW (lpCmdLine, L"Quit")     != NULL;
-
-    _Signal.Minimize =
-      StrStrIW (lpCmdLine, L"Minimize") != NULL;
-
-    _Signal.AddSKIFGame =
-      StrStrIW (lpCmdLine, L"AddGame=") != NULL;
-
-    // Both AddSKIFGame and Launcher is expected to include .exe in the argument,
-    //   so only set Launcher if AddSKIFGame is false.
-    if (! _Signal.AddSKIFGame)
-          _Signal.Launcher =
-        StrStrIW (lpCmdLine, L".exe")     != NULL;
-  }
 
   if ( (  hwndAlreadyExists != 0 ) &&
        ( ! _Signal.Launcher )      &&
@@ -294,7 +293,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       //SetForegroundWindow (hwndAlreadyExists);
     }
 
-    // Otherwise restore whatever third-party window was originally in the foreground
+    // Otherwise proxy the calls and then restore whatever third-party window was originally in the foreground
     else {
       if (_Signal.Start)
         PostMessage (hwndAlreadyExists, (_Signal.Temporary) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0x0, 0x0);
@@ -308,6 +307,7 @@ SKIF_ProxyCommandAndExitIfRunning (LPWSTR lpCmdLine)
       if (_Signal.Quit)
         PostMessage (hwndAlreadyExists, WM_CLOSE, 0x0, 0x0);
 
+      // TODO: Investigate how this affects things the second time this function is called
       if (IsIconic        (hWndOrigForeground))
         ShowWindow        (hWndOrigForeground, SW_SHOWNA);
       SetForegroundWindow (hWndOrigForeground);
@@ -538,18 +538,6 @@ void SKIF_putStopOnInjection (bool in)
 
   if (_inject.bCurrentState)
     _inject._ToggleOnDemand (in);
-}
-
-std::string patrons;
-std::atomic<int> update_thread         = 0; // 0 = No update check has run,            1 = Update check is running,       2 = Update check has completed
-std::atomic<int> update_thread_new     = 0; // 0 = No new update check is needed run,  1 = A new update check should start if the current one is complete
-std::atomic<int> update_thread_patreon = 0; // 0 = patrons.txt is not ready,           1 = patrons.txt is ready
-
-std::string SKIF_GetPatrons ( )
-{
-  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-
-  return _updater.GetPatrons ( );
 }
 
 void SKIF_CreateUpdateNotifyMenu (void)
@@ -1125,6 +1113,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Don't stick around if the RestartDisplDrv command is being used.
     ExitProcess (0x0);
   }
+  
+  // Process cmd line arguments (1/3) -- this sets up the necessary variables
+  SKIF_Startup_ProcessCmdLineArgs (lpCmdLine);
 
   // This constructs these singleton objects
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
@@ -1139,19 +1130,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // This constructs this singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
   
-  // Remember what third-party window is currently in the foreground (used when proxying cmd arguments)
+  // Remember what third-party window is currently in the foreground
+  //   This is used when proxying cmd arguments to restore original focus
   hWndOrigForeground =
     GetForegroundWindow ();
+  
+  // Process cmd line arguments (2/3) -- this executes based on the set variables
+  SKIF_Startup_ProxyCommandAndExitIfRunning (lpCmdLine);
+  
+  // At this point we can be sure that SKIF is not solely being used as a short-lived launcher as
+  //   the SKIF_Startup_ProxyCommandAndExitIfRunning would have terminated the process if it were
 
-  SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+  // Initialize the SKIF_IsFocused variable that the gamepad thread will sleep on
+  InitializeConditionVariable (&SKIF_IsFocused);
 
   // Load the SKIF.exe module (used to populate the icon here and there)
   hModSKIF =
     GetModuleHandleW (nullptr);
 
-  // We don't want Steam's overlay to draw upon SKIF,
-  //   but only if not used as a launcher.
-  //if (! _Signal.Launcher) // Shouldn't be needed, and might cause Steam to hook SKIF...
+  // We don't want Steam's overlay to draw upon SKIF
   SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   // First round
@@ -1262,8 +1259,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   HICON hIcon =
     LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
-  InitializeConditionVariable (&SKIF_IsFocused);
-
   SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
   SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
   SendMessage      (hWnd, WM_SETICON, ICON_SMALL2,     (LPARAM)hIcon);
@@ -1278,7 +1273,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
-  // The window has been created but not displayed.
+  // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
   SKIF_CreateNotifyIcon       ();
   SKIF_CreateUpdateNotifyMenu ();
@@ -1357,28 +1352,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
-  // Our state
-  ImVec4 clear_color         =
-    ImVec4 (0.45F, 0.55F, 0.60F, 1.00F);
-
   // Message queue/pump
   MSG msg = { };
 
   // Variables related to the display SKIF is visible on
-  ImGuiPlatformMonitor* monitor = nullptr;
-  ImVec2 windowPos;
-  ImRect windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  ImRect monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  bool changedMode        = false;
-       RepositionSKIF     = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+  ImGuiPlatformMonitor*
+          monitor          = nullptr;
+  ImVec2  windowPos;
+  ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
+  ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
+  bool    changedMode      = false;
+          RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
-  // Handle cases where a Start / Stop Command Line was Passed,
-  //   but no running instance existed to service it yet...
-  _Signal._Disowned = TRUE;
-
-  // Don't execute again when used as a launcher (prevents false positives from game paths/executables)
+  // Do not execute when used as a launcher (prevents false positives from game paths/executables)
   if      ((_Signal.Start || _Signal.Stop) && ! _Signal.Launcher)
-    SKIF_ProxyCommandAndExitIfRunning (lpCmdLine);
+  {
+    // Handle cases where a Start / Stop Command Line was Passed,
+    //   but no running instance existed to service it yet...
+    _Signal._Disowned = TRUE;
+
+    // Process cmd line arguments (3/3) -- this handles any remaining variables
+    SKIF_Startup_ProxyCommandAndExitIfRunning (lpCmdLine);
+  }
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
@@ -2773,9 +2768,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if ( bRefresh )
     {
-      //g_pd3dDeviceContext->OMSetRenderTargets    (1, &g_mainRenderTargetView, nullptr);
-      //g_pd3dDeviceContext->ClearRenderTargetView (    g_mainRenderTargetView, (float*)&clear_color);
-
       if (! startedMinimized && ! SKIF_isTrayed)
       {
         ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());

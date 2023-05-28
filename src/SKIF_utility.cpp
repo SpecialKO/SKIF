@@ -13,9 +13,10 @@
 
 #pragma comment (lib, "Gdiplus.lib")
 
-#include "SKIF.h"
-#include <registry.h>
+#include <SKIF.h>
 #include <fsutil.h>
+#include <registry.h>
+#include <injection.h>
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 

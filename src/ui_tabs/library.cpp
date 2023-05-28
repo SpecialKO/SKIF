@@ -61,8 +61,8 @@
 
 #include <games.h>
 
-// Registry Settings
 #include <registry.h>
+#include <updater.h>
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -3698,7 +3698,7 @@ Cache=false)";
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
-    std::string patrons_ = SKIF_GetPatrons ( );
+    std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
 
     ImGui::Spacing            ( );
     ImGui::SameLine           ( );

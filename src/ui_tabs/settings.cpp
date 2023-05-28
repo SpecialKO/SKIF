@@ -3,15 +3,15 @@
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
 #include <filesystem>
-#include <fsutil.h>
 
 #include <dxgi.h>
 #include <d3d11.h>
 #include <d3dkmthk.h>
 #include "../../version.h"
 
-// Registry Settings
+#include <fsutil.h>
 #include <registry.h>
+#include <injection.h>
 #include <updater.h>
 
 struct Monitor_MPO_Support

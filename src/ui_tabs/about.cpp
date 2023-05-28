@@ -515,6 +515,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
   
+  extern void SKIF_UI_DrawComponentVersion (void);
   SKIF_UI_DrawComponentVersion ( );
 
   ImGui::PopStyleColor    (4);

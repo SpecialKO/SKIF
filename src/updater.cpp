@@ -7,12 +7,12 @@
 
 #include <SKIF.h>
 #include <SKIF_utility.h>
-#include <fsutil.h>
 #include <sk_utility/utility.h>
 #include <nlohmann/json.hpp>
 
-// Registry Settings
+#include <fsutil.h>
 #include <registry.h>
+#include <injection.h>
 
 CONDITION_VARIABLE UpdaterPaused = { };
 
