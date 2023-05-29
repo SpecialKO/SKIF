@@ -299,110 +299,118 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
   static std::wstring dirNameInstall  = std::filesystem::path (_path_cache.specialk_install ).filename();
   static std::wstring dirNameUserdata = std::filesystem::path (_path_cache.specialk_userdata).filename();
 
-  // Get a handle to the SCM database.
-  schSCManager =
-    OpenSCManager (
-      nullptr,             // local computer
-      nullptr,             // servicesActive database
-      STANDARD_RIGHTS_READ // enumerate services
-    );
-
-  if (nullptr != schSCManager)
-  {
-    // Get a handle to the service.
-    svcWinRing0 =
-      OpenService (
-        schSCManager,        // SCM database
-        svcName.c_str(),     // name of service - Old: WinRing0_1_2_0, New: SK_WinRing0
-        SERVICE_QUERY_CONFIG // query config
+  // Need a try-catch block as this can apparently crash due to some currently unknown reason
+  try {
+    // Get a handle to the SCM database.
+    schSCManager =
+      OpenSCManager (
+        nullptr,             // local computer
+        nullptr,             // servicesActive database
+        STANDARD_RIGHTS_READ // enumerate services
       );
 
-    if (nullptr != svcWinRing0)
+    if (nullptr != schSCManager)
     {
-      // Attempt to get the configuration information to get an idea of what buffer size is required.
-      if (! QueryServiceConfig (
-              svcWinRing0,
-                nullptr, 0,
-                  &dwBytesNeeded )
-          )
+      // Get a handle to the service.
+      svcWinRing0 =
+        OpenService (
+          schSCManager,        // SCM database
+          svcName.c_str(),     // name of service - Old: WinRing0_1_2_0, New: SK_WinRing0
+          SERVICE_QUERY_CONFIG // query config
+        );
+
+      if (nullptr != svcWinRing0)
       {
-        if (ERROR_INSUFFICIENT_BUFFER == GetLastError ( ))
+        // Attempt to get the configuration information to get an idea of what buffer size is required.
+        if (! QueryServiceConfig (
+                svcWinRing0,
+                  nullptr, 0,
+                    &dwBytesNeeded )
+            )
         {
-          cbBufSize = dwBytesNeeded;
-          lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
-
-          // Get the configuration information with the necessary buffer size.
-          if (lpsc != nullptr && 
-                QueryServiceConfig (
-                  svcWinRing0,
-                    lpsc, cbBufSize,
-                      &dwBytesNeeded )
-              )
+          if (ERROR_INSUFFICIENT_BUFFER == GetLastError ( ))
           {
-            // Store the binary path of the installed driver.
-            binaryPath = std::wstring (lpsc->lpBinaryPathName);
-            binaryPath = binaryPath.substr(4); // Strip \??\\
+            cbBufSize = dwBytesNeeded;
+            lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
 
-            PLOG_VERBOSE << "Driver " << svcName << " supposedly installed at : " << binaryPath;
-
-            if (svcName == L"SK_WinRing0" &&
-                PathFileExists (binaryPath.c_str()))
+            // Get the configuration information with the necessary buffer size.
+            if (lpsc != nullptr && 
+                  QueryServiceConfig (
+                    svcWinRing0,
+                      lpsc, cbBufSize,
+                        &dwBytesNeeded )
+                )
             {
-              ptrStatus = Installed; // File exists, so driver is installed
-              PLOG_INFO << "Found driver " << svcName << " installed at : " << binaryPath;
-            }
+              // Store the binary path of the installed driver.
+              binaryPath = std::wstring (lpsc->lpBinaryPathName);
+              binaryPath = binaryPath.substr(4); // Strip \??\\
 
-            // Method used to detect the old copy
-            else {
-              PLOG_VERBOSE << "dirNameInstall:  " << dirNameInstall;
-              PLOG_VERBOSE << "dirNameUserdata: " << dirNameUserdata;
+              PLOG_VERBOSE << "Driver " << svcName << " supposedly installed at : " << binaryPath;
 
-              // Check if the installed driver exists, and it's in SK's folder
-              if (PathFileExists      (binaryPath.c_str()) &&
-                (std::wstring::npos != binaryPath.find (dirNameInstall ) ||
-                 std::wstring::npos != binaryPath.find (dirNameUserdata)))
+              if (svcName == L"SK_WinRing0" &&
+                  PathFileExists (binaryPath.c_str()))
               {
-                ptrStatus = ObsoleteInstalled; // File exists, so obsolete driver is installed
-                PLOG_INFO << "Found obsolete driver " << svcName << " installed at : " << binaryPath;
+                ptrStatus = Installed; // File exists, so driver is installed
+                PLOG_INFO << "Found driver " << svcName << " installed at : " << binaryPath;
+              }
+
+              // Method used to detect the old copy
+              else {
+                PLOG_VERBOSE << "dirNameInstall:  " << dirNameInstall;
+                PLOG_VERBOSE << "dirNameUserdata: " << dirNameUserdata;
+
+                // Check if the installed driver exists, and it's in SK's folder
+                if (PathFileExists      (binaryPath.c_str()) &&
+                  (std::wstring::npos != binaryPath.find (dirNameInstall ) ||
+                   std::wstring::npos != binaryPath.find (dirNameUserdata)))
+                {
+                  ptrStatus = ObsoleteInstalled; // File exists, so obsolete driver is installed
+                  PLOG_INFO << "Found obsolete driver " << svcName << " installed at : " << binaryPath;
+                }
               }
             }
+            else {
+              PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+            }
+
+            LocalFree (lpsc);
           }
           else {
-            PLOG_ERROR << "QueryServiceConfig failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+            PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr ( );
           }
-
-          LocalFree (lpsc);
         }
         else {
-          PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr ( );
+          PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr();
+        }
+
+        CloseServiceHandle (svcWinRing0);
+      }
+      else if (ERROR_SERVICE_DOES_NOT_EXIST == GetLastError ( ))
+      {
+        //PLOG_INFO << "SK_WinRing0 has not been installed.";
+
+        static bool checkObsoleteOnce = true;
+        // Check if WinRing0_1_2_0 have been installed, but only on the very first check
+        if (checkObsoleteOnce && svcName == L"SK_WinRing0")
+        {
+          checkObsoleteOnce = false;
+          GetDrvInstallState (ptrStatus, L"WinRing0_1_2_0");
         }
       }
       else {
-        PLOG_WARNING << "Unexpected behaviour occurred: " << SKIF_Util_GetErrorAsWStr();
+        PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
       }
 
-      CloseServiceHandle (svcWinRing0);
-    }
-    else if (ERROR_SERVICE_DOES_NOT_EXIST == GetLastError ( ))
-    {
-      //PLOG_INFO << "SK_WinRing0 has not been installed.";
-
-      static bool checkObsoleteOnce = true;
-      // Check if WinRing0_1_2_0 have been installed, but only on the very first check
-      if (checkObsoleteOnce && svcName == L"SK_WinRing0")
-      {
-        checkObsoleteOnce = false;
-        GetDrvInstallState (ptrStatus, L"WinRing0_1_2_0");
-      }
+      CloseServiceHandle (schSCManager);
     }
     else {
-      PLOG_ERROR << "OpenService failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+      PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
     }
-
-    CloseServiceHandle (schSCManager);
   }
-  else {
-    PLOG_ERROR << "OpenSCManager failed with exception: " << SKIF_Util_GetErrorAsWStr ( );
+
+  catch (const std::exception&)
+  {
+    PLOG_ERROR << "Unexpected exception was thrown!";
   }
 
   return binaryPath;
