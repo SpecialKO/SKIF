@@ -3961,6 +3961,56 @@ Cache=false)";
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }
         }
+
+        // If Profile Folder Exists
+        if (PathFileExists(pApp->specialk.injection.config.dir.c_str()))
+        {
+          ImGui::Separator   ( );
+
+          std::wstring_view  wsRootDir = pApp->specialk.injection.config.dir;
+          std::wstring wsScreenshotDir = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
+          bool screenshotsFolderExists = PathFileExists (wsScreenshotDir.c_str());
+        
+          ImGui::BeginGroup  ( );
+          ImVec2 iconPosDummy = ImGui::GetCursorPos();
+
+          ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
+          if (screenshotsFolderExists)
+            ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_IMAGES)       .x, ImGui::GetTextLineHeight()));
+        
+          ImGui::EndGroup    ( );
+          ImGui::SameLine    ( );
+          ImGui::BeginGroup  ( );
+
+          // Config Root
+          if (ImGui::Selectable         ("Browse Profile Folder"))
+            SKIF_Util_ExplorePath       (wsRootDir);
+          SKIF_ImGui_SetMouseCursorHand ();
+          SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsRootDir.data()).c_str());
+        
+          if (screenshotsFolderExists)
+          {
+            // Screenshot Folder
+            if (ImGui::Selectable         ("Browse Screenshots"))
+              SKIF_Util_ExplorePath       (wsScreenshotDir);
+            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsScreenshotDir.data()).c_str());
+          }
+
+          ImGui::EndGroup  ( );
+
+          ImGui::SetCursorPos  (iconPosDummy);
+
+          ImGui::TextColored (
+            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), // ImColor (255, 207, 72),
+                     ICON_FA_FOLDER_OPEN
+                               );
+          if (screenshotsFolderExists)
+            ImGui::TextColored (
+                     ImColor   (200, 200, 200, 255),
+                       ICON_FA_IMAGES
+                                 );
+        }
       }
 
       // Special K is selected -- relevant show quick links
@@ -4083,6 +4133,10 @@ Cache=false)";
         }
       }
       */
+      
+      ImGui::PushStyleColor ( ImGuiCol_Text,
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
+      );
 
       if (! pApp->cloud_saves.empty ())
       {
@@ -4254,6 +4308,8 @@ Cache=false)";
         }
       }
 
+      ImGui::PopStyleColor  ( );
+
       // Manage [Custom] Game
       if (pApp->store == "SKIF" || pApp->store == "GOG")
       {
@@ -4329,57 +4385,6 @@ Cache=false)";
       );
 
       ImGui::Separator ( );
-
-      // If Profile Folder Exists
-      if (PathFileExists(pApp->specialk.injection.config.dir.c_str()))
-      {
-        std::wstring_view  wsRootDir = pApp->specialk.injection.config.dir;
-        std::wstring wsScreenshotDir = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
-        bool screenshotsFolderExists = PathFileExists (wsScreenshotDir.c_str());
-        
-        ImGui::BeginGroup  ( );
-        ImVec2 iconPosDummy = ImGui::GetCursorPos();
-
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
-        if (screenshotsFolderExists)
-          ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_IMAGES)       .x, ImGui::GetTextLineHeight()));
-        
-        ImGui::EndGroup    ( );
-        ImGui::SameLine    ( );
-        ImGui::BeginGroup  ( );
-
-        // Config Root
-        if (ImGui::Selectable         ("Browse Profile Folder"))
-          SKIF_Util_ExplorePath       (wsRootDir);
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsRootDir.data()).c_str());
-        
-        if (screenshotsFolderExists)
-        {
-          // Screenshot Folder
-          if (ImGui::Selectable         ("Browse Screenshots"))
-            SKIF_Util_ExplorePath       (wsScreenshotDir);
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsScreenshotDir.data()).c_str());
-        }
-
-        ImGui::EndGroup  ( );
-
-        ImGui::SetCursorPos  (iconPosDummy);
-
-        ImGui::TextColored (
-          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), // ImColor (255, 207, 72),
-                   ICON_FA_FOLDER_OPEN
-                             );
-        if (screenshotsFolderExists)
-          ImGui::TextColored (
-                   ImColor   (200, 200, 200, 255),
-                     ICON_FA_IMAGES
-                               );
-
-        ImGui::Separator ( );
-      }
-
 
       ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
