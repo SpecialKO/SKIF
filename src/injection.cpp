@@ -32,7 +32,9 @@
 #include <registry.h>
 #include <fsutil.h>
 
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 
 #include <sk_utility/utility.h>
 #include <imgui/imgui.h>
@@ -873,7 +875,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
       ImGui::SameLine        ( );
 
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
       SKIF_ImGui_SetHoverTip ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
                               "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
     }
@@ -1163,7 +1165,7 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
 {
   ImGui::BeginGroup ();
   
-  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_SHIELD_ALT, &bLogonTaskEnabled))
+  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_SHIELD, &bLogonTaskEnabled))
   {
     if (
       ShellExecuteW (

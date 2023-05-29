@@ -1,5 +1,7 @@
 #include <SKIF.h>
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
 #include <SKIF_imgui.h>
@@ -58,7 +60,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::Text             ("and launch a game!");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_SMILE_BEAM);
+  ImGui::TextColored      (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_FACE_GRIN_BEAM);
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
@@ -115,7 +117,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      ICON_FA_GAMEPAD " Library"
+    ICON_FA_GAMEPAD " Library"
   );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
@@ -132,7 +134,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      ICON_FA_PLUS_SQUARE " Add Game"
+      ICON_FA_SQUARE_PLUS " Add Game"
   );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
@@ -217,7 +219,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImColor::HSV (0.11F,   1.F, 1.F),
-      ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::SameLine         ( );
     ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to quickly launch injection through Steam.");
 
@@ -267,7 +269,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        ICON_FA_MOUSE_POINTER);
+        ICON_FA_ARROW_POINTER);
     ImGui::SameLine         ( );
     ImGui::Text             ("is at.");
     ImGui::EndGroup         ( );
@@ -329,7 +331,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImColor::HSV (0.11F,   1.F, 1.F),
-      ICON_FA_EXCLAMATION_TRIANGLE " ");
+      ICON_FA_TRIANGLE_EXCLAMATION " ");
   ImGui::SameLine         (0.0f, 6.0f);
   ImGui::Text             ("Do not use Special K in multiplayer games!");
   ImGui::EndGroup         ( );
@@ -343,7 +345,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-      ICON_FA_EXTERNAL_LINK_ALT " "      );
+      ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
   if (ImGui::Selectable   ("More on the wiki"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
@@ -366,7 +368,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-      ICON_FA_EXTERNAL_LINK_ALT " "      );
+      ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
   if (ImGui::Selectable   ("Global (system-wide)"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Global");
@@ -379,7 +381,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-    ICON_FA_EXTERNAL_LINK_ALT " "      );
+    ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
   if (ImGui::Selectable   ("Local (game-specific)"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Local");
@@ -416,7 +418,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::TextColored      (
     ImColor (114, 137, 218),
       ICON_FA_DISCORD " "   );
-  ImGui::SameLine         ( );
+  ImGui::SameLine         (35.0f * SKIF_ImGui_GlobalDPIScale);
 
   if (ImGui::Selectable   ("Discord"))
     SKIF_Util_OpenURI     (L"https://discord.gg/specialk");
@@ -471,7 +473,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
-  ImGui::SameLine         (0.0f, 10.0f);
+  ImGui::SameLine         (0.0f, 10.0f * SKIF_ImGui_GlobalDPIScale);
   //ImGui::SetCursorPosX    (ImGui::GetCursorPosX ( ) + 1.0f);
   ImGui::TextColored      (
     (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)

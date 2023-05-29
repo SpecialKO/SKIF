@@ -1,6 +1,8 @@
 
 #include <SKIF_imgui.h>
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 #include <sk_utility/utility.h>
 #include <SKIF_utility.h>
 #include <filesystem>
@@ -479,7 +481,7 @@ SKIF_UI_Tab_DrawSettings (void)
     _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
           
   ImGui::SameLine        ( );
-  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
   SKIF_ImGui_SetHoverTip (
     "For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
     "This only affects new downloads of covers. It does not affect already downloaded covers.\n"
@@ -510,7 +512,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::PopStyleVar     ( );
     ImGui::PopItemFlag     ( );
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::EndGroup        ( );
     SKIF_ImGui_SetHoverTip ("Requires 'Allow multiple instances of this app' to be disabled.");
   }
@@ -525,7 +527,7 @@ SKIF_UI_Tab_DrawSettings (void)
           
   ImGui::BeginGroup    ( );
             
-  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
   SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
                           "Move the mouse over each option to get more information");
   ImGui::SameLine        ( );
@@ -555,7 +557,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::Spacing         ( );
 
-  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
   SKIF_ImGui_SetHoverTip ("This setting has no effect if low bandwidth mode is enabled.");
   ImGui::SameLine        ( );
   ImGui::TextColored (
@@ -650,7 +652,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::Spacing       ( );
             
-  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
   SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
   ImGui::SameLine        ( );
   ImGui::TextColored (
@@ -741,7 +743,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
     ImGui::SameLine        ( );
     ImGui::TextColored (
@@ -763,7 +765,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     extern bool RecreateSwapChains;
 
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip ("Increases the color depth of the app.");
     ImGui::SameLine        ( );
     ImGui::TextColored (
@@ -821,7 +823,7 @@ SKIF_UI_Tab_DrawSettings (void)
     
     if (SKIF_Util_IsHDRSupported ( )  )
     {
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
       SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");
       ImGui::SameLine        ( );
       ImGui::TextColored (
@@ -902,7 +904,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine         ( );
         ImGui::TextColored      (
           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
-            ICON_FA_MOUSE_POINTER);
+            ICON_FA_ARROW_POINTER);
         ImGui::SameLine         ( );
         ImGui::TextDisabled     ("is at.");
         ImGui::EndGroup         ( );
@@ -913,7 +915,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::Spacing         ( );
     }
 
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
     ImGui::SameLine        ( );
     ImGui::TextColored     (
@@ -985,7 +987,7 @@ SKIF_UI_Tab_DrawSettings (void)
         _registry.bDisableStatusBar)
     {
       ImGui::BeginGroup     ( );
-      ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
       ImGui::SameLine       ( );
       ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
       ImGui::EndGroup       ( );
@@ -1033,7 +1035,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
     ImGui::SameLine        ( );
     ImGui::TextColored (
@@ -1053,7 +1055,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1165,7 +1167,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::PopStyleVar     ( );
       ImGui::PopItemFlag     ( );
       ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
       ImGui::EndGroup        ( );
       SKIF_ImGui_SetHoverTip ("Requires 'Close to the notification area' to be disabled.");
     }
@@ -1239,7 +1241,7 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         ImGui::BeginGroup ();
         ImGui::Spacing    ();
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_EXCLAMATION_TRIANGLE);
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_TRIANGLE_EXCLAMATION);
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Please remove all double quotes");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), R"( " )");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "from the list.");
@@ -1255,7 +1257,7 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         ImGui::BeginGroup ();
         ImGui::Spacing    ();
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_CIRCLE_EXCLAMATION);
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),   "Folders must be separated using two backslashes");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), R"( \\ )");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),   "instead of one");
@@ -1276,7 +1278,7 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         ImGui::BeginGroup ();
         ImGui::Spacing    ();
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_CIRCLE_EXCLAMATION);
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "The list can only include");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure),   " 128 ");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "lines, though multiple can be combined using a pipe");
@@ -1302,7 +1304,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ();
     ImGui::Spacing    ();
-    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),   ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),   ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::SameLine   (); ImGui::Text        ("Easiest is to use the name of the executable or folder of the game.");
     ImGui::EndGroup   ();
 
@@ -1313,7 +1315,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ();
     ImGui::Spacing    ();
-    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),   ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),   ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::SameLine   (); ImGui::Text        ("Typing the name of a shared parent folder will match all applications below that folder.");
     ImGui::EndGroup   ();
 
@@ -1327,7 +1329,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ();
     ImGui::Spacing    ();
-    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::SameLine   (); ImGui::Text ("Note that these lists do not prevent Special K from being injected into processes.");
     ImGui::EndGroup   ();
 
@@ -1355,7 +1357,7 @@ SKIF_UI_Tab_DrawSettings (void)
     /*
     ImGui::BeginGroup ();
     ImGui::Spacing    ();
-    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine   (); ImGui::Text        ("More on the wiki.");
     ImGui::EndGroup   ();
 
@@ -1374,7 +1376,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ();
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_PLUS_CIRCLE);
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CIRCLE_PLUS);
     ImGui::SameLine    ( );
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1465,7 +1467,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     // Blacklist section
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_MINUS_CIRCLE);
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_CIRCLE_MINUS);
     ImGui::SameLine    ( );
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1498,7 +1500,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     // Hotkey: Ctrl+S
-    if (ImGui::Button (ICON_FA_SAVE " Save Changes") || ((! bDisabled) && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeysDown['S']))
+    if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || ((! bDisabled) && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeysDown['S']))
     {
       // Clear the active ID to prevent ImGui from holding outdated copies of the variable
       //   if saving succeeds, to allow _StoreList to update the variable successfully
@@ -1523,7 +1525,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine ();
 
-    if (ImGui::Button (ICON_FA_UNDO " Reset"))
+    if (ImGui::Button (ICON_FA_ROTATE_LEFT " Reset"))
     {
       if (white_edited)
       {
@@ -1627,7 +1629,7 @@ SKIF_UI_Tab_DrawSettings (void)
     // Driver is installed
     else if (driverStatus == Installed)
     {
-      btnDriverLabel    = ICON_FA_SHIELD_ALT " Uninstall Driver";
+      btnDriverLabel    = ICON_FA_SHIELD " Uninstall Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
       wszDriverTaskCmd = L"Uninstall";
     }
@@ -1649,14 +1651,14 @@ SKIF_UI_Tab_DrawSettings (void)
     // Obsolete driver is installed
     else if (driverStatus == ObsoleteInstalled)
     {
-      btnDriverLabel    = ICON_FA_SHIELD_ALT " Migrate Driver";
+      btnDriverLabel    = ICON_FA_SHIELD " Migrate Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Obsolete driver installed");
       wszDriverTaskCmd = L"Migrate Install";
     }
 
     // Driver is not installed
     else {
-      btnDriverLabel    = ICON_FA_SHIELD_ALT " Install Driver";
+      btnDriverLabel    = ICON_FA_SHIELD " Install Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
       wszDriverTaskCmd = L"Install";
     }
@@ -1762,7 +1764,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
     ImGui::TextWrapped ("DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed.");
     ImGui::EndGroup    ();
@@ -1777,7 +1779,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXTERNAL_LINK_ALT);
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
     ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
     ImGui::EndGroup    ();
@@ -1795,7 +1797,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::SameLine    ();
     ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
     ImGui::EndGroup    ();
@@ -1852,9 +1854,9 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
     }
 
-    std::string btnPfuLabel = (pfuState == Granted) ?                                ICON_FA_CHECK " Permissions granted!" // Granted
-                                                    : (pfuState == Missing) ?   ICON_FA_SHIELD_ALT " Grant permissions"    // Missing
-                                                                            : ICON_FA_SIGN_OUT_ALT " Sign out to apply";   // Pending
+    std::string btnPfuLabel = (pfuState == Granted) ?                         ICON_FA_CHECK              " Permissions granted!" // Granted
+                                                    : (pfuState == Missing) ? ICON_FA_SHIELD             " Grant permissions"    // Missing
+                                                                            : ICON_FA_RIGHT_FROM_BRACKET " Sign out to apply";   // Pending
 
     if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
                                                          25 * SKIF_ImGui_GlobalDPIScale)))
@@ -2040,7 +2042,7 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           ImGui::ItemSize    (ImVec2 (390.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
           ImGui::SameLine    ( );
-          ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+          ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
           SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
         }
         else {
@@ -2069,12 +2071,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (ImGui::BeginPopup ("DisplayDriverMenu"))
       {
-        if (ImGui::Selectable (ICON_FA_SYNC " Refresh"))
+        if (ImGui::Selectable (ICON_FA_ROTATE " Refresh"))
           RefreshSettingsTab = true;
 
         ImGui::Separator ( );
 
-        if (ImGui::Selectable (ICON_FA_REDO " Restart display driver"))
+        if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
           ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
 
         ImGui::EndPopup ( );
@@ -2089,7 +2091,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine         ( );
         ImGui::TextColored      (
           ImColor::HSV (0.11F,   1.F, 1.F),
-            ICON_FA_EXCLAMATION_TRIANGLE " ");
+            ICON_FA_TRIANGLE_EXCLAMATION " ");
         ImGui::SameLine         (0.0f, 6.0f);
         ImGui::Text             ("MPOs are disabled through the registry!");
         ImGui::EndGroup         ( );
@@ -2102,7 +2104,7 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           // REG ADD    HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f /t REG_DWORD /d 5
           // REG DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f
-          if (ImGui::Selectable  (ICON_FA_CHECK_CIRCLE " Enable MPOs (computer restart required)"))
+          if (ImGui::Selectable  (ICON_FA_CIRCLE_CHECK " Enable MPOs (computer restart required)"))
           {
             if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOW) > (HINSTANCE)32)
             {

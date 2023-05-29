@@ -285,9 +285,6 @@
     <ClInclude Include="include\sk_boxart.png.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\font_awesome.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
@@ -362,6 +359,12 @@
     </ClInclude>
     <ClInclude Include="include\drvreset.h">
       <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts\fa_621.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts\fa_621b.h">
+      <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

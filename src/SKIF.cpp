@@ -37,7 +37,10 @@
 
 #include <stores/Steam/steam_library.h>
 #include <injection.h>
-#include <font_awesome.h>
+
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_win32.h>
@@ -745,7 +748,7 @@ void SKIF_UI_DrawPlatformStatus (void)
   static bool isSKIFAdmin = IsUserAnAdmin();
   if (isSKIFAdmin)
   {
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "App is running as an administrator!");
     SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
@@ -849,7 +852,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
       if (p.isAdmin)
       {
-        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
         ImGui::SameLine        ( );
         if (p.ProcessName == L"RTSS.exe")
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and might conflict with Special K!").c_str() );
@@ -1973,8 +1976,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
            (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
-            ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_EXPAND_ARROWS_ALT
-                                                   : ICON_FA_COMPRESS_ARROWS_ALT,
+            ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_MAXIMIZE
+                                                   : ICON_FA_MINIMIZE,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
          )
@@ -2077,7 +2080,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::SameLine ();
 
       if ( (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
-            ImGui::Button (ICON_FA_WINDOW_CLOSE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
+            ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                           0.0f ) )
           || bKeepWindowAlive == false
          )
@@ -2198,7 +2201,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_TASKS " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_LIST_CHECK " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2217,7 +2220,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_COG " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_GEAR " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2227,7 +2230,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_INFO_CIRCLE " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_CIRCLE_INFO " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2295,7 +2298,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
 
         ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-        if (ImGui::Button ( ICON_FA_PLUS_SQUARE " Add Game"))
+        if (ImGui::Button ( ICON_FA_SQUARE_PLUS " Add Game"))
         {
           AddGamePopup = PopupState_Open;
           if (SKIF_Tab_Selected != UITab_Library)
@@ -2316,7 +2319,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX () +
             ImGui::GetWindowSize ().x -
-              ( ImGui::CalcTextSize ( ICON_FA_SYNC ).x ) -
+              ( ImGui::CalcTextSize ( ICON_FA_ROTATE ).x ) -
             ImGui::GetCursorPosX () -
             ImGui::GetStyle   ().ItemSpacing.x * 2
           );
@@ -2325,7 +2328,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
                                 ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
-                               ), ICON_FA_SYNC );
+                               ), ICON_FA_ROTATE );
         }
 
         ImGui::SetCursorPos(tmpPos);

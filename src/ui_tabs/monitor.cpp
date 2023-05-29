@@ -26,7 +26,9 @@
 #include <injection.h>
 #include <fsutil.h>
 
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 #include <sk_utility/utility.h>
 
 #include <filesystem>
@@ -762,7 +764,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImColor::HSV (0.11F,   1.F, 1.F),
-      ICON_FA_EXCLAMATION_TRIANGLE " ");
+        ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::EndGroup         ( );
 
     SKIF_ImGui_SetHoverTip (
@@ -819,7 +821,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     ImGui::SameLine         ( );
 
-    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_EXCLAMATION_CIRCLE);
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     SKIF_ImGui_SetHoverTip  ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
                             "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
 
@@ -1474,7 +1476,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         ImGui::Separator ( );
       }
 
-      if (ImGui::Selectable  (ICON_FA_WINDOW_CLOSE " End task"))
+      if (ImGui::Selectable  (ICON_FA_SQUARE_XMARK " End task"))
       {
         static_proc = proc;
       }

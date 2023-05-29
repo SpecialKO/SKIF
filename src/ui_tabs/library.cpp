@@ -30,7 +30,9 @@
 
 #include "DirectXTex.h"
 
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/asset_fetch.h>
@@ -1320,11 +1322,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomCover)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)       .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT)       .x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
       ImGui::PopStyleColor (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
 
       ImGui::EndGroup   (  );
 
@@ -1456,14 +1458,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->textures.isCustomCover)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_UNDO_ALT
+                  ICON_FA_ROTATE_LEFT
                               );
 
       ImGui::Separator  (  );
 
       ImGui::TextColored (
           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                ICON_FA_EXTERNAL_LINK_ALT
+                ICON_FA_UP_RIGHT_FROM_SQUARE
                             );
 
     }
@@ -3030,7 +3032,7 @@ Cache=false)";
 
     ImGui::SetCursorPosY   (fOriginalY + fOffset     + ( 1.0f * SKIF_ImGui_GlobalDPIScale));
     ImGui::SetCursorPosX   (ImGui::GetCursorPosX ( ) + ( 3.0f * SKIF_ImGui_GlobalDPIScale));
-    ImGui::Text            (ICON_FA_PLUS_SQUARE);
+    ImGui::Text            (ICON_FA_SQUARE_PLUS);
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
     ImGui::SetCursorPosX   (ImGui::GetCursorPosX ( ) + (30.0f * SKIF_ImGui_GlobalDPIScale));
 
@@ -3245,11 +3247,11 @@ Cache=false)";
 
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
       if (pApp->textures.isCustomIcon)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UNDO_ALT)         .x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT)         .x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
       ImGui::PopStyleColor (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_EXTERNAL_LINK_ALT).x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
 
       ImGui::EndGroup   (  );
 
@@ -3403,14 +3405,14 @@ Cache=false)";
       if (pApp->textures.isCustomIcon)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_UNDO_ALT
+                  ICON_FA_ROTATE_LEFT
                               );
 
       ImGui::Separator   ( );
 
       ImGui::TextColored (
               ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                ICON_FA_EXTERNAL_LINK_ALT
+                ICON_FA_UP_RIGHT_FROM_SQUARE
                             );
     }
 
@@ -3434,11 +3436,11 @@ Cache=false)";
     
     ImGui::BeginGroup     ( );
     ImVec2 iconPos = ImGui::GetCursorPos();
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_PLUS_SQUARE).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_SQUARE_PLUS).x, ImGui::GetTextLineHeight()));
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_REDO).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_RIGHT).x, ImGui::GetTextLineHeight()));
     ImGui::EndGroup       ( );
 
     ImGui::SameLine       ( );
@@ -3454,9 +3456,9 @@ Cache=false)";
     ImGui::EndGroup       ( );
 
     ImGui::SetCursorPos   (iconPos);
-    ImGui::Text           (ICON_FA_PLUS_SQUARE);
+    ImGui::Text           (ICON_FA_SQUARE_PLUS);
     ImGui::Separator      ( );
-    ImGui::Text           (ICON_FA_REDO);
+    ImGui::Text           (ICON_FA_ROTATE_RIGHT);
     ImGui::EndPopup       ( );
   }
 
@@ -4094,7 +4096,7 @@ Cache=false)";
           if (! pApp->cloud_enabled)
           {
             ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
-                                   ICON_FA_EXCLAMATION_TRIANGLE " Auto-Cloud is not enabled" );
+                                   ICON_FA_TRIANGLE_EXCLAMATION " Auto-Cloud is not enabled" );
             ImGui::Separator   ( );
           }
 
@@ -4383,7 +4385,7 @@ Cache=false)";
       ImVec2 iconPos = ImGui::GetCursorPos();
 
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TOOLS)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH)       .x, ImGui::GetTextLineHeight()));
 
       if (pApp->store == "GOG")
       {
@@ -4516,7 +4518,7 @@ Cache=false)";
                            );
       ImGui::TextColored (
                ImColor   (200, 200, 200, 255),
-                 ICON_FA_TOOLS
+                 ICON_FA_SCREWDRIVER_WRENCH
                            );
 
       if (pApp->store == "GOG")

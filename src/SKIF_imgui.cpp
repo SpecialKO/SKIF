@@ -11,7 +11,9 @@
 #include <registry.h>
 #include <injection.h>
 
-#include <font_awesome.h>
+//#include <font_awesome.h>
+#include <fonts/fa_621.h>
+#include <fonts/fa_621b.h>
 #include <fonts/fa_regular_400.ttf.h>
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
@@ -533,8 +535,9 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
 {
   static const ImWchar ranges [] =
   {
-    ICON_MIN_FA, ICON_MAX_FA,
-    0 // Font Awesome
+    ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
+    ICON_MIN_FAB, ICON_MAX_FAB, // Font Awesome (Brands)
+    0
   };
   return &ranges [0];
 }
@@ -730,7 +733,7 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
      SKIF_ImGui_LoadFont (
                     fontDir/
       std::get <0> (font),
-                    fontSize - 2.0f,
+                    fontSize - 1.0f, // - 2.0f
         SK_ImGui_GetGlyphRangesFontAwesome (),
                    &font_cfg
                          );
