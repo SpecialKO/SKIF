@@ -488,9 +488,9 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   {
     // This means we proxied this cmd to ourselves, in which
     // case we want to set up bExitOnInjection as well
-    if (_Signal._RunningInstance == SKIF_hWnd)
-      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
-    else
+    //if (_Signal._RunningInstance == SKIF_hWnd)
+    //  PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
+    //else
       PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART     : WM_SKIF_START, 0x0, 0x0);
   }
 
@@ -1360,8 +1360,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // If we are starting the service,
       //   let us start in small mode
-      if (_Signal.Start)
-        _registry.bSmallMode = true;
+      //if (_Signal.Start)
+      //  _registry.bSmallMode = true;
     }
   }
 
