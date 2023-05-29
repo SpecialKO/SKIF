@@ -41,7 +41,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // Window, Child, Popup
   colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f); // ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
   colors[ImGuiCol_ChildBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-  colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.90f);
+  colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f); // ImVec4(0.08f, 0.08f, 0.08f, 0.90f);
 
   // Borders
   colors[ImGuiCol_Border]                 = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
@@ -85,7 +85,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // Separators
   if (_registry.bDisableBorders)
-    colors[ImGuiCol_Separator]            = colors[ImGuiCol_WindowBg];
+    colors[ImGuiCol_Separator]            = ImVec4(0.15f, 0.15f, 0.15f, 1.00f); // colors[ImGuiCol_WindowBg];
   else
     colors[ImGuiCol_Separator]            = colors[ImGuiCol_Border];
 
