@@ -35,3 +35,5 @@ extern bool SKIF_bFontChineseSimplified,
             SKIF_bFontVietnamese;
 
 extern ImFont* fontConsolas;
+extern ImFont* fontFAS;
+extern ImFont* fontFAR;

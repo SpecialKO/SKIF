@@ -821,7 +821,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     ImGui::SameLine         ( );
 
-    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
+    ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip  ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
                             "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
 

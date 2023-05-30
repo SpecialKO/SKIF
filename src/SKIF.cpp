@@ -2229,8 +2229,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
         }
-
-        if (ImGui::BeginTabItem (" " ICON_FA_CIRCLE_INFO " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        
+        if (ImGui::BeginTabItem (" " ICON_FA_COMMENT " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 

@@ -27,6 +27,8 @@ bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontVietnamese          = false;
 
 ImFont* fontConsolas = nullptr;
+ImFont* fontFAS      = nullptr;
+ImFont* fontFAR      = nullptr;
 
 void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 {
@@ -542,6 +544,17 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
   return &ranges [0];
 }
 
+const ImWchar*
+SK_ImGui_GetGlyphRangesFontAwesomeNoBrands (void)
+{
+  static const ImWchar ranges [] =
+  {
+    ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
+    0
+  };
+  return &ranges [0];
+}
+
 auto SKIF_ImGui_LoadFont =
    []( const std::wstring& filename,
              float         point_size,
@@ -722,6 +735,8 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
                    _ARRAYSIZE (fa_brands_400_ttf) )
                             };
 
+  float fontSizeFA = fontSize - 2.0f;
+
   std::for_each (
             awesome_fonts.begin (),
             awesome_fonts.end   (),
@@ -733,7 +748,7 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
      SKIF_ImGui_LoadFont (
                     fontDir/
       std::get <0> (font),
-                    fontSize - 1.0f, // - 2.0f
+                    fontSizeFA, // - 2.0f
         SK_ImGui_GetGlyphRangesFontAwesome (),
                    &font_cfg
                          );
@@ -741,6 +756,9 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   io.Fonts->AddFontDefault ();
 
-  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx());
+  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx ( ));
+  // TODO: Make the below fonts also include the basics non-FA characters
+  //fontFAS      = SKIF_ImGui_LoadFont (fontDir / FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeNoBrands ( ));
+  //fontFAR      = SKIF_ImGui_LoadFont (fontDir / FONT_ICON_FILE_NAME_FAR, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeNoBrands ( ));
   //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
