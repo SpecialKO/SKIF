@@ -19,6 +19,9 @@ CONDITION_VARIABLE UpdaterPaused = { };
 SKIF_Updater::SKIF_Updater (void)
 {
   InitializeConditionVariable (&UpdaterPaused);
+  
+  // Clearing out old installers...
+  ClearOldUpdates ( );
 
   // Start the child thread that is responsible for checking for updates
   static HANDLE hThread =
@@ -67,15 +70,8 @@ SKIF_Updater::SKIF_Updater (void)
 
         local = { }; // Reset any existing data
 
-        // Reset the object
-
-        // DO STUFF
-
-        SK_RunOnce (parent.ClearOldUpdates ( ));
-
+        // Check for updates!
         parent.PerformUpdateCheck (local);
-
-        // END DO STUFF
 
         // Swap in the results
         lastWritten = currWriting;
@@ -171,7 +167,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
-  std::wstring path         = root + LR"(repository.json)";
+  std::wstring path_repo    = root + LR"(repository.json)";
   std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
 
   // Get UNIX-style time
@@ -193,7 +189,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (_registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
   {
     // Download files if any does not exist or if we're forcing an update
-    if (! PathFileExists (path.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
+    if (! PathFileExists (path_repo.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
     {
       downloadNewFiles = true;
     }
@@ -201,7 +197,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     else {
       WIN32_FILE_ATTRIBUTE_DATA fileAttributes{};
 
-      if (GetFileAttributesEx (path.c_str(),    GetFileExInfoStandard, &fileAttributes))
+      if (GetFileAttributesEx (path_repo.c_str(),    GetFileExInfoStandard, &fileAttributes))
       {
         FILETIME ftSystemTime{}, ftAdjustedFileTime{};
         SYSTEMTIME systemTime{};
@@ -305,180 +301,224 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (downloadNewFiles)
   {
     PLOG_INFO << "Downloading repository.json...";
-    SKIF_Util_GetWebResource (url, path);
+    SKIF_Util_GetWebResource (url, path_repo);
   }
     
-  std::ifstream file(path);
+  std::ifstream file(path_repo);
   nlohmann::ordered_json jf = nlohmann::ordered_json::parse(file, nullptr, false);
   file.close();
 
   if (jf.is_discarded ( ))
   {
-    PLOG_ERROR << "Parse error for repository.json. Deleting file so we retry on next launch...";
-    DeleteFile (path.c_str()); // Something went wrong -- delete the file so a new attempt is performed on next launch
+    PLOG_ERROR << "Parse error for repository.json. Deleting file so a retry occurs the next time a check is performed...";
+    DeleteFile (path_repo.c_str()); // Something went wrong -- delete the file so a new attempt is performed later
     return;
   }
 
-  else {
-           std::wstring wsCurrentBranch  = _registry.wsUpdateChannel;
-    static std::wstring wsPreviousBranch = wsCurrentBranch;
-    std::string  currentBranch   = SK_WideCharToUTF8 (wsCurrentBranch);
+          std::wstring wsCurrentBranch  = _registry.wsUpdateChannel;
+          std:: string   currentBranch  = SK_WideCharToUTF8 (wsCurrentBranch);
+  static std::wstring wsPreviousBranch = wsCurrentBranch;
     
-    bool changedUpdateChannel = (wsPreviousBranch != wsCurrentBranch);
-    wsPreviousBranch = wsCurrentBranch;
+  bool changedUpdateChannel = (wsPreviousBranch != wsCurrentBranch);
+  wsPreviousBranch  = wsCurrentBranch;
 
-    PLOG_INFO << "Update Channel: " << wsCurrentBranch;
+  PLOG_INFO << "Update Channel: " << wsCurrentBranch;
 
 #ifdef _WIN64
-    std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
+  std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
 #else
-    std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
+  std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
 #endif
 
-    PLOG_INFO << "Installed version: " << currentVersion;
+  PLOG_INFO << "Installed version: " << currentVersion;
 
-    try {
-      // Populate update channels
-      try {
-        static bool
-            firstRun = true;
-        if (firstRun)
-        {   firstRun = false;
-
-          bool detectedBranch = false;
-          for (auto& branch : jf["Main"]["Branches"])
-          {
-            _res.update_channels.emplace_back (branch["Name"].get<std::string>(), branch["Description"].get<std::string>());
-
-            if (branch["Name"].get<std::string_view>()._Equal(currentBranch))
-              detectedBranch = true;
-          }
-
-          // If we cannot find the branch, move the user over to the closest "parent" branch
-          if (! detectedBranch)
-          {
-            PLOG_ERROR << "Could not find the update channel in repository.json!";
-
-            if (     wsCurrentBranch.find(L"Website")       != std::string::npos
-                  || wsCurrentBranch.find(L"Release")       != std::string::npos)
-                     wsCurrentBranch = L"Website";
-            else if (wsCurrentBranch.find(L"Discord")       != std::string::npos
-                  || wsCurrentBranch.find(L"Testing")       != std::string::npos)
-                     wsCurrentBranch = L"Discord";
-            else if (wsCurrentBranch.find(L"Ancient")       != std::string::npos
-                  || wsCurrentBranch.find(L"Compatibility") != std::string::npos)
-                     wsCurrentBranch = L"Ancient";
-            else
-                     wsCurrentBranch = L"Website";
-
-            PLOG_ERROR << "Using fallback channel: " << wsCurrentBranch;
-
-            _registry.wsIgnoreUpdate = L"";
-
-            currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
-          }
-        }
-      }
-      catch (const std::exception&)
+  // Populate update channels (only on the first run)
+  static bool
+        channelsPopulated = false;
+  if (! channelsPopulated)
+  {     channelsPopulated = true;
+    try
+    {
+      bool detectedBranch = false;
+      for (auto& branch : jf["Main"]["Branches"])
       {
+        _res.update_channels.emplace_back (branch["Name"].get<std::string>(), branch["Description"].get<std::string>());
 
+        if (branch["Name"].get<std::string_view>()._Equal(currentBranch))
+          detectedBranch = true;
       }
 
-      if (_registry.iCheckForUpdates != 0 && !_registry.bLowBandwidthMode)
+      // If we cannot find the branch, move the user over to the closest "parent" branch
+      if (! detectedBranch)
       {
-        bool parsedFirstVersion = false;
+        PLOG_ERROR << "Could not find the update channel in repository.json!";
 
-        // Detect if any new version is available in the selected channel
-        for (auto& version : jf["Main"]["Versions"])
-        {
-          bool isBranch = false;
+        if (     wsCurrentBranch.find(L"Website")       != std::string::npos
+              || wsCurrentBranch.find(L"Release")       != std::string::npos)
+                  wsCurrentBranch = L"Website";
+        else if (wsCurrentBranch.find(L"Discord")       != std::string::npos
+              || wsCurrentBranch.find(L"Testing")       != std::string::npos)
+                  wsCurrentBranch = L"Discord";
+        else if (wsCurrentBranch.find(L"Ancient")       != std::string::npos
+              || wsCurrentBranch.find(L"Compatibility") != std::string::npos)
+                  wsCurrentBranch = L"Ancient";
+        else
+                  wsCurrentBranch = L"Website";
 
-          for (auto& branch : version["Branches"])
-            if (branch.get<std::string_view>()._Equal(currentBranch))
-              isBranch = true;
+        PLOG_ERROR << "Using fallback channel: " << wsCurrentBranch;
+
+        _registry.wsIgnoreUpdate = L"";
+
+        currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
+      }
+    }
+    catch (const std::exception&)
+    {
+      PLOG_ERROR << "Failed during parsing when trying to populate update channels";
+    }
+  }
+
+  if (_registry.iCheckForUpdates != 0 && !_registry.bLowBandwidthMode)
+  {
+    try
+    {
+      bool parsedFirstVersion = false;
+
+      // Processes all versions listed in the changelog
+      for (auto& version : jf["Main"]["Versions"])
+      {
+        bool isBranch = false;
+
+        for (auto& branch : version["Branches"])
+          if (branch.get<std::string_view>()._Equal(currentBranch))
+            isBranch = true;
         
-          if (isBranch)
+        if (isBranch)
+        {
+          std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
+
+          // Check if the version of this branch is different from the current one.
+          // We don't check if the version is *newer* since we need to support downgrading
+          // to other branches as well, which means versions that are older.
+
+          int versionDiff = SKIF_Util_CompareVersionStrings (branchVersion, currentVersion);
+
+          if (versionDiff == 0)
+            _res.history += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
+          else if (versionDiff > 0 && ! parsedFirstVersion)
+            _res.history += version["Description"].get<std::string>() + "  -[ Update available! ]-";
+          else
+            _res.history += version["Description"].get<std::string>();
+
+          _res.history += "\n";
+          _res.history += "=================\n";
+
+          if (version["ReleaseNotes"].get<std::string>().empty())
+            _res.history += "No listed changes.";
+          else
+            _res.history += version["ReleaseNotes"].get<std::string>();
+
+          _res.history += "\n\n\n";
+
+          // Special handling for all newer versions (ensures all missing changes are listed)
+          if (versionDiff > 0 && ! currentVersion.empty())
           {
-            std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
-
-            // Check if the version of this branch is different from the current one.
-            // We don't check if the version is *newer* since we need to support downgrading
-            // to other branches as well, which means versions that are older.
-
-            int versionDiff = SKIF_Util_CompareVersionStrings (branchVersion, currentVersion);
-
-            if (versionDiff == 0)
-              _res.history += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
-            else if (versionDiff > 0 && ! parsedFirstVersion)
-              _res.history += version["Description"].get<std::string>() + "  -[ Update available! ]-";
-            else
-              _res.history += version["Description"].get<std::string>();
-            _res.history += "\n";
-            _res.history += "=================\n";
-            if (version["ReleaseNotes"].get<std::string>().empty())
-              _res.history += "No listed changes.";
-            else
-              _res.history += version["ReleaseNotes"].get<std::string>();
-            _res.history += "\n\n\n";
-
-            // Limit download to a single version only
             if (! parsedFirstVersion)
+              _res.release_notes += version["Description"].get<std::string>() + "  -[ Newest update available! ]-";
+            else
+              _res.release_notes += version["Description"].get<std::string>();
+
+            _res.release_notes += "\n";
+            _res.release_notes += "=================\n";
+
+            if (version["ReleaseNotes"].get<std::string>().empty())
+              _res.release_notes += "No listed changes.";
+            else
+              _res.release_notes += version["ReleaseNotes"].get<std::string>();
+
+            _res.release_notes += "\n\n\n";
+          }
+
+          else if (versionDiff == 0)
+          {
+            _res.release_notes += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
+
+            _res.release_notes += "\n";
+            _res.release_notes += "=================\n";
+
+            if (version["ReleaseNotes"].get<std::string>().empty())
+              _res.release_notes += "No listed changes.";
+            else
+              _res.release_notes += version["ReleaseNotes"].get<std::string>();
+
+            // Used in the update prompt to show the description of the current version installed
+            _res.description_installed = version["Description"].get<std::string>();
+          }
+
+          // Limit download to a single version only
+          if (! parsedFirstVersion)
+          {
+            if (versionDiff != 0)
             {
-              if (versionDiff != 0)
+              PLOG_INFO << "Latest version: "    << branchVersion;
+
+              std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
+              std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+
+              _res.version       = branchVersion;
+              _res.filename      = filename;
+              _res.description   = version["Description"] .get<std::string>();
+              
+              // If we didn't populate the release_notes above, do so here, but only for the very latest version
+              if (_res.release_notes.empty())
               {
-                PLOG_INFO << "Latest version: "    << branchVersion;
-
-                std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
-                std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
-
-                _res.version       = branchVersion;
-                _res.filename      = filename;
-                _res.description   = version["Description"] .get<std::string>();
-                _res.release_notes = version["ReleaseNotes"].get<std::string>();
-
-
-                if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
-                  _res.state |= UpdateFlags_Ignored;
-                
-                if (PathFileExists ((root + filename).c_str()))
-                  _res.state |= UpdateFlags_Downloaded;
-
-                if (versionDiff > 0)
-                  _res.state |= UpdateFlags_Newer;
+                if (version["ReleaseNotes"].get<std::string>().empty())
+                  _res.release_notes += "No listed changes.";
                 else
-                  _res.state |= UpdateFlags_Rollback;
-
-                if (changedUpdateChannel)
-                  _res.state |= UpdateFlags_Forced;
-
-                if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                   ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
-                    (_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
-                    (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
-                {
-                  PLOG_INFO << "Downloading installer: " << branchInstaller;
-                  if (SKIF_Util_GetWebResource(branchInstaller, root + filename))
-                    _res.state |= UpdateFlags_Downloaded;
-                  else
-                    _res.state |= UpdateFlags_Failed;
-                }
-
-                if ((_res.state & UpdateFlags_Newer)      == UpdateFlags_Newer      ||
-                    (_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                   ((_res.state & UpdateFlags_Rollback)   == UpdateFlags_Rollback   &&
-                    (_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded ))
-                  _res.state |= UpdateFlags_Available;
+                  _res.release_notes += version["ReleaseNotes"].get<std::string>();
               }
 
-              parsedFirstVersion = true;
+              if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
+                _res.state |= UpdateFlags_Ignored;
+                
+              if (PathFileExists ((root + filename).c_str()))
+                _res.state |= UpdateFlags_Downloaded;
+
+              if (versionDiff > 0)
+                _res.state |= UpdateFlags_Newer;
+              else
+                _res.state |= UpdateFlags_Rollback;
+
+              if (changedUpdateChannel)
+                _res.state |= UpdateFlags_Forced;
+
+              if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+                  ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
+                  (_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
+                  (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
+              {
+                PLOG_INFO << "Downloading installer: " << branchInstaller;
+                if (SKIF_Util_GetWebResource(branchInstaller, root + filename))
+                  _res.state |= UpdateFlags_Downloaded;
+                else
+                  _res.state |= UpdateFlags_Failed;
+              }
+
+              if ((_res.state & UpdateFlags_Newer)      == UpdateFlags_Newer      ||
+                  (_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+                  ((_res.state & UpdateFlags_Rollback)   == UpdateFlags_Rollback   &&
+                  (_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded ))
+                _res.state |= UpdateFlags_Available;
             }
+
+            parsedFirstVersion = true;
           }
         }
       }
     }
     catch (const std::exception&)
     {
-
+      PLOG_ERROR << "Failed during parsing when trying to populate update channels";
     }
   }
 }

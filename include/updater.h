@@ -29,6 +29,7 @@ struct SKIF_Updater {
     std::string  release_notes;
     std::string  history;
     std::string  patrons;
+    std::string  description_installed;
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
   };
   
