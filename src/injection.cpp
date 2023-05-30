@@ -614,14 +614,14 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf32);
   PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
-  SKVer32 =
+  SKVer64 = SKVer32 =
     SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
 
   wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSvc32);
   PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
-  SKSvc32 =
+  SKSvc64 = SKSvc32 =
     SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
   
   PLOG_INFO << "SpecialK32.dll : " << SK_UTF8ToWideChar (SKVer32);
@@ -640,7 +640,7 @@ void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSvc64);
   PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
   SKSvc64 =
-    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
+    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc64));
 
   PLOG_INFO << "SpecialK64.dll : " << SK_UTF8ToWideChar (SKVer64);
   PLOG_INFO << "SKIFsvc64.exe  : " << SK_UTF8ToWideChar (SKSvc64);
