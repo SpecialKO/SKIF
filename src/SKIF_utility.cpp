@@ -1503,20 +1503,13 @@ DWORD
 WINAPI
 SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 {
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  ULONG ulTimeout = 5000UL;
-
+  ULONG     ulTimeout        = 5000UL;
   PCWSTR rgpszAcceptTypes [] = { L"*/*", nullptr };
   HINTERNET hInetHTTPGetReq  = nullptr,
             hInetHost        = nullptr,
-  hInetRoot                  =
-    InternetOpen (
-      L"Special K - Asset Crawler",
-        INTERNET_OPEN_TYPE_DIRECT,
-          nullptr, nullptr,
-            0x00
-    );
+            hInetRoot        = nullptr;
 
   // (Cleanup On Error)
   auto CLEANUP = [&](bool clean = false) ->
@@ -1542,6 +1535,18 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 
     return 0;
   };
+  
+  PLOG_VERBOSE                           << "Method: " << std::wstring(get->method);
+  PLOG_VERBOSE                           << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
+  PLOG_VERBOSE_IF(! get->header.empty()) << "Header: " << get->header;
+  PLOG_VERBOSE_IF(! get->body.empty())   << "  Body: " << get->body;
+
+  hInetRoot =
+    InternetOpen (
+      L"Special K - Asset Crawler",
+        INTERNET_OPEN_TYPE_DIRECT,
+          nullptr, nullptr,
+            0x00 );
 
   if (hInetRoot == nullptr)
     return CLEANUP ();
@@ -1551,7 +1556,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
   hInetHost =
     InternetConnect ( hInetRoot,
                         get->wszHostName,
-                          INTERNET_DEFAULT_HTTP_PORT,
+                          (get->https) ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT,
                             nullptr, nullptr,
                               INTERNET_SERVICE_HTTP,
                                 0x00,
@@ -1560,7 +1565,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
   if (hInetHost == nullptr)
     return CLEANUP ();
 
-  int flags = INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
+  int flags = ((get->https) ? INTERNET_FLAG_SECURE : 0x0) |
+              INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTP  | INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTPS |
+              INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
 
   if (_registry.bLowBandwidthMode)
     flags |= INTERNET_FLAG_RESYNCHRONIZE | INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_CACHE_ASYNC;
@@ -1666,10 +1673,6 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 
     else { // dwStatusCode != 200
       PLOG_WARNING << "HttpSendRequestW failed -> HTTP Status Code: " << dwStatusCode;
-      PLOG_WARNING << "Method: " << std::wstring(get->method);
-      PLOG_WARNING << "Target: " << get->wszHostPath;
-      PLOG_WARNING << "Header: " << get->header;
-      PLOG_WARNING << "Body:   " << get->body;
     }
   }
 
@@ -1692,13 +1695,13 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
   urlcomps.lpszUrlPath      = get->wszHostPath;
   urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
 
-  if (!method.empty())
+  if (! method.empty())
     get->method = method.c_str();
 
-  if (!header.empty())
+  if (! header.empty())
     get->header = header.c_str();
 
-  if (!body.empty())
+  if (! body.empty())
     get->body = body;
 
   if ( InternetCrackUrl (          url.c_str  (),
@@ -1711,6 +1714,8 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
     wcsncpy ( get->wszLocalPath,
                            destination.data (),
                        MAX_PATH );
+
+    get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
 
     return SKIF_Util_GetWebUri (get);
   }
@@ -1745,6 +1750,8 @@ SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destinatio
                            destination.data (),
                        MAX_PATH );
 
+    get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
+
     _beginthreadex (
        nullptr, 0, (_beginthreadex_proc_type) SKIF_Util_GetWebUri,
            get, 0x0, nullptr
@@ -1754,11 +1761,6 @@ SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destinatio
 
 
 // Directory Watch
-
-SKIF_DirectoryWatch::SKIF_DirectoryWatch (void)
-{
-
-}
 
 SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {

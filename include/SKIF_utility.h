@@ -66,10 +66,11 @@ bool            SKIF_Util_GetHDRToggleHotKeyState     (void);
 
 struct skif_get_web_uri_t {
   wchar_t wszHostName [INTERNET_MAX_HOST_NAME_LENGTH] = { };
-  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH] = { };
-  wchar_t wszLocalPath[MAX_PATH + 2] = { };
-  LPCWSTR method = L"GET";
-  std::string body;
+  wchar_t wszHostPath [INTERNET_MAX_PATH_LENGTH]      = { };
+  wchar_t wszLocalPath[MAX_PATH + 2]                  = { };
+  LPCWSTR method                                      = L"GET";
+  bool         https                                  = false;
+  std::string  body;
   std::wstring header;
 };
 
@@ -82,7 +83,7 @@ void         SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_vi
 
 struct SKIF_DirectoryWatch
 {
-  SKIF_DirectoryWatch  (void);
+  SKIF_DirectoryWatch  (void) { };
   SKIF_DirectoryWatch  (std::wstring_view wstrPath,
                                      bool bGlobalWait    = false,
                                      bool bWaitAllTabs   = false,
