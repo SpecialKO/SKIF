@@ -402,6 +402,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           // to other branches as well, which means versions that are older.
 
           int versionDiff = SKIF_Util_CompareVersionStrings (branchVersion, currentVersion);
+          
+          if (parsedFirstVersion)
+            _res.history += "\n\n\n"; // Spacing between the previous version and the current one
 
           if (versionDiff == 0)
             _res.history += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
@@ -418,11 +421,12 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           else
             _res.history += version["ReleaseNotes"].get<std::string>();
 
-          _res.history += "\n\n\n";
-
           // Special handling for all newer versions (ensures all missing changes are listed)
           if (versionDiff > 0 && ! currentVersion.empty())
           {
+            if (parsedFirstVersion)
+              _res.release_notes += "\n\n\n"; // Spacing between the previous version and the current one
+
             if (! parsedFirstVersion)
               _res.release_notes += version["Description"].get<std::string>() + "  -[ Newest update available! ]-";
             else
@@ -435,12 +439,11 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               _res.release_notes += "No listed changes.";
             else
               _res.release_notes += version["ReleaseNotes"].get<std::string>();
-
-            _res.release_notes += "\n\n\n";
           }
 
           else if (versionDiff == 0)
           {
+            /* Do not include last patch's changelog in the update change log
             _res.release_notes += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
 
             _res.release_notes += "\n";
@@ -450,6 +453,8 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               _res.release_notes += "No listed changes.";
             else
               _res.release_notes += version["ReleaseNotes"].get<std::string>();
+
+            */
 
             // Used in the update prompt to show the description of the current version installed
             _res.description_installed = version["Description"].get<std::string>();

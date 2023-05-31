@@ -2485,8 +2485,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 NumCharsOnLine = line.length();
 
             // 8.0f  per character
-            // 15.0f for the scrollbar
-            calculatedWidth = static_cast<float>(NumCharsOnLine) * 8.0f + 15.0f;
+            // 25.0f for the scrollbar
+            calculatedWidth = static_cast<float>(NumCharsOnLine) * 8.0f + 25.0f;
 
             // Populate the vector
             vecNotes.push_back ('\n');
@@ -2510,7 +2510,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        if ((calculatedWidth * SKIF_ImGui_GlobalDPIScale) > UpdateAvailableWidth)
+        if (calculatedWidth > UpdateAvailableWidth)
           UpdateAvailableWidth = calculatedWidth;
 
         ImGui::OpenPopup ("###UpdatePrompt");
@@ -2756,8 +2756,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                 HistoryPopupNumCharsOnLine = line.length();
 
             // 8.0f  per character
-            // 15.0f for the scrollbar
-            calcHistoryPopupWidth = static_cast<float>(HistoryPopupNumCharsOnLine) * 8.0f + 15.0f;
+            // 25.0f for the scrollbar
+            calcHistoryPopupWidth = static_cast<float>(HistoryPopupNumCharsOnLine) * 8.0f + 25.0f;
 
             // Populate the vector
             vecHistory.push_back ('\n');
@@ -2781,7 +2781,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        if ((calcHistoryPopupWidth * SKIF_ImGui_GlobalDPIScale) > HistoryPopupWidth)
+        if (calcHistoryPopupWidth > HistoryPopupWidth)
           HistoryPopupWidth = calcHistoryPopupWidth;
 
         HistoryPopupTitle = "Changelog (" + _updater.GetChannel()->first + ")###History";
