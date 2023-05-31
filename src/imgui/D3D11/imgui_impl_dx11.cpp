@@ -569,9 +569,9 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     vtx_resource = { },
     idx_resource = { };
 
-  if (ctx->Map (g_pVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource) != S_OK)
+  if (FAILED (ctx->Map (g_pVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
     return;
-  if (ctx->Map (g_pIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource) != S_OK)
+  if (FAILED (ctx->Map (g_pIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)))
     return;
 
   ImDrawVert *vtx_dst =
@@ -602,10 +602,10 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     D3D11_MAPPED_SUBRESOURCE
           mapped_resource = { };
 
-    if ( ctx->Map (
+    if ( FAILED (ctx->Map (
            g_pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
                                     0, &mapped_resource
-                  ) != S_OK
+                    ))
        ) return;
 
     VERTEX_CONSTANT_BUFFER *constant_buffer =
@@ -669,10 +669,10 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     }
 
          ctx->Unmap ( g_pVertexConstantBuffer, 0 );
-    if ( ctx->Map   (
+    if ( FAILED (ctx->Map (
            g_pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
                                    0, &mapped_resource
-                    ) != S_OK
+                    ))
        ) return;
 
     if (data->HDR || data->DXGIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
@@ -1500,7 +1500,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       {
         // The maximum number of back buffer frames that will be queued for the swap chain. This value is 1 by default.
         // This method is only valid for use on swap chains created with DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.
-        if (S_OK == pSwapChain2->SetMaximumFrameLatency (1))
+        if (SUCCEEDED (pSwapChain2->SetMaximumFrameLatency (1)))
         {
           data->WaitHandle =
             pSwapChain2->GetFrameLatencyWaitableObject  ( );
@@ -1678,7 +1678,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     //if (data->WaitHandle)
     //  WaitForSingleObject (data->WaitHandle, INFINITE);
 
-    if (S_OK == data->SwapChain->Present ( Interval, PresentFlags ))
+    if (SUCCEEDED (data->SwapChain->Present(Interval, PresentFlags)))
       data->PresentCount++;
 
     /* 2023-04-30: Does not actually seem to make a difference? We don't use dirty rectangles of Present1() at all

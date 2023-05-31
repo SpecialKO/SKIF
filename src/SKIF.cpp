@@ -1654,7 +1654,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (RecreateSwapChains)
     {
       // If the device have been removed/reset/hung, we need to invalidate all resources
-      if (S_OK != g_pd3dDevice->GetDeviceRemovedReason ( ))
+      if (FAILED (g_pd3dDevice->GetDeviceRemovedReason ( )))
       {
         // Invalidate resources
         ImGui_ImplDX11_InvalidateDeviceObjects ( );
@@ -3303,7 +3303,7 @@ bool CreateDeviceD3D (HWND hWnd)
   
   CComPtr <IDXGIFactory2> pFactory2;
 
-  if (S_OK != CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p))
+  if (FAILED (CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
   // Windows 7 (with the Platform Update) and newer
@@ -3358,13 +3358,13 @@ bool CreateDeviceD3D (HWND hWnd)
   // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
   //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
 
-  if (S_OK != D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  if (FAILED (D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
                                                        &g_pd3dDevice,
                                                                 &featureLevel,
-                                                       &g_pd3dDeviceContext))
+                                                       &g_pd3dDeviceContext)))
   {
     //OutputDebugString(L"D3D11CreateDevice failed!\n");
     PLOG_ERROR << "D3D11CreateDevice failed!";

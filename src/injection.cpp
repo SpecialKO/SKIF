@@ -1187,11 +1187,9 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
   ImGui::EndGroup      ();
 }
 
-HRESULT
+void
 SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
-  //CoInitializeEx (nullptr, 0x0); // Breaks overlay on start
-
   extern void SKIF_CreateUpdateNotifyMenu (void);
   extern void SKIF_UpdateNotifyIcon       (void);
   SKIF_CreateUpdateNotifyMenu             (    );
@@ -1217,12 +1215,12 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
       DestroyIcon (hIcon);
       bTaskbarOverlayIcon = show;
 
-      return S_OK;
+      return;
     }
   }
 
   bTaskbarOverlayIcon = false;
-  return E_UNEXPECTED;
+  return;
 }
 
 bool SKIF_InjectionContext::_StoreList(bool whitelist_)

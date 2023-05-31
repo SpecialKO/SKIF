@@ -90,7 +90,7 @@ struct SKIF_InjectionContext {
   void    _GlobalInjectionCtl     (void);
   void    _StartAtLogonCtrl       (void);
   void    _StartAtLogonCtrlLegacy (void);
-  HRESULT _SetTaskbarOverlay      (bool show);
+  void    _SetTaskbarOverlay      (bool show);
   void    _InitializeJumpList     (void);
   void    _ToggleInjectAck        (bool newState);
 

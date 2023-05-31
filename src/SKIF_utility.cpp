@@ -844,7 +844,7 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
     ULONG_PTR gdiplusToken;
 
     // Extract the icon    
-    if (S_OK == SHDefExtractIconW (exePath.c_str (), 0, 0, &hIcon, 0, 32)) // 256
+    if (SUCCEEDED (SHDefExtractIcon (exePath.c_str(), 0, 0, &hIcon, 0, 32))) // 256
     {
       // Start up GDI+
       if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
