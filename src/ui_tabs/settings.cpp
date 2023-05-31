@@ -570,7 +570,7 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::SameLine        ( );
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Check for updates to Special K:"
+      "Check for updates:"
   );
 
   if (_registry.bLowBandwidthMode)
@@ -591,6 +591,7 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::SameLine        ( );
   if (ImGui::RadioButton ("On each launch",        &_registry.iCheckForUpdates, 2))
     _registry.regKVCheckForUpdates.putData (        _registry.iCheckForUpdates);
+
   ImGui::TreePop         ( );
 
   ImGui::EndGroup      ( );
@@ -630,6 +631,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::EndCombo  ( );
   }
+
+  ImGui::SameLine        ( );
+  if (ImGui::Button      (ICON_FA_ROTATE))
+  {
+    static const std::wstring path_repo = SK_FormatStringW (LR"(%ws\Version\repository.json)", _path_cache.specialk_userdata);
+    _registry.bCheckForUpdatesForced = true; // Forces a redownload of repository.json and patrons.txt
+    _updater.CheckForUpdates ( );   // Trigger a new check for updates
+  }
+
+  SKIF_ImGui_SetHoverTip ("Check for updates");
 
   if (channelsDisabled)
   {

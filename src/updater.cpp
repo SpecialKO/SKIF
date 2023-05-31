@@ -166,25 +166,26 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  const std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
-  const std::wstring path_repo    = root + LR"(repository.json)";
-  const std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
+  static const std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
+  static const std::wstring path_repo    = root + LR"(repository.json)";
+  static const std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
 
   // Add UNIX-style timestamp to ensure we don't get anything cached
   time_t ltime;
   time (&ltime); 
 
-  const std::wstring url_repo    = L"https://sk-data.special-k.info/repository.json?t=" + std::to_wstring (ltime);
-  const std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
+  static const std::wstring url_repo    = L"https://sk-data.special-k.info/repository.json?t=" + std::to_wstring (ltime);
+  static const std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
 
   // Create any missing directories
   std::error_code ec;
   if (! std::filesystem::exists (            root, ec))
         std::filesystem::create_directories (root, ec);
 
-  bool downloadNewFiles = false;
+  bool forcedUpdateCheck = _registry.bCheckForUpdatesForced;
+  bool downloadNewFiles  = forcedUpdateCheck;
 
-  if (_registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
+  if (! forcedUpdateCheck && _registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
   {
     // Download files if any does not exist or if we're forcing an update
     if (! PathFileExists (path_repo.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
@@ -376,7 +377,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     }
   }
 
-  if (_registry.iCheckForUpdates != 0 && !_registry.bLowBandwidthMode)
+  if (forcedUpdateCheck || (_registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode))
   {
     try
     {
@@ -524,6 +525,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
       PLOG_ERROR << "Failed during parsing when trying to populate update channels";
     }
   }
+
+  // Set the force variable to false
+  _registry.bCheckForUpdatesForced = false;
 }
 
 void
