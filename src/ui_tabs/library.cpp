@@ -1001,7 +1001,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       for ( auto& app : apps )
       {
-        PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
+        //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
 
         // Special handling for non-Steam owners of Special K / SKIF
         if ( app.second.id == SKIF_STEAM_APPID )
@@ -1185,7 +1185,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           );
           */
 
-        PLOG_VERBOSE << "Finished with game!";
+        //PLOG_VERBOSE << "Finished with game!";
       }
 
       PLOG_INFO << "Finished streaming game icons and names asynchronously...";
@@ -4421,8 +4421,8 @@ Cache=false)";
       }
 
       std::wstring pcgwLink =
-        (pApp->store == "GOG") ? L"http://www.pcgamingwiki.com/api/gog.php?page=%ws"
-                               : (pApp->store == "Steam") ? L"http://www.pcgamingwiki.com/api/appid.php?appid=%ws"
+                                 (pApp->store == "GOG")   ? L"https://www.pcgamingwiki.com/api/gog.php?page=%ws"
+                               : (pApp->store == "Steam") ? L"https://www.pcgamingwiki.com/api/appid.php?appid=%ws"
                                                           : L"https://www.pcgamingwiki.com/w/index.php?search=%ws";
       std::wstring pcgwValue =
         (pApp->store == "SKIF" || pApp->store == "EGS" || pApp->store == "Xbox")
