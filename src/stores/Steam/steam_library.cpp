@@ -325,7 +325,7 @@ SK_Steam_GetInstalledAppIDs (void)
 std::wstring
 SK_Steam_GetApplicationManifestPath (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
@@ -365,7 +365,7 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
 std::string
 SK_GetManifestContentsForAppID (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   static AppId_t     manifest_id = 0;
   static std::string manifest;
@@ -391,7 +391,7 @@ SK_GetManifestContentsForAppID (AppId_t appid)
 
   if (hManifest != INVALID_HANDLE_VALUE)
   {
-    PLOG_VERBOSE << "Reading " << wszManifest;
+    //PLOG_VERBOSE << "Reading " << wszManifest;
 
     DWORD dwSizeHigh = 0,
           dwRead     = 0,
@@ -576,14 +576,14 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 std::string
 SK_UseManifestToGetAppName (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
     SK_GetManifestContentsForAppID (appid);
 
   if (! manifest_data.empty ())
   {
-    PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::string app_name =
       SK_Steam_KeyValues::getValue (
@@ -602,14 +602,14 @@ SK_UseManifestToGetAppName (AppId_t appid)
 std::string
 SK_UseManifestToGetAppOwner (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
     SK_GetManifestContentsForAppID (appid);
 
   if (! manifest_data.empty ())
   {
-    PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::string app_owner =
       SK_Steam_KeyValues::getValue (
@@ -628,14 +628,14 @@ SK_UseManifestToGetAppOwner (AppId_t appid)
 std::wstring
 SK_UseManifestToGetInstallDir (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
     SK_GetManifestContentsForAppID (appid);
 
   if (! manifest_data.empty ())
   {
-    PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::wstring app_path =
       SK_Steam_KeyValues::getValueAsUTF16 (
@@ -669,7 +669,7 @@ SK_UseManifestToGetInstallDir (AppId_t appid)
 std::vector <SK_Steam_Depot>
 SK_UseManifestToGetDepots (AppId_t appid)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::vector <SK_Steam_Depot> depots;
 
@@ -678,7 +678,7 @@ SK_UseManifestToGetDepots (AppId_t appid)
 
   if (! manifest_data.empty ())
   {
-    PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::vector <std::string> values;
     auto                      mounted_depots =
@@ -705,14 +705,14 @@ SK_UseManifestToGetDepots (AppId_t appid)
 ManifestId_t
 SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot)
 {
-  PLOG_VERBOSE << "Steam AppID: " << appid;
+  //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
     SK_GetManifestContentsForAppID (appid);
 
   if (! manifest_data.empty ())
   {
-    PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     return
       atoll (
