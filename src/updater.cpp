@@ -166,18 +166,16 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
-  std::wstring path_repo    = root + LR"(repository.json)";
-  std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
+  const std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
+  const std::wstring path_repo    = root + LR"(repository.json)";
+  const std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
 
-  // Get UNIX-style time
+  // Add UNIX-style timestamp to ensure we don't get anything cached
   time_t ltime;
-  time (&ltime);
+  time (&ltime); 
 
-  std::wstring url  = L"https://sk-data.special-k.info/repository.json";
-                url += L"?t=";
-                url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
-  std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
+  const std::wstring url_repo    = L"https://sk-data.special-k.info/repository.json?t=" + std::to_wstring (ltime);
+  const std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
 
   // Create any missing directories
   std::error_code ec;
@@ -301,9 +299,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (downloadNewFiles)
   {
     PLOG_INFO << "Downloading repository.json...";
-    SKIF_Util_GetWebResource (url, path_repo);
+    SKIF_Util_GetWebResource (url_repo, path_repo);
   }
-    
+  
   std::ifstream file(path_repo);
   nlohmann::ordered_json jf = nlohmann::ordered_json::parse(file, nullptr, false);
   file.close();
