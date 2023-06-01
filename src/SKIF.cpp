@@ -38,7 +38,6 @@
 #include <stores/Steam/steam_library.h>
 #include <injection.h>
 
-//#include <font_awesome.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
@@ -65,14 +64,9 @@
 
 #include <unordered_set>
 
-#include <fonts/fa_regular_400.ttf.h>
-#include <fonts/fa_brands_400.ttf.h>
-#include <fonts/fa_solid_900.ttf.h>
-
 #include <stores/Steam/app_record.h>
 
 #include <wtypes.h>
-#include <WinInet.h>
 
 #include <gsl/gsl>
 #include <comdef.h>
@@ -93,8 +87,6 @@
 #include <updater.h>
 
 #include "drvreset.h"
-
-#pragma comment (lib, "wininet.lib")
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;

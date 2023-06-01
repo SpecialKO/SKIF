@@ -11,10 +11,8 @@
 #include <registry.h>
 #include <injection.h>
 
-//#include <font_awesome.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
-#include <fonts/fa_regular_400.ttf.h>
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
 
@@ -538,28 +536,24 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
   static const ImWchar ranges [] =
   {
     ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
-    ICON_MIN_FAB, ICON_MAX_FAB, // Font Awesome (Brands)
     0
   };
   return &ranges [0];
 }
 
 const ImWchar*
-SK_ImGui_GetGlyphRangesFontAwesomeNoBrands (void)
+SK_ImGui_GetGlyphRangesFontAwesomeBrands (void)
 {
   static const ImWchar ranges [] =
   {
-    ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
+    ICON_MIN_FAB, ICON_MAX_FAB, // Font Awesome (Brands)
     0
   };
   return &ranges [0];
 }
 
-auto SKIF_ImGui_LoadFont =
-   []( const std::wstring& filename,
-             float         point_size,
-       const ImWchar*      glyph_range,
-             ImFontConfig* cfg = nullptr )
+ImFont*
+SKIF_ImGui_LoadFont ( const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg )
 {
   auto& io =
     ImGui::GetIO ();
@@ -593,7 +587,7 @@ auto SKIF_ImGui_LoadFont =
   }
 
   return (ImFont *)nullptr;
-};
+}
 
 void
 SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
@@ -725,9 +719,6 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   auto      awesome_fonts = {
     std::make_tuple (
-      FONT_ICON_FILE_NAME_FAR, fa_regular_400_ttf,
-                   _ARRAYSIZE (fa_regular_400_ttf) ),
-    std::make_tuple (
       FONT_ICON_FILE_NAME_FAS, fa_solid_900_ttf,
                    _ARRAYSIZE (fa_solid_900_ttf) ),
     std::make_tuple (
@@ -737,28 +728,17 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   float fontSizeFA = fontSize - 2.0f;
 
-  std::for_each (
-            awesome_fonts.begin (),
-            awesome_fonts.end   (),
-    [&](const auto& font)
-    {        _UnpackFontIfNeeded (
-      std::get <0> (font),
-      std::get <1> (font),
-      std::get <2> (font)        );
-     SKIF_ImGui_LoadFont (
-                    fontDir/
-      std::get <0> (font),
-                    fontSizeFA, // - 2.0f
-        SK_ImGui_GetGlyphRangesFontAwesome (),
-                   &font_cfg
-                         );
-    }           );
+  for (auto& font : awesome_fonts)
+    _UnpackFontIfNeeded ( std::get <0> (font), std::get <1> (font), std::get <2> (font) );
+
+  // FA Regular is basically useless as it only has 163 icons, so we don't bother using it
+  // FA Solid has 1390 icons in comparison
+  SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesome       (), &font_cfg);
+  // FA Brands
+  SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeBrands (), &font_cfg);
 
   io.Fonts->AddFontDefault ();
 
   fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx ( ));
-  // TODO: Make the below fonts also include the basics non-FA characters
-  //fontFAS      = SKIF_ImGui_LoadFont (fontDir / FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeNoBrands ( ));
-  //fontFAR      = SKIF_ImGui_LoadFont (fontDir / FONT_ICON_FILE_NAME_FAR, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeNoBrands ( ));
   //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }

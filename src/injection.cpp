@@ -32,7 +32,6 @@
 #include <registry.h>
 #include <fsutil.h>
 
-//#include <font_awesome.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
@@ -1165,7 +1164,7 @@ SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
 {
   ImGui::BeginGroup ();
   
-  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_SHIELD, &bLogonTaskEnabled))
+  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
   {
     if (
       ShellExecuteW (

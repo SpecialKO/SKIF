@@ -1,6 +1,5 @@
 
 #include <SKIF_imgui.h>
-//#include <font_awesome.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 #include <sk_utility/utility.h>
@@ -1648,7 +1647,7 @@ SKIF_UI_Tab_DrawSettings (void)
     // Driver is installed
     else if (driverStatus == Installed)
     {
-      btnDriverLabel    = ICON_FA_SHIELD " Uninstall Driver";
+      btnDriverLabel    = ICON_FA_USER_SHIELD " Uninstall Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
       wszDriverTaskCmd = L"Uninstall";
     }
@@ -1670,14 +1669,14 @@ SKIF_UI_Tab_DrawSettings (void)
     // Obsolete driver is installed
     else if (driverStatus == ObsoleteInstalled)
     {
-      btnDriverLabel    = ICON_FA_SHIELD " Migrate Driver";
+      btnDriverLabel    = ICON_FA_USER_SHIELD " Migrate Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Obsolete driver installed");
       wszDriverTaskCmd = L"Migrate Install";
     }
 
     // Driver is not installed
     else {
-      btnDriverLabel    = ICON_FA_SHIELD " Install Driver";
+      btnDriverLabel    = ICON_FA_USER_SHIELD " Install Driver";
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
       wszDriverTaskCmd = L"Install";
     }
@@ -1874,7 +1873,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     std::string btnPfuLabel = (pfuState == Granted) ?                         ICON_FA_CHECK              " Permissions granted!" // Granted
-                                                    : (pfuState == Missing) ? ICON_FA_SHIELD             " Grant permissions"    // Missing
+                                                    : (pfuState == Missing) ? ICON_FA_USER_SHIELD             " Grant permissions"    // Missing
                                                                             : ICON_FA_RIGHT_FROM_BRACKET " Sign out to apply";   // Pending
 
     if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,

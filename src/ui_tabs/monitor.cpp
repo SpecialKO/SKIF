@@ -26,7 +26,6 @@
 #include <injection.h>
 #include <fsutil.h>
 
-//#include <font_awesome.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 #include <sk_utility/utility.h>

@@ -2,9 +2,11 @@
 
 #include <wtypes.h>
 #include <string>
-#include <wininet.h>
+#include <WinInet.h>
 #include <atlbase.h>
 #include <Tlhelp32.h>
+
+#pragma comment (lib, "wininet.lib")
 
 // Generic Utilities
 

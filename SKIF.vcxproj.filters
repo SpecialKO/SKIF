@@ -288,9 +288,6 @@
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\fonts\fa_regular_400.ttf.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h">
       <Filter>Resource Files</Filter>
     </ClInclude>

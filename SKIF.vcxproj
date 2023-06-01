@@ -367,7 +367,6 @@
     <ClInclude Include="include\SKIF_utility.h" />
     <ClInclude Include="include\stores\EGS\epic_library.h" />
     <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
-    <ClInclude Include="include\fonts\fa_regular_400.ttf.h" />
     <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
     <ClInclude Include="include\fsutil.h" />
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
