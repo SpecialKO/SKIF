@@ -182,8 +182,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (! std::filesystem::exists (            root, ec))
         std::filesystem::create_directories (root, ec);
 
-  bool forcedUpdateCheck = _registry.bCheckForUpdatesForced;
+  bool forcedUpdateCheck = forced.load ( );
   bool downloadNewFiles  = forcedUpdateCheck;
+  bool rollbackDesired   = rollback.load();
+  rollbackAvailable.store(false);
 
   if (! forcedUpdateCheck && _registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
   {
@@ -381,7 +383,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   {
     try
     {
-      bool parsedFirstVersion = false;
+      bool parsedFirstVersion      = false;
+      bool parsedRollbackVersion   = false;
+      bool detectedRollbackVersion = false;
 
       // Processes all versions listed in the changelog
       for (auto& version : jf["Main"]["Versions"])
@@ -442,29 +446,24 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
           else if (versionDiff == 0)
           {
-            /* Do not include last patch's changelog in the update change log
-            _res.release_notes += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
-
-            _res.release_notes += "\n";
-            _res.release_notes += "=================\n";
-
-            if (version["ReleaseNotes"].get<std::string>().empty())
-              _res.release_notes += "No listed changes.";
-            else
-              _res.release_notes += version["ReleaseNotes"].get<std::string>();
-
-            */
-
             // Used in the update prompt to show the description of the current version installed
             _res.description_installed = version["Description"].get<std::string>();
           }
 
-          // Limit download to a single version only
-          if (! parsedFirstVersion)
+          // If an older version was found
+          else if (versionDiff < 0 && ! detectedRollbackVersion && ! rollbackDesired)
           {
-            if (versionDiff != 0)
+            detectedRollbackVersion = true;
+            rollbackAvailable.store (true);
+          }
+
+          if (! parsedFirstVersion && ! parsedRollbackVersion)
+          {
+            OutputDebugString(L"derp2\n");
+
+            if ((versionDiff != 0 && ! rollbackDesired) || (versionDiff < 0 && rollbackDesired))
             {
-              PLOG_INFO << "Latest version: "    << branchVersion;
+              PLOG_INFO << "Found version: "    << branchVersion;
 
               std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
               std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
@@ -493,8 +492,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               else
                 _res.state |= UpdateFlags_Rollback;
 
-              if (changedUpdateChannel)
+              if (changedUpdateChannel || rollbackDesired)
                 _res.state |= UpdateFlags_Forced;
+
+              OutputDebugString(L"derp\n");
 
               if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
                   ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
@@ -515,7 +516,12 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
                 _res.state |= UpdateFlags_Available;
             }
 
-            parsedFirstVersion = true;
+            if ((  rollbackDesired && versionDiff < 0) ||
+                (! rollbackDesired))
+            {
+              parsedFirstVersion    = true;
+              parsedRollbackVersion = true;
+            }
           }
         }
       }
@@ -527,7 +533,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   }
 
   // Set the force variable to false
-  _registry.bCheckForUpdatesForced = false;
+  forced.store (false);
 }
 
 void
@@ -553,8 +559,11 @@ SKIF_Updater::RefreshResults (void)
 }
 
 void
-SKIF_Updater::CheckForUpdates (void)
+SKIF_Updater::CheckForUpdates (bool _forced, bool _rollback)
 {
+  forced.store   (_forced);
+  rollback.store (_rollback);
+
   WakeConditionVariable       (&UpdaterPaused);
 }
 

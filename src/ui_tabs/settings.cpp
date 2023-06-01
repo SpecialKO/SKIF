@@ -632,14 +632,29 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   ImGui::SameLine        ( );
+
   if (ImGui::Button      (ICON_FA_ROTATE))
-  {
-    static const std::wstring path_repo = SK_FormatStringW (LR"(%ws\Version\repository.json)", _path_cache.specialk_userdata);
-    _registry.bCheckForUpdatesForced = true; // Forces a redownload of repository.json and patrons.txt
-    _updater.CheckForUpdates ( );   // Trigger a new check for updates
-  }
+    _updater.CheckForUpdates (true); // Trigger a forced check for updates/redownloads of repository.json and patrons.txt
 
   SKIF_ImGui_SetHoverTip ("Check for updates");
+
+  if (((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback) || _updater.rollbackAvailable.load())
+  {
+    ImGui::SameLine        ( );
+
+    if (ImGui::Button      (ICON_FA_ROTATE_LEFT))
+    {
+      extern PopupState UpdatePromptPopup;
+
+      if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
+        UpdatePromptPopup = PopupState_Open;
+      else
+        _updater.CheckForUpdates (false, true); // Trigger a rollback
+
+    }
+
+    SKIF_ImGui_SetHoverTip ("Roll back to the previous version");
+  }
 
   if (channelsDisabled)
   {

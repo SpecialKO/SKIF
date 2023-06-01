@@ -601,8 +601,6 @@ struct SKIF_RegistrySettings {
   bool bMinimizeOnGameLaunch;
   bool bProcessSortAscending;
   bool bProcessIncludeAll;
-
-  bool bCheckForUpdatesForced = false; // Only used internally for forced updates
   
   std::wstring wsUpdateChannel;
   std::wstring wsIgnoreUpdate;

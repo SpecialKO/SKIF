@@ -32,10 +32,13 @@ struct SKIF_Updater {
     std::string  description_installed;
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
   };
+
+  // Public variables
+  std::atomic<bool> rollbackAvailable = false; // Indicates SKIF can roll back
   
   // Public functions
   void        RefreshResults  (void);
-  void        CheckForUpdates (void);
+  void        CheckForUpdates (bool _forced = false, bool _rollback = false);
   bool        IsRunning       (void);
   std::string GetPatrons      (void);
   std::string GetHistory      (void);
@@ -71,6 +74,9 @@ private:
   std::atomic<int> snapshot_idx_reading = 0,
                    snapshot_idx_written = 1,
                    updater_running      = 0; // 0 = No update check has run,            1 = Update check is running,       2 = Update check has completed
+
+  std::atomic<bool> forced   = false; // Only used internally for forced updates
+  std::atomic<bool> rollback = false; // Only used internally when triggering a rollback
 
   SKIF_Updater (void);
   void ClearOldUpdates (void);
