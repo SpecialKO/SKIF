@@ -62,8 +62,8 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // MenuBar
   colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
 
-  // CheckMark
-  colors[ImGuiCol_CheckMark]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+  // CheckMark / Radio Button
+  colors[ImGuiCol_CheckMark]              = ImVec4(0.45f, 0.45f, 0.45f, 1.00f); // ImVec4(0.26f, 0.59f, 0.98f, 1.00f)
 
   // Slider [UNUSED]
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
@@ -146,7 +146,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Success]           = ImColor(121, 214, 28);  // 42,  203, 2);  //53,  255, 3);  //ImColor(144, 238, 144);
   colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124, 3); // ImColor::HSV(0.11F, 1.F, 1.F)
   colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
-  colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
+  colors[ImGuiCol_SKIF_Info]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f); // colors[ImGuiCol_CheckMark];
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
