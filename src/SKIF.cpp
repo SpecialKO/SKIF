@@ -978,115 +978,116 @@ void SKIF_Initialize (void)
 {
   static bool isInitalized = false;
 
-  if (! isInitalized)
-  {     isInitalized = true;
+  if (isInitalized)
+    return;
 
-    static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  isInitalized = true;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
     
-    // Let's change the current working directory to the folder of the executable itself.
-    SetCurrentDirectory (         _path_cache.specialk_install);
+  // Let's change the current working directory to the folder of the executable itself.
+  SetCurrentDirectory (         _path_cache.specialk_install);
 
-    // Generate 8.3 filenames
-    SK_Generate8Dot3    (_path_cache.skif_workdir_org);
-    SK_Generate8Dot3    (_path_cache.specialk_install);
+  // Generate 8.3 filenames
+  SK_Generate8Dot3    (_path_cache.skif_workdir_org);
+  SK_Generate8Dot3    (_path_cache.specialk_install);
 
-    bool fallback = true;
+  bool fallback = true;
 
-    // See if we can interact with the install folder
-    // This section of the code triggers a refresh of the DLL files for other running SKIF instances
-    // TODO: Find a better way to determine permissions that does not rely on creating dummy files/folders?
-    std::filesystem::path testDir  (_path_cache.specialk_install);
-    std::filesystem::path testFile (testDir);
+  // See if we can interact with the install folder
+  // This section of the code triggers a refresh of the DLL files for other running SKIF instances
+  // TODO: Find a better way to determine permissions that does not rely on creating dummy files/folders?
+  std::filesystem::path testDir  (_path_cache.specialk_install);
+  std::filesystem::path testFile (testDir);
 
-    testDir  /= L"SKIFTMPDIR";
-    testFile /= L"SKIFTMPFILE.tmp";
+  testDir  /= L"SKIFTMPDIR";
+  testFile /= L"SKIFTMPFILE.tmp";
 
-    // Try to delete any existing tmp folder or file (won't throw an exception at least)
+  // Try to delete any existing tmp folder or file (won't throw an exception at least)
+  RemoveDirectory (testDir.c_str());
+  DeleteFile      (testFile.wstring().c_str());
+
+  std::error_code ec;
+  // See if we can create a folder
+  if (! std::filesystem::exists (            testDir, ec) &&
+        std::filesystem::create_directories (testDir, ec))
+  {
+    // Delete it
     RemoveDirectory (testDir.c_str());
-    DeleteFile      (testFile.wstring().c_str());
 
-    std::error_code ec;
-    // See if we can create a folder
-    if (! std::filesystem::exists (            testDir, ec) &&
-          std::filesystem::create_directories (testDir, ec))
+    // See if we can create a file
+    HANDLE h = CreateFile ( testFile.wstring().c_str(),
+            GENERIC_READ | GENERIC_WRITE,
+              FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                NULL,
+                  CREATE_NEW,
+                    FILE_ATTRIBUTE_NORMAL,
+                      NULL );
+
+    // If the file was created successfully
+    if (h != INVALID_HANDLE_VALUE)
     {
+      // We need to close the handle as well
+      CloseHandle (h);
+
       // Delete it
-      RemoveDirectory (testDir.c_str());
+      DeleteFile (testFile.wstring().c_str());
 
-      // See if we can create a file
-      HANDLE h = CreateFile ( testFile.wstring().c_str(),
-              GENERIC_READ | GENERIC_WRITE,
-                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  NULL,
-                    CREATE_NEW,
-                      FILE_ATTRIBUTE_NORMAL,
-                        NULL );
-
-      // If the file was created successfully
-      if (h != INVALID_HANDLE_VALUE)
-      {
-        // We need to close the handle as well
-        CloseHandle (h);
-
-        // Delete it
-        DeleteFile (testFile.wstring().c_str());
-
-        // Use current path as we have write permissions
-        wcsncpy_s ( _path_cache.specialk_userdata, MAX_PATH,
-                    _path_cache.specialk_install, _TRUNCATE );
-
-        // No need to rely on the fallback
-        fallback = false;
-      }
-    }
-
-    if (fallback)
-    {
-      // Fall back to appdata in case of issues
-      std::wstring fallbackDir =
-        std::wstring (_path_cache.my_documents.path) + LR"(\My Mods\SpecialK\)";
-
+      // Use current path as we have write permissions
       wcsncpy_s ( _path_cache.specialk_userdata, MAX_PATH,
-                  fallbackDir.c_str(), _TRUNCATE);
-        
-      // Create any missing directories
-      if (! std::filesystem::exists (            fallbackDir, ec))
-            std::filesystem::create_directories (fallbackDir, ec);
+                  _path_cache.specialk_install, _TRUNCATE );
+
+      // No need to rely on the fallback
+      fallback = false;
     }
+  }
 
-    // Now we can proceed with initializing the logging
-    // If SKIF is used as a launcher, use a separate log file
-    std::wstring logPath =
-      SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log)" 
-                                           : LR"(%ws\SKIF.log)",
-            _path_cache.specialk_userdata
-      );
+  if (fallback)
+  {
+    // Fall back to appdata in case of issues
+    std::wstring fallbackDir =
+      std::wstring (_path_cache.my_documents.path) + LR"(\My Mods\SpecialK\)";
 
-    // Delete the old log file
-    DeleteFile (logPath.c_str());
+    wcsncpy_s ( _path_cache.specialk_userdata, MAX_PATH,
+                fallbackDir.c_str(), _TRUNCATE);
+        
+    // Create any missing directories
+    if (! std::filesystem::exists (            fallbackDir, ec))
+          std::filesystem::create_directories (fallbackDir, ec);
+  }
 
-    // Engage logging!
-    plog::init (plog::debug, logPath.c_str(), 10000000, 1);
+  // Now we can proceed with initializing the logging
+  // If SKIF is used as a launcher, use a separate log file
+  std::wstring logPath =
+    SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log)" 
+                                          : LR"(%ws\SKIF.log)",
+          _path_cache.specialk_userdata
+    );
+
+  // Delete the old log file
+  DeleteFile (logPath.c_str());
+
+  // Engage logging!
+  plog::init (plog::debug, logPath.c_str(), 10000000, 1);
 
 #ifdef _WIN64
-    PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
+  PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
 #else
-    PLOG_INFO << "Special K Injection Frontend (SKIF) 32-bit v " << SKIF_VERSION_STR_A;
+  PLOG_INFO << "Special K Injection Frontend (SKIF) 32-bit v " << SKIF_VERSION_STR_A;
 #endif
 
-    PLOG_INFO << "Built " __TIME__ ", " __DATE__;
-    PLOG_INFO << SKIF_LOG_SEPARATOR;
-    PLOG_INFO << "Working directory:  ";
-    PLOG_INFO << "Old:                " << _path_cache.skif_workdir_org;
-    PLOG_INFO << "New:                " << std::filesystem::current_path ();
-    PLOG_INFO << "SKIF executable:    " << _path_cache.skif_executable;
-    PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
-    PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
-    PLOG_INFO << SKIF_LOG_SEPARATOR;
+  PLOG_INFO << "Built " __TIME__ ", " __DATE__;
+  PLOG_INFO << SKIF_LOG_SEPARATOR;
+  PLOG_INFO << "Working directory:  ";
+  PLOG_INFO << "Old:                " << _path_cache.skif_workdir_org;
+  PLOG_INFO << "New:                " << std::filesystem::current_path ();
+  PLOG_INFO << "SKIF executable:    " << _path_cache.skif_executable;
+  PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
+  PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
+  PLOG_INFO << SKIF_LOG_SEPARATOR;
 
-    if (_Signal.Launcher)
-      PLOG_INFO << "SKIF is being used as a launcher.";
-  }
+  if (_Signal.Launcher)
+    PLOG_INFO << "SKIF is being used as a launcher.";
 }
 
 bool bKeepWindowAlive  = true,
