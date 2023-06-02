@@ -35,20 +35,18 @@ struct SKIF_Updater {
   };
   
   // Public functions
-  void        RefreshResults  (void);
-  void        CheckForUpdates (bool _forced = false, bool _rollback = false);
-  bool        IsRunning       (void);
-  bool        IsRollbackAvailable (void);
-  std::string GetPatrons      (void);
-  std::string GetHistory      (void);
-  std::vector <std::pair<std::string, std::string>>*
-              GetChannels     (void);
-  std::pair<std::string, std::string>*
-              GetChannel      (void);
-  void        SetChannel      (std::pair<std::string, std::string>* _channel);
-  void        SetIgnoredUpdate (std::wstring update);
-  UpdateFlags GetState        (void);
-  results_s&  GetResults      (void);
+  void                                                RefreshResults      (void);
+  void                                                CheckForUpdates     (bool _forced = false, bool _rollback = false);
+  bool                                                IsRunning           (void);
+  bool                                                IsRollbackAvailable (void);
+  std::string                                         GetPatrons          (void);
+  std::string                                         GetHistory          (void);
+  std::vector <std::pair <std::string, std::string>>* GetChannels         (void);
+               std::pair <std::string, std::string>*  GetChannel          (void);
+  void                                                SetChannel          (std::pair <std::string, std::string>* _channel);
+  void                                                SetIgnoredUpdate    (std::wstring update);
+  UpdateFlags                                         GetState            (void);
+  results_s&                                          GetResults          (void);
 
   static SKIF_Updater& GetInstance (void)
   {
@@ -78,7 +76,7 @@ private:
   std::atomic<bool> forced   = false; // Only used internally for forced updates
   std::atomic<bool> rollback = false; // Only used internally when triggering a rollback
 
-  SKIF_Updater (void);
-  void ClearOldUpdates (void);
+  SKIF_Updater            (void);
+  void ClearOldUpdates    (void);
   void PerformUpdateCheck (results_s& _res);
 };

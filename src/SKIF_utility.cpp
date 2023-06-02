@@ -1658,12 +1658,14 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
           break;
       }
 
-      FILE *fOut =
-        _wfopen ( get->wszLocalPath, L"wb+" );
+      FILE *fOut = nullptr;
+
+      _wfopen_s (&fOut, get->wszLocalPath, L"wb+" );
 
       if (fOut != nullptr)
       {
         fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
+        fflush (fOut);
         fclose (fOut);
 
         CLEANUP (true);
