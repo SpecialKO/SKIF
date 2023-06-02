@@ -301,6 +301,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (downloadNewFiles)
   {
     PLOG_INFO << "Downloading repository.json...";
+    DeleteFile (path_repo.c_str()); // Delete any existing file
     SKIF_Util_GetWebResource (url_repo, path_repo);
   }
   
