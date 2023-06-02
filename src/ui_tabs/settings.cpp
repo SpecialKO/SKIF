@@ -621,7 +621,8 @@ SKIF_UI_Tab_DrawSettings (void)
       if (ImGui::Selectable (updateChannel.second.c_str(), is_selected) && updateChannel.first != _updater.GetChannel( )->first)
       {
         _updater.SetChannel (&updateChannel); // Update selection
-        _updater.CheckForUpdates ( );         // Trigger a new check for updates
+        _updater.SetIgnoredUpdate (L"");      // Clear any ignored updates
+        _updater.CheckForUpdates  ( );        // Trigger a new check for updates
       }
 
       if (is_selected)
@@ -634,23 +635,27 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::SameLine        ( );
 
   if (ImGui::Button      (ICON_FA_ROTATE))
+  {
+    _updater.SetIgnoredUpdate (L""); // Clear any ignored updates
     _updater.CheckForUpdates (true); // Trigger a forced check for updates/redownloads of repository.json and patrons.txt
+  }
 
   SKIF_ImGui_SetHoverTip ("Check for updates");
 
-  if (((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback) || _updater.rollbackAvailable.load())
+  if (((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback) || _updater.IsRollbackAvailable ( ))
   {
     ImGui::SameLine        ( );
 
     if (ImGui::Button      (ICON_FA_ROTATE_LEFT))
     {
       extern PopupState UpdatePromptPopup;
+      
+      _updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().description)); // Ignore the latest version
 
       if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
         UpdatePromptPopup = PopupState_Open;
       else
         _updater.CheckForUpdates (false, true); // Trigger a rollback
-
     }
 
     SKIF_ImGui_SetHoverTip ("Roll back to the previous version");

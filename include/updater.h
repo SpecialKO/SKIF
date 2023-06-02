@@ -31,15 +31,14 @@ struct SKIF_Updater {
     std::string  patrons;
     std::string  description_installed;
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
+    bool rollbackAvailable = false; // Indicates SKIF can roll back
   };
-
-  // Public variables
-  std::atomic<bool> rollbackAvailable = false; // Indicates SKIF can roll back
   
   // Public functions
   void        RefreshResults  (void);
   void        CheckForUpdates (bool _forced = false, bool _rollback = false);
   bool        IsRunning       (void);
+  bool        IsRollbackAvailable (void);
   std::string GetPatrons      (void);
   std::string GetHistory      (void);
   std::vector <std::pair<std::string, std::string>>*
@@ -47,6 +46,7 @@ struct SKIF_Updater {
   std::pair<std::string, std::string>*
               GetChannel      (void);
   void        SetChannel      (std::pair<std::string, std::string>* _channel);
+  void        SetIgnoredUpdate (std::wstring update);
   UpdateFlags GetState        (void);
   results_s&  GetResults      (void);
 

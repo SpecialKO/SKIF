@@ -185,7 +185,6 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   bool forcedUpdateCheck = forced.load ( );
   bool downloadNewFiles  = forcedUpdateCheck;
   bool rollbackDesired   = rollback.load();
-  rollbackAvailable.store(false);
 
   if (! forcedUpdateCheck && _registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
   {
@@ -454,13 +453,11 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           else if (versionDiff < 0 && ! detectedRollbackVersion && ! rollbackDesired)
           {
             detectedRollbackVersion = true;
-            rollbackAvailable.store (true);
+            _res.rollbackAvailable  = true;
           }
 
           if (! parsedFirstVersion && ! parsedRollbackVersion)
           {
-            OutputDebugString(L"derp2\n");
-
             if ((versionDiff != 0 && ! rollbackDesired) || (versionDiff < 0 && rollbackDesired))
             {
               PLOG_INFO << "Found version: "    << branchVersion;
@@ -494,8 +491,6 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
               if (changedUpdateChannel || rollbackDesired)
                 _res.state |= UpdateFlags_Forced;
-
-              OutputDebugString(L"derp\n");
 
               if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
                   ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
@@ -583,6 +578,12 @@ SKIF_Updater::IsRunning (void)
   return (status != 2);
 }
 
+bool
+SKIF_Updater::IsRollbackAvailable(void)
+{
+  return results.rollbackAvailable;
+}
+
 std::string
 SKIF_Updater::GetPatrons (void)
 {
@@ -615,9 +616,16 @@ SKIF_Updater::SetChannel (std::pair<std::string, std::string>* _channel)
 
   // Update registry
   _registry.wsUpdateChannel = SK_UTF8ToWideChar (channel->first);
-  _registry.wsIgnoreUpdate  = L"";
   _registry.regKVFollowUpdateChannel.putData (_registry.wsUpdateChannel);
-  _registry.regKVIgnoreUpdate       .putData (_registry.wsIgnoreUpdate);
+}
+
+void
+SKIF_Updater::SetIgnoredUpdate (std::wstring update)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  _registry.wsIgnoreUpdate = update;
+  _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
 }
 
 UpdateFlags
