@@ -1510,8 +1510,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
             vSwapchainWaitHandles.push_back (data->WaitHandle);
 
             // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
-            WaitForSingleObjectEx (data->WaitHandle, INFINITE, true);
-            // Block this thread until the swap chain is finished presenting. Note that it is
+            WaitForSingleObjectEx (data->WaitHandle, 1000, true);
+            // Block this thread until the swap chain is ready for presenting. Note that it is
             // important to call this before the first Present in order to minimize the latency
             // of the swap chain.
           }
