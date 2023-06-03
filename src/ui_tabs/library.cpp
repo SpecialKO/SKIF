@@ -1902,6 +1902,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       ! io.KeyCtrl)
     _HandleKeyboardInput ();
 
+#pragma region PrintInjectionSummary
+
   auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
   float
   {
@@ -1910,6 +1912,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       struct summary_cache_s {
         struct {
           std::string   type;
+          std::string   type_version;
           struct {
             std::string text;
             ImColor     color;
@@ -1993,6 +1996,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           case sk_install_state_s::Injection::Type::Local:
             cache.injection.type = "Local";
+            cache.injection.type_version = SK_FormatString (R"(%s v %s (%s))", cache.injection.type.c_str(), cache.dll.version.c_str(), cache.dll.shorthand.c_str());
             break;
 
           case sk_install_state_s::Injection::Type::Global:
@@ -2001,6 +2005,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if ( _inject.bHasServlet )
             {
               cache.injection.type         = "Global";
+              cache.injection.type_version = SK_FormatString (R"(%s v %s)", cache.injection.type.c_str(), cache.dll.version.c_str());
               cache.injection.status.text  = 
                          (cache.service)   ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
                                            : "                                "; //"Service Status";
@@ -2138,12 +2143,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         bool openLocalMenu = false;
 
-        std::string uiInjectionText = cache.injection.type._Equal("Local")
-          ? SK_FormatString (R"(%s v %s (%s))", cache.injection.type.c_str(), cache.dll.version.c_str(), cache.dll.shorthand.c_str())
-          : SK_FormatString (R"(%s v %s)", cache.injection.type.c_str(), cache.dll.version.c_str());
-
         ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-        if (ImGui::Selectable (uiInjectionText.c_str(), false, flags))
+        if (ImGui::Selectable (cache.injection.type_version.c_str(), false, flags))
         {
           openLocalMenu = true;
         }
@@ -2693,6 +2694,9 @@ Cache=false)";
 
     return 0.0f;
   };
+
+#pragma endregion
+
 
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
