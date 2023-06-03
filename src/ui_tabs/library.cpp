@@ -2370,10 +2370,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (config_file.is_open())
             {
-              std::wstring out_text =
+              // Static const as this profile never changes
+              static const std::wstring out_text =
 LR"([SpecialK.System]
 ShowEULA=false
-EnableCEGUI=false
 GlobalInjectDelay=0.0
 
 [API.Hook]
@@ -2386,6 +2386,9 @@ Vulkan=true
 
 [Steam.Log]
 Silent=true
+
+[Input.libScePad]
+Enable=false
 
 [Input.XInput]
 Enable=false
