@@ -945,6 +945,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_record.install_dir     = _path_cache.specialk_install;
       SKIF_record.store           = "Steam";
       SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%s%i", SKIF_record.names.normal.c_str(), SKIF_record.store.c_str(), SKIF_record.id);
+      SKIF_record.ImGuiPushID     = SK_FormatString("%s%i", SKIF_record.store.c_str(), SKIF_record.id);
 
       std::pair <std::string, app_record_s>
         SKIF ( "Special K", SKIF_record );
@@ -1082,8 +1083,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
           app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
           
-          // Update ImGuiLabelAndID
+          // Update ImGuiLabelAndID and ImGuiPushID
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
+          app.second.ImGuiPushID     = SK_FormatString("%s%i", app.second.store.c_str(), app.second.id);
         }
 
         // Check if install folder exists (but not for SKIF)
@@ -2798,7 +2800,7 @@ Cache=false)";
     // Start Icon + Selectable row
 
     ImGui::BeginGroup      ();
-    ImGui::PushID          (SK_FormatString("%s%i", app.second.store.c_str(), app.second.id).c_str());
+    ImGui::PushID          (app.second.ImGuiPushID.c_str());
 
     SKIF_ImGui_OptImage    (app.second.textures.icon.p,
                               ImVec2 ( _ICON_HEIGHT,

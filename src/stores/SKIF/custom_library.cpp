@@ -120,6 +120,7 @@ int SKIF_AddCustomAppID (
     //record.names.normal = SK_FormatString("%s (recently added)", record.names.normal.c_str());
 
     record.ImGuiLabelAndID = SK_FormatString("%s (recently added)###%s%i", record.names.normal.c_str(), record.store.c_str(), record.id);
+    record.ImGuiPushID     = SK_FormatString("%s%i", record.store.c_str(), record.id);
 
     record.names.all_upper = record.names.normal;
     std::for_each (record.names.all_upper.begin ( ), record.names.all_upper.end ( ), [](char& c) {c = static_cast<char>(::toupper (c));});
@@ -214,6 +215,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->names.normal.erase(std::find(pApp->names.normal.begin(), pApp->names.normal.end(), '\0'), pApp->names.normal.end());
 
     pApp->ImGuiLabelAndID = SK_FormatString("%s###%s%i", pApp->names.normal.c_str(), pApp->store.c_str(), pApp->id);
+    pApp->ImGuiPushID     = SK_FormatString("%s%i", pApp->store.c_str(), pApp->id);
 
     pApp->install_dir = installDir;
     pApp->launch_configs[0].executable = exeFileName;
