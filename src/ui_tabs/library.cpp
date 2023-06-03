@@ -2824,27 +2824,31 @@ Cache=false)";
     ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth); // (app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()
     ImGui::PopStyleColor   (2                    );
 
-    static DWORD timeClicked = 0;
+    static DWORD    timeClicked = 0;
+    static uint32_t idClicked   = 0;
 
-    if ( ImGui::IsItemHovered ( ) )
+    // Handle double click on a game row
+    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running )
     {
       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
-           timeClicked != 0 )
+           timeClicked != 0 && idClicked == pApp->id)
       {
         timeClicked = 0;
-
-        if ( pApp     != nullptr          &&
-             pApp->id != SKIF_STEAM_APPID &&
-           ! pApp->_status.running
-          )
-        {
-          clickedGameLaunch = true;
-        }
+        idClicked   = 0;
+        clickedGameLaunch = true;
       }
       
       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
       {
         timeClicked = SKIF_Util_timeGetTime ( );
+        idClicked   = pApp->id;
+      }
+
+      else if (timeClicked + 500 < SKIF_Util_timeGetTime ( ))
+      {
+        // Reset after 500 ms
+        timeClicked = 0;
+        idClicked   = 0;
       }
     }
 
@@ -2919,6 +2923,7 @@ Cache=false)";
       if (update)
       {
         timeClicked = SKIF_Util_timeGetTime ( );
+        idClicked   = selection.appid;
 
         app.second._status.invalidate ();
 
