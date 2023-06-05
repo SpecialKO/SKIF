@@ -510,41 +510,39 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
               // Validate downloaded file
               bool fallback = false;
+              std::string hex_str_expected, hex_str;
               try
               {
                 // If the repository.json file includes a hash, check it
-                std::string hex_str_expected = version["SHA256"].get<std::string>();
+                hex_str_expected = version["SHA256"].get<std::string>();
 
                 std::ifstream fileStream (root + filename, std::ios::binary);
                 std::vector<unsigned char> hash (picosha2::k_digest_size);
                 picosha2::hash256 (fileStream, hash.begin(), hash.end());
                 fileStream.close  ();
 
-                std::string hex_str = picosha2::bytes_to_hex_string(hash.begin(), hash.end());
-
-                if (hex_str_expected.empty())
-                {
-                  PLOG_WARNING << "Checksum validation failed. Falling back to size validation...";
-                  fallback = true;
-                }
-
-                else if (hex_str_expected == hex_str)
-                {
-                  PLOG_INFO << "Installer matched the expected checksum!";
-                  _res.state |= UpdateFlags_Downloaded;
-                }
-
-                else {
-                  PLOG_ERROR << "Installer did not match the expected checksum!";
-                  PLOG_ERROR << "SHA256  : " << hex_str;
-                  PLOG_ERROR << "Expected: " << hex_str_expected;
-                }
+                hex_str = picosha2::bytes_to_hex_string(hash.begin(), hash.end());
               }
-
               catch (const std::exception&)
               {
-                PLOG_WARNING << "Checksum validation failed. Falling back to size validation...";
+              }
+
+              if (hex_str_expected.empty())
+              {
+                PLOG_WARNING << "No checksum present. Falling back to size validation...";
                 fallback = true;
+              }
+
+              else if (hex_str_expected == hex_str)
+              {
+                PLOG_INFO << "Installer matched the expected checksum!";
+                _res.state |= UpdateFlags_Downloaded;
+              }
+
+              else {
+                PLOG_ERROR << "Installer did not match the expected checksum!";
+                PLOG_ERROR << "SHA256  : " << hex_str;
+                PLOG_ERROR << "Expected: " << hex_str_expected;
               }
 
               // Fallback (check if file is > 0 bytes)
