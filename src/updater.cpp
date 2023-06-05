@@ -441,6 +441,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
             if (! parsedFirstVersion)
               _res.release_notes += version["Description"].get<std::string>() + "  -[ Newest update available! ]-";
+            else
               _res.release_notes += version["Description"].get<std::string>();
 
             _res.release_notes += "\n";
