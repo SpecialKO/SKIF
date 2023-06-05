@@ -9,6 +9,7 @@
 #include <SKIF_utility.h>
 #include <sk_utility/utility.h>
 #include <nlohmann/json.hpp>
+#include "picosha2/picosha2.h"
 
 #include <fsutil.h>
 #include <registry.h>
@@ -376,7 +377,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     }
     catch (const std::exception&)
     {
-      PLOG_ERROR << "Failed during parsing when trying to populate update channels";
+      PLOG_ERROR << "Failed when parsing update channels!";
     }
   }
 
@@ -387,6 +388,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
       bool parsedFirstVersion      = false;
       bool parsedRollbackVersion   = false;
       bool detectedRollbackVersion = false;
+      bool absoluteLatest          = false;
 
       // Processes all versions listed in the changelog
       for (auto& version : jf["Main"]["Versions"])
@@ -409,6 +411,12 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           
           if (parsedFirstVersion)
             _res.history += "\n\n\n"; // Spacing between the previous version and the current one
+          
+          if (! absoluteLatest)
+          {
+            absoluteLatest = true;
+            _res.description_latest = version["Description"].get<std::string>();
+          }
 
           if (versionDiff == 0)
             _res.history += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
@@ -433,7 +441,6 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
             if (! parsedFirstVersion)
               _res.release_notes += version["Description"].get<std::string>() + "  -[ Newest update available! ]-";
-            else
               _res.release_notes += version["Description"].get<std::string>();
 
             _res.release_notes += "\n";
@@ -482,9 +489,6 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
               if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
                 _res.state |= UpdateFlags_Ignored;
-                
-              if (PathFileExists ((root + filename).c_str()))
-                _res.state |= UpdateFlags_Downloaded;
 
               if (versionDiff > 0)
                 _res.state |= UpdateFlags_Newer;
@@ -494,21 +498,92 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               if (changedUpdateChannel || rollbackDesired)
                 _res.state |= UpdateFlags_Forced;
 
-              if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                  ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded &&
-                  (_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
-                  (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
+              if ((_res.state & UpdateFlags_Forced)      == UpdateFlags_Forced     ||
+                  (! PathFileExists ((root + filename).c_str()) &&
+                  (_res.state & UpdateFlags_Ignored   )  != UpdateFlags_Ignored    &&
+                  (_res.state & UpdateFlags_Rollback  )  != UpdateFlags_Rollback))
               {
                 PLOG_INFO << "Downloading installer: " << branchInstaller;
-                if (SKIF_Util_GetWebResource(branchInstaller, root + filename))
-                  _res.state |= UpdateFlags_Downloaded;
-                else
-                  _res.state |= UpdateFlags_Failed;
+                SKIF_Util_GetWebResource (branchInstaller, root + filename);
               }
 
+              // Validate downloaded file
+              bool fallback = false;
+              try
+              {
+                // If the repository.json file includes a hash, check it
+                std::string hex_str_expected = version["SHA256"].get<std::string>();
+
+                std::ifstream fileStream (root + filename, std::ios::binary);
+                std::vector<unsigned char> hash (picosha2::k_digest_size);
+                picosha2::hash256 (fileStream, hash.begin(), hash.end());
+                fileStream.close  ();
+
+                std::string hex_str = picosha2::bytes_to_hex_string(hash.begin(), hash.end());
+
+                if (hex_str_expected.empty())
+                {
+                  PLOG_WARNING << "Checksum validation failed. Falling back to size validation...";
+                  fallback = true;
+                }
+
+                else if (hex_str_expected == hex_str)
+                {
+                  PLOG_INFO << "Installer matched the expected checksum!";
+                  _res.state |= UpdateFlags_Downloaded;
+                }
+
+                else {
+                  PLOG_ERROR << "Installer did not match the expected checksum!";
+                  PLOG_ERROR << "SHA256  : " << hex_str;
+                  PLOG_ERROR << "Expected: " << hex_str_expected;
+                }
+              }
+
+              catch (const std::exception&)
+              {
+                PLOG_WARNING << "Checksum validation failed. Falling back to size validation...";
+                fallback = true;
+              }
+
+              // Fallback (check if file is > 0 bytes)
+              if (fallback)
+              {
+                CHandle hInstaller (
+                  CreateFileW ( (root + filename).c_str(),
+                                  GENERIC_READ,
+                                  FILE_SHARE_READ,
+                                    nullptr,        OPEN_EXISTING,
+                                      GetFileAttributesW ((root + filename).c_str()),
+                                        nullptr
+                              )
+                );
+
+                if (hInstaller != INVALID_HANDLE_VALUE)
+                {
+                  LARGE_INTEGER size = { };
+                  if (GetFileSizeEx (hInstaller, &size))
+                  {
+                    if (size.QuadPart > 0)
+                      _res.state |= UpdateFlags_Downloaded;
+                    else
+                      PLOG_ERROR << "Installer file size was zero (0)!";
+                  }
+                }
+              }
+
+              // Check if we managed to download a file
+              if ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+              {
+                _res.state |= UpdateFlags_Failed;
+                PLOG_ERROR << "Download failed!";
+                DeleteFile ((root + filename).c_str());
+              }
+
+              // If the download looks correct, we set it as available
               if ((_res.state & UpdateFlags_Newer)      == UpdateFlags_Newer      ||
                   (_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                  ((_res.state & UpdateFlags_Rollback)   == UpdateFlags_Rollback   &&
+                  ((_res.state & UpdateFlags_Rollback)  == UpdateFlags_Rollback   &&
                   (_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded ))
                 _res.state |= UpdateFlags_Available;
             }
@@ -525,7 +600,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     }
     catch (const std::exception&)
     {
-      PLOG_ERROR << "Failed during parsing when trying to populate update channels";
+      PLOG_ERROR << "Failed when parsing versions!";
     }
   }
 
@@ -626,6 +701,7 @@ SKIF_Updater::SetIgnoredUpdate (std::wstring update)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
+  PLOG_DEBUG << "Ignored version: " << update;
   _registry.wsIgnoreUpdate = update;
   _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
 }

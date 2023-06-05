@@ -649,8 +649,8 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Button      (ICON_FA_ROTATE_LEFT))
     {
       extern PopupState UpdatePromptPopup;
-      
-      _updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().description)); // Ignore the latest version
+
+      _updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().description_latest)); // Ignore the latest version
 
       if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
         UpdatePromptPopup = PopupState_Open;

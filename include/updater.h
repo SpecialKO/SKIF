@@ -25,11 +25,12 @@ struct SKIF_Updater {
     UpdateFlags state = UpdateFlags_Unknown;
     std::wstring version;
     std::wstring filename;
-    std::string  description;
+    std::string  description;           // Holds the expected new version
+    std::string  description_latest;    // Holds the very latest verion
+    std::string  description_installed; // Holds the installed version
     std::string  release_notes;
     std::string  history;
     std::string  patrons;
-    std::string  description_installed;
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
     bool rollbackAvailable = false; // Indicates SKIF can roll back
   };
