@@ -4851,7 +4851,13 @@ Cache=false)";
       int newAppId = SKIF_AddCustomAppID(&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
 
       if (newAppId > 0)
-        InterlockedExchange (&need_sort, 1);
+      {
+        _registry.iLastSelectedGame   = newAppId;
+        _registry.wsLastSelectedStore = L"SKIF";
+        _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+        _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+        RepopulateGames = true; // Rely on the RepopulateGames method instead
+      }
 
       // Clear variables
       error = false;
@@ -4860,6 +4866,7 @@ Cache=false)";
       strncpy (charArgs, "\0", 500);
 
       // Change selection to the new game
+      /*
       selection.appid = newAppId;
       for (auto& app : apps)
         if (app.second.id == selection.appid && app.second.store == "SKIF")
@@ -4877,6 +4884,7 @@ Cache=false)";
                                         pApp );
 
       update = true;
+      */
 
       // Unload any current cover
       if (pTexSRV.p != nullptr)
