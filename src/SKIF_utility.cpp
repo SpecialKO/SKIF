@@ -942,7 +942,8 @@ SKIF_Util_RegisterApp (bool force)
   if (! _inject.bHasServlet)
   {
     PLOG_ERROR << "Missing critical service components!";
-    return -1;
+    ret = 0;
+    return ret;
   }
 
   std::wstring wsExePath = std::wstring (_path_cache.skif_executable);
