@@ -4854,7 +4854,7 @@ Cache=false)";
       {
         _registry.iLastSelectedGame   = newAppId;
         _registry.wsLastSelectedStore = L"SKIF";
-        _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+        _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
         _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
         RepopulateGames = true; // Rely on the RepopulateGames method instead
       }
