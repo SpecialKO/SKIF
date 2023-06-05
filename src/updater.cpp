@@ -489,7 +489,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               }
 
               if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
+              {
+                PLOG_INFO << "Version is set to be ignored!";
                 _res.state |= UpdateFlags_Ignored;
+              }
 
               if (versionDiff > 0)
                 _res.state |= UpdateFlags_Newer;
