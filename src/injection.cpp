@@ -20,11 +20,9 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#pragma once
+#include <injection.h>
 
 #include "../resource.h"
-
-#include <injection.h>
 
 #include <SKIF.h>
 #include <SKIF_utility.h>
@@ -62,6 +60,11 @@
 #include <propvarutil.h>
 #include <knownfolders.h>
 #include <shlobj.h>
+
+// External functions
+extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
+extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
+extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
 
 // Helper Functions
 
@@ -317,7 +320,8 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
   return false;
 };
 
-void SKIF_InjectionContext::_ToggleInjectAck (bool newState)
+void
+SKIF_InjectionContext::ToggleInjectAck (bool newState)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -352,7 +356,24 @@ void SKIF_InjectionContext::_ToggleInjectAck (bool newState)
   }
 }
 
-bool SKIF_InjectionContext::isPending(void)
+void
+SKIF_InjectionContext::ToggleStopOnInjection (void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
+  _registry.regKVDisableStopOnInjection.putData (! _registry.bStopOnInjection);
+
+  // If we're disabling the feature, also disable the legacy key
+  //if (in)
+  //  _registry.regKVLegacyDisableStopOnInjection.putData(!in);
+
+  if (_inject.bCurrentState)
+    _inject.ToggleInjectAck (_registry.bStopOnInjection);
+}
+
+bool
+SKIF_InjectionContext::isPending(void)
 {
   if (runState == Starting || runState == Stopping)
     return true;
@@ -360,7 +381,8 @@ bool SKIF_InjectionContext::isPending(void)
     return false;
 }
 
-bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
+bool
+SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -372,7 +394,7 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
-  _ToggleInjectAck ( (! currentRunningState && autoStop) );
+  ToggleInjectAck ( (! currentRunningState && autoStop) );
 
 #if 0
   const wchar_t *wszStartStopCommand =
@@ -479,7 +501,8 @@ bool SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool aut
   return ret;
 };
 
-void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
+void
+SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 {
   struct updated_file_s {
     const wchar_t* wszFileName;
@@ -606,11 +629,8 @@ void SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
   }
 }
 
-extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
-extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
-
-void SKIF_InjectionContext::_RefreshSKDLLVersions (void)
+void
+SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
@@ -862,8 +882,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   if ( bHasServlet )
   {
-    extern void SKIF_putStopOnInjection(bool in);
-
 #ifdef _WIN64
     if (SKVer64 >= "21.08.12" &&
         SKVer32 >= "21.08.12")
@@ -873,7 +891,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     {
 
       if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))
-        SKIF_putStopOnInjection (_registry.bStopOnInjection);
+        ToggleStopOnInjection ( );
 
       ImGui::SameLine        ( );
 

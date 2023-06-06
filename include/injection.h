@@ -90,7 +90,7 @@ struct SKIF_InjectionContext {
   void    _StartAtLogonCtrl       (void);
   void    _SetTaskbarOverlay      (bool show);
   void    _InitializeJumpList     (void);
-  void    _ToggleInjectAck        (bool newState);
+  bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
 
   bool    WhitelistPath           (std::string fullPath);
   bool    BlacklistPath           (std::string fullPath);
@@ -100,8 +100,8 @@ struct SKIF_InjectionContext {
   bool    SaveBlacklist           (void);
   bool    LoadWhitelist           (void);
   bool    LoadBlacklist           (void);
-
-  bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
+  void    ToggleInjectAck         (bool newState);
+  void    ToggleStopOnInjection   (void);
 
   static SKIF_InjectionContext& GetInstance (void)
   {
