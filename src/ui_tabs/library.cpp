@@ -98,10 +98,7 @@ extern std::string     SKIF_StatusBarText;
 extern std::wstring    SKIF_EGS_AppDataPath;
 extern DWORD           invalidatedDevice;
 
-extern bool            SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
-
-static std::wstring sshot_file = L"";
+//static std::wstring sshot_file = L"";
 
 std::atomic<int> textureLoadQueueLength{ 1 };
 
@@ -109,7 +106,7 @@ int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
 }
 
-CComPtr <ID3D11Texture2D>          pPatTex2D;
+//CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 
 // define character size
@@ -4675,58 +4672,3 @@ Cache=false)";
     loadCover = true;
   }
 }
-
-
-#if 0
-struct SKIF_Store {
-
-};
-
-struct SKIF_Anticheat {
-  bool has;
-};
-
-enum class DRM_Authority {
-  None,
-  Steam,
-  Origin,
-  uPlay,
-  MicrosoftStore,
-  EpicGameStore,
-  Bethesda_net,
-  Galaxy
-};
-
-enum class AntiTamper_Type {
-  None,
-  Denuvo
-};
-
-struct SKIF_DRM {
-  DRM_Authority   drm_auth;
-  AntiTamper_Type anti_tamper;
-};
-
-struct SKIF_GameFeatures {
-  bool vr;
-  bool hdr;
-  bool cloud;
-  bool achievements;
-  bool leaderboards;
-  bool rich_presence;
-//bool raytraced;
-};
-struct SKIF_Game {
-  SKIF_Store     parent;
-  std::wstring   name;
-  std::wstring   executable;
-  std::vector <
-    std::wstring
-  >              config_paths;
-  bool           enable_injection;
-  int            render_api;
-  int            input_api;
-  int            bitness;
-  SKIF_DRM       drm;
-};
-#endif
