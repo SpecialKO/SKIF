@@ -104,6 +104,7 @@ bool coverFadeActive       = false;
 bool SKIF_Shutdown         = false;
 int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
+DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -1089,7 +1090,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplWin32_Init (hWnd); // This ends up creating a separate window/hWnd as well
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
-  DWORD dwDwmPeriod = 16; // Assume 60 Hz by default
   SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
@@ -3244,6 +3244,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DISPLAYCHANGE:
       if (SKIF_Tab_Selected == UITab_Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
+      SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
       break;
 
     case WM_SKIF_MINIMIZE:
