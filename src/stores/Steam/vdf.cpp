@@ -25,6 +25,7 @@
 
 #include <fsutil.h>
 #include <regex>
+#include <stores/Steam/steam_library.h>
 
 const int SKIF_STEAM_APPID = 1157970;
 

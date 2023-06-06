@@ -10,6 +10,27 @@
 #include <vector>
 #include <atomic>
 
+#include "Steam/app_record.h"
+#include <imgui/imgui.h>
+
+enum class LibraryTexture
+{
+  Icon,
+  Cover,
+  Patreon
+};
+
+void
+LoadLibraryTexture (
+        LibraryTexture                      libTexToLoad,
+        uint32_t                            appid,
+        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+        const std::wstring&                 name,
+        ImVec2&                             vCoverUv0,
+        ImVec2&                             vCoverUv1,
+        app_record_s*                       pApp = nullptr);
+
+
 struct app_generic_s {
   //app_generic_s () { };
   //app_generic_s (uint32_t id_) : id (id_) { };

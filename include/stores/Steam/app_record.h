@@ -23,7 +23,7 @@
 #pragma once
 
 #include <stores/generic_library.h>
-#include <stores/Steam/steam_library.h>
+//#include <stores/Steam/steam_library.h>
 
 #include <map>
 #include <string>
@@ -34,6 +34,16 @@
 #include <install_utils.h>
 
 #include <sk_utility/utility.h>
+
+#include <Windows.h>
+
+#include <stores/Steam/app_record.h>
+#include "sk_utility/utility.h"
+
+//#include "steam/steam_api.h"
+#include "vfs.h"
+
+#include <vector>
 
 //
 // TODO: Get this specialization stuff the hell out of here...

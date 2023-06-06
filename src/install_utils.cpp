@@ -24,6 +24,7 @@
 #include <install_utils.h>
 #include <fsutil.h>
 #include <stores/Steam/apps_list.h>
+#include <stores/Steam/steam_library.h>
 
 using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
 using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);

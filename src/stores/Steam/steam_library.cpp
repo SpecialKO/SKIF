@@ -22,6 +22,10 @@
 
 #include <stores/steam/steam_library.h>
 #include <fstream>
+#include <registry.h>
+#include <SKIF_utility.h>
+#include <filesystem>
+#include <stores/Steam/apps_ignore.h>
 
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
 const GUID IID_VFS_SteamUGC =
@@ -167,6 +171,10 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   return found;
 }
 
+
+// There's two of these:
+// *   SK_Steam_GetInstalledAppIDs ( ) <- The one below
+// * SKIF_Steam_GetInstalledAppIDs ( )
 std::vector <AppId_t>
 SK_Steam_GetInstalledAppIDs (void)
 {
@@ -338,7 +346,7 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifest [MAX_PATH + 2] = { };
-      swprintf ( wszManifest,
+      swprintf ( wszManifest, MAX_PATH + 2,
                    LR"(%s\steamapps\appmanifest_%u.acf)",
                (wchar_t *)steam_lib_paths [i],
                             appid );
@@ -727,3 +735,109 @@ SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot)
 
   return 0;
 }
+
+// Temporarily disabled since this gets triggered on game launch/shutdown as well...
+bool
+SKIF_Steam_isLibrariesSignaled (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+#define MAX_STEAM_LIBRARIES 16
+
+  if ( _registry.bDisableSteamLibrary )
+    return false;
+
+  bool isSignaled = false;
+
+  steam_library_t* steam_lib_paths = nullptr;
+  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+  static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
+  static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
+  static bool                hasInitialized = false;
+
+  if (! steam_lib_paths)
+    return false;
+
+  if (steam_libs != 0)
+  {
+    for (int i = 0; i < steam_libs; i++)
+    {
+      wchar_t    wszManifestDir [MAX_PATH + 2] = { };
+      swprintf ( wszManifestDir, MAX_PATH + 2,
+                    LR"(%s\steamapps)",
+                (wchar_t *)steam_lib_paths [i] );
+
+      bool countFiles = false;
+
+      if (steam_libs_watch[i]._hChangeNotification == INVALID_HANDLE_VALUE)
+        steam_libs_watch[i] = SKIF_DirectoryWatch (wszManifestDir, true);
+
+      if (steam_libs_watch[i].isSignaled (wszManifestDir, true))
+        countFiles = true;
+
+      if (countFiles || ! hasInitialized)
+      {
+        int prevCount = steam_libs_files[i];
+        int currCount = 0;
+
+        std::error_code dirError;
+        std::filesystem::directory_iterator iterator = 
+          std::filesystem::directory_iterator (wszManifestDir, dirError);
+
+        // Only iterate over the files if the directory exists and is accessible
+        if (! dirError)
+        {
+          for (auto& directory_entry : iterator)
+            if (directory_entry.is_regular_file())
+              currCount++;
+
+          steam_libs_files[i] = currCount;
+        }
+
+        if (hasInitialized && prevCount != currCount)
+          isSignaled = true;
+      }
+    }
+  }
+
+  hasInitialized = true;
+
+  return isSignaled;
+};
+
+
+// There's two of these:
+// *   SK_Steam_GetInstalledAppIDs ( )
+// * SKIF_Steam_GetInstalledAppIDs ( ) <- The one below
+std::vector <std::pair <std::string, app_record_s>>
+SKIF_Steam_GetInstalledAppIDs (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  std::vector <std::pair <std::string, app_record_s>> ret;
+
+  if ( _registry.bDisableSteamLibrary )
+    return ret;
+
+  std::set <uint32_t> unique_apps;
+
+  for ( auto app : SK_Steam_GetInstalledAppIDs ( ))
+  {
+    // Skip Steamworks Common Redists
+    if (app == 228980) continue;
+
+    // Skip IDs related to apps, DLCs, music, and tools (including Special K for now)
+    if (std::find(std::begin(steam_apps_ignorable), std::end(steam_apps_ignorable), app) != std::end(steam_apps_ignorable)) continue;
+
+    if (unique_apps.emplace (app).second)
+    {
+      // Opening the manifests to read the names is a
+      //   lengthy operation, so defer names and icons
+      ret.emplace_back (
+        "Loading...", app
+      );
+    }
+  }
+
+  return ret;
+};

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stores/Steam/app_record.h>
 #include <SKIF_utility.h>
+#include <stores/Steam/steam_library.h>
 
 // Shorthand, because these are way too long
 using app_launch_config_s =

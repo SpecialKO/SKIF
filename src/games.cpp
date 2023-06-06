@@ -10,6 +10,7 @@
 
 // Registry Settings
 #include <registry.h>
+#include <stores/Steam/steam_library.h>
 
 CONDITION_VARIABLE LibRefreshPaused = { };
 

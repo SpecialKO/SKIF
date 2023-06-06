@@ -24,6 +24,7 @@
 
 #include <Windows.h>
 
+#include <stores/Steam/app_record.h>
 #include "sk_utility/utility.h"
 
 //#include "steam/steam_api.h"
@@ -317,3 +318,9 @@ SK_UseManifestToGetDepots (AppId_t appid);
 
 ManifestId_t
 SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot);
+
+bool
+SKIF_Steam_isLibrariesSignaled (void);
+
+std::vector <std::pair <std::string, app_record_s>>
+SKIF_Steam_GetInstalledAppIDs (void);
