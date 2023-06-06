@@ -105,6 +105,7 @@ bool SKIF_Shutdown         = false;
 int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
+bool SteamOverlayDisabled  = false;
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -467,6 +468,14 @@ SKIF_Startup_LaunchGame (void)
     PLOG_INFO << "Terminating as this instance has fulfilled its purpose.";
 
     ExitProcess (0x0);
+  }
+
+  else {
+    // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
+    // though we need to set this _after_ we have launched any game but before we set up Direct3D
+    PLOG_INFO << "Setting SteamNoOverlayUIDrawing to prevent the Steam overlay from hooking SKIF...";
+    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+    SteamOverlayDisabled = true;
   }
 }
 
@@ -853,6 +862,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     SKIF_Startup_LaunchGameService         ( );
     SKIF_Startup_LaunchGame                ( );
+
+    // These only execute if SKIF is not used as a launcher
     SKIF_Startup_ProxyCommandLineArguments ( );
     if (! _registry.bAllowMultipleInstances)
       SKIF_Startup_RaiseRunningInstance    ( );
@@ -1008,10 +1019,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //  _registry.bSmallMode = true;
     }
   }
-
-  // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
-  // though we need to set this _after_ we have launched any game but before we set up Direct3D
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   // Initialize Direct3D
   if (! CreateDeviceD3D (hWnd))
@@ -1645,6 +1652,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         bExitOnInjection = false;
 
         PLOG_DEBUG << "Changed UI mode to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
+
+        if (SteamOverlayDisabled)
+        {
+          PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+          SteamOverlayDisabled = false;
+        }
 
         if (_registry.bSmallMode)
         {

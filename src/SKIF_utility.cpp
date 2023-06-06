@@ -461,9 +461,6 @@ SKIF_Util_OpenURI (
                LPCWSTR     directory)
 {
   HINSTANCE ret   = 0;
-
-  // Workaround to ensure the SteamNoOverlayUIDrawing variable is not inherited
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
   
   SHELLEXECUTEINFOW
     sexi              = { };
@@ -473,13 +470,11 @@ SKIF_Util_OpenURI (
     sexi.lpParameters = parameters;
     sexi.lpDirectory  = directory;
     sexi.nShow        = nShow;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS; // SEE_MASK_ASYNCOK cannot be used since we are removing the environmental variable
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_ASYNCOK;
+    // Note that any new process will inherit SKIF's environment variables
 
   if (ShellExecuteExW (&sexi))
     ret = sexi.hInstApp;
-
-  // Reapply the SteamNoOverlayUIDrawing variable
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   return ret;
 }
