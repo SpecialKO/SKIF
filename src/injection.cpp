@@ -455,7 +455,8 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
 
   else if ( ShellExecuteExW (&sexi) || currentRunningState )
   {
-    PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
+    if (elevated)
+      PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
 
     // If we are currently running, try to shutdown 64-bit even if 32-bit fails.
     static std::wstring SKIFsvc64 = instDir + L"SKIFsvc64.exe";
@@ -469,7 +470,8 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     ShellExecuteExW (&sexi);
 #endif // _WIN64
 
-  PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
+  if (GetLastError ( ) != NO_ERROR)
+    PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
 
   if (currentRunningState)
     runState = RunningState::Stopping;
