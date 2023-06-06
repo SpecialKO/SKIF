@@ -367,7 +367,13 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   if (path.find(L"\\") == std::wstring::npos)
     path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
 
-  std::wstring workingDirectory = std::filesystem::path(path).parent_path().wstring();               // path to the parent folder                              
+  // Assume the original working directory is the right one
+  // This is required for e.g. Shadow Warrior Classic Redux
+  std::wstring workingDirectory = _path_cache.skif_workdir_org;
+  
+  // If the original working folder is empty or set to system32, change it to the parent folder of the game
+  if (workingDirectory.empty() || workingDirectory.find(L"system32") != std::wstring::npos)
+    workingDirectory = std::filesystem::path(path).parent_path().wstring();                         
 
   PLOG_VERBOSE << "Executable:        " << path;
   PLOG_VERBOSE << "Command Line Args: " << proxiedCmdLine;
@@ -649,7 +655,7 @@ void SKIF_Initialize (void)
   SetCurrentDirectory (         _path_cache.specialk_install);
 
   // Generate 8.3 filenames
-  SK_Generate8Dot3    (_path_cache.skif_workdir_org);
+  //SK_Generate8Dot3    (_path_cache.skif_workdir_org);
   SK_Generate8Dot3    (_path_cache.specialk_install);
 
   bool fallback = true;
