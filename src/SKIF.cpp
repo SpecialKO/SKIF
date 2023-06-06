@@ -469,14 +469,6 @@ SKIF_Startup_LaunchGame (void)
 
     ExitProcess (0x0);
   }
-
-  else {
-    // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
-    // though we need to set this _after_ we have launched any game but before we set up Direct3D
-    PLOG_INFO << "Setting SteamNoOverlayUIDrawing to prevent the Steam overlay from hooking SKIF...";
-    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-    SteamOverlayDisabled = true;
-  }
 }
 
 void
@@ -1005,6 +997,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_Startup_LaunchGameService ( );
       SKIF_Startup_LaunchGame        ( );
       _registry.bSmallMode = true;
+
+      // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
+      // though we need to set this _after_ we have launched any game but before we set up Direct3D.
+      // It is later removed when the user switches away from the small mode
+      PLOG_INFO << "Setting SteamNoOverlayUIDrawing to prevent the Steam overlay from hooking SKIF...";
+      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+      SteamOverlayDisabled = true;
     }
 
     // If we are not acting as a launcher,
