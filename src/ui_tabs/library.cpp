@@ -3579,7 +3579,7 @@ Cache=false)";
         bool elevate =
           pApp->launch_configs[0].isElevated (pApp->id);
 
-        if (ImGui::Checkbox ("Elevated service (beta)###ElevatedLaunch",   &elevate))
+        if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
           pApp->launch_configs[0].setElevated (pApp->id, elevate);
 
         ImGui::SameLine ( );
