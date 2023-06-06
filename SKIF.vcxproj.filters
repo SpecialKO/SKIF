@@ -363,6 +363,9 @@
     <ClInclude Include="include\fonts\fa_621b.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ui_tabs\common_ui.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
@@ -463,6 +466,9 @@
     </ClCompile>
     <ClCompile Include="include\stores\generic_library2.cpp">
       <Filter>Source Files\Stores</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui_tabs\common_ui.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

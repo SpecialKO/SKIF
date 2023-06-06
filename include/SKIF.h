@@ -127,7 +127,6 @@ extern HWND        SKIF_Notify_hWnd; // Notification area icon "window"
 
 extern float       SKIF_ImGui_GlobalDPIScale;
 extern float       SKIF_ImGui_GlobalDPIScale_Last;
-extern float       fAspect;
 extern float       fBottomDist;
 
 extern std::string SKIF_StatusBarText;

@@ -43,7 +43,9 @@
 #include <appmodel.h>
 #include <psapi.h>
 
-// Registry Settings
+#include <typeindex>
+#include <ui_tabs/common_ui.h>
+
 #include <registry.h>
 
 CONDITION_VARIABLE ProcRefreshPaused = { };
@@ -145,8 +147,6 @@ static HMODULE _NtDll =
 
 #define SKIF_NameOf(x) #x
 #define SKIF_GetNtDllProcAddress(proc) GetProcAddress(_NtDll,proc)
-
-#include <typeindex>
 
 template <typename _T>
 __declspec (noinline)
@@ -670,9 +670,6 @@ SKIF_UI_Tab_DrawMonitor (void)
     //snapshots [ReadAcquire (&snapshot_idx)];
 
   auto&      processes = snapshot.Processes;
-    
-  extern void SKIF_UI_DrawPlatformStatus   (void);
-  extern void SKIF_UI_DrawComponentVersion (void);
 
   SKIF_ImGui_Spacing      ( );
 
@@ -806,8 +803,6 @@ SKIF_UI_Tab_DrawMonitor (void)
     
   SKIF_ImGui_Spacing      ( );
 
-  extern void SKIF_putStopOnInjection(bool in);
-
 #ifdef _WIN64
   if ( _inject.SKVer64 >= "21.08.12" &&
         _inject.SKVer32 >= "21.08.12" )
@@ -816,7 +811,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 #endif
   {
     if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))
-      SKIF_putStopOnInjection (_registry.bStopOnInjection);
+      _inject.ToggleStopOnInjection ( );
 
     ImGui::SameLine         ( );
 

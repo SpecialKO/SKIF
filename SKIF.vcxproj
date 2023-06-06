@@ -400,6 +400,7 @@
     <ClInclude Include="include\stores\Xbox\xbox_library.h" />
     <ClInclude Include="include\TextFlow.hpp" />
     <ClInclude Include="include\ui_tabs\about.h" />
+    <ClInclude Include="include\ui_tabs\common_ui.h" />
     <ClInclude Include="include\ui_tabs\library.h" />
     <ClInclude Include="include\ui_tabs\settings.h" />
     <ClInclude Include="include\updater.h" />
@@ -481,6 +482,7 @@
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp" />
     <ClCompile Include="src\ui_tabs\about.cpp" />
+    <ClCompile Include="src\ui_tabs\common_ui.cpp" />
     <ClCompile Include="src\ui_tabs\monitor.cpp" />
     <ClCompile Include="src\ui_tabs\library.cpp" />
     <ClCompile Include="src\ui_tabs\settings.cpp" />

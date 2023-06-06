@@ -742,3 +742,27 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx ( ));
   //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
+
+void
+SKIF_ImGui_SetStyle (void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // Setup Dear ImGui style
+  switch (_registry.iStyle)
+  {
+  case 3:
+    ImGui::StyleColorsClassic  ( );
+    break;
+  case 2:
+    ImGui::StyleColorsLight    ( );
+    break;
+  case 1:
+    ImGui::StyleColorsDark     ( );
+    break;
+  case 0:
+  default:
+    SKIF_ImGui_StyleColorsDark ( );
+    _registry.iStyle = 0;
+  }
+}
