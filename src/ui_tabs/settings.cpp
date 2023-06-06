@@ -1476,7 +1476,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       white_edited = true;
 
-      _inject._AddUserList("Games", true);
+      _inject.WhitelistPattern ("Games");
     }
 
     SKIF_ImGui_SetHoverTip (
@@ -1489,7 +1489,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       white_edited = true;
 
-      _inject._AddUserList("WindowsApps", true);
+      _inject.AddUserListPattern("WindowsApps", true);
     }
 
     SKIF_ImGui_SetHoverTip (
@@ -1541,12 +1541,12 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || ((! bDisabled) && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeysDown['S']))
     {
       // Clear the active ID to prevent ImGui from holding outdated copies of the variable
-      //   if saving succeeds, to allow _StoreList to update the variable successfully
+      //   if saving succeeds, to allow SaveUserList to update the variable successfully
       ImGui::ClearActiveID();
 
       if (white_edited)
       {
-        white_stored = _inject._StoreList(true);
+        white_stored = _inject.SaveWhitelist ( );
 
         if (white_stored)
           white_edited = false;
@@ -1554,7 +1554,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (black_edited)
       {
-        black_stored = _inject._StoreList (false);
+        black_stored = _inject.SaveBlacklist ( );
 
         if (black_stored)
           black_edited = false;
@@ -1567,7 +1567,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       if (white_edited)
       {
-        _inject._LoadList (true);
+        _inject.LoadWhitelist ( );
 
         white_edited = false;
         white_stored = true;
@@ -1575,7 +1575,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (black_edited)
       {
-        _inject._LoadList(false);
+        _inject.LoadBlacklist ( );
 
         black_edited = false;
         black_stored = true;

@@ -2591,15 +2591,15 @@ Cache=false)";
               {
                 if (! _inject._TestUserList (SK_WideCharToUTF8 (pTargetApp->Xbox_AppDirectory).c_str(), true))
                 {
-                  if (_inject._AddUserList  (pTargetApp->Xbox_PackageName, true))
-                    _inject._StoreList(true);
+                  if (_inject.WhitelistPattern (pTargetApp->Xbox_PackageName))
+                    _inject.SaveWhitelist ( );
                 }
               }
 
               else
               {
-                if (_inject._WhitelistBasedOnPath (fullPath))
-                  _inject._StoreList (true);
+                if (_inject.WhitelistPath (fullPath))
+                  _inject.SaveWhitelist ( );
               }
             }
 
@@ -3574,7 +3574,7 @@ Cache=false)";
          
           /*
           if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-            _inject._BlacklistBasedOnPath(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)));
+            _inject.BlacklistPath(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)));
           */
         }
       };
@@ -3938,8 +3938,8 @@ Cache=false)";
                  )
               {
                 // Whitelist the path if it haven't been already
-                if (_inject._WhitelistBasedOnPath (fullPath))
-                  _inject._StoreList (true);
+                if (_inject.WhitelistPath (fullPath))
+                  _inject.SaveWhitelist ( );
               }
 
               // Kickstart service if it is currently not running

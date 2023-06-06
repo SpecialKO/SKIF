@@ -127,8 +127,8 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   runState = RunningState::Stopped;
 
   // Load the whitelist and blacklist
-  _LoadList  (true);
-  _LoadList (false);
+  LoadWhitelist ( );
+  LoadBlacklist ( );
 }
 
 bool
@@ -1063,9 +1063,33 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
        bAutoStartServiceOnly/* ||
        _registry.bEnableDebugMode*/ )
   {
-
+    // Legacy option that autostarts the global injection service on logon.
+    // SKIF will not start alongside the background service!
     if (bLogonTaskEnabled)
-      _StartAtLogonCtrlLegacy ( );
+    {
+      ImGui::BeginGroup ();
+  
+      if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
+      {
+        if (
+          ShellExecuteW (
+            nullptr, L"runas",
+              L"SCHTASKS",
+                LR"(/delete /tn "SK_InjectLogon" /f)", nullptr,
+                  SW_HIDE ) > (HINSTANCE)32 )
+        {
+          DeleteFile (LR"(Servlet\SpecialK.LogOn)");
+          DeleteFile (LR"(Servlet\task_inject.bat)");
+        }
+        else
+          bLogonTaskEnabled =
+            ! bLogonTaskEnabled;
+      }
+  
+      SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
+
+      ImGui::EndGroup      ();
+    }
     
     // New approach to the legacy method
     ImGui::BeginGroup ();
@@ -1153,39 +1177,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   }
 }
 
-/* Legacy option
-* 
-* Autostarts the global injection service on logon.
-* SKIF will not start alongside the background service!
-* 
-*/
-void
-SKIF_InjectionContext::_StartAtLogonCtrlLegacy (void)
-{
-  ImGui::BeginGroup ();
-  
-  if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
-  {
-    if (
-      ShellExecuteW (
-        nullptr, L"runas",
-          L"SCHTASKS",
-            LR"(/delete /tn "SK_InjectLogon" /f)", nullptr,
-              SW_HIDE ) > (HINSTANCE)32 )
-    {
-      DeleteFile (LR"(Servlet\SpecialK.LogOn)");
-      DeleteFile (LR"(Servlet\task_inject.bat)");
-    }
-    else
-      bLogonTaskEnabled =
-        ! bLogonTaskEnabled;
-  }
-  
-  SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
-
-  ImGui::EndGroup      ();
-}
-
 void
 SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 {
@@ -1222,7 +1213,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
   return;
 }
 
-bool SKIF_InjectionContext::_StoreList(bool whitelist_)
+bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -1305,10 +1296,11 @@ bool SKIF_InjectionContext::_StoreList(bool whitelist_)
   return ret;
 }
 
-void SKIF_InjectionContext::_LoadList(bool whitelist_)
+bool SKIF_InjectionContext::LoadUserList (bool whitelist_)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-
+  
+  bool  ret = false;
   static std::wstring root_dir =
            std::wstring(_path_cache.specialk_userdata) + LR"(\Global\)";
 
@@ -1361,7 +1353,31 @@ void SKIF_InjectionContext::_LoadList(bool whitelist_)
     strcpy ( (whitelist_) ? whitelist : blacklist,
                 SK_WideCharToUTF8 (full_text).c_str ()
     );
+
+    ret = true;
   }
+
+  return ret;
+}
+
+bool SKIF_InjectionContext::SaveWhitelist (void)
+{
+  return SaveUserList (true);
+}
+
+bool SKIF_InjectionContext::SaveBlacklist (void)
+{
+  return SaveUserList (false);
+}
+
+bool SKIF_InjectionContext::LoadWhitelist (void)
+{
+  return LoadUserList (true);
+}
+
+bool SKIF_InjectionContext::LoadBlacklist (void)
+{
+  return LoadUserList (false);
 }
 
 bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
@@ -1419,7 +1435,7 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
   return false;
 }
 
-bool SKIF_InjectionContext::_AddUserList (std::string pattern, bool whitelist_)
+bool SKIF_InjectionContext::AddUserListPattern (std::string pattern, bool whitelist_)
 {
   size_t cx, size;
 
@@ -1446,7 +1462,7 @@ bool SKIF_InjectionContext::_AddUserList (std::string pattern, bool whitelist_)
   return (size > cx && cx >= 0);
 }
 
-bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool whitelist_)
+bool SKIF_InjectionContext::AddUserListPath (std::string fullPath, bool whitelist_)
 {
   // Check if the path is already included
   bool ret = _TestUserList (fullPath.c_str(), whitelist_);
@@ -1501,23 +1517,37 @@ bool SKIF_InjectionContext::_AddUserListBasedOnPath (std::string fullPath, bool 
     }
 
     // Add to user list
-    ret = _AddUserList (pattern, whitelist_) && _StoreList (whitelist_);
+    ret = AddUserListPattern (pattern, whitelist_) && SaveUserList (whitelist_);
   }
 
   return ret;
 }
 
-bool SKIF_InjectionContext::_WhitelistBasedOnPath (std::string fullPath)
+bool SKIF_InjectionContext::WhitelistPath (std::string fullPath)
 {
   return (fullPath.find("InvalidPath") == std::string::npos)
-    ? _AddUserListBasedOnPath (fullPath, true)
+    ? AddUserListPath (fullPath, true)
     : false;
 }
 
-bool SKIF_InjectionContext::_BlacklistBasedOnPath (std::string fullPath)
+bool SKIF_InjectionContext::BlacklistPath (std::string fullPath)
 {
   return (fullPath.find("InvalidPath") == std::string::npos)
-    ? _AddUserListBasedOnPath (fullPath, false)
+    ? AddUserListPath (fullPath, false)
+    : false;
+}
+
+bool SKIF_InjectionContext::WhitelistPattern (std::string pattern)
+{
+  return (pattern.find("InvalidPath") == std::string::npos)
+    ? AddUserListPattern (pattern, true)
+    : false;
+}
+
+bool SKIF_InjectionContext::BlacklistPattern (std::string pattern)
+{
+  return (pattern.find("InvalidPath") == std::string::npos)
+    ? AddUserListPattern (pattern, false)
     : false;
 }
 

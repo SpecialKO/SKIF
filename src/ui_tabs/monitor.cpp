@@ -1421,10 +1421,10 @@ SKIF_UI_Tab_DrawMonitor (void)
         if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
         {
           if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
-            _inject._BlacklistBasedOnPath (p.string());
+            _inject.BlacklistPath (p.string());
 
           if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
-            _inject._WhitelistBasedOnPath (p.string());
+            _inject.WhitelistPath (p.string());
 
           ImGui::EndMenu ( );
         }

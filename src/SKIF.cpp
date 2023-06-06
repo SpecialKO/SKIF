@@ -396,7 +396,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
         ! isGlobalBlacklisted)
     {
       // Whitelist the path if it haven't been already
-      _inject._WhitelistBasedOnPath (SK_WideCharToUTF8(path));
+      _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
       _Signal._GamePath    = path;
       _Signal._GameArgs    = proxiedCmdLine;
@@ -3634,7 +3634,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         _inject._StartStopInject (false, true);
 
       // Reload the whitelist as it might have been changed
-      _inject._LoadList          (true);
+      _inject.LoadWhitelist      ( );
       break;
 
     case WM_SKIF_POWERMODE:

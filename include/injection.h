@@ -81,7 +81,6 @@ struct SKIF_InjectionContext {
   std::string SKSvc32 = "";
   std::string SKSvc64 = "";
   
-
   bool    isPending               (void);
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
   bool    _TestServletRunlevel    (bool forcedCheck); // Returns true ONLY if we transitioned over from a pending state
@@ -89,19 +88,20 @@ struct SKIF_InjectionContext {
   void    _RefreshSKDLLVersions   (void);
   void    _GlobalInjectionCtl     (void);
   void    _StartAtLogonCtrl       (void);
-  void    _StartAtLogonCtrlLegacy (void);
   void    _SetTaskbarOverlay      (bool show);
   void    _InitializeJumpList     (void);
   void    _ToggleInjectAck        (bool newState);
 
-  bool    _StoreList              (bool whitelist_);
-  void    _LoadList               (bool whitelist_);
+  bool    WhitelistPath           (std::string fullPath);
+  bool    BlacklistPath           (std::string fullPath);
+  bool    WhitelistPattern        (std::string pattern);
+  bool    BlacklistPattern        (std::string pattern);
+  bool    SaveWhitelist           (void);
+  bool    SaveBlacklist           (void);
+  bool    LoadWhitelist           (void);
+  bool    LoadBlacklist           (void);
+
   bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
-  bool    _AddUserList            (std::string pattern,       bool whitelist_);
-  bool    _AddUserListBasedOnPath (std::string fullPath,      bool whitelist_);
-  bool    _WhitelistBasedOnPath   (std::string fullPath);
-  bool    _BlacklistBasedOnPath   (std::string fullPath);
-  
 
   static SKIF_InjectionContext& GetInstance (void)
   {
@@ -113,5 +113,9 @@ struct SKIF_InjectionContext {
   SKIF_InjectionContext (SKIF_InjectionContext&&)      = delete; // Delete move constructor
   
 private:
-  SKIF_InjectionContext (void);
+  SKIF_InjectionContext           (void);
+  bool    AddUserListPath         (std::string fullPath,      bool whitelist_);
+  bool    AddUserListPattern      (std::string pattern,       bool whitelist_);
+  bool    SaveUserList            (bool whitelist_);
+  bool    LoadUserList            (bool whitelist_);
 };
