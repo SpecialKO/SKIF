@@ -20,6 +20,8 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
+#include <ui_tabs/library.h>
+
 #include <wmsdk.h>
 #include <filesystem>
 #include <SKIF.h>
@@ -64,6 +66,10 @@
 
 #include <registry.h>
 #include <updater.h>
+
+#define _WIDTH   (414.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset1, AppListInset2, Injection_Summary_Frame
+#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
+#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
@@ -818,7 +824,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_GameManagement_ShowScreenshot (sshot_file);
   }
   */
-  
+
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
@@ -1755,30 +1761,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     }, 0x0, NULL);
   }
 
-  /*
-  float fTestScale    = SKIF_ImGui_GlobalDPIScale,
-        fScrollbar    = ImGui::GetStyle ().ScrollbarSize,
-        fFrameWidth   = ImGui::GetStyle ().FramePadding.x * 4.0f,
-        fSpacing      = ImGui::GetStyle ().ItemSpacing.x  * 4.0f;
-        fDecorations  = (fFrameWidth + fSpacing + fScrollbar);
-      //fFrameHeight  = ImGui::GetStyle ().FramePadding.y * 2.0f,
-      //fSpaceHeight  = ImGui::GetStyle ().ItemSpacing.y  * 2.0f,
-        fInjectWidth =
-         ( sk_global_ctl_x  + fDecorations - fScrollbar * 2.0f ),
-        fLongestLabel =
-         ( 32 + max_app_name_len + fDecorations );
-  */
-
-// AppListInset1
-#define _WIDTH (414.0f * SKIF_ImGui_GlobalDPIScale) // std::max ( fInjectWidth * fTestScale, std::min ( 640.0f * fTestScale, fLongestLabel * fTestScale ) )
-  //_WIDTH  (640/2)
-#define _HEIGHT (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) //(float)_WIDTH / (fAspect)
-  //_HEIGHT (360/2)
-
-// AppListInset2
-#define _WIDTH2  (414.0f * SKIF_ImGui_GlobalDPIScale) //((float)_WIDTH)
-#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale) // (900.0f * SKIF_ImGui_GlobalDPIScale/(21.0f/9.0f)/2.0f + 88.0f /*(float)_WIDTH / (21.0f/9.0f) + fFrameHeight + fSpaceHeight * 2.0f*/)
-
   ImGui::BeginGroup ();
 
   auto _HandleKeyboardInput = [&](void)
@@ -2704,7 +2686,7 @@ Cache=false)";
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
-                                ImVec2 ( _WIDTH2,
+                                ImVec2 ( _WIDTH,
                                          _HEIGHT ), (! _registry.bDisableBorders),
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
@@ -3481,7 +3463,7 @@ Cache=false)";
 
   ImGui::BeginChild (
     "###AppListInset2",
-      ImVec2 ( _WIDTH2,
+      ImVec2 ( _WIDTH,
                _HEIGHT2 ), (! _registry.bDisableBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
