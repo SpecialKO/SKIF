@@ -1204,9 +1204,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   hModSKIF =
     GetModuleHandleW (nullptr);
 
-  // We don't want Steam's overlay to draw upon SKIF
-  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
   // First round
   if (_Signal.Minimize)
     nCmdShow = SW_SHOWMINNOACTIVE;
@@ -1318,13 +1315,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SendMessage      (hWnd, WM_SETICON, ICON_SMALL2,     (LPARAM)hIcon);
   SetClassLongPtrW (hWnd, GCL_HICON,         (LONG_PTR)(LPARAM)hIcon);
 
-  // Initialize Direct3D
-  if (! CreateDeviceD3D (hWnd))
-  {
-    CleanupDeviceD3D ();
-    return 1;
-  }
-
   SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
   // The notify window has been created but not displayed.
@@ -1332,15 +1322,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_CreateNotifyIcon       ();
   SKIF_CreateUpdateNotifyMenu ();
 
-  // Show the window
-  if (! SKIF_isTrayed)
-  {
-    ShowWindowAsync (hWnd, nCmdShow);
-    UpdateWindow    (hWnd);
-  }
-
   // If there were not an instance of SKIF already running
-  //   we need to handle any remaining tasks here.
+  //   we need to handle any remaining tasks here after 
+  //   we have a window ready to handle remaining cmds
   // Process cmd line arguments (4/4)
   if (! _Signal._RunningInstance || _registry.bAllowMultipleInstances)
   {
@@ -1362,6 +1346,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //if (_Signal.Start)
       //  _registry.bSmallMode = true;
     }
+  }
+
+  // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
+  // though we need to set this _after_ we have launched any game but before we set up Direct3D
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+  // Initialize Direct3D
+  if (! CreateDeviceD3D (hWnd))
+  {
+    CleanupDeviceD3D ();
+    return 1;
+  }
+
+  // Show the window
+  if (! SKIF_isTrayed)
+  {
+    ShowWindowAsync (hWnd, nCmdShow);
+    UpdateWindow    (hWnd);
   }
 
   // Setup Dear ImGui context
