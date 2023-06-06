@@ -756,7 +756,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   switch (msg)
   {
-
   case WM_CLOSE:
     extern bool bKeepProcessAlive;
 

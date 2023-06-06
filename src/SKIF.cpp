@@ -3242,9 +3242,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_DISPLAYCHANGE:
+      SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
+
       if (SKIF_Tab_Selected == UITab_Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
-      SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
       break;
 
     case WM_SKIF_MINIMIZE:
@@ -3392,32 +3393,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         RecreateSwapChains = true;
       return 0;
 
-   /* 2023-04-29: Disabled as this was never used and only referenced the unused empty "parent swapchain" that was never presented
-    * HDR toggles are handled through ImGui_ImplDX11_NewFrame() and pFactory1->IsCurrent () */
-#if 0
-        UINT swap_flags = 0x0;
-
-        if (SKIF_bCanFlip)
-        {
-          if (SKIF_bCanWaitSwapchain) // Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag. 
-            swap_flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-
-          if (SKIF_bCanAllowTearing)     //  Note: IDXGISwapChain::ResizeBuffers can't be used to add or remove this flag.
-            swap_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-        }
-
-        CleanupRenderTarget ();
-        g_pSwapChain->ResizeBuffers (
-          0, (UINT)LOWORD (lParam),
-             (UINT)HIWORD (lParam),
-            DXGI_FORMAT_UNKNOWN,
-            swap_flags
-        );
-        CreateRenderTarget ();
-      }
-      return 0;
-#endif
-
     case WM_SYSCOMMAND:
       if ((wParam & 0xfff0) == SC_KEYMENU)
       {
@@ -3437,10 +3412,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PostMessage (hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
         return 0;
       }
-      break;
-
-    case WM_CLOSE:
-      // Already handled in ImGui_ImplWin32_WndProcHandler
       break;
 
     case WM_DESTROY:
