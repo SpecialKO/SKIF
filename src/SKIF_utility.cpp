@@ -398,11 +398,6 @@ HINSTANCE
 SKIF_Util_ExplorePath (
   const std::wstring_view& path )
 {
-  //return
-    //ShellExecuteW ( nullptr, L"EXPLORE",
-      //path.data (), nullptr,
-                    //nullptr, SW_SHOWNORMAL );
-
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -460,29 +455,33 @@ SKIF_Util_ExplorePath_Formatted (
 HINSTANCE
 SKIF_Util_OpenURI (
   const std::wstring_view& path,
-               DWORD       dwAction,
+               int         nShow,
                LPCWSTR     verb,
-               LPCWSTR     parameters)
+               LPCWSTR     parameters,
+               LPCWSTR     directory)
 {
-  //return
-    //ShellExecuteW ( nullptr, L"OPEN",
-      //path.data (), nullptr,
-                    //nullptr, dwAction );
+  HINSTANCE ret   = 0;
 
+  // Workaround to ensure the SteamNoOverlayUIDrawing variable is not inherited
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+  
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = verb;
     sexi.lpFile       = path.data ();
     sexi.lpParameters = parameters;
-    sexi.nShow        = dwAction;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+    sexi.lpDirectory  = directory;
+    sexi.nShow        = nShow;
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS; // SEE_MASK_ASYNCOK cannot be used since we are removing the environmental variable
 
   if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
+    ret = sexi.hInstApp;
 
-  return 0;
+  // Reapply the SteamNoOverlayUIDrawing variable
+  SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+  return ret;
 }
 
 // Cannot handle special characters such as (c), (r), etc

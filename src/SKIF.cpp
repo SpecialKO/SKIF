@@ -895,7 +895,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.regKVDisableCFAWarning.putData (true);
       }
 
-      SKIF_Util_OpenURI(L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
+      SKIF_Util_OpenURI (L"https://support.microsoft.com/windows/allow-an-app-to-access-controlled-folders-b5b6627a-b008-2ca2-7931-7e51e912b034");
     }
 
     // Register SKIF in Windows to enable quick launching.

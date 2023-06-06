@@ -2605,6 +2605,9 @@ Cache=false)";
 
             std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
+            SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+
+            /*
             SHELLEXECUTEINFOW
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -2617,6 +2620,7 @@ Cache=false)";
                                 SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
             ShellExecuteExW (&sexi);
+            */
           }
 
           else if (pTargetApp->store == "EGS")
@@ -2637,6 +2641,10 @@ Cache=false)";
                                   ? pTargetApp->launch_configs[0].executable_helper
                                   : pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id);
 
+            
+            SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", pTargetApp->launch_configs[0].launch_options.c_str(), pTargetApp->launch_configs[0].working_dir.c_str());
+
+            /*
             SHELLEXECUTEINFOW
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -2645,10 +2653,10 @@ Cache=false)";
             sexi.lpParameters = pTargetApp->launch_configs[0].launch_options.c_str();
             sexi.lpDirectory  = pTargetApp->launch_configs[0].working_dir   .c_str();
             sexi.nShow        = SW_SHOWDEFAULT;
-            sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                                SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS;  // SEE_MASK_ASYNCOK cannot be used since we are removing the environmental variable
 
             ShellExecuteExW (&sexi);
+            */
           }
 
           if (_registry.bMinimizeOnGameLaunch)
@@ -3937,6 +3945,9 @@ Cache=false)";
 
             std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
+            SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+
+            /*
             SHELLEXECUTEINFOW
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -3949,6 +3960,7 @@ Cache=false)";
                                 SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
 
             ShellExecuteExW (&sexi);
+            */
 
             if (_registry.bMinimizeOnGameLaunch)
               SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
@@ -4414,27 +4426,24 @@ Cache=false)";
           SK_WideCharToUTF8 (pApp->install_dir)
                                         );
       }
+      
+      std::wstring pcgwValue =   (pApp->store == "SKIF" || pApp->store == "EGS" || pApp->store == "Xbox")
+                               ? SK_UTF8ToWideChar (pApp->names.normal)
+                               : std::to_wstring   (pApp->id);
 
-      std::wstring pcgwLink =
-                                 (pApp->store == "GOG")   ? L"https://www.pcgamingwiki.com/api/gog.php?page=%ws"
-                               : (pApp->store == "Steam") ? L"https://www.pcgamingwiki.com/api/appid.php?appid=%ws"
-                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=%ws";
-      std::wstring pcgwValue =
-        (pApp->store == "SKIF" || pApp->store == "EGS" || pApp->store == "Xbox")
-                                ? SK_UTF8ToWideChar (pApp->names.normal)
-                                : std::to_wstring(pApp->id);
+      std::wstring pcgwLink =   ((pApp->store == "GOG")   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
+                               : (pApp->store == "Steam") ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
+                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=") + pcgwValue;
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL, pcgwLink.c_str(), pcgwValue.c_str() );
+        SKIF_Util_OpenURI (pcgwLink.c_str());
       }
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (
-          SK_WideCharToUTF8 (
-            SK_FormatStringW ( pcgwLink.c_str(), pcgwValue.c_str() )
-          ).c_str()
+          SK_WideCharToUTF8 (pcgwLink).c_str()
         );
       }
 
@@ -4442,9 +4451,7 @@ Cache=false)";
       {
         if (ImGui::Selectable  ("Browse GOG Database", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"https://www.gogdb.org/product/%lu", pApp->id
-          );
+          SKIF_Util_OpenURI ((L"https://www.gogdb.org/product/" + std::to_wstring (pApp->id)).c_str());
         }
         else
         {
@@ -4461,9 +4468,7 @@ Cache=false)";
       {
         if (ImGui::Selectable  ("Browse Steam", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"steam://nav/games/details/%lu", pApp->id
-                                        );
+          SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
         }
         else
         {
@@ -4477,9 +4482,7 @@ Cache=false)";
 
         if (ImGui::Selectable  ("Browse Steam Community", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"https://steamcommunity.com/app/%lu", pApp->id
-                                        );
+          SKIF_Util_OpenURI ((L"https://steamcommunity.com/app/" + std::to_wstring (pApp->id)).c_str());
         }
         else
         {
@@ -4493,9 +4496,7 @@ Cache=false)";
 
         if (ImGui::Selectable  ("Browse SteamDB", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
-          SKIF_Util_OpenURI_Formatted ( SW_SHOWNORMAL,
-            L"https://steamdb.info/app/%lu", pApp->id
-                                        );
+          SKIF_Util_OpenURI ((L"https://steamdb.info/app/" + std::to_wstring (pApp->id)).c_str());
         }
         else
         {

@@ -28,7 +28,7 @@ std::wstring SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t r
 
 // ShellExecute
 
-HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& path, DWORD dwAction = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = L"");
+HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL);
 HINSTANCE    SKIF_Util_ExplorePath                 (const std::wstring_view& path);
 HINSTANCE    SKIF_Util_ExplorePath_Formatted       (                const wchar_t* const wszFmt, ...);
 HINSTANCE    SKIF_Util_OpenURI_Formatted           (DWORD dwAction, const wchar_t* const wszFmt, ...);
