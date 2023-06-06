@@ -398,9 +398,15 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
       // Whitelist the path if it haven't been already
       _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
-      _Signal._GamePath    = path;
-      _Signal._GameArgs    = proxiedCmdLine;
-      _Signal._GameWorkDir = workingDirectory;
+      std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
+                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+      );
+
+      _Signal._GamePath        = path;
+      _Signal._GameArgs        = proxiedCmdLine;
+      _Signal._GameWorkDir     = workingDirectory;
+      _Signal._ElevatedService = PathFileExists (elevationFile.c_str());
     }
   }
 
@@ -422,12 +428,12 @@ SKIF_Startup_LaunchGameService (void)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   if (_Signal._RunningInstance)
-    SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, 0x0, 0x0);
+    SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, _Signal._ElevatedService, 0x0);
 
   else if (! _inject.bCurrentState)
   {
     bExitOnInjection = true;
-    _inject._StartStopInject (false, true);
+    _inject._StartStopInject (false, true, _Signal._ElevatedService);
   }
 }
 
@@ -1448,9 +1454,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Force a one-time check before we enter the main loop
   _inject._TestServletRunlevel (true);
-
-  // Fetch SK DLL versions
-  _inject._RefreshSKDLLVersions ();
 
   // Initialize the updater
   static SKIF_Updater& _updater = 
@@ -3631,7 +3634,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_LAUNCHER:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
-        _inject._StartStopInject (false, true);
+        _inject._StartStopInject (false, true, wParam);
 
       // Reload the whitelist as it might have been changed
       _inject.LoadWhitelist      ( );

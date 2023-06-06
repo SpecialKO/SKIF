@@ -129,6 +129,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
   // Load the whitelist and blacklist
   LoadWhitelist ( );
   LoadBlacklist ( );
+
+  // Fetch SK DLL versions
+  _RefreshSKDLLVersions ();
 }
 
 bool
