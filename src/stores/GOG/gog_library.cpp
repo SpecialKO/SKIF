@@ -83,9 +83,6 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               if (RegGetValueW(hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 record.names.normal = SK_WideCharToUTF8(szData);
 
-              record.names.all_upper = record.names.normal;
-              std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
-
               dwSize = sizeof(szData) / sizeof(WCHAR);
               if (RegGetValueW(hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 record.install_dir = szData;

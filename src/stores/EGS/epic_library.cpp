@@ -140,9 +140,6 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
           record.names.normal         = jf.at ("DisplayName");
 
-          record.names.all_upper      = record.names.normal;
-          std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
-
 
           app_record_s::launch_config_s lc;
           lc.id                           = 0;

@@ -281,9 +281,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       }
                     }
 
-                    record.names.all_upper  = record.names.normal;
-                    std::for_each(record.names.all_upper.begin(), record.names.all_upper.end(), ::toupper);
-
                     if (record.launch_configs.size() > 0)
                     {
                       // Naively assume first launch option is right one

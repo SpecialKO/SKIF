@@ -122,9 +122,6 @@ int SKIF_AddCustomAppID (
     record.ImGuiLabelAndID = SK_FormatString("%s (recently added)###%s%i", record.names.normal.c_str(), record.store.c_str(), record.id);
     record.ImGuiPushID     = SK_FormatString("%s%i", record.store.c_str(), record.id);
 
-    record.names.all_upper = record.names.normal;
-    std::for_each (record.names.all_upper.begin ( ), record.names.all_upper.end ( ), [](char& c) {c = static_cast<char>(::toupper (c));});
-
     record.install_dir = installDir;
     
     app_record_s::launch_config_s lc;
