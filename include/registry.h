@@ -481,6 +481,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Sort Ascending)" );
 
+  KeyValue <bool> regKVLibraryIgnoreArticles =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Ignore Articles)" );
+
   // Integers
 
   KeyValue <int> regKVProcessRefreshInterval =
@@ -601,6 +605,7 @@ struct SKIF_RegistrySettings {
   bool bMinimizeOnGameLaunch;
   bool bProcessSortAscending;
   bool bProcessIncludeAll;
+  bool bLibraryIgnoreArticles;
   
   std::wstring wsUpdateChannel;
   std::wstring wsIgnoreUpdate;

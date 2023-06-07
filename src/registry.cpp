@@ -55,6 +55,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bDisableCFAWarning       = false; // Controlled Folder Access warning
   bProcessSortAscending    = true;
   bProcessIncludeAll       = false;
+  bLibraryIgnoreArticles   = false;
 
   
   iProcessSort             =   regKVProcessSort            .getData ( );
@@ -64,6 +65,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bProcessSortAscending  =   regKVProcessSortAscending   .getData ( );
   if (regKVProcessRefreshInterval.hasData())
     iProcessRefreshInterval=   regKVProcessRefreshInterval .getData ( );
+
+  bLibraryIgnoreArticles   =   regKVLibraryIgnoreArticles  .getData ( );
 
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData ( );
   bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch  .getData ( );

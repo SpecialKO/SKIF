@@ -483,7 +483,7 @@ SKIF_UI_Tab_DrawSettings (void)
   SK_RunOnce(
     ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
   );
-          
+
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
     _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
           
@@ -493,6 +493,18 @@ SKIF_UI_Tab_DrawSettings (void)
     "For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
     "This only affects new downloads of covers. It does not affect already downloaded covers.\n"
     "This will also disable automatic downloads of new updates to Special K."
+  );
+  
+  if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
+  {
+    _registry.regKVLibraryIgnoreArticles.putData (                       _registry.bLibraryIgnoreArticles);
+    RepopulateGames = true;
+  }
+          
+  ImGui::SameLine        ( );
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+  SKIF_ImGui_SetHoverTip (
+    "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
   );
 
   if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
@@ -1963,9 +1975,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Text        ("Hardware: Legacy Flip");
 
     /* Extremely uncommon but included in the list anyway */
+    ImGui::BeginGroup  ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "Hardware: Legacy Copy to front buffer");
+    ImGui::EndGroup    ();
+
+    SKIF_ImGui_SetHoverTip ("Quite uncommon to see compared to the other models listed here.");
     
     ImGui::TreePop     ();
 

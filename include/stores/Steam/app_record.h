@@ -121,7 +121,9 @@ struct app_record_s {
 
   struct names_s {
     std::string all_upper;
+    std::string all_upper_alnum;
     std::string normal;
+    size_t      pre_stripped = 0;
   } names;
 
   struct tex_registry_s {

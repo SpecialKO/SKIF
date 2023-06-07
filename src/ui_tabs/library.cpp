@@ -339,8 +339,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       []( const std::pair <std::string, app_record_s>& a,
           const std::pair <std::string, app_record_s>& b ) -> int
       {
-        return a.second.names.all_upper.compare(
-               b.second.names.all_upper
+        return a.second.names.all_upper_alnum.compare(
+               b.second.names.all_upper_alnum
         ) < 0;
       }
     );
@@ -473,6 +473,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pPatTexSRV.p == nullptr)
         LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2);
 
+      // Clear any existing trie
+      labels = Trie { };
+
       for ( auto& app : apps )
       {
         //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
@@ -581,48 +584,60 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        if (app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
+        // Prepare for the keyboard hint / search/filter functionality
+        if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
         {
-          std::string all_upper;
-
+          std::string all_upper = SKIF_Util_ToUpper (app.first),
+                      all_upper_alnum;
+          
           for (const char c : app.first)
           {
-            if (! ( isalnum (c) || isspace (c)))
+            if (! ( isalnum (c) || isspace (c) ))
               continue;
 
-            all_upper += (char)toupper (c);
+            all_upper_alnum += (char)toupper (c);
           }
 
-          static const
-            std::string toSkip [] =
-            {
-              std::string ("A "),
-              std::string ("THE ")
-            };
+          size_t stripped = 0;
 
-          for ( auto& skip_ : toSkip )
+          if (_registry.bLibraryIgnoreArticles)
           {
-            if (all_upper.find (skip_) == 0)
+            static const
+              std::string toSkip [] =
+              {
+                std::string ("A "),
+                std::string ("AN "),
+                std::string ("THE ")
+              };
+
+            for ( auto& skip_ : toSkip )
             {
-              all_upper =
-                all_upper.substr (
-                  skip_.length ()
-                );
-              break;
+              if (all_upper_alnum.find (skip_) == 0)
+              {
+                all_upper_alnum =
+                  all_upper_alnum.substr (
+                    skip_.length ()
+                  );
+
+                stripped = skip_.length ();
+                break;
+              }
             }
           }
 
           std::string trie_builder;
 
-          for ( const char c : all_upper)
+          for ( const char c : all_upper_alnum)
           {
             trie_builder += c;
 
             labels.insert (trie_builder);
           }
-
-          app.second.names.all_upper = trie_builder;
-          app.second.names.normal    = app.first;
+          
+          app.second.names.normal          = app.first;
+          app.second.names.all_upper       = all_upper;
+          app.second.names.all_upper_alnum = all_upper_alnum;
+          app.second.names.pre_stripped    = stripped;
         }
 
         std::wstring load_str;
@@ -1233,16 +1248,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   auto _HandleKeyboardInput = [&](void)
   {
-          auto& duration     = io.KeysDownDuration;
-           bool bText        = false;
-    static char test_ [1024] = {      };
-           char out   [2]    = { 0, 0 };
-
-    auto _Append = [&](char c) {
-      out [0] = c; StrCatA (test_, out);
-      bText   = true;
-    };
-
     static auto
       constexpr _text_chars =
         { 'A','B','C','D','E','F','G','H',
@@ -1251,11 +1256,18 @@ SKIF_UI_Tab_DrawLibrary (void)
           'Y','Z','0','1','2','3','4','5',
           '6','7','8','9',' ','-',':','.' };
 
+    static char test_ [1024] = {      };
+    char        out   [2]    = { 0, 0 };
+    bool        bText        = false;
+
     for ( auto c : _text_chars )
     {
-      if (duration [c] == 0.0f)
+      if (io.KeysDownDuration [c] == 0.0f &&
+         (c != ' ' || strlen (test_) > 0))
       {
-        _Append (c);
+        out [0] = c;
+        StrCatA (test_, out);
+        bText   = true;
       }
     }
 
@@ -1263,43 +1275,76 @@ SKIF_UI_Tab_DrawLibrary (void)
     static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
 
     struct {
-      std::string text = "";
-      std::string store;
+      std::string text   = "";
+      std::string store  = "";
       uint32_t    app_id = 0;
+      size_t      pos    = 0;
+      size_t      len    = 0;
     } static result;
 
     if (bText)
     {
       dwLastUpdate = SKIF_Util_timeGetTime ();
-
+      
+      // Prioritize trie search first
       if (labels.search (test_))
       {
         for (auto& app : apps)
         {
-          if (app.second.names.all_upper.find (test_) == 0)
+          if (app.second.names.all_upper_alnum.find (test_) == 0)
           {
             result.text   = app.second.names.normal;
             result.store  = app.second.store;
             result.app_id = app.second.id;
+            result.pos    = app.second.names.pre_stripped;
+            result.len    = strlen (test_);
+
+            // Handle cases where articles are ignored
+
+            // Add one to the length if the regular all_upper cannot find a match
+            // as this indicates a stripped character in the found pattern
+            if (app.second.names.all_upper.find (test_) != 0)
+              result.len++;
 
             break;
           }
         }
       }
 
+      // Fall back to using free text search when the trie fails us
       else
       {
-        strncpy (test_, result.text.c_str (), 1023);
+        //strncpy (test_, result.text.c_str (), 1023);
+
+        for (auto& app : apps)
+        {
+          size_t 
+              pos  = app.second.names.all_upper.find (test_);
+          if (pos != std::string::npos ) // == 0 
+          {
+            result.text   = app.second.names.normal;
+            result.store  = app.second.store;
+            result.app_id = app.second.id;
+            result.pos    = pos;
+            result.len    = strlen (test_);
+
+            break;
+          }
+        }
       }
     }
 
     if (! result.text.empty ())
     {
-      size_t len =
-        strlen (test_);
+      size_t len = 
+         (result.len < result.text.length ( ))
+        ? result.len : result.text.length ( );
 
-      std::string strText = result.text.substr(0, len),
-                  strHelp = result.text.substr (len, result.text.length () - len);
+      std::string preSearch  =  result.text.substr (         0,  result.pos),
+                  curSearch  =  result.text.substr (result.pos,  len),
+                  postSearch = (result.pos + len  < result.text.length ( ))
+                             ?  result.text.substr (result.pos + len, std::string::npos)
+                             :  "";
 
       ImGui::OpenPopup         ("###KeyboardHint");
 
@@ -1307,18 +1352,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (ImGui::BeginPopupModal("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
       {
+        if (! preSearch.empty ())
+        {
+          ImGui::TextDisabled ("%s", preSearch.c_str ());
+          ImGui::SameLine     (0.0f, 0.0f);
+        }
+
         ImGui::TextColored ( ImColor::HSV(0.0f, 0.0f, 0.75f), // ImColor(53, 255, 3)
-                                "%s", strText.c_str ()
+                                "%s", curSearch.c_str ()
         );
 
-        if (! strHelp.empty ())
+        if (! postSearch.empty ())
         {
-          ImGui::SameLine ();
-          ImGui::SetCursorPosX (
-            ImGui::GetCursorPosX () -
-            ImGui::GetStyle      ().ItemSpacing.x
-          );
-          ImGui::TextDisabled ("%s", strHelp.c_str ());
+          ImGui::SameLine     (0.0f, 0.0f);
+          ImGui::TextDisabled ("%s", postSearch.c_str ());
         }
 
         ImGui::EndPopup ( );
@@ -1339,9 +1386,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           manual_selection.id    = result.app_id;
           manual_selection.store = result.store;
         }
-        result.app_id    = 0;
-        result.store.clear ();
-        result.text .clear ();
+        result = { };
       }
     }
   };
@@ -4200,7 +4245,7 @@ Cache=false)";
         std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
         std::filesystem::path pathDiscard    = pwszFilePath; // Wide-string std::filesystem::path which will be discarded
         std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
-        std::wstring          pathExtension  = SKIF_Util_TowLower (pathDiscard.extension().wstring());
+        std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
         std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
 
         if (pathExtension == L".lnk")
@@ -4435,7 +4480,7 @@ Cache=false)";
         std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
         std::filesystem::path pathDiscard    = pwszFilePath; // Wide-string std::filesystem::path which will be discarded
         std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
-        std::wstring          pathExtension  = SKIF_Util_TowLower (pathDiscard.extension().wstring());
+        std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
         std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
 
         if (pathExtension == L".lnk")
