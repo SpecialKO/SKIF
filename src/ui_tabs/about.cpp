@@ -250,6 +250,19 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                        (const char *)u8"\u2022 ");
+  ImGui::SameLine         ( );
+  ImGui::Text             ("Start typing the name of a game in the library tab to quicky find it.");
+  ImGui::EndGroup         ( );
+
+  ImGui::Spacing          ( );
+  ImGui::Spacing          ( );
+
   if (SKIF_Util_IsHDRSupported())
   {
     ImGui::BeginGroup       ( );
