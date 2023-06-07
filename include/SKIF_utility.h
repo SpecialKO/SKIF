@@ -11,7 +11,9 @@
 // Generic Utilities
 
 std::string  SKIF_Util_ToLower               (std::string_view  input);
-std::wstring SKIF_Util_TowLower              (std::wstring_view input);
+std::wstring SKIF_Util_ToLowerW              (std::wstring_view input);
+std::string  SKIF_Util_ToUpper               (std::string_view  input);
+std::wstring SKIF_Util_ToUpperW              (std::wstring_view  input);
 std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( ));
 void         SKIF_Util_GetErrorAsMsgBox      (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError());
 DWORD        SKIF_Util_timeGetTime           (void);

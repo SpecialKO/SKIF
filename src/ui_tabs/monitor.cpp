@@ -588,8 +588,8 @@ void SortProcesses (std::vector <standby_record_s> &processes)
   auto _SortByName = [&](const standby_record_s &a, const standby_record_s& b) -> bool
   {
     // Need to transform to lowercase
-    std::wstring la = SKIF_Util_TowLower(a.filename),
-                 lb = SKIF_Util_TowLower(b.filename);
+    std::wstring la = SKIF_Util_ToLowerW(a.filename),
+                 lb = SKIF_Util_ToLowerW(b.filename);
 
     if (_registry.bProcessSortAscending)
       return la < lb;

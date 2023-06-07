@@ -33,10 +33,26 @@ SKIF_Util_ToLower      (std::string_view input)
 }
 
 std::wstring
-SKIF_Util_TowLower     (std::wstring_view input)
+SKIF_Util_ToLowerW     (std::wstring_view input)
 {
   std::wstring copy = std::wstring(input);
   std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towlower(c); });
+  return copy;
+}
+
+std::string
+SKIF_Util_ToUpper      (std::string_view input)
+{
+  std::string copy = std::string(input);
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::toupper(c, std::locale{}); });
+  return copy;
+}
+
+std::wstring
+SKIF_Util_ToUpperW     (std::wstring_view input)
+{
+  std::wstring copy = std::wstring(input);
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towupper(c); });
   return copy;
 }
 

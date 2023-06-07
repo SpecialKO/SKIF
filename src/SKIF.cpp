@@ -245,7 +245,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
   std::wstring cmdLineArgs    = cmdLine;
 
   // Transform to lowercase
-  std::wstring cmdLineLower   = SKIF_Util_TowLower (cmdLine);
+  std::wstring cmdLineLower   = SKIF_Util_ToLowerW (cmdLine);
 
   std::wstring splitPos1Lower = L"addgame="; // Start split
   std::wstring splitEXELower  = L".exe";     // Stop split (exe)
@@ -263,7 +263,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
   // Update lowercase
-  cmdLineLower   = SKIF_Util_TowLower (cmdLine);
+  cmdLineLower   = SKIF_Util_ToLowerW (cmdLine);
 
   // If .exe is part of the string
   if (cmdLineLower.find(splitEXELower) != std::wstring::npos)
@@ -359,7 +359,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     cmdLine = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1) + cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos);
 
   // Transform to lowercase
-  std::wstring cmdLineLower = SKIF_Util_TowLower (cmdLine);
+  std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
 
   // Extract the target path and any proxied command line arguments
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
