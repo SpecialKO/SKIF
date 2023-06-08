@@ -36,7 +36,6 @@
 #include <fonts/fa_621b.h>
 
 #include <stores/Steam/apps_list.h>
-#include <stores/Steam/asset_fetch.h>
 #include <stores/GOG/gog_library.h>
 #include <stores/EGS/epic_library.h>
 #include <stores/Xbox/xbox_library.h>
@@ -692,12 +691,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     populated = true;
   }
 
-  if (! update)
-  {
-    update =
-      SKIF_LibraryAssets_CheckForUpdates (true);
-  }
-
   extern bool  coverFadeActive;
   static int   tmp_iDimCovers = _registry.iDimCovers;
   
@@ -1153,6 +1146,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         std::wstring load_str_final = load_str;
         //std::wstring load_str_final = L"_library_600x900.jpg";
 
+        // Get UNIX-style time
+        time_t ltime;
+        time (&ltime);
+
+        std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
+                      url += std::to_wstring (_pApp->id);
+                      url += L"/library_600x900_2x.jpg";
+                      url += L"?t=";
+                      url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
+
         // If 600x900 exists but 600x900_x2 cannot be found
         if (  PathFileExistsW (load_str.   c_str ()) &&
             ! PathFileExistsW (load_str_2x.c_str ()) )
@@ -1173,7 +1176,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 300 &&
                 meta.height == 450)
             {
-              SKIF_HTTP_GetAppLibImg (_pApp->id, load_str_2x);
+              SKIF_Util_GetWebResource (url, load_str_2x);
               load_str_final = load_str_2x;
               //load_str_final = L"_library_600x900_x2.jpg";
             }
@@ -1194,7 +1197,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
             {
               DeleteFile (load_str_2x.c_str ());
-              SKIF_HTTP_GetAppLibImg (_pApp->id, load_str_2x);
+              SKIF_Util_GetWebResource (url, load_str_2x);
             }
           }
           

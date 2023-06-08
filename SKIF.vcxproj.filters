@@ -264,9 +264,6 @@
     <ClInclude Include="include\stores\Steam\apps_list.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\Steam\asset_fetch.h">
-      <Filter>Header Files\Stores\Steam</Filter>
-    </ClInclude>
     <ClInclude Include="include\SKIF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -408,9 +405,6 @@
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Steam\apps_list.cpp">
-      <Filter>Source Files\Stores\Steam</Filter>
-    </ClCompile>
-    <ClCompile Include="src\stores\Steam\asset_fetch.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
     <ClCompile Include="src\injection.cpp">

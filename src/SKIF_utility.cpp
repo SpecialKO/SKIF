@@ -430,45 +430,6 @@ SKIF_Util_ExplorePath (
 }
 
 HINSTANCE
-SKIF_Util_ExplorePath_Formatted (
-  const wchar_t * const wszFmt,
-                        ... )
-{  static        thread_local
-        wchar_t _thread_localPath
-        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
-        {                                };
-  va_list       vArgs   =   nullptr;
-  va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath,
-    ARRAYSIZE ( _thread_localPath ),
-                        wszFmt,
-                vArgs             );
-  va_end      ( vArgs             );
-
-  //return
-    //ShellExecuteW (
-      //nullptr, L"EXPLORE",
-                //_thread_localPath,
-      //nullptr,    nullptr,
-             //SW_SHOWNORMAL
-                  //);
-
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"EXPLORE";
-    sexi.lpFile       = _thread_localPath;
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-HINSTANCE
 SKIF_Util_OpenURI (
   const std::wstring_view& path,
                int         nShow,
@@ -493,79 +454,6 @@ SKIF_Util_OpenURI (
     ret = sexi.hInstApp;
 
   return ret;
-}
-
-// Cannot handle special characters such as (c), (r), etc
-HINSTANCE
-SKIF_Util_OpenURI_Formatted (
-          DWORD       dwAction,
-  const wchar_t * const wszFmt,
-                        ... )
-{  static        thread_local
-        wchar_t _thread_localPath
-        [ 4UL * INTERNET_MAX_PATH_LENGTH ] =
-        {                                };
-  va_list       vArgs   =   nullptr;
-  va_start    ( vArgs,  wszFmt    );
-  wvnsprintfW ( _thread_localPath,
-    ARRAYSIZE ( _thread_localPath ),
-                        wszFmt,
-                vArgs             );
-  va_end      ( vArgs             );
-
-  //return
-    //ShellExecuteW ( nullptr,
-      //L"OPEN",  _thread_localPath,
-         //nullptr,   nullptr,   dwAction
-                  //);
-
-    SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = _thread_localPath;
-    sexi.nShow        = dwAction;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-  if (ShellExecuteExW (&sexi))
-    return sexi.hInstApp;
-
-  return 0;
-}
-
-void
-SKIF_Util_OpenURI_Threaded (
-        const LPCWSTR path )
-{
-  _beginthreadex(nullptr,
-                         0,
-  [](LPVOID lpUser)->unsigned
-  {
-    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_OpenURI_Threaded");
-
-    LPCWSTR _path = (LPCWSTR)lpUser;
-
-    CoInitializeEx (nullptr,
-      COINIT_APARTMENTTHREADED |
-      COINIT_DISABLE_OLE1DDE
-    );
-
-    SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = _path;
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
-
-    ShellExecuteExW (&sexi);
-
-    _endthreadex(0);
-
-    return 0;
-  }, (LPVOID)path, NULL, NULL);
 }
 
 
@@ -1734,42 +1622,6 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
   }
 
   return 0;
-}
-
-void
-SKIF_Util_GetWebResourceThreaded (std::wstring url, std::wstring_view destination)
-{
-  auto* get =
-    new skif_get_web_uri_t { };
-
-  URL_COMPONENTSW urlcomps = { };
-
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
-
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
-
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
-
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
-  {
-    wcsncpy ( get->wszLocalPath,
-                           destination.data (),
-                       MAX_PATH );
-
-    get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
-
-    _beginthreadex (
-       nullptr, 0, (_beginthreadex_proc_type) SKIF_Util_GetWebUri,
-           get, 0x0, nullptr
-                   );
-  }
 }
 
 
