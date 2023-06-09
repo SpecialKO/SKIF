@@ -227,6 +227,15 @@ SK_Steam_GetInstalledAppIDs (void)
           bInit = false;
     if (! bInit)
     {
+      static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+      
+      // We don't want Steam to draw its overlay on us
+      _registry._LoadedSteamOverlay = true;
+      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+      // Store the current state of the environment variables
+      auto env_str = GetEnvironmentStringsW ( );
+
       static bool bLoaded =
         (LoadLibraryW (L"steam_api64.dll") != nullptr);
 
@@ -254,6 +263,17 @@ SK_Steam_GetInstalledAppIDs (void)
             bInit = true;
           }
         }
+      }
+
+      // Restore the state (clears out any additional Steam set variables)
+      SetEnvironmentStringsW  (env_str);
+      FreeEnvironmentStringsW (env_str);
+
+      // If the DLL file could not be loaded, go back to regular handling
+      if (! bLoaded)
+      {
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        _registry._LoadedSteamOverlay = false;
       }
     }
   }

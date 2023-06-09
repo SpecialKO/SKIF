@@ -615,6 +615,9 @@ struct SKIF_RegistrySettings {
   unsigned int  iLastSelectedGame;
   bool          bLastSelectedWritten;
 
+  // Ephemeral settings that doesn't stick around
+  bool _LoadedSteamOverlay = false;
+
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)
   {

@@ -437,7 +437,18 @@ SKIF_Util_OpenURI (
                LPCWSTR     parameters,
                LPCWSTR     directory)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   HINSTANCE ret   = 0;
+
+  
+  
+  UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
+    ((_registry._LoadedSteamOverlay) ? SEE_MASK_NOASYNC    //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+                                     : SEE_MASK_ASYNCOK ); // Asynchronous - It is fine to defer loading the new process until later
+
+  if (_registry._LoadedSteamOverlay)
+    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
   
   SHELLEXECUTEINFOW
     sexi              = { };
@@ -447,11 +458,14 @@ SKIF_Util_OpenURI (
     sexi.lpParameters = parameters;
     sexi.lpDirectory  = directory;
     sexi.nShow        = nShow;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_ASYNCOK;
+    sexi.fMask        = flags;
     // Note that any new process will inherit SKIF's environment variables
 
   if (ShellExecuteExW (&sexi))
     ret = sexi.hInstApp;
+
+  if (_registry._LoadedSteamOverlay)
+    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
   return ret;
 }
