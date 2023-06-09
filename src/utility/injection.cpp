@@ -20,20 +20,20 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <injection.h>
+#include <utility/injection.h>
 
 #include "../resource.h"
 
 #include <SKIF.h>
-#include <SKIF_utility.h>
-#include <SKIF_imgui.h>
-#include <registry.h>
-#include <fsutil.h>
+#include <utility/utility.h>
+#include <utility/skif_imgui.h>
+#include <utility/registry.h>
+#include <utility/fsutil.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
-#include <sk_utility/utility.h>
+#include <utility/sk_utility.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 

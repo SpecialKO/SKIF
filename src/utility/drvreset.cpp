@@ -25,7 +25,7 @@ freely, subject to the following restrictions:
 
 /* Includes ***************************************************************/
 
-#include "drvreset.h"
+#include "utility/drvreset.h"
 
 /* Defines ****************************************************************/
 

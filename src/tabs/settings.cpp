@@ -1,19 +1,19 @@
 
-#include <SKIF_imgui.h>
+#include <utility/skif_imgui.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
-#include <sk_utility/utility.h>
-#include <SKIF_utility.h>
+#include <utility/sk_utility.h>
+#include <utility/utility.h>
 #include <filesystem>
 
 #include <dxgi.h>
 #include <d3d11.h>
 #include <d3dkmthk.h>
 
-#include <fsutil.h>
-#include <registry.h>
-#include <injection.h>
-#include <updater.h>
+#include <utility/fsutil.h>
+#include <utility/registry.h>
+#include <utility/injection.h>
+#include <utility/updater.h>
 
 struct Monitor_MPO_Support
 {

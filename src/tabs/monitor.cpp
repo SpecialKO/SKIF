@@ -20,15 +20,15 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <SKIF_imgui.h>
-#include <SKIF_utility.h>
+#include <utility/skif_imgui.h>
+#include <utility/utility.h>
 
-#include <injection.h>
-#include <fsutil.h>
+#include <utility/injection.h>
+#include <utility/fsutil.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
-#include <sk_utility/utility.h>
+#include <utility/sk_utility.h>
 
 #include <filesystem>
 #include <iostream>
@@ -44,9 +44,9 @@
 #include <psapi.h>
 
 #include <typeindex>
-#include <ui_tabs/common_ui.h>
+#include <tabs/common_ui.h>
 
-#include <registry.h>
+#include <utility/registry.h>
 
 CONDITION_VARIABLE ProcRefreshPaused = { };
 

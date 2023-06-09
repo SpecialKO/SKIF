@@ -1,15 +1,15 @@
-#include <SKIF_imgui.h>
+#include <utility/skif_imgui.h>
 
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
 
-#include <sk_utility/utility.h>
-#include <SKIF_utility.h>
+#include <utility/sk_utility.h>
+#include <utility/utility.h>
 
-#include <fsutil.h>
-#include <registry.h>
-#include <injection.h>
+#include <utility/fsutil.h>
+#include <utility/registry.h>
+#include <utility/injection.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>

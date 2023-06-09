@@ -76,21 +76,21 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);.\resources\;.\packages_misc\;.\packages_misc\gsl\</IncludePath>
     <TargetName>$(ProjectName)32</TargetName>
     <OutDir>Builds\</OutDir>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);.\resources\;.\packages_misc\;.\packages_misc\gsl\</IncludePath>
     <OutDir>Builds\</OutDir>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>Builds\</OutDir>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);.\resources\;.\packages_misc\;.\packages_misc\gsl\</IncludePath>
     <TargetName>$(ProjectName)32</TargetName>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
@@ -100,7 +100,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);.\resources\;.\packages_misc\;.\packages_misc\gsl\</IncludePath>
     <OutDir>Builds\</OutDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
@@ -157,6 +157,9 @@
       <Command>post_build.bat "$(TargetPath)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -213,6 +216,9 @@
       <Command>post_build.bat "$(TargetPath)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -272,7 +278,7 @@
       <LinkErrorReporting>NoErrorReport</LinkErrorReporting>
     </Link>
     <Manifest>
-      <AdditionalManifestFiles>appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
       <Command>post_build.bat "$(TargetPath)"</Command>
@@ -341,7 +347,7 @@
       <LinkErrorReporting>NoErrorReport</LinkErrorReporting>
     </Link>
     <Manifest>
-      <AdditionalManifestFiles>appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <ResourceCompile>
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
@@ -358,17 +364,19 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\drvreset.h" />
-    <ClInclude Include="include\fonts\fa_621.h" />
-    <ClInclude Include="include\fonts\fa_621b.h" />
-    <ClInclude Include="include\games.h" />
-    <ClInclude Include="include\registry.h" />
-    <ClInclude Include="include\SKIF_imgui.h" />
-    <ClInclude Include="include\SKIF_utility.h" />
-    <ClInclude Include="include\stores\EGS\epic_library.h" />
-    <ClInclude Include="include\fonts\fa_brands_400.ttf.h" />
-    <ClInclude Include="include\fonts\fa_solid_900.ttf.h" />
-    <ClInclude Include="include\fsutil.h" />
+    <ClInclude Include="include\stores\Epic\epic_library.h" />
+    <ClInclude Include="include\utility\drvreset.h" />
+    <ClInclude Include="packages_misc\picosha2.h" />
+    <ClInclude Include="packages_misc\TextFlow.hpp" />
+    <ClInclude Include="resources\fonts\fa_621.h" />
+    <ClInclude Include="resources\fonts\fa_621b.h" />
+    <ClInclude Include="include\utility\games.h" />
+    <ClInclude Include="include\utility\registry.h" />
+    <ClInclude Include="include\utility\skif_imgui.h" />
+    <ClInclude Include="include\utility\utility.h" />
+    <ClInclude Include="resources\fonts\fa_brands_400.ttf.h" />
+    <ClInclude Include="resources\fonts\fa_solid_900.ttf.h" />
+    <ClInclude Include="include\utility\fsutil.h" />
     <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
@@ -377,16 +385,15 @@
     <ClInclude Include="include\imgui\imstb_rectpack.h" />
     <ClInclude Include="include\imgui\imstb_textedit.h" />
     <ClInclude Include="include\imgui\imstb_truetype.h" />
-    <ClInclude Include="include\injection.h" />
-    <ClInclude Include="include\install_utils.h" />
-    <ClInclude Include="include\patreon.png.h" />
-    <ClInclude Include="include\shaders\imgui_pix.h" />
-    <ClInclude Include="include\shaders\imgui_vtx.h" />
+    <ClInclude Include="include\utility\injection.h" />
+    <ClInclude Include="include\utility\install_utils.h" />
+    <ClInclude Include="resources\images\patreon.png.h" />
+    <ClInclude Include="resources\shaders\imgui_pix.h" />
+    <ClInclude Include="resources\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
-    <ClInclude Include="include\sk_boxart.png.h" />
-    <ClInclude Include="include\sk_icon.jpg.h" />
-    <ClInclude Include="include\sk_utility\command.h" />
-    <ClInclude Include="include\sk_utility\utility.h" />
+    <ClInclude Include="resources\images\sk_boxart.png.h" />
+    <ClInclude Include="resources\images\sk_icon.jpg.h" />
+    <ClInclude Include="include\utility\sk_utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
     <ClInclude Include="include\stores\generic_library2.h" />
     <ClInclude Include="include\stores\GOG\gog_library.h" />
@@ -397,80 +404,34 @@
     <ClInclude Include="include\stores\Steam\steam_library.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
     <ClInclude Include="include\stores\Xbox\xbox_library.h" />
-    <ClInclude Include="include\TextFlow.hpp" />
-    <ClInclude Include="include\ui_tabs\about.h" />
-    <ClInclude Include="include\ui_tabs\common_ui.h" />
-    <ClInclude Include="include\ui_tabs\library.h" />
-    <ClInclude Include="include\ui_tabs\settings.h" />
-    <ClInclude Include="include\updater.h" />
-    <ClInclude Include="include\vfs.h" />
-    <ClInclude Include="steam\isteamapplist.h" />
-    <ClInclude Include="steam\isteamapps.h" />
-    <ClInclude Include="steam\isteamappticket.h" />
-    <ClInclude Include="steam\isteamclient.h" />
-    <ClInclude Include="steam\isteamcontroller.h" />
-    <ClInclude Include="steam\isteamfriends.h" />
-    <ClInclude Include="steam\isteamgamecoordinator.h" />
-    <ClInclude Include="steam\isteamgameserver.h" />
-    <ClInclude Include="steam\isteamgameserverstats.h" />
-    <ClInclude Include="steam\isteamhtmlsurface.h" />
-    <ClInclude Include="steam\isteamhttp.h" />
-    <ClInclude Include="steam\isteaminput.h" />
-    <ClInclude Include="steam\isteaminventory.h" />
-    <ClInclude Include="steam\isteammasterserverupdater.h" />
-    <ClInclude Include="steam\isteammatchmaking.h" />
-    <ClInclude Include="steam\isteammusic.h" />
-    <ClInclude Include="steam\isteammusicremote.h" />
-    <ClInclude Include="steam\isteamnetworking.h" />
-    <ClInclude Include="steam\isteamnetworkingsockets.h" />
-    <ClInclude Include="steam\isteamnetworkingutils.h" />
-    <ClInclude Include="steam\isteamparentalsettings.h" />
-    <ClInclude Include="steam\isteamps3overlayrenderer.h" />
-    <ClInclude Include="steam\isteamremoteplay.h" />
-    <ClInclude Include="steam\isteamremotestorage.h" />
-    <ClInclude Include="steam\isteamscreenshots.h" />
-    <ClInclude Include="steam\isteamugc.h" />
-    <ClInclude Include="steam\isteamuser.h" />
-    <ClInclude Include="steam\isteamuserstats.h" />
-    <ClInclude Include="steam\isteamutils.h" />
-    <ClInclude Include="steam\isteamvideo.h" />
-    <ClInclude Include="steam\matchmakingtypes.h" />
-    <ClInclude Include="steam\steamclientpublic.h" />
-    <ClInclude Include="steam\steamdatagram_tickets.h" />
-    <ClInclude Include="steam\steamencryptedappticket.h" />
-    <ClInclude Include="steam\steamhttpenums.h" />
-    <ClInclude Include="steam\steamnetworkingtypes.h" />
-    <ClInclude Include="steam\steamps3params.h" />
-    <ClInclude Include="steam\steamtypes.h" />
-    <ClInclude Include="steam\steamuniverse.h" />
-    <ClInclude Include="steam\steam_api.h" />
-    <ClInclude Include="steam\steam_api_common.h" />
-    <ClInclude Include="steam\steam_api_flat.h" />
-    <ClInclude Include="steam\steam_api_internal.h" />
-    <ClInclude Include="steam\steam_gameserver.h" />
+    <ClInclude Include="include\tabs\about.h" />
+    <ClInclude Include="include\tabs\common_ui.h" />
+    <ClInclude Include="include\tabs\library.h" />
+    <ClInclude Include="include\tabs\settings.h" />
+    <ClInclude Include="include\utility\updater.h" />
+    <ClInclude Include="include\utility\vfs.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\stores\generic_library2.cpp" />
-    <ClCompile Include="src\drvreset.cpp" />
-    <ClCompile Include="src\games.cpp" />
-    <ClCompile Include="src\registry.cpp" />
-    <ClCompile Include="src\SKIF_imgui.cpp" />
-    <ClCompile Include="src\SKIF_utility.cpp" />
-    <ClCompile Include="src\stores\EGS\epic_library.cpp" />
-    <ClCompile Include="sk_console.cpp" />
-    <ClCompile Include="src\fsutil.cpp" />
+    <ClCompile Include="src\stores\Epic\epic_library.cpp" />
+    <ClCompile Include="src\stores\generic_library2.cpp" />
+    <ClCompile Include="src\utility\drvreset.cpp" />
+    <ClCompile Include="src\utility\games.cpp" />
+    <ClCompile Include="src\utility\registry.cpp" />
+    <ClCompile Include="src\utility\skif_imgui.cpp" />
+    <ClCompile Include="src\utility\utility.cpp" />
+    <ClCompile Include="src\utility\fsutil.cpp" />
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\imgui\imgui.cpp" />
     <ClCompile Include="src\imgui\imgui_draw.cpp" />
     <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="src\injection.cpp" />
-    <ClCompile Include="src\install_utils.cpp" />
+    <ClCompile Include="src\utility\injection.cpp" />
+    <ClCompile Include="src\utility\install_utils.cpp" />
     <ClCompile Include="src\SKIF.cpp" />
-    <ClCompile Include="src\sk_utility\utility.cpp" />
+    <ClCompile Include="src\utility\sk_utility.cpp" />
     <ClCompile Include="src\stores\GOG\gog_library.cpp" />
     <ClCompile Include="src\stores\SKIF\custom_library.cpp" />
     <ClCompile Include="src\stores\Steam\apps_list.cpp" />
@@ -479,25 +440,25 @@
     <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp" />
-    <ClCompile Include="src\ui_tabs\about.cpp" />
-    <ClCompile Include="src\ui_tabs\common_ui.cpp" />
-    <ClCompile Include="src\ui_tabs\monitor.cpp" />
-    <ClCompile Include="src\ui_tabs\library.cpp" />
-    <ClCompile Include="src\ui_tabs\settings.cpp" />
-    <ClCompile Include="src\updater.cpp" />
-    <ClCompile Include="src\vfs.cpp" />
+    <ClCompile Include="src\tabs\about.cpp" />
+    <ClCompile Include="src\tabs\common_ui.cpp" />
+    <ClCompile Include="src\tabs\monitor.cpp" />
+    <ClCompile Include="src\tabs\library.cpp" />
+    <ClCompile Include="src\tabs\settings.cpp" />
+    <ClCompile Include="src\utility\updater.cpp" />
+    <ClCompile Include="src\utility\vfs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SKIF.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="SKIF.ico" />
-    <Image Include="SKIF_on.ico" />
-    <Image Include="SKIF_off.ico" />
-    <Image Include="SKIF_on_notify.ico" />
+    <Image Include="resources\icons\SKIF.ico" />
+    <Image Include="resources\icons\SKIF_on.ico" />
+    <Image Include="resources\icons\SKIF_off.ico" />
+    <Image Include="resources\icons\SKIF_on_notify.ico" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="src\imgui_pix_shader.hlsl">
+    <FxCompile Include="resources\shaders\imgui_pix_shader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -507,11 +468,11 @@
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">imgui_ps_bytecode</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\include\shaders\imgui_pix.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\resources\shaders\imgui_pix.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">imgui_ps_bytecode</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\include\shaders\imgui_pix.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\resources\shaders\imgui_pix.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
@@ -521,7 +482,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="src\imgui_vtx_shader.hlsl">
+    <FxCompile Include="resources\shaders\imgui_vtx_shader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
@@ -530,8 +491,8 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\include\shaders\imgui_vtx.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\include\shaders\imgui_vtx.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(DefiningProjectDirectory)\resources\shaders\imgui_vtx.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)\resources\shaders\imgui_vtx.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -547,10 +508,19 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="appcompat.manifest" />
+    <Manifest Include="resources\appcompat.manifest" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="packages_misc\gsl\gsl" />
+    <None Include="packages_misc\gsl\gsl_algorithm" />
+    <None Include="packages_misc\gsl\gsl_assert" />
+    <None Include="packages_misc\gsl\gsl_byte" />
+    <None Include="packages_misc\gsl\gsl_util" />
+    <None Include="packages_misc\gsl\multi_span" />
+    <None Include="packages_misc\gsl\pointers" />
+    <None Include="packages_misc\gsl\span" />
+    <None Include="packages_misc\gsl\string_span" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

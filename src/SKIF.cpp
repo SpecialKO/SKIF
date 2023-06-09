@@ -29,14 +29,12 @@
 
 #include <gsl/gsl_util>
 
-#include <sk_utility/command.h>
-
 #include <SKIF.h>
-#include <SKIF_utility.h>
-#include <SKIF_imgui.h>
+#include <utility/utility.h>
+#include <utility/skif_imgui.h>
 
 #include <stores/Steam/steam_library.h>
-#include <injection.h>
+#include <utility/injection.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
@@ -47,7 +45,7 @@
 #include <dxgi1_6.h>
 #include <xinput.h>
 
-#include <fsutil.h>
+#include <utility/fsutil.h>
 #include <psapi.h>
 
 #include <codecvt>
@@ -78,16 +76,16 @@
 #include <nlohmann/json.hpp>
 
 #include <dwmapi.h>
-#include <ui_tabs/about.h>
-#include <ui_tabs/settings.h>
+#include <tabs/about.h>
+#include <tabs/settings.h>
 
 #include "TextFlow.hpp"
 
-#include <registry.h>
-#include <updater.h>
+#include <utility/registry.h>
+#include <utility/updater.h>
 
-#include "drvreset.h"
-#include <ui_tabs/common_ui.h>
+#include <utility/drvreset.h>
+#include <tabs/common_ui.h>
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;

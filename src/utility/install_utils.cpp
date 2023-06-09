@@ -21,8 +21,8 @@
 //
 
 #include <SKIF.h>
-#include <install_utils.h>
-#include <fsutil.h>
+#include <utility/install_utils.h>
+#include <utility/fsutil.h>
 #include <stores/Steam/apps_list.h>
 #include <stores/Steam/steam_library.h>
 

@@ -20,7 +20,7 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <sk_utility/utility.h>
+#include <utility/sk_utility.h>
 
 class SK_AutoCOMInit
 {
@@ -255,7 +255,7 @@ SK_Win32_time_t_to_FILETIME (time_t epoch)
 
 
 
-#include <fsutil.h>
+#include <utility/fsutil.h>
 
 HRESULT
 SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,

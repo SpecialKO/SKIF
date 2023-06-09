@@ -1,16 +1,16 @@
-#include "generic_library2.h"
+#include <stores/generic_library2.h>
 
 #include "DirectXTex.h"
-#include <sk_utility/utility.h>
-#include <SKIF_utility.h>
-#include <fsutil.h>
+#include <utility/sk_utility.h>
+#include <utility/utility.h>
+#include <utility/fsutil.h>
 
-#include <patreon.png.h>
-#include <sk_icon.jpg.h>
-#include <sk_boxart.png.h>
+#include <images/patreon.png.h>
+#include <images/sk_icon.jpg.h>
+#include <images/sk_boxart.png.h>
 
 #include <concurrent_queue.h>
-#include "Steam/steam_library.h"
+#include "stores/Steam/steam_library.h"
 
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 

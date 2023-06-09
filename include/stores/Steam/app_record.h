@@ -31,17 +31,17 @@
 #include <assert.h>
 #include <Shlwapi.h>
 
-#include <install_utils.h>
+#include <utility/install_utils.h>
 
-#include <sk_utility/utility.h>
+#include <utility/sk_utility.h>
 
 #include <Windows.h>
 
 #include <stores/Steam/app_record.h>
-#include "sk_utility/utility.h"
+#include <utility/utility.h>
 
 //#include "steam/steam_api.h"
-#include "vfs.h"
+#include <utility/vfs.h>
 
 #include <vector>
 

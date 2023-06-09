@@ -1,4 +1,4 @@
-#include <vfs.h>
+#include <utility/vfs.h>
 
 int
 SK_CountWChars (const wchar_t *s, wchar_t c)

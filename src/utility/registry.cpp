@@ -1,4 +1,4 @@
-#include <registry.h>
+#include <utility/registry.h>
 
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows10v1709OrGreater (void);

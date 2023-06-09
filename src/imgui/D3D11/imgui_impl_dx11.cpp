@@ -52,7 +52,7 @@
 #include "plog/Appenders/ConsoleAppender.h"
 
 // Registry Settings
-#include <registry.h>
+#include <utility/registry.h>
 
 // DirectX
 #include <dxgi1_6.h>

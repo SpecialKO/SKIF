@@ -1,12 +1,12 @@
 #pragma once
-#include <fsutil.h>
+#include <utility/fsutil.h>
 #include <vector>
 #include <wtypes.h>
 #include <WinInet.h>
 #include <cstdint>
 #include <string>
 #include <nlohmann/json.hpp>
-#include <SKIF_utility.h>
+#include <utility/utility.h>
 #include <stores/generic_library2.h>
 #include <stores/Steam/app_record.h>
 

@@ -1,15 +1,15 @@
-#include <games.h>
+#include <utility/games.h>
 #include <SKIF.h>
-#include <SKIF_utility.h>
+#include <utility/utility.h>
 #include "stores/Steam/apps_ignore.h"
-#include <fsutil.h>
+#include <utility/fsutil.h>
 #include <stores/GOG/gog_library.h>
-#include <stores/EGS/epic_library.h>
+#include <stores/epic/epic_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
 // Registry Settings
-#include <registry.h>
+#include <utility/registry.h>
 #include <stores/Steam/steam_library.h>
 
 CONDITION_VARIABLE LibRefreshPaused = { };

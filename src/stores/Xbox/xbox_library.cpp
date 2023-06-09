@@ -6,9 +6,9 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <SKIF.h>
-#include <SKIF_utility.h>
+#include <utility/utility.h>
 
-#include <registry.h>
+#include <utility/registry.h>
 
 /*
 Xbox / MS Store games shared registry struture

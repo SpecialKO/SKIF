@@ -22,7 +22,7 @@
 #include <array>
 #include <algorithm>
 #include <format>
-#include <injection.h>
+#include <utility/injection.h>
 
 // PLOG
 #ifndef PLOG_ENABLE_WCHAR_INPUT
@@ -34,7 +34,7 @@
 #include "plog/Appenders/ConsoleAppender.h"
 
 // Registry Settings
-#include <registry.h>
+#include <utility/registry.h>
 
 auto constexpr XUSER_INDEXES =
   std::array <DWORD, 4> { 0, 1, 2, 3 };

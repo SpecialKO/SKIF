@@ -1,5 +1,5 @@
-#include <SKIF_utility.h>
-#include <sk_utility/utility.h>
+#include <utility/utility.h>
+#include <utility/sk_utility.h>
 #include <comdef.h>
 #include <gsl/gsl_util>
 #include <Psapi.h>
@@ -14,9 +14,9 @@
 #pragma comment (lib, "Gdiplus.lib")
 
 #include <SKIF.h>
-#include <fsutil.h>
-#include <registry.h>
-#include <injection.h>
+#include <utility/fsutil.h>
+#include <utility/registry.h>
+#include <utility/injection.h>
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 

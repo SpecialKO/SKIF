@@ -31,9 +31,6 @@
     <Filter Include="Header Files\Stores\Steam">
       <UniqueIdentifier>{bbe0dc2c-ea77-47f5-9371-b2d1706474f7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Stores\Steam\API">
-      <UniqueIdentifier>{9953f094-bf48-48b5-8194-6b18e32c3e14}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Stores">
       <UniqueIdentifier>{945b4149-3a70-4cbe-9278-1635e8d95cc5}</UniqueIdentifier>
     </Filter>
@@ -82,140 +79,26 @@
     <Filter Include="Source Files\Stores\Epic">
       <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Fonts">
+      <UniqueIdentifier>{ebbbc957-0064-40d1-88be-76ca0836bf29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Images">
+      <UniqueIdentifier>{8ae3f723-6ec2-4bcb-91ab-681181b66898}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Icons">
+      <UniqueIdentifier>{d6c1bda6-6c07-43e6-ae0d-9d96d6a0d929}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders">
+      <UniqueIdentifier>{dc6051dc-908f-4e24-9877-e78debb9fce7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Packages_Misc">
+      <UniqueIdentifier>{9fb4cf13-f304-4e2c-a64a-0fb28fa175f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Packages_Misc\GSL">
+      <UniqueIdentifier>{995078a9-45f5-4bd8-8760-dec8aed20f6d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="steam\isteamapplist.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamapps.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamappticket.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamclient.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamcontroller.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamfriends.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamgamecoordinator.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamgameserver.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamgameserverstats.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamhtmlsurface.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamhttp.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteaminput.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteaminventory.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteammasterserverupdater.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteammatchmaking.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteammusic.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteammusicremote.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamnetworking.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamnetworkingsockets.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamnetworkingutils.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamparentalsettings.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamps3overlayrenderer.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamremoteplay.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamremotestorage.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamscreenshots.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamugc.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamuser.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamuserstats.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamutils.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\isteamvideo.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\matchmakingtypes.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steam_api.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steam_api_common.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steam_api_flat.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steam_api_internal.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steam_gameserver.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamclientpublic.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamdatagram_tickets.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamencryptedappticket.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamhttpenums.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamnetworkingtypes.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamps3params.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamtypes.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
-    <ClInclude Include="steam\steamuniverse.h">
-      <Filter>Header Files\Stores\Steam\API</Filter>
-    </ClInclude>
     <ClInclude Include="include\imgui\imconfig.h">
       <Filter>Header Files\ImGui</Filter>
     </ClInclude>
@@ -246,10 +129,10 @@
     <ClInclude Include="include\stores\generic_library.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
-    <ClInclude Include="include\sk_utility\utility.h">
+    <ClInclude Include="include\utility\sk_utility.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\ui_tabs\library.h">
+    <ClInclude Include="include\tabs\library.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\vdf.h">
@@ -258,7 +141,7 @@
     <ClInclude Include="include\stores\Steam\app_record.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
-    <ClInclude Include="include\fsutil.h">
+    <ClInclude Include="include\utility\fsutil.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\apps_list.h">
@@ -266,30 +149,6 @@
     </ClInclude>
     <ClInclude Include="include\SKIF.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\patreon.png.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\sk_icon.jpg.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\shaders\imgui_pix.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\shaders\imgui_vtx.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\sk_boxart.png.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fonts\fa_brands_400.ttf.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fonts\fa_solid_900.ttf.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\sk_utility\command.h">
-      <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\GOG\gog_library.h">
       <Filter>Header Files\Stores\GOG</Filter>
@@ -306,62 +165,86 @@
     <ClInclude Include="version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\EGS\epic_library.h">
-      <Filter>Header Files\Stores\Epic</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\Steam\apps_ignore.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Xbox\xbox_library.h">
       <Filter>Header Files\Stores\Xbox</Filter>
     </ClInclude>
-    <ClInclude Include="include\SKIF_utility.h">
+    <ClInclude Include="include\utility\utility.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\ui_tabs\about.h">
+    <ClInclude Include="include\tabs\about.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
-    <ClInclude Include="include\ui_tabs\settings.h">
+    <ClInclude Include="include\tabs\settings.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
-    <ClInclude Include="include\injection.h">
+    <ClInclude Include="include\utility\injection.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\install_utils.h">
+    <ClInclude Include="include\utility\install_utils.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\vfs.h">
+    <ClInclude Include="include\utility\vfs.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\SKIF_imgui.h">
+    <ClInclude Include="include\utility\skif_imgui.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\registry.h">
+    <ClInclude Include="include\utility\registry.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\TextFlow.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\games.h">
+    <ClInclude Include="include\utility\games.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\generic_library2.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
-    <ClInclude Include="include\updater.h">
+    <ClInclude Include="include\utility\updater.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\drvreset.h">
+    <ClInclude Include="include\utility\drvreset.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\fonts\fa_621.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fonts\fa_621b.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ui_tabs\common_ui.h">
+    <ClInclude Include="include\tabs\common_ui.h">
       <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\fonts\fa_621.h">
+      <Filter>Resource Files\Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\fonts\fa_621b.h">
+      <Filter>Resource Files\Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\fonts\fa_brands_400.ttf.h">
+      <Filter>Resource Files\Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\fonts\fa_solid_900.ttf.h">
+      <Filter>Resource Files\Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\images\patreon.png.h">
+      <Filter>Resource Files\Images</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\images\sk_boxart.png.h">
+      <Filter>Resource Files\Images</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\images\sk_icon.jpg.h">
+      <Filter>Resource Files\Images</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\shaders\imgui_pix.h">
+      <Filter>Resource Files\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\shaders\imgui_vtx.h">
+      <Filter>Resource Files\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Epic\epic_library.h">
+      <Filter>Header Files\Stores\Epic</Filter>
+    </ClInclude>
+    <ClInclude Include="packages_misc\picosha2.h">
+      <Filter>Header Files\Packages_Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="packages_misc\TextFlow.hpp">
+      <Filter>Header Files\Packages_Misc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -389,7 +272,7 @@
     <ClCompile Include="src\stores\Steam\steam_library.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tabs\library.cpp">
+    <ClCompile Include="src\tabs\library.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Steam\vdf.cpp">
@@ -398,29 +281,26 @@
     <ClCompile Include="src\stores\Steam\app_record.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
-    <ClCompile Include="src\fsutil.cpp">
+    <ClCompile Include="src\utility\fsutil.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\sk_utility\utility.cpp">
+    <ClCompile Include="src\utility\sk_utility.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Steam\apps_list.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
-    <ClCompile Include="src\injection.cpp">
+    <ClCompile Include="src\utility\injection.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\install_utils.cpp">
+    <ClCompile Include="src\utility\install_utils.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\vfs.cpp">
+    <ClCompile Include="src\utility\vfs.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tabs\monitor.cpp">
+    <ClCompile Include="src\tabs\monitor.cpp">
       <Filter>Source Files\UI Tabs</Filter>
-    </ClCompile>
-    <ClCompile Include="sk_console.cpp">
-      <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\GOG\gog_library.cpp">
       <Filter>Source Files\Stores\GOG</Filter>
@@ -428,41 +308,41 @@
     <ClCompile Include="src\stores\SKIF\custom_library.cpp">
       <Filter>Source Files\Stores\SKIF</Filter>
     </ClCompile>
-    <ClCompile Include="src\stores\EGS\epic_library.cpp">
-      <Filter>Source Files\Stores\Epic</Filter>
-    </ClCompile>
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp">
       <Filter>Source Files\Stores\Xbox</Filter>
     </ClCompile>
-    <ClCompile Include="src\SKIF_utility.cpp">
+    <ClCompile Include="src\utility\utility.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tabs\about.cpp">
+    <ClCompile Include="src\tabs\about.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tabs\settings.cpp">
+    <ClCompile Include="src\tabs\settings.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
-    <ClCompile Include="src\SKIF_imgui.cpp">
+    <ClCompile Include="src\utility\skif_imgui.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\registry.cpp">
+    <ClCompile Include="src\utility\registry.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\games.cpp">
+    <ClCompile Include="src\utility\games.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\updater.cpp">
+    <ClCompile Include="src\utility\updater.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\drvreset.cpp">
+    <ClCompile Include="src\utility\drvreset.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="include\stores\generic_library2.cpp">
+    <ClCompile Include="src\stores\generic_library2.cpp">
       <Filter>Source Files\Stores</Filter>
     </ClCompile>
-    <ClCompile Include="src\ui_tabs\common_ui.cpp">
+    <ClCompile Include="src\tabs\common_ui.cpp">
       <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Epic\epic_library.cpp">
+      <Filter>Source Files\Stores\Epic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -471,33 +351,60 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="SKIF.ico">
-      <Filter>Resource Files</Filter>
+    <Image Include="resources\icons\SKIF.ico">
+      <Filter>Resource Files\Icons</Filter>
     </Image>
-    <Image Include="SKIF_on.ico">
-      <Filter>Resource Files</Filter>
+    <Image Include="resources\icons\SKIF_off.ico">
+      <Filter>Resource Files\Icons</Filter>
     </Image>
-    <Image Include="SKIF_off.ico">
-      <Filter>Resource Files</Filter>
+    <Image Include="resources\icons\SKIF_on.ico">
+      <Filter>Resource Files\Icons</Filter>
     </Image>
-    <Image Include="SKIF_on_notify.ico">
-      <Filter>Resource Files</Filter>
+    <Image Include="resources\icons\SKIF_on_notify.ico">
+      <Filter>Resource Files\Icons</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="src\imgui_vtx_shader.hlsl">
-      <Filter>Resource Files</Filter>
+    <FxCompile Include="resources\shaders\imgui_pix_shader.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="src\imgui_pix_shader.hlsl">
-      <Filter>Resource Files</Filter>
+    <FxCompile Include="resources\shaders\imgui_vtx_shader.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="appcompat.manifest">
+    <Manifest Include="resources\appcompat.manifest">
       <Filter>Resource Files</Filter>
     </Manifest>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="packages_misc\gsl\gsl">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\gsl_algorithm">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\gsl_assert">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\gsl_byte">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\gsl_util">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\multi_span">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\pointers">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\span">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
+    <None Include="packages_misc\gsl\string_span">
+      <Filter>Header Files\Packages_Misc\GSL</Filter>
+    </None>
   </ItemGroup>
 </Project>

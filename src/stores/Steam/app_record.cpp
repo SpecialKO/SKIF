@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SKIF_utility.h>
+#include <utility/utility.h>
 #include <stores/Steam/steam_library.h>
 
 // Shorthand, because these are way too long

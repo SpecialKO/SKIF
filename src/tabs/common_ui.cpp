@@ -1,19 +1,19 @@
 
 
-#include <ui_tabs/common_ui.h>
+#include <tabs/common_ui.h>
 
 #include "../../version.h"
 
 #include <fonts/fa_621.h>
 
-#include <SKIF_utility.h>
-#include <SKIF_imgui.h>
+#include <utility/utility.h>
+#include <utility/skif_imgui.h>
 
-#include <sk_utility/utility.h>
+#include <utility/sk_utility.h>
 
-#include <injection.h>
-#include <registry.h>
-#include <updater.h>
+#include <utility/injection.h>
+#include <utility/registry.h>
+#include <utility/updater.h>
 
 #include <ShlObj.h>
 

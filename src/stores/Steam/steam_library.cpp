@@ -22,8 +22,8 @@
 
 #include <stores/steam/steam_library.h>
 #include <fstream>
-#include <registry.h>
-#include <SKIF_utility.h>
+#include <utility/registry.h>
+#include <utility/utility.h>
 #include <filesystem>
 #include <stores/Steam/apps_ignore.h>
 

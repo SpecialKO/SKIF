@@ -20,15 +20,15 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-#include <ui_tabs/library.h>
+#include <tabs/library.h>
 
 #include <wmsdk.h>
 #include <filesystem>
 #include <SKIF.h>
-#include <SKIF_utility.h>
-#include <SKIF_imgui.h>
+#include <utility/utility.h>
+#include <utility/skif_imgui.h>
 
-#include <injection.h>
+#include <utility/injection.h>
 
 #include "DirectXTex.h"
 
@@ -37,7 +37,7 @@
 
 #include <stores/Steam/apps_list.h>
 #include <stores/GOG/gog_library.h>
-#include <stores/EGS/epic_library.h>
+#include <stores/epic/epic_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -51,15 +51,15 @@
 #include <string>
 #include <sstream>
 #include <concurrent_queue.h>
-#include <fsutil.h>
+#include <utility/fsutil.h>
 #include <atlimage.h>
 #include <TlHelp32.h>
 #include <gsl/gsl_util>
 
-#include <games.h>
+#include <utility/games.h>
 
-#include <registry.h>
-#include <updater.h>
+#include <utility/registry.h>
+#include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
 #define _WIDTH   (414.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset1, AppListInset2, Injection_Summary_Frame

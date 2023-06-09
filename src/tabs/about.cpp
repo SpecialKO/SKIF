@@ -1,15 +1,15 @@
 #include <SKIF.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
-#include <sk_utility/utility.h>
-#include <SKIF_utility.h>
-#include <SKIF_imgui.h>
-#include <fsutil.h>
+#include <utility/sk_utility.h>
+#include <utility/utility.h>
+#include <utility/skif_imgui.h>
+#include <utility/fsutil.h>
 
 // Registry Settings
-#include <registry.h>
-#include <updater.h>
-#include <ui_tabs/common_ui.h>
+#include <utility/registry.h>
+#include <utility/updater.h>
+#include <tabs/common_ui.h>
 
 void
 SKIF_UI_Tab_DrawAbout (void)

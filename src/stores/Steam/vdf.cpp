@@ -23,7 +23,7 @@
 #include <stores/Steam/vdf.h>
 #include <stores/Steam/apps_list.h>
 
-#include <fsutil.h>
+#include <utility/fsutil.h>
 #include <regex>
 #include <stores/Steam/steam_library.h>
 

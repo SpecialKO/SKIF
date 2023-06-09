@@ -1,5 +1,5 @@
 
-#include <stores/egs/epic_library.h>
+#include <stores/epic/epic_library.h>
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
@@ -9,7 +9,7 @@
 
 #include <gsl/gsl>
 
-#include <registry.h>
+#include <utility/registry.h>
 
 /*
 EGS registry / folder struture

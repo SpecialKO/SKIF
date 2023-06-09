@@ -2,7 +2,7 @@
 #include <stores/skif/custom_library.h>
 #include <wtypes.h>
 #include <filesystem>
-#include <fsutil.h>
+#include <utility/fsutil.h>
 
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
