@@ -55,7 +55,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVUIMode.hasData())
     iUIMode                =   regKVUIMode                 .getData ( );
 
-  //bDisableVSYNC            =   regKVDisableVSYNC           .getData ( );
   bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
   bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );
   
@@ -100,15 +99,15 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
 
   if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate              =   regKVIgnoreUpdate      .getWideString ( );
+    wsIgnoreUpdate         =   regKVIgnoreUpdate     .getWideString ( );
 
-  if (regKVFollowUpdateChannel.hasData())
-    wsUpdateChannel             = regKVFollowUpdateChannel .getWideString ( );
+  if (regKVUpdateChannel.hasData())
+    wsUpdateChannel        =   regKVUpdateChannel    .getWideString ( );
   
   // Remember Last Selected Game
   const int STEAM_APPID = 1157970;
-  iLastSelectedGame   = STEAM_APPID; // Default selected game
-  wsLastSelectedStore = L"Steam";    // Default selected store
+  iLastSelectedGame     = STEAM_APPID; // Default selected game
+  wsLastSelectedStore   = L"Steam";    // Default selected store
 
   if (regKVRememberLastSelected.hasData())
     bRememberLastSelected  =   regKVRememberLastSelected   .getData ( );

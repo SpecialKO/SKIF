@@ -562,7 +562,7 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Ignore Update)" );
 
-  KeyValue <std::wstring> regKVFollowUpdateChannel =
+  KeyValue <std::wstring> regKVUpdateChannel =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Follow Update Channel)" );
 
@@ -611,14 +611,13 @@ struct SKIF_RegistrySettings {
   bool bLowBandwidthMode        = false;
   bool bPreferGOGGalaxyLaunch   = false;
   bool bMinimizeOnGameLaunch    = false;
-  //bool bDisableVSYNC            = false;
   bool bDisableCFAWarning       = false; // Controlled Folder Access warning
   bool bProcessSortAscending    = true;
   bool bProcessIncludeAll       = false;
   bool bLibraryIgnoreArticles   = false;
   
-  // No default settings (misc)
-  std::wstring wsUpdateChannel;
+  // Misc settings
+  std::wstring wsUpdateChannel  = L"Website"; // Default to stable channel
   std::wstring wsIgnoreUpdate;
   std::wstring wsAppRegistration;
   std::wstring wsPath;

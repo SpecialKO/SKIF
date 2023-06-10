@@ -358,19 +358,23 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
         if (     wsCurrentBranch.find(L"Website")       != std::string::npos
               || wsCurrentBranch.find(L"Release")       != std::string::npos)
-                  wsCurrentBranch = L"Website";
+                 wsCurrentBranch =    L"Website";
         else if (wsCurrentBranch.find(L"Discord")       != std::string::npos
               || wsCurrentBranch.find(L"Testing")       != std::string::npos)
-                  wsCurrentBranch = L"Discord";
+                 wsCurrentBranch =    L"Discord";
         else if (wsCurrentBranch.find(L"Ancient")       != std::string::npos
               || wsCurrentBranch.find(L"Compatibility") != std::string::npos)
-                  wsCurrentBranch = L"Ancient";
+                 wsCurrentBranch =    L"Ancient";
         else
-                  wsCurrentBranch = L"Website";
+                 wsCurrentBranch =    L"Website";
 
         PLOG_ERROR << "Using fallback channel: " << wsCurrentBranch;
 
         _registry.wsIgnoreUpdate = L"";
+
+        PLOG_INFO << "Writing fallback channel to registry...";
+        _registry.wsUpdateChannel = wsCurrentBranch;
+        _registry.regKVUpdateChannel.putData (_registry.wsUpdateChannel);
 
         currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
       }
@@ -695,7 +699,7 @@ SKIF_Updater::SetChannel (std::pair<std::string, std::string>* _channel)
 
   // Update registry
   _registry.wsUpdateChannel = SK_UTF8ToWideChar (channel->first);
-  _registry.regKVFollowUpdateChannel.putData (_registry.wsUpdateChannel);
+  _registry.regKVUpdateChannel.putData (_registry.wsUpdateChannel);
 }
 
 void
