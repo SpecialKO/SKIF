@@ -2876,11 +2876,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
   
-  if (! _registry.bLastSelectedWritten)
+  if (! _registry._LastSelectedWritten)
   {
     _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
     _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
-    _registry.bLastSelectedWritten = true;
+    _registry._LastSelectedWritten = true;
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
 
@@ -3229,11 +3229,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {
         PLOG_INFO << "Received system shutdown signal!";
 
-        if (! _registry.bLastSelectedWritten)
+        if (! _registry._LastSelectedWritten)
         {
           _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
           _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
-          _registry.bLastSelectedWritten = true;
+          _registry._LastSelectedWritten = true;
           PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
         }
 

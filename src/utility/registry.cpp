@@ -5,21 +5,6 @@ extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
 
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
-  // Default settings (multiple options)
-  iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
-  iGhostVisibility         = 0;   // 0 = Never,                       1 = Always,                 2 = While service is running
-  iStyle                   = 0;   // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
-  iDimCovers               = 0;   // 0 = Never,                       1 = Always,                 2 = On mouse hover
-  iCheckForUpdates         = 1;   // 0 = Never,                       1 = Weekly,                 2 = On each launch
-  iAutoStopBehavior        = 1;   // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
-  iLogging                 = 4;   // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
-  iProcessSort             = 0;   // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
-  iProcessRefreshInterval  = 2;   // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
-  iSDRMode                 = 0;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
-  iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
-  iHDRBrightness           = 203; // HDR reference white for BT.2408
-  iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
-
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
   // but it seems that Windows 10 1709+ (Build 16299) also supports
   // 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model.
@@ -29,34 +14,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // iUIMode defaults to 1 on Win7 and 8.1, but 2 on 10+
   if (SKIF_Util_IsWindows10OrGreater ( ))
     iUIMode  = 2;
-
-  // Default settings (booleans)
-  bRememberLastSelected    = false;
-  bDisableDPIScaling       = false;
-  bDisableTooltips         = false;
-  bDisableStatusBar        = false;
-  bDisableBorders          =  true; // default to true
-  bDisableSteamLibrary     = false;
-  bDisableEGSLibrary       = false;
-  bDisableGOGLibrary       = false;
-  bDisableXboxLibrary      = false;
-  bSmallMode               = false;
-  bFirstLaunch             = false;
-  bEnableDebugMode         = false;
-  bAllowMultipleInstances  = false;
-  bAllowBackgroundService  = false;
-  bOpenAtCursorPosition    = false;
-  bStopOnInjection         = false;
-  bCloseToTray             = false;
-  bLowBandwidthMode        = false;
-  bPreferGOGGalaxyLaunch   = false;
-  bMinimizeOnGameLaunch    = false;
-  //bDisableVSYNC            = false;
-  bDisableCFAWarning       = false; // Controlled Folder Access warning
-  bProcessSortAscending    = true;
-  bProcessIncludeAll       = false;
-  bLibraryIgnoreArticles   = false;
-
   
   iProcessSort             =   regKVProcessSort            .getData ( );
   if (regKVProcessIncludeAll   .hasData())

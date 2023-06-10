@@ -6,6 +6,15 @@
 
 struct SKIF_RegistrySettings {
 
+  // TODO: Rework this whole thing to not only hold a registry path but
+  //       also hold the actual current value as well, allowing us to
+  //       move away from ugly stuff like
+  //  _registry.iLastSelectedGame = newValue;
+  //  _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+  //       and instead do things like
+  //  _registry.iLastSelectedGame.putData (newValue);
+  //       and have it automatically get stored in the registry as well.
+
   template <class _Tp>
     class KeyValue
     {
@@ -566,56 +575,58 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Path)" );
 
-  // Settings
-  int iNotifications;
-  int iGhostVisibility;
-  int iStyle;
-  int iDimCovers;
-  int iCheckForUpdates;
-  int iAutoStopBehavior;
-  int iLogging;
-  int iProcessSort;
-  int iProcessRefreshInterval;
-  int iSDRMode;
-  int iHDRMode;
-  int iHDRBrightness;
-  int iUIMode;
+  // Default settings (multiple options)
+  int iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
+  int iGhostVisibility         = 0;   // 0 = Never,                       1 = Always,                 2 = While service is running
+  int iStyle                   = 0;   // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
+  int iDimCovers               = 0;   // 0 = Never,                       1 = Always,                 2 = On mouse hover
+  int iCheckForUpdates         = 1;   // 0 = Never,                       1 = Weekly,                 2 = On each launch
+  int iAutoStopBehavior        = 1;   // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
+  int iLogging                 = 4;   // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
+  int iProcessSort             = 0;   // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
+  int iProcessRefreshInterval  = 2;   // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
+  int iSDRMode                 = 0;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
+  int iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
+  int iHDRBrightness           = 203; // HDR reference white for BT.2408
+  int iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
 
-  bool bRememberLastSelected;
-  bool bDisableDPIScaling;
-  bool bDisableTooltips;
-  bool bDisableStatusBar;
-  bool bDisableBorders;
-  bool bDisableSteamLibrary;
-  bool bDisableEGSLibrary;
-  bool bDisableGOGLibrary;
-  bool bDisableXboxLibrary;
-  bool bSmallMode;
-  bool bFirstLaunch;
-  bool bEnableDebugMode;
-  bool bAllowMultipleInstances;
-  bool bAllowBackgroundService;
-  //bool bDisableVSYNC;
-  bool bDisableCFAWarning;
-  bool bOpenAtCursorPosition;
-  bool bStopOnInjection;
-  bool bCloseToTray;
-  bool bLowBandwidthMode;
-  bool bPreferGOGGalaxyLaunch;
-  bool bMinimizeOnGameLaunch;
-  bool bProcessSortAscending;
-  bool bProcessIncludeAll;
-  bool bLibraryIgnoreArticles;
+  // Default settings (booleans)
+  bool bRememberLastSelected    = false;
+  bool bDisableDPIScaling       = false;
+  bool bDisableTooltips         = false;
+  bool bDisableStatusBar        = false;
+  bool bDisableBorders          =  true; // default to true
+  bool bDisableSteamLibrary     = false;
+  bool bDisableEGSLibrary       = false;
+  bool bDisableGOGLibrary       = false;
+  bool bDisableXboxLibrary      = false;
+  bool bSmallMode               = false;
+  bool bFirstLaunch             = false;
+  bool bEnableDebugMode         = false;
+  bool bAllowMultipleInstances  = false;
+  bool bAllowBackgroundService  = false;
+  bool bOpenAtCursorPosition    = false;
+  bool bStopOnInjection         = false;
+  bool bCloseToTray             = false;
+  bool bLowBandwidthMode        = false;
+  bool bPreferGOGGalaxyLaunch   = false;
+  bool bMinimizeOnGameLaunch    = false;
+  //bool bDisableVSYNC            = false;
+  bool bDisableCFAWarning       = false; // Controlled Folder Access warning
+  bool bProcessSortAscending    = true;
+  bool bProcessIncludeAll       = false;
+  bool bLibraryIgnoreArticles   = false;
   
+  // No default settings (misc)
   std::wstring wsUpdateChannel;
   std::wstring wsIgnoreUpdate;
   std::wstring wsAppRegistration;
   std::wstring wsPath;
   std::wstring wsLastSelectedStore;
-  unsigned int  iLastSelectedGame;
-  bool          bLastSelectedWritten;
+  unsigned int iLastSelectedGame;
 
   // Ephemeral settings that doesn't stick around
+  bool _LastSelectedWritten;
   bool _LoadedSteamOverlay = false;
 
   // Functions
