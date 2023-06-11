@@ -189,6 +189,42 @@ SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
 //  
 // Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
 int
+SKIF_Util_CompareVersionStrings (std::string string1, std::string string2)
+{
+  int sum1 = 0, sum2 = 0;
+
+  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
+                              j < string2.length ( )); )
+  {
+    while ( i < string1.length() && string1[i] != '.' )
+    {
+      sum1 = sum1 * 10 + (string1[i] - '0');
+      i++;
+    }
+
+    while ( j < string2.length() && string2[j] != '.' )
+    {
+      sum2 = sum2 * 10 + (string2[j] - '0');
+      j++;
+    }
+
+    // If string1 is higher than string2, return 1
+    if (sum1 > sum2) return 1;
+
+    // If string2 is higher than string1, return -1
+    if (sum2 > sum1) return -1;
+
+    // if equal, reset variables and go for next numeric part 
+    sum1 = sum2 = 0;
+    i++;
+    j++;
+  }
+
+  // If both strings are equal, return 0
+  return 0; 
+}
+
+int
 SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
 {
   int sum1 = 0, sum2 = 0;

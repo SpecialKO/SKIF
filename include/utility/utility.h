@@ -18,13 +18,14 @@ std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( ));
 void         SKIF_Util_GetErrorAsMsgBox      (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError());
 DWORD        SKIF_Util_timeGetTime           (void);
 std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
+int          SKIF_Util_CompareVersionStrings (std:: string string1, std:: string string2);
 int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
 
 // Filenames
 
-std::string  SKIF_Util_StripInvalidFilenameChars   ( std::string name);
+std::string  SKIF_Util_StripInvalidFilenameChars   (std:: string name);
 std::wstring SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
-std::string  SKIF_Util_ReplaceInvalidFilenameChars ( std::string name,    char replacement);
+std::string  SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
 std::wstring SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
 
 
