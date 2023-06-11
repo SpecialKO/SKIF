@@ -70,9 +70,15 @@ SKIF_Updater::SKIF_Updater (void)
           parent.snapshots [currWriting].results;
 
         local = { }; // Reset any existing data
+        
+        // Set a timer so the main UI refreshes every 500 ms
+        SetTimer (SKIF_hWnd, IDT_REFRESH_UPDATER, 500, NULL);
 
         // Check for updates!
         parent.PerformUpdateCheck (local);
+        
+        // Kill the timer once the update process has completed
+        KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
 
         // Swap in the results
         lastWritten = currWriting;
