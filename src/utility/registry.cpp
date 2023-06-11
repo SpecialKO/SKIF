@@ -3,6 +3,134 @@
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
 
+template<class _Tp>
+bool
+SKIF_RegistrySettings::KeyValue<_Tp>::hasData (void)
+{
+  _Tp   out = _Tp ( );
+  DWORD dwOutLen;
+
+  auto type_idx =
+    std::type_index (typeid (_Tp));;
+
+  if ( type_idx == std::type_index (typeid (std::wstring)) )
+  {
+    _desc.dwFlags  = RRF_RT_REG_SZ;
+    _desc.dwType   = REG_SZ;
+
+    // Two null terminators are stored at the end of REG_SZ, so account for those
+    return (_SizeOfData ( ) > 4);
+  }
+
+  if ( type_idx == std::type_index (typeid (bool)) )
+  {
+    _desc.dwType   = REG_BINARY;
+          dwOutLen = sizeof (bool);
+  }
+
+  if ( type_idx == std::type_index (typeid (int)) )
+  {
+    _desc.dwType   = REG_DWORD;
+          dwOutLen = sizeof (int);
+  }
+
+  if ( type_idx == std::type_index (typeid (float)) )
+  {
+    _desc.dwFlags  = RRF_RT_REG_BINARY;
+    _desc.dwType   = REG_BINARY;
+          dwOutLen = sizeof (float);
+  }
+
+  if ( ERROR_SUCCESS == _GetValue (&out, &dwOutLen) )
+    return true;
+
+  return false;
+};
+
+template<class _Tp>
+_Tp
+SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
+{
+  _Tp   out = _Tp ( );
+  DWORD dwOutLen;
+
+  auto type_idx =
+    std::type_index (typeid (_Tp));
+
+  if ( type_idx == std::type_index (typeid (std::wstring)) )
+  {
+    _desc.dwFlags  = RRF_RT_REG_SZ;
+    _desc.dwType   = REG_SZ;
+          dwOutLen = _SizeOfData ( );
+
+    std::wstring _out(dwOutLen, '\0');
+
+    if ( ERROR_SUCCESS != 
+      RegGetValueW ( _desc.hKey,
+                        _desc.wszSubKey,
+                          _desc.wszKeyValue,
+                          _desc.dwFlags,
+                            &_desc.dwType,
+                              _out.data(), &dwOutLen)) out = _Tp ();
+          
+    // Strip null terminators
+    _out.erase (std::find (_out.begin(), _out.end(), '\0'), _out.end());
+
+    // Convert std::wstring to _Tp
+    _Tp tmp = _Tp();
+    std::wstringstream wss(_out);
+    while (wss >> std::noskipws >> tmp)
+      out = out + tmp;
+
+    return out;
+  }
+
+  if ( type_idx == std::type_index (typeid (bool)) )
+  {
+    _desc.dwType   = REG_BINARY;
+          dwOutLen = sizeof (bool);
+  }
+
+  if ( type_idx == std::type_index (typeid (int)) )
+  {
+    _desc.dwType   = REG_DWORD;
+          dwOutLen = sizeof (int);
+  }
+
+  if ( type_idx == std::type_index (typeid (float)) )
+  {
+    _desc.dwFlags  = RRF_RT_REG_BINARY;
+    _desc.dwType   = REG_BINARY;
+          dwOutLen = sizeof (float);
+  }
+
+  if ( ERROR_SUCCESS !=
+          _GetValue (&out, &dwOutLen) ) out = _Tp ();
+
+  return out;
+};
+
+template<class _Tp>
+SKIF_RegistrySettings::KeyValue<_Tp>
+SKIF_RegistrySettings::KeyValue<_Tp>::MakeKeyValue (const wchar_t* wszSubKey, const wchar_t* wszKeyValue, HKEY hKey, LPDWORD pdwType, DWORD dwFlags)
+{
+  KeyValue <_Tp> kv;
+
+  wcsncpy_s ( kv._desc.wszSubKey,  MAX_PATH,
+                        wszSubKey, _TRUNCATE );
+
+  wcsncpy_s ( kv._desc.wszKeyValue,  MAX_PATH,
+                        wszKeyValue, _TRUNCATE );
+
+  kv._desc.hKey    = hKey;
+  kv._desc.dwType  = ( pdwType != nullptr ) ?
+                                    *pdwType : REG_NONE;
+  kv._desc.dwFlags = dwFlags;
+
+  return kv;
+};
+
+
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
@@ -99,10 +227,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
 
   if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate         =   regKVIgnoreUpdate     .getWideString ( );
+    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getData ( );
 
   if (regKVUpdateChannel.hasData())
-    wsUpdateChannel        =   regKVUpdateChannel    .getWideString ( );
+    wsUpdateChannel        =   regKVUpdateChannel          .getData ( );
   
   // Remember Last Selected Game
   const int STEAM_APPID = 1157970;
@@ -118,13 +246,13 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       iLastSelectedGame         =   regKVLastSelectedGame  .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore       =   regKVLastSelectedStore .getWideString ( );
+      wsLastSelectedStore       =   regKVLastSelectedStore .getData ( );
   }
 
   // App registration
   if (regKVAppRegistration.hasData())
-    wsAppRegistration           = regKVAppRegistration     .getWideString ( );
+    wsAppRegistration           = regKVAppRegistration     .getData ( );
 
   if (regKVPath.hasData())
-    wsPath                      = regKVPath                .getWideString ( );
+    wsPath                      = regKVPath                .getData ( );
 }

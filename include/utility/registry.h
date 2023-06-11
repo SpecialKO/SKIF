@@ -9,10 +9,14 @@ struct SKIF_RegistrySettings {
   // TODO: Rework this whole thing to not only hold a registry path but
   //       also hold the actual current value as well, allowing us to
   //       move away from ugly stuff like
+  // 
   //  _registry.iLastSelectedGame = newValue;
   //  _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+  // 
   //       and instead do things like
+  // 
   //  _registry.iLastSelectedGame.putData (newValue);
+  // 
   //       and have it automatically get stored in the registry as well.
 
   template <class _Tp>
@@ -27,233 +31,12 @@ struct SKIF_RegistrySettings {
       };
 
     public:
-      bool hasData (void)
-      {
-        auto _GetValue =
-        [&]( _Tp*     pVal,
-               DWORD* pLen = nullptr ) ->
-        LSTATUS
-        {
-          LSTATUS lStat =
-            RegGetValueW ( _desc.hKey,
-                             _desc.wszSubKey,
-                               _desc.wszKeyValue,
-                               _desc.dwFlags,
-                                 &_desc.dwType,
-                                   pVal, pLen );
-
-          return lStat;
-        };
-
-        auto _SizeofData =
-        [&](void) ->
-        DWORD
-        {
-          DWORD len = 0;
-
-          if ( ERROR_SUCCESS ==
-                 _GetValue ( nullptr, &len )
-             ) return len;
-
-          return 0;
-        };
-
-        _Tp   out;
-        DWORD dwOutLen;
-
-        auto type_idx =
-          std::type_index (typeid (_Tp));;
-
-        if ( type_idx == std::type_index (typeid (std::wstring)) )
-        {
-          // Two null terminators are stored at the end of REG_SZ, so account for those
-          return (_SizeofData() > 4);
-        }
-
-        if ( type_idx == std::type_index (typeid (bool)) )
-        {
-          _desc.dwType = REG_BINARY;
-              dwOutLen = sizeof (bool);
-        }
-
-        if ( type_idx == std::type_index (typeid (int)) )
-        {
-          _desc.dwType = REG_DWORD;
-              dwOutLen = sizeof (int);
-        }
-
-        if ( type_idx == std::type_index (typeid (float)) )
-        {
-          _desc.dwFlags = RRF_RT_REG_BINARY;
-          _desc.dwType  = REG_BINARY;
-               dwOutLen = sizeof (float);
-        }
-
-        if ( ERROR_SUCCESS == _GetValue (&out, &dwOutLen) )
-          return true;
-
-        return false;
-      };
-
-      std::wstring getWideString (void)
-      {
-        auto _GetValue =
-        [&]( _Tp*     pVal,
-               DWORD* pLen = nullptr ) ->
-        LSTATUS
-        {
-          LSTATUS lStat =
-            RegGetValueW ( _desc.hKey,
-                             _desc.wszSubKey,
-                               _desc.wszKeyValue,
-                               _desc.dwFlags,
-                                 &_desc.dwType,
-                                   pVal, pLen );
-
-          return lStat;
-        };
-
-        auto _SizeofData =
-        [&](void) ->
-        DWORD
-        {
-          DWORD len = 0;
-
-          if ( ERROR_SUCCESS ==
-                 _GetValue ( nullptr, &len )
-             ) return len;
-
-          return 0;
-        };
-
-        _Tp   out;
-        DWORD dwOutLen = _SizeofData();
-        std::wstring _out(dwOutLen, '\0');
-
-        auto type_idx =
-          std::type_index (typeid (_Tp));
-
-        if ( type_idx == std::type_index (typeid (std::wstring)) )
-        {
-          _desc.dwFlags = RRF_RT_REG_SZ;
-          _desc.dwType  = REG_SZ;
-
-          if ( ERROR_SUCCESS != 
-            RegGetValueW ( _desc.hKey,
-                             _desc.wszSubKey,
-                               _desc.wszKeyValue,
-                               _desc.dwFlags,
-                                 &_desc.dwType,
-                                   _out.data(), &dwOutLen)) return std::wstring();
-
-          // Strip null terminators
-          _out.erase(std::find(_out.begin(), _out.end(), '\0'), _out.end());
-        }
-
-        return _out;
-      };
-
-      _Tp getData (void)
-      {
-        auto _GetValue =
-        [&]( _Tp*     pVal,
-               DWORD* pLen = nullptr ) ->
-        LSTATUS
-        {
-          LSTATUS lStat =
-            RegGetValueW ( _desc.hKey,
-                             _desc.wszSubKey,
-                               _desc.wszKeyValue,
-                               _desc.dwFlags,
-                                 &_desc.dwType,
-                                   pVal, pLen );
-
-          return lStat;
-        };
-
-        auto _SizeofData =
-        [&](void) ->
-        DWORD
-        {
-          DWORD len = 0;
-
-          if ( ERROR_SUCCESS ==
-                 _GetValue ( nullptr, &len )
-             ) return len;
-
-          return 0;
-        };
-
-        _Tp   out;
-        DWORD dwOutLen;
-
-        auto type_idx =
-          std::type_index (typeid (_Tp));
-
-        /*
-        if ( type_idx == std::type_index (typeid (std::wstring)) )
-        {
-          dwOutLen = _SizeofData();
-          std::wstring _out(dwOutLen, '\0');
-          
-          _desc.dwFlags = RRF_RT_REG_SZ;
-          _desc.dwType  = REG_SZ;
-
-          if ( ERROR_SUCCESS != 
-            RegGetValueW ( _desc.hKey,
-                             _desc.wszSubKey,
-                               _desc.wszKeyValue,
-                               _desc.dwFlags,
-                                 &_desc.dwType,
-                                   _out.data(), &dwOutLen)) return _Tp();
-
-          // Strip null terminators
-          //_out.erase(std::find(_out.begin(), _out.end(), '\0'), _out.end());
-
-          // Convert std::wstring to _Tp
-          std::wstringstream wss(_out);
-
-          while (false)
-          {
-            _Tp tmp{};
-            wss >> std::noskipws >> tmp;
-            out = out + tmp;
-          }
-
-          return _Tp();
-        }
-        */
-
-        if ( type_idx == std::type_index (typeid (bool)) )
-        {
-          _desc.dwType = REG_BINARY;
-              dwOutLen = sizeof (bool);
-        }
-
-        if ( type_idx == std::type_index (typeid (int)) )
-        {
-          _desc.dwType = REG_DWORD;
-              dwOutLen = sizeof (int);
-        }
-
-        if ( type_idx == std::type_index (typeid (float)) )
-        {
-          _desc.dwFlags = RRF_RT_REG_BINARY;
-          _desc.dwType  = REG_BINARY;
-               dwOutLen = sizeof (float);
-        }
-
-        if ( ERROR_SUCCESS !=
-               _GetValue (&out, &dwOutLen) ) out = _Tp ();
-
-        return out;
-      };
-
+      bool hasData (void);
+      _Tp  getData (void);
       bool putData (_Tp in)
       {
         auto _SetValue =
-        [&]( _Tp*    pVal,
-             LPDWORD pLen = nullptr ) ->
+        [&]( _Tp*    pVal ) ->
         LSTATUS
         {
           LSTATUS lStat         = STATUS_INVALID_DISPOSITION;
@@ -273,19 +56,6 @@ struct SKIF_RegistrySettings {
           auto type_idx =
             std::type_index (typeid (_Tp));
 
-            //case std::type_index (std::wstring)
-            //{
-            //  auto& _out =
-            //    dynamic_cast <std::wstring> (out);
-            //
-            //  _out.resize (_SizeofData () + 1);
-            //
-            //  if ( ERROR_SUCCESS !=
-            //         _GetValue   (_out) ) out = _Tp ();
-            //
-            //  return out;
-            //} break;
-
           if ( type_idx == std::type_index (typeid (std::wstring)) )
           {
             std::wstring _in = std::wstringstream(in).str();
@@ -298,7 +68,7 @@ struct SKIF_RegistrySettings {
                                   nullptr,
                                   _desc.wszKeyValue,
                                   _desc.dwType,
-                           (LPBYTE) _in.data(), dwDataSize);
+                            (LPBYTE) _in.data(), dwDataSize);
             
             RegCloseKey (hKeyToSet);
 
@@ -333,8 +103,6 @@ struct SKIF_RegistrySettings {
 
           RegCloseKey (hKeyToSet);
 
-          UNREFERENCED_PARAMETER (pLen);
-
           return lStat;
         };
 
@@ -349,27 +117,35 @@ struct SKIF_RegistrySettings {
                         const wchar_t *wszKeyValue,
                         HKEY           hKey    = HKEY_CURRENT_USER,
                         LPDWORD        pdwType = nullptr,
-                        DWORD          dwFlags = RRF_RT_ANY )
-      {
-        KeyValue <_Tp> kv;
-
-        wcsncpy_s ( kv._desc.wszSubKey, MAX_PATH,
-                             wszSubKey, _TRUNCATE );
-
-        wcsncpy_s ( kv._desc.wszKeyValue, MAX_PATH,
-                             wszKeyValue, _TRUNCATE );
-
-        kv._desc.hKey    = hKey;
-        kv._desc.dwType  = ( pdwType != nullptr ) ?
-                                         *pdwType : REG_NONE;
-        kv._desc.dwFlags = dwFlags;
-
-        return kv;
-      }
+                        DWORD          dwFlags = RRF_RT_ANY );
 
     protected:
     private:
       KeyDesc _desc;
+      
+      LSTATUS _GetValue ( _Tp* pVal, DWORD* pLen = nullptr )
+      {
+        LSTATUS lStat =
+          RegGetValueW ( _desc.hKey,
+                            _desc.wszSubKey,
+                              _desc.wszKeyValue,
+                              _desc.dwFlags,
+                                &_desc.dwType,
+                                  pVal, pLen );
+
+        return lStat;
+      };
+
+      DWORD _SizeOfData (void)
+      {
+        DWORD len = 0;
+
+        if ( ERROR_SUCCESS ==
+                _GetValue ( nullptr, &len )
+            ) return len;
+
+        return 0;
+      };
   };
 
 #define SKIF_MakeRegKeyF  KeyValue <float>       ::MakeKeyValue
@@ -566,14 +342,14 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Follow Update Channel)" );
 
+  KeyValue <std::wstring> regKVPath =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Path)" );
+
   // App registration
   KeyValue <std::wstring> regKVAppRegistration =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)",
                          L"" );
-
-  KeyValue <std::wstring> regKVPath =
-    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Path)" );
 
   // Default settings (multiple options)
   int iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
@@ -612,7 +388,7 @@ struct SKIF_RegistrySettings {
   bool bPreferGOGGalaxyLaunch   = false;
   bool bMinimizeOnGameLaunch    = false;
   bool bDisableCFAWarning       = false; // Controlled Folder Access warning
-  bool bProcessSortAscending    = true;
+  bool bProcessSortAscending    =  true; // default to true
   bool bProcessIncludeAll       = false;
   bool bLibraryIgnoreArticles   = false;
   
