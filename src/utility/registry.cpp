@@ -72,15 +72,18 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
                           _desc.dwFlags,
                             &_desc.dwType,
                               _out.data(), &dwOutLen)) out = _Tp ();
-          
+    
     // Strip null terminators
-    _out.erase (std::find (_out.begin(), _out.end(), '\0'), _out.end());
+    //_out.erase (std::find (_out.begin(), _out.end(), '\0'), _out.end());
 
     // Convert std::wstring to _Tp
+    // TODO: Doesn't work properly (ends at the first space)
     _Tp tmp = _Tp();
     std::wstringstream wss(_out);
     while (wss >> std::noskipws >> tmp)
+    {
       out = out + tmp;
+    }
 
     return out;
   }
@@ -109,6 +112,39 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
 
   return out;
 };
+
+template<class _Tp>
+std::wstring
+SKIF_RegistrySettings::KeyValue<_Tp>::getWideString (void)
+{
+  auto type_idx =
+    std::type_index (typeid (_Tp));
+
+  if ( type_idx == std::type_index (typeid (std::wstring)) )
+  {
+    _desc.dwFlags  = RRF_RT_REG_SZ;
+    _desc.dwType   = REG_SZ;
+    DWORD dwOutLen = _SizeOfData ( );
+
+    std::wstring out(dwOutLen, '\0');
+
+    if ( ERROR_SUCCESS != 
+      RegGetValueW ( _desc.hKey,
+                        _desc.wszSubKey,
+                          _desc.wszKeyValue,
+                          _desc.dwFlags,
+                            &_desc.dwType,
+                              out.data(), &dwOutLen)) return std::wstring();
+
+    // Strip null terminators
+    out.erase (std::find (out.begin(), out.end(), '\0'), out.end());
+
+    return out;
+  }
+
+  return std::wstring();
+};
+
 
 template<class _Tp>
 SKIF_RegistrySettings::KeyValue<_Tp>
@@ -227,10 +263,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
 
   if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getData ( );
+    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getWideString ( );
 
   if (regKVUpdateChannel.hasData())
-    wsUpdateChannel        =   regKVUpdateChannel          .getData ( );
+    wsUpdateChannel        =   regKVUpdateChannel          .getWideString ( );
   
   // Remember Last Selected Game
   const int STEAM_APPID = 1157970;
@@ -246,13 +282,13 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       iLastSelectedGame         =   regKVLastSelectedGame  .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore       =   regKVLastSelectedStore .getData ( );
+      wsLastSelectedStore       =   regKVLastSelectedStore .getWideString ( );
   }
 
   // App registration
   if (regKVAppRegistration.hasData())
-    wsAppRegistration           = regKVAppRegistration     .getData ( );
+    wsAppRegistration           = regKVAppRegistration     .getWideString ( );
 
   if (regKVPath.hasData())
-    wsPath                      = regKVPath                .getData ( );
+    wsPath                      = regKVPath                .getWideString ( );
 }

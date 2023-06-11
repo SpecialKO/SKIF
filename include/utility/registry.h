@@ -31,9 +31,10 @@ struct SKIF_RegistrySettings {
       };
 
     public:
-      bool hasData (void);
-      _Tp  getData (void);
-      bool putData (_Tp in)
+      bool         hasData       (void);
+      _Tp          getData       (void);
+      std::wstring getWideString (void);
+      bool         putData       (_Tp in)
       {
         auto _SetValue =
         [&]( _Tp*    pVal ) ->
