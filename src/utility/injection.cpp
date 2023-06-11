@@ -141,6 +141,7 @@ bool
 SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static DWORD dwFailed   = NULL;
   static bool  triedToFix = false;
 
@@ -206,7 +207,6 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
       }
     }
 
-    extern bool SKIF_bSuppressServiceNotification;
     extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
     extern CHandle hInjectAck;
 
@@ -227,7 +227,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         runState          = Started;
 
         // Do not show the first message if SKIF was hidden as a result of the game launch
-        if (! SKIF_bSuppressServiceNotification)
+        if (! _registry._SuppressServiceNotification)
         {
           if (bAckInj)
             SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
@@ -236,7 +236,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         }
 
         else
-          SKIF_bSuppressServiceNotification = false;
+          _registry._SuppressServiceNotification = false;
       }
       else
       {

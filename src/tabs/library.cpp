@@ -88,7 +88,6 @@ PopupState ConfirmPopup    = PopupState_Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
-extern bool            SKIF_bSuppressServiceNotification;
 extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -2099,6 +2098,10 @@ Cache=false)";
                 if (_inject.WhitelistPath (fullPath))
                   _inject.SaveWhitelist ( );
               }
+
+              // Disable the first service notification
+              if (_registry.bMinimizeOnGameLaunch)
+                _registry._SuppressServiceNotification = true;
             }
 
             // Kickstart service if it is currently not running
@@ -2175,8 +2178,9 @@ Cache=false)";
             */
           }
 
+          // Also minimize SKIF if configured as such
           if (_registry.bMinimizeOnGameLaunch)
-            SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
+            ShowWindow (SKIF_hWnd, SW_MINIMIZE);
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3479,7 +3483,7 @@ Cache=false)";
             */
 
             if (_registry.bMinimizeOnGameLaunch)
-              SKIF_bSuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
+              _registry._SuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }

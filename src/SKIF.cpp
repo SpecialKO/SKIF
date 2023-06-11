@@ -109,9 +109,6 @@ bool SteamOverlayDisabled  = false;
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
-// This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
-bool SKIF_bSuppressServiceNotification = false;
-
 // Graphics options set during runtime
 bool SKIF_bCanFlip                 = false, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
      SKIF_bCanWaitSwapchain        = false, // Waitable Swapchain            Windows 8.1+
@@ -177,8 +174,7 @@ LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT m
 LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void                SKIF_Initialize                           (void);
 
-bool    bExitOnInjection = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
-CHandle hInjectAck (0);           // Signalled when a game finishes injection
+CHandle hInjectAck (0); // Signalled when a game finishes injection
 
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
 // Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
@@ -423,6 +419,11 @@ SKIF_Startup_LaunchGameService (void)
 {
   if (_Signal._GamePath.empty())
     return;
+  
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  PLOG_INFO << "Suppressing the initial 'Please launch a game to continue' notification...";
+  _registry._SuppressServiceNotification = true;
 
   PLOG_INFO << "Starting injection service...";
 
@@ -433,7 +434,7 @@ SKIF_Startup_LaunchGameService (void)
 
   else if (! _inject.bCurrentState)
   {
-    bExitOnInjection = true;
+    _registry._ExitOnInjection = true;
     _inject._StartStopInject (false, true, _Signal._ElevatedService);
   }
 }
@@ -626,16 +627,37 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  if ( _registry.iNotifications == 1 ||                           // Always
-      (_registry.iNotifications == 2 && ! SKIF_ImGui_IsFocused()) // When Unfocused
-    )
+  if ( _registry.iNotifications == 1 ||                             // Always
+      (_registry.iNotifications == 2 && ! SKIF_ImGui_IsFocused ( )) // When Unfocused
+     )
   {
+    if (_registry._NotifyMessageDuration == -1)
+    {
+      HKEY    hKey;
+      DWORD32 dwData  = 0;
+      DWORD   dwSize  = sizeof (DWORD32);
+
+      if (RegOpenKeyW (HKEY_CURRENT_USER, LR"(Control Panel\Accessibility\)", &hKey) == ERROR_SUCCESS)
+      {
+        _registry._NotifyMessageDuration = (RegGetValueW(hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
+        RegCloseKey(hKey);
+      }
+
+      else {
+        _registry._NotifyMessageDuration = 5;
+      }
+    }
+
     niData.uFlags       = NIF_INFO;
     niData.dwInfoFlags  = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME;
     wcsncpy_s(niData.szInfoTitle, 64, title.c_str(), 64);
     wcsncpy_s(niData.szInfo, 256, message.c_str(), 256);
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
+
+    // Set up a timer that automatically refreshes SKIF when the notification clears,
+    //   allowing us to perform some maintenance and whatnot when that occurs
+    SetTimer (SKIF_hWnd, IDT_REFRESH_NOTIFY, _registry._NotifyMessageDuration * 1000, NULL);
   }
 }
 
@@ -1217,33 +1239,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
-    if (bExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
+    if (_registry._ExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
-      static DWORD dwExitDelay = SKIF_Util_timeGetTime();
-      static int iDuration = -1;
+      static DWORD dwExitDelay = SKIF_Util_timeGetTime() + _registry._NotifyMessageDuration * 1000;
 
-      PLOG_INFO << "Application is set up to exit on Injection, beginning procedure...";
+      PLOG_INFO << "Terminating as the app is set to exit on injection...";
 
-      if (iDuration == -1)
-      {
-        HKEY    hKey;
-        DWORD32 dwData  = 0;
-        DWORD   dwSize  = sizeof (DWORD32);
-
-        if (RegOpenKeyW (HKEY_CURRENT_USER, LR"(Control Panel\Accessibility\)", &hKey) == ERROR_SUCCESS)
-        {
-          iDuration = (RegGetValueW(hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
-          RegCloseKey(hKey);
-        }
-        else {
-          iDuration = 5;
-        }
-      }
-      // MessageDuration * 2 seconds delay to allow Windows to send both notifications properly
+      // MessageDuration seconds delay to allow Windows to send both notifications properly
       // If notifications are disabled, exit immediately
-      if (dwExitDelay + iDuration * 2 * 1000 < SKIF_Util_timeGetTime() || _registry.iNotifications == 0)
+      if (_registry.iNotifications == 0 ||
+         (dwExitDelay < SKIF_Util_timeGetTime()))
       {
-        bExitOnInjection = false;
+        _registry._ExitOnInjection = false;
         PostMessage (hWnd, WM_QUIT, 0, 0);
       }
     }
@@ -1646,7 +1653,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         _registry.bSmallMode = ! _registry.bSmallMode;
         _registry.regKVSmallMode.putData (_registry.bSmallMode);
-        bExitOnInjection = false;
+        _registry._ExitOnInjection = false;
 
         PLOG_DEBUG << "Changed UI mode to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
 
@@ -3288,7 +3295,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         _inject.ToggleInjectAck (true);
 
       if (msg == WM_SKIF_TEMPSTARTEXIT)
-        bExitOnInjection = true;
+        _registry._ExitOnInjection = true;
       break;
 
     case WM_SKIF_STOP:
@@ -3374,7 +3381,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       msgDontRedraw = false;
       switch (wParam)
       {
-        case IDT_REFRESH_UPDATER:
+        case IDT_REFRESH_NOTIFY:
+          KillTimer (SKIF_hWnd, IDT_REFRESH_NOTIFY);
           return 0;
         case IDT_REFRESH_TOOLTIP:
           // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
@@ -3392,6 +3400,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           return 0;
         case cIDT_REFRESH_INJECTACK:
         case cIDT_REFRESH_PENDING:
+        case  IDT_REFRESH_UPDATER:
           // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
           return 0;
       }

@@ -401,8 +401,11 @@ struct SKIF_RegistrySettings {
   unsigned int iLastSelectedGame;
 
   // Ephemeral settings that doesn't stick around
-  bool _LastSelectedWritten;
-  bool _LoadedSteamOverlay = false;
+  bool _LastSelectedWritten         = false;
+  bool _LoadedSteamOverlay          = false; // This is used to indicate whether we manually loaded the steam_appid64.dll file into SKIF or not
+  bool _SuppressServiceNotification = false; // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
+  bool _ExitOnInjection             = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
+  int  _NotifyMessageDuration       = -1;
 
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)

@@ -41,9 +41,10 @@
 
 const     UINT_PTR       cIDT_REFRESH_INJECTACK =             1337;
 const     UINT_PTR       cIDT_REFRESH_PENDING   =             1338;
-const     UINT_PTR       IDT_REFRESH_GAMES      =             1340;
-const     UINT_PTR       IDT_REFRESH_TOOLTIP    =             1341;
-const     UINT_PTR       IDT_REFRESH_UPDATER    =             1342;
+const     UINT_PTR        IDT_REFRESH_GAMES     =             1340;
+const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
+const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
+const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
 
 constexpr UINT           WM_SKIF_MINIMIZE       = WM_USER +  0x512;
 constexpr UINT           WM_SKIF_RESTORE        = WM_USER +  0x513;
@@ -134,4 +135,3 @@ extern std::string SKIF_StatusBarHelp;
 
 extern bool        RepopulateGames;
 extern bool        RefreshSettingsTab;
-extern bool        SKIF_bSuppressServiceNotification; // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
