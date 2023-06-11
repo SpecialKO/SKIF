@@ -198,7 +198,8 @@ GetMPOSupport (void)
 
         // This is pure assumption from us based on discoveries/experiences and this line in the MSFT docs:
         // "At least one plane must support shrinking and stretching, independent from other planes that might be enabled."
-        if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
+        if (monitor.MaxStretchFactor  !=  monitor.MaxShrinkFactor  &&
+            monitor.MaxPlanes  > 1    && (monitor.MaxRGBPlanes > 1 || monitor.MaxYUVPlanes > 1))
           monitor.Supported = true;
 
         /*
@@ -267,8 +268,8 @@ GetMPOSupport (void)
         //   stretching/shrinking is used for virtual mode support.
 
         // Monitor supports the new DDIs, though we have no idea how to further query that kind of support yet...
-        if (monitor.OverlayCaps.Version3DDISupport)
-          monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs.";
+        //if (monitor.OverlayCaps.Version3DDISupport)
+        //  monitor.OverlayCapsAsString += "Driver supports the WDDM 2.2 MPO (multi-plane overlay) DDIs.";
 
         Monitors.emplace_back (monitor);
       }
@@ -2072,6 +2073,8 @@ SKIF_UI_Tab_DrawSettings (void)
                                                                        :   "%.1fx - %.1fx";
         ImVec4 colName            = (monitor.Supported) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)
                                                         : ImVec4 (ImColor::HSV (0.11F, 1.F, 1.F));
+        ImVec4 colCaps            = (monitor.Supported) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)
+                                                        : ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase);
 
         ImGui::BeginGroup    ( );
         //ImGui::Text        ("%u", monitor.Index);
@@ -2087,23 +2090,16 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        if (monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
-          ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
-        else
-          ImGui::Text        ("Not Supported");
+        ImGui::Text          ((monitor.Supported) ? stretchFormat.c_str() : "Not Supported",
+                               monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+        if (! monitor.Supported && monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
+          SKIF_ImGui_SetHoverTip (SK_FormatString (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor));
         ImGui::SameLine      ( );
-        if (monitor.MaxPlanes > 1)
-        {
-          ImGui::ItemSize    (ImVec2 (390.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-          ImGui::SameLine    ( );
-          ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+        ImGui::ItemSize      (ImVec2 (((monitor.Supported) ? 390.0f : 360.0f) * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine      ( );
+        ImGui::TextColored   (colCaps, (monitor.Supported) ? ICON_FA_LIGHTBULB : "Not Supported");
+        if (monitor.Supported)
           SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
-        }
-        else {
-          ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-          ImGui::SameLine    ( );
-          ImGui::Text        ("Not Supported");
-        }
         ImGui::EndGroup      ( );
       }
 
