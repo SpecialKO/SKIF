@@ -20,10 +20,24 @@ enum UpdateFlags_
 // Singleton struct
 struct SKIF_Updater {
 
+  struct version_s {
+    std::string version;
+    std::string description;
+    std::vector <std::string> branches;
+    std::string changes;
+    std::string url;
+    std::string filename;
+    std::string checksum;
+    bool        is_branch;
+    bool        is_current;
+    bool        is_newer;
+    bool        is_older;
+  };
+
   // Used to contain the results of an update check
   struct results_s {
     UpdateFlags state = UpdateFlags_Unknown;
-    std::wstring version;
+    std::string  version;
     std::wstring filename;
     std::string  description;           // Holds the expected new version
     std::string  description_latest;    // Holds the very latest verion
@@ -33,6 +47,7 @@ struct SKIF_Updater {
     std::string  patrons;
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
     bool rollbackAvailable = false; // Indicates SKIF can roll back
+    std::vector <version_s> versions;
   };
   
   // Public functions

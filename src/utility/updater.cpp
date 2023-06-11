@@ -328,9 +328,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   PLOG_INFO << "Update Channel: " << wsCurrentBranch;
 
 #ifdef _WIN64
-  std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
+  std::string currentVersion = _inject.SKVer64;
 #else
-  std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
+  std::string currentVersion = _inject.SKVer32;
 #endif
 
   PLOG_INFO << "Installed version: " << currentVersion;
@@ -394,6 +394,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
       bool detectedRollbackVersion = false;
       bool absoluteLatest          = false;
 
+#pragma region Original method
       // Processes all versions listed in the changelog
       for (auto& version : jf["Main"]["Versions"])
       {
@@ -404,8 +405,8 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
             isBranch = true;
         
         if (isBranch)
-        {
-          std::wstring branchVersion = SK_UTF8ToWideChar(version["Name"].get<std::string>());
+        { // START IF (isBRANCH)
+          std::string branchVersion = version["Name"].get<std::string>();
 
           // Check if the version of this branch is different from the current one.
           // We don't check if the version is *newer* since we need to support downgrading
@@ -601,8 +602,55 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               parsedRollbackVersion = true;
             }
           }
-        }
+        } // END IF (isBRANCH)
       }
+
+#pragma endregion
+
+#pragma region New method
+
+      // Processes all versions listed in the changelog
+#if 0
+      for (auto& version : jf["Main"]["Versions"])
+      {
+        version_s _version = { };
+        /*
+          std::string version;
+          std::string description;
+          std::vector <std::string> branches; // Do we really need this ?
+          std::string changes;
+          std::string url;
+          std::string filename;
+          std::string checksum;
+          bool        is_current;
+          bool        is_newer;
+          bool        is_older;
+          bool        is_branch;
+        */
+        
+        _version.version     = version["Name"]        .get<std::string>();
+        _version.description = version["Description"] .get<std::string>();
+        _version.changes     = version["ReleaseNotes"].get<std::string>();
+        if (_version.changes.empty()) _version.changes = "No listed changes.";
+        _version.url         = version["Installer"]   .get<std::string>();
+        _version.filename    = _version.url.substr (_version.url.find_last_of ("/"));
+        _version.checksum    = version["SHA256"]      .get<std::string>();
+
+        int versionDiff = SKIF_Util_CompareVersionStrings (_version.version, currentVersion);
+        _version.is_newer    = (versionDiff  > 0);
+        _version.is_current  = (versionDiff == 0);
+        _version.is_older    = (versionDiff  < 0);
+
+        for (auto& branch : version["Branches"])
+          if (branch.get<std::string_view>()._Equal(currentBranch))
+            _version.is_branch = true;
+
+        _res.versions.push_back (_version);
+      }
+#endif
+
+#pragma endregion
+
     }
     catch (const std::exception&)
     {

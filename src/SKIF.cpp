@@ -2205,9 +2205,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
          )
       {
 #ifdef _WIN64
-        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer64);
+        std::string currentVersion = _inject.SKVer64;
 #else
-        std::wstring currentVersion = SK_UTF8ToWideChar (_inject.SKVer32);
+        std::string currentVersion = _inject.SKVer32;
 #endif
         std::string compareLabel;
         ImVec4      compareColor;
