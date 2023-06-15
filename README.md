@@ -45,6 +45,7 @@ SKIF supports detecting and launching games from the following platforms:
 * Uses [DirectX Texture Library](http://go.microsoft.com/fwlink/?LinkId=248926), licensed under [MIT](https://github.com/microsoft/DirectXTex/blob/main/LICENSE).
 * Uses [Font Awesome Free v6.2.1](https://fontawesome.com/v6/download), licensed under [SIL OFL 1.1 License](https://scripts.sil.org/OFL).
 * Uses [JSON for Modern C++](https://github.com/nlohmann/json), licensed under [MIT](https://github.com/nlohmann/json/blob/develop/LICENSE.MIT).
+* Uses [PicoSHA2](https://github.com/okdshin/PicoSHA2), licensed under [MIT](https://github.com/okdshin/PicoSHA2/blob/master/LICENSE).
 * Uses [PLOG](https://github.com/SergiusTheBest/plog), licensed under [MIT](https://github.com/SergiusTheBest/plog/blob/master/LICENSE).
 * Uses [pugixml](https://pugixml.org/), licensed under [MIT](https://pugixml.org/license.html).
 * Uses [GSL](https://github.com/microsoft/GSL), licensed under [MIT](https://github.com/microsoft/GSL/blob/main/LICENSE).
