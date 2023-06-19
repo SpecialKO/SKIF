@@ -26,6 +26,8 @@ void    SKIF_ImGui_ServiceMenu        (void);
 ImFont* SKIF_ImGui_LoadFont           (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void    SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = true);
 void    SKIF_ImGui_SetStyle           (void);
+void    SKIF_ImGui_PushDisableState   (void);
+void    SKIF_ImGui_PopDisableState    (void);
 
 // Fonts
 extern bool SKIF_bFontChineseSimplified,

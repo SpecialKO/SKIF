@@ -766,3 +766,21 @@ SKIF_ImGui_SetStyle (void)
     _registry.iStyle = 0;
   }
 }
+
+void
+SKIF_ImGui_PushDisableState (void)
+{
+  ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+  //ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+  ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+  ImGui::PushStyleColor (ImGuiCol_FrameBg, ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
+}
+
+void
+SKIF_ImGui_PopDisableState (void)
+{
+  ImGui::PopStyleColor ( );
+  ImGui::PopStyleColor ( );
+  //ImGui::PopStyleVar ( );
+  ImGui::PopItemFlag   ( );
+}

@@ -821,10 +821,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
 
   if ( ! bHasServlet )
-  {
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  }
+    SKIF_ImGui_PushDisableState ( );
     
   if (runState == Started || runState == Stopped)
   {
@@ -851,10 +848,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ServiceMenu = PopupState_Open;
 
   if ( ! bHasServlet )
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-  }
+    SKIF_ImGui_PopDisableState  ( );
 
   ImGui::EndChildFrame ();
 
@@ -963,11 +957,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   if (bLogonTaskEnabled ||
       bAutoStartServiceOnly)
-  {
-    // Disable button
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  }
+    SKIF_ImGui_PushDisableState ( );
   
   ImGui::BeginGroup  ();
 
@@ -1009,11 +999,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     changes = true;
 
   if (! bAutoStartSKIF)
-  {
-    // Disable buttons
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  }
+    SKIF_ImGui_PushDisableState ( );
 
   ImGui::TreePush ("");
 
@@ -1028,10 +1014,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   ImGui::TreePop  ( );
 
   if (! bAutoStartSKIF)
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-  }
+    SKIF_ImGui_PopDisableState ( );
 
   if (changes)
   {
@@ -1072,8 +1055,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   if (bLogonTaskEnabled ||
       bAutoStartServiceOnly)
   {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
+    SKIF_ImGui_PopDisableState  ( );
 
     SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
                              "The difference is that this method autostarts SKIF, and not just the GI service." );
@@ -1118,12 +1100,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     ImGui::BeginGroup ();
 
     if ( bLogonTaskEnabled || 
-          bAutoStartSKIF )
-    {
-      // Disable button
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
+         bAutoStartSKIF )
+      SKIF_ImGui_PushDisableState ( );
   
     if (ImGui::Checkbox ("Start the global injection service with Windows", &dontCare))
     {
@@ -1182,10 +1160,9 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     );
   
     if ( bLogonTaskEnabled || 
-          bAutoStartSKIF )
+         bAutoStartSKIF )
     {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
+      SKIF_ImGui_PopDisableState  ( );
 
       if (bAutoStartSKIF)
         SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"

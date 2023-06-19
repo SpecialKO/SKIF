@@ -2042,15 +2042,12 @@ Cache=false)";
       {
           buttonLabel = "Running...";
           buttonFlags = ImGuiButtonFlags_Disabled;
-          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+          ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
       }
 
       // Disable the button for global injection types if the servlets are missing
       if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
-      {
-        ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-      }
+        SKIF_ImGui_PushDisableState ( );
 
       // This captures two events -- launching through context menu + large button
       if ( ImGui::ButtonEx (
@@ -2188,13 +2185,10 @@ Cache=false)";
       
       // Disable the button for global injection types if the servlets are missing
       if ( ! _inject.bHasServlet && ! cache.injection.type._Equal ("Local") )
-      {
-        ImGui::PopStyleVar ();
-        ImGui::PopItemFlag ();
-      }
+        SKIF_ImGui_PopDisableState  ( );
 
       if (pTargetApp->_status.running)
-        ImGui::PopStyleVar ();
+        ImGui::PopStyleColor ( );
 
       if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
           ! openedGameContextMenu)
@@ -4345,8 +4339,7 @@ Cache=false)";
 
     if (disabled)
     {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+      SKIF_ImGui_PushDisableState ( );
     }
 
     if (ImGui::Button  ("Add Game", vButtonSize))
@@ -4404,8 +4397,7 @@ Cache=false)";
 
     if (disabled)
     {
-      ImGui::PopItemFlag ( );
-      ImGui::PopStyleVar ( );
+      SKIF_ImGui_PopDisableState  ( );
     }
 
     ImGui::SameLine    ( );
@@ -4573,8 +4565,7 @@ Cache=false)";
 
     if (disabled)
     {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+      SKIF_ImGui_PushDisableState ( );
     }
 
     if (ImGui::Button  ("Update", vButtonSize))
@@ -4646,8 +4637,7 @@ Cache=false)";
 
     if (disabled)
     {
-      ImGui::PopItemFlag ( );
-      ImGui::PopStyleVar ( );
+      SKIF_ImGui_PopDisableState  ( );
     }
 
     ImGui::SameLine    ( );

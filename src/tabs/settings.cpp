@@ -520,8 +520,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (_registry.bAllowMultipleInstances)
   {
     ImGui::BeginGroup   ( );
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+    SKIF_ImGui_PushDisableState ( );
   }
 
   if ( ImGui::Checkbox ( "Close to the notification area", &_registry.bCloseToTray ) )
@@ -529,8 +528,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   if (_registry.bAllowMultipleInstances)
   {
-    ImGui::PopStyleVar     ( );
-    ImGui::PopItemFlag     ( );
+    SKIF_ImGui_PopDisableState  ( );
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     ImGui::EndGroup        ( );
@@ -586,11 +584,7 @@ SKIF_UI_Tab_DrawSettings (void)
   );
 
   if (_registry.bLowBandwidthMode)
-  {
-    // Disable buttons
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  }
+    SKIF_ImGui_PushDisableState ( );
 
   ImGui::BeginGroup    ( );
 
@@ -619,11 +613,7 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::BeginGroup    ( );
 
   if (channelsDisabled)
-  {
-    // Disable buttons
-    ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  }
+    SKIF_ImGui_PushDisableState ( );
 
   if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
   {
@@ -675,10 +665,7 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   if (channelsDisabled)
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-  }
+    SKIF_ImGui_PopDisableState  ( );
 
   ImGui::EndGroup      ( );
 
@@ -696,10 +683,7 @@ SKIF_UI_Tab_DrawSettings (void)
   */
 
   if (_registry.bLowBandwidthMode)
-  {
-    ImGui::PopStyleVar ();
-    ImGui::PopItemFlag ();
-  }
+    SKIF_ImGui_PopDisableState  ( );
 
   ImGui::Spacing       ( );
             
@@ -830,9 +814,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
     {
-      // Disable buttons
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+      SKIF_ImGui_PushDisableState ( );
 
       ptrSDR = &_registry.iHDRMode;
     }
@@ -866,8 +848,7 @@ SKIF_UI_Tab_DrawSettings (void)
     
     if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
     {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
+      SKIF_ImGui_PopDisableState  ( );
     }
 
     ImGui::Spacing         ( );
@@ -914,20 +895,13 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::Spacing         ( );
 
         if (_registry.iHDRMode == 0)
-        {
-          // Disable buttons
-          ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-        }
+          SKIF_ImGui_PushDisableState ( );
 
         if (ImGui::SliderInt("HDR brightness", &_registry.iHDRBrightness, 100, 400, "%d nits"))
           _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
 
         if (_registry.iHDRMode == 0)
-        {
-          ImGui::PopStyleVar ();
-          ImGui::PopItemFlag ();
-        }
+          SKIF_ImGui_PopDisableState  ( );
       }
 
       else {
@@ -1179,8 +1153,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if (_registry.bCloseToTray)
     {
       ImGui::BeginGroup   ( );
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
+      SKIF_ImGui_PushDisableState ( );
     }
 
     if ( ImGui::Checkbox (
@@ -1215,8 +1188,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (_registry.bCloseToTray)
     {
-      ImGui::PopStyleVar     ( );
-      ImGui::PopItemFlag     ( );
+      SKIF_ImGui_PopDisableState  ( );
       ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
       ImGui::EndGroup        ( );
@@ -1545,10 +1517,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                 false : true;
 
     if (bDisabled)
-    {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
+      SKIF_ImGui_PushDisableState ( );
 
     // Hotkey: Ctrl+S
     if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || ((! bDisabled) && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeysDown['S']))
@@ -1596,10 +1565,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     if (bDisabled)
-    {
-      ImGui::PopItemFlag  ( );
-      ImGui::PopStyleVar  ( );
-    }
+      SKIF_ImGui_PopDisableState  ( );
 
     ImGui::Spacing();
 
@@ -1722,10 +1688,7 @@ SKIF_UI_Tab_DrawSettings (void)
     // Disable button if the required files are missing, status is pending, or if another driver is installed
     if (  driverStatusPending  != driverStatus ||
           OtherDriverInstalled == driverStatus )
-    {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
+      SKIF_ImGui_PushDisableState ( );
 
     // Show button
     bool driverButton =
@@ -1753,10 +1716,7 @@ SKIF_UI_Tab_DrawSettings (void)
     //   the 'else if' is only to prevent the code from being called on the same frame as the button is pressed
     else if (    driverStatusPending != driverStatus ||
                 OtherDriverInstalled == driverStatus )
-    {
-      ImGui::PopStyleVar ();
-      ImGui::PopItemFlag ();
-    }
+      SKIF_ImGui_PopDisableState  ( );
 
     // Show warning about another driver being installed
     if (OtherDriverInstalled == driverStatus)
@@ -1900,10 +1860,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     // Disable button for granted + pending states
     if (pfuState != Missing)
-    {
-      ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-    }
+      SKIF_ImGui_PushDisableState ( );
 
     std::string btnPfuLabel = (pfuState == Granted) ?                         ICON_FA_CHECK              " Permissions granted!" // Granted
                                                     : (pfuState == Missing) ? ICON_FA_USER_SHIELD             " Grant permissions"    // Missing
@@ -1940,10 +1897,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     // Disable button for granted + pending states
     else if (pfuState != Missing)
-    {
-      ImGui::PopStyleVar();
-      ImGui::PopItemFlag();
-    }
+      SKIF_ImGui_PopDisableState  ( );
 
     else
     {
