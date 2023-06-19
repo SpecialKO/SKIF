@@ -1,4 +1,5 @@
 #include <utility/registry.h>
+#include <algorithm>
 
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
@@ -47,6 +48,29 @@ SKIF_RegistrySettings::KeyValue<_Tp>::hasData (void)
   return false;
 };
 
+std::wstring
+SKIF_RegistrySettings::KeyValue<std::wstring>::getData (void)
+{
+  _desc.dwFlags  = RRF_RT_REG_SZ;
+  _desc.dwType   = REG_SZ;
+  DWORD dwOutLen = _SizeOfData ( );
+
+  std::wstring out(dwOutLen, '\0');
+
+  if ( ERROR_SUCCESS != 
+    RegGetValueW ( _desc.hKey,
+                      _desc.wszSubKey,
+                        _desc.wszKeyValue,
+                        _desc.dwFlags,
+                          &_desc.dwType,
+                            out.data(), &dwOutLen)) return std::wstring();
+
+  // Strip null terminators
+  out.erase (std::find (out.begin(), out.end(), '\0'), out.end());
+
+  return out;
+}
+
 template<class _Tp>
 _Tp
 SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
@@ -56,37 +80,6 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
 
   auto type_idx =
     std::type_index (typeid (_Tp));
-
-  if ( type_idx == std::type_index (typeid (std::wstring)) )
-  {
-    _desc.dwFlags  = RRF_RT_REG_SZ;
-    _desc.dwType   = REG_SZ;
-          dwOutLen = _SizeOfData ( );
-
-    std::wstring _out(dwOutLen, '\0');
-
-    if ( ERROR_SUCCESS != 
-      RegGetValueW ( _desc.hKey,
-                        _desc.wszSubKey,
-                          _desc.wszKeyValue,
-                          _desc.dwFlags,
-                            &_desc.dwType,
-                              _out.data(), &dwOutLen)) out = _Tp ();
-    
-    // Strip null terminators
-    //_out.erase (std::find (_out.begin(), _out.end(), '\0'), _out.end());
-
-    // Convert std::wstring to _Tp
-    // TODO: Doesn't work properly (ends at the first space)
-    _Tp tmp = _Tp();
-    std::wstringstream wss(_out);
-    while (wss >> std::noskipws >> tmp)
-    {
-      out = out + tmp;
-    }
-
-    return out;
-  }
 
   if ( type_idx == std::type_index (typeid (bool)) )
   {
@@ -112,39 +105,6 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
 
   return out;
 };
-
-template<class _Tp>
-std::wstring
-SKIF_RegistrySettings::KeyValue<_Tp>::getWideString (void)
-{
-  auto type_idx =
-    std::type_index (typeid (_Tp));
-
-  if ( type_idx == std::type_index (typeid (std::wstring)) )
-  {
-    _desc.dwFlags  = RRF_RT_REG_SZ;
-    _desc.dwType   = REG_SZ;
-    DWORD dwOutLen = _SizeOfData ( );
-
-    std::wstring out(dwOutLen, '\0');
-
-    if ( ERROR_SUCCESS != 
-      RegGetValueW ( _desc.hKey,
-                        _desc.wszSubKey,
-                          _desc.wszKeyValue,
-                          _desc.dwFlags,
-                            &_desc.dwType,
-                              out.data(), &dwOutLen)) return std::wstring();
-
-    // Strip null terminators
-    out.erase (std::find (out.begin(), out.end(), '\0'), out.end());
-
-    return out;
-  }
-
-  return std::wstring();
-};
-
 
 template<class _Tp>
 SKIF_RegistrySettings::KeyValue<_Tp>
@@ -263,10 +223,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
 
   if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getWideString ( );
+    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getData ( );
 
   if (regKVUpdateChannel.hasData())
-    wsUpdateChannel        =   regKVUpdateChannel          .getWideString ( );
+    wsUpdateChannel        =   regKVUpdateChannel          .getData ( );
   
   // Remember Last Selected Game
   const int STEAM_APPID = 1157970;
@@ -282,13 +242,19 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       iLastSelectedGame         =   regKVLastSelectedGame  .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore       =   regKVLastSelectedStore .getWideString ( );
+      wsLastSelectedStore       =   regKVLastSelectedStore .getData ( );
   }
 
   // App registration
   if (regKVAppRegistration.hasData())
-    wsAppRegistration           = regKVAppRegistration     .getWideString ( );
+    wsAppRegistration           = regKVAppRegistration     .getData ( );
 
   if (regKVPath.hasData())
-    wsPath                      = regKVPath                .getWideString ( );
+    wsPath                      = regKVPath                .getData ( );
+
+  // For testing purposes
+  std::wstring derp = regKVAppRegistration.getData ( );
+
+  OutputDebugString(derp.c_str());
+  OutputDebugString(L"\n");
 }

@@ -33,80 +33,8 @@ struct SKIF_RegistrySettings {
     public:
       bool         hasData       (void);
       _Tp          getData       (void);
-      std::wstring getWideString (void);
       bool         putData       (_Tp in)
       {
-        auto _SetValue =
-        [&]( _Tp*    pVal ) ->
-        LSTATUS
-        {
-          LSTATUS lStat         = STATUS_INVALID_DISPOSITION;
-          HKEY    hKeyToSet     = 0;
-          DWORD   dwDisposition = 0;
-          DWORD   dwDataSize    = 0;
-
-          lStat =
-            RegCreateKeyExW (
-              _desc.hKey,
-                _desc.wszSubKey,
-                  0x00, nullptr,
-                    REG_OPTION_NON_VOLATILE,
-                    KEY_ALL_ACCESS, nullptr,
-                      &hKeyToSet, &dwDisposition );
-
-          auto type_idx =
-            std::type_index (typeid (_Tp));
-
-          if ( type_idx == std::type_index (typeid (std::wstring)) )
-          {
-            std::wstring _in = std::wstringstream(in).str();
-
-            _desc.dwType     = REG_SZ;
-                  dwDataSize = (DWORD) _in.size ( ) * sizeof(wchar_t);
-
-            lStat =
-              RegSetKeyValueW ( hKeyToSet,
-                                  nullptr,
-                                  _desc.wszKeyValue,
-                                  _desc.dwType,
-                            (LPBYTE) _in.data(), dwDataSize);
-            
-            RegCloseKey (hKeyToSet);
-
-            return lStat;
-          }
-
-          if ( type_idx == std::type_index (typeid (bool)) )
-          {
-            _desc.dwType     = REG_BINARY;
-                  dwDataSize = sizeof (bool);
-          }
-
-          if ( type_idx == std::type_index (typeid (int)) )
-          {
-            _desc.dwType     = REG_DWORD;
-                  dwDataSize = sizeof (int);
-          }
-
-          if ( type_idx == std::type_index (typeid (float)) )
-          {
-            _desc.dwFlags    = RRF_RT_DWORD;
-            _desc.dwType     = REG_BINARY;
-                  dwDataSize = sizeof (float);
-          }
-
-          lStat =
-            RegSetKeyValueW ( hKeyToSet,
-                                nullptr,
-                                _desc.wszKeyValue,
-                                _desc.dwType,
-                                  pVal, dwDataSize );
-
-          RegCloseKey (hKeyToSet);
-
-          return lStat;
-        };
-
         if ( ERROR_SUCCESS == _SetValue (&in) )
           return true;
 
@@ -123,6 +51,75 @@ struct SKIF_RegistrySettings {
     protected:
     private:
       KeyDesc _desc;
+      
+      LSTATUS _SetValue (_Tp * pVal)
+      {
+        LSTATUS lStat         = STATUS_INVALID_DISPOSITION;
+        HKEY    hKeyToSet     = 0;
+        DWORD   dwDisposition = 0;
+        DWORD   dwDataSize    = 0;
+
+        lStat =
+          RegCreateKeyExW (
+            _desc.hKey,
+              _desc.wszSubKey,
+                0x00, nullptr,
+                  REG_OPTION_NON_VOLATILE,
+                  KEY_ALL_ACCESS, nullptr,
+                    &hKeyToSet, &dwDisposition );
+
+        auto type_idx =
+          std::type_index (typeid (_Tp));
+
+        if ( type_idx == std::type_index (typeid (std::wstring)) )
+        {
+          std::wstring _in = std::wstringstream(*pVal).str();
+
+          _desc.dwType     = REG_SZ;
+                dwDataSize = (DWORD) _in.size ( ) * sizeof(wchar_t);
+
+          lStat =
+            RegSetKeyValueW ( hKeyToSet,
+                                nullptr,
+                                _desc.wszKeyValue,
+                                _desc.dwType,
+                          (LPBYTE) _in.data(), dwDataSize);
+            
+          RegCloseKey (hKeyToSet);
+
+          return lStat;
+        }
+
+        if ( type_idx == std::type_index (typeid (bool)) )
+        {
+          _desc.dwType     = REG_BINARY;
+                dwDataSize = sizeof (bool);
+        }
+
+        if ( type_idx == std::type_index (typeid (int)) )
+        {
+          _desc.dwType     = REG_DWORD;
+                dwDataSize = sizeof (int);
+        }
+
+        if ( type_idx == std::type_index (typeid (float)) )
+        {
+          _desc.dwFlags    = RRF_RT_DWORD;
+          _desc.dwType     = REG_BINARY;
+                dwDataSize = sizeof (float);
+        }
+
+        lStat =
+          RegSetKeyValueW ( hKeyToSet,
+                              nullptr,
+                              _desc.wszKeyValue,
+                              _desc.dwType,
+                                pVal, dwDataSize );
+
+        RegCloseKey (hKeyToSet);
+
+        return lStat;
+      };
       
       LSTATUS _GetValue ( _Tp* pVal, DWORD* pLen = nullptr )
       {
