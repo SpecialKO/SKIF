@@ -164,6 +164,11 @@ float4 main (PS_INPUT input) : SV_Target
     out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
     out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
 
+    // Alpha blending is linear in scRGB, but in gamma-space in the other color spaces,
+    //   so let's raise the alpha for scRGB to attempt to match the other color spaces better
+    // Different values are best for different themes (e.g. 1.7f for SKIF Dark, 2.2f for many other)
+    //out_col.a = pow (out_col.a, 2.2f);
+
     return
       out_col.rgba;
   }
