@@ -251,10 +251,4 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVPath.hasData())
     wsPath                      = regKVPath                .getData ( );
-
-  // For testing purposes
-  std::wstring derp = regKVAppRegistration.getData ( );
-
-  OutputDebugString(derp.c_str());
-  OutputDebugString(L"\n");
 }
