@@ -1236,6 +1236,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       hInjectAck.Close ();
       _inject.bAckInjSignaled = true;
       _inject._StartStopInject (true);
+
+      // Also minimize SKIF if configured as such
+      if (_registry.bMinimizeOnGameLaunch && _registry.iAutoStopBehavior == 1 && ! IsIconic (SKIF_hWnd))
+        ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
     }
 
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped

@@ -2177,7 +2177,10 @@ Cache=false)";
 
           // Also minimize SKIF if configured as such
           if (_registry.bMinimizeOnGameLaunch)
-            ShowWindow (SKIF_hWnd, SW_MINIMIZE);
+          {
+            if (cache.injection.type._Equal ("Local") || ! _inject.bAckInj || _registry.iAutoStopBehavior == 2)
+              ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
+          }
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3476,8 +3479,12 @@ Cache=false)";
             ShellExecuteExW (&sexi);
             */
 
+            // Also minimize SKIF if configured as such
             if (_registry.bMinimizeOnGameLaunch)
-              _registry._SuppressServiceNotification = ShowWindow (SKIF_hWnd, SW_MINIMIZE) == TRUE;
+            {
+              if (pApp->specialk.injection.injection.type == sk_install_state_s::Injection::Type::Local || ! _inject.bAckInj || _registry.iAutoStopBehavior == 2)
+                _registry._SuppressServiceNotification = ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE) == TRUE;
+            }
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
           }
