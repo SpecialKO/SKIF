@@ -76,10 +76,16 @@ static void ImGui_ImplWin32_UpdateMonitors            (void);
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = false;
+static bool                 g_Focused = true;
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
-static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
+//static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
+std::array<std::atomic<bool>, XUSER_MAX_COUNT> g_HasGamepad = { false, false, false, false };
+struct S_XINPUT_STATE {
+  XINPUT_STATE  last_state = {         };
+  LARGE_INTEGER last_qpc   = { 0, 0ULL };
+};
+
 struct {
   XINPUT_STATE  last_state = {         };
   LARGE_INTEGER last_qpc   = { 0, 0ULL };
@@ -448,99 +454,32 @@ memset_size (
     dest;
 }
 
-extern CONDITION_VARIABLE SKIF_IsFocused;
 
-// Gamepad navigation mapping
-DWORD ImGui_ImplWin32_UpdateGamepads ( )
+XINPUT_STATE ImGui_ImplWin32_GetXInputPackage ( )
 {
-  ImGuiIO &io =
-    ImGui::GetIO ( );
-
-  static constexpr float
-    _0 = 0.0f;
-
-  static constexpr
-    float _fZeros [] = {
-      _0, _0, _0, _0, _0, _0, _0,
-      _0, _0, _0, _0, _0, _0, _0,
-      _0, _0, _0, _0, _0, _0, _0
-  };
-
-  memcpy (io.NavInputs,
-            _fZeros,
-    sizeof (_fZeros));
-
-  if (! g_Focused)
-    return 0;
-
-  if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
-    return 0;
-  
-  /*
-  if (HWND focused_hwnd = ::GetForegroundWindow ())
-  {
-    if (::IsChild (focused_hwnd,  g_hWnd))
-    {              focused_hwnd = g_hWnd; }
-
-    DWORD
-      dwWindowOwnerPid = 0;
-
-    GetWindowThreadProcessId (
-      focused_hwnd,
-        &dwWindowOwnerPid
-    );
-
-    static DWORD
-      dwPidOfMe = GetCurrentProcessId ();
-
-    // Don't poll the gamepad when we're not focused.
-    if (dwWindowOwnerPid != dwPidOfMe)
-      return 0;
-  }
-  */
-
- // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
- // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
-  if (g_WantUpdateHasGamepad && ( ImGui_XInputGetCapabilities != nullptr ))
-  {
-    XINPUT_CAPABILITIES caps;
-
-    for ( auto idx : XUSER_INDEXES )
-    {
-      g_HasGamepad [idx] = ( ImGui_XInputGetCapabilities (idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS );
-    }
-
-    g_WantUpdateHasGamepad = false;
-  }
-
-  else if (ImGui_XInputGetCapabilities == nullptr)
-  {
-    for ( auto idx : XUSER_INDEXES )
-    {
-      g_HasGamepad [idx] = false;
-    }
-  }
+  struct {
+    XINPUT_STATE  last_state = {         };
+    LARGE_INTEGER last_qpc   = { 0, 0ULL };
+  } static thread_local history [XUSER_MAX_COUNT];
 
   XINPUT_STATE xinput_state = { };
 
-  io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
-
   for ( auto idx : XUSER_INDEXES )
   {
-    if ( g_HasGamepad [idx] && ImGui_XInputGetState (idx, &xinput_state) == ERROR_SUCCESS )
+    if ( g_HasGamepad [idx].load() && ImGui_XInputGetState(idx, &xinput_state) == ERROR_SUCCESS)
     {
       // If button state is different, this controller is active...
-      if ( xinput_state.dwPacketNumber != g_GamepadHistory [idx].last_state.dwPacketNumber )
+      if ( xinput_state.dwPacketNumber != history [idx].last_state.dwPacketNumber )
       {
         if (                      xinput_state.Gamepad.wButtons !=
-             g_GamepadHistory [idx].last_state.Gamepad.wButtons ||
+                      history [idx].last_state.Gamepad.wButtons ||
                                   xinput_state.Gamepad.bLeftTrigger !=
-             g_GamepadHistory [idx].last_state.Gamepad.bLeftTrigger ||
+                      history [idx].last_state.Gamepad.bLeftTrigger ||
                                   xinput_state.Gamepad.bRightTrigger !=
-             g_GamepadHistory [idx].last_state.Gamepad.bRightTrigger )
+                      history [idx].last_state.Gamepad.bRightTrigger )
         {
-                                    g_GamepadHistory [idx].last_state = xinput_state;
-          QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+                                    history [idx].last_state = xinput_state;
+          QueryPerformanceCounter (&history [idx].last_qpc);
         }
 
         // Analog input may contain jitter, perform deadzone test.
@@ -561,14 +500,14 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
           if (NL > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE ||
               NR > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
           {
-                                      g_GamepadHistory [idx].last_state = xinput_state;
-            QueryPerformanceCounter (&g_GamepadHistory [idx].last_qpc);
+                                      history [idx].last_state = xinput_state;
+            QueryPerformanceCounter (&history [idx].last_qpc);
           }
 
           // Inside deadzone, record position but do not update the packet count
           else
           {
-            g_GamepadHistory [idx].last_state.Gamepad =
+            history [idx].last_state.Gamepad =
                                  xinput_state.Gamepad;
           }
         }
@@ -577,7 +516,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
 
     else
     {
-      g_GamepadHistory [idx].last_qpc.QuadPart = 0;
+      history [idx].last_qpc.QuadPart = 0;
     }
   }
 
@@ -589,7 +528,7 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   for ( auto idx : XUSER_INDEXES )
   {
     auto qpc =
-      g_GamepadHistory [idx].last_qpc.QuadPart;
+      history [idx].last_qpc.QuadPart;
 
     if ( qpc > newest.qpc.QuadPart )
     {
@@ -601,10 +540,73 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
   if (newest.slot != INFINITE)
   {
     xinput_state =
-      g_GamepadHistory [newest.slot].last_state;
+      history [newest.slot].last_state;
+  }
 
-    const XINPUT_GAMEPAD &gamepad =
-      xinput_state.Gamepad;
+  return newest.slot != INFINITE ?
+        xinput_state :  XINPUT_STATE { 0, XINPUT_GAMEPAD { } };
+}
+
+// Gamepad navigation mapping
+void ImGui_ImplWin32_UpdateGamepads ( )
+{
+  ImGuiIO &io =
+    ImGui::GetIO ( );
+
+  static constexpr float
+    _0 = 0.0f;
+
+  static constexpr
+    float _fZeros [] = {
+      _0, _0, _0, _0, _0, _0, _0,
+      _0, _0, _0, _0, _0, _0, _0,
+      _0, _0, _0, _0, _0, _0, _0
+  };
+
+  memcpy (io.NavInputs,
+            _fZeros,
+    sizeof (_fZeros));
+
+ // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
+ // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
+  if (g_WantUpdateHasGamepad && (ImGui_XInputGetCapabilities != nullptr))
+  {
+    XINPUT_CAPABILITIES caps;
+
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx].store ((ImGui_XInputGetCapabilities(idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS));
+    }
+
+    g_WantUpdateHasGamepad = false;
+  }
+
+  else if (ImGui_XInputGetCapabilities == nullptr)
+  {
+    for ( auto idx : XUSER_INDEXES )
+    {
+      g_HasGamepad [idx].store(false);
+    }
+  }
+
+  // ----
+
+  if (! g_Focused)
+    return;
+
+  if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
+    return;
+
+  // ----
+
+  io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+  
+  XINPUT_STATE state =
+    ImGui_ImplWin32_GetXInputPackage ( );
+
+  if (state.dwPacketNumber != 0)
+  {
+    const XINPUT_GAMEPAD &gamepad = state.Gamepad;
 
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 
@@ -632,9 +634,6 @@ DWORD ImGui_ImplWin32_UpdateGamepads ( )
 
   if (io.KeysDown  [VK_RETURN])
       io.NavInputs [ImGuiNavInput_Activate] = 1.0f;
-
-  return     newest.slot != INFINITE ?
-         xinput_state.dwPacketNumber : 0;
 }
 
 INT64 current_time;
@@ -753,6 +752,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+  extern std::atomic<int> gamepadThreadSleep;
 
   switch (msg)
   {
@@ -775,6 +775,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   case WM_SETFOCUS:
     g_Focused = true;
+    gamepadThreadSleep.store (0);
     //OutputDebugString(L"Gained focus\n");
     //PLOG_VERBOSE << "Gained focus";
 
@@ -789,6 +790,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     if ((HWND)wParam != SKIF_hWnd && (! IsChild (SKIF_hWnd, (HWND)wParam))) // g_hWnd
     {
       g_Focused = false;
+      gamepadThreadSleep.store (1);
       //OutputDebugString(L"Killed focus\n");
       //PLOG_VERBOSE << "Killed focus";
 
@@ -1165,12 +1167,14 @@ ImGui_ImplWin32_ShowWindow (ImGuiViewport *viewport)
   ImGuiViewportDataWin32 *data =
     (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
 
+  //OutputDebugString(L"derp\n");
+
   IM_ASSERT (data->Hwnd != 0);
 
   if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
     ::ShowWindow (data->Hwnd, SW_SHOWNA);
   else
-    ::ShowWindow (data->Hwnd, SW_SHOW);
+    ::ShowWindow (data->Hwnd, (g_Focused) ? SW_SHOW : SW_SHOWNA);
 }
 
 static void
@@ -1321,6 +1325,8 @@ ImGui_ImplWin32_SetWindowFocus (ImGuiViewport *viewport)
     (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
 
   IM_ASSERT (data->Hwnd != 0);
+
+  //OutputDebugString(L"derp2\n");
 
   ::BringWindowToTop    (data->Hwnd);
   ::SetForegroundWindow (data->Hwnd);

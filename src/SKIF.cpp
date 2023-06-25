@@ -105,6 +105,8 @@ int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 
+std::atomic<int> gamepadThreadSleep = 0;
+
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
@@ -1049,8 +1051,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Show the window
   if (! SKIF_isTrayed)
   {
-    ShowWindowAsync (hWnd, nCmdShow);
-    UpdateWindow    (hWnd);
+    ShowWindow   (hWnd, nCmdShow);
+    UpdateWindow (hWnd);
   }
 
   // Setup Dear ImGui context
@@ -2658,46 +2660,55 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         while (IsWindow (SKIF_hWnd))
         {
-          // Only act on new gamepad input if we are actually focused.
-          // This prevents SKIF from acting on gameapd input when unfocused,
-          // but otherwise refreshes due to some status change.
-          if (SKIF_ImGui_IsFocused ( ))
+          //OutputDebugString(L"ping\n");
+
+          // TODO: Redo implementation -- using ImGui_ImplWin32_UpdateGamepads () here is not thread-safe,
+          // This is basically called twice -- once from the main thread and once here, which introduces
+          // instability (and is doubtless why ImGui upgrade branch crashes). We should instead rely on
+          // two separate calls: one here which doesn't update ImGui's variables, and one in the main
+          // thread which do.
+          //extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
+          //packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
+
+          // Reworked thread-safe iplementation
+          extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
+          packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
+
+          if (packetNew  > 0  &&
+              packetNew != packetLast)
           {
-            //OutputDebugString(L"Is focused\n");
-
-            // TODO: Redo implementation -- using ImGui_ImplWin32_UpdateGamepads () here is not thread-safe,
-            // This is basically called twice -- once from the main thread and once here, which introduces
-            // instability (and is doubtless why ImGui upgrade branch crashes). We should instead rely on
-            // two separate calls: one here which doesn't update ImGui's variables, and one in the main
-            // thread which do.
-            extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-            packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
-
-            if (packetNew  > 0  &&
-                packetNew != packetLast)
-            {
-              packetLast = packetNew;
-              //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
-              PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
-            }
-          }
-
-          // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
-          else
-          {
-            //OutputDebugString(L"Entering sleep\n");
-            SK_RunOnce (SKIF_Util_CompactWorkingSet ());
-
-            SleepConditionVariableCS (
-              &SKIF_IsFocused, &GamepadInputPump,
-                INFINITE
-            );
+            packetLast = packetNew;
+            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+            PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
           // XInput tends to have ~3-7 ms of latency between updates
           //   best-case, try to delay the next poll until there's
           //     new data.
           Sleep (5);
+
+          // Sleep an additional 50 ms on the first run to work around
+          //   stupid thread races affecting gamepadThreadSleep which
+          //   otherwise would see it disabled permanently
+          //SK_RunOnce (Sleep(50));
+
+          // Only act on new gamepad input if we are actually focused.
+          // This prevents SKIF from acting on gameapd input when unfocused,
+          // but otherwise refreshes due to some status change.
+          // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
+          if (gamepadThreadSleep.load ( ) == 1)
+          {   gamepadThreadSleep.store(2);
+
+            //OutputDebugString(L"Entering sleep\n");
+            PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
+            //SK_RunOnce (SKIF_Util_CompactWorkingSet ());
+
+            SleepConditionVariableCS (
+              &SKIF_IsFocused, &GamepadInputPump,
+                INFINITE
+            );
+            PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
+          }
         }
 
         LeaveCriticalSection  (&GamepadInputPump);
@@ -2800,6 +2811,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
         
+        // Empty working set
+        SKIF_Util_CompactWorkingSet ( );
+
         // Sleep until a message is in the queue or a change notification occurs
         static bool bWaitTimeoutMsgInputFallback = false;
         if (WAIT_FAILED == MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].second.size()), vWatchHandles[SKIF_Tab_Selected].second.data(), false, bWaitTimeoutMsgInputFallback ? dwDwmPeriod : INFINITE, QS_ALLINPUT))
