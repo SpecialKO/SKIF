@@ -238,7 +238,10 @@ public:
 
       else if (c == '}')
       {
-        search_tree.path.pop_back ();
+        if (! search_tree.path.empty())
+          search_tree.path.pop_back ();
+        else
+          PLOG_ERROR << "Corrupt manifest detected!";
 
         _clear ();
       }
