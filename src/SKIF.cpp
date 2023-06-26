@@ -2810,9 +2810,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
-        
-        // Empty working set
-        SKIF_Util_CompactWorkingSet ( );
 
         // Sleep until a message is in the queue or a change notification occurs
         static bool bWaitTimeoutMsgInputFallback = false;
@@ -3347,6 +3344,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_COVER:
       addAdditionalFrames += 3;
+        
+      // Empty working set after the cover has finished loading
+      SKIF_Util_CompactWorkingSet ( );
       break;
 
     case WM_SKIF_UPDATER:
