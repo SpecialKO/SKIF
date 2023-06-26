@@ -2068,17 +2068,20 @@ Cache=false)";
         }
 
         else {
-          // Launch preparations for Global
-          if (! cache.injection.type._Equal ("Local"))
+          bool usingSK = (cache.injection.type._Equal("Local"));
+
+          // Check if Global injection should be used
+          if (! usingSK)
           {
             std::string fullPath    = SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath (pTargetApp->id));
             bool isLocalBlacklisted  = pTargetApp->launch_configs[0].isBlacklisted (pTargetApp->id),
                  isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
 
-            if (! clickedGameLaunchWoSK &&
-                ! isLocalBlacklisted    &&
-                ! isGlobalBlacklisted
-               )
+            usingSK = ! clickedGameLaunchWoSK &&
+                      ! isLocalBlacklisted    &&
+                      ! isGlobalBlacklisted;
+
+            if (usingSK)
             {
               // Whitelist the path if it haven't been already
               if (pTargetApp->store == "Xbox")
@@ -2102,12 +2105,18 @@ Cache=false)";
             }
 
             // Kickstart service if it is currently not running
-            if (! _inject.bCurrentState && ! clickedGameLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
+            if (! _inject.bCurrentState && usingSK )
               _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated(pApp->id));
 
             // Stop the service if the user attempts to launch without SK
             else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
               _inject._StartStopInject (true);
+          }
+
+          // Create the injection acknowledge events in case of a local injection
+          else {
+            _inject.SetInjectAckEx     (true);
+            _inject.SetInjectExitAckEx (true);
           }
 
           extern bool GOGGalaxy_Installed;
@@ -2156,7 +2165,6 @@ Cache=false)";
             std::wstring wszPath = (pTargetApp->store == "Xbox")
                                   ? pTargetApp->launch_configs[0].executable_helper
                                   : pTargetApp->launch_configs[0].getExecutableFullPath(pTargetApp->id);
-
             
             SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", pTargetApp->launch_configs[0].launch_options.c_str(), pTargetApp->launch_configs[0].working_dir.c_str());
 
@@ -2174,13 +2182,10 @@ Cache=false)";
             ShellExecuteExW (&sexi);
             */
           }
-
-          // Also minimize SKIF if configured as such
-          if (_registry.bMinimizeOnGameLaunch)
-          {
-            if (cache.injection.type._Equal ("Local") || ! _inject.bAckInj || _registry.iAutoStopBehavior == 2)
-              ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
-          }
+          
+          // Fallback for minimizing SKIF when not using SK if configured as such
+          if (_registry.bMinimizeOnGameLaunch && ! usingSK)
+            ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3432,17 +3437,20 @@ Cache=false)";
           if (clickedGalaxyLaunch ||
               clickedGalaxyLaunchWoSK)
           {
-            // Launch preparations for Global
-            if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
+            bool usingSK = (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local);
+
+            // Check if Global injection should be used
+            if (! usingSK)
             {
               std::string fullPath = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id));
               bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted (pApp->id),
                    isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
 
-              if (! clickedGalaxyLaunchWoSK &&
-                  ! isLocalBlacklisted      &&
-                  ! isGlobalBlacklisted
-                 )
+              usingSK = ! clickedGalaxyLaunchWoSK &&
+                        ! isLocalBlacklisted      &&
+                        ! isGlobalBlacklisted;
+
+              if (usingSK)
               {
                 // Whitelist the path if it haven't been already
                 if (_inject.WhitelistPath (fullPath))
@@ -3450,12 +3458,18 @@ Cache=false)";
               }
 
               // Kickstart service if it is currently not running
-              if (! _inject.bCurrentState && ! clickedGalaxyLaunchWoSK && ! isLocalBlacklisted && ! isGlobalBlacklisted )
+              if (! _inject.bCurrentState && usingSK)
                 _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated(pApp->id));
 
               // Stop the service if the user attempts to launch without SK
               else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
                 _inject._StartStopInject (true);
+            }
+
+            // Create the injection acknowledge events in case of a local injection
+            else {
+              _inject.SetInjectAckEx     (true);
+              _inject.SetInjectExitAckEx (true);
             }
 
             // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
@@ -3480,10 +3494,14 @@ Cache=false)";
             */
 
             // Also minimize SKIF if configured as such
+            // Disable the first service notification
             if (_registry.bMinimizeOnGameLaunch)
             {
-              if (pApp->specialk.injection.injection.type == sk_install_state_s::Injection::Type::Local || ! _inject.bAckInj || _registry.iAutoStopBehavior == 2)
-                _registry._SuppressServiceNotification = ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE) == TRUE;
+              _registry._SuppressServiceNotification = true;
+          
+              // Fallback for minimizing SKIF when not using SK if configured as such
+              if (! usingSK)
+                ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
             }
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;

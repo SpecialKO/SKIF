@@ -190,6 +190,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bStopOnInjection         = ! regKVDisableStopOnInjection .getData ( );
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
+  bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData ( );
   bCloseToTray             =   regKVCloseToTray            .getData ( );
 
   // Do not allow AllowMultipleInstances and CloseToTray at the same time

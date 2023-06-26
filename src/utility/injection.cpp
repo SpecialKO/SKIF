@@ -66,22 +66,6 @@ extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, 
 extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
 extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
 
-// Helper Functions
-
-void CALLBACK
-InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
-{
-  UNREFERENCED_PARAMETER (dwTime);
-
-  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
-  
-  // Translates threaded messages created before the window was created when used as a launcher
-  //   into their proper window message counterparts.
-  if (hWnd == NULL && SKIF_hWnd != NULL)
-    PostMessage (SKIF_hWnd, Msg, (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK) ? cIDT_REFRESH_INJECTACK : cIDT_REFRESH_PENDING, NULL);
-}
-
-
 // Class Members
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
@@ -208,7 +192,6 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
     }
 
     extern void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"");
-    extern CHandle hInjectAck;
 
     // If we are transitioning away from a pending state
 #ifdef _WIN64
@@ -321,7 +304,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 };
 
 void
-SKIF_InjectionContext::ToggleInjectAck (bool newState)
+SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -331,28 +314,17 @@ SKIF_InjectionContext::ToggleInjectAck (bool newState)
   // Set to its current new state
   bAckInj = newState;
 
-  // Close any existing timer
-  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_hWnd : NULL, IDT_REFRESH_INJECTACK))
-    IDT_REFRESH_INJECTACK = 0;
-
   // Close any existing handles
   hInjectAck.Close();
 
   // Create a new handle if requested
+  // This is used to auto-stop the service
   if (newState && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
       CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
                                                                               : LR"(Local\SKIF_InjectAck)")
     );
-
-    //OutputDebugString((L"_ToggleOnDemand set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
-    IDT_REFRESH_INJECTACK =
-      SetTimer (SKIF_hWnd,
-                cIDT_REFRESH_INJECTACK,
-                1000,
-                (TIMERPROC) &InjectionTimerProc
-      );
   }
 }
 
@@ -364,12 +336,8 @@ SKIF_InjectionContext::ToggleStopOnInjection (void)
 
   _registry.regKVDisableStopOnInjection.putData (! _registry.bStopOnInjection);
 
-  // If we're disabling the feature, also disable the legacy key
-  //if (in)
-  //  _registry.regKVLegacyDisableStopOnInjection.putData(!in);
-
   if (_inject.bCurrentState)
-    _inject.ToggleInjectAck (_registry.bStopOnInjection);
+    _inject.SetStopOnInjectionEx (_registry.bStopOnInjection);
 }
 
 bool
@@ -394,7 +362,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
-  ToggleInjectAck ( (! currentRunningState && autoStop) );
+  SetStopOnInjectionEx ( (! currentRunningState && autoStop) );
 
 #if 0
   const wchar_t *wszStartStopCommand =
@@ -478,17 +446,26 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   else
     runState = RunningState::Starting;
 
-  extern CHandle hInjectAck;
+  // This is used to run general actions when SKIF is signaled by SK
+  extern CHandle hInjectAckEx;
+  extern CHandle hInjectExitAckEx;
 
-  if (IDT_REFRESH_INJECTACK == 0)
+  // Create the events when the service is started
+  if (! currentRunningState)
   {
-    //OutputDebugString((L"_StartStopInject set timer using: " + std::to_wstring((int)SKIF_hWnd) + L"\n").c_str());
-    IDT_REFRESH_PENDING =
-      SetTimer (SKIF_hWnd,
-              cIDT_REFRESH_PENDING,
-              500,
-              (TIMERPROC) &InjectionTimerProc
-    );
+    if (hInjectAckEx.m_h == 0)
+      SetInjectAckEx (true);
+    
+    if (hInjectExitAckEx.m_h == 0)
+      SetInjectExitAckEx (true);
+  }
+
+  // Close the events when the service is being stopped
+  else {
+    hInjectAckEx.Close();
+
+    if (! bAckInjSignaled) // Only if auto-stop event was not signaled
+      hInjectExitAckEx.Close();
   }
 
   dwLastSignaled = SKIF_Util_timeGetTime ();
@@ -1378,6 +1355,32 @@ bool SKIF_InjectionContext::LoadWhitelist (void)
 bool SKIF_InjectionContext::LoadBlacklist (void)
 {
   return LoadUserList (false);
+}
+
+void SKIF_InjectionContext::SetInjectAckEx (bool newState)
+{
+  extern CHandle hInjectAckEx;
+
+  hInjectAckEx.Close();
+
+  if (newState)
+    hInjectAckEx.Attach (
+      CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectAckEx)")
+    );
+}
+
+void SKIF_InjectionContext::SetInjectExitAckEx (bool newState)
+{
+  extern CHandle hInjectExitAckEx;
+
+  hInjectExitAckEx.Close();
+
+  if (newState)
+  {
+    hInjectExitAckEx.Attach (
+      CreateEvent ( nullptr, FALSE, FALSE, LR"(Local\SKIF_InjectExitAckEx)")
+    );
+  }
 }
 
 bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)

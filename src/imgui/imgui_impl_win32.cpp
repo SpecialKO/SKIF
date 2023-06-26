@@ -762,13 +762,14 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     // Handle attempt to close the window
     if (hwnd != nullptr)
     {
-      // Handle the service before we exit
-      if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
-        _inject._StartStopInject (true);
+      // Handle the service before we exit (handled later now)
+      //if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
+      //  _inject._StartStopInject (true);
 
       bKeepProcessAlive = false;
 
-      PostMessage (hwnd, WM_QUIT, 0, 0);
+      //PostMessage (hwnd, WM_QUIT, 0, 0);
+      PostQuitMessage (0);
       return 1;
     }
     break;

@@ -222,7 +222,8 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
 
     if (! _registry.bDisableTooltips)
     {
-      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+      ImGui::PushStyleColor (ImGuiCol_PopupBg, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+      ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
       HoverTipActive = true;
 
       if ( HoverTipDuration == 0)
@@ -243,7 +244,8 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
         );
       }
 
-      ImGui::PopStyleColor  ();
+      ImGui::PopStyleColor  ( );
+      ImGui::PopStyleColor  ( );
     }
 
     else

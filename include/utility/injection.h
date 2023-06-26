@@ -30,7 +30,6 @@
 // Singleton struct
 struct SKIF_InjectionContext {
 
-  UINT_PTR IDT_REFRESH_INJECTACK = 0;
   UINT_PTR IDT_REFRESH_PENDING   = 0;
 
   char    whitelist[MAX_PATH * 16 * 2] = { };
@@ -49,8 +48,8 @@ struct SKIF_InjectionContext {
   bool    bAutoStartServiceOnly = false;
 
   bool    bCurrentState       = false;
-  bool    bAckInj             = false;
-  bool    bAckInjSignaled     = false;
+  bool    bAckInj             = false; // Indicates if we're using auto-stop mode or not
+  bool    bAckInjSignaled     = false; // Indicates that the auto-stop event was signaled
   bool    bTaskbarOverlayIcon = false;
 
   int     pid32             = 0,
@@ -100,8 +99,10 @@ struct SKIF_InjectionContext {
   bool    SaveBlacklist           (void);
   bool    LoadWhitelist           (void);
   bool    LoadBlacklist           (void);
-  void    ToggleInjectAck         (bool newState);
-  void    ToggleStopOnInjection   (void);
+  void    SetInjectAckEx          (bool newState);
+  void    SetInjectExitAckEx      (bool newState);
+  void    SetStopOnInjectionEx    (bool newState);  // Main toggle function
+  void    ToggleStopOnInjection   (void);           // Used primarily to switch the registry value
 
   static SKIF_InjectionContext& GetInstance (void)
   {

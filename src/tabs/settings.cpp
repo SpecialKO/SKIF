@@ -501,7 +501,7 @@ SKIF_UI_Tab_DrawSettings (void)
     _registry.regKVLibraryIgnoreArticles.putData (                       _registry.bLibraryIgnoreArticles);
     RepopulateGames = true;
   }
-          
+
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip (
@@ -516,6 +516,15 @@ SKIF_UI_Tab_DrawSettings (void)
             
   if ( ImGui::Checkbox ( "Minimize when launching a game",            &_registry.bMinimizeOnGameLaunch ) )
     _registry.regKVMinimizeOnGameLaunch.putData (                      _registry.bMinimizeOnGameLaunch );
+            
+  if ( ImGui::Checkbox ( "Restore after closing a game",              &_registry.bRestoreOnGameExit ) )
+    _registry.regKVRestoreOnGameExit.putData    (                      _registry.bRestoreOnGameExit );
+
+  ImGui::SameLine        ( );
+  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+  SKIF_ImGui_SetHoverTip (
+    "Requires Special K injected to work as intended."
+  );
   
   if (_registry.bAllowMultipleInstances)
   {

@@ -71,8 +71,8 @@ SKIF_Updater::SKIF_Updater (void)
 
         local = { }; // Reset any existing data
         
-        // Set a timer so the main UI refreshes every 500 ms
-        SetTimer (SKIF_hWnd, IDT_REFRESH_UPDATER, 500, NULL);
+        // Set a timer so the main UI refreshes every 15 ms
+        SetTimer (SKIF_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
 
         // Check for updates!
         parent.PerformUpdateCheck (local);

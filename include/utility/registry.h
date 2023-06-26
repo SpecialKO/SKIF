@@ -252,6 +252,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize On Game Launch)" );
 
+  KeyValue <bool> regKVRestoreOnGameExit =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Restore On Game Exit)" );
+
   KeyValue <bool> regKVCloseToTray =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Minimize To Notification Area On Close)" );
@@ -385,6 +389,7 @@ struct SKIF_RegistrySettings {
   bool bLowBandwidthMode        = false;
   bool bPreferGOGGalaxyLaunch   = false;
   bool bMinimizeOnGameLaunch    = false;
+  bool bRestoreOnGameExit       = false;
   bool bDisableCFAWarning       = false; // Controlled Folder Access warning
   bool bProcessSortAscending    =  true; // default to true
   bool bProcessIncludeAll       = false;

@@ -100,6 +100,7 @@ bool startedMinimized      = false;
 bool msgDontRedraw         = false;
 bool coverFadeActive       = false;
 bool SKIF_Shutdown         = false;
+int  SKIF_ExitCode         = 0;
 int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
@@ -176,7 +177,9 @@ LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT m
 LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void                SKIF_Initialize                           (void);
 
-CHandle hInjectAck (0); // Signalled when a game finishes injection
+CHandle hInjectAck       (0); // Signalled when injection service should be stopped
+CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (minimizes SKIF)
+CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores SKIF)
 
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
 // Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
@@ -1163,6 +1166,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       while (! SKIF_Shutdown && PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE))
       {
+        if (msg.message == WM_QUIT)
+        {
+          SKIF_Shutdown = true;
+          SKIF_ExitCode = (int) msg.wParam;
+          return ! SKIF_Shutdown; // return false on exit or system shutdown
+        }
+
         if (! IsWindow (hWnd))
           return false;
 
@@ -1226,22 +1236,56 @@ wWinMain ( _In_     HINSTANCE hInstance,
       return ! SKIF_Shutdown; // return false on exit or system shutdown
     };
 
-    // Injection acknowledgment; shutdown injection
-    //
-    //  * This is backed by a periodic WM_TIMER message if injection
-    //      was programmatically started and ACK has not signaled
-    //
+    static bool restoreOnInjExitAck = false;
+
+    // Injection acknowledgment; minimize SKIF
+    if (                     hInjectAckEx.m_h != 0 &&
+        WaitForSingleObject (hInjectAckEx.m_h,   0) == WAIT_OBJECT_0)
+    {
+      //OutputDebugString(L"InjAckEx was signalled!\n");
+      PLOG_DEBUG << "Injection was acknowledged!";
+      hInjectAckEx.Close ();
+
+      // Set up exit acknowledge as well
+      if (_registry.bRestoreOnGameExit)
+      restoreOnInjExitAck = ! IsIconic (SKIF_hWnd);
+
+      if (_registry.bMinimizeOnGameLaunch && ! IsIconic (SKIF_hWnd))
+        ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
+
+      // If we do not use auto-stop mode, reset the signal
+      if (! _inject.bAckInj && _inject.bCurrentState)
+        _inject.SetInjectAckEx (true);
+    }
+
+    // Exit acknowledgement; restores SKIF
+    if (                     hInjectExitAckEx.m_h != 0 &&
+        WaitForSingleObject (hInjectExitAckEx.m_h,   0) == WAIT_OBJECT_0)
+    {
+      //OutputDebugString(L"hInjectExitAckEx was signalled!\n");
+      PLOG_DEBUG << "Game exit was acknowledged!";
+      hInjectExitAckEx.Close ();
+
+      if (_registry.bRestoreOnGameExit && restoreOnInjExitAck && IsIconic (SKIF_hWnd))
+        SendMessage (SKIF_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
+
+      restoreOnInjExitAck = false;
+
+      // If we do not use auto-stop mode, reset the signal
+      if (! _inject.bAckInj && _inject.bCurrentState)
+        _inject.SetInjectExitAckEx (true);
+    }
+
+    // Injection acknowledgment; shutdown service
     if (                     hInjectAck.m_h != 0 &&
         WaitForSingleObject (hInjectAck.m_h,   0) == WAIT_OBJECT_0)
     {
-      PLOG_INFO << "Injection was acknowledged!";
+      //OutputDebugString(L"InjAck was signalled!\n");
+      PLOG_DEBUG << "Injection was acknowledged, service is being stopped!";
       hInjectAck.Close ();
+
       _inject.bAckInjSignaled = true;
       _inject._StartStopInject (true);
-
-      // Also minimize SKIF if configured as such
-      if (_registry.bMinimizeOnGameLaunch && _registry.iAutoStopBehavior == 1 && ! IsIconic (SKIF_hWnd))
-        ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
     }
 
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
@@ -1257,7 +1301,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
          (dwExitDelay < SKIF_Util_timeGetTime()))
       {
         _registry._ExitOnInjection = false;
-        PostMessage (hWnd, WM_QUIT, 0, 0);
+        //PostMessage (hWnd, WM_QUIT, 0, 0);
+        PostQuitMessage (0);
       }
     }
 
@@ -2643,7 +2688,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // If process should stop, post WM_QUIT
     if ((! bKeepProcessAlive) && hWnd != 0)
-      PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
+      PostQuitMessage (0);
+      //PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
     // GamepadInputPump child thread
     static auto thread =
@@ -2898,6 +2944,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
   
+  // Handle the service before we exit
+  if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
+  {
+    PLOG_INFO << "Shutting down the service...";
+    _inject._StartStopInject (true);
+  }
+  
   if (! _registry._LastSelectedWritten)
   {
     _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
@@ -2909,7 +2962,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_UnregisterHDRToggleHotKey ( );
 
   PLOG_INFO << "Killing timers...";
-  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_INJECTACK);
   KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_PENDING);
   KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
@@ -2939,8 +2991,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_hWnd = 0;
        hWnd = 0;
 
-  PLOG_INFO << "Terminating process...";
-  return 0;
+  PLOG_INFO << "Terminating process with exit code " << SKIF_ExitCode;
+  return SKIF_ExitCode;
 }
 
 
@@ -3265,7 +3317,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_QUERYENDSESSION: // System wants to shut down and is asking if we can allow it
-      //SKIF_Shutdown = true;
       PLOG_INFO << "System in querying if we can shut down!";
       return true;
       break;
@@ -3299,7 +3350,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false);
       else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
-        _inject.ToggleInjectAck (false);
+        _inject.SetStopOnInjectionEx (false);
       break;
 
     case WM_SKIF_TEMPSTART:
@@ -3307,7 +3358,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
         _inject._StartStopInject (false, true);
       else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
-        _inject.ToggleInjectAck (true);
+        _inject.SetStopOnInjectionEx (true);
 
       if (msg == WM_SKIF_TEMPSTARTEXIT)
         _registry._ExitOnInjection = true;
@@ -3377,10 +3428,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
       if (SKIF_isTrayed)
       {   SKIF_isTrayed           = false;
-        ShowWindowAsync   (hWnd, SW_SHOW);
+        ShowWindow   (hWnd, SW_SHOW); // ShowWindowAsync
       }
 
-      ShowWindowAsync     (hWnd, SW_RESTORE);
+      ShowWindow     (hWnd, SW_RESTORE); // ShowWindowAsync
 
       if (! UpdateWindow        (hWnd))
         PLOG_DEBUG << "UpdateWindow ( ) failed!";
@@ -3416,7 +3467,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
           }
           return 0;
-        case cIDT_REFRESH_INJECTACK:
         case cIDT_REFRESH_PENDING:
         case  IDT_REFRESH_UPDATER:
           // These are just dummy events to get SKIF to refresh for a couple of frames more periodically

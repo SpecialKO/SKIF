@@ -39,7 +39,6 @@
 
 // Constants - Timers / Window Messages / HotKeys / Windows
 
-const     UINT_PTR       cIDT_REFRESH_INJECTACK =             1337;
 const     UINT_PTR       cIDT_REFRESH_PENDING   =             1338;
 const     UINT_PTR        IDT_REFRESH_GAMES     =             1340;
 const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
