@@ -469,7 +469,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
 #pragma region Section: Top / General
   // SKIF Options
-  //if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
+  //if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-0", ImGuiTreeNodeFlags_DefaultOpen))
   //{
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -495,24 +495,6 @@ SKIF_UI_Tab_DrawSettings (void)
     "This only affects new downloads of covers. It does not affect already downloaded covers.\n"
     "This will also disable automatic downloads of new updates to Special K."
   );
-  
-  if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
-  {
-    _registry.regKVLibraryIgnoreArticles.putData (                       _registry.bLibraryIgnoreArticles);
-    RepopulateGames = true;
-  }
-
-  ImGui::SameLine        ( );
-  ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-  SKIF_ImGui_SetHoverTip (
-    "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
-  );
-
-  if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
-    _registry.regKVPreferGOGGalaxyLaunch.putData (_registry.bPreferGOGGalaxyLaunch);
-
-  if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
-    _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
             
   if ( ImGui::Checkbox ( "Minimize when launching a game",            &_registry.bMinimizeOnGameLaunch ) )
     _registry.regKVMinimizeOnGameLaunch.putData (                      _registry.bMinimizeOnGameLaunch );
@@ -714,52 +696,6 @@ SKIF_UI_Tab_DrawSettings (void)
     _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::TreePop         ( );
 
-  ImGui::Spacing       ( );
-            
-  ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Hide games from select platforms:"
-  );
-  ImGui::TreePush      ("");
-
-  if (ImGui::Checkbox        ("Epic", &_registry.bDisableEGSLibrary))
-  {
-    _registry.regKVDisableEGSLibrary.putData    (_registry.bDisableEGSLibrary);
-    RepopulateGames = true;
-  }
-
-  ImGui::SameLine ( );
-  ImGui::Spacing  ( );
-  ImGui::SameLine ( );
-
-  if (ImGui::Checkbox         ("GOG", &_registry.bDisableGOGLibrary))
-  {
-    _registry.regKVDisableGOGLibrary.putData    (_registry.bDisableGOGLibrary);
-    RepopulateGames = true;
-  }
-
-  ImGui::SameLine ( );
-  ImGui::Spacing  ( );
-  ImGui::SameLine ( );
-
-  if (ImGui::Checkbox       ("Steam", &_registry.bDisableSteamLibrary))
-  {
-    _registry.regKVDisableSteamLibrary.putData  (_registry.bDisableSteamLibrary);
-    RepopulateGames = true;
-  }
-
-  ImGui::SameLine ( );
-  ImGui::Spacing  ( );
-  ImGui::SameLine ( );
-
-  if (ImGui::Checkbox        ("Xbox", &_registry.bDisableXboxLibrary))
-  {
-    _registry.regKVDisableXboxLibrary.putData   (_registry.bDisableXboxLibrary);
-    RepopulateGames = true;
-  }
-
-  ImGui::TreePop       ( );
-
   ImGui::TreePop    ( );
 
   ImGui::Columns    (1);
@@ -770,8 +706,104 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::Spacing ();
 #pragma endregion
 
+#pragma region Library
+  if (ImGui::CollapsingHeader ("Library###SKIF_SettingsHeader-1"))
+  {
+    ImGui::PushStyleColor   (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                              );
+
+    SKIF_ImGui_Spacing      ( );
+
+    SKIF_ImGui_Columns      (2, nullptr, true);
+
+    SK_RunOnce(
+      ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+    );
+  
+    if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
+    {
+      _registry.regKVLibraryIgnoreArticles.putData (                       _registry.bLibraryIgnoreArticles);
+      RepopulateGames = true;
+    }
+
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip (
+      "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
+    );
+
+    if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
+      _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
+
+    if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
+      _registry.regKVPreferGOGGalaxyLaunch.putData (_registry.bPreferGOGGalaxyLaunch);
+
+    ImGui::NextColumn       ( );
+
+    ImGui::TreePush         ( );
+            
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Hide games from select platforms:"
+    );
+    ImGui::TreePush      ("");
+
+    if (ImGui::Checkbox        ("Epic", &_registry.bDisableEGSLibrary))
+    {
+      _registry.regKVDisableEGSLibrary.putData    (_registry.bDisableEGSLibrary);
+      RepopulateGames = true;
+    }
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox         ("GOG", &_registry.bDisableGOGLibrary))
+    {
+      _registry.regKVDisableGOGLibrary.putData    (_registry.bDisableGOGLibrary);
+      RepopulateGames = true;
+    }
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox       ("Steam", &_registry.bDisableSteamLibrary))
+    {
+      _registry.regKVDisableSteamLibrary.putData  (_registry.bDisableSteamLibrary);
+      RepopulateGames = true;
+    }
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox        ("Xbox", &_registry.bDisableXboxLibrary))
+    {
+      _registry.regKVDisableXboxLibrary.putData   (_registry.bDisableXboxLibrary);
+      RepopulateGames = true;
+    }
+
+    ImGui::TreePop          ( );
+
+    ImGui::TreePop          ( );
+
+    ImGui::Columns          (1);
+
+    ImGui::PopStyleColor    ( );
+  }
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
+
+
+
+#pragma endregion
+
+
 #pragma region Section: Appearances
-  if (ImGui::CollapsingHeader ("Appearance###SKIF_SettingsHeader-1"))
+  if (ImGui::CollapsingHeader ("Appearance###SKIF_SettingsHeader-2"))
   {
     ImGui::PushStyleColor   (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1142,7 +1174,7 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
 
 #pragma region Section: Advanced
-  if (ImGui::CollapsingHeader ("Advanced###SKIF_SettingsHeader-2"))
+  if (ImGui::CollapsingHeader ("Advanced###SKIF_SettingsHeader-3"))
   {
     ImGui::PushStyleColor   (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1258,7 +1290,7 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
 
 #pragma region Section: Whitelist / Blacklist
-  if (ImGui::CollapsingHeader ("Whitelist / Blacklist###SKIF_SettingsHeader-5")) //, ImGuiTreeNodeFlags_DefaultOpen)) // Disabled auto-open for this section
+  if (ImGui::CollapsingHeader ("Whitelist / Blacklist###SKIF_SettingsHeader-4")) //, ImGuiTreeNodeFlags_DefaultOpen)) // Disabled auto-open for this section
   {
     static bool white_edited = false,
                 black_edited = false,
@@ -1599,7 +1631,7 @@ SKIF_UI_Tab_DrawSettings (void)
   
 #pragma region Section: Extended CPU Hardware Reporting [64-bit only]
 #ifdef _WIN64
-  if (ImGui::CollapsingHeader ("Extended CPU Hardware Reporting###SKIF_SettingsHeader-4"))
+  if (ImGui::CollapsingHeader ("Extended CPU Hardware Reporting###SKIF_SettingsHeader-5"))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1762,7 +1794,7 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
   
 #pragma region Section: SwapChain Presentation Monitor
-  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
+  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-6", ImGuiTreeNodeFlags_DefaultOpen))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1786,7 +1818,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("DirectFlip optimizations are engaged, and desktop composition (DWM) is bypassed.");
+    ImGui::TextWrapped ("DirectFlip is engaged, bypassing desktop composition (DWM).");
     ImGui::EndGroup    ();
 
     SKIF_ImGui_SetHoverTip("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'");
@@ -1872,7 +1904,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_PushDisableState ( );
 
     std::string btnPfuLabel = (pfuState == Granted) ?                         ICON_FA_CHECK              " Permissions granted!" // Granted
-                                                    : (pfuState == Missing) ? ICON_FA_USER_SHIELD             " Grant permissions"    // Missing
+                                                    : (pfuState == Missing) ? ICON_FA_USER_SHIELD        " Grant permissions"    // Missing
                                                                             : ICON_FA_RIGHT_FROM_BRACKET " Sign out to apply";   // Pending
 
     if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
@@ -2098,36 +2130,18 @@ SKIF_UI_Tab_DrawSettings (void)
       if (SKIF_Util_IsMPOsDisabledInRegistry ( ))
       {
         // Move up the line 2 pixels as otherwise a scroll would appear...
-        ImGui::SetCursorPosY    (ImGui::GetCursorPosY ( ) - (2.0f * SKIF_ImGui_GlobalDPIScale));
-        ImGui::BeginGroup       ( );
-        ImGui::Spacing          ( );
-        ImGui::SameLine         ( );
-        ImGui::TextColored      (
-          ImColor::HSV (0.11F,   1.F, 1.F),
-            ICON_FA_TRIANGLE_EXCLAMATION " ");
-        ImGui::SameLine         (0.0f, 6.0f);
-        ImGui::Text             ("MPOs are disabled through the registry!");
-        ImGui::EndGroup         ( );
-        SKIF_ImGui_SetHoverTip (R"(HKLM\SOFTWARE\Microsoft\Windows\Dwm\OverlayTestMode)");
-
-        if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-          ImGui::OpenPopup ("OverlayTestModeMenu");
-
-        if (ImGui::BeginPopup ("OverlayTestModeMenu"))
+        //ImGui::SetCursorPosY    (ImGui::GetCursorPosY ( ) - (2.0f * SKIF_ImGui_GlobalDPIScale));
+        ImGui::PushStyleColor     (ImGuiCol_Text, ImColor::HSV (0.11F,   1.F, 1.F).Value);
+        if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset (restart required)"))
         {
-          // REG ADD    HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f /t REG_DWORD /d 5
-          // REG DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f
-          if (ImGui::Selectable  (ICON_FA_CIRCLE_CHECK " Enable MPOs (computer restart required)"))
+          if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOW) > (HINSTANCE)32)
           {
-            if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOW) > (HINSTANCE)32)
-            {
-              // Trigger a refresh in 500ms
-              dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500;
-            }
+            dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500; // Trigger a refresh in 500ms
           }
-
-          ImGui::EndPopup ( );
         }
+        ImGui::PopStyleColor      ( );
+        SKIF_ImGui_SetHoverTip        (R"(A restart of the computer is required for the changes to be applied.)");
+        SKIF_ImGui_SetMouseCursorHand ( );
       }
     }
     else {
