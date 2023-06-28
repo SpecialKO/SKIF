@@ -1924,13 +1924,24 @@ SKIF_UI_Tab_DrawSettings (void)
       DWORD pfuDomainNameLength = sizeof(pfuDomainName),
             intDomainNameLength = sizeof(intDomainName);
 
-      // Because non-English languages has localized user and group names, we need to retrieve those first
-      if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
+      // For Windows 10+ we rely on modern PowerShell cmdlets as this 
+      //   is the easiest way of handling non-English localizations
+      if (SKIF_Util_IsWindows10OrGreater ( ))
+      {
+        // S-1-5-32-559 == Group : Performance Log Users
+        // S-1-5-4      == User  : NT AUTHORITY\INTERACTIVE
+        if (ShellExecuteW (nullptr, L"runas", L"powershell.exe", LR"(-Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")", nullptr, SW_SHOW) > (HINSTANCE)32)
+          pfuState = Pending;
+      }
+
+      // On older versions we need to rely on 'net', but we also need to retrieve the local names first
+      //   as non-English languages has localized user and group names...
+      else if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
           LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
       {
         exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
 
-        // Use 'net' to grant the proper permissions
+        // Note that this can still fail apparently, as 'net' might be unable to handle some non-Latin characters properly (e.g. Russian localized names)
         if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
           pfuState = Pending;
       }
