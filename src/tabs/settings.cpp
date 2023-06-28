@@ -1930,7 +1930,7 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         // S-1-5-32-559 == Group : Performance Log Users
         // S-1-5-4      == User  : NT AUTHORITY\INTERACTIVE
-        if (ShellExecuteW (nullptr, L"runas", L"powershell.exe", LR"(-Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")", nullptr, SW_SHOW) > (HINSTANCE)32)
+        if (ShellExecuteW (nullptr, L"runas", L"powershell.exe", LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")", nullptr, SW_SHOW) > (HINSTANCE)32)
           pfuState = Pending;
       }
 
