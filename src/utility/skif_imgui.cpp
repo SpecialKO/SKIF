@@ -65,7 +65,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // CheckMark / Radio Button
   colors[ImGuiCol_CheckMark]              = ImVec4(0.45f, 0.45f, 0.45f, 1.00f); // ImVec4(0.26f, 0.59f, 0.98f, 1.00f)
 
-  // Slider [UNUSED]
+  // Slider Grab (used for HDR Brightness slider)
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
   colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
 
@@ -90,7 +90,6 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
     colors[ImGuiCol_Separator]            = ImVec4(0.15f, 0.15f, 0.15f, 1.00f); // colors[ImGuiCol_WindowBg];
   else
     colors[ImGuiCol_Separator]            = colors[ImGuiCol_Border];
-
 
   colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
   colors[ImGuiCol_SeparatorActive]        = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
@@ -206,7 +205,7 @@ SKIF_ImGui_SetMouseCursorHand (void)
 }
 
 void
-SKIF_ImGui_SetHoverTip (const std::string_view& szText)
+SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledTooltips)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -220,7 +219,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText)
   {
    // itemHovered = szText;
 
-    if (! _registry.bDisableTooltips)
+    if (! _registry.bDisableTooltips || ignoreDisabledTooltips)
     {
       ImGui::PushStyleColor (ImGuiCol_PopupBg, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
       ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
@@ -772,17 +771,25 @@ SKIF_ImGui_SetStyle (void)
 void
 SKIF_ImGui_PushDisableState (void)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // Push the states in a specific order
   ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
-  //ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle ().Alpha * 0.5f);
-  ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-  ImGui::PushStyleColor (ImGuiCol_FrameBg, ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
+  //ImGui::PushStyleVar (ImGuiStyleVar_Alpha,     ImGui::GetStyle ().Alpha * 0.5f); // [UNUSED]
+  ImGui::PushStyleColor (ImGuiCol_Text,           ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+  ImGui::PushStyleColor (ImGuiCol_SliderGrab,     SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry.iStyle == 2) ? 0.75f : 0.25f));
+  ImGui::PushStyleColor (ImGuiCol_CheckMark,      SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry.iStyle == 2) ? 0.75f : 0.25f));
+  ImGui::PushStyleColor (ImGuiCol_FrameBg,        SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg),      (_registry.iStyle == 2) ? 0.75f : 0.15f));
 }
 
 void
 SKIF_ImGui_PopDisableState (void)
 {
-  ImGui::PopStyleColor ( );
-  ImGui::PopStyleColor ( );
-  //ImGui::PopStyleVar ( );
-  ImGui::PopItemFlag   ( );
+  // Pop the states in the reverse order that we pushed them in
+  ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
+  ImGui::PopStyleColor ( ); // ImGuiCol_CheckMark
+  ImGui::PopStyleColor ( ); // ImGuiCol_SliderGrab
+  ImGui::PopStyleColor ( ); // ImGuiCol_Text
+  //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
+  ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
 }

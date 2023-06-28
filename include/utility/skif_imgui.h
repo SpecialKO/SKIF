@@ -13,7 +13,7 @@ bool    SKIF_ImGui_IsFocused          (void);
 bool    SKIF_ImGui_IsMouseHovered     (void);
 bool    SKIF_ImGui_IsAnyInputDown     (void);
 void    SKIF_ImGui_SetMouseCursorHand (void);
-void    SKIF_ImGui_SetHoverTip        (const std::string_view& szText);
+void    SKIF_ImGui_SetHoverTip        (const std::string_view& szText, bool ignoreDisabledTooltips = false);
 void    SKIF_ImGui_SetHoverText       (const std::string_view& szText, bool overrideExistingText = false);
 bool    SKIF_ImGui_BeginChildFrame    (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags);
 void    SKIF_ImGui_BeginTabChildFrame (void);
@@ -28,6 +28,10 @@ void    SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = t
 void    SKIF_ImGui_SetStyle           (void);
 void    SKIF_ImGui_PushDisableState   (void);
 void    SKIF_ImGui_PopDisableState    (void);
+
+// SKIF_ImGui_ImDerp, named as such as it is not a linear interpolation/lerp, is used
+//   to among other things force 1.0f for the alpha color channel (w)
+static ImVec4 SKIF_ImGui_ImDerp       (const ImVec4& a, const ImVec4& b, float t) { return ImVec4 (a.x + ((b.x - a.x) * t), a.y + ((b.y - a.y) * t), a.z + ((b.z - a.z) * t), 1.0f /*a.w + (b.w - a.w) * t */); }
 
 // Fonts
 extern bool SKIF_bFontChineseSimplified,

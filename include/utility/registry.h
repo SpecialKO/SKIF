@@ -357,6 +357,7 @@ struct SKIF_RegistrySettings {
   int iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
   int iGhostVisibility         = 0;   // 0 = Never,                       1 = Always,                 2 = While service is running
   int iStyle                   = 0;   // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = ImGui Light,                 3 = ImGui Classic
+  int iStyleTemp               = 0;   // Used to temporary hold changes in the style during the current session
   int iDimCovers               = 0;   // 0 = Never,                       1 = Always,                 2 = On mouse hover
   int iCheckForUpdates         = 1;   // 0 = Never,                       1 = Weekly,                 2 = On each launch
   int iAutoStopBehavior        = 1;   // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit

@@ -15,6 +15,8 @@
 #include <utility/injection.h>
 #include <utility/updater.h>
 
+extern bool allowShortcutCtrlA;
+
 struct Monitor_MPO_Support
 {
   std::string                    Name;  // EDID names are limited to 13 characters, which is perfect for us
@@ -819,6 +821,40 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
+    const char* StyleItems[] = { "SKIF Dark",
+                                 "ImGui Dark",
+                                 "ImGui Light",
+                                 "ImGui Classic"
+    };
+    static const char* StyleItemsCurrent = StyleItems[_registry.iStyle];
+          
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Color theme: (restart required)"
+    );
+    ImGui::TreePush      ("");
+
+    if (ImGui::BeginCombo ("##_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+    {
+        for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
+        {
+            bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
+            if (ImGui::Selectable (StyleItems[n], is_selected))
+            {
+              _registry.iStyleTemp = n;
+              _registry.regKVStyle.putData  (_registry.iStyleTemp);
+              StyleItemsCurrent = StyleItems[_registry.iStyleTemp];
+            }
+            if (is_selected)
+                ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+        }
+        ImGui::EndCombo  ( );
+    }
+
+    ImGui::TreePop       ( );
+
+    ImGui::Spacing         ( );
+
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Useful if you find bright white covers an annoyance.");
     ImGui::SameLine        ( );
@@ -839,147 +875,25 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
-    extern bool RecreateSwapChains;
-
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip ("Increases the color depth of the app.");
+    SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
     ImGui::SameLine        ( );
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Color depth:"
+        "Show Shelly the Ghost:"
     );
-    
-    static int placeholder = 0;
-    static int* ptrSDR = nullptr;
-    static int* ptrHDR = nullptr;
-
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
-    {
-      SKIF_ImGui_PushDisableState ( );
-
-      ptrSDR = &_registry.iHDRMode;
-    }
-    else
-      ptrSDR = &_registry.iSDRMode;
-    
-    ImGui::TreePush        ("iSDRMode");
-    if (ImGui::RadioButton   ("8 bpc",        ptrSDR, 0))
-    {
-      _registry.regKVSDRMode.putData (_registry.iSDRMode);
-      RecreateSwapChains = true;
-    }
-    // It seems that Windows 10 1709+ (Build 16299) is required to
-    // support 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model
-    if (SKIF_Util_IsWindows10v1709OrGreater ( ))
-    {
-      ImGui::SameLine        ( );
-      if (ImGui::RadioButton ("10 bpc",       ptrSDR, 1))
-      {
-        _registry.regKVSDRMode.putData (_registry.iSDRMode);
-        RecreateSwapChains = true;
-      }
-    }
+    ImGui::TreePush        ("_registry.iGhostVisibility");
+    if (ImGui::RadioButton ("Never",                    &_registry.iGhostVisibility, 0))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::SameLine        ( );
-    if (ImGui::RadioButton   ("16 bpc",       ptrSDR, 2))
-    {
-      _registry.regKVSDRMode.putData (_registry.iSDRMode);
-      RecreateSwapChains = true;
-    }
+    if (ImGui::RadioButton ("Always",                   &_registry.iGhostVisibility, 1))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton ("While service is running", &_registry.iGhostVisibility, 2))
+      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::TreePop         ( );
-    
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
-    {
-      SKIF_ImGui_PopDisableState  ( );
-    }
 
     ImGui::Spacing         ( );
-    
-    if (SKIF_Util_IsHDRSupported ( )  )
-    {
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-      SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");
-      ImGui::SameLine        ( );
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "High Dynamic Range:"
-      );
-
-      ImGui::TreePush        ("iHDRMode");
-
-      if (_registry.iUIMode == 0)
-      {
-        ImGui::TextDisabled   ("HDR support for the app is disabled while the UI is in Safe Mode.");
-      }
-
-      else if (SKIF_Util_IsHDRActive ( ))
-      {
-        ptrHDR = &_registry.iHDRMode;
-
-        if (ImGui::RadioButton ("No",             ptrHDR, 0))
-        {
-          _registry.regKVHDRMode.putData (_registry.iHDRMode);
-          RecreateSwapChains = true;
-        }
-        ImGui::SameLine        ( );
-        if (ImGui::RadioButton ("HDR10 (10 bpc)", ptrHDR, 1))
-        {
-          _registry.regKVHDRMode.putData (_registry.iHDRMode);
-          RecreateSwapChains = true;
-        }
-        ImGui::SameLine        ( );
-        if (ImGui::RadioButton ("scRGB (16 bpc)", ptrHDR, 2))
-        {
-          _registry.regKVHDRMode.putData (_registry.iHDRMode);
-          RecreateSwapChains = true;
-        }
-
-        ImGui::Spacing         ( );
-
-        if (_registry.iHDRMode == 0)
-          SKIF_ImGui_PushDisableState ( );
-
-        if (ImGui::SliderInt("HDR brightness", &_registry.iHDRBrightness, 100, 400, "%d nits"))
-          _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
-
-        if (_registry.iHDRMode == 0)
-          SKIF_ImGui_PopDisableState  ( );
-      }
-
-      else {
-        ImGui::TextDisabled   ("Your display(s) supports HDR, but does not use it.");
-      }
-
-      if (SKIF_Util_GetHDRToggleHotKeyState ( ) && _registry.iUIMode != 0)
-      {
-        ImGui::Spacing         ( );
-        /*
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextWrapped    ("FYI: Use " ICON_FA_WINDOWS " + Ctrl + Shift + H while this app is running to toggle "
-                               "HDR for the display the mouse cursor is currently located on.");
-        ImGui::PopStyleColor  ( );
-        */
-        
-        ImGui::BeginGroup       ( );
-        ImGui::TextDisabled     ("Use");
-        ImGui::SameLine         ( );
-        ImGui::TextColored      (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
-          ICON_FA_WINDOWS " + Ctrl + Shift + H");
-        ImGui::SameLine         ( );
-        ImGui::TextDisabled     ("to toggle HDR for the display the");
-        ImGui::SameLine         ( );
-        ImGui::TextColored      (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
-            ICON_FA_ARROW_POINTER);
-        ImGui::SameLine         ( );
-        ImGui::TextDisabled     ("is at.");
-        ImGui::EndGroup         ( );
-      }
-
-      ImGui::TreePop         ( );
-
-      ImGui::Spacing         ( );
-    }
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information.");
@@ -1065,61 +979,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePush      ( );
 
-    const char* StyleItems[] = { "SKIF Dark",
-                                 "ImGui Dark",
-                                 "ImGui Light",
-                                 "ImGui Classic"
-    };
-    static const char* StyleItemsCurrent = StyleItems[_registry.iStyle];
-          
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Color theme: (restart required)"
-    );
-    ImGui::TreePush      ("");
-
-    if (ImGui::BeginCombo ("##_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
-    {
-        for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
-        {
-            bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
-            if (ImGui::Selectable (StyleItems[n], is_selected))
-            {
-              _registry.iStyle = n;
-              _registry.regKVStyle.putData  (_registry.iStyle);
-              StyleItemsCurrent = StyleItems[_registry.iStyle];
-              // Apply the new Dear ImGui style
-              //SKIF_SetStyle ( );
-            }
-            if (is_selected)
-                ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-        }
-        ImGui::EndCombo  ( );
-    }
-
-    ImGui::TreePop       ( );
-
-    ImGui::Spacing         ( );
-
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip ("Every time the UI renders a frame, Shelly the Ghost moves a little bit.");
-    ImGui::SameLine        ( );
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Show Shelly the Ghost:"
-    );
-    ImGui::TreePush        ("_registry.iGhostVisibility");
-    if (ImGui::RadioButton ("Never",                    &_registry.iGhostVisibility, 0))
-      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("Always",                   &_registry.iGhostVisibility, 1))
-      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
-    ImGui::SameLine        ( );
-    if (ImGui::RadioButton ("While service is running", &_registry.iGhostVisibility, 2))
-      _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
-    ImGui::TreePop         ( );
-
-    ImGui::Spacing         ( );
+    extern bool RecreateSwapChains;
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1161,6 +1021,156 @@ SKIF_UI_Tab_DrawSettings (void)
       "Compatibility mode for users experiencing issues with the other two modes"
     );
     ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip ("Increases the color depth of the app.");
+    ImGui::SameLine        ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Color depth:"
+    );
+    
+    static int placeholder = 0;
+    static int* ptrSDR = nullptr;
+
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
+    {
+      SKIF_ImGui_PushDisableState ( );
+
+      ptrSDR = &_registry.iHDRMode;
+    }
+    else
+      ptrSDR = &_registry.iSDRMode;
+    
+    ImGui::TreePush        ("iSDRMode");
+    if (ImGui::RadioButton   ("8 bpc",        ptrSDR, 0))
+    {
+      _registry.regKVSDRMode.putData (_registry.iSDRMode);
+      RecreateSwapChains = true;
+    }
+    // It seems that Windows 10 1709+ (Build 16299) is required to
+    // support 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model
+    if (SKIF_Util_IsWindows10v1709OrGreater ( ))
+    {
+      ImGui::SameLine        ( );
+      if (ImGui::RadioButton ("10 bpc",       ptrSDR, 1))
+      {
+        _registry.regKVSDRMode.putData (_registry.iSDRMode);
+        RecreateSwapChains = true;
+      }
+    }
+    ImGui::SameLine        ( );
+    if (ImGui::RadioButton   ("16 bpc",       ptrSDR, 2))
+    {
+      _registry.regKVSDRMode.putData (_registry.iSDRMode);
+      RecreateSwapChains = true;
+    }
+    ImGui::TreePop         ( );
+    
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
+    {
+      SKIF_ImGui_PopDisableState  ( );
+    }
+
+    ImGui::Spacing         ( );
+    
+    if (SKIF_Util_IsHDRSupported ( )  )
+    {
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");
+      ImGui::SameLine        ( );
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          "High Dynamic Range:"
+      );
+
+      ImGui::TreePush        ("iHDRMode");
+
+      if (_registry.iUIMode == 0)
+      {
+        ImGui::TextDisabled   ("HDR support is disabled while the UI is in Safe Mode.");
+      }
+
+      else if (SKIF_Util_IsHDRActive ( ))
+      {
+        if (ImGui::RadioButton ("No",             &_registry.iHDRMode, 0))
+        {
+          _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+          RecreateSwapChains = true;
+        }
+        ImGui::SameLine        ( );
+        if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
+        {
+          _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+          RecreateSwapChains = true;
+        }
+        ImGui::SameLine        ( );
+        if (ImGui::RadioButton ("scRGB (16 bpc)", &_registry.iHDRMode, 2))
+        {
+          _registry.regKVHDRMode.putData (         _registry.iHDRMode);
+          RecreateSwapChains = true;
+        }
+
+        ImGui::Spacing         ( );
+
+        // HDR Brightness
+
+        if (_registry.iHDRMode == 0)
+          SKIF_ImGui_PushDisableState ( );
+
+        if (ImGui::SliderInt("HDR brightness", &_registry.iHDRBrightness, 80, 400, "%d nits"))
+        {
+          // Reset to 203 nits (default; HDR reference white for BT.2408) if negative or zero
+          if (_registry.iHDRBrightness <= 0)
+              _registry.iHDRBrightness  = 203;
+
+          // Keep the nits value between 80 and 400
+          _registry.iHDRBrightness = std::min (std::max (80, _registry.iHDRBrightness), 400);
+          _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
+        }
+    
+        if (ImGui::IsItemActive    ( ))
+          allowShortcutCtrlA = false;
+
+        if (_registry.iHDRMode == 0)
+          SKIF_ImGui_PopDisableState  ( );
+      }
+
+      else {
+        ImGui::TextDisabled   ("Your display(s) supports HDR, but does not use it.");
+      }
+
+      if (SKIF_Util_GetHDRToggleHotKeyState ( ) && _registry.iUIMode != 0)
+      {
+        ImGui::Spacing         ( );
+        /*
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::TextWrapped    ("FYI: Use " ICON_FA_WINDOWS " + Ctrl + Shift + H while this app is running to toggle "
+                               "HDR for the display the mouse cursor is currently located on.");
+        ImGui::PopStyleColor  ( );
+        */
+        
+        ImGui::BeginGroup       ( );
+        ImGui::TextDisabled     ("Use");
+        ImGui::SameLine         ( );
+        ImGui::TextColored      (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+          ICON_FA_WINDOWS " + Ctrl + Shift + H");
+        ImGui::SameLine         ( );
+        ImGui::TextDisabled     ("to toggle HDR where the");
+        ImGui::SameLine         ( );
+        ImGui::TextColored      (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+            ICON_FA_ARROW_POINTER "");
+        ImGui::SameLine         ( );
+        ImGui::TextDisabled     ("is.");
+        ImGui::EndGroup         ( );
+      }
+
+      ImGui::TreePop         ( );
+    }
 
     ImGui::TreePop       ( );
 
@@ -1455,6 +1465,9 @@ SKIF_UI_Tab_DrawSettings (void)
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                         150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
+    
+    if (ImGui::IsItemActive    ( ))
+      allowShortcutCtrlA = false;
 
     if (*_inject.whitelist == '\0')
     {
@@ -1548,6 +1561,9 @@ SKIF_UI_Tab_DrawSettings (void)
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                           120 * SKIF_ImGui_GlobalDPIScale ),
                                   ImGuiInputTextFlags_Multiline );
+
+    if (ImGui::IsItemActive    ( ))
+      allowShortcutCtrlA = false;
 
     _CheckWarnings (_inject.blacklist);
 
@@ -2105,7 +2121,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine      ( );
         ImGui::TextColored   (colCaps, (monitor.Supported) ? ICON_FA_LIGHTBULB : "Not Supported");
         if (monitor.Supported)
-          SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str());
+          SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str(), true);
         ImGui::EndGroup      ( );
       }
 

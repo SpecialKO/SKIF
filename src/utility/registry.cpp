@@ -174,7 +174,13 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVHDRMode.hasData())
     iHDRMode               =   regKVHDRMode                .getData ( );
   if (regKVHDRBrightness.hasData())
+  {
     iHDRBrightness         =   regKVHDRBrightness          .getData ( );
+    
+    // Reset to 203 nits (the default) if outside of the acceptable range of 80-400 nits
+    if (iHDRBrightness < 80 || 400 < iHDRBrightness)
+      iHDRBrightness = 203;
+  }
   
   if (regKVUIMode.hasData())
     iUIMode                =   regKVUIMode                 .getData ( );
@@ -212,7 +218,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     iGhostVisibility       =   regKVGhostVisibility        .getData ( );
 
   if (regKVStyle.hasData())
-    iStyle                 =   regKVStyle                  .getData ( );
+    iStyle  =  iStyleTemp  =   regKVStyle                  .getData ( );
 
   if (regKVLogging.hasData())
     iLogging               =   regKVLogging                .getData ( );

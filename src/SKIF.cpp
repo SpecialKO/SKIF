@@ -105,6 +105,7 @@ int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
+bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 
 std::atomic<int> gamepadThreadAwake = 0; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
@@ -1750,42 +1751,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
-         )
+      // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
+      if (! ImGui::IsAnyPopupOpen ( ) && ! _registry.bSmallMode)
       {
-        if (SKIF_Tab_Selected != UITab_Library)
-            SKIF_Tab_ChangeTo  = UITab_Library;
+        if (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
+        {
+          if (SKIF_Tab_Selected != UITab_Library)
+              SKIF_Tab_ChangeTo  = UITab_Library;
+        }
+
+        if (io.KeyCtrl && io.KeysDown['2']    && io.KeysDownDuration['2']    == 0.0f)
+        {
+          if (SKIF_Tab_Selected != UITab_Monitor)
+              SKIF_Tab_ChangeTo  = UITab_Monitor;
+        }
+
+        if (io.KeyCtrl && io.KeysDown['3']    && io.KeysDownDuration['3']    == 0.0f)
+        {
+          if (SKIF_Tab_Selected != UITab_Settings)
+              SKIF_Tab_ChangeTo  = UITab_Settings;
+        }
+
+        if (io.KeyCtrl && io.KeysDown['4']    && io.KeysDownDuration['4']    == 0.0f)
+        {
+          if (SKIF_Tab_Selected != UITab_About)
+              SKIF_Tab_ChangeTo  = UITab_About;
+        }
+
+        if (io.KeyCtrl && io.KeysDown['A']    && io.KeysDownDuration['A']    == 0.0f && allowShortcutCtrlA)
+        {
+          if (SKIF_Tab_Selected != UITab_Library)
+              SKIF_Tab_ChangeTo  = UITab_Library;
+
+          AddGamePopup = PopupState_Open;
+        }
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['2']    && io.KeysDownDuration['2']    == 0.0f)
-         )
-      {
-        if (SKIF_Tab_Selected != UITab_Monitor)
-            SKIF_Tab_ChangeTo  = UITab_Monitor;
-      }
-
-      if ( (io.KeyCtrl && io.KeysDown['3']    && io.KeysDownDuration['3']    == 0.0f)
-         )
-      {
-        if (SKIF_Tab_Selected != UITab_Settings)
-            SKIF_Tab_ChangeTo  = UITab_Settings;
-      }
-
-      if ( (io.KeyCtrl && io.KeysDown['4']    && io.KeysDownDuration['4']    == 0.0f)
-         )
-      {
-        if (SKIF_Tab_Selected != UITab_About)
-            SKIF_Tab_ChangeTo  = UITab_About;
-      }
-
-      if ( (io.KeyCtrl && io.KeysDown['A']    && io.KeysDownDuration['A']    == 0.0f)
-         )
-      {
-        if (SKIF_Tab_Selected != UITab_Library)
-            SKIF_Tab_ChangeTo  = UITab_Library;
-
-        AddGamePopup = PopupState_Open;
-      }
+      allowShortcutCtrlA = true;
 
       if (ImGui::IsKeyPressedMap (ImGuiKey_Escape))
       {
@@ -2344,7 +2346,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           if (ImGui::IsItemActive    ( ))
-            allowWindowMove = false;
+            allowWindowMove    = false;
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );

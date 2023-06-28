@@ -200,6 +200,11 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
     char szSteamCommand[MAX_PATH] = "SKIF %COMMAND%";
     ImGui::InputTextEx      ("###Launcher", NULL, szSteamCommand, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+    if (ImGui::IsItemActive    ( ))
+    {
+      extern bool allowShortcutCtrlA;
+      allowShortcutCtrlA = false;
+    }
     ImGui::PopStyleColor    ( );
     ImGui::TreePop          ( );
 
@@ -278,13 +283,13 @@ SKIF_UI_Tab_DrawAbout (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       ICON_FA_WINDOWS " + Ctrl + Shift + H");
     ImGui::SameLine         ( );
-    ImGui::Text             ("to toggle HDR for the display the");
+    ImGui::Text             ("to toggle HDR where the");
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         ICON_FA_ARROW_POINTER);
     ImGui::SameLine         ( );
-    ImGui::Text             ("is at.");
+    ImGui::Text             ("is.");
     ImGui::EndGroup         ( );
 
     ImGui::Spacing          ( );
