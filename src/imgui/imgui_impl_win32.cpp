@@ -76,7 +76,7 @@ static void ImGui_ImplWin32_UpdateMonitors            (void);
 // Win32 Data
 static HWND                 g_hWnd = 0;
 static INT64                g_Time = 0;
-static bool                 g_Focused = true;
+static bool                 g_Focused = false; // Always assume we don't have focus on launch
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
 //static bool                 g_HasGamepad [XUSER_MAX_COUNT] = { false, false, false, false };
@@ -244,7 +244,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   main_viewport->PlatformHandle = main_viewport->PlatformHandleRaw = (void *)g_hWnd;
 
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    ImGui_ImplWin32_InitPlatformInterface ( ); // Creates another overarching window for SKIF
+    ImGui_ImplWin32_InitPlatformInterface ( ); // Sets up another overarching window for SKIF
 
 // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array that we will update during the application lifetime.
   io.KeyMap [ImGuiKey_Tab]         = VK_TAB;
@@ -752,7 +752,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
-  extern std::atomic<int> gamepadThreadSleep;
+  extern std::atomic<int> gamepadThreadAwake;
 
   switch (msg)
   {
@@ -776,7 +776,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   case WM_SETFOCUS:
     g_Focused = true;
-    gamepadThreadSleep.store (0);
+    gamepadThreadAwake.store (1);
     //OutputDebugString(L"Gained focus\n");
     //PLOG_VERBOSE << "Gained focus";
 
@@ -791,7 +791,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     if ((HWND)wParam != SKIF_hWnd && (! IsChild (SKIF_hWnd, (HWND)wParam))) // g_hWnd
     {
       g_Focused = false;
-      gamepadThreadSleep.store (1);
+      gamepadThreadAwake.store (0);
       //OutputDebugString(L"Killed focus\n");
       //PLOG_VERBOSE << "Killed focus";
 
@@ -1656,7 +1656,7 @@ ImGui_ImplWin32_InitPlatformInterface (void)
   platform_io.Platform_GetWindowDpiScale  = ImGui_ImplWin32_GetWindowDpiScale; // FIXME-DPI
   platform_io.Platform_OnChangedViewport  = ImGui_ImplWin32_OnChangedViewport; // FIXME-DPI
 #if HAS_WIN32_IME
-  platform_io.Platform_SetImeInputPos = ImGui_ImplWin32_SetImeInputPos;
+  platform_io.Platform_SetImeInputPos     = ImGui_ImplWin32_SetImeInputPos;
 #endif
 
   // Register main window handle (which is owned by the main application, not by us)

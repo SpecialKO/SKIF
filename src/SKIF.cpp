@@ -106,7 +106,7 @@ int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 
-std::atomic<int> gamepadThreadSleep = 0;
+std::atomic<int> gamepadThreadAwake = 0; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -1118,7 +1118,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplWin32_Init (hWnd); // This ends up creating a separate window/hWnd as well
+  ImGui_ImplWin32_Init (hWnd); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
   SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
@@ -2659,8 +2659,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Update, Render and Present the main and any additional Platform Windows
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
-          ImGui::UpdatePlatformWindows        ();
+          ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
           ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
+
+          static bool runOnce = true;
+
+          if (runOnce && SKIF_ImGui_hWnd != 0)
+          {   runOnce = false;
+            if (! IsIconic (SKIF_hWnd) && SKIF_hWnd == GetForegroundWindow ())
+            {
+              PLOG_DEBUG << "Applied keyboard focus workaround for the overarching ImGui platform window";
+              SetFocus (SKIF_ImGui_hWnd);
+            }
+          }
         }
       }
     }
@@ -2725,6 +2736,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             packetLast = packetNew;
             //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
+
+            //OutputDebugString(L"Gamepad input sent!\n");
             PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
@@ -2742,18 +2755,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // This prevents SKIF from acting on gameapd input when unfocused,
           // but otherwise refreshes due to some status change.
           // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
-          if (gamepadThreadSleep.load ( ) == 1)
-          {   gamepadThreadSleep.store(2);
+          if (gamepadThreadAwake.load ( ) == 0)
+          {
+            //gamepadThreadAwake.store(2);
 
-            //OutputDebugString(L"Entering sleep\n");
-            PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
-            //SK_RunOnce (SKIF_Util_CompactWorkingSet ());
+            //OutputDebugString(L"SKIF_GamepadInputPump entering sleep\n");
+            //PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
 
             SleepConditionVariableCS (
               &SKIF_IsFocused, &GamepadInputPump,
                 INFINITE
             );
-            PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
+
+            //PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
+            //OutputDebugString(L"SKIF_GamepadInputPump exiting sleep\n");
           }
         }
 
