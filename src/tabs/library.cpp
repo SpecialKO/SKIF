@@ -983,6 +983,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Note from 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
     loadCover = false;
 
+    /* Disabled 2023-06-29 as I am not sure what this is meant for, but
+    *    it results in the same app config being read twice by SKIF... // Aemony
     if ( appinfo != nullptr && pApp->store == "Steam")
     {
       skValveDataFile::appinfo_s *pAppInfo =
@@ -990,6 +992,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
+    */
 
     //PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
 
@@ -3054,41 +3057,28 @@ Cache=false)";
           //|| _inject._TestUserList(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)).c_str(), false);
 
         char          szButtonLabel [256] = { };
+
         if (menu)
-        {
           sprintf_s ( szButtonLabel, 255,
                         " for \"%ws\"###DisableLaunch%d",
                           launch_cfg.description.empty ()
                             ? launch_cfg.executable .c_str ()
                             : launch_cfg.description.c_str (),
                           launch_cfg.id);
-          
-          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-            launch_cfg.setBlacklisted (pApp->id, blacklist);
-
-          SKIF_ImGui_SetHoverText (
-                      SK_FormatString (
-                        menu
-                          ? R"(%ws    )"
-                          : R"(%ws)",
-                        launch_cfg.executable.c_str  ()
-                      ).c_str ()
-          );
-        }
         else
-        {
           sprintf_s ( szButtonLabel, 255,
                         " Disable Special K###DisableLaunch%d",
                           launch_cfg.id );
           
-          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-            launch_cfg.setBlacklisted (pApp->id, blacklist);
-         
-          /*
-          if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-            _inject.BlacklistPath(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath(pApp->id)));
-          */
-        }
+        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+          launch_cfg.setBlacklisted (pApp->id, blacklist);
+
+        SKIF_ImGui_SetHoverText (
+                    SK_FormatString (
+                      R"(%ws)",
+                      launch_cfg.executable.c_str  ()
+                    ).c_str ()
+        );
       };
 
       if ( ! _inject.bHasServlet )
@@ -3107,15 +3097,6 @@ Cache=false)";
         ImGui::SameLine ( );
 
         // Set horizontal position
-        /*
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX  () +
-          ImGui::GetColumnWidth () -
-          ImGui::CalcTextSize   ("Disable Special K >").x -
-          ImGui::GetScrollX     () -
-          ImGui::GetStyle       ().ItemSpacing.x * 2
-        );
-        */
         ImGui::SetCursorPosX (
           ImGui::GetCursorPosX  ( ) +
           ImGui::GetColumnWidth ( ) -
@@ -3160,13 +3141,13 @@ Cache=false)";
 
           if (ImGui::BeginPopup ("###DisableSK"))
           {
-            std::set <std::wstring> _used_launches;
+            //std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
             {
               // TODO: Secondary-Launch-Options: Need to ensure launch options that share an executable only gets listed once.
-              if (! launch.second.valid ) /* ||
-                  ! _used_launches.emplace (launch.second.blacklist_file).second ) */
-                continue;
+              //if (! launch.second.valid ) /* ||
+                  //! _used_launches.emplace (launch.second.blacklist_file).second ) */
+                //continue;
 
               _BlacklistCfg (launch.second, true);
             }
@@ -3548,8 +3529,10 @@ Cache=false)";
           ImGui::SameLine    ( );
           ImGui::BeginGroup  ( );
 
+          bool dontCare = false;
+
           // Config Root
-          if (ImGui::Selectable         ("Browse Profile Folder"))
+          if (ImGui::Selectable         ("Browse Profile Folder", dontCare, ImGuiSelectableFlags_SpanAllColumns))
             SKIF_Util_ExplorePath       (wsRootDir);
           SKIF_ImGui_SetMouseCursorHand ();
           SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsRootDir.data()).c_str());
@@ -3557,7 +3540,7 @@ Cache=false)";
           if (screenshotsFolderExists)
           {
             // Screenshot Folder
-            if (ImGui::Selectable         ("Browse Screenshots"))
+            if (ImGui::Selectable         ("Browse Screenshots", dontCare, ImGuiSelectableFlags_SpanAllColumns))
               SKIF_Util_ExplorePath       (wsScreenshotDir);
             SKIF_ImGui_SetMouseCursorHand ();
             SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (wsScreenshotDir.data()).c_str());
@@ -3880,8 +3863,8 @@ Cache=false)";
       if (pApp->store == "SKIF" || pApp->store == "GOG")
       {
         ImGui::Separator ( );
-
-        if (ImGui::BeginMenu ("Manage"))
+        
+        if (ImGui::BeginMenu (ICON_FA_GEAR "  Manage"))
         {
           if (pApp->store == "SKIF")
           {
@@ -3944,6 +3927,7 @@ Cache=false)";
 
           ImGui::EndMenu ( );
         }
+
       }
 
       ImGui::PushStyleColor ( ImGuiCol_Text,
@@ -3955,8 +3939,8 @@ Cache=false)";
       ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
 
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH).x, ImGui::GetTextLineHeight()));
 
       if (pApp->store == "GOG")
       {
@@ -4155,6 +4139,8 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
+    SKIF_ImGui_DisallowWindowMove ( );
+
     SKIF_ImGui_Spacing ( );
 
     ImGui::TreePop     ( );
@@ -4219,6 +4205,8 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
+    SKIF_ImGui_DisallowWindowMove ( );
+
     ImGui::SameLine    ( );
 
     ImGui::SetCursorPosX (fRemoveGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
@@ -4228,6 +4216,8 @@ Cache=false)";
       RemoveGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
+
+    SKIF_ImGui_DisallowWindowMove ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -4340,12 +4330,16 @@ Cache=false)";
         strncpy (charPath, "\0", MAX_PATH);
       }
     }
+
+    SKIF_ImGui_DisallowWindowMove ( );
+
     ImGui::SameLine    ( );
 
     float fAddGamePopupX = ImGui::GetCursorPosX ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
@@ -4362,12 +4356,14 @@ Cache=false)";
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Name");
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -4440,6 +4436,8 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
+    SKIF_ImGui_DisallowWindowMove ( );
+
     if (disabled)
     {
       SKIF_ImGui_PopDisableState  ( );
@@ -4460,6 +4458,8 @@ Cache=false)";
       AddGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
+
+    SKIF_ImGui_DisallowWindowMove ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -4566,12 +4566,16 @@ Cache=false)";
         strncpy (charPath, "\0", MAX_PATH);
       }
     }
+
+    SKIF_ImGui_DisallowWindowMove ( );
+
     ImGui::SameLine    ( );
 
     float fModifyGamePopupX = ImGui::GetCursorPosX ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
@@ -4588,12 +4592,14 @@ Cache=false)";
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Name");
 
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
+    SKIF_ImGui_DisallowWindowMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -4680,6 +4686,8 @@ Cache=false)";
       }
     }
 
+    SKIF_ImGui_DisallowWindowMove ( );
+
     if (disabled)
     {
       SKIF_ImGui_PopDisableState  ( );
@@ -4700,6 +4708,8 @@ Cache=false)";
       ModifyGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
     }
+
+    SKIF_ImGui_DisallowWindowMove ( );
 
     SKIF_ImGui_Spacing ( );
 
