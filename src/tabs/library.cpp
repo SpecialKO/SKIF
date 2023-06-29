@@ -3107,6 +3107,7 @@ Cache=false)";
         ImGui::SameLine ( );
 
         // Set horizontal position
+        /*
         ImGui::SetCursorPosX (
           ImGui::GetCursorPosX  () +
           ImGui::GetColumnWidth () -
@@ -3114,14 +3115,17 @@ Cache=false)";
           ImGui::GetScrollX     () -
           ImGui::GetStyle       ().ItemSpacing.x * 2
         );
+        */
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX  ( ) +
+          ImGui::GetColumnWidth ( ) -
+          ImGui::CalcTextSize   ("[] Disable Special K").x -
+          ImGui::GetStyle       ( ).ItemSpacing.x * 2
+        );
 
         // If there is only one launch option
         if ( pApp->launch_configs.size  () == 1 )
         {
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () - 1.0f
-          );
-
           // Only if it is a valid one
           if ( pApp->launch_configs.begin()->second.valid)
           {
@@ -3133,12 +3137,28 @@ Cache=false)";
         // If there are more than one launch option
         else
         {
-          ImGui::SetCursorPosY (
-            ImGui::GetCursorPosY () +
-            ImGui::GetStyle      ().ItemSpacing.y / 2.0f
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX  ( ) +
+            14.0f * SKIF_ImGui_GlobalDPIScale
           );
 
-          if (ImGui::BeginMenu ("Disable Special K"))
+          if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
+          {
+            ImVec2 pos =
+              ImGui::GetCursorPos ( );
+
+            ImGui::SameLine     ( );
+
+            ImGui::SetNextWindowPos (
+              ImGui::GetCursorScreenPos ( ) -
+              ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
+            );
+
+            ImGui::OpenPopup    ("###DisableSK");
+            ImGui::SetCursorPos (pos);
+          }
+
+          if (ImGui::BeginPopup ("###DisableSK"))
           {
             std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
