@@ -107,6 +107,7 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 
+
 std::atomic<int> gamepadThreadAwake = 0; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
@@ -1168,6 +1169,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
     coverFadeActive = false; // Assume there's no cover fade effect active
+    extern bool SKIF_bWindowDragMoveAllowed;
+    SKIF_bWindowDragMoveAllowed = true;  // Reset on each frame
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -2265,8 +2268,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       );
       ImGui::SetNextWindowPos (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-      bool allowWindowMove = true;
-
       if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
                                      ImGuiWindowFlags_NoResize         |
                                      ImGuiWindowFlags_NoMove           |
@@ -2354,8 +2355,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                         (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
-          if (ImGui::IsItemActive    ( ))
-            allowWindowMove    = false;
+          SKIF_ImGui_DisallowWindowMove ( );
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
@@ -2411,8 +2411,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
-        if (ImGui::IsItemActive    ( ))
-          allowWindowMove = false;
+        SKIF_ImGui_DisallowWindowMove ( );
 
         ImGui::SameLine ();
         ImGui::Spacing  ();
@@ -2437,8 +2436,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine ();
         }
 
-        if (ImGui::IsItemActive    ( ))
-          allowWindowMove = false;
+        SKIF_ImGui_DisallowWindowMove ( );
 
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
@@ -2448,18 +2446,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
-        if (ImGui::IsItemActive    ( ))
-          allowWindowMove = false;
+        SKIF_ImGui_DisallowWindowMove ( );
 
         ImGui::EndPopup ();
-      }
-
-      // Special handling to allow the main window to be moved when the update popup is present
-      // This is not allowed for any other popups
-      if (UpdatePromptPopup == PopupState_Opened && allowWindowMove && ImGui::IsMouseDragging (ImGuiMouseButton_Left))
-      {
-        ImGui::StartMouseMovingWindow (ImGui::GetCurrentWindowRead());
-        UpdatePromptPopup = PopupState_Open;
       }
       
       static float  HistoryPopupWidth          = 0.0f;
@@ -2573,6 +2562,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
+          SKIF_ImGui_DisallowWindowMove ( );
+
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
 
@@ -2593,7 +2584,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
+        SKIF_ImGui_DisallowWindowMove ( );
+
         ImGui::EndPopup ();
+      }
+
+      // Special handling to allow the main window to be moved when some popups are opened
+      if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
+                 SKIF_ImGui_GetWindowModeState ( ) &&
+          (      AddGamePopup == PopupState_Opened ||
+                 ConfirmPopup == PopupState_Opened ||
+              ModifyGamePopup == PopupState_Opened ||
+              RemoveGamePopup == PopupState_Opened ||
+            UpdatePromptPopup == PopupState_Opened ||
+                 HistoryPopup == PopupState_Opened ))
+      {
+        ImGui::StartMouseMovingWindow (ImGui::GetCurrentWindowRead());
+
+        if      (     AddGamePopup == PopupState_Opened)
+                      AddGamePopup  = PopupState_Open;
+        else if (     ConfirmPopup == PopupState_Opened)
+                      ConfirmPopup  = PopupState_Open;
+        else if (  ModifyGamePopup == PopupState_Opened)
+                   ModifyGamePopup  = PopupState_Open;
+        else if (  RemoveGamePopup == PopupState_Opened)
+                   RemoveGamePopup  = PopupState_Open;
+        else if (UpdatePromptPopup == PopupState_Opened)
+                 UpdatePromptPopup  = PopupState_Open;
+        else if (     HistoryPopup == PopupState_Opened)
+                      HistoryPopup  = PopupState_Open;
       }
 
       // Ensure the taskbar overlay icon always shows the correct state

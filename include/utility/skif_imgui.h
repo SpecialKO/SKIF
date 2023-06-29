@@ -28,6 +28,8 @@ void    SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = t
 void    SKIF_ImGui_SetStyle           (void);
 void    SKIF_ImGui_PushDisableState   (void);
 void    SKIF_ImGui_PopDisableState    (void);
+void    SKIF_ImGui_DisallowWindowMove (void);
+bool    SKIF_ImGui_GetWindowModeState (void);
 
 // SKIF_ImGui_ImDerp, named as such as it is not a linear interpolation/lerp, is used
 //   to among other things force 1.0f for the alpha color channel (w)

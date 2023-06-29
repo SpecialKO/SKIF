@@ -22,7 +22,8 @@ bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontJapanese            = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false;
+     SKIF_bFontVietnamese          = false,
+     SKIF_bWindowDragMoveAllowed   =  true;
 
 ImFont* fontConsolas = nullptr;
 ImFont* fontFAS      = nullptr;
@@ -792,4 +793,17 @@ SKIF_ImGui_PopDisableState (void)
   ImGui::PopStyleColor ( ); // ImGuiCol_Text
   //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
   ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
+}
+
+void
+SKIF_ImGui_DisallowWindowMove (void)
+{
+  if (ImGui::IsItemActive ( ))
+    SKIF_bWindowDragMoveAllowed = false;
+}
+
+bool
+SKIF_ImGui_GetWindowModeState(void)
+{
+  return SKIF_bWindowDragMoveAllowed;
 }
