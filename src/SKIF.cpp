@@ -2647,6 +2647,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         invalidatedFonts = 0;
       }
 
+      //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
+
       ImGui::End();
     }
 
