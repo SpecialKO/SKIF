@@ -59,6 +59,8 @@ constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051;
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052;
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
+constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
+
 constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
 constexpr const wchar_t* SKIF_WindowClass       = L"SK_Injection_Frontend";
 

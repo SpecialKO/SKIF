@@ -1142,7 +1142,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::TextDisabled   ("Your display(s) supports HDR, but does not use it.");
       }
 
-      if (SKIF_Util_GetHDRToggleHotKeyState ( ) && _registry.iUIMode != 0)
+      if (SKIF_Util_GetHotKeyStateHDRToggle ( ) && _registry.iUIMode != 0)
       {
         ImGui::Spacing         ( );
         /*

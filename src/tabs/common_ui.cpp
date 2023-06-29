@@ -16,6 +16,7 @@
 #include <utility/updater.h>
 
 #include <ShlObj.h>
+#include <fonts/fa_621b.h>
 
 void SKIF_UI_DrawComponentVersion (void)
 {
@@ -319,4 +320,71 @@ void SKIF_UI_DrawShellyTheGhost (void)
     // Increase Shelly timestep for next frame
     fGhostTime += fGhostTimeStep;
   }
+}
+
+void SKIF_UI_TipsAndTricks (void)
+{
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                        (const char *)u8"\u2022 ");
+  ImGui::SameLine         ( );
+  ImGui::Text             ("Start typing the name of a game in the library tab to quicky find it.");
+  ImGui::EndGroup         ( );
+
+
+  ImGui::Spacing          ( );
+  ImGui::Spacing          ( );
+
+
+  if (SKIF_Util_IsHDRSupported())
+  {
+    ImGui::BeginGroup       ( );
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                          (const char *)u8"\u2022 ");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("Use");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      ICON_FA_WINDOWS " + Ctrl + Shift + H");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("to toggle HDR where the");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        ICON_FA_ARROW_POINTER);
+    ImGui::SameLine         ( );
+    ImGui::Text             ("is.");
+    ImGui::EndGroup         ( );
+
+
+    ImGui::Spacing          ( );
+    ImGui::Spacing          ( );
+  }
+
+
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                        (const char *)u8"\u2022 ");
+  ImGui::SameLine         ( );
+  float fX1 = ImGui::GetCursorPosX();
+  ImGui::Text             ("Hold down");
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+    ICON_FA_KEYBOARD " Ctrl + Shift");
+  ImGui::SameLine         ( );
+  ImGui::Text             ("when starting a game to access compatibility options");
+  ImGui::SetCursorPosX    (fX1);
+  ImGui::Text             ("or quickly perform a local install of the appropriate wrapper DLL for the game.");
+  ImGui::EndGroup         ( );
 }

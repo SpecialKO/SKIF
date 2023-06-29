@@ -20,7 +20,8 @@
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
-bool bHDRHotKey = false;
+bool bHotKeyHDR = false,
+     bHotKeySVC = false;
 
 // Generic Utilities
 
@@ -1395,9 +1396,9 @@ SKIF_Util_EnableHDROutput (void)
 
 // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
-SKIF_Util_RegisterHDRToggleHotKey (void)
+SKIF_Util_RegisterHotKeyHDRToggle (void)
 {
-  if (bHDRHotKey)
+  if (bHotKeyHDR)
     return true;
 
   /*
@@ -1405,11 +1406,13 @@ SKIF_Util_RegisterHDRToggleHotKey (void)
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
+constexpr auto VK_H = 0x48;
+
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
     if (SKIF_Util_IsHDRSupported (true))
-      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x48))
+      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_H))
       {
-        bHDRHotKey = true;
+        bHotKeyHDR = true;
         PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
       }
       else
@@ -1419,30 +1422,73 @@ SKIF_Util_RegisterHDRToggleHotKey (void)
   else
     PLOG_INFO << "OS does not support HDR display output.";
 
-  return bHDRHotKey;
+  return bHotKeyHDR;
 }
 
 // Unregisters a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
-SKIF_Util_UnregisterHDRToggleHotKey (void)
+SKIF_Util_UnregisterHotKeyHDRToggle(void)
 {
-  if (! bHDRHotKey)
+  if (! bHotKeyHDR)
     return true;
 
   if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
   {
-    bHDRHotKey = false;
+    bHotKeyHDR = false;
     PLOG_INFO << "Removed the HDR toggling hotkey.";
   }
 
-  return ! bHDRHotKey;
+  return ! bHotKeyHDR;
 }
 
 // Get the registration state of the hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
-SKIF_Util_GetHDRToggleHotKeyState (void)
+SKIF_Util_GetHotKeyStateHDRToggle (void)
 {
-  return bHDRHotKey;
+  return bHotKeyHDR;
+}
+
+// Register a hotkey for starting the service with auto-stop (WinKey + Shift + Insert)
+bool
+SKIF_Util_RegisterHotKeySVCTemp (void)
+{
+  if (bHotKeySVC)
+    return true;
+
+  /*
+  * Re. MOD_WIN: Either WINDOWS key was held down. These keys are labeled with the Windows logo.
+  *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
+  */
+
+  if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_SVC, MOD_WIN | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT))
+    PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + Insert) for starting the service with auto-stop.";
+  else
+    PLOG_ERROR << "Failed to register hotkey for starting the service with auto-stop: " << SKIF_Util_GetErrorAsWStr ( );
+
+  return bHotKeySVC;
+}
+
+// Unregisters a hotkey for starting the service with auto-stop (WinKey + Shift + Insert)
+bool
+SKIF_Util_UnregisterHotKeySVCTemp (void)
+{
+  if (! bHotKeySVC)
+    return true;
+
+  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_SVC))
+  {
+    bHotKeySVC = false;
+    PLOG_INFO << "Removed the hotkey for starting the service with auto-stop.";
+  }
+
+  return ! bHotKeySVC;
+}
+
+// Get the registration state of the hotkey for starting the service with auto-stop (WinKey + Shift + Insert)
+bool
+SKIF_Util_GetHotKeyStateSVCTemp (void)
+{
+  return bHotKeySVC;
 }
 
 

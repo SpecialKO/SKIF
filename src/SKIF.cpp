@@ -1153,9 +1153,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_Updater& _updater = 
          SKIF_Updater::GetInstance ( );
 
-  // Register HDR toggle hotkey (if applicable)
+  // Register hotkeys
   if (! _Signal.Launcher)
-    SKIF_Util_RegisterHDRToggleHotKey ( );
+  {
+    // Register HDR toggle hotkey (if applicable)
+    SKIF_Util_RegisterHotKeyHDRToggle ( );
+
+    // Register service (auto-stop) hotkey
+    SKIF_Util_RegisterHotKeySVCTemp   ( );
+  }
 
   // Main loop
   while (! SKIF_Shutdown && IsWindow (hWnd) )
@@ -1737,7 +1743,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {   _Signal.Launcher = false;
 
             // Register HDR toggle hotkey (if applicable)
-            SKIF_Util_RegisterHDRToggleHotKey ( );
+            SKIF_Util_RegisterHotKeyHDRToggle ( );
+
+            // Register service (auto-stop) hotkey
+            SKIF_Util_RegisterHotKeySVCTemp   ( );
 
             // Kickstart the update thread
             _updater.CheckForUpdates ( );
@@ -2976,7 +2985,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
   }
 
-  SKIF_Util_UnregisterHDRToggleHotKey ( );
+  SKIF_Util_UnregisterHotKeyHDRToggle ( );
+  SKIF_Util_UnregisterHotKeySVCTemp   ( );
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_PENDING);
@@ -3308,6 +3318,12 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_HOTKEY:
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );
+
+      // Only kickstart the service if we think we're not currently already in a game
+      else if (wParam == SKIF_HotKey_SVC && hInjectExitAckEx.m_h == 0)
+        if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
+          _inject._StartStopInject (false, true);
+        
     break;
 
     case WM_QUIT:
