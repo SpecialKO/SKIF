@@ -983,8 +983,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Note from 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
     loadCover = false;
 
-    /* Disabled 2023-06-29 as I am not sure what this is meant for, but
-    *    it results in the same app config being read twice by SKIF... // Aemony
+//#define _WRITE_APPID_INI
+#ifdef _WRITE_APPID_INI 
     if ( appinfo != nullptr && pApp->store == "Steam")
     {
       skValveDataFile::appinfo_s *pAppInfo =
@@ -992,7 +992,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
     }
-    */
+#endif
 
     //PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
 
