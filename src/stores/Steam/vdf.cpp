@@ -244,7 +244,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         for (auto& app : apps)
         {
-          if (app.second.id == appid)
+          if (app.second.id == appid && app.second.store == "Steam")
           {
             pAppRecord = &app.second;
             break;
@@ -558,8 +558,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           //if (_used_launches.emplace (launch.blacklist_file).second)
           //{
-            pAppRecord->launch_configs [launch.id] =
-                                        launch;
+            pAppRecord->launch_configs
+              [static_cast<int> (pAppRecord->launch_configs.size())] =
+                                             launch;
           //}
         }
 
