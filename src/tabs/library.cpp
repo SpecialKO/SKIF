@@ -98,7 +98,8 @@ extern DWORD           invalidatedDevice;
 
 //static std::wstring sshot_file = L"";
 
-std::atomic<int> textureLoadQueueLength{ 1 };
+std::atomic<int>  textureLoadQueueLength{ 1 };
+std::atomic<bool> gameCoverLoading = false;
 
 int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
@@ -718,7 +719,41 @@ SKIF_UI_Tab_DrawLibrary (void)
   float fX =
   ImGui::GetCursorPosX (                                                  );
 
-  // Display cover image
+  static DWORD  timeLastCoverTick  = SKIF_Util_timeGetTime ( );
+  static bool   tryingToLoadCover  = true;
+  static bool   coverIsMissing     = false;
+  static int    queuePosGameCover  = 0;
+  static char   cstrLabelLoading[] = "...";
+  static char   cstrLabelMissing[] = "Missing cover :(";
+  static ImVec2 vecPosCoverImage   = ImGui::GetCursorPos ( );
+  static ImVec2 vecPosLabelLoading = ImVec2 (
+                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
+  static ImVec2 vecPosLabelMissing = ImVec2 (
+                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
+
+  // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
+  if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
+  {
+    timeLastCoverTick = SKIF_Util_timeGetTime ( );
+    tryingToLoadCover = gameCoverLoading.load();
+    coverIsMissing    = (! tryingToLoadCover && textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr);
+  }
+
+  if (tryingToLoadCover)
+  {
+    ImGui::SetCursorPos (vecPosLabelLoading);
+    ImGui::TextDisabled (  cstrLabelLoading);
+  }
+  else if (coverIsMissing) {
+    ImGui::SetCursorPos (vecPosLabelMissing);
+    ImGui::TextDisabled (  cstrLabelMissing);
+  }
+
+  ImGui::SetCursorPos (vecPosCoverImage);
+
+  // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
                                                     ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
@@ -983,6 +1018,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Note from 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
     loadCover = false;
 
+    // Reset variables used to track whether we're still loading a game cover, or if we're missing one
+    timeLastCoverTick = 0;
+    gameCoverLoading.store (true);
+    queuePosGameCover = textureLoadQueueLength.load() + 1;
+
 //#define _WRITE_APPID_INI
 #ifdef _WRITE_APPID_INI 
     if ( appinfo != nullptr && pApp->store == "Steam")
@@ -1229,6 +1269,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         vecCoverUv0 = _vecCoverUv0;
         vecCoverUv1 = _vecCoverUv1;
         pTexSRV     = _pTexSRV;
+
+        // Indicate that we have stopped loading the cover
+        gameCoverLoading.store (false);
 
         // Force a refresh when the cover has been swapped in
         PostMessage (SKIF_hWnd, WM_SKIF_COVER, 0x0, 0x0);
