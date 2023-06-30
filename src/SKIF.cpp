@@ -129,7 +129,7 @@ std::vector<HANDLE> vSwapchainWaitHandles;
 std::wstring GOGGalaxy_Path        = L"";
 std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
-bool GOGGalaxy_Installed           = false;
+bool         GOGGalaxy_Installed   = false;
 
 DWORD    RepopulateGamesWasSet     = 0;
 bool     RepopulateGames           = false,

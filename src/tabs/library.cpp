@@ -95,6 +95,8 @@ extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern std::wstring    SKIF_EGS_AppDataPath;
 extern DWORD           invalidatedDevice;
+extern bool            GOGGalaxy_Installed;
+extern std::wstring    GOGGalaxy_Path;
 
 //static std::wstring sshot_file = L"";
 
@@ -378,6 +380,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (! _registry.bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
       RepopulateGames = true;
+    
+    if (! _registry.bDisableGOGLibrary)
+    {
+      if (SKIF_GOG_hasInstalledGamesChanged ( ))
+        RepopulateGames = true;
+
+      if (SKIF_GOG_hasGalaxySettingsChanged ( ))
+        SKIF_GOG_UpdateGalaxyUserID ( );
+    }
   }
 
   if (RepopulateGames)
@@ -725,6 +736,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
   static char   cstrLabelMissing[] = "Missing cover :(";
+  static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
+                                     "allow the cover to be populated :)";
   static ImVec2 vecPosCoverImage   = ImGui::GetCursorPos ( );
   static ImVec2 vecPosLabelLoading = ImVec2 (
                 vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
@@ -732,6 +745,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   static ImVec2 vecPosLabelMissing = ImVec2 (
                 vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
                 vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
+  static ImVec2 vecPosLabelGOGUser = ImVec2 (
+                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
 
   // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
   if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
@@ -747,8 +763,17 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::TextDisabled (  cstrLabelLoading);
   }
   else if (coverIsMissing) {
-    ImGui::SetCursorPos (vecPosLabelMissing);
-    ImGui::TextDisabled (  cstrLabelMissing);
+
+    extern std::wstring GOGGalaxy_UserID;
+    if (pApp != nullptr && pApp->store == "GOG" && GOGGalaxy_UserID.empty())
+    {
+      ImGui::SetCursorPos (vecPosLabelGOGUser);
+      ImGui::TextDisabled (  cstrLabelGOGUser);
+    }
+    else {
+      ImGui::SetCursorPos (vecPosLabelMissing);
+      ImGui::TextDisabled (  cstrLabelMissing);
+    }
   }
 
   ImGui::SetCursorPos (vecPosCoverImage);
@@ -2165,8 +2190,6 @@ Cache=false)";
             _inject.SetInjectExitAckEx (true);
           }
 
-          extern bool GOGGalaxy_Installed;
-
           // Launch game
           if (pTargetApp->store == "GOG" && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
           {
@@ -3437,9 +3460,6 @@ Cache=false)";
           if (_inject.bCurrentState)
             SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
         }
-
-        extern std::wstring GOGGalaxy_Path;
-        extern bool GOGGalaxy_Installed;
 
         if (GOGGalaxy_Installed && pApp->store == "GOG")
         {

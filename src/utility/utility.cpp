@@ -1836,12 +1836,13 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 
 // Registry Watch
 
-SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait )
+SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait, bool bWOW6432Key )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
   _init.watch_subtree = bWatchSubtree;
   _init.filter_mask   = dwNotifyFilter;
+  _init.wow64_32key   = bWOW6432Key;
 
   _hEvent.m_h =
       CreateEvent ( nullptr, TRUE,
@@ -1881,7 +1882,7 @@ SKIF_RegistryWatch::reset (void)
 
   LSTATUS lStat =
     _hKeyBase.Open (_init.root,
-                    _init.sub_key.c_str (), KEY_NOTIFY );
+                    _init.sub_key.c_str (), KEY_NOTIFY | ((_init.wow64_32key) ? KEY_WOW64_32KEY : 0x0) );
 
   if (lStat == ERROR_SUCCESS)
   {

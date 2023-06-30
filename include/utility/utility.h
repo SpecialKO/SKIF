@@ -115,7 +115,8 @@ struct SKIF_RegistryWatch {
              const wchar_t* wszEventName,
                        BOOL bWatchSubtree  = TRUE,
                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
-                       bool bGlobalWait    = false );
+                       bool bGlobalWait    = false,
+                       bool bWOW6432Key    = false);
 
   ~SKIF_RegistryWatch (void);
 
@@ -128,6 +129,7 @@ struct SKIF_RegistryWatch {
     std::wstring sub_key;
     BOOL         watch_subtree;
     DWORD        filter_mask;
+    BOOL         wow64_32key;
   } _init;
 
   CRegKey _hKeyBase;

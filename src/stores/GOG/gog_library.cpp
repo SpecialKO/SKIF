@@ -163,19 +163,70 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         RegCloseKey(hKey);
 
         // Galaxy User ID
-
-        extern std::wstring GOGGalaxy_UserID;
-
-        dwSize = sizeof(szData) / sizeof(WCHAR);
-        if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-        {
-          if (RegGetValueW(hKey, NULL, L"userId", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-            GOGGalaxy_UserID = szData;
-
-          RegCloseKey(hKey);
-        }
+        SKIF_GOG_UpdateGalaxyUserID ( );
       }
     }
   }
 }
 
+// Retrieves the Galaxy User ID
+void
+SKIF_GOG_UpdateGalaxyUserID (void)
+{
+  extern std::wstring GOGGalaxy_UserID;
+
+  GOGGalaxy_UserID = L""; // Reset it
+
+  HKEY  hKey;
+  DWORD dwSize;
+  WCHAR szData[MAX_PATH];
+
+  dwSize = sizeof(szData) / sizeof(WCHAR);
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+  {
+    if (RegGetValueW(hKey, NULL, L"userId", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+      GOGGalaxy_UserID = szData;
+
+    RegCloseKey(hKey);
+  }
+}
+
+bool
+SKIF_GOG_hasInstalledGamesChanged (void)
+{
+  static DWORD dwLastSignalCheck = 0;
+
+  bool signal = false;
+  if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 1000) // Tigher checks as we're waiting for both new subkeys as well as changed values
+  {
+    static SKIF_RegistryWatch
+      appWatch ( HKEY_LOCAL_MACHINE,
+                   LR"(SOFTWARE\GOG.com\Games)",
+                     L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, true, true);
+  
+    signal            = appWatch.isSignaled   ( );
+    dwLastSignalCheck = SKIF_Util_timeGetTime ( );
+  }
+
+  return signal;
+}
+
+bool
+SKIF_GOG_hasGalaxySettingsChanged (void)
+{
+  static DWORD dwLastSignalCheck = 0;
+
+  bool signal = false;
+  if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
+  {
+    static SKIF_RegistryWatch
+      appWatch ( HKEY_CURRENT_USER,
+                   LR"(SOFTWARE\GOG.com\Galaxy\settings)",
+                     L"GOGGalaxyNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET, false);
+  
+    signal            = appWatch.isSignaled   ( );
+    dwLastSignalCheck = SKIF_Util_timeGetTime ( );
+  }
+
+  return signal;
+}
