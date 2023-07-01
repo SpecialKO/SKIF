@@ -1716,7 +1716,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.regKVSmallMode.putData (_registry.bSmallMode);
         _registry._ExitOnInjection = false;
 
-        PLOG_DEBUG << "Changed UI mode to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
+        PLOG_DEBUG << "Switched to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
 
         if (SteamOverlayDisabled)
         {

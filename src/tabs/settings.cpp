@@ -985,7 +985,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                            "UI Mode:"
+                            "UI mode:"
     );
 
     extern bool SKIF_bCanFlip;
@@ -1083,7 +1083,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SameLine        ( );
       ImGui::TextColored (
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "High Dynamic Range:"
+          "High dynamic range (HDR):"
       );
 
       ImGui::TreePush        ("iHDRMode");
