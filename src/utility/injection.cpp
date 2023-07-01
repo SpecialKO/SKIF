@@ -174,7 +174,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
           GetLastError ( ) == ERROR_ACCESS_DENIED;
 
         // Do not continue if we get access denied, as it means the PID is running outside of our security context
-        if (! accessDenied)
+        if (! accessDenied && hProcess)
         {
           // Get exit code to filter out zombie processes
           DWORD dwExitCode = 0;
