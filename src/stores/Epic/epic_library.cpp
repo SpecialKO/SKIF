@@ -224,14 +224,23 @@ SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItem
   // Download JSON for the offered games/edition/base
   if (! PathFileExists ((targetAssetPath + L"offer.json").c_str()))
   {
-    // Can be retrieved by monitoring requests made by the storefront in a web browser of choice
+    // The new sha256Hash be retrieved by monitoring requests made by the storefront in a web browser of choice
+    // 
+    // MAIN LIMITATION:
+    //    Relies on the product being published on the storefront, so covers for
+    //      games removed from the storefront will not appear (e.g. >observer_)
+    // 
     // Up to 2020-04: 6e7c4dd0177150eb9a47d624be221929582df8648e7ec271c821838ff4ee148e
     //  From 2020-04: 4bebe12f9eab12438766fb5971b0bc54422ba81954539f294ec23b0a29ff92ad
     //  From 2023-xx: 7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437
     std::wstring query = SK_FormatStringW (
-      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437"}})",
-      SK_UTF8ToWideChar(CatalogNamespace).c_str()
+      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"%ws"}})",
+      SK_UTF8ToWideChar(CatalogNamespace).c_str(),
+      L"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437" // sha256Hash
     );
+
+    // Old method?
+    // https://store.epicgames.com/graphql?operationName=getCatalogOffer&variables={"locale":"en-US","country":"SE","sandboxId":"1d6b5762a1d643a4830481c44d59abfb","offerId":"7e79f5e61cc64b6e9b48d6c857d4e923"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"6797fe39bfac0e6ea1c5fce0ecbff58684157595fee77e446b4254ec45ee2dcb"}}
 
     PLOG_DEBUG << "Downloading offer JSON: " << query;
 
