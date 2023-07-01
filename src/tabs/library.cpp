@@ -3350,11 +3350,14 @@ Cache=false)";
       {
         do
         {
-          std::wstring fullPath;
-
           SetLastError (NO_ERROR);
           CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe32.th32ProcessID));
           // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
+
+          if (hProcess == nullptr)
+            continue;
+
+          std::wstring fullPath;
 
           bool accessDenied =
             GetLastError ( ) == ERROR_ACCESS_DENIED;
