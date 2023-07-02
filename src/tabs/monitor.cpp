@@ -1407,7 +1407,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     if (openedWithAltMethod)
       ImGui::SetNextWindowPos (ImGui::GetCursorScreenPos() + ImVec2 (250.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
 
-    if (ImGui::BeginPopup     ("ProcessMenu"))
+    if (ImGui::BeginPopup     ("ProcessMenu", ImGuiWindowFlags_NoMove))
     {
       if (! proc.tooltip.empty())
       {

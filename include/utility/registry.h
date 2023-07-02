@@ -272,6 +272,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Ignore Articles)" );
 
+  KeyValue <bool> regKVWarningRTSS =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Warning RTSS)" );
+
   // Integers
 
   KeyValue <int> regKVProcessRefreshInterval =
@@ -395,6 +399,9 @@ struct SKIF_RegistrySettings {
   bool bProcessSortAscending    =  true; // default to true
   bool bProcessIncludeAll       = false;
   bool bLibraryIgnoreArticles   = false;
+
+  // Warnings
+  bool bWarningRTSS             = false;
   
   // Misc settings
   std::wstring wsUpdateChannel  = L"Website"; // Default to stable channel

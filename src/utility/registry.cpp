@@ -133,11 +133,11 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // but it seems that Windows 10 1709+ (Build 16299) also supports
   // 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model.
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
-    iSDRMode = 1; // Default to 10 bpc on Win10 1709+
+    iSDRMode               =   1; // Default to 10 bpc on Win10 1709+
 
   // iUIMode defaults to 1 on Win7 and 8.1, but 2 on 10+
   if (SKIF_Util_IsWindows10OrGreater ( ))
-    iUIMode  = 2;
+    iUIMode                =   2;
   
   iProcessSort             =   regKVProcessSort            .getData ( );
   if (regKVProcessIncludeAll   .hasData())
@@ -179,7 +179,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     
     // Reset to 203 nits (the default) if outside of the acceptable range of 80-400 nits
     if (iHDRBrightness < 80 || 400 < iHDRBrightness)
-      iHDRBrightness = 203;
+      iHDRBrightness       =   203;
   }
   
   if (regKVUIMode.hasData())
@@ -236,9 +236,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     wsUpdateChannel        =   regKVUpdateChannel          .getData ( );
   
   // Remember Last Selected Game
-  const int STEAM_APPID = 1157970;
-  iLastSelectedGame     = STEAM_APPID; // Default selected game
-  wsLastSelectedStore   = L"Steam";    // Default selected store
+  const int STEAM_APPID    =   1157970;
+  iLastSelectedGame        =   STEAM_APPID; // Default selected game
+  wsLastSelectedStore      =   L"Steam";    // Default selected store
 
   if (regKVRememberLastSelected.hasData())
     bRememberLastSelected  =   regKVRememberLastSelected   .getData ( );
@@ -246,16 +246,19 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (bRememberLastSelected)
   {
     if (regKVLastSelectedGame.hasData())
-      iLastSelectedGame         =   regKVLastSelectedGame  .getData ( );
+      iLastSelectedGame    =   regKVLastSelectedGame       .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore       =   regKVLastSelectedStore .getData ( );
+      wsLastSelectedStore  =   regKVLastSelectedStore      .getData ( );
   }
 
   // App registration
   if (regKVAppRegistration.hasData())
-    wsAppRegistration           = regKVAppRegistration     .getData ( );
+    wsAppRegistration      =   regKVAppRegistration        .getData ( );
 
   if (regKVPath.hasData())
-    wsPath                      = regKVPath                .getData ( );
+    wsPath                 =   regKVPath                   .getData ( );
+
+  // Warnings
+  bWarningRTSS             =   regKVWarningRTSS            .getData ( );
 }

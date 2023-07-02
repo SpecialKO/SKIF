@@ -211,26 +211,30 @@ void SKIF_UI_DrawPlatformStatus (void)
   {
     if (p.isRunning)
     {
-      ImGui::BeginGroup       ( );
       ImGui::Spacing          ( );
       ImGui::SameLine         ( );
 
       if (p.isAdmin)
       {
+        ImGui::BeginGroup      ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
         ImGui::SameLine        ( );
         if (p.ProcessName == L"RTSS.exe")
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and might conflict with Special K!").c_str() );
         else
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
+        ImGui::EndGroup        ( );
 
         if (isSKIFAdmin)
           SKIF_ImGui_SetHoverTip (("It is not recommended to run either " + p.Name + " or this app as an administrator.\n"
                                    "Please restart both as a normal user.").c_str());
         else if (p.ProcessName == L"RTSS.exe")
-          SKIF_ImGui_SetHoverTip ( "RivaTuner Statistics Server is known to occasionally conflict with Special K.\n"
-                                   "Please stop it if Special K does not function as expected. You might have\n"
-                                   "to stop MSI Afterburner as well if you use that application.");
+          SKIF_ImGui_SetHoverTip ( "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+                                   "Try closing it down if Special K does not behave as expected, or enable\n"
+                                   "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+                                   "\n"
+                                   "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+                                   "automatically restart RTSS silently in the background.", true);
         else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
           SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
                                    "Please restart the frontend and the global injector service as a regular user.");
@@ -239,12 +243,12 @@ void SKIF_UI_DrawPlatformStatus (void)
                                    "Please restart " + p.Name + " as a normal user.").c_str());
       }
       else {
+        ImGui::BeginGroup      ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
         ImGui::SameLine        ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), (p.Name + " is running.").c_str());
+        ImGui::EndGroup        ( );
       }
-
-      ImGui::EndGroup          ( );
     }
     else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
     {

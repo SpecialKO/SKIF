@@ -418,7 +418,7 @@ void SKIF_ImGui_ServiceMenu (void)
     ServiceMenu = PopupState_Closed;
   }
 
-  if (ImGui::BeginPopup ("ServiceMenu"))
+  if (ImGui::BeginPopup ("ServiceMenu", ImGuiWindowFlags_NoMove))
   {
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),

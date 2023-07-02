@@ -2141,7 +2141,7 @@ SKIF_UI_Tab_DrawSettings (void)
       if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
         ImGui::OpenPopup ("DisplayDriverMenu");
 
-      if (ImGui::BeginPopup ("DisplayDriverMenu"))
+      if (ImGui::BeginPopup ("DisplayDriverMenu", ImGuiWindowFlags_NoMove))
       {
         if (ImGui::Selectable (ICON_FA_ROTATE " Refresh"))
           RefreshSettingsTab = true;

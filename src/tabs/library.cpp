@@ -846,7 +846,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ImGui::OpenPopup ("CoverMenu");
 
-  if (ImGui::BeginPopup ("CoverMenu"))
+  if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
   {
     //static
      // app_record_s* pApp = nullptr;
@@ -1731,7 +1731,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (openLocalMenu && ! ImGui::IsPopupOpen ("LocalDLLMenu"))
           ImGui::OpenPopup    ("LocalDLLMenu");
 
-        if (ImGui::BeginPopup ("LocalDLLMenu"))
+        if (ImGui::BeginPopup ("LocalDLLMenu", ImGuiWindowFlags_NoMove))
         {
           if (__IsOutdatedLocalDLLFile ( ))
           {
@@ -1817,7 +1817,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                ImGui::IsItemClicked (ImGuiMouseButton_Right))
           ImGui::OpenPopup      ("ConfigFileMenu");
 
-        if (ImGui::BeginPopup ("ConfigFileMenu"))
+        if (ImGui::BeginPopup ("ConfigFileMenu", ImGuiWindowFlags_NoMove))
         {
           ImGui::TextColored (
             ImColor::HSV (0.11F, 1.F, 1.F),
@@ -2830,7 +2830,7 @@ Cache=false)";
     IconMenu = PopupState_Closed;
   }
 
-  if (ImGui::BeginPopup ("IconMenu"))
+  if (ImGui::BeginPopup ("IconMenu", ImGuiWindowFlags_NoMove))
   {
     if (pApp != nullptr)
     {
@@ -3024,7 +3024,7 @@ Cache=false)";
     ImGui::OpenPopup      ("GameListEmptySpaceMenu");
   }
 
-  if (ImGui::BeginPopup   ("GameListEmptySpaceMenu"))
+  if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
   {
     bool dontCare = false;
     
@@ -3205,7 +3205,7 @@ Cache=false)";
             ImGui::SetCursorPos (pos);
           }
 
-          if (ImGui::BeginPopup ("###DisableSK"))
+          if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
           {
             //std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
@@ -3384,9 +3384,7 @@ Cache=false)";
           {
             // Steam games are covered through separate registry monitoring
             if (app.second.store == "Steam")
-            {
               continue;
-            }
 
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
             else if (app.second.store == "Xbox" && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
@@ -3410,6 +3408,24 @@ Cache=false)";
             }
           }
 
+          if (! _registry.bWarningRTSS    &&
+              ! ImGui::IsAnyPopupOpen ( ) &&
+              ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
+          {
+            _registry.bWarningRTSS = true;
+            _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
+            confirmPopupTitle = "One-time warning about RTSS.exe";
+            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+                                "Try closing it down if Special K does not behave as expected, or enable\n"
+                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+                                "\n"
+                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+                                "automatically restart RTSS silently in the background.\n"
+                                "\n"
+                                "This warning will not appear again.";
+            ConfirmPopup      = PopupState_Open;
+          }
+
         } while (Process32NextW (hProcessSnap, &pe32));
       }
     }
@@ -3431,7 +3447,7 @@ Cache=false)";
   }
 
 
-  if (ImGui::BeginPopup ("GameContextMenu"))
+  if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
   {
     if (pApp != nullptr)
     {
