@@ -773,7 +773,7 @@ SKIF_Steam_isLibrariesSignaled (void)
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
   static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
   static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
-  static bool                hasInitialized = false;
+  static bool                isInitialized = false;
 
   if (! steam_lib_paths)
     return false;
@@ -789,13 +789,10 @@ SKIF_Steam_isLibrariesSignaled (void)
 
       bool countFiles = false;
 
-      if (steam_libs_watch[i]._hChangeNotification == INVALID_HANDLE_VALUE)
-        steam_libs_watch[i] = SKIF_DirectoryWatch (wszManifestDir, true);
-
-      if (steam_libs_watch[i].isSignaled (wszManifestDir, true))
+      if (steam_libs_watch[i].isSignaled (wszManifestDir, false))
         countFiles = true;
 
-      if (countFiles || ! hasInitialized)
+      if (countFiles || ! isInitialized)
       {
         int prevCount = steam_libs_files[i];
         int currCount = 0;
@@ -814,13 +811,16 @@ SKIF_Steam_isLibrariesSignaled (void)
           steam_libs_files[i] = currCount;
         }
 
-        if (hasInitialized && prevCount != currCount)
+        if (countFiles && prevCount != currCount)
+        {
           isSignaled = true;
+          //OutputDebugString(L"isSignaled 2!\n");
+        }
       }
     }
   }
 
-  hasInitialized = true;
+  isInitialized = true;
 
   return isSignaled;
 };
