@@ -372,7 +372,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
     // Temporarily disabled since this gets triggered on game launch/shutdown as well...
-    //if (Steam_isLibrariesSignaled ())
+    // And generally also breaks SKIF's library view on occasion
+    //if (SKIF_Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
     if (! _registry.bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled (SKIF_EGS_AppDataPath, true))
@@ -1900,7 +1901,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               // Default Presets
               if (! DefaultPresets.empty())
               {
-                for (auto preset : DefaultPresets)
+                for (auto& preset : DefaultPresets)
                 {
                   if (ImGui::Selectable (preset.Name.c_str()))
                   {
@@ -1916,7 +1917,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               // Custom Presets
               if (! CustomPresets.empty())
               {
-                for (auto preset : CustomPresets)
+                for (auto& preset : CustomPresets)
                 {
                   if (ImGui::Selectable (preset.Name.c_str()))
                   {
