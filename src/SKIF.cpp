@@ -1258,9 +1258,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Set up exit acknowledge as well
       if (_registry.bRestoreOnGameExit)
-      restoreOnInjExitAck = ! IsIconic (SKIF_hWnd);
+        restoreOnInjExitAck = ! startedMinimized && ! IsIconic (SKIF_hWnd) && ! SKIF_isTrayed;
 
-      if (_registry.bMinimizeOnGameLaunch && ! IsIconic (SKIF_hWnd))
+      if (_registry.bMinimizeOnGameLaunch && ! IsIconic (SKIF_hWnd) && ! SKIF_isTrayed)
         ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
 
       // If we do not use auto-stop mode, reset the signal
