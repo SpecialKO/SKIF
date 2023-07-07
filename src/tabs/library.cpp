@@ -297,6 +297,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  
+  static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
 
   //static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
@@ -355,19 +357,19 @@ SKIF_UI_Tab_DrawLibrary (void)
   static uint32_t lastCover      = 0;
 
   struct {
-    uint32_t    appid = SKIF_STEAM_APPID;
-    std::string store = "Steam";
+    uint32_t            appid = SKIF_STEAM_APPID;
+    std::string         store = "Steam";
+    SKIF_DirectoryWatch dir_watch;
 
     void reset()
     {
       appid = SKIF_STEAM_APPID;
       store = "Steam";
+      dir_watch.reset();
     }
   } static selection;
 
   static bool     populated      = false;
-  
-  static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
 
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
@@ -717,6 +719,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (update)
   {
     fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
+    
+    if (pApp != nullptr)
+    {
+      if (  pApp->install_dir != selection.dir_watch._path)
+        selection.dir_watch.reset ( );
+
+      if (! pApp->install_dir.empty())
+        selection.dir_watch.isSignaled (pApp->install_dir, true);
+    }
   }
 
   // Apply changes when the _registry.iDimCovers var has been changed in the Settings tab
@@ -1523,7 +1534,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         cache.service  = (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
                          (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
                          (pTargetApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
-                                                                                                             _inject.pid64));
+                                                                                                              _inject.pid64));
 
         sk_install_state_s& sk_install =
           pTargetApp->specialk.injection;
@@ -2275,7 +2286,15 @@ Cache=false)";
       }
 
       ImGui::EndChildFrame ();
-    }
+
+      // This needs to be run at the end of this statement to ensure there's no traces of the cache remaining on the next frame
+      if (selection.dir_watch.isSignaled())
+      {
+        updateInjStrat = true; // Force an update of the injection strategy for the app
+        cache.app_id = 0;      // Force an update of the cached data on the next frame
+      }
+
+    } // End IF (pTargetApp != nullptr) statement -- cache goes out of scope here
 
     return 0.0f;
   };
