@@ -1725,39 +1725,11 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
 
 SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
-  _hChangeNotification =
-    FindFirstChangeNotificationW (
-      std::wstring(wstrPath).c_str(), bWatchSubtree,
-        dwNotifyFilter
-    );
-
-  if (_hChangeNotification != INVALID_HANDLE_VALUE)
-  {
-    FindNextChangeNotification (
-      _hChangeNotification
-    );
-
-    _bGlobalWait  = bGlobalWait;
-    _bWaitAllTabs = bWaitAllTabs;
-
-    if (_bGlobalWait)
-    {
-      if (_bWaitAllTabs)
-      {
-        for (auto& vWatchHandle : vWatchHandles)
-        {
-          vWatchHandle.second.push_back (_hChangeNotification);
-        }
-      }
-      else {
-        vWatchHandles[SKIF_Tab_Selected].second.push_back (_hChangeNotification);
-      }
-    }
-  }
+  registerNotify (wstrPath, bGlobalWait, bWaitAllTabs, bWatchSubtree, dwNotifyFilter);
 }
 
 bool
-SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+SKIF_DirectoryWatch::isSignaled (void)
 {
   bool bRet = false;
 
@@ -1775,11 +1747,62 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, b
     }
   }
 
+  return bRet;
+}
+
+bool
+SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+{
+  bool bRet = false;
+
+  if (_hChangeNotification != INVALID_HANDLE_VALUE)
+    bRet = isSignaled ( );
+
   else if (! wstrPath.empty())
+    registerNotify (wstrPath, bGlobalWait, bWaitAllTabs, bWatchSubtree, dwNotifyFilter);
+
+  return bRet;
+}
+
+void
+SKIF_DirectoryWatch::reset (void)
+{
+  if (      _hChangeNotification != INVALID_HANDLE_VALUE)
+    FindCloseChangeNotification (_hChangeNotification);
+
+  if (_bGlobalWait)
   {
+    if (_bWaitAllTabs)
+    {
+      for (auto& vWatchHandle : vWatchHandles)
+      {
+        if (! vWatchHandle.second.empty())
+          vWatchHandle.second.erase(std::remove(vWatchHandle.second.begin(), vWatchHandle.second.end(), _hChangeNotification), vWatchHandle.second.end());
+      }
+    }
+    else if (! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    {
+      vWatchHandles[SKIF_Tab_Selected].second.erase(std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
+    }
+  }
+
+  // Reset variables
+  _hChangeNotification = INVALID_HANDLE_VALUE;
+  _bGlobalWait         = false;
+  _bWaitAllTabs        = false;
+  _path                = L"";
+}
+
+void
+SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+{
+  if (! wstrPath.empty())
+  {
+    _path = wstrPath;
+
     _hChangeNotification =
       FindFirstChangeNotificationW (
-        std::wstring(wstrPath).c_str(), bWatchSubtree,
+        _path.c_str(), bWatchSubtree,
         dwNotifyFilter
       );
 
@@ -1808,29 +1831,14 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, b
     }
   }
 
-  return bRet;
+  else {
+    PLOG_ERROR << "Unexpected empty string was received when trying to register for directory change notifications!";
+  }
 }
 
 SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 {
-  if (      _hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (_hChangeNotification);
-
-  if (_bGlobalWait)
-  {
-    if (_bWaitAllTabs)
-    {
-      for (auto& vWatchHandle : vWatchHandles)
-      {
-        if (! vWatchHandle.second.empty())
-          vWatchHandle.second.erase(std::remove(vWatchHandle.second.begin(), vWatchHandle.second.end(), _hChangeNotification), vWatchHandle.second.end());
-      }
-    }
-    else if (! vWatchHandles[SKIF_Tab_Selected].second.empty())
-    {
-      vWatchHandles[SKIF_Tab_Selected].second.erase(std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
-    }
-  }
+  reset ( );
 }
 
 

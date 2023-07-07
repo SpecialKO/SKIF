@@ -95,15 +95,27 @@ struct SKIF_DirectoryWatch
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
   ~SKIF_DirectoryWatch (void);
 
+  bool isSignaled      (void);
+
   bool isSignaled      (std::wstring_view wstrPath,
                                      bool bGlobalWait    = false,
                                      bool bWaitAllTabs   = false,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
+  
+  void reset           (void);
 
   HANDLE _hChangeNotification = INVALID_HANDLE_VALUE;
   bool   _bGlobalWait         = false;
   bool   _bWaitAllTabs        = false;
+  std::wstring _path          = L""; // Debug stuff only
+
+private:
+  void registerNotify  (std::wstring_view wstrPath,
+                                     bool bGlobalWait    = false,
+                                     bool bWaitAllTabs   = false,
+                                     BOOL bWatchSubtree  = FALSE,
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
 };
 
 
