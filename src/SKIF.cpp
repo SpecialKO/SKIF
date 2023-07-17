@@ -646,8 +646,8 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 
       if (RegOpenKeyW (HKEY_CURRENT_USER, LR"(Control Panel\Accessibility\)", &hKey) == ERROR_SUCCESS)
       {
-        _registry._NotifyMessageDuration = (RegGetValueW(hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
-        RegCloseKey(hKey);
+        _registry._NotifyMessageDuration = (RegGetValueW (hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
+        RegCloseKey (hKey);
       }
 
       else {
@@ -1136,7 +1136,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool    changedMode      = false;
-          RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+          RepositionSKIF   = (! PathFileExistsW (L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 

@@ -29,10 +29,12 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
   /* Load custom titles from registry */
   if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
   {
-    if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, &dwResult, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+    if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, &dwIndex, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
     {
-      do
+      while (dwIndex > 0)
       {
+        dwIndex--;
+
         dwSize   = sizeof (szSubKey) / sizeof (WCHAR);
         dwResult = RegEnumKeyExW (hKey, dwIndex, szSubKey, &dwSize, NULL, NULL, NULL, NULL);
 
@@ -76,11 +78,11 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
               lc.working_dir  = record.install_dir;
 
               dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"Exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW (hKey, szSubKey, L"Exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 lc.executable_path = szData;
 
               dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW(hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+              if (RegGetValueW (hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 lc.launch_options = szData;
 
               //record.launch_configs[0] = lc;
@@ -98,10 +100,7 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
             }
           }
         }
-
-        dwIndex++;
-
-      } while (1);
+      }
     }
 
     RegCloseKey (hKey);

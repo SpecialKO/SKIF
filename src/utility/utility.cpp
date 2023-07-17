@@ -864,7 +864,7 @@ SKIF_Util_GetControlledFolderAccess (void)
         else
           PLOG_DEBUG << "SKIF has not been whitelisted!";
 
-        RegCloseKey(hKey);
+        RegCloseKey (hKey);
       }
     }
   }

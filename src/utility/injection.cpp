@@ -929,8 +929,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                       Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", _path_cache.user_startup.path);
 
   static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
-                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||
-                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
+                                                 PathFileExistsW (SK_UTF8ToWideChar(Svc32Link).c_str()) ||
+                                                 PathFileExistsW (SK_UTF8ToWideChar(Svc32Link).c_str());
 
   // New method
 

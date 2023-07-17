@@ -59,17 +59,17 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
   bool registrySuccess = false;
 
   // See if we can retrieve the launcher's appdata path from registry
-  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
+  if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
   {
     dwSize = sizeof(szData) / sizeof(WCHAR);
-    if (RegGetValueW(hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+    if (RegGetValueW (hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
     {
       SKIF_EGS_AppDataPath = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data
       SKIF_EGS_AppDataPath += LR"(\Manifests\)";
 
       registrySuccess = true;
 
-      RegCloseKey(hKey);
+      RegCloseKey (hKey);
     }
   }
 
