@@ -128,6 +128,7 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       static SKIF_GamesCollection& parent = SKIF_GamesCollection::GetInstance();
+      extern bool SKIF_Shutdown;
 
       do
       {
@@ -241,7 +242,7 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
             INFINITE
         );
 
-      } while (IsWindow (SKIF_hWnd)); // Keep thread alive until exit
+      } while (! SKIF_Shutdown); // Keep thread alive until exit
 
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 

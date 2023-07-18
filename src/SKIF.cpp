@@ -101,6 +101,7 @@ bool msgDontRedraw         = false;
 bool coverFadeActive       = false;
 bool SKIF_Shutdown         = false;
 int  SKIF_ExitCode         = 0;
+int  SKIF_nCmdShow         = -1;
 int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
@@ -160,11 +161,11 @@ UITab SKIF_Tab_Selected      = UITab_Library,
 
 HMODULE hModSKIF     = nullptr;
 HMODULE hModSpecialK = nullptr;
+HICON   hIcon        = nullptr;
+#define GCL_HICON      (-14)
 
 // Texture related locks to prevent driver crashes
 concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
-
-#define GCL_HICON           (-14)
 
 float fBottomDist = 0.0f;
 
@@ -191,7 +192,6 @@ float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
 
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
-HWND        SKIF_hWnd          =  0;
 HWND        SKIF_ImGui_hWnd    =  0;
 HWND        SKIF_Notify_hWnd   =  0;
 
@@ -229,7 +229,7 @@ SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
       StrStrIW (lpCmdLine, L".exe")     != NULL;
 
   _Signal._RunningInstance =
-    FindWindowExW (0, 0, SKIF_WindowClass, nullptr);
+    FindWindowExW (0, 0, SKIF_NotifyIcoClass, nullptr);
 }
 
 void
@@ -285,7 +285,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     WCHAR wszTarget   [MAX_PATH];
     WCHAR wszArguments[MAX_PATH];
 
-    SKIF_Util_ResolveShortcut (SKIF_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
+    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
 
     cmdLine     = std::wstring(wszTarget);
     cmdLineArgs = std::wstring(wszArguments);
@@ -517,7 +517,7 @@ SKIF_Startup_ProxyCommandLineArguments (void)
         if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
           PostMessage (hWnd, WM_SKIF_MINIMIZE, 0x0, 0x0);
       return TRUE;
-    }, (LPARAM)SKIF_WindowClass);
+    }, (LPARAM)SKIF_NotifyIcoClass);
   }
 
   if (_Signal.Quit)
@@ -533,11 +533,11 @@ SKIF_Startup_ProxyCommandLineArguments (void)
         if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
           PostMessage (hWnd, WM_CLOSE, 0x0, 0x0);
       return TRUE;
-    }, (LPARAM)SKIF_WindowClass);
+    }, (LPARAM)SKIF_NotifyIcoClass);
   }
 
   // Restore the foreground state to whatever app had it before
-  if (SKIF_hWnd == 0)
+  if (SKIF_Notify_hWnd == 0)
   {
     if (hWndOrigForeground != 0)
     {
@@ -606,7 +606,7 @@ void SKIF_CreateNotifyIcon (void)
   niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)
   niData.uID          = SKIF_NOTIFY_ICON;
   niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
-  niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE(IDI_SKIF));
+  niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
   niData.hWnd         = SKIF_Notify_hWnd;
   niData.uVersion     = NOTIFYICON_VERSION_4;
   wcsncpy_s (niData.szTip,      128, L"Special K",   128);
@@ -664,7 +664,7 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 
     // Set up a timer that automatically refreshes SKIF when the notification clears,
     //   allowing us to perform some maintenance and whatnot when that occurs
-    SetTimer (SKIF_hWnd, IDT_REFRESH_NOTIFY, _registry._NotifyMessageDuration * 1000, NULL);
+    SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_NOTIFY, _registry._NotifyMessageDuration * 1000, NULL);
   }
 }
 
@@ -908,6 +908,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (nCmdShow == SW_HIDE)
     startedMinimized = SKIF_isTrayed = true;
 
+  SKIF_nCmdShow = nCmdShow;
+
   // Check if Controlled Folder Access is enabled
   if (! _Signal.Launcher)
   {
@@ -938,6 +940,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Create application window
+  /*
   WNDCLASSEX wc =
   { sizeof (WNDCLASSEX),
             CS_CLASSDC, SKIF_WndProc,
@@ -951,15 +954,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     return 0;
   }
+  */
 
-  // Create invisible notify window (for the traybar icon and notification toasts)
+  // Create invisible notify window (for the traybar icon and notification toasts, and for doing D3D11 tests)
   WNDCLASSEX wcNotify =
   { sizeof (WNDCLASSEX),
             CS_CLASSDC, SKIF_Notify_WndProc,
             0L,         0L,
         NULL, nullptr,  nullptr,
               nullptr,  nullptr,
-    _T ("SK_Injection_Frontend_Notify"),
+              SKIF_NotifyIcoClass,
               nullptr          };
 
   if (! ::RegisterClassEx (&wcNotify))
@@ -967,6 +971,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
+
+  /*
   DWORD dwStyle   = ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | WS_SYSMENU ),
         dwStyleEx = ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE );
 
@@ -983,30 +989,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
     CreateWindowExW (                    dwStyleEx,
       wc.lpszClassName, _L("Special K"), dwStyle,
                          0, 0,
-                         0, 0,
+                         0, 0, //1038, 944,
                    nullptr, nullptr,
               wc.hInstance, nullptr
     );
+  */
 
   SKIF_Notify_hWnd      =
     CreateWindowExW (                                 WS_EX_NOACTIVATE,
-      wcNotify.lpszClassName, _T("Special K Notify"), WS_ICONIC,
+      wcNotify.lpszClassName, _T("Special K Notification Icon"), WS_ICONIC,
                          0, 0,
                          0, 0,
                    nullptr, nullptr,
         wcNotify.hInstance, nullptr
     );
 
-  HWND  hWnd  = SKIF_hWnd;
-  HICON hIcon =
-    LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
+  hIcon = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
-  SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
-  SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
-  SendMessage      (hWnd, WM_SETICON, ICON_SMALL2,     (LPARAM)hIcon);
-  SetClassLongPtrW (hWnd, GCL_HICON,         (LONG_PTR)(LPARAM)hIcon);
+  //SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
+  //SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
+  //SendMessage      (hWnd, WM_SETICON, ICON_SMALL2,     (LPARAM)hIcon);
+  //SetClassLongPtrW (hWnd, GCL_HICON,         (LONG_PTR)(LPARAM)hIcon);
 
-  SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
+  //SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
   // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
@@ -1036,7 +1041,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // If we are not acting as a launcher,
     //   send messages to ourselves.
     else {
-      _Signal._RunningInstance = SKIF_hWnd;
+      _Signal._RunningInstance = SKIF_Notify_hWnd;
       SKIF_Startup_ProxyCommandLineArguments ( );
 
       // If we are starting the service,
@@ -1047,18 +1052,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Initialize Direct3D
-  if (! CreateDeviceD3D (hWnd))
+  if (! CreateDeviceD3D (SKIF_Notify_hWnd))
   {
     CleanupDeviceD3D ();
     return 1;
   }
 
   // Show the window
+  /*
   if (! SKIF_isTrayed)
   {
     ShowWindow   (hWnd, nCmdShow);
     UpdateWindow (hWnd);
   }
+  */
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -1077,10 +1084,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
   io.ConfigViewportsNoAutoMerge      = false;
-  io.ConfigViewportsNoTaskBarIcon    =  true;
+  io.ConfigViewportsNoTaskBarIcon    = false;
   io.ConfigViewportsNoDefaultParent  = false;
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
+  io.ConfigViewportsNoDecoration     = false;
 
 
   if (_registry.bDisableDPIScaling)
@@ -1120,10 +1128,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplWin32_Init (hWnd); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
+  ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
   ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
 
-  SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+  //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
   // Message queue/pump
@@ -1136,7 +1144,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool    changedMode      = false;
-          RepositionSKIF   = (! PathFileExistsW (L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+          RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
@@ -1165,7 +1173,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Main loop
-  while (! SKIF_Shutdown && IsWindow (hWnd) )
+  while (! SKIF_Shutdown ) // && IsWindow (hWnd) )
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
     coverFadeActive = false; // Assume there's no cover fade effect active
@@ -1183,8 +1191,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return ! SKIF_Shutdown; // return false on exit or system shutdown
         }
 
-        if (! IsWindow (hWnd))
-          return false;
+        //if (! IsWindow (hWnd))
+        //  return false;
 
         /*
         if (msg.message == WM_TIMER)
@@ -1256,12 +1264,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
       PLOG_DEBUG << "Injection was acknowledged!";
       hInjectAckEx.Close ();
 
-      // Set up exit acknowledge as well
-      if (_registry.bRestoreOnGameExit)
-        restoreOnInjExitAck = ! startedMinimized && ! IsIconic (SKIF_hWnd) && ! SKIF_isTrayed;
+      if (SKIF_ImGui_hWnd != nullptr)
+      {
+        // Set up exit acknowledge as well
+        if (_registry.bRestoreOnGameExit)
+          restoreOnInjExitAck = ! startedMinimized && ! IsIconic (SKIF_ImGui_hWnd) && ! SKIF_isTrayed;
 
-      if (_registry.bMinimizeOnGameLaunch && ! IsIconic (SKIF_hWnd) && ! SKIF_isTrayed)
-        ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
+        if (_registry.bMinimizeOnGameLaunch && ! IsIconic (SKIF_ImGui_hWnd) && ! SKIF_isTrayed)
+          ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
+      }
 
       // If we do not use auto-stop mode, reset the signal
       if (! _inject.bAckInj && _inject.bCurrentState)
@@ -1276,8 +1287,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       PLOG_DEBUG << "Game exit was acknowledged!";
       hInjectExitAckEx.Close ();
 
-      if (_registry.bRestoreOnGameExit && restoreOnInjExitAck && IsIconic (SKIF_hWnd))
-        SendMessage (SKIF_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
+      if (_registry.bRestoreOnGameExit && restoreOnInjExitAck && (SKIF_ImGui_hWnd != nullptr) && IsIconic (SKIF_ImGui_hWnd))
+        SendMessage (SKIF_Notify_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
 
       restoreOnInjExitAck = false;
 
@@ -1395,7 +1406,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         RecreateSwapChains = true;
 
         // Recreate
-        CreateDeviceD3D                        (SKIF_hWnd);
+        CreateDeviceD3D                        (SKIF_Notify_hWnd);
         ImGui_ImplDX11_Init                    (g_pd3dDevice, g_pd3dDeviceContext);
 
         // This is used to flag that rendering should not occur until
@@ -1499,6 +1510,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region Move SKIF using Windows Key + Arrow Keys
 
+#if 0
       if ((io.KeysDown[VK_LWIN] && io.KeysDownDuration[VK_LWIN] == 0.0f) ||
           (io.KeysDown[VK_RWIN] && io.KeysDownDuration[VK_RWIN] == 0.0f))
         KeyWinKey = true;
@@ -1592,10 +1604,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       SnapKeys = 0;
+#endif
 
 #pragma endregion
 
-      ImGui::Begin ( SKIF_WINDOW_TITLE_A SKIF_WINDOW_HASH,
+      ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,
                        nullptr,
                          ImGuiWindowFlags_NoResize          |
                          ImGuiWindowFlags_NoCollapse        |
@@ -1614,6 +1627,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Move the invisible Win32 parent window SKIF_hWnd over to the current monitor.
       //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
+#if 0
       if (monitor->MainPos.x != ImGui::GetMainViewport()->Pos.x ||
           monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
       {
@@ -1625,6 +1639,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         RecreateSwapChains = true;
       }
+#endif
 
       float fDpiScaleFactor =
         ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
@@ -1760,7 +1775,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
         //   This prevent flashing and elements appearing too large during those frames.
-        ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+        //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+        // This destroys and recreates the ImGui windows
       }
 
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
@@ -1825,7 +1841,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
                                                              0.0f ) ) )
       {
-        ShowWindow (hWnd, SW_MINIMIZE);
+        ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
       }
 
       ImGui::SameLine ();
@@ -1839,9 +1855,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
         {
           bKeepWindowAlive = true;
-          ShowWindow       (hWnd, SW_MINIMIZE);
-          ShowWindow       (hWnd, SW_HIDE);
-          UpdateWindow     (hWnd);
+          ShowWindow       (SKIF_ImGui_hWnd, SW_MINIMIZE);
+          ShowWindow       (SKIF_ImGui_hWnd, SW_HIDE);
+          UpdateWindow     (SKIF_ImGui_hWnd);
           SKIF_isTrayed    = true;
         }
 
@@ -2676,34 +2692,45 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
-    // Conditional rendering
-    bool bRefresh = (SKIF_isTrayed || IsIconic (hWnd)) ? false : true;
+    // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
+    bool bRefresh = (SKIF_ImGui_hWnd != nullptr && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
 
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
 
     if ( bRefresh )
     {
-      if (! startedMinimized && ! SKIF_isTrayed)
+      ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
+
+      // Update, Render and Present the main and any additional Platform Windows
+      if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
       {
-        ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
+        ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
+        ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
 
-        // Update, Render and Present the main and any additional Platform Windows
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-          ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
-          ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
+        static bool runOnce = true;
+        if (runOnce && SKIF_ImGui_hWnd != nullptr)
+        {   runOnce = false;
 
-          static bool runOnce = true;
-
-          if (runOnce && SKIF_ImGui_hWnd != 0)
-          {   runOnce = false;
-            if (! IsIconic (SKIF_hWnd) && SKIF_hWnd == GetForegroundWindow ())
-            {
-              PLOG_DEBUG << "Applied keyboard focus workaround for the overarching ImGui platform window";
-              SetFocus (SKIF_ImGui_hWnd);
-            }
+          /*
+          // Show the window
+          if (! SKIF_isTrayed)
+          {
+            ShowWindow   (SKIF_ImGui_hWnd, nCmdShow);
+            UpdateWindow (SKIF_ImGui_hWnd);
           }
+          */
+
+          SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+          //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+
+          /* 2023-07-18: Should no longer be needed?
+          if (! IsIconic (SKIF_hWnd) && SKIF_hWnd == GetForegroundWindow ())
+          {
+            PLOG_DEBUG << "Applied keyboard focus workaround for the overarching ImGui platform window";
+            SetFocus (SKIF_ImGui_hWnd);
+          }
+          */
         }
       }
     }
@@ -2730,7 +2757,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // If process should stop, post WM_QUIT
-    if ((! bKeepProcessAlive) && hWnd != 0)
+    if ((! bKeepProcessAlive))// && SKIF_ImGui_hWnd != 0)
       PostQuitMessage (0);
       //PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
@@ -2747,7 +2774,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         DWORD packetLast = 0,
               packetNew  = 0;
 
-        while (IsWindow (SKIF_hWnd))
+        do
         {
           //OutputDebugString(L"ping\n");
 
@@ -2770,7 +2797,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
 
             //OutputDebugString(L"Gamepad input sent!\n");
-            PostMessage (SKIF_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
           // XInput tends to have ~3-7 ms of latency between updates
@@ -2802,7 +2829,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
             //OutputDebugString(L"SKIF_GamepadInputPump exiting sleep\n");
           }
-        }
+        } while (! SKIF_Shutdown);
 
         LeaveCriticalSection  (&GamepadInputPump);
         DeleteCriticalSection (&GamepadInputPump);
@@ -2985,8 +3012,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         msgDontRedraw = false;
 
       // Break if SKIF is no longer a window
-      if (! IsWindow (hWnd))
-        break;
+      //if (! IsWindow (hWnd))
+      //  break;
 
     } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
@@ -3010,10 +3037,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_UnregisterHotKeySVCTemp   ( );
 
   PLOG_INFO << "Killing timers...";
-  KillTimer (SKIF_hWnd, _inject.IDT_REFRESH_PENDING);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
-  KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
+  KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_PENDING);
+  KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
+  KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
+  KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
 
   PLOG_INFO << "Shutting down ImGui...";
   ImGui_ImplDX11_Shutdown   (    );
@@ -3030,14 +3057,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Destroying main window...";
   //if (hDC != 0)
   //  ReleaseDC               (hWnd, hDC);
-  DestroyWindow             (hWnd);
+  //DestroyWindow             (hWnd);
 
   PLOG_INFO << "Destroying ImGui context...";
   ImGui::DestroyContext     (    );
 
+  SKIF_ImGui_hWnd  = 0;
   SKIF_Notify_hWnd = 0;
-  SKIF_hWnd = 0;
-       hWnd = 0;
+  //SKIF_hWnd = 0;
+  //     hWnd = 0;
 
   PLOG_INFO << "Terminating process with exit code " << SKIF_ExitCode;
   return SKIF_ExitCode;
@@ -3326,8 +3354,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   }
   */
 
-  if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
-    return true;
+  //if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
+  //  return true;
   
   UpdateFlags uFlags = UpdateFlags_Unknown;
 
@@ -3367,7 +3395,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         SKIF_Shutdown = true;
       }
-      return 0;
+      //return 0;
       break;
 
     case WM_QUERYENDSESSION: // System wants to shut down and is asking if we can allow it
@@ -3377,26 +3405,30 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
       msgDontRedraw = true;
+      return true;
       break;
 
     case WM_DISPLAYCHANGE:
-      SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
+      SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
 
       if (SKIF_Tab_Selected == UITab_Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
       break;
 
     case WM_SKIF_MINIMIZE:
-      if (_registry.bCloseToTray && ! SKIF_isTrayed)
+      if (SKIF_ImGui_hWnd != nullptr)
       {
-        ShowWindow       (hWnd, SW_MINIMIZE);
-        ShowWindow       (hWnd, SW_HIDE);
-        UpdateWindow     (hWnd);
-        SKIF_isTrayed    = true;
-      }
+        if (_registry.bCloseToTray && ! SKIF_isTrayed)
+        {
+          ShowWindow       (SKIF_ImGui_hWnd, SW_MINIMIZE);
+          ShowWindow       (SKIF_ImGui_hWnd, SW_HIDE);
+          UpdateWindow     (SKIF_ImGui_hWnd);
+          SKIF_isTrayed    = true;
+        }
 
-      else if (! _registry.bCloseToTray) {
-        ShowWindowAsync (hWnd, SW_MINIMIZE);
+        else if (! _registry.bCloseToTray) {
+          ShowWindowAsync (SKIF_ImGui_hWnd, SW_MINIMIZE);
+        }
       }
       break;
 
@@ -3427,7 +3459,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       RepopulateGames = true;
       SelectNewSKIFGame = (uint32_t)wParam;
 
-      SetTimer (SKIF_hWnd,
+      SetTimer (SKIF_Notify_hWnd,
           IDT_REFRESH_GAMES,
           50,
           (TIMERPROC) NULL
@@ -3440,11 +3472,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
       // Reload the whitelist as it might have been changed
       _inject.LoadWhitelist      ( );
-      break;
-
-    case WM_SKIF_POWERMODE:
-      if (_registry.bSmallMode)
-        msgDontRedraw = true;
       break;
 
     case WM_SKIF_COVER:
@@ -3477,27 +3504,30 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_RESTORE:
       _inject.bTaskbarOverlayIcon = false;
 
-      if (! SKIF_isTrayed && ! IsIconic (hWnd))
-        RepositionSKIF            = true;
+      if (SKIF_ImGui_hWnd != nullptr)
+      {
+        if (! SKIF_isTrayed && ! IsIconic (SKIF_ImGui_hWnd))
+          RepositionSKIF            = true;
 
-      if (SKIF_isTrayed)
-      {   SKIF_isTrayed           = false;
-        ShowWindow   (hWnd, SW_SHOW); // ShowWindowAsync
+        if (SKIF_isTrayed)
+        {   SKIF_isTrayed           = false;
+          ShowWindow   (SKIF_ImGui_hWnd, SW_SHOW); // ShowWindowAsync
+        }
+
+        ShowWindow     (SKIF_ImGui_hWnd, SW_RESTORE); // ShowWindowAsync
+
+        if (! UpdateWindow        (SKIF_ImGui_hWnd))
+          PLOG_DEBUG << "UpdateWindow ( ) failed!";
+
+        if (! SetForegroundWindow (SKIF_ImGui_hWnd))
+          PLOG_DEBUG << "SetForegroundWindow ( ) failed!";
+
+        if (! SetActiveWindow     (SKIF_ImGui_hWnd))
+          PLOG_DEBUG << "SetActiveWindow ( ) failed: "  << SKIF_Util_GetErrorAsWStr ( );
+
+        if (! BringWindowToTop    (SKIF_ImGui_hWnd))
+          PLOG_DEBUG << "BringWindowToTop ( ) failed: " << SKIF_Util_GetErrorAsWStr ( );
       }
-
-      ShowWindow     (hWnd, SW_RESTORE); // ShowWindowAsync
-
-      if (! UpdateWindow        (hWnd))
-        PLOG_DEBUG << "UpdateWindow ( ) failed!";
-
-      if (! SetForegroundWindow (hWnd))
-        PLOG_DEBUG << "SetForegroundWindow ( ) failed!";
-
-      if (! SetActiveWindow     (hWnd))
-        PLOG_DEBUG << "SetActiveWindow ( ) failed: "  << SKIF_Util_GetErrorAsWStr ( );
-
-      if (! BringWindowToTop    (hWnd))
-        PLOG_DEBUG << "BringWindowToTop ( ) failed: " << SKIF_Util_GetErrorAsWStr ( );
       break;
 
     case WM_TIMER:
@@ -3505,26 +3535,26 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       switch (wParam)
       {
         case IDT_REFRESH_NOTIFY:
-          KillTimer (SKIF_hWnd, IDT_REFRESH_NOTIFY);
-          return 0;
+          KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_NOTIFY);
+          break;
         case IDT_REFRESH_TOOLTIP:
           // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
           if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)
             msgDontRedraw = true;
           
-          KillTimer (SKIF_hWnd, IDT_REFRESH_TOOLTIP);
-          return 0;
+          KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
+          break;
         case IDT_REFRESH_GAMES: // TODO: Contemplate this design, and its position in the new design with situational pausing. Concerns WM_SKIF_REFRESHGAMES / IDT_REFRESH_GAMES.
           if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_Util_timeGetTime())
           {
             RepopulateGamesWasSet = 0;
-            KillTimer (SKIF_hWnd, IDT_REFRESH_GAMES);
+            KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
           }
-          return 0;
+          break;
         case cIDT_REFRESH_PENDING:
         case  IDT_REFRESH_UPDATER:
           // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
-          return 0;
+          break;
       }
       break;
 
@@ -3533,7 +3563,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       // It is possible this catches device reset/hung scenarios
       if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
         RecreateSwapChains = true;
-      return 0;
+      break;
 
     case WM_SYSCOMMAND:
       if ((wParam & 0xfff0) == SC_KEYMENU)
@@ -3542,7 +3572,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ( lParam == 0x00 ||
              lParam == 0x20 )
         {
-          return 0;
+          return true;
         }
       }
 
@@ -3552,17 +3582,25 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // use the RepositionSKIF approach to move the window
         // to the center of the display the cursor is on.
         PostMessage (hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
-        return 0;
       }
       break;
 
     case WM_DESTROY:
       ::PostQuitMessage (0);
-      return 0;
+      break;
+  }
+  
+  // Tell the main thread to render at least three more frames after we have processed the message
+  if (SKIF_ImGui_hWnd != nullptr && ! msgDontRedraw)
+  {
+    addAdditionalFrames += 3;
+    //PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0, 0);
   }
 
-  return
-    ::DefWindowProc (hWnd, msg, wParam, lParam);
+  return 0;
+
+  //return
+  //  ::DefWindowProc (hWnd, msg, wParam, lParam);
 }
 
 LRESULT
@@ -3577,6 +3615,9 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
   //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L") " + ((HWND)wParam == SKIF_hWnd ? L"== SKIF_hWnd" : ((HWND)wParam == SKIF_ImGui_hWnd ? L"== SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L"== SKIF_Notify_hWnd" : L"")) + L"\n").c_str());
   //OutputDebugString((L"[SKIF_Notify_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+    
+  if (SKIF_WndProc (hWnd, msg, wParam, lParam))
+    return true;
 
   switch (msg)
   {
@@ -3586,7 +3627,7 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {
         case WM_LBUTTONDBLCLK:
         case WM_LBUTTONUP:
-          PostMessage (SKIF_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
           return 0;
         case WM_RBUTTONUP:
         case WM_CONTEXTMENU:
@@ -3631,16 +3672,17 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {
         case SKIF_NOTIFY_START:
           //PostMessage (SKIF_hWnd, (_registry.bStopOnInjection) ? WM_SKIF_TEMPSTART : WM_SKIF_START, 0, 0);
-          PostMessage (SKIF_hWnd, WM_SKIF_START, 0, 0);
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_START, 0, 0);
           break;
         case SKIF_NOTIFY_STARTWITHSTOP:
-          PostMessage (SKIF_hWnd, WM_SKIF_TEMPSTART, 0, 0);
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_TEMPSTART, 0, 0);
           break;
         case SKIF_NOTIFY_STOP:
-          PostMessage (SKIF_hWnd, WM_SKIF_STOP, 0, 0);
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_STOP, 0, 0);
           break;
         case SKIF_NOTIFY_EXIT:
-          PostMessage (SKIF_hWnd, WM_CLOSE, 0, 0);
+          if (SKIF_ImGui_hWnd != nullptr)
+            PostMessage (SKIF_ImGui_hWnd, WM_CLOSE, 0, 0);
           break;
       }
       break;

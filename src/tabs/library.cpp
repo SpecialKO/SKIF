@@ -88,7 +88,6 @@ PopupState ConfirmPopup    = PopupState_Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
-extern HWND            SKIF_hWnd;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
@@ -697,7 +696,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       InterlockedExchange (&need_sort, 1);
 
       // Force a refresh when the game icons and names have finished being streamed
-      PostMessage (SKIF_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
 
       PLOG_INFO << "Thread stopped!";
     }, 0x0, NULL);
@@ -752,14 +751,29 @@ SKIF_UI_Tab_DrawLibrary (void)
                                      "allow the cover to be populated :)";
   static ImVec2 vecPosCoverImage   = ImGui::GetCursorPos ( );
   static ImVec2 vecPosLabelLoading = ImVec2 (
-                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
+                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
   static ImVec2 vecPosLabelMissing = ImVec2 (
-                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
+                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
   static ImVec2 vecPosLabelGOGUser = ImVec2 (
-                vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-                vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
+                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
+
+  // Respond to DPI changes
+  if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+  {
+    vecPosCoverImage   = ImGui::GetCursorPos ( );
+    vecPosLabelLoading = ImVec2 (
+      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
+    vecPosLabelMissing = ImVec2 (
+      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
+    vecPosLabelGOGUser = ImVec2 (
+      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
+  }
 
   // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
   if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
@@ -1311,7 +1325,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         gameCoverLoading.store (false);
 
         // Force a refresh when the cover has been swapped in
-        PostMessage (SKIF_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+        PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
       }
 
       else if (_pTexSRV.p != nullptr)
@@ -2265,8 +2279,8 @@ Cache=false)";
           }
           
           // Fallback for minimizing SKIF when not using SK if configured as such
-          if (_registry.bMinimizeOnGameLaunch && ! usingSK)
-            ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
+          if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != nullptr)
+            ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
         }
 
         clickedGameLaunch = clickedGameLaunchWoSK = false;
@@ -3603,8 +3617,8 @@ Cache=false)";
               _registry._SuppressServiceNotification = true;
           
               // Fallback for minimizing SKIF when not using SK if configured as such
-              if (! usingSK)
-                ShowWindowAsync (SKIF_hWnd, SW_SHOWMINNOACTIVE);
+              if (! usingSK && SKIF_ImGui_hWnd != nullptr)
+                ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
             }
 
             clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
@@ -4373,8 +4387,6 @@ Cache=false)";
 
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
-      extern HWND SKIF_hWnd;
-
       LPWSTR pwszFilePath = NULL;
 
       if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
@@ -4391,7 +4403,7 @@ Cache=false)";
           WCHAR wszTarget    [MAX_PATH];
           WCHAR wszArguments [MAX_PATH];
 
-          SKIF_Util_ResolveShortcut (SKIF_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
 
           if (! PathFileExists (wszTarget))
           {
@@ -4634,7 +4646,7 @@ Cache=false)";
           WCHAR wszTarget    [MAX_PATH];
           WCHAR wszArguments [MAX_PATH];
 
-          SKIF_Util_ResolveShortcut (SKIF_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
 
           if (! PathFileExists (wszTarget))
           {

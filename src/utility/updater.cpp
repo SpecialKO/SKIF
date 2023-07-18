@@ -40,6 +40,7 @@ SKIF_Updater::SKIF_Updater (void)
 
       static SKIF_Updater& parent = SKIF_Updater::GetInstance();
       extern SKIF_Signals _Signal;
+      extern bool SKIF_Shutdown;
 
       // Sleep if SKIF is being used as a lancher
       if (_Signal.Launcher)
@@ -72,13 +73,13 @@ SKIF_Updater::SKIF_Updater (void)
         local = { }; // Reset any existing data
         
         // Set a timer so the main UI refreshes every 15 ms
-        SetTimer (SKIF_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
+        SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
 
         // Check for updates!
         parent.PerformUpdateCheck (local);
         
         // Kill the timer once the update process has completed
-        KillTimer (SKIF_hWnd, IDT_REFRESH_UPDATER);
+        KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
 
         // Swap in the results
         lastWritten = currWriting;
@@ -87,14 +88,14 @@ SKIF_Updater::SKIF_Updater (void)
         parent.updater_running.store (2);
 
         // Signal to the main thread that new results are available
-        PostMessage (SKIF_hWnd, WM_SKIF_UPDATER, local.state, 0x0);
+        PostMessage (SKIF_Notify_hWnd, WM_SKIF_UPDATER, local.state, 0x0);
 
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
             INFINITE
         );
 
-      } while (IsWindow (SKIF_hWnd)); // Keep thread alive until exit
+      } while (! SKIF_Shutdown); // Keep thread alive until exit
 
       PLOG_DEBUG << "Update Thread Stopped!";
 

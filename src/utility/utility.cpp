@@ -1410,7 +1410,7 @@ constexpr auto VK_H = 0x48;
 
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
     if (SKIF_Util_IsHDRSupported (true))
-      if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_H))
+      if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_HDR, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_H))
       {
         bHotKeyHDR = true;
         PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + H) for toggling HDR for individual displays.";
@@ -1432,7 +1432,7 @@ SKIF_Util_UnregisterHotKeyHDRToggle(void)
   if (! bHotKeyHDR)
     return true;
 
-  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_HDR))
+  if (UnregisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_HDR))
   {
     bHotKeyHDR = false;
     PLOG_INFO << "Removed the HDR toggling hotkey.";
@@ -1460,7 +1460,7 @@ SKIF_Util_RegisterHotKeySVCTemp (void)
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
-  if (RegisterHotKey (SKIF_hWnd, SKIF_HotKey_SVC, MOD_WIN | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT))
+  if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_SVC, MOD_WIN | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT))
     PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + Insert) for starting the service with auto-stop.";
   else
     PLOG_ERROR << "Failed to register hotkey for starting the service with auto-stop: " << SKIF_Util_GetErrorAsWStr ( );
@@ -1475,7 +1475,7 @@ SKIF_Util_UnregisterHotKeySVCTemp (void)
   if (! bHotKeySVC)
     return true;
 
-  if (UnregisterHotKey (SKIF_hWnd, SKIF_HotKey_SVC))
+  if (UnregisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_SVC))
   {
     bHotKeySVC = false;
     PLOG_INFO << "Removed the hotkey for starting the service with auto-stop.";

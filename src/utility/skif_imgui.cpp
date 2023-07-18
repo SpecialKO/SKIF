@@ -231,7 +231,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
         HoverTipDuration = SKIF_Util_timeGetTime ( );
 
         // Use a timer to force SKIF to refresh once the duration has passed
-        SetTimer (SKIF_hWnd,
+        SetTimer (SKIF_Notify_hWnd,
             IDT_REFRESH_TOOLTIP,
             550,
             (TIMERPROC) NULL

@@ -156,7 +156,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           {
             GOGGalaxy_Path = SK_FormatStringW(LR"(%ws\%ws)", szData, GOGGalaxy_Folder.c_str());
 
-            if (PathFileExistsW (GOGGalaxy_Path.c_str()))
+            if (PathFileExistsW(GOGGalaxy_Path.c_str()))
               GOGGalaxy_Installed = true;
           }
         }

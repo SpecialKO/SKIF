@@ -242,7 +242,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
       
       _SetTaskbarOverlay (bCurrentState);
       
-      if (KillTimer (SKIF_hWnd, IDT_REFRESH_PENDING))
+      if (KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_PENDING))
         IDT_REFRESH_PENDING = 0;
 
       return true;
@@ -310,7 +310,6 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  extern HWND    SKIF_hWnd;
   extern CHandle hInjectAck;
 
   // Set to its current new state
@@ -358,10 +357,10 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
 
   PLOG_INFO << "Attempting to " << ((currentRunningState) ? "STOP" : "START") << " the service...";
 
-  extern HWND SKIF_hWnd;
+  extern HWND SKIF_Notify_hWnd;
   bool        ret = false;
   
-  if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_hWnd : NULL, IDT_REFRESH_PENDING))
+  if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
   SetStopOnInjectionEx ( (! currentRunningState && autoStop) );
@@ -929,8 +928,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                       Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", _path_cache.user_startup.path);
 
   static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
-                                                 PathFileExistsW (SK_UTF8ToWideChar(Svc32Link).c_str()) ||
-                                                 PathFileExistsW (SK_UTF8ToWideChar(Svc32Link).c_str());
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||
+                                                 PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str());
 
   // New method
 
@@ -1165,21 +1164,21 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
   SKIF_UpdateNotifyIcon                   (    );
 
   CComPtr <ITaskbarList3> taskbar;
-  if ( SUCCEEDED (
+  if (SKIF_ImGui_hWnd != nullptr &&
+      SUCCEEDED (
          CoCreateInstance ( CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER,
                               IID_ITaskbarList3, (void **)&taskbar.p)
      ) )
   {
-    extern HWND    SKIF_hWnd;
     extern HMODULE hModSKIF;
-    HICON hIcon = LoadIcon(hModSKIF, MAKEINTRESOURCE(IDI_SKIFON));
+    HICON hIcon = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFON));
 
     if (hIcon != NULL)
     {
       if (show)
-        taskbar->SetOverlayIcon (SKIF_hWnd, hIcon, L"Global injection service is running.");
+        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, hIcon, L"Global injection service is running.");
       else
-        taskbar->SetOverlayIcon (SKIF_hWnd, NULL, NULL);
+        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, NULL, NULL);
 
       DestroyIcon (hIcon);
       bTaskbarOverlayIcon = show;

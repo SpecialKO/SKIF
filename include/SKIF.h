@@ -56,13 +56,13 @@ constexpr UINT           WM_SKIF_STOP           = WM_USER + 0x2048;
 constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049;
 constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050;
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051;
-constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052;
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
 
 constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
-constexpr const wchar_t* SKIF_WindowClass       = L"SK_Injection_Frontend";
+constexpr const wchar_t* SKIF_WindowClass       = L"SKIF_RootWindow";
+constexpr const wchar_t* SKIF_NotifyIcoClass    = L"SKIF_NotificationIcon";
 
 // Enums
 
@@ -123,9 +123,8 @@ extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to
 extern std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
 extern HMODULE     hModSpecialK;     // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
-extern HWND        SKIF_hWnd;        // Invisible 0x0 overarching parent window
 extern HWND        SKIF_ImGui_hWnd;  // Main ImGui platform window (aka the main window of SKIF)
-extern HWND        SKIF_Notify_hWnd; // Notification area icon "window"
+extern HWND        SKIF_Notify_hWnd; // Notification area icon "window" that also doubles as a handler for the stuff previously tied to the now removed SKIF_hWnd 0x0 hidden window
 
 extern float       SKIF_ImGui_GlobalDPIScale;
 extern float       SKIF_ImGui_GlobalDPIScale_Last;

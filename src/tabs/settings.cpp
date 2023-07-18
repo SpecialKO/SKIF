@@ -1223,13 +1223,13 @@ SKIF_UI_Tab_DrawSettings (void)
           {
             if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
             {
-              if (SKIF_hWnd != hWnd)
+              if (SKIF_Notify_hWnd != hWnd) // Don't send WM_QUIT to ourselves
                 PostMessage (  hWnd, WM_QUIT,
                                 0x0, 0x0  );
             }
           }
           return TRUE;
-        }, (LPARAM)SKIF_WindowClass);
+        }, (LPARAM)SKIF_NotifyIcoClass);
       }
 
       _registry.regKVAllowMultipleInstances.putData (

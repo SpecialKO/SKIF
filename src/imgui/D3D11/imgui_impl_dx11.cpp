@@ -639,6 +639,9 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                       draw_data->OwnerViewport->RendererUserData
       );
 
+    if (data == nullptr)
+      return;
+
     if (data->HDR)
     {
       // scRGB HDR 16 bpc

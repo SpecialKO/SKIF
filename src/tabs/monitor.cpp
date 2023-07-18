@@ -1355,12 +1355,12 @@ SKIF_UI_Tab_DrawMonitor (void)
           snapshot_idx_written.store (lastWritten);
 
           // Force a repaint
-          PostMessage (SKIF_hWnd, WM_NULL, 0x0, 0x0);
+          PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
 
           // Sleep until it's time to check again
           Sleep (refreshIntervalInMsec);
 
-        } while (IsWindow (SKIF_hWnd)); // Keep thread alive until exit
+        } while (IsWindow (SKIF_ImGui_hWnd)); // Keep thread alive until exit
 
         SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
