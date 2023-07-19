@@ -821,8 +821,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     {
       g_Focused = true;
       gamepadThreadAwake.store (1);
-      OutputDebugString(L"Gained focus\n");
-      PLOG_VERBOSE << "Gained focus";
+      //OutputDebugString(L"Gained focus\n");
+      //PLOG_VERBOSE << "Gained focus";
 
       extern CONDITION_VARIABLE  SKIF_IsFocused;
       WakeAllConditionVariable (&SKIF_IsFocused);
@@ -846,8 +846,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     {
       g_Focused = false;
       gamepadThreadAwake.store (0);
-      OutputDebugString(L"Killed focus\n");
-      PLOG_VERBOSE << "Killed focus";
+      //OutputDebugString(L"Killed focus\n");
+      //PLOG_VERBOSE << "Killed focus";
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
@@ -1258,7 +1258,7 @@ ImGui_ImplWin32_ShowWindow (ImGuiViewport *viewport)
   {   is_main_platform_window = false;
     extern int    SKIF_nCmdShow;
     ::ShowWindow ( data->Hwnd, SKIF_nCmdShow );
-    OutputDebugString(L"Derp\n");
+    //OutputDebugString(L"Derp\n");
   }
   
   else {
@@ -1266,7 +1266,7 @@ ImGui_ImplWin32_ShowWindow (ImGuiViewport *viewport)
       ::ShowWindow (data->Hwnd, SW_SHOWNA);
     else
       ::ShowWindow (data->Hwnd, (g_Focused) ? SW_SHOW : SW_SHOWNA);
-    OutputDebugString(L"Derp2\n");
+    //OutputDebugString(L"Derp2\n");
   }
 }
 
@@ -1323,7 +1323,7 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
 
     // This is necessary when we alter the style
     ::ShowWindow ( data->Hwnd, SW_SHOWNA );
-    OutputDebugString(L"Derp3\n");
+    //OutputDebugString(L"Derp3\n");
 
     viewport->PlatformRequestMove =
       viewport->PlatformRequestResize = true;
