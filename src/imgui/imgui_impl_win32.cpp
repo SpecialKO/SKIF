@@ -1128,9 +1128,9 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_style = WS_OVERLAPPEDWINDOW; // Main Window
 
   if (flags & ImGuiViewportFlags_NoTaskBarIcon)
-    *out_ex_style = WS_EX_TOOLWINDOW;
+    *out_ex_style = WS_EX_TOOLWINDOW; // Popups / Tooltips
   else
-    *out_ex_style = WS_EX_APPWINDOW; // WS_EX_APPWINDOW;
+    *out_ex_style = WS_EX_APPWINDOW | WS_EX_NOACTIVATE; // Main Window
 
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
@@ -1139,6 +1139,21 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
     *out_ex_style |=
       WS_EX_NOREDIRECTIONBITMAP;
+
+  // First window (main window) must respect nCmdShow and remove
+  // WS_EX_NOACTIVATE if we do not start in a minimized state
+      static bool
+      is_main_platform_window = true;
+  if (is_main_platform_window)
+  {   is_main_platform_window = false;
+    extern int SKIF_nCmdShow;
+
+    if (SKIF_nCmdShow != SW_SHOWMINNOACTIVE &&
+        SKIF_nCmdShow != SW_SHOWNOACTIVATE  &&
+        SKIF_nCmdShow != SW_SHOWNA          &&
+        SKIF_nCmdShow != SW_HIDE)
+      *out_ex_style &= ~WS_EX_NOACTIVATE;
+  }
 }
 
 // This is called for all viewports that gets created
@@ -1251,6 +1266,7 @@ ImGui_ImplWin32_ShowWindow (ImGuiViewport *viewport)
       ::ShowWindow (data->Hwnd, SW_SHOWNA);
     else
       ::ShowWindow (data->Hwnd, (g_Focused) ? SW_SHOW : SW_SHOWNA);
+    OutputDebugString(L"Derp2\n");
   }
 }
 
@@ -1307,6 +1323,7 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
 
     // This is necessary when we alter the style
     ::ShowWindow ( data->Hwnd, SW_SHOWNA );
+    OutputDebugString(L"Derp3\n");
 
     viewport->PlatformRequestMove =
       viewport->PlatformRequestResize = true;
