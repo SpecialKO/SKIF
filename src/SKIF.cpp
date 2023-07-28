@@ -108,6 +108,18 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 
+// Fixes the wobble that occurs when switching between tabs,
+//  as the width/height of the window isn't dynamically calculated.
+ImVec2 SKIF_vecLargeModeDefault  = ImVec2 (1038, 944);       // Does not include the status bar  // H: 1038; W: 944 // 1055
+ImVec2 SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
+ImVec2 SKIF_vecSmallModeDefault  = ImVec2 (415, 305);
+ImVec2 SKIF_vecSmallMode         = ImVec2(0, 0);
+ImVec2 SKIF_vecLargeMode         = ImVec2(0, 0);
+ImVec2 SKIF_vecCurrentMode       = ImVec2 (0, 0);
+float  SKIF_fReducedHeight       = 0.0f;
+float  SKIF_fStatusBarHeight     = 31.0f; // Status bar enabled
+float  SKIF_fStatusBarDisabled   = 8.0f;  // Status bar disabled
+float  SKIF_fStatusBarHeightTips = 18.0f; // Disabled tooltips (two-line status bar)
 
 std::atomic<int> gamepadThreadAwake = 0; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
@@ -1098,10 +1110,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Setup Dear ImGui style
-  SKIF_ImGui_SetStyle ( );
-
   ImGuiStyle& style =
-  ImGui::GetStyle ();
+      ImGui::GetStyle ( );
+  SKIF_ImGui_SetStyle (&style);
 
   // When viewports are enabled we tweak WindowRounding/WindowBg
   //   so platform windows can look identical to regular ones.
@@ -1145,6 +1156,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   bool    changedMode      = false;
           RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+
+  // Add the status bar if it is not disabled
+  if ( ! _registry.bDisableStatusBar )
+  {
+    SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+
+    if (_registry.bDisableTooltips)
+      SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+  }
+
+  else
+    SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
 
 #define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
 
@@ -1328,6 +1351,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Set DPI related variables
+    if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+    {
+      invalidateFonts = true;
+      //SKIF_fReducedHeight = 0.0f;
+    }
+
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
     if (fontScale < 15.0F)
@@ -1361,8 +1390,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     else if (invalidateFonts)
     {
+      OutputDebugString(L"invalidated fonts\n");
+
+      OutputDebugString(L"font size: ");
+      OutputDebugString(std::to_wstring(SKIF_FONTSIZE_DEFAULT).c_str());
+      OutputDebugString(L"\n");
+
+      OutputDebugString(L"DPI scaling: ");
+      OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
+      OutputDebugString(L"\n");
+
       PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
+      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);// SKIF_FONTSIZE_DEFAULT);
       ImGui::GetIO ().Fonts->Build ();
       ImGui_ImplDX11_InvalidateDeviceObjects ();
 
@@ -1420,16 +1459,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
-      // Fixes the wobble that occurs when switching between tabs,
-      //  as the width/height of the window isn't dynamically calculated.
-#define SKIF_wLargeMode 1038
-#define SKIF_hLargeMode  944 // Does not include the status bar
-#define SKIF_wSmallMode  415
-#define SKIF_hSmallMode  305
-
-      static ImVec2 SKIF_vecSmallMode,
-                    SKIF_vecLargeMode,
-                    SKIF_vecCurrentMode;
       ImRect rectCursorMonitor;
 
       // RepositionSKIF -- Step 1: Retrieve monitor of cursor, and set global DPI scale
@@ -1456,17 +1485,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      SKIF_vecSmallMode   = ImVec2 ( SKIF_wSmallMode * SKIF_ImGui_GlobalDPIScale,
-                                     SKIF_hSmallMode * SKIF_ImGui_GlobalDPIScale );
-      SKIF_vecLargeMode   = ImVec2 ( SKIF_wLargeMode * SKIF_ImGui_GlobalDPIScale,
-                                     SKIF_hLargeMode * SKIF_ImGui_GlobalDPIScale );
+      SKIF_vecSmallMode   = SKIF_vecSmallModeDefault  * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecLargeMode   = SKIF_vecLargeModeAdjusted * SKIF_ImGui_GlobalDPIScale;
 
-      // Add the status bar if it is not disabled
-      if ( ! _registry.bDisableStatusBar )
-      {
-        SKIF_vecLargeMode.y += 31.0f * SKIF_ImGui_GlobalDPIScale;
-        SKIF_vecLargeMode.y += (_registry.bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
-      }
+      SKIF_vecLargeMode.y -= SKIF_fReducedHeight;
 
       SKIF_vecCurrentMode  =
                     (_registry.bSmallMode) ? SKIF_vecSmallMode
@@ -1608,6 +1630,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
+      //ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
+
       ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,
                        nullptr,
                          ImGuiWindowFlags_NoResize          |
@@ -1641,20 +1665,33 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 #endif
 
-      float fDpiScaleFactor =
-        ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
+      //float fDpiScaleFactor =
+      //  ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
 
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
       if (RepositionSKIF)
       {
         RepositionSKIF = false;
-      } else if ( monitor->WorkSize.y / fDpiScaleFactor < ((float)SKIF_hLargeMode + 40.0f) && ImGui::GetFrameCount () > 1)
+      }
+      
+#if 0
+      else if ((monitor->WorkSize.y / fDpiScaleFactor) < ((float)SKIF_hLargeMode + 40.0f) && ImGui::GetFrameCount() > 1)
       {
+        // Old method
         SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y / fDpiScaleFactor) / ((float)SKIF_hLargeMode / fDpiScaleFactor + 40.0f / fDpiScaleFactor);
-      } else {
+      }
+#endif
+      
+      else if (SKIF_vecLargeMode.y > (monitor->WorkSize.y))
+      {
+        //SKIF_fReducedHeight = (SKIF_vecLargeMode.y - (monitor->WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+      }
+
+      else {
         SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindowRead()->Viewport->DpiScale : 1.0f;
       }
 
+#if 0
       // Rescale the style on DPI changes
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
       {
@@ -1688,6 +1725,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
         }
       }
+#endif
 
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
@@ -1934,9 +1972,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                ImGuiTabBarFlags_FittingPolicyResizeDown |
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
-
         if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
+          SKIF_ImGui_BeginTabChildFrame ();
+
           if (! _registry.bFirstLaunch)
           {
             // Select the About tab on first launch
@@ -1963,8 +2002,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
             SKIF_UI_Tab_DrawLibrary (     );
-
-          ImGui::EndTabItem ();
+            
+          ImGui::EndChildFrame    ( );
+          ImGui::EndTabItem       ( );
         }
 
 
@@ -2036,116 +2076,124 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::EndGroup             ( );
 
-      // Status Bar at the bottom
-      if ( ! _registry.bSmallMode        &&
-           ! _registry.bDisableStatusBar )
+      
+      if ( ! _registry.bSmallMode )
       {
+        // Add a separation in Large Mode
+        
         // This counteracts math performed on SKIF_vecLargeMode.y at the beginning of the frame
-        float statusBarY = ImGui::GetWindowSize().y;
-              statusBarY -= 31.0f * SKIF_ImGui_GlobalDPIScale;
-              statusBarY -= (_registry.bDisableTooltips) ? 18.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
-        ImGui::SetCursorPosY (statusBarY);
+        if ( ! _registry.bDisableStatusBar )
+        {
+          float statusBarY  = ImGui::GetWindowSize ( ).y;
+                statusBarY -= (SKIF_fStatusBarHeight + 2.0f) * SKIF_ImGui_GlobalDPIScale;
+                statusBarY -= (_registry.bDisableTooltips)   ? SKIF_fStatusBarHeightTips * SKIF_ImGui_GlobalDPIScale : 0.0f;
+          ImGui::SetCursorPosY (statusBarY);
+        }
 
-        if (! _registry.bDisableBorders)
-          ImGui::Separator    (       );
+        ImGui::PushStyleColor (ImGuiCol_Separator,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+        ImGui::Separator      ( );
+        ImGui::PopStyleColor  ( );
 
         // End Separation
-
-        // Begin Add Game
-        ImVec2 tmpPos = ImGui::GetCursorPos();
-
-        static bool btnHovered = false;
-        ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
-        ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
-        ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
-
-        if (btnHovered)
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
-        else
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-
-        ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-        if (ImGui::Button ( ICON_FA_SQUARE_PLUS " Add Game"))
+        
+        // Status Bar at the bottom
+        if ( ! _registry.bDisableStatusBar )
         {
-          AddGamePopup = PopupState_Open;
-          if (SKIF_Tab_Selected != UITab_Library)
-            SKIF_Tab_ChangeTo = UITab_Library;
-        }
-        ImGui::PopStyleVar  ( );
+          // Begin Add Game
+          ImVec2 tmpPos = ImGui::GetCursorPos();
 
-        btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+          static bool btnHovered = false;
+          ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+          ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
+          ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
 
-        ImGui::PopStyleColor (4);
+          if (btnHovered)
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
+          else
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
 
-        ImGui::SetCursorPos(tmpPos);
-        // End Add Game
+          ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+          if (ImGui::Button ( ICON_FA_SQUARE_PLUS " Add Game"))
+          {
+            AddGamePopup = PopupState_Open;
+            if (SKIF_Tab_Selected != UITab_Library)
+              SKIF_Tab_ChangeTo = UITab_Library;
+          }
+          ImGui::PopStyleVar  ( );
 
-        // Begin Pulsating Refresh Icon
-        if (_updater.IsRunning ( ))
-        {
+          btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+          ImGui::PopStyleColor (4);
+
+          ImGui::SetCursorPos(tmpPos);
+          // End Add Game
+
+          // Begin Pulsating Refresh Icon
+          if (_updater.IsRunning ( ))
+          {
+            ImGui::SetCursorPosX (
+              ImGui::GetCursorPosX () +
+              ImGui::GetWindowSize ().x -
+                ( ImGui::CalcTextSize ( ICON_FA_ROTATE ).x ) -
+              ImGui::GetCursorPosX () -
+              ImGui::GetStyle   ().ItemSpacing.x * 2
+            );
+
+            ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
+
+            ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
+                                  ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
+                                 ), ICON_FA_ROTATE );
+          }
+
+          ImGui::SetCursorPos(tmpPos);
+          // End Refresh Icon
+
+          // Begin Status Bar Text
+          auto _StatusPartSize = [&](std::string& part) -> float
+          {
+            return
+              part.empty () ?
+                        0.0f : ImGui::CalcTextSize (
+                                              part.c_str ()
+                                                  ).x;
+          };
+
+          float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
+                fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
+
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX () +
             ImGui::GetWindowSize ().x -
-              ( ImGui::CalcTextSize ( ICON_FA_ROTATE ).x ) -
+              ( fStatusWidth +
+                fHelpWidth ) -
             ImGui::GetCursorPosX () -
             ImGui::GetStyle   ().ItemSpacing.x * 2
           );
 
           ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
 
-          ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
-                                ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
-                               ), ICON_FA_ROTATE );
-        }
-
-        ImGui::SetCursorPos(tmpPos);
-        // End Refresh Icon
-
-        // Begin Status Bar Text
-        auto _StatusPartSize = [&](std::string& part) -> float
-        {
-          return
-            part.empty () ?
-                      0.0f : ImGui::CalcTextSize (
-                                            part.c_str ()
-                                                ).x;
-        };
-
-        float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
-              fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
-
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX () +
-          ImGui::GetWindowSize ().x -
-            ( fStatusWidth +
-              fHelpWidth ) -
-          ImGui::GetCursorPosX () -
-          ImGui::GetStyle   ().ItemSpacing.x * 2
-        );
-
-        ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
-
-        ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
-                                "%s", SKIF_StatusBarText.c_str ()
-        );
-
-        if (! SKIF_StatusBarHelp.empty ())
-        {
-          ImGui::SameLine ();
-          ImGui::SetCursorPosX (
-            ImGui::GetCursorPosX () -
-            ImGui::GetStyle      ().ItemSpacing.x
+          ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
+                                  "%s", SKIF_StatusBarText.c_str ()
           );
-          ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
+
+          if (! SKIF_StatusBarHelp.empty ())
+          {
+            ImGui::SameLine ();
+            ImGui::SetCursorPosX (
+              ImGui::GetCursorPosX () -
+              ImGui::GetStyle      ().ItemSpacing.x
+            );
+            ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
+          }
+
+          // Clear the status every frame, it's mostly used for mouse hover tooltips.
+          SKIF_StatusBarText.clear ();
+          SKIF_StatusBarHelp.clear ();
+
+          // End Status Bar Text
         }
-
-        // Clear the status every frame, it's mostly used for mouse hover tooltips.
-        SKIF_StatusBarText.clear ();
-        SKIF_StatusBarHelp.clear ();
-
-        // End Status Bar Text
       }
-
 
       // Font warning
       if (failedLoadFontsPrompt && ! HiddenFramesContinueRendering)
@@ -3304,6 +3352,12 @@ SKIF_D3D11_GetDevice (bool bWait)
     g_pd3dDevice;
 }
 
+bool SKIF_D3D11_IsDevicePtr (void)
+{
+  return (g_pd3dDevice != nullptr)
+                 ? true : false;
+}
+
 /*
 void CreateRenderTarget (void)
 {
@@ -3331,31 +3385,10 @@ LRESULT
 WINAPI
 SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  // This is the message procedure for the (invisible) 0x0 SKIF window
-  
-  //OutputDebugString((L"[SKIF_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
-  //OutputDebugString((L"[SKIF_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());
-  //OutputDebugString((L"[SKIF_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
-  //OutputDebugString((L"[SKIF_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+  UNREFERENCED_PARAMETER (hWnd);
+  UNREFERENCED_PARAMETER (lParam);
 
-  /*
-  if (msg != WM_NULL        && 
-      msg != WM_NCHITTEST   &&
-      msg != WM_MOUSEFIRST  &&
-      msg != WM_MOUSEMOVE
-    )
-  {
-    OutputDebugString((L"[WndProc] Message spotted: " + std::to_wstring(msg) + L" + wParam: " + std::to_wstring(wParam) + L"\n").c_str());
-  }
-
-  if (ImGui::GetCurrentContext() != NULL)
-  {
-    OutputDebugString((L"[WndProc][" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Message spotted : " + std::to_wstring(msg) + L" w wParam : " + std::to_wstring(wParam) + L"\n").c_str());
-  }
-  */
-
-  //if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
-  //  return true;
+  // This is the message procedure that handles all custom SKIF window messages and actions
   
   UpdateFlags uFlags = UpdateFlags_Unknown;
 
@@ -3558,14 +3591,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
-    case WM_SIZE:
-      // Might as well trigger a recreation on WM_SIZE when not minimized
-      // It is possible this catches device reset/hung scenarios
-      if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
-        RecreateSwapChains = true;
-      break;
-
     case WM_SYSCOMMAND:
+      /*
       if ((wParam & 0xfff0) == SC_KEYMENU)
       {
         // Disable ALT application menu
@@ -3583,6 +3610,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // to the center of the display the cursor is on.
         PostMessage (hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
       }
+      */
       break;
 
     case WM_DESTROY:
@@ -3607,7 +3635,7 @@ LRESULT
 WINAPI
 SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  // This is the message procedure for the notification icon
+  // This is the message procedure for the notification icon window that also handles custom SKIF messages
   
   //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
   //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());

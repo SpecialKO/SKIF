@@ -925,7 +925,49 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine ( );
 
     if (ImGui::Checkbox ("Tooltips", &_registry.bDisableTooltips))
+    {
       _registry.regKVDisableTooltips.putData (  _registry.bDisableTooltips);
+
+      extern ImVec2 SKIF_vecLargeModeDefault;
+      extern ImVec2 SKIF_vecLargeModeAdjusted;
+      extern float  SKIF_fReducedHeight;
+      extern float  SKIF_fStatusBarHeight;
+      extern float  SKIF_fStatusBarDisabled;
+      extern float  SKIF_fStatusBarHeightTips;
+
+      // Adjust the large mode size
+      SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault;
+
+      // Add the status bar if it is not disabled
+      if ( ! _registry.bDisableStatusBar )
+      {
+        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+
+        if (_registry.bDisableTooltips)
+          SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+      }
+
+      else
+        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
+
+      // Take the current display into account
+      HMONITOR monitor =
+        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+
+      MONITORINFO
+        info        = {                  };
+        info.cbSize = sizeof (MONITORINFO);
+
+      if (::GetMonitorInfo (monitor, &info))
+      {
+        ImVec2 WorkSize =
+          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+        if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_fReducedHeight = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+      }
+    }
 
     if (ImGui::IsItemHovered ())
       SKIF_StatusBarText = "Info: ";
@@ -939,7 +981,49 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine ( );
 
     if (ImGui::Checkbox ("Status bar", &_registry.bDisableStatusBar))
+    {
       _registry.regKVDisableStatusBar.putData (   _registry.bDisableStatusBar);
+
+      extern ImVec2 SKIF_vecLargeModeDefault;
+      extern ImVec2 SKIF_vecLargeModeAdjusted;
+      extern float  SKIF_fReducedHeight;
+      extern float  SKIF_fStatusBarHeight;
+      extern float  SKIF_fStatusBarDisabled;
+      extern float  SKIF_fStatusBarHeightTips;
+
+      // Adjust the large mode size
+      SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault;
+
+      // Add the status bar if it is not disabled
+      if ( ! _registry.bDisableStatusBar )
+      {
+        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+
+        if (_registry.bDisableTooltips)
+          SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+      }
+
+      else
+        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
+
+      // Take the current display into account
+      HMONITOR monitor =
+        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+
+      MONITORINFO
+        info        = {                  };
+        info.cbSize = sizeof (MONITORINFO);
+
+      if (::GetMonitorInfo (monitor, &info))
+      {
+        ImVec2 WorkSize =
+          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+        if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_fReducedHeight = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+      }
+    }
 
     SKIF_ImGui_SetHoverTip (
       "Combining this with disabled UI tooltips will hide all context based information or tips."

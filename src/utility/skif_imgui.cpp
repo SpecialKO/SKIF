@@ -369,15 +369,27 @@ SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeb
     ImGui::BeginColumns(id, columns_count, flags);
 }
 
+// This is used to set up the main content area for all tabs
 void SKIF_ImGui_BeginTabChildFrame (void)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  extern float  SKIF_fReducedHeight;
+  extern float  SKIF_fStatusBarDisabled;  // Status bar disabled
+
   auto frame_content_area_id =
-    ImGui::GetID ("###SKIF_Content_Area");
+    ImGui::GetID ("###SKIF_CONTENT_AREA");
+
+  float maxContentHeight = 908.0f; // Default height // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
+        maxContentHeight -= (SKIF_fReducedHeight / SKIF_ImGui_GlobalDPIScale);
+
+  //if (_registry.bDisableStatusBar)
+  //  maxContentHeight += SKIF_fStatusBarDisabled;
 
   SKIF_ImGui_BeginChildFrame (
     frame_content_area_id,
       ImVec2 (   0.0f,
-               900.0f * SKIF_ImGui_GlobalDPIScale ),
+               maxContentHeight * SKIF_ImGui_GlobalDPIScale ), // 900.0f
         ImGuiWindowFlags_NavFlattened
   );
 }
@@ -389,9 +401,9 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   label      = label + " ";
 
   ImGui::BeginChildFrame (id, ImVec2 (ImGui::CalcTextSize(icon.c_str())  .x +
-                                           ImGui::CalcTextSize(label.c_str()) .x +
-                                           ImGui::CalcTextSize("    ").x,
-                                           ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+                                      ImGui::CalcTextSize(label.c_str()) .x +
+                                      ImGui::CalcTextSize("    ").x,
+                                      ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NavFlattened
   );
 
@@ -624,14 +636,21 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   ImFontConfig
   font_cfg           = {  };
-  font_cfg.MergeMode = true;
   
   std::filesystem::path fontDir
           (_path_cache.specialk_userdata);
 
   fontDir /= L"Fonts";
 
-  std::wstring standardFont = (fontSize >= 18.0F) ? L"Tahoma.ttf" : L"Verdana.ttf";
+  bool useDefaultFont = false;
+  if  (useDefaultFont)
+  {
+    font_cfg.SizePixels = 13.0f; // Size of the default font (default: 13.0f)
+    io.Fonts->AddFontDefault (&font_cfg); // ProggyClean.ttf
+    font_cfg.MergeMode = true;
+  }
+
+  std::wstring standardFont = (fontSize >= 18.0F) ? L"Tahoma.ttf" : L"Verdana.ttf"; // L"Tahoma.ttf" : L"Verdana.ttf";
 
   std::error_code ec;
   // Create any missing directories
@@ -639,8 +658,13 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
         std::filesystem::create_directories (fontDir, ec);
 
   // Core character set
-  SKIF_ImGui_LoadFont     (standardFont, fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
+  SKIF_ImGui_LoadFont     (standardFont, fontSize, SK_ImGui_GetGlyphRangesDefaultEx(), &font_cfg);
   //SKIF_ImGui_LoadFont     ((fontDir / L"NotoSans-Regular.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
+
+  if (! useDefaultFont)
+  {
+    font_cfg.MergeMode = true;
+  }
 
   // Load extended character sets when SKIF is not used as a launcher
   if (extendedCharsets)
@@ -739,14 +763,14 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   // FA Brands
   SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeBrands (), &font_cfg);
 
-  io.Fonts->AddFontDefault ();
+  //io.Fonts->AddFontDefault ();
 
   fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx ( ));
   //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
 
 void
-SKIF_ImGui_SetStyle (void)
+SKIF_ImGui_SetStyle (ImGuiStyle* dst)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -754,17 +778,17 @@ SKIF_ImGui_SetStyle (void)
   switch (_registry.iStyle)
   {
   case 3:
-    ImGui::StyleColorsClassic  ( );
+    ImGui::StyleColorsClassic  (dst);
     break;
   case 2:
-    ImGui::StyleColorsLight    ( );
+    ImGui::StyleColorsLight    (dst);
     break;
   case 1:
-    ImGui::StyleColorsDark     ( );
+    ImGui::StyleColorsDark     (dst);
     break;
   case 0:
   default:
-    SKIF_ImGui_StyleColorsDark ( );
+    SKIF_ImGui_StyleColorsDark (dst);
     _registry.iStyle = 0;
   }
 }

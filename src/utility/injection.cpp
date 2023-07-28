@@ -939,19 +939,9 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   
   ImGui::BeginGroup  ();
 
-  /*
-  SK_RunOnce(
-    bAutoStartSKIF = PathFileExists(SK_UTF8ToWideChar(link).c_str())
-  );
-  */
-
-  if ( ! argsChecked ) // && bAutoStartSKIF )
+  if ( ! argsChecked )
   {
-    //extern HWND SKIF_hWnd;
-    //WCHAR szTarget   [MAX_PATH];
     WCHAR szArguments[MAX_PATH];
-
-    //ResolveIt (SKIF_hWnd, link.c_str(), szTarget, szArguments, MAX_PATH);
 
     if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
     {
@@ -986,7 +976,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     
 
   if (ImGui::Checkbox((_registry.bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
-                                            " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+                                                 " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
     changes = true;
 
   ImGui::TreePop  ( );
