@@ -2375,7 +2375,8 @@ Cache=false)";
     return ret;
   };
 
-  static constexpr float __ICON_HEIGHT = 32.0f;
+  //static constexpr float __ICON_HEIGHT = 32.0f;
+  float __ICON_HEIGHT = 32.0f * SKIF_ImGui_GlobalDPIScale;
 
   bool  dontcare     = false;
   float fScale       =

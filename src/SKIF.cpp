@@ -201,6 +201,7 @@ CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
 // Holds last frame's DPI scaling
 float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
+float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
@@ -1094,7 +1095,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 //io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
-  io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+//io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
   io.ConfigViewportsNoAutoMerge      = false;
   io.ConfigViewportsNoTaskBarIcon    = false;
   io.ConfigViewportsNoDefaultParent  = false;
@@ -1169,10 +1170,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else
     SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
 
-#define SKIF_FONTSIZE_DEFAULT 18.0F // 18.0F
-
   // Initialize ImGui fonts
-  SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT, (! _Signal.Launcher) );
+  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
@@ -1362,6 +1361,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (fontScale < 15.0F)
       fontScale += 1.0F;
 
+#if 0
     // Handling sub-1000px resolutions by rebuilding the font at 11px
     if (SKIF_ImGui_GlobalDPIScale < 1.0f && (! tinyDPIFonts))
     {
@@ -1408,10 +1408,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
       invalidateFonts = false;
       invalidatedFonts = SKIF_Util_timeGetTime();
     }
+#endif
+
+    if (invalidateFonts)
+    {
+      invalidateFonts = false;
+      SKIF_ImGui_InvalidateFonts ( );
+    }
     
     // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
     else if (failedLoadFonts)
     {
+      OutputDebugString(L"failedLoadFonts\n");
+
       SKIF_bFontChineseSimplified = false;
       SKIF_bFontChineseAll        = false;
       SKIF_bFontCyrillic          = false;
@@ -1419,11 +1428,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_bFontKorean            = false;
       SKIF_bFontThai              = false;
       SKIF_bFontVietnamese        = false;
-
-      PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
+      
+      SKIF_ImGui_InvalidateFonts ( );
 
       failedLoadFonts = false;
       failedLoadFontsPrompt = true;
@@ -1477,7 +1483,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                     (float)mouse_screen_pos.y );
             if (t.Contains(os_pos))
             {
-              SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+              // 2023-07-31: Disabled
+              //SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
 
               rectCursorMonitor = t;
             }
@@ -1688,7 +1695,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       else {
-        SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindowRead()->Viewport->DpiScale : 1.0f;
+        // 2023-07-31: Disabled
+        //SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindowRead()->Viewport->DpiScale : 1.0f;
       }
 
 #if 0
@@ -2357,12 +2365,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (compareNewer)
         {
-          compareLabel = "This version is newer than currently installed.";
+          compareLabel = "This version is newer than the currently installed.";
           compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
         }
         else
         {
-          compareLabel = "This version is older than currently installed!";
+          compareLabel = "WARNING: You are about to roll back Special K as this version is older than the currently installed!";
           compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
         }
 
@@ -2377,7 +2385,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SetCursorPosX(fX);
 
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), (_updater.GetResults().description).c_str());
+        ImGui::TextColored (compareColor, (_updater.GetResults().description).c_str());
         ImGui::SameLine ( );
         ImGui::Text (updateTxt.c_str());
 
@@ -2439,7 +2447,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SetCursorPosX(fX);
 
-        std::string btnLabel = "Install";
+        std::string btnLabel = (compareNewer) ? "Update" : "Rollback";
 
         if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
           btnLabel = "Download";
@@ -2700,6 +2708,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       );
 
       // This allows us to compact the working set on launch
+#if 0
       SK_RunOnce (
         invalidatedFonts = SKIF_Util_timeGetTime ( )
       );
@@ -2710,6 +2719,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_Util_CompactWorkingSet ();
         invalidatedFonts = 0;
       }
+#endif
 
       //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
 

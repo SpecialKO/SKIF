@@ -15,6 +15,7 @@
 #include <fonts/fa_621b.h>
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
+#include <imgui/D3D11/imgui_impl_dx11.h>
 
 bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontChineseAll          = false,
@@ -827,7 +828,34 @@ SKIF_ImGui_DisallowWindowMove (void)
 }
 
 bool
-SKIF_ImGui_GetWindowModeState(void)
+SKIF_ImGui_GetWindowModeState (void)
 {
   return SKIF_bWindowDragMoveAllowed;
+}
+
+void
+SKIF_ImGui_InvalidateFonts (void)
+{
+  extern float SKIF_ImGui_FontSizeDefault;
+  //extern bool tinyDPIFonts;
+  OutputDebugString(L"invalidated fonts\n");
+
+  OutputDebugString(L"font size: ");
+  OutputDebugString(std::to_wstring(SKIF_ImGui_FontSizeDefault).c_str());
+  OutputDebugString(L"\n");
+
+  OutputDebugString(L"DPI scaling: ");
+  OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
+  OutputDebugString(L"\n");
+
+  float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
+  if (fontScale < 15.0F)
+    fontScale += 1.0F;
+
+  PLOG_VERBOSE_IF (SKIF_ImGui_GlobalDPIScale < 1.0f) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
+
+
+  SKIF_ImGui_InitFonts (fontScale);// SKIF_FONTSIZE_DEFAULT);
+  ImGui::GetIO ().Fonts->Build ();
+  ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }
