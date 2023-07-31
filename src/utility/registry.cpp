@@ -163,7 +163,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bDisableXboxLibrary    =   regKVDisableXboxLibrary     .getData ( );
 
   bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
-  bSmallMode               =   regKVSmallMode              .getData ( );
+//bServiceMode             =   regKVServiceMode            .getData ( );
   bFirstLaunch             =   regKVFirstLaunch            .getData ( );
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );
   bAllowBackgroundService  =   regKVAllowBackgroundService .getData ( );

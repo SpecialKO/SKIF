@@ -90,6 +90,7 @@
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
 bool RepositionSKIF        = false;
+bool RespectMonBoundaries  = false;
 bool tinyDPIFonts          = false;
 bool invalidateFonts       = false;
 bool failedLoadFonts       = false;
@@ -110,11 +111,11 @@ bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interactin
 
 // Fixes the wobble that occurs when switching between tabs,
 //  as the width/height of the window isn't dynamically calculated.
-ImVec2 SKIF_vecLargeModeDefault  = ImVec2 (1038, 944);       // Does not include the status bar  // H: 1038; W: 944 // 1055
-ImVec2 SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
-ImVec2 SKIF_vecSmallModeDefault  = ImVec2 (415, 305);
-ImVec2 SKIF_vecSmallMode         = ImVec2 (0, 0);
-ImVec2 SKIF_vecLargeMode         = ImVec2 (0, 0);
+ImVec2 SKIF_vecAppModeDefault  = ImVec2 (1038, 944);       // Does not include the status bar  // H: 1038; W: 944 // 1055
+ImVec2 SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
+ImVec2 SKIF_vecSvcModeDefault  = ImVec2 (415, 305);
+ImVec2 SKIF_vecSvcMode         = ImVec2 (0, 0);
+ImVec2 SKIF_vecAppMode         = ImVec2 (0, 0);
 ImVec2 SKIF_vecCurrentMode       = ImVec2 (0, 0);
 ImVec2 SKIF_vecAlteredSize       = ImVec2 (0, 0);
 float  SKIF_fReducedHeight       = 0.0f;
@@ -1042,7 +1043,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       SKIF_Startup_LaunchGameService ( );
       SKIF_Startup_LaunchGame        ( );
-      _registry.bSmallMode = true;
+      _registry.bServiceMode = true;
 
       // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
       // though we need to set this _after_ we have launched any game but before we set up Direct3D.
@@ -1061,7 +1062,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // If we are starting the service,
       //   let us start in small mode
       //if (_Signal.Start)
-      //  _registry.bSmallMode = true;
+      //  _registry.bServiceMode = true;
     }
   }
 
@@ -1151,25 +1152,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
   MSG msg = { };
 
   // Variables related to the display SKIF is visible on
-  ImGuiPlatformMonitor*
-          monitor          = nullptr;
   ImVec2  windowPos;
   ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  bool    changedMode      = false;
-          RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+  RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
   if ( ! _registry.bDisableStatusBar )
   {
-    SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+    SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
     if (_registry.bDisableTooltips)
-      SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+      SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
   }
 
   else
-    SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
+    SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
   // Initialize ImGui fonts
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher) );
@@ -1420,7 +1418,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
     else if (failedLoadFonts)
     {
-      OutputDebugString(L"failedLoadFonts\n");
+      //OutputDebugString(L"failedLoadFonts\n");
 
       SKIF_bFontChineseSimplified = false;
       SKIF_bFontChineseAll        = false;
@@ -1460,15 +1458,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         invalidatedDevice = 1;
       }
     }
+    
+    extern bool
+      ImGui_ImplWin32_WantUpdateMonitors (void);
+    bool _WantUpdateMonitors =
+      ImGui_ImplWin32_WantUpdateMonitors (    );
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
+
+      static bool resetDPIscaling = ! RepositionSKIF;
+      static bool applyDPIscaling = false;
+
       ImRect rectCursorMonitor;
 
-      // RepositionSKIF -- Step 1: Retrieve monitor of cursor, and set global DPI scale
+      // RepositionSKIF -- Step 1: Retrieve monitor of cursor
       if (RepositionSKIF)
       {
         ImRect t;
@@ -1484,23 +1491,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                     (float)mouse_screen_pos.y );
             if (t.Contains(os_pos))
             {
-              // 2023-07-31: Disabled
-              //SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
-
               rectCursorMonitor = t;
+              SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+              applyDPIscaling = true;
             }
           }
         }
       }
+      
+      // The first time the window is created we also need to update the DPI scale and style
+      else if (resetDPIscaling)
+      {        resetDPIscaling = false;
+        SKIF_ImGui_GlobalDPIScale = ImGui::GetMainViewport ( )->DpiScale;
+        applyDPIscaling = true;
+      }
 
-      SKIF_vecSmallMode   = SKIF_vecSmallModeDefault  * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecLargeMode   = SKIF_vecLargeModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      // Update the style scaling
+      if (applyDPIscaling)
+      {   applyDPIscaling = false;
+        ImGuiStyle            newStyle;
+        SKIF_ImGui_SetStyle (&newStyle);
+      }
 
-      SKIF_vecLargeMode.y -= SKIF_vecAlteredSize.y;
+      SKIF_vecSvcMode = SKIF_vecSvcModeDefault  * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecAppMode = SKIF_vecAppModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+
+      SKIF_vecAppMode.y -= SKIF_vecAlteredSize.y;
 
       SKIF_vecCurrentMode  =
-                    (_registry.bSmallMode) ? SKIF_vecSmallMode
-                                           : SKIF_vecLargeMode;
+                    (_registry.bServiceMode) ? SKIF_vecSvcMode
+                                             : SKIF_vecAppMode;
 
       if (ImGui::GetFrameCount() > 2)
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
@@ -1515,9 +1535,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
       //     Otherwise window gets positioned wrong on smaller monitors !
-      if (changedMode && ImGui::GetFrameCount() > 2)
+      if (RespectMonBoundaries && ImGui::GetFrameCount() > 2)
       {
-        changedMode = false;
+        RespectMonBoundaries = false;
 
         ImVec2 topLeft      = windowPos,
                bottomRight  = windowPos + SKIF_vecCurrentMode,
@@ -1607,7 +1627,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
                     // Calculate the expected new size using the DPI scale of the monitor
                     ImVec2 tmpWindowSize = 
-                                  (_registry.bSmallMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
+                                  (_registry.bServiceMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
                                                                SKIF_hSmallMode * tmpMonitor.DpiScale)
                                                     : ImVec2 ( SKIF_wLargeMode * tmpMonitor.DpiScale,
                                                                SKIF_hLargeMode * tmpMonitor.DpiScale);
@@ -1654,87 +1674,33 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HiddenFramesContinueRendering = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
       HoverTipActive = false;
 
-      // Update current monitors/worksize etc;
-      monitor     = &ImGui::GetPlatformIO        ().Monitors [ImGui::GetCurrentWindowRead()->ViewportAllowPlatformMonitorExtend];
+      extern ImGuiPlatformMonitor*
+        ImGui_ImplWin32_GetPlatformMonitorProxy (ImGuiViewport* viewport, bool center);
+      ImGuiPlatformMonitor* actMonitor =
+        ImGui_ImplWin32_GetPlatformMonitorProxy (ImGui::GetWindowViewport ( ), true);
 
-      // Move the invisible Win32 parent window SKIF_hWnd over to the current monitor.
-      //   This solves multiple taskbars not showing SKIF's window on all monitors properly.
-#if 0
-      if (monitor->MainPos.x != ImGui::GetMainViewport()->Pos.x ||
-          monitor->MainPos.y != ImGui::GetMainViewport()->Pos.y )
+      // Crop the window on resolutions with a height smaller than what SKIF requires
+      if (actMonitor != nullptr)
       {
-        MoveWindow (SKIF_hWnd, (int)monitor->MainPos.x, (int)monitor->MainPos.y, 0, 0, false);
+        static ImGuiPlatformMonitor* preMonitor = nullptr;
 
-        // Update refresh rate for the current monitor
-        SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
-        //OutputDebugString ((L"Updated refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+        // Only act if we are, in fact, on a new display
+        if (preMonitor != actMonitor || _WantUpdateMonitors)
+        {   preMonitor  = actMonitor;
 
-        RecreateSwapChains = true;
+          // Reset reduced height
+          SKIF_vecAlteredSize.y = 0.0f;
+
+          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+        }
       }
-#endif
-
-      //float fDpiScaleFactor =
-      //  ((io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? monitor->DpiScale : 1.0f);
 
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
       if (RepositionSKIF)
       {
         RepositionSKIF = false;
       }
-      
-#if 0
-      else if ((monitor->WorkSize.y / fDpiScaleFactor) < ((float)SKIF_hLargeMode + 40.0f) && ImGui::GetFrameCount() > 1)
-      {
-        // Old method
-        SKIF_ImGui_GlobalDPIScale = (monitor->WorkSize.y / fDpiScaleFactor) / ((float)SKIF_hLargeMode / fDpiScaleFactor + 40.0f / fDpiScaleFactor);
-      }
-#endif
-      
-      else if (SKIF_vecLargeMode.y > (monitor->WorkSize.y))
-      {
-        //SKIF_fReducedHeight = (SKIF_vecLargeMode.y - (monitor->WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
-      }
-
-      else {
-        // 2023-07-31: Disabled
-        //SKIF_ImGui_GlobalDPIScale = (io.ConfigFlags & ImGuiConfigFlags_DpiEnableScaleFonts) ? ImGui::GetCurrentWindowRead()->Viewport->DpiScale : 1.0f;
-      }
-
-#if 0
-      // Rescale the style on DPI changes
-      if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
-      {
-        style.WindowPadding                         = SKIF_ImGui_DefaultStyle.WindowPadding                       * SKIF_ImGui_GlobalDPIScale;
-        style.WindowRounding                        = 4.0F                                                        * SKIF_ImGui_GlobalDPIScale;
-        style.WindowMinSize                         = SKIF_ImGui_DefaultStyle.WindowMinSize                       * SKIF_ImGui_GlobalDPIScale;
-        style.ChildRounding                         = style.WindowRounding;
-        style.PopupRounding                         = SKIF_ImGui_DefaultStyle.PopupRounding                       * SKIF_ImGui_GlobalDPIScale;
-        style.FramePadding                          = SKIF_ImGui_DefaultStyle.FramePadding                        * SKIF_ImGui_GlobalDPIScale;
-        style.FrameRounding                         = style.WindowRounding;
-        style.ItemSpacing                           = SKIF_ImGui_DefaultStyle.ItemSpacing                         * SKIF_ImGui_GlobalDPIScale;
-        style.ItemInnerSpacing                      = SKIF_ImGui_DefaultStyle.ItemInnerSpacing                    * SKIF_ImGui_GlobalDPIScale;
-        style.TouchExtraPadding                     = SKIF_ImGui_DefaultStyle.TouchExtraPadding                   * SKIF_ImGui_GlobalDPIScale;
-        style.IndentSpacing                         = SKIF_ImGui_DefaultStyle.IndentSpacing                       * SKIF_ImGui_GlobalDPIScale;
-        style.ColumnsMinSpacing                     = SKIF_ImGui_DefaultStyle.ColumnsMinSpacing                   * SKIF_ImGui_GlobalDPIScale;
-        style.ScrollbarSize                         = SKIF_ImGui_DefaultStyle.ScrollbarSize                       * SKIF_ImGui_GlobalDPIScale;
-        style.ScrollbarRounding                     = SKIF_ImGui_DefaultStyle.ScrollbarRounding                   * SKIF_ImGui_GlobalDPIScale;
-        style.GrabMinSize                           = SKIF_ImGui_DefaultStyle.GrabMinSize                         * SKIF_ImGui_GlobalDPIScale;
-        style.GrabRounding                          = SKIF_ImGui_DefaultStyle.GrabRounding                        * SKIF_ImGui_GlobalDPIScale;
-        style.TabRounding                           = style.WindowRounding;
-        if (style.TabMinWidthForUnselectedCloseButton != FLT_MAX)
-          style.TabMinWidthForUnselectedCloseButton = SKIF_ImGui_DefaultStyle.TabMinWidthForUnselectedCloseButton * SKIF_ImGui_GlobalDPIScale;
-        style.DisplayWindowPadding                  = SKIF_ImGui_DefaultStyle.DisplayWindowPadding                * SKIF_ImGui_GlobalDPIScale;
-        style.DisplaySafeAreaPadding                = SKIF_ImGui_DefaultStyle.DisplaySafeAreaPadding              * SKIF_ImGui_GlobalDPIScale;
-        style.MouseCursorScale                      = SKIF_ImGui_DefaultStyle.MouseCursorScale                    * SKIF_ImGui_GlobalDPIScale;
-
-        // These are not a part of the default style so need to assign them separately
-        if (! _registry.bDisableBorders)
-        {
-          style.TabBorderSize                       = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
-          style.FrameBorderSize                     = 1.0F                                                        * SKIF_ImGui_GlobalDPIScale;
-        }
-      }
-#endif
 
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
@@ -1768,17 +1734,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
            (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
-            ImGui::Button ( (_registry.bSmallMode) ? ICON_FA_MAXIMIZE
-                                                   : ICON_FA_MINIMIZE,
+            ImGui::Button ( (_registry.bServiceMode) ? ICON_FA_MAXIMIZE
+                                                     : ICON_FA_MINIMIZE,
                             ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
                                       0.0f ) )
          )
       {
-        _registry.bSmallMode = ! _registry.bSmallMode;
-        _registry.regKVSmallMode.putData (_registry.bSmallMode);
+        _registry.bServiceMode = ! _registry.bServiceMode;
+      //_registry.regKVServiceMode.putData (_registry.bServiceMode);
         _registry._ExitOnInjection = false;
 
-        PLOG_DEBUG << "Switched to " << ((_registry.bSmallMode) ? "Small Mode" : "Large Mode");
+        PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
 
         if (SteamOverlayDisabled)
         {
@@ -1787,7 +1753,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SteamOverlayDisabled = false;
         }
 
-        if (_registry.bSmallMode)
+        if (_registry.bServiceMode)
         {
           // If we switch to small mode, close all popups
           ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
@@ -1818,7 +1784,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        changedMode = true;
+        RespectMonBoundaries = true;
 
         // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
         //   This prevent flashing and elements appearing too large during those frames.
@@ -1827,7 +1793,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! ImGui::IsAnyPopupOpen ( ) && ! _registry.bSmallMode)
+      if (! ImGui::IsAnyPopupOpen ( ) && ! _registry.bServiceMode)
       {
         if (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
         {
@@ -1933,7 +1899,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Begin Small Mode
 #pragma region UI: Small Mode
 
-      if (_registry.bSmallMode)
+      if (_registry.bServiceMode)
       {
         SKIF_Tab_Selected = UITab_SmallMode;
 
@@ -2086,11 +2052,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::EndGroup             ( );
 
       
-      if ( ! _registry.bSmallMode )
+      if ( ! _registry.bServiceMode )
       {
         // Add a separation in Large Mode
         
-        // This counteracts math performed on SKIF_vecLargeMode.y at the beginning of the frame
+        // This counteracts math performed on SKIF_vecAppMode.y at the beginning of the frame
         if ( ! _registry.bDisableStatusBar )
         {
           float statusBarY  = ImGui::GetWindowSize ( ).y;
@@ -2274,7 +2240,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static size_t NumCharsOnLine       = 0;
       static std::vector<char> vecNotes;
 
-      if (UpdatePromptPopup == PopupState_Open && ! _registry.bSmallMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+      if (UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -2705,7 +2671,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // This allows us to ensure the window gets set within the workspace on the second frame after launch
       SK_RunOnce (
-        changedMode = true
+        RespectMonBoundaries = true
       );
 
       // This allows us to compact the working set on launch

@@ -928,27 +928,27 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVDisableTooltips.putData (  _registry.bDisableTooltips);
 
-      extern ImVec2 SKIF_vecLargeModeDefault;
-      extern ImVec2 SKIF_vecLargeModeAdjusted;
+      extern ImVec2 SKIF_vecAppModeDefault;
+      extern ImVec2 SKIF_vecAppModeAdjusted;
       extern ImVec2 SKIF_vecAlteredSize;
       extern float  SKIF_fStatusBarHeight;
       extern float  SKIF_fStatusBarDisabled;
       extern float  SKIF_fStatusBarHeightTips;
 
       // Adjust the large mode size
-      SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault;
+      SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
 
       // Add the status bar if it is not disabled
       if ( ! _registry.bDisableStatusBar )
       {
-        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
         if (_registry.bDisableTooltips)
-          SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+          SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
       }
 
       else
-        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
+        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
       // Take the current display into account
       HMONITOR monitor =
@@ -964,8 +964,8 @@ SKIF_UI_Tab_DrawSettings (void)
           ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-        if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
       }
     }
 
@@ -984,27 +984,27 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVDisableStatusBar.putData (   _registry.bDisableStatusBar);
 
-      extern ImVec2 SKIF_vecLargeModeDefault;
-      extern ImVec2 SKIF_vecLargeModeAdjusted;
+      extern ImVec2 SKIF_vecAppModeDefault;
+      extern ImVec2 SKIF_vecAppModeAdjusted;
       extern ImVec2 SKIF_vecAlteredSize;
       extern float  SKIF_fStatusBarHeight;
       extern float  SKIF_fStatusBarDisabled;
       extern float  SKIF_fStatusBarHeightTips;
 
       // Adjust the large mode size
-      SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault;
+      SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
 
       // Add the status bar if it is not disabled
       if ( ! _registry.bDisableStatusBar )
       {
-        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeight;
+        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
         if (_registry.bDisableTooltips)
-          SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarHeightTips;
+          SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
       }
 
       else
-        SKIF_vecLargeModeAdjusted.y += SKIF_fStatusBarDisabled;
+        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
       // Take the current display into account
       HMONITOR monitor =
@@ -1020,8 +1020,8 @@ SKIF_UI_Tab_DrawSettings (void)
           ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-        if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
       }
     }
 

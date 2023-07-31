@@ -1070,7 +1070,7 @@ struct ImGuiViewportDataWin32 {
   DWORD DwExStyle;
   bool  HwndOwned;
   bool  RemovedDWMBorders;
-  ImGuiPlatformMonitor* ImGuiPlatformMonitor;
+//ImGuiPlatformMonitor* ImGuiPlatformMonitor;
 
   ImGuiViewportDataWin32 (void)
   {
@@ -1079,7 +1079,7 @@ struct ImGuiViewportDataWin32 {
     DwStyle   =
     DwExStyle = 0;
     RemovedDWMBorders = false;
-    ImGuiPlatformMonitor = nullptr;
+  //ImGuiPlatformMonitor = nullptr;
   }
 
   ~ImGuiViewportDataWin32 (void) { IM_ASSERT (Hwnd == NULL); }
@@ -1133,12 +1133,14 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 static void
 ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   ImGuiViewportDataWin32 *data =
     IM_NEW (ImGuiViewportDataWin32)();
 
   viewport->PlatformUserData = data;
 
-  extern HWND SKIF_ImGui_hWnd;
+  extern HWND  SKIF_ImGui_hWnd;
   //extern HWND SKIF_hWnd;
 
   // Select style and parent window
@@ -1176,7 +1178,7 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 
   // If this is the overarching ImGui Platform window (main window; meaning there is no parent), store the handle globally
   if (owner_window == nullptr)
-      SKIF_ImGui_hWnd  = data->Hwnd;
+    SKIF_ImGui_hWnd = data->Hwnd;
 
   data->HwndOwned                 = true;
   viewport->PlatformRequestResize = false;
@@ -1664,106 +1666,17 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
     }
     */
-
-    case WM_DPICHANGED:
-    {
-      int g_dpi    = HIWORD (wParam);
-      RECT* const prcNewWindow = (RECT*) lParam;
-
-      SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
-
-      // Update the style scaling
-      extern ImGuiStyle SKIF_ImGui_DefaultStyle;
-      extern void SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
-
-      ImGuiStyle newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
-      newStyle.ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
-
-      // These are not a part of the default style so need to assign them separately
-      if (! _registry.bDisableBorders)
-      {
-        newStyle.TabBorderSize                       = 1.0F * SKIF_ImGui_GlobalDPIScale;
-        newStyle.FrameBorderSize                     = 1.0F * SKIF_ImGui_GlobalDPIScale;
-      }
-
-      ImGui::GetStyle ( ) = newStyle;
-
-      extern bool
-        invalidateFonts;
-        invalidateFonts = true;
-
-      // Update the max height of SKIF's main window
-      extern ImVec2 SKIF_vecLargeModeDefault;  // Does not include the status bar
-      extern ImVec2 SKIF_vecLargeModeAdjusted; // Adjusted for status bar and tooltips
-      extern ImVec2 SKIF_vecAlteredSize;
-
-      // Reset reduced height
-      SKIF_vecAlteredSize.y = 0.0f;
-
-      HMONITOR monitor =
-        ::MonitorFromWindow (hWnd, MONITOR_DEFAULTTONEAREST);
-
-      MONITORINFO
-        info        = {                  };
-        info.cbSize = sizeof (MONITORINFO);
-
-      if (::GetMonitorInfo (monitor, &info))
-      {
-        ImVec2 WorkSize =
-          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                   (float)( info.rcWork.bottom - info.rcWork.top  ) );
-
-        if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
-
-        /*
-        OutputDebugString(L"SKIF_vecLargeModeAdjusted.y (DPI adjusted): ");
-        OutputDebugString(std::to_wstring(SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale).c_str());
-        OutputDebugString(L"\n");
-
-        OutputDebugString(L"workSize.y: ");
-        OutputDebugString(std::to_wstring(WorkSize.y).c_str());
-        OutputDebugString(L"\n");
-        */
-
-        if (ImGuiViewport *viewport = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
-        {
-          //PLOG_INFO << "Lerp!";
-          //PLOG_INFO << "Position: ";
-          //PLOG_INFO << "WorkPos  : " << viewport->GetWorkPos().x << "x" << viewport->GetWorkPos().y;
-          //PLOG_INFO << "rcMonitor: " << info.rcMonitor.top << "x" << info.rcMonitor.right << "x" << info.rcMonitor.bottom << "x" << info.rcMonitor.left;
-          //PLOG_INFO << "Suggested: " <<  prcNewWindow->top << "x" <<  prcNewWindow->right << "x" <<  prcNewWindow->bottom << "x" <<  prcNewWindow->left;
-
-          if (prcNewWindow->left > info.rcWork.left &&
-              prcNewWindow->left + (SKIF_vecLargeModeAdjusted.x * SKIF_ImGui_GlobalDPIScale) != prcNewWindow->right)
-          {
-            //OutputDebugString (L"derp\n");
-            //PLOG_INFO << "Derp!";
-            prcNewWindow->left = prcNewWindow->right - static_cast<long> (SKIF_vecLargeModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
-          }
-        }
-      }
-      
-      ///*
-      SetWindowPos (hWnd,
-          NULL,
-          prcNewWindow->left,
-          prcNewWindow->top,
-          prcNewWindow->right  - prcNewWindow->left,
-          prcNewWindow->bottom - prcNewWindow->top,
-          SWP_NOZORDER | SWP_NOACTIVATE);
-      //*/
-
-      return 0;
-      break;
-    }
   }
+
+  static bool moveModal = false;
 
   if (ImGuiViewport *viewport = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
   {
     switch (msg)
     {
+
+#pragma region WM_WINDOWPOSCHANGING
+
       // Gets fired on window creation, and screws up the positioning
       case WM_WINDOWPOSCHANGING:
       {
@@ -1977,12 +1890,136 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       }
       break;
 
-    case WM_GETMINMAXINFO:
-      OutputDebugString(L"WM_GETMINMAXINFO\n");
+#pragma endregion
+      
+#pragma region WM_DPICHANGED
 
-      // This is used to inform Windows of the min/max size of the viewport, so
-      //   that features such as Aero Snap takes the enforced size into account
-      if (hWnd == SKIF_ImGui_hWnd) // viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
+    case WM_ENTERSIZEMOVE:
+    case WM_EXITSIZEMOVE:
+      moveModal = ! moveModal;
+      break;
+
+    case WM_DPICHANGED:
+    {
+      //OutputDebugString(L"WM_DPICHANGED\n");
+
+      int g_dpi    = HIWORD (wParam);
+      RECT* const prcNewWindow = (RECT*) lParam;
+
+      SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+
+      // Update the style scaling
+      ImGuiStyle              newStyle;
+      extern void
+        SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
+        SKIF_ImGui_SetStyle (&newStyle);
+
+      extern bool
+        invalidateFonts;
+        invalidateFonts = true;
+
+      // Update the max height of SKIF's main window
+      extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
+      extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
+      extern ImVec2 SKIF_vecAlteredSize;
+
+      // Reset reduced height
+      SKIF_vecAlteredSize.y = 0.0f;
+      
+      HMONITOR monitor =
+        ::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
+      //::MonitorFromWindow (hWnd,         MONITOR_DEFAULTTONEAREST); // Ends up being the previous monitor as the window haven't been moved yet
+
+      MONITORINFO
+        info        = {                  };
+        info.cbSize = sizeof (MONITORINFO);
+
+      if (::GetMonitorInfo (monitor, &info))
+      {
+        ImVec2 WorkSize =
+          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                   (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+
+        // TODO: Fix snapping to the wrong left position on mixed DPI display setups
+
+        if (ImGui::IsAnyMouseDown ( ))
+          return 0;
+
+        if (moveModal)
+          return 0;
+
+#if 0
+        OutputDebugString(L"info.rcWork.left: ");
+        OutputDebugString(std::to_wstring(info.rcWork.left).c_str());
+        OutputDebugString(L"\n");
+
+        OutputDebugString(L"info.rcWork.right: ");
+        OutputDebugString(std::to_wstring(info.rcWork.right).c_str());
+        OutputDebugString(L"\n");
+
+        OutputDebugString(L"prcNewWindow->left: ");
+        OutputDebugString(std::to_wstring(prcNewWindow->left).c_str());
+        OutputDebugString(L"\n");
+
+        OutputDebugString(L"prcNewWindow->right: ");
+        OutputDebugString(std::to_wstring(prcNewWindow->right).c_str());
+        OutputDebugString(L"\n");
+#endif
+
+        bool reposition = false;
+
+        if (prcNewWindow->left <= info.rcWork.left)
+        {
+          // Switching to a display on the left
+          prcNewWindow->left = info.rcWork.left;
+          reposition = true;
+        }
+
+        else if (prcNewWindow->right >= info.rcWork.right)
+        {
+          // Switching to a display on the right
+          prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
+          reposition = true;
+        }
+
+#if 0
+        if (prcNewWindow->left  == info.rcWork.left ||
+            prcNewWindow->right == info.rcWork.right)
+        {
+          prcNewWindow->top = static_cast<long> ((info.rcWork.bottom - info.rcWork.top) / 2 - (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale / 2.0f));
+        }
+#endif
+
+        if (reposition)
+        {
+          //OutputDebugString (L"reposition\n");
+
+          SetWindowPos (hWnd,
+              NULL,
+              prcNewWindow->left,
+              prcNewWindow->top,
+              prcNewWindow->right  - prcNewWindow->left,
+              prcNewWindow->bottom - prcNewWindow->top,
+              SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+
+        //OutputDebugString(L"------------\n");
+      }
+
+      return 0;
+      break;
+    }
+
+#pragma endregion
+
+    // This is used to inform Windows of the min/max size of the viewport, so
+    //   that features such as Aero Snap takes the enforced size into account
+    case WM_GETMINMAXINFO:
+      //OutputDebugString(L"WM_GETMINMAXINFO\n");
+      //if (hWnd == SKIF_ImGui_hWnd) // viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
       {
         MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
         static POINT size, pos; //static
@@ -2075,31 +2112,33 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         viewport->PlatformRequestMove = true;
         //POINTS point = MAKEPOINTS (lParam);
 
+#if 0
         ImGuiViewportDataWin32 *data =
           (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
 
-        ImGuiPlatformMonitor* prevMonitor = data->ImGuiPlatformMonitor;
-        ImGuiPlatformMonitor*  newMonitor = ImGui_ImplWin32_GetPlatformMonitor (viewport, true);
+        ImGuiPlatformMonitor* preMonitor = data->ImGuiPlatformMonitor;
+        ImGuiPlatformMonitor* newMonitor = ImGui_ImplWin32_GetPlatformMonitor (viewport, true);
 
-        if (prevMonitor           != nullptr    &&
-            newMonitor            != nullptr    &&
-            prevMonitor           != newMonitor &&
-            prevMonitor->DpiScale == newMonitor->DpiScale)
+        if (preMonitor           != nullptr    &&
+            newMonitor           != nullptr    &&
+            preMonitor           != newMonitor &&
+            preMonitor->DpiScale == newMonitor->DpiScale)
         {
-          OutputDebugString(L"Detected new monitor!\n");
+          //OutputDebugString(L"Detected new monitor!\n");
 
           // Update the max height of SKIF's main window
-          extern ImVec2 SKIF_vecLargeModeAdjusted; // Adjusted for status bar and tooltips
+          extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
           extern ImVec2 SKIF_vecAlteredSize;
 
           // Reset reduced height
           SKIF_vecAlteredSize.y = 0.0f;
 
-          if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (newMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (newMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (newMonitor->WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (newMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
         }
         
         data->ImGuiPlatformMonitor = newMonitor;
+#endif
 
 #if 0
         for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
@@ -2117,15 +2156,15 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           if (iMonitorWorkArea.Contains (viewportSize.GetCenter( )))
           {
             // Update the max height of SKIF's main window
-            extern ImVec2 SKIF_vecLargeModeDefault;  // Does not include the status bar
-            extern ImVec2 SKIF_vecLargeModeAdjusted; // Adjusted for status bar and tooltips
+            extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
+            extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
             extern ImVec2 SKIF_vecAlteredSize;
 
             // Reset reduced height
             SKIF_vecAlteredSize.y = 0.0f;
 
-            if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (iMonitor.WorkSize.y))
-              SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (iMonitor.WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+            if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (iMonitor.WorkSize.y))
+              SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (iMonitor.WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
             break;
           }
         }
@@ -2221,9 +2260,24 @@ ImGui_ImplWin32_UpdateMonitors (void)
   g_WantUpdateMonitors = false;
 }
 
+bool
+ImGui_ImplWin32_WantUpdateMonitors (void)
+{
+  return g_WantUpdateMonitors;
+}
+
+ImGuiPlatformMonitor*
+ImGui_ImplWin32_GetPlatformMonitorProxy (ImGuiViewport* viewport, bool center)
+{
+  return ImGui_ImplWin32_GetPlatformMonitor (viewport, center);
+}
+
 static ImGuiPlatformMonitor*
 ImGui_ImplWin32_GetPlatformMonitor (ImGuiViewport* viewport, bool center)
 {
+  if (viewport == nullptr)
+    return nullptr;
+
   ImRect viewportRect = ImRect (viewport->Pos, viewport->Pos + viewport->Size);
 
   for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)

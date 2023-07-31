@@ -271,7 +271,7 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
 
   if ( ImGui::IsItemHovered ()                                  &&
         ( overrideExistingText || SKIF_StatusBarHelp.empty () ) &&
-        (                       ! _registry.bSmallMode             )
+        (                       ! _registry.bServiceMode         )
      )
   {
     SKIF_StatusBarHelp.assign (szText);
@@ -381,8 +381,25 @@ void SKIF_ImGui_BeginTabChildFrame (void)
   auto frame_content_area_id =
     ImGui::GetID ("###SKIF_CONTENT_AREA");
 
-  float maxContentHeight = 908.0f; // Default height // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
+  float maxContentHeight = 910.0f; // Default height // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
         maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
+
+#if 0
+  static float maxContentHeight_last = maxContentHeight;
+
+  if (maxContentHeight != maxContentHeight_last)
+  {
+    OutputDebugString(L"new maxContentHeight: ");
+    OutputDebugString(std::to_wstring(maxContentHeight).c_str());
+    OutputDebugString(L"\n");
+
+    OutputDebugString(L"new SKIF_ImGui_GlobalDPIScale: ");
+    OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
+    OutputDebugString(L"\n");
+
+    maxContentHeight_last = maxContentHeight;
+  }
+#endif
 
   //if (_registry.bDisableStatusBar)
   //  maxContentHeight += SKIF_fStatusBarDisabled;
@@ -774,6 +791,9 @@ void
 SKIF_ImGui_SetStyle (ImGuiStyle* dst)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  
+  if (dst == nullptr)
+    dst = &ImGui::GetStyle ( );
 
   // Setup Dear ImGui style
   switch (_registry.iStyle)
@@ -792,6 +812,17 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     SKIF_ImGui_StyleColorsDark (dst);
     _registry.iStyle = 0;
   }
+
+  dst->ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
+
+  // These are not a part of the default style so need to assign them separately
+  if (! _registry.bDisableBorders)
+  {
+    dst->TabBorderSize                       = 1.0F * SKIF_ImGui_GlobalDPIScale;
+    dst->FrameBorderSize                     = 1.0F * SKIF_ImGui_GlobalDPIScale;
+  }
+
+  ImGui::GetStyle ( ) = *dst;
 }
 
 void
@@ -838,6 +869,7 @@ SKIF_ImGui_InvalidateFonts (void)
 {
   extern float SKIF_ImGui_FontSizeDefault;
   //extern bool tinyDPIFonts;
+  /*
   OutputDebugString(L"invalidated fonts\n");
 
   OutputDebugString(L"font size: ");
@@ -847,6 +879,7 @@ SKIF_ImGui_InvalidateFonts (void)
   OutputDebugString(L"DPI scaling: ");
   OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
   OutputDebugString(L"\n");
+  */
 
   float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
   if (fontScale < 15.0F)

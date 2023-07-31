@@ -216,9 +216,13 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Xbox Library)" );
 
-  KeyValue <bool> regKVSmallMode =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Small Mode)" );
+// 2023-07-31: Disabled since I believe this isn't actually used much,
+//               and the intention is to eventually have cmd line args
+//                 trigger service mode automatically when interacting
+//                   with the service on launch.
+//KeyValue <bool> regKVServiceMode =
+//  SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+//                       LR"(Small Mode)" );
 
   KeyValue <bool> regKVFirstLaunch =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -383,7 +387,7 @@ struct SKIF_RegistrySettings {
   bool bDisableEGSLibrary       = false;
   bool bDisableGOGLibrary       = false;
   bool bDisableXboxLibrary      = false;
-  bool bSmallMode               = false;
+  bool bServiceMode             = false;
   bool bFirstLaunch             = false;
   bool bEnableDebugMode         = false;
   bool bAllowMultipleInstances  = false;
