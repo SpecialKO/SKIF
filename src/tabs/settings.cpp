@@ -930,7 +930,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       extern ImVec2 SKIF_vecLargeModeDefault;
       extern ImVec2 SKIF_vecLargeModeAdjusted;
-      extern float  SKIF_fReducedHeight;
+      extern ImVec2 SKIF_vecAlteredSize;
       extern float  SKIF_fStatusBarHeight;
       extern float  SKIF_fStatusBarDisabled;
       extern float  SKIF_fStatusBarHeightTips;
@@ -965,7 +965,7 @@ SKIF_UI_Tab_DrawSettings (void)
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
         if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_fReducedHeight = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
       }
     }
 
@@ -986,7 +986,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       extern ImVec2 SKIF_vecLargeModeDefault;
       extern ImVec2 SKIF_vecLargeModeAdjusted;
-      extern float  SKIF_fReducedHeight;
+      extern ImVec2 SKIF_vecAlteredSize;
       extern float  SKIF_fStatusBarHeight;
       extern float  SKIF_fStatusBarDisabled;
       extern float  SKIF_fStatusBarHeightTips;
@@ -1021,7 +1021,7 @@ SKIF_UI_Tab_DrawSettings (void)
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
         if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_fReducedHeight = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
       }
     }
 

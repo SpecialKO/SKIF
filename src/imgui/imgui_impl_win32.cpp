@@ -1713,10 +1713,10 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       // Update the max height of SKIF's main window
       extern ImVec2 SKIF_vecLargeModeDefault;  // Does not include the status bar
       extern ImVec2 SKIF_vecLargeModeAdjusted; // Adjusted for status bar and tooltips
-      extern float  SKIF_fReducedHeight;
+      extern ImVec2 SKIF_vecAlteredSize;
 
       // Reset reduced height
-      SKIF_fReducedHeight = 0.0f;
+      SKIF_vecAlteredSize.y = 0.0f;
 
       POINT
         point   = {                };
@@ -1740,7 +1740,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
         if (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_fReducedHeight = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+          SKIF_vecAlteredSize.y = (SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
 
         OutputDebugString(L"SKIF_vecLargeModeAdjusted.y (DPI adjusted): ");
         OutputDebugString(std::to_wstring(SKIF_vecLargeModeAdjusted.y * SKIF_ImGui_GlobalDPIScale).c_str());

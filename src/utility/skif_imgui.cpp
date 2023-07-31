@@ -375,14 +375,14 @@ void SKIF_ImGui_BeginTabChildFrame (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  extern float  SKIF_fReducedHeight;
+  extern ImVec2 SKIF_vecAlteredSize;
   extern float  SKIF_fStatusBarDisabled;  // Status bar disabled
 
   auto frame_content_area_id =
     ImGui::GetID ("###SKIF_CONTENT_AREA");
 
   float maxContentHeight = 908.0f; // Default height // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
-        maxContentHeight -= (SKIF_fReducedHeight / SKIF_ImGui_GlobalDPIScale);
+        maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
 
   //if (_registry.bDisableStatusBar)
   //  maxContentHeight += SKIF_fStatusBarDisabled;

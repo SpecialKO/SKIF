@@ -62,10 +62,6 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
-#define _WIDTH   (414.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset1, AppListInset2, Injection_Summary_Frame
-#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
-#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
-
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
 static bool clickedGameLaunch,
@@ -88,6 +84,7 @@ PopupState ConfirmPopup    = PopupState_Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
+extern ImVec2          SKIF_vecAlteredSize;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
@@ -96,6 +93,10 @@ extern std::wstring    SKIF_EGS_AppDataPath;
 extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
+
+#define _WIDTH   (414.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f)                                             // AppListInset1, AppListInset2, Injection_Summary_Frame
+#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
+#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
 //static std::wstring sshot_file = L"";
 
@@ -2316,12 +2317,14 @@ Cache=false)";
 #pragma endregion
 
 
+  // GamesList START
+#pragma region GamesList
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
-                                ImVec2 ( _WIDTH,
+                                ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                          _HEIGHT ), (! _registry.bDisableBorders),
-                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
+                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding ); // | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
@@ -2396,8 +2399,8 @@ Cache=false)";
               ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
 
   float fOffset =
-    ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
-           ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale);
+    std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
+                 ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
   static bool deferred_update = false;
 
@@ -2446,7 +2449,7 @@ Cache=false)";
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_SpanAvailWidth); // (app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()
+    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth); // (app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()
     ImGui::PopStyleColor   (2                    );
 
     static DWORD    timeClicked = 0;
@@ -2579,6 +2582,8 @@ Cache=false)";
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
         ImGui::SetScrollHereY (0.5f);
 
+      // Disabled 2023-07-31 due to not serving any purpose?
+#if 0
       if (! update)
       {
         if (std::exchange (deferred_update, false))
@@ -2637,16 +2642,19 @@ Cache=false)";
           ImGui::Dummy    (ImVec2 (0,0));
         }
       }
+#endif
 
       pApp = &app.second;
     }
   }
 
-  float fOriginalY =
-    ImGui::GetCursorPosY ( );
+#pragma region GamesList::AddGame
 
   if (_registry.bDisableStatusBar)
   {
+    float fOriginalY =
+      ImGui::GetCursorPosY ( );
+
     ImGui::BeginGroup      ( );
 
     static bool btnHovered = false;
@@ -2676,6 +2684,9 @@ Cache=false)";
 
     ImGui::EndGroup        ();
   }
+
+#pragma endregion
+
 
   // Stop populating the whole list
 
@@ -2858,6 +2869,7 @@ Cache=false)";
     }
   }
 
+#pragma region GamesList::IconMenu
 
   if (IconMenu == PopupState_Open)
   {
@@ -3047,10 +3059,14 @@ Cache=false)";
 
     ImGui::EndPopup      ( );
   }
+#pragma endregion
 
   ImGui::EndGroup        ( );
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );
+
+#pragma endregion
+  // GamesList END
 
   if (! ImGui::IsAnyPopupOpen   ( ) &&
       ! ImGui::IsAnyItemHovered ( ) &&

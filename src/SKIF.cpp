@@ -113,9 +113,10 @@ bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interactin
 ImVec2 SKIF_vecLargeModeDefault  = ImVec2 (1038, 944);       // Does not include the status bar  // H: 1038; W: 944 // 1055
 ImVec2 SKIF_vecLargeModeAdjusted = SKIF_vecLargeModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 ImVec2 SKIF_vecSmallModeDefault  = ImVec2 (415, 305);
-ImVec2 SKIF_vecSmallMode         = ImVec2(0, 0);
-ImVec2 SKIF_vecLargeMode         = ImVec2(0, 0);
+ImVec2 SKIF_vecSmallMode         = ImVec2 (0, 0);
+ImVec2 SKIF_vecLargeMode         = ImVec2 (0, 0);
 ImVec2 SKIF_vecCurrentMode       = ImVec2 (0, 0);
+ImVec2 SKIF_vecAlteredSize       = ImVec2 (0, 0);
 float  SKIF_fReducedHeight       = 0.0f;
 float  SKIF_fStatusBarHeight     = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled   = 8.0f;  // Status bar disabled
@@ -1495,7 +1496,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_vecSmallMode   = SKIF_vecSmallModeDefault  * SKIF_ImGui_GlobalDPIScale;
       SKIF_vecLargeMode   = SKIF_vecLargeModeAdjusted * SKIF_ImGui_GlobalDPIScale;
 
-      SKIF_vecLargeMode.y -= SKIF_fReducedHeight;
+      SKIF_vecLargeMode.y -= SKIF_vecAlteredSize.y;
 
       SKIF_vecCurrentMode  =
                     (_registry.bSmallMode) ? SKIF_vecSmallMode
