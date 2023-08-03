@@ -10909,7 +10909,8 @@ void ImGui::SetCurrentViewport(ImGuiWindow* current_window, ImGuiViewportP* view
 
     // Notify platform layer of viewport changes
     // FIXME-DPI: This is only currently used for experimenting with handling of multiple DPI
-    if (g.CurrentViewport && g.PlatformIO.Platform_OnChangedViewport)
+    if (g.CurrentViewport && g.PlatformIO.Platform_OnChangedViewport &&
+        strcmp (current_window->Name, "Debug##Default")) // SKIF: Exclude ImGui debug window
         g.PlatformIO.Platform_OnChangedViewport(g.CurrentViewport);
 }
 

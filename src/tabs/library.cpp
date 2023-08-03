@@ -3218,7 +3218,7 @@ Cache=false)";
           ImGui::GetCursorPosX  ( ) +
           ImGui::GetColumnWidth ( ) -
           ImGui::CalcTextSize   ("[] Disable Special K").x -
-          ImGui::GetStyle       ( ).ItemSpacing.x * 2
+          ImGui::GetStyle       ( ).ItemSpacing.x * 3
         );
 
         // If there is only one launch option

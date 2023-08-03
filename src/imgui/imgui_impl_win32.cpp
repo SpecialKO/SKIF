@@ -754,6 +754,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   extern bool msgDontRedraw;
 
+  extern bool KeyWinKey;
+  extern int  SnapKeys;
+
   switch (msg)
   {
   case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
@@ -877,21 +880,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
   case WM_KEYUP:
   case WM_SYSKEYUP:
-    extern bool KeyWinKey;
-    extern int  SnapKeys;
-
-    if (KeyWinKey)
-    {
-      if      (wParam == VK_LEFT)
-        SnapKeys |= 2;
-      else if (wParam == VK_UP)
-        SnapKeys |= 4;
-      else if (wParam == VK_RIGHT)
-        SnapKeys |= 8;
-      else if (wParam == VK_DOWN)
-        SnapKeys |= 16;
-    }
-
     if (wParam < 256 && g_Focused)
       io.KeysDown [wParam] = 0;
     return 0;
@@ -1095,9 +1083,17 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   if (flags & ImGuiViewportFlags_NoDecoration)
-    *out_style = WS_POPUP;            // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
+    *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
   else
-    *out_style = WS_OVERLAPPEDWINDOW; // Main Window
+    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
+
+  // WS_OVERLAPPEDWINDOW == WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
+  // - WS_OVERLAPPED  - The window is an overlapped window          // not really required by SKIF
+  // - WS_CAPTION     - The window has a title bar                  // not really required by SKIF
+  // - WS_SYSMENU     - Window menu           (WndMenu -> Move      // alt+space, right click window on taskbar
+  // - WS_THICKFRAME  - Resize grip on window (WndMenu -> Size)     // enables WinKey+Left/Right snapping
+  // - WS_MINIMIZEBOX - Minimize button       (WndMenu -> Minimize) // enables WinKey+Down minimize shortcut
+  // - WS_MAXIMIZEBOX - Maximize button       (WndMenu -> Maximize) // enables WinKey+Up maximize shortcut
 
   if (flags & ImGuiViewportFlags_NoTaskBarIcon)
     *out_ex_style = WS_EX_TOOLWINDOW; // Popups / Tooltips
@@ -1178,7 +1174,19 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 
   // If this is the overarching ImGui Platform window (main window; meaning there is no parent), store the handle globally
   if (owner_window == nullptr)
+  {
     SKIF_ImGui_hWnd = data->Hwnd;
+
+    extern float
+      SKIF_ImGui_GlobalDPIScale;
+    SKIF_ImGui_GlobalDPIScale = ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd);
+
+    // Update the style scaling
+    ImGuiStyle              newStyle;
+    extern void
+      SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
+      SKIF_ImGui_SetStyle (&newStyle);
+  }
 
   data->HwndOwned                 = true;
   viewport->PlatformRequestResize = false;
@@ -1302,7 +1310,7 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
   
   // Run only once per window -- to remove the Standard Frame of DWM windows
   ///* 2023-07-31: Not needed any longer as its handled in WM_CREATE instead
-  // Correction: Still needed
+  //   CORRECTION: Still needed
   else if ((viewport->Flags & ImGuiViewportFlags_NoDecoration) == 0 &&
           ! data->RemovedDWMBorders)
   {
@@ -1519,9 +1527,46 @@ ImGui_ImplWin32_GetWindowDpiScale (ImGuiViewport *viewport)
 // FIXME-DPI: Testing DPI related ideas
 static void ImGui_ImplWin32_OnChangedViewport (ImGuiViewport *viewport)
 {
-  UNREFERENCED_PARAMETER (viewport);
+  //ImGuiViewportDataWin32 *data =
+  //  (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
 
+  UNREFERENCED_PARAMETER (viewport);
   //(void)viewport;
+
+  //if (viewport->Size.x == 0 ||
+  //    viewport->Size.y == 0)
+  //  return;
+
+  /*
+  OutputDebugString(L"viewport->Size.x: ");
+  OutputDebugString(std::to_wstring(viewport->Size.x).c_str());
+  OutputDebugString(L"\n");
+
+  OutputDebugString(L"viewport->Size.y: ");
+  OutputDebugString(std::to_wstring(viewport->Size.y).c_str());
+  OutputDebugString(L"\n");
+  */
+
+  // Update the style scaling
+  /*
+  ImGuiStyle              newStyle;
+  extern float
+    SKIF_ImGui_GlobalDPIScale;
+    SKIF_ImGui_GlobalDPIScale =
+           viewport->DpiScale;
+
+  extern void
+    SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
+    SKIF_ImGui_SetStyle (&newStyle);
+  */
+
+  /*
+  OutputDebugString(L"SKIF_ImGui_GlobalDPIScale: ");
+  OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
+  OutputDebugString(L"\n");
+  */
+
+
 
   //extern bool       SKIF_bDPIScaling;
   //extern ImGuiStyle SKIF_ImGui_DefaultStyle;
@@ -1578,6 +1623,11 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   extern HWND SKIF_ImGui_hWnd;
   extern HWND SKIF_Notify_hWnd;
   extern float SKIF_ImGui_GlobalDPIScale;
+  extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
+  extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
+  extern ImVec2 SKIF_vecAlteredSize;
+  extern bool KeyWinKey;
+  extern int  SnapKeys; // 2 = Left, 4 = Up, 8 = Right, 16 = Down
   
   //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
   //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());
@@ -1602,23 +1652,39 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  // This allows us to remove the Standard Frame of the window that DWM creates.
+  // WM_NCCALCSIZE allows us to remove the Standard Frame of the window that DWM creates.
   // This is necessary as our main window requires WS_CAPTION | WS_SYSMENU and
   //   a bunch of other window styles to enable modern built-in features such as
-  //   window moving, resizing, WinKey+Arrows, animations, etc, but we don not
+  //   window moving, resizing, WinKey+Arrows, animations, etc, but we do not
   //   want the window border to actually appear around our window.
   // 
   // See https://learn.microsoft.com/en-us/windows/win32/dwm/customframe#removing-the-standard-frame
   // 
   // P.S: Requires the window to be resized afterwards, which is handled through
   //        the RemovedDWMBorders boolean.
+
+  //static bool restore_from_maximized = false;
+
   switch (msg)
   {
+    case WM_SYSCOMMAND:
+    {
+      //OutputDebugString(L"WM_SYSCOMMAND\n");
+
+      // Disable the window menu (Alt+Space, etc) when SKIF is focused
+      if (wParam == SC_KEYMENU && g_Focused) // && (lParam == 0x00 || lParam == 0x20))
+        return true;
+
+      break;
+    }
+
     case WM_NCCALCSIZE:
-      if (wParam == TRUE) return 0; // Removes the Standard Frame of DWM windows
+      // Removes the Standard Frame of DWM windows
+      if (wParam == TRUE)
+        return 0;
       break;
 
-    /*
+#if 0
     // For some reason this causes issues with focus not being properly gained on launch
     case WM_CREATE:
     {
@@ -1660,15 +1726,16 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       float dpi = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
       // lpSize->cy = lpSize->cx = (dpi == 96 ? 200 : 500);
-
-
-
-
     }
     */
+#endif
   }
 
-  static bool moveModal = false;
+
+
+#define SKIF_MAXIMIZE_POS 27
+#define SWP_STATECHANGED  0x8000 // Undocumented
+  static bool moveModal    = false;
 
   if (ImGuiViewport *viewport = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
   {
@@ -1680,8 +1747,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       // Gets fired on window creation, and screws up the positioning
       case WM_WINDOWPOSCHANGING:
       {
-#if 0
-        OutputDebugString(L"WM_WINDOWPOSCHANGING\n");
+        //OutputDebugString(L"WM_WINDOWPOSCHANGING\n");
 
         // Do not run this if any mouse button is being held down
         if (ImGui::IsAnyMouseDown ( ))
@@ -1691,213 +1757,55 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         if (ImGui::GetFrameCount  ( ) < 5)
           break;
 
-        WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*>(lParam);
-#endif
-
-#if 0 // Basic center on the Y axis, cannot handle multiple monitors
-        for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
+        WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*> (lParam);
+        
+        POINT ptLeftTop  = {
+          wp->x,
+          wp->y
+        };
+        
+        // We're probably being maximized
+        if (wp->flags == (SWP_STATECHANGED | SWP_FRAMECHANGED))
         {
-          const ImGuiPlatformMonitor& currMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-          
-          ImVec2 MaxPosWA         = ImVec2 (currMonitor.MainPos.x + currMonitor.MainSize.x,
-                                            currMonitor.MainPos.y + currMonitor.MainSize.y);
-          ImVec2 MaxPosV          = ImVec2 (      viewport->Pos.x +       viewport->Size.x,
-                                                  viewport->Pos.y +       viewport->Size.y);
-          ImRect currWorkArea     = ImRect (currMonitor.MainPos, MaxPosWA);
-          ImRect currViewportSize = ImRect (      viewport->Pos, MaxPosV);
-          
-          if (currWorkArea.Contains (viewport->Pos))
-          {
-            //wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - currMonitor.MainPos.x);
+          // OutputDebugString(L"SWP_STATECHANGED | SWP_FRAMECHANGED\n");
 
-            // Windows seems to require y == 0 to move the window to another display
-            //if (wp->y == currWorkArea.Min.y)
-              //wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - currMonitor.MainPos.y);
-
-            //return 0;
-            break;
-          }
-        }
-#endif
-
-#if 0
-        if (true || wp->y <= 0)
-        {
           for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
           {
             const ImGuiPlatformMonitor& currMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
           
-            ImVec2 MaxPosWA         = ImVec2 (currMonitor.MainPos.x + currMonitor.MainSize.x,
-                                              currMonitor.MainPos.y + currMonitor.MainSize.y);
-            ImVec2 MaxPosV          = ImVec2 (      viewport->Pos.x +       viewport->Size.x,
-                                                    viewport->Pos.y +       viewport->Size.y);
-            ImRect currWorkArea     = ImRect (currMonitor.MainPos, MaxPosWA);
-            ImRect currViewportSize = ImRect (      viewport->Pos, MaxPosV);
+            ImVec2 MaxPos = ImVec2 (currMonitor.MainPos.x + currMonitor.MainSize.x,
+                                    currMonitor.MainPos.y + currMonitor.MainSize.y);
+            ImRect currWorkArea = ImRect(currMonitor.MainPos, MaxPos);
 
-#endif
+            // Find the intended display
+            if (currWorkArea.Contains (ImVec2 (static_cast<float> (wp->x), static_cast<float> (wp->y))))
+            {
+              // If our intended position is SKIF_MAXIMIZE_POS then we're definitely being maximized
+              if (wp->x - currWorkArea.Min.x == SKIF_MAXIMIZE_POS &&
+                  wp->y - currWorkArea.Min.y == SKIF_MAXIMIZE_POS)
+              {
+                // Change the intended position to the actual center of the display
+                wp->x = static_cast<int> (currWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * currMonitor.DpiScale / 2.0f));
+                wp->y = static_cast<int> (currWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * currMonitor.DpiScale / 2.0f));
 
-#if 0
-
-        //if (currWorkArea.Contains (viewport->Pos))
-        const ImGuiPlatformMonitor* monitor = ImGui_ImplWin32_GetPlatformMonitor (viewport);
-        if (monitor != nullptr)
-        {
-          ImRect currWorkArea     = ImRect (monitor->MainPos, monitor->MainPos + monitor->MainSize);
-          ImRect currViewportSize = ImRect (   viewport->Pos,    viewport->Pos +    viewport->Size);
-
-
-          bool toLeft    = (wp->x == 0),
-                toRight  = (wp->x == (currWorkArea.Max.x - viewport->Size.x)),
-                toTop    = (wp->y <= 0),
-                toBottom = (wp->y == (currWorkArea.Max.y - viewport->Size.y));
-
-          bool atLeft     = (viewport->Pos.x == 0.0f),
-                atRight   = (viewport->Pos.x == (currWorkArea.Max.x - viewport->Size.x)),
-                atTop     = (viewport->Pos.y <= 0.0f),
-                atBottom  = (viewport->Pos.y == (currWorkArea.Max.y - viewport->Size.y)),
-                atCenterX = (currViewportSize.GetCenter().x == currWorkArea.GetCenter().x),
-                atCenterY = (currViewportSize.GetCenter().y == currWorkArea.GetCenter().y);
-
-          wp->flags |= SWP_NOSIZE;
-
-          OutputDebugString(L"---- #1: Position ----\n");
-          if (atLeft)
-            OutputDebugString(L"atLeft\n");
-          if (atRight)
-            OutputDebugString(L"atRight\n");
-          if (atTop)
-            OutputDebugString(L"atTop\n");
-          if (atBottom)
-            OutputDebugString(L"atBottom\n");
-          if (atCenterX)
-            OutputDebugString(L"atCenterX\n");
-          if (atCenterY)
-            OutputDebugString(L"atCenterY\n");
-
-          OutputDebugString(L"---- #2: Direction ----\n");
-
-          if (toLeft)
-            OutputDebugString(L"toLeft\n");
-          if (toRight)
-            OutputDebugString(L"toRight\n");
-          if (toTop)
-            OutputDebugString(L"toTop\n");
-          if (toBottom)
-            OutputDebugString(L"toBottom\n");
-
-          OutputDebugString(L"---- #3: Action ----\n");
-
-          if ((atRight   && atCenterY && toLeft ) ||
-              (atLeft    && atCenterY && toRight) ||
-              (atCenterX && atTop     && toTop  && ! toLeft && ! toRight ))
-          {
-            OutputDebugString(L"Moved to mid-mid");
-            wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - monitor->MainPos.x);
-            wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - monitor->MainPos.y);
+                return 0;
+              }
+            }
           }
-
-          else
-
-          if ((atRight   && atTop     && toRight) ||
-              (atCenterX && atCenterY && toRight))
-          {
-            OutputDebugString(L"Moved to mid-right");
-            wp->x = (currWorkArea.Max.x - viewport->Size.x);
-            wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - monitor->MainPos.y);
-          }
-
-          else
-
-          if ((atLeft    && atTop     && toLeft) ||
-              (atCenterX && atCenterY && toLeft))
-          {
-            OutputDebugString(L"Moved to mid-left");
-            wp->x = 0;
-            wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - monitor->MainPos.y);
-          }
-
-          else
-
-          if ((atCenterX && atCenterY && toTop  && ! toLeft && ! toRight) ||
-              (atLeft    && atTop     && toRight) ||
-              (atRight   && atTop     && toLeft ))
-          {
-            OutputDebugString(L"Moved to top-mid");
-            wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - monitor->MainPos.x);
-            wp->y = 0;
-          }
-
-          else
-
-          if ((atRight && atCenterY && toTop))
-          {
-            OutputDebugString(L"Moved to top-right");
-            wp->x = (currWorkArea.Max.x - viewport->Size.x);
-            wp->y = 0;
-          }
-
-          else
-
-          if ((atLeft && atCenterY && toTop))
-          {
-            OutputDebugString(L"Moved to top-right");
-            wp->x = 0;
-            wp->y = 0;
-          }
-
-          /*
-          if (atRight && toTop)
-          {
-            wp->x = viewport->Pos.x;
-            wp->y = 0;
-          }
-
-          else if (atLeft && toTop)
-          {
-            wp->x = 0;
-            wp->y = 0;
-          }
-
-          else if (atLeft && atTop && toRight)
-          {
-            wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - currMonitor.MainPos.x);
-            wp->y = 0;
-          }
-
-          else if (atCenterX && atCenterY)
-          {
-            wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - currMonitor.MainPos.y);
-          }
-          else if (! atTop   && toRight ||
-                    ! atRight && toLeft  )
-          {
-            wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - currMonitor.MainPos.x);
-            wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - currMonitor.MainPos.y);
-          }
-          */
-
-          //wp->x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - currMonitor.MainPos.x);
-          //wp->y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - currMonitor.MainPos.y);
-
-          OutputDebugString(L"\n\n");
-          return 0;
-          //  }
-          //}
-
-          //if (true || wp->y > 0)
         }
-#endif
+
+        break;
       }
-      break;
 
 #pragma endregion
-      
-#pragma region WM_DPICHANGED
 
     case WM_ENTERSIZEMOVE:
     case WM_EXITSIZEMOVE:
+      //OutputDebugString(L"WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE\n");
       moveModal = ! moveModal;
       break;
+      
+#pragma region WM_DPICHANGED
 
     case WM_DPICHANGED:
     {
@@ -1906,9 +1814,13 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       int g_dpi    = HIWORD (wParam);
       RECT* const prcNewWindow = (RECT*) lParam;
 
-      SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+      extern float SKIF_ImGui_GlobalDPIScale_New;
+      SKIF_ImGui_GlobalDPIScale_New = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
+      ///*
       // Update the style scaling
+      SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_GlobalDPIScale_New;
+
       ImGuiStyle              newStyle;
       extern void
         SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
@@ -1917,57 +1829,39 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       extern bool
         invalidateFonts;
         invalidateFonts = true;
-
-      // Update the max height of SKIF's main window
-      extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
-      extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
-      extern ImVec2 SKIF_vecAlteredSize;
+      //*/
 
       // Reset reduced height
       SKIF_vecAlteredSize.y = 0.0f;
+
+      POINT ptLeftTop = {
+        prcNewWindow->left,
+        prcNewWindow->top
+      };
       
-      HMONITOR monitor =
-        ::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
+      HMONITOR hMonitor =
+        ::MonitorFromPoint  (ptLeftTop,    MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the top left position
+      //::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
       //::MonitorFromWindow (hWnd,         MONITOR_DEFAULTTONEAREST); // Ends up being the previous monitor as the window haven't been moved yet
 
       MONITORINFO
         info        = {                  };
         info.cbSize = sizeof (MONITORINFO);
 
-      if (::GetMonitorInfo (monitor, &info))
+      if (::GetMonitorInfo (hMonitor, &info))
       {
         ImVec2 WorkSize =
           ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
-
-        // TODO: Fix snapping to the wrong left position on mixed DPI display setups
+        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
 
         if (ImGui::IsAnyMouseDown ( ))
           return 0;
 
         if (moveModal)
           return 0;
-
-#if 0
-        OutputDebugString(L"info.rcWork.left: ");
-        OutputDebugString(std::to_wstring(info.rcWork.left).c_str());
-        OutputDebugString(L"\n");
-
-        OutputDebugString(L"info.rcWork.right: ");
-        OutputDebugString(std::to_wstring(info.rcWork.right).c_str());
-        OutputDebugString(L"\n");
-
-        OutputDebugString(L"prcNewWindow->left: ");
-        OutputDebugString(std::to_wstring(prcNewWindow->left).c_str());
-        OutputDebugString(L"\n");
-
-        OutputDebugString(L"prcNewWindow->right: ");
-        OutputDebugString(std::to_wstring(prcNewWindow->right).c_str());
-        OutputDebugString(L"\n");
-#endif
 
         bool reposition = false;
 
@@ -1981,22 +1875,12 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         else if (prcNewWindow->right >= info.rcWork.right)
         {
           // Switching to a display on the right
-          prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
+          prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale_New);
           reposition = true;
         }
 
-#if 0
-        if (prcNewWindow->left  == info.rcWork.left ||
-            prcNewWindow->right == info.rcWork.right)
-        {
-          prcNewWindow->top = static_cast<long> ((info.rcWork.bottom - info.rcWork.top) / 2 - (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale / 2.0f));
-        }
-#endif
-
         if (reposition)
         {
-          //OutputDebugString (L"reposition\n");
-
           SetWindowPos (hWnd,
               NULL,
               prcNewWindow->left,
@@ -2005,8 +1889,6 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
               prcNewWindow->bottom - prcNewWindow->top,
               SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
         }
-
-        //OutputDebugString(L"------------\n");
       }
 
       return 0;
@@ -2015,90 +1897,64 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
 #pragma endregion
 
+#pragma region WM_GETMINMAXINFO
+
     // This is used to inform Windows of the min/max size of the viewport, so
     //   that features such as Aero Snap takes the enforced size into account
     case WM_GETMINMAXINFO:
+    {
       //OutputDebugString(L"WM_GETMINMAXINFO\n");
-      //if (hWnd == SKIF_ImGui_hWnd) // viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
-      {
-        MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
-        static POINT size, pos; //static
-        size.x = static_cast<long> (viewport->Size.x);
-        size.y = static_cast<long> (viewport->Size.y);
+
+      MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+      static POINT size, pos;
+
+      size.x = static_cast<long> (viewport->Size.x);
+      size.y = static_cast<long> (viewport->Size.y);
        
-#if 1
-        // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
-        mmi->ptMinTrackSize = size; // Minimum tracking size
-        mmi->ptMaxTrackSize = size; // Maximum tracking size
-#endif
+      // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
+      mmi->ptMinTrackSize = size; // Minimum tracking size
+      mmi->ptMaxTrackSize = size; // Maximum tracking size
 
-        // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
-        // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
-        // the primary monitor and the monitor that displays the window.
-        // 
-        // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
+      DWORD style =
+        ::GetWindowLongPtr (hWnd, GWL_STYLE);
 
-        ///* Does not position the window properly on secondary displays -- are slightly misaligned
-#if 1
-        if (ImGui::GetPlatformIO().Monitors.Size > 0)
-        {
-          const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
-          ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
-          //float dpiScalePrimary = primMonitor.DpiScale;
+      //if (style & WS_MAXIMIZE)
+      //  restore_from_maximized = true;
 
-          // Ensure that a "maximized" window is centered on the display
-          // Since the window manager adjusts automatically for differences between the primary monitor and the monitor that diplays the window,
-          //   we need to undo any active DPI scaling of the current display, and re-apply any active DPI scaling of the primary display.
-          
-          // Doesn't center properly on secondary displays of a higher DPI scaling
-          //pos.x = static_cast<long> (primWorkArea.GetCenter().x - ((viewport->Size.x / SKIF_ImGui_GlobalDPIScale) * dpiScalePrimary / 2.0f));
-          //pos.y = static_cast<long> (primWorkArea.GetCenter().y - ((viewport->Size.y / SKIF_ImGui_GlobalDPIScale) * dpiScalePrimary / 2.0f));
+      // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
+      // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
+      // the primary monitor and the monitor that displays the window.
+      // 
+      // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
 
-          // Centers properly on secondary displays of a higher DPI scaling
-          pos.x = static_cast<long> (primWorkArea.GetCenter().x - ((viewport->Size.x / 2.0f)));
-          pos.y = static_cast<long> (primWorkArea.GetCenter().y - ((viewport->Size.y / 2.0f)));
+      if (ImGui::GetPlatformIO().Monitors.Size > 0)
+      {
+        const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
+        ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
 
-          // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
-          // For top-level windows, this value is based on the position of the primary monitor.
-          mmi->ptMaxPosition = pos;
+        // Ensure that a "maximized" window is centered on the display
+        // Since the window manager adjusts automatically for differences between the primary monitor and the monitor that diplays the window,
+        //   we need to undo any active DPI scaling of the current display, and re-apply any active DPI scaling of the primary display.
+
+        // We are using a custom position to detect maximized state later down the line
+        pos.x = SKIF_MAXIMIZE_POS;
+        pos.y = SKIF_MAXIMIZE_POS;
+
+        // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
+        // For top-level windows, this value is based on the position of the primary monitor.
+        mmi->ptMaxPosition = pos;
            
-          // The maximized width (x member) and the maximized height (y member) of the window.
-          // For top-level windows, this value is based on the width of the primary monitor.
-          mmi->ptMaxSize     = size; // Maximized size
-        }
-
-        return 0;
-#endif
-        //*/
-
-#if 0
-        for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-        {
-          const ImGuiPlatformMonitor& currMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-          
-          ImVec2 MaxPos = ImVec2 (currMonitor.MainPos.x + currMonitor.MainSize.x,
-                                  currMonitor.MainPos.y + currMonitor.MainSize.y);
-          ImRect currWorkArea = ImRect(currMonitor.MainPos, MaxPos);
-          if (currWorkArea.Contains (viewport->Pos))
-          {
-            //OutputDebugString(L"derp\n");
-            // Does not handle multiple monitors properly (moves the window back to the primary display)
-            //pos.x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f));
-            //pos.y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f));
-
-            // We need to account for the virtual X/Y position of any secondary display relevant to the primary display,
-            //   so after we have calculated the approximate X/Y coordinates we omit the position of the virtual screen area
-            pos.x = static_cast<long> (currWorkArea.GetCenter().x - (viewport->Size.x / 2.0f) - currMonitor.MainPos.x);
-            pos.y = static_cast<long> (currWorkArea.GetCenter().y - (viewport->Size.y / 2.0f) - currMonitor.MainPos.y);
-            //mmi->ptMaxPosition = pos;  // Virtualized (somewhat) X/Y position
-            //mmi->ptMaxSize     = size; // Maximized size
-
-            //return 0;
-          }
-        }
-#endif
+        // The maximized width (x member) and the maximized height (y member) of the window.
+        // For top-level windows, this value is based on the width of the primary monitor.
+        mmi->ptMaxSize     = size; // Maximized size
       }
+
+      return 0;
+
       break;
+    }
+
+#pragma endregion
 
     case WM_CLOSE:
       if (viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
@@ -2108,71 +1964,13 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       return 0;
 
     case WM_MOVE:
-      {
         viewport->PlatformRequestMove = true;
-        //POINTS point = MAKEPOINTS (lParam);
-
-#if 0
-        ImGuiViewportDataWin32 *data =
-          (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
-
-        ImGuiPlatformMonitor* preMonitor = data->ImGuiPlatformMonitor;
-        ImGuiPlatformMonitor* newMonitor = ImGui_ImplWin32_GetPlatformMonitor (viewport, true);
-
-        if (preMonitor           != nullptr    &&
-            newMonitor           != nullptr    &&
-            preMonitor           != newMonitor &&
-            preMonitor->DpiScale == newMonitor->DpiScale)
-        {
-          //OutputDebugString(L"Detected new monitor!\n");
-
-          // Update the max height of SKIF's main window
-          extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
-          extern ImVec2 SKIF_vecAlteredSize;
-
-          // Reset reduced height
-          SKIF_vecAlteredSize.y = 0.0f;
-
-          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (newMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (newMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
-        }
-        
-        data->ImGuiPlatformMonitor = newMonitor;
-#endif
-
-#if 0
-        for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-        {
-          const ImGuiPlatformMonitor& iMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-          
-          ImVec2 iMonitorMaxPos   = ImVec2 (iMonitor.MainPos.x + iMonitor.MainSize.x,
-                                            iMonitor.MainPos.y + iMonitor.MainSize.y);
-          ImVec2 viewportMaxPos   = ImVec2 (   viewport->Pos.x +    viewport->Size.x,
-                                               viewport->Pos.y +    viewport->Size.y);
-          ImRect iMonitorWorkArea = ImRect (iMonitor.MainPos, iMonitorMaxPos);
-          ImRect viewportSize     = ImRect (   viewport->Pos, viewportMaxPos);
-          
-          // Need to exclude if we're on the same display
-          if (iMonitorWorkArea.Contains (viewportSize.GetCenter( )))
-          {
-            // Update the max height of SKIF's main window
-            extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
-            extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
-            extern ImVec2 SKIF_vecAlteredSize;
-
-            // Reset reduced height
-            SKIF_vecAlteredSize.y = 0.0f;
-
-            if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (iMonitor.WorkSize.y))
-              SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (iMonitor.WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
-            break;
-          }
-        }
-#endif
-      }
       break;
 
     case WM_SIZE:
+    {
+      //OutputDebugString(L"WM_SIZE\n");
+
       viewport->PlatformRequestResize = true;
       extern bool SKIF_D3D11_IsDevicePtr (void);
       extern bool RecreateSwapChains;
@@ -2182,6 +1980,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED)
         RecreateSwapChains = true;
       break;
+    }
 
     case WM_MOUSEACTIVATE:
       if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
