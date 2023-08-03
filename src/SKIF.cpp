@@ -109,15 +109,23 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 
-// Fixes the wobble that occurs when switching between tabs,
-//  as the width/height of the window isn't dynamically calculated.
-ImVec2 SKIF_vecAppModeDefault       = ImVec2 (1038, 944);     // Does not include the status bar  // 1038x944 // 1055
-ImVec2 SKIF_vecAppModeAdjusted      = SKIF_vecAppModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
-ImVec2 SKIF_vecSvcModeDefault       = ImVec2 (415, 305);
-ImVec2 SKIF_vecSvcMode              = ImVec2 (0, 0);
-ImVec2 SKIF_vecAppMode              = ImVec2 (0, 0);
-ImVec2 SKIF_vecCurrentMode          = ImVec2 (0, 0);
-ImVec2 SKIF_vecAlteredSize          = ImVec2 (0, 0);
+// A fixed size for the application window fixes the wobble that otherwise
+//   occurs when switching between tabs as the size isn't dynamically calculated.
+
+// --- App Mode (regular)
+ImVec2 SKIF_vecAppMode              = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecAppModeDefault       = ImVec2 (1038.0f, 944.0f); // Does not include the status bar  // 1038x944 // 1055
+ImVec2 SKIF_vecAppModeAdjusted      = SKIF_vecAppModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
+// --- Service Mode
+ImVec2 SKIF_vecSvcMode              = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecSvcModeDefault       = ImVec2 (415.0f, 305.0f);
+// --- Horizontal Mode (used when regular mode is not available)
+ImVec2 SKIF_vecHorMode              = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecHorModeAdjusted      = SKIF_vecHorModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
+ImVec2 SKIF_vecHorModeDefault       = ImVec2 (1038.0f, 414.0f); // Does not include the status bar
+// --- Variables
+ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
 float  SKIF_fReducedHeight          = 0.0f;
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
