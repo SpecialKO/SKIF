@@ -750,31 +750,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static char   cstrLabelMissing[] = "Missing cover :(";
   static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
                                      "allow the cover to be populated :)";
-  static ImVec2 vecPosCoverImage   = ImGui::GetCursorPos ( );
-  static ImVec2 vecPosLabelLoading = ImVec2 (
-                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
-  static ImVec2 vecPosLabelMissing = ImVec2 (
-                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
-  static ImVec2 vecPosLabelGOGUser = ImVec2 (
-                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
 
-  // Respond to DPI changes
-  if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
-  {
-    vecPosCoverImage   = ImGui::GetCursorPos ( );
-    vecPosLabelLoading = ImVec2 (
-      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2);
-    vecPosLabelMissing = ImVec2 (
-      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2);
-    vecPosLabelGOGUser = ImVec2 (
-      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2);
-  }
+  ImVec2 vecPosCoverImage = ImGui::GetCursorPos ( );
 
   // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
   if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
@@ -786,7 +763,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (tryingToLoadCover)
   {
-    ImGui::SetCursorPos (vecPosLabelLoading);
+    ImGui::SetCursorPos (ImVec2 (
+      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
     ImGui::TextDisabled (  cstrLabelLoading);
   }
   else if (coverIsMissing) {
@@ -794,11 +773,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     extern std::wstring GOGGalaxy_UserID;
     if (pApp != nullptr && pApp->store == "GOG" && GOGGalaxy_UserID.empty())
     {
-      ImGui::SetCursorPos (vecPosLabelGOGUser);
+      ImGui::SetCursorPos (ImVec2 (
+                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
       ImGui::TextDisabled (  cstrLabelGOGUser);
     }
     else {
-      ImGui::SetCursorPos (vecPosLabelMissing);
+      ImGui::SetCursorPos (ImVec2 (
+                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
       ImGui::TextDisabled (  cstrLabelMissing);
     }
   }
