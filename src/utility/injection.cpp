@@ -1154,7 +1154,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
   SKIF_UpdateNotifyIcon                   (    );
 
   CComPtr <ITaskbarList3> taskbar;
-  if (SKIF_ImGui_hWnd != nullptr &&
+  if (SKIF_ImGui_hWnd != NULL &&
       SUCCEEDED (
          CoCreateInstance ( CLSID_TaskbarList, 0, CLSCTX_INPROC_SERVER,
                               IID_ITaskbarList3, (void **)&taskbar.p)

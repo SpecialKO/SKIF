@@ -208,8 +208,8 @@ float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
 std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
-HWND        SKIF_ImGui_hWnd    =  0;
-HWND        SKIF_Notify_hWnd   =  0;
+HWND        SKIF_ImGui_hWnd    = NULL;
+HWND        SKIF_Notify_hWnd   = NULL;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 
@@ -511,9 +511,12 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   {
     // This means we proxied this cmd to ourselves, in which
     // case we want to set up bExitOnInjection as well
-    //if (_Signal._RunningInstance == SKIF_hWnd)
-    //  PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
-    //else
+    if (SKIF_Notify_hWnd != NULL && _Signal._RunningInstance == SKIF_Notify_hWnd)
+    {
+      PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
+      _Signal.Quit = false; // Disallow using Start and Quit at the same time
+    }
+    else
       PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART     : WM_SKIF_START, 0x0, 0x0);
   }
 
@@ -553,7 +556,7 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   }
 
   // Restore the foreground state to whatever app had it before
-  if (SKIF_Notify_hWnd == 0)
+  if (SKIF_Notify_hWnd == NULL)
   {
     if (hWndOrigForeground != 0)
     {
@@ -776,8 +779,8 @@ void SKIF_Initialize (void)
     );
 
   std::wstring logPath_old =
-    SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log.old)" 
-                                         : LR"(%ws\SKIF.log.old)",
+    SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log.bak)" 
+                                         : LR"(%ws\SKIF.log.bak)",
           _path_cache.specialk_userdata
     );
 
@@ -905,7 +908,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Startup_LaunchGameService         ( );
     SKIF_Startup_LaunchGame                ( );
 
-    // These only execute if SKIF is not used as a launcher
+    // The below only execute if SKIF is not used as a launcher
     SKIF_Startup_ProxyCommandLineArguments ( );
     if (! _registry.bAllowMultipleInstances)
       SKIF_Startup_RaiseRunningInstance    ( );
@@ -1294,7 +1297,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       PLOG_DEBUG << "Injection was acknowledged!";
       hInjectAckEx.Close ();
 
-      if (SKIF_ImGui_hWnd != nullptr)
+      if (SKIF_ImGui_hWnd != NULL)
       {
         // Set up exit acknowledge as well
         if (_registry.bRestoreOnGameExit)
@@ -1317,7 +1320,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       PLOG_DEBUG << "Game exit was acknowledged!";
       hInjectExitAckEx.Close ();
 
-      if (_registry.bRestoreOnGameExit && restoreOnInjExitAck && (SKIF_ImGui_hWnd != nullptr) && IsIconic (SKIF_ImGui_hWnd))
+      if (_registry.bRestoreOnGameExit && restoreOnInjExitAck && (SKIF_ImGui_hWnd != NULL) && IsIconic (SKIF_ImGui_hWnd))
         SendMessage (SKIF_Notify_hWnd, WM_SKIF_RESTORE, 0x0, 0x0);
 
       restoreOnInjExitAck = false;
@@ -2747,7 +2750,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
     // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
-    bool bRefresh = (SKIF_ImGui_hWnd != nullptr && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
+    bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
 
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
@@ -2763,7 +2766,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
 
         static bool runOnce = true;
-        if (runOnce && SKIF_ImGui_hWnd != nullptr)
+        if (runOnce && SKIF_ImGui_hWnd != NULL)
         {   runOnce = false;
 
           /*
@@ -3116,10 +3119,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Destroying ImGui context...";
   ImGui::DestroyContext     (    );
 
-  SKIF_ImGui_hWnd  = 0;
-  SKIF_Notify_hWnd = 0;
-  //SKIF_hWnd = 0;
-  //     hWnd = 0;
+  SKIF_ImGui_hWnd  = NULL;
+  SKIF_Notify_hWnd = NULL;
 
   PLOG_INFO << "Terminating process with exit code " << SKIF_ExitCode;
   return SKIF_ExitCode;
@@ -3455,7 +3456,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_MINIMIZE:
-      if (SKIF_ImGui_hWnd != nullptr)
+      if (SKIF_ImGui_hWnd != NULL)
       {
         if (_registry.bCloseToTray && ! SKIF_isTrayed)
         {
@@ -3543,7 +3544,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_RESTORE:
       _inject.bTaskbarOverlayIcon = false;
 
-      if (SKIF_ImGui_hWnd != nullptr)
+      if (SKIF_ImGui_hWnd != NULL)
       {
         if (! SKIF_isTrayed && ! IsIconic (SKIF_ImGui_hWnd))
           RepositionSKIF            = true;
@@ -3716,7 +3717,7 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_STOP, 0, 0);
           break;
         case SKIF_NOTIFY_EXIT:
-          if (SKIF_ImGui_hWnd != nullptr)
+          if (SKIF_ImGui_hWnd != NULL)
             PostMessage (SKIF_ImGui_hWnd, WM_CLOSE, 0, 0);
           break;
       }

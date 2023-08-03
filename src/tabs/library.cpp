@@ -2280,7 +2280,7 @@ Cache=false)";
           }
           
           // Fallback for minimizing SKIF when not using SK if configured as such
-          if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != nullptr)
+          if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
             ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
         }
 
@@ -3634,7 +3634,7 @@ Cache=false)";
               _registry._SuppressServiceNotification = true;
           
               // Fallback for minimizing SKIF when not using SK if configured as such
-              if (! usingSK && SKIF_ImGui_hWnd != nullptr)
+              if (! usingSK && SKIF_ImGui_hWnd != NULL)
                 ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
             }
 

@@ -788,7 +788,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //     in a stucked and incorrect focus state.
     //        hwnd == SKIF_hWnd in those cases.
 
-    if (SKIF_ImGui_hWnd != nullptr &&
+    if (SKIF_ImGui_hWnd != NULL &&
        (SKIF_ImGui_hWnd == hwnd ||
         SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
     {
@@ -813,7 +813,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     // IsChild () also cannot be used since technically no ImGui popup windows are
     //   any children of their parent window -- they're all their own separate window
     
-    if (SKIF_ImGui_hWnd != nullptr &&
+    if (SKIF_ImGui_hWnd != NULL &&
        (SKIF_ImGui_hWnd != (HWND)wParam &&
         SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
     {
