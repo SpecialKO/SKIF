@@ -1540,7 +1540,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     (_registry.bServiceMode) ? SKIF_vecSvcMode
                                              : SKIF_vecAppMode;
 
-      if (ImGui::GetFrameCount() > 2) // Not exactly sure what purpose this serves
+      //if (ImGui::GetFrameCount() > 2) // Don't set the window size for the first few frames (for some reason)
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
       // RepositionSKIF -- Step 2: Repositon the window
@@ -1577,15 +1577,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       //ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
-
+      
       ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,
                        nullptr,
                          ImGuiWindowFlags_NoResize          |
                          ImGuiWindowFlags_NoCollapse        |
                          ImGuiWindowFlags_NoTitleBar        |
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
-                         ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
-                       | ImGuiWindowFlags_NoMove
+                         ImGuiWindowFlags_NoScrollWithMouse | // Prevent scrolling with the mouse as well
+                         ImGuiWindowFlags_NoMove
       );
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);

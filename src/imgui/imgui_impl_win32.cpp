@@ -1794,7 +1794,8 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         // Do not run this within the first 5 frames, as this prevent screwing up restoring the original position of the window
         if (ImGui::GetFrameCount  ( ) < 5)
           break;
-
+        
+        LRESULT def =  DefWindowProc (hWnd, msg, wParam, lParam);
         WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*> (lParam);
         
         POINT ptLeftTop  = {
@@ -1802,36 +1803,35 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           wp->y
         };
         
-        // We're probably being maximized
-        if (wp->flags == (SWP_STATECHANGED | SWP_FRAMECHANGED))
+        for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
         {
-          // OutputDebugString(L"SWP_STATECHANGED | SWP_FRAMECHANGED\n");
-
-          for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-          {
-            const ImGuiPlatformMonitor& currMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
+          const ImGuiPlatformMonitor& targetMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
           
-            ImVec2 MaxPos = ImVec2 (currMonitor.MainPos.x + currMonitor.MainSize.x,
-                                    currMonitor.MainPos.y + currMonitor.MainSize.y);
-            ImRect currWorkArea = ImRect(currMonitor.MainPos, MaxPos);
+          ImVec2 MaxPos       = ImVec2 (targetMonitor.MainPos.x + targetMonitor.MainSize.x,
+                                        targetMonitor.MainPos.y + targetMonitor.MainSize.y);
+          ImRect targetWorkArea = ImRect (targetMonitor.MainPos, MaxPos); // WorkPos?
 
-            // Find the intended display
-            if (currWorkArea.Contains (ImVec2 (static_cast<float> (wp->x), static_cast<float> (wp->y))))
+          // Find the intended display
+          if (targetWorkArea.Contains (ImVec2 (static_cast<float> (wp->x), static_cast<float> (wp->y))))
+          {
+            // If we are being maximized...
+            if (wp->flags == (SWP_STATECHANGED | SWP_FRAMECHANGED) &&
+                wp->x - targetWorkArea.Min.x == SKIF_MAXIMIZE_POS &&
+                wp->y - targetWorkArea.Min.y == SKIF_MAXIMIZE_POS)
             {
-              // If our intended position is SKIF_MAXIMIZE_POS then we're definitely being maximized
-              if (wp->x - currWorkArea.Min.x == SKIF_MAXIMIZE_POS &&
-                  wp->y - currWorkArea.Min.y == SKIF_MAXIMIZE_POS)
-              {
-                // Change the intended position to the actual center of the display
-                wp->x = static_cast<int> (currWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * currMonitor.DpiScale / 2.0f));
-                wp->y = static_cast<int> (currWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * currMonitor.DpiScale / 2.0f));
+              // Change the intended position to the actual center of the display
+              wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * targetMonitor.DpiScale / 2.0f));
+              wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale / 2.0f));
 
-                return 0;
-              }
+              return 0;
             }
           }
         }
 
+        wp->cx = static_cast<int> (viewport->Size.x); // / viewport->DpiScale * targetMonitor.DpiScale
+        wp->cy = static_cast<int> (viewport->Size.y); // / viewport->DpiScale * targetMonitor.DpiScale;
+
+        return def;
         break;
       }
 
@@ -1944,20 +1944,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         //OutputDebugString(L"WM_GETMINMAXINFO\n");
 
         MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
-        static POINT size, pos;
-
-        size.x = static_cast<long> (viewport->Size.x);
-        size.y = static_cast<long> (viewport->Size.y);
-       
-        // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
-        mmi->ptMinTrackSize = size; // Minimum tracking size
-        mmi->ptMaxTrackSize = size; // Maximum tracking size
-
-        //DWORD style =
-        //  ::GetWindowLongPtr (hWnd, GWL_STYLE);
-
-        //if (style & WS_MAXIMIZE)
-        //  restore_from_maximized = true;
+        static POINT sizeMin, sizeMax, pos;
 
         // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
         // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
@@ -1968,24 +1955,36 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         if (ImGui::GetPlatformIO().Monitors.Size > 0)
         {
           const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
-          ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
+          //ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
 
-          // Ensure that a "maximized" window is centered on the display
           // Since the window manager adjusts automatically for differences between the primary monitor and the monitor that diplays the window,
           //   we need to undo any active DPI scaling of the current display, and re-apply any active DPI scaling of the primary display.
-
-          // We are using a custom position to detect maximized state later down the line
-          pos.x = SKIF_MAXIMIZE_POS;
-          pos.y = SKIF_MAXIMIZE_POS;
-
-          // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
-          // For top-level windows, this value is based on the position of the primary monitor.
-          mmi->ptMaxPosition = pos;
-           
-          // The maximized width (x member) and the maximized height (y member) of the window.
-          // For top-level windows, this value is based on the width of the primary monitor.
-          mmi->ptMaxSize     = size; // Maximized size
+          
+          //sizeMax.x = static_cast<long> (viewport->Size.x / primMonitor.DpiScale);
+          //sizeMax.y = static_cast<long> (viewport->Size.y / primMonitor.DpiScale);
         }
+
+        sizeMax.x = static_cast<long> (viewport->Size.x);
+        sizeMax.y = static_cast<long> (viewport->Size.y);
+        //sizeMin.x = SKIF_vecAppModeAdjusted.x;
+        //sizeMin.y = SKIF_vecAppModeAdjusted.y;
+
+        // To ensure that a "maximized" window is centered on the display, we are
+        // using a custom position to detect maximized state later down the line
+        pos.x = SKIF_MAXIMIZE_POS;
+        pos.y = SKIF_MAXIMIZE_POS;
+
+        // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
+        // For top-level windows, this value is based on the position of the primary monitor.
+        mmi->ptMaxPosition  = pos;
+           
+        // The maximized width (x member) and the maximized height (y member) of the window.
+        // For top-level windows, this value is based on the width of the primary monitor.
+        mmi->ptMaxSize      = sizeMax; // Maximized size
+       
+        // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
+        mmi->ptMinTrackSize = sizeMax; // Minimum tracking size
+        mmi->ptMaxTrackSize = sizeMax; // Maximum tracking size
 
         return 0;
 
