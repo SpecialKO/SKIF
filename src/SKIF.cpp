@@ -1540,7 +1540,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                     (_registry.bServiceMode) ? SKIF_vecSvcMode
                                              : SKIF_vecAppMode;
 
-      //if (ImGui::GetFrameCount() > 2) // Don't set the window size for the first few frames (for some reason)
+      // Don't set the window size for the first few frames to prevent
+      // a pseudo-window from being created and flashing by at launch
+      if (ImGui::GetFrameCount() > 2)
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
       // RepositionSKIF -- Step 2: Repositon the window
