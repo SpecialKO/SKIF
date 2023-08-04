@@ -297,7 +297,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
       );
 
     if (_registry.iStyle == 2)
-      vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+      vGhostColor = vGhostColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f);
 
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
     float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale;

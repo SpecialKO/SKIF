@@ -109,7 +109,6 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 bool SKIF_MouseDragMoveAllowed = true;
-bool SKIF_DisableDWMRoundedBorders = false; // Used to prevent borders from being used on software branches menu
 
 // A fixed size for the application window fixes the wobble that otherwise
 //   occurs when switching between tabs as the size isn't dynamically calculated.
@@ -222,8 +221,6 @@ HWND        SKIF_ImGui_hWnd    = NULL;
 HWND        SKIF_Notify_hWnd   = NULL;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
-
-ImGuiStyle SKIF_ImGui_DefaultStyle;
 
 HWND hWndOrigForeground;
 
@@ -1139,6 +1136,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::GetStyle ( );
   SKIF_ImGui_SetStyle (&style);
 
+#if 0
   // When viewports are enabled we tweak WindowRounding/WindowBg
   //   so platform windows can look identical to regular ones.
 
@@ -1147,21 +1145,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     style.WindowRounding               = 5.0F;
     style.Colors [ImGuiCol_WindowBg].w = 1.0F;
   }
-
-  style.WindowRounding  = 4.0F;// style.ScrollbarRounding;
-  style.ChildRounding   = style.WindowRounding;
-  style.TabRounding     = style.WindowRounding;
-  style.FrameRounding   = style.WindowRounding;
-  
-  if (_registry.bDisableBorders)
-  {
-    style.TabBorderSize   = 0.0F;
-    style.FrameBorderSize = 0.0F;
-  }
-  else {
-    style.TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
-    style.FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
-  }
+#endif
 
   // Setup Platform/Renderer bindings
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
@@ -1223,7 +1207,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Reset on each frame
     SKIF_MouseDragMoveAllowed     = true;
-    SKIF_DisableDWMRoundedBorders = false;
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -1506,11 +1489,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
-
-      static bool resetDPIscaling = ! RepositionSKIF;
-      static bool applyDPIscaling = false;
-
-      ImRect rectCursorMonitor;
+      ImRect rectCursorMonitor; // RepositionSKIF
 
       // RepositionSKIF -- Step 1: Retrieve monitor of cursor
       if (RepositionSKIF)
@@ -1530,32 +1509,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
             {
               rectCursorMonitor = t;
               SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
-              applyDPIscaling = true;
             }
           }
         }
       }
-      
-      // The first time the window is created we also need to update the DPI scale and style
-      /*
-      else if (resetDPIscaling)
-      {        resetDPIscaling = false;
 
-        SKIF_ImGui_GlobalDPIScale = ImGui::GetWindowViewport ( )->DpiScale;
-        OutputDebugString(L"derp\n");
+      // Apply any changes to the ImGui style
+      // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
+      // Note that Win11 rounded border color won't be applied until after a restart
+      if ( (_registry.iStyleTemp != _registry.iStyle) ||
+           ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
+      {
+        _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
+                                    ?  _registry.iStyleTemp
+                                    : (_registry.iStyle + 1) % 4;
+        _registry.regKVStyle.putData  (_registry.iStyle);
 
-        OutputDebugString(L"SKIF_ImGui_GlobalDPIScale: ");
-        OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
-        OutputDebugString(L"\n");
-        applyDPIscaling = true;
-      }
-      */
+        ImGuiStyle            newStyle;
+        SKIF_ImGui_SetStyle (&newStyle);
 
-      // Update the style scaling
-      if (applyDPIscaling)
-      {   applyDPIscaling = false;
-        //ImGuiStyle            newStyle;
-        //SKIF_ImGui_SetStyle (&newStyle);
+        _registry.iStyleTemp = _registry.iStyle;
       }
 
       SKIF_vecSvcMode = SKIF_vecSvcModeDefault  * SKIF_ImGui_GlobalDPIScale;
@@ -2064,7 +2037,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               ImGui::GetStyle   ().ItemSpacing.x * 2
             );
 
-            ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
+            ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + ImGui::GetStyle ( ).FramePadding.y);
 
             ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
                                   ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
@@ -2096,7 +2069,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::GetStyle   ().ItemSpacing.x * 2
           );
 
-          ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + style.FramePadding.y);
+          ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + ImGui::GetStyle ( ).FramePadding.y);
 
           ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
                                   "%s", SKIF_StatusBarText.c_str ()

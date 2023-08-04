@@ -801,14 +801,28 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     _registry.iStyle = 0;
   }
 
-  dst->ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
-
-  // These are not a part of the default style so need to assign them separately
-  if (! _registry.bDisableBorders)
+  // Override the style with a few tweaks of our own
+  dst->WindowRounding  = 4.0F; // style.ScrollbarRounding;
+  dst->ChildRounding   = dst->WindowRounding;
+  dst->TabRounding     = dst->WindowRounding;
+  dst->FrameRounding   = dst->WindowRounding;
+  
+  if (_registry.bDisableBorders)
   {
-    dst->TabBorderSize                       = 1.0F * SKIF_ImGui_GlobalDPIScale;
-    dst->FrameBorderSize                     = 1.0F * SKIF_ImGui_GlobalDPIScale;
+    dst->TabBorderSize   = 0.0F;
+    dst->FrameBorderSize = 0.0F;
+
+    if (_registry.iStyle != 2)
+      dst->Colors[ImGuiCol_TabActive] = dst->Colors[ImGuiCol_WindowBg];
   }
+
+  else {
+    dst->TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
+    dst->FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
+  }
+
+  // Scale the style based on the current DPI factor
+  dst->ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
 
   ImGui::GetStyle ( ) = *dst;
 }

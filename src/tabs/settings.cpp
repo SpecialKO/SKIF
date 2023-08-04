@@ -827,6 +827,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                  "ImGui Classic"
     };
     static const char* StyleItemsCurrent = StyleItems[_registry.iStyle];
+    StyleItemsCurrent = StyleItems[_registry.iStyle];
           
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -840,13 +841,9 @@ SKIF_UI_Tab_DrawSettings (void)
         {
             bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
             if (ImGui::Selectable (StyleItems[n], is_selected))
-            {
-              _registry.iStyleTemp = n;
-              _registry.regKVStyle.putData  (_registry.iStyleTemp);
-              StyleItemsCurrent = StyleItems[_registry.iStyleTemp];
-            }
+              _registry.iStyleTemp = n; // We apply the new style at the beginning of the next frame to prevent any PushStyleColor/Var from causing issues
             if (is_selected)
-                ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+              ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
         }
         ImGui::EndCombo  ( );
     }
@@ -907,17 +904,9 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Checkbox ("Borders", &_registry.bDisableBorders))
     {
       _registry.regKVDisableBorders.putData (  _registry.bDisableBorders);
-      if (_registry.bDisableBorders)
-      {
-        ImGui::GetStyle().TabBorderSize   = 0.0F;
-        ImGui::GetStyle().FrameBorderSize = 0.0F;
-      }
-      else {
-        ImGui::GetStyle().TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
-        ImGui::GetStyle().FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
-      }
-      if (_registry.iStyle == 0)
-        SKIF_ImGui_StyleColorsDark ( );
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
     }
 
     ImGui::SameLine ( );
@@ -1598,7 +1587,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::BeginGroup  ();
     ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
-    //ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
+  //ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
     ImGui::EndGroup    ();
 
     ImGui::SameLine    ();

@@ -1721,14 +1721,24 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
     {
       if (hWnd && SKIF_Util_IsWindows11orGreater ( ) && _registry.bWin11Corners) // && _registry.iSDRMode != 2 && _registry.iHDRMode != 2)
       {
-        DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_DEFAULT; // DWMWCP_DEFAULT
+        DWM_WINDOW_CORNER_PREFERENCE
+                 dwmCornerPreference = DWMWCP_DEFAULT;
+        COLORREF dwmBorderColor      = DWMWA_COLOR_DEFAULT; // DWMWA_COLOR_NONE
+        BOOL     dwmUseDarkMode      = true;
+        ImVec4   imguiBorderColor    = ImGui::GetStyleColorVec4 (ImGuiCol_Border);
+        
+        dwmBorderColor = RGB ((255 * imguiBorderColor.x),
+                              (255 * imguiBorderColor.y),
+                              (255 * imguiBorderColor.z));
 
         if (SKIF_ImGui_hWnd == 0)
-          preference = DWMWCP_ROUND;      // Main window
+          dwmCornerPreference = DWMWCP_ROUND;      // Main window
         else
-          preference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
+          dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
 
-        DwmSetWindowAttribute (hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
+        ::DwmSetWindowAttribute (hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &dwmCornerPreference, sizeof (dwmCornerPreference));
+        ::DwmSetWindowAttribute (hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE,  &dwmUseDarkMode,      sizeof (dwmUseDarkMode));
+        ::DwmSetWindowAttribute (hWnd, DWMWA_BORDER_COLOR,             &dwmBorderColor,      sizeof (dwmBorderColor));
       }
 
 #if 0
@@ -2017,7 +2027,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
       case WM_NCHITTEST:
       {
-        OutputDebugString(L"WM_NCHITTEST\n");
+        //OutputDebugString(L"WM_NCHITTEST\n");
 
         // Let mouse pass-through the window. This will allow the back-end to set io.MouseHoveredViewport properly (which is OPTIONAL).
         // The ImGuiViewportFlags_NoInputs flag is set while dragging a viewport, as want to detect the window behind the one we are dragging.
