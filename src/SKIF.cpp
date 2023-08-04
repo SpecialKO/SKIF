@@ -1965,7 +1965,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetCursorPosX (title_pos);
 
         ImGui::SetCursorPosY (
-          9.0f * SKIF_ImGui_GlobalDPIScale
+          (9.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2
         );
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),

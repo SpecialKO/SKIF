@@ -319,7 +319,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
     ImGui::SameLine    (0.0f, fActPos);
   
     ImGui::SetCursorPosY (
-      ImGui::GetCursorPosY ( ) - (ImGui::GetStyle().FrameBorderSize * 3) + fGhostYPos
+      ImGui::GetCursorPosY ( ) - (ImGui::GetStyle().FrameBorderSize) + fGhostYPos
                           );
 
     ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
