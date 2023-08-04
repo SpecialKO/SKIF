@@ -3311,7 +3311,7 @@ Cache=false)";
         L"https://www.patreon.com/Kaldaien"
       );
 
-    ImGui::SetCursorPos  (ImVec2 (fZ - (238.0f * SKIF_ImGui_GlobalDPIScale),
+    ImGui::SetCursorPos  (ImVec2 (fZ - (233.0f * SKIF_ImGui_GlobalDPIScale),
                                   fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
 
     ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
@@ -3323,7 +3323,7 @@ Cache=false)";
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
                         ((pApp->textures.isCustomCover || _registry.iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
 
-    ImGui::TextColored        (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
+    ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
     std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
 
