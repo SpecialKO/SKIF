@@ -1531,6 +1531,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.iStyleTemp = _registry.iStyle;
       }
 
+      if (( io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f))
+      {
+        _registry.bDisableBorders = ! _registry.bDisableBorders;
+        _registry.regKVDisableBorders.putData (_registry.bDisableBorders);
+
+        ImGuiStyle            newStyle;
+        SKIF_ImGui_SetStyle (&newStyle);
+      }
+
       SKIF_vecSvcMode = SKIF_vecSvcModeDefault  * SKIF_ImGui_GlobalDPIScale;
       SKIF_vecAppMode = SKIF_vecAppModeAdjusted * SKIF_ImGui_GlobalDPIScale;
 

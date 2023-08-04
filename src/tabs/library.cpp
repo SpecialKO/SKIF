@@ -94,7 +94,7 @@ extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 
-#define _WIDTH   (414.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f)                                             // AppListInset1, AppListInset2, Injection_Summary_Frame
+#define _WIDTH   (415.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
 #define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
 #define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
@@ -739,8 +739,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   ImGui::BeginGroup    (                                                  );
-  float fX =
-  ImGui::GetCursorPosX (                                                  );
 
   static DWORD  timeLastCoverTick  = SKIF_Util_timeGetTime ( );
   static bool   tryingToLoadCover  = true;
@@ -751,7 +749,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
                                      "allow the cover to be populated :)";
 
-  ImVec2 vecPosCoverImage = ImGui::GetCursorPos ( );
+  ImVec2 vecPosCoverImage    = ImGui::GetCursorPos ( );
+         vecPosCoverImage.x -= 1.0f * SKIF_ImGui_GlobalDPIScale;
 
   // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
   if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
@@ -795,9 +794,9 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
                                                     (selection.appid == SKIF_STEAM_APPID)
-                                                    ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f) // Tint for Special K (always full strength)
+                                                    ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
                                                     : ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
-                                  (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f) // Border
+                                  (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
   // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
@@ -1029,7 +1028,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::GetCursorPosY (                                                  );
 
   ImGui::EndGroup             ( );
-  ImGui::SameLine             ( );
+  ImGui::SameLine             (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale); // 0.0f, 0.0f
   
   float fZ =
   ImGui::GetCursorPosX (                                                  );
@@ -3096,7 +3095,7 @@ Cache=false)";
 
   ImGui::BeginChild (
     "###AppListInset2",
-      ImVec2 ( _WIDTH,
+      ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
                _HEIGHT2 ), (! _registry.bDisableBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
@@ -3201,7 +3200,7 @@ Cache=false)";
           ImGui::GetCursorPosX  ( ) +
           ImGui::GetColumnWidth ( ) -
           ImGui::CalcTextSize   ("[] Disable Special K").x -
-          ImGui::GetStyle       ( ).ItemSpacing.x * 3
+          ImGui::GetStyle       ( ).ItemSpacing.x * 2
         );
 
         // If there is only one launch option
@@ -3271,7 +3270,7 @@ Cache=false)";
 
   // Special handling at the bottom for Special K
   if ( selection.appid == SKIF_STEAM_APPID ) {
-    ImGui::SetCursorPos  (                           ImVec2 ( fX + ImGui::GetStyle().FrameBorderSize,
+    ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
                                                               fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
     ImGui::BeginGroup    ();
     static bool hoveredPatButton  = false,

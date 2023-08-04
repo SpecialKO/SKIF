@@ -315,11 +315,11 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
     colors[ImGuiCol_Text]                   = ImVec4(0.33f, 0.33f, 0.33f, 1.00f);
     colors[ImGuiCol_TextDisabled]           = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
 
-    colors[ImGuiCol_WindowBg]               = ImVec4(1.00f, 1.00f, 1.00f, 1.00f); // ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.94f, 0.94f, 0.94f, 1.00f); // ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
     colors[ImGuiCol_ChildBg]                = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     colors[ImGuiCol_PopupBg]                = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
 
-    colors[ImGuiCol_Border]                 = ImVec4(0.00f, 0.00f, 0.00f, 0.30f);
+    colors[ImGuiCol_Border]                 = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
     colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 
     colors[ImGuiCol_FrameBg]                = ImVec4(0.85f, 0.85f, 0.85f, 1.00f); // ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
@@ -360,7 +360,7 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
 
     colors[ImGuiCol_Tab]                    = ImVec4(0.85f, 0.85f, 0.85f, 1.00f); // ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.90f);
     colors[ImGuiCol_TabHovered]             = ImVec4(0.90f, 0.90f, 0.90f, 1.00f); // colors[ImGuiCol_HeaderHovered];
-    colors[ImGuiCol_TabActive]              = ImVec4(1.00f, 1.00f, 1.00f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+    colors[ImGuiCol_TabActive]              = ImVec4(0.80f, 0.80f, 0.80f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
     colors[ImGuiCol_TabUnfocused]           = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
     colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
 
