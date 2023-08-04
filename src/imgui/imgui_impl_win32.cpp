@@ -18,6 +18,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include <windowsx.h>
 #include <Dbt.h>
 #include <XInput.h>
 #include <tchar.h>
@@ -75,9 +76,9 @@ constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 //  2016-11-12: Inputs: Only call Win32 ::SetCursor(NULL) when io.MouseDrawCursor is set.
 
 // External functions
-extern bool SKIF_Util_IsWindows8Point1OrGreater       (void);
-extern bool SKIF_Util_IsWindows10OrGreater            (void);
-extern bool SKIF_Util_IsWindowsVersionOrGreater       (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
+extern bool SKIF_Util_IsWindows10OrGreater      (void);
+extern bool SKIF_Util_IsWindows11orGreater      (void);
 extern bool SKIF_bCanFlip;
 
 // Forward Declarations
@@ -837,20 +838,35 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
     break;
 
-  case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
-  case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK:
-  case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK:
-  case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK:
+  case WM_LBUTTONDOWN:   case WM_LBUTTONDBLCLK:
+  case WM_RBUTTONDOWN:   case WM_RBUTTONDBLCLK:
+  case WM_MBUTTONDOWN:   case WM_MBUTTONDBLCLK:
+  case WM_XBUTTONDOWN:   case WM_XBUTTONDBLCLK:
   {
     int button = 0;
-    if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK) { button = 0; }
-    if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK) { button = 1; }
-    if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK) { button = 2; }
-    if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK || msg == WM_NCLBUTTONDOWN || msg == WM_NCLBUTTONDBLCLK) { button = 0; }
+    if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK || msg == WM_NCRBUTTONDOWN || msg == WM_NCRBUTTONDBLCLK) { button = 1; }
+    if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK || msg == WM_NCMBUTTONDOWN || msg == WM_NCMBUTTONDBLCLK) { button = 2; }
+    if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK || msg == WM_NCXBUTTONDOWN || msg == WM_NCXBUTTONDBLCLK) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
     if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == NULL)
       ::SetCapture (hwnd);
     io.MouseDown [button] = true;
     return 0;
+  }
+  case WM_NCLBUTTONDOWN: case WM_NCLBUTTONDBLCLK:
+  case WM_NCRBUTTONDOWN: case WM_NCRBUTTONDBLCLK:
+  case WM_NCMBUTTONDOWN: case WM_NCMBUTTONDBLCLK:
+  case WM_NCXBUTTONDOWN: case WM_NCXBUTTONDBLCLK:
+  {
+    int button = 0;
+    if (msg == WM_NCLBUTTONDOWN || msg == WM_NCLBUTTONDBLCLK) { button = 0; }
+    if (msg == WM_NCRBUTTONDOWN || msg == WM_NCRBUTTONDBLCLK) { button = 1; }
+    if (msg == WM_NCMBUTTONDOWN || msg == WM_NCMBUTTONDBLCLK) { button = 2; }
+    if (msg == WM_NCXBUTTONDOWN || msg == WM_NCXBUTTONDBLCLK) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    //if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == NULL)
+    //  ::SetCapture (hwnd);
+    io.MouseDown [button] = true;
+    //return 0;
   }
   case WM_LBUTTONUP:
   case WM_RBUTTONUP:
@@ -858,14 +874,29 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   case WM_XBUTTONUP:
   {
     int button = 0;
-    if (msg == WM_LBUTTONUP) { button = 0; }
-    if (msg == WM_RBUTTONUP) { button = 1; }
-    if (msg == WM_MBUTTONUP) { button = 2; }
-    if (msg == WM_XBUTTONUP) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    if (msg == WM_LBUTTONUP || msg == WM_NCLBUTTONUP) { button = 0; }
+    if (msg == WM_RBUTTONUP || msg == WM_NCRBUTTONUP) { button = 1; }
+    if (msg == WM_MBUTTONUP || msg == WM_NCMBUTTONUP) { button = 2; }
+    if (msg == WM_XBUTTONUP || msg == WM_NCXBUTTONUP) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
     io.MouseDown [button] = false;
     if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
       ::ReleaseCapture ( );
     return 0;
+  }
+  case WM_NCLBUTTONUP:
+  case WM_NCRBUTTONUP:
+  case WM_NCMBUTTONUP:
+  case WM_NCXBUTTONUP:
+  {
+    int button = 0;
+    if (msg == WM_NCLBUTTONUP) { button = 0; }
+    if (msg == WM_NCRBUTTONUP) { button = 1; }
+    if (msg == WM_NCMBUTTONUP) { button = 2; }
+    if (msg == WM_NCXBUTTONUP) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    io.MouseDown [button] = false;
+    //if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
+    //  ::ReleaseCapture ( );
+    //return 0;
   }
   case WM_MOUSEWHEEL:
     io.MouseWheel += (float)GET_WHEEL_DELTA_WPARAM (wParam) / (float)WHEEL_DELTA;
@@ -1023,6 +1054,7 @@ ImGui_ImplWin32_GetDpiScaleForHwnd (void *hwnd)
 #ifdef _MSC_VER
 #pragma comment(lib, "imm32")
 #endif
+#include <dwmapi.h>
 static void
 ImGui_ImplWin32_SetImeInputPos (ImGuiViewport *viewport, ImVec2 pos)
 {
@@ -1684,11 +1716,22 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         return 0;
       break;
 
-#if 0
     // For some reason this causes issues with focus not being properly gained on launch
     case WM_CREATE:
     {
-      
+      if (hWnd && SKIF_Util_IsWindows11orGreater ( ) && _registry.bWin11Corners) // && _registry.iSDRMode != 2 && _registry.iHDRMode != 2)
+      {
+        DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_DEFAULT; // DWMWCP_DEFAULT
+
+        if (SKIF_ImGui_hWnd == 0)
+          preference = DWMWCP_ROUND;      // Main window
+        else
+          preference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
+
+        DwmSetWindowAttribute (hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
+      }
+
+#if 0
       // Change the application window rect
       RECT rcClient;
       ::GetWindowRect (hWnd, &rcClient);
@@ -1710,30 +1753,15 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       ::SetWindowLongPtrW (hWnd, GWL_EXSTYLE, cs->dwExStyle);
 
       return 0;
+#endif
 
       break;
     }
-    */
-
-    // This event is necessary to facilitate graceful non-linear scaling, and ensures that the windows's position
-    //   remains constant in relationship to the cursor and when moving back and forth across monitors.
-    /*
-    case WM_GETDPISCALEDSIZE:
-    {
-      // EXPERIMENTAL
-      const int g_dpi  = HIWORD (wParam);
-      SIZE* const size = (SIZE*) lParam;
-      float dpi = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
-
-      // lpSize->cy = lpSize->cx = (dpi == 96 ? 200 : 500);
-    }
-    */
-#endif
   }
 
 
 
-#define SKIF_MAXIMIZE_POS 27
+#define SKIF_MAXIMIZE_POS 27 // 27
 #define SWP_STATECHANGED  0x8000 // Undocumented
   static bool moveModal    = false;
 
@@ -1799,202 +1827,219 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
 #pragma endregion
 
-    case WM_ENTERSIZEMOVE:
-    case WM_EXITSIZEMOVE:
-      //OutputDebugString(L"WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE\n");
-      moveModal = ! moveModal;
-      break;
+      case WM_ENTERSIZEMOVE:
+      case WM_EXITSIZEMOVE:
+        //OutputDebugString(L"WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE\n");
+        moveModal = ! moveModal;
+        break;
       
 #pragma region WM_DPICHANGED
 
-    case WM_DPICHANGED:
-    {
-      //OutputDebugString(L"WM_DPICHANGED\n");
-
-      int g_dpi    = HIWORD (wParam);
-      RECT* const prcNewWindow = (RECT*) lParam;
-
-      extern float SKIF_ImGui_GlobalDPIScale_New;
-      SKIF_ImGui_GlobalDPIScale_New = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
-
-      ///*
-      // Update the style scaling
-      SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_GlobalDPIScale_New;
-
-      ImGuiStyle              newStyle;
-      extern void
-        SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
-        SKIF_ImGui_SetStyle (&newStyle);
-
-      extern bool
-        invalidateFonts;
-        invalidateFonts = true;
-      //*/
-
-      // Reset reduced height
-      SKIF_vecAlteredSize.y = 0.0f;
-
-      POINT ptLeftTop = {
-        prcNewWindow->left,
-        prcNewWindow->top
-      };
-      
-      HMONITOR hMonitor =
-        ::MonitorFromPoint  (ptLeftTop,    MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the top left position
-      //::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
-      //::MonitorFromWindow (hWnd,         MONITOR_DEFAULTTONEAREST); // Ends up being the previous monitor as the window haven't been moved yet
-
-      MONITORINFO
-        info        = {                  };
-        info.cbSize = sizeof (MONITORINFO);
-
-      if (::GetMonitorInfo (hMonitor, &info))
+      case WM_DPICHANGED:
       {
-        ImVec2 WorkSize =
-          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                   (float)( info.rcWork.bottom - info.rcWork.top  ) );
+        //OutputDebugString(L"WM_DPICHANGED\n");
 
-        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+        int g_dpi    = HIWORD (wParam);
+        RECT* const prcNewWindow = (RECT*) lParam;
 
-        if (ImGui::IsAnyMouseDown ( ))
-          return 0;
+        extern float SKIF_ImGui_GlobalDPIScale_New;
+        SKIF_ImGui_GlobalDPIScale_New = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
-        if (moveModal)
-          return 0;
+        ///*
+        // Update the style scaling
+        SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_GlobalDPIScale_New;
 
-        bool reposition = false;
+        ImGuiStyle              newStyle;
+        extern void
+          SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
+          SKIF_ImGui_SetStyle (&newStyle);
 
-        if (prcNewWindow->left <= info.rcWork.left)
+        extern bool
+          invalidateFonts;
+          invalidateFonts = true;
+        //*/
+
+        // Reset reduced height
+        SKIF_vecAlteredSize.y = 0.0f;
+
+        POINT ptLeftTop = {
+          prcNewWindow->left,
+          prcNewWindow->top
+        };
+      
+        HMONITOR hMonitor =
+          ::MonitorFromPoint  (ptLeftTop,    MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the top left position
+        //::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
+        //::MonitorFromWindow (hWnd,         MONITOR_DEFAULTTONEAREST); // Ends up being the previous monitor as the window haven't been moved yet
+
+        MONITORINFO
+          info        = {                  };
+          info.cbSize = sizeof (MONITORINFO);
+
+        if (::GetMonitorInfo (hMonitor, &info))
         {
-          // Switching to a display on the left
-          prcNewWindow->left = info.rcWork.left;
-          reposition = true;
+          ImVec2 WorkSize =
+            ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New > (WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+
+          if (ImGui::IsAnyMouseDown ( ))
+            return 0;
+
+          if (moveModal)
+            return 0;
+
+          bool reposition = false;
+
+          if (prcNewWindow->left <= info.rcWork.left)
+          {
+            // Switching to a display on the left
+            prcNewWindow->left = info.rcWork.left;
+            reposition = true;
+          }
+
+          else if (prcNewWindow->right >= info.rcWork.right)
+          {
+            // Switching to a display on the right
+            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale_New);
+            reposition = true;
+          }
+
+          if (reposition)
+          {
+            SetWindowPos (hWnd,
+                NULL,
+                prcNewWindow->left,
+                prcNewWindow->top,
+                prcNewWindow->right  - prcNewWindow->left,
+                prcNewWindow->bottom - prcNewWindow->top,
+                SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+          }
         }
 
-        else if (prcNewWindow->right >= info.rcWork.right)
-        {
-          // Switching to a display on the right
-          prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale_New);
-          reposition = true;
-        }
-
-        if (reposition)
-        {
-          SetWindowPos (hWnd,
-              NULL,
-              prcNewWindow->left,
-              prcNewWindow->top,
-              prcNewWindow->right  - prcNewWindow->left,
-              prcNewWindow->bottom - prcNewWindow->top,
-              SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-        }
+        return 0;
+        break;
       }
-
-      return 0;
-      break;
-    }
 
 #pragma endregion
 
 #pragma region WM_GETMINMAXINFO
 
-    // This is used to inform Windows of the min/max size of the viewport, so
-    //   that features such as Aero Snap takes the enforced size into account
-    case WM_GETMINMAXINFO:
-    {
-      //OutputDebugString(L"WM_GETMINMAXINFO\n");
-
-      MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
-      static POINT size, pos;
-
-      size.x = static_cast<long> (viewport->Size.x);
-      size.y = static_cast<long> (viewport->Size.y);
-       
-      // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
-      mmi->ptMinTrackSize = size; // Minimum tracking size
-      mmi->ptMaxTrackSize = size; // Maximum tracking size
-
-      DWORD style =
-        ::GetWindowLongPtr (hWnd, GWL_STYLE);
-
-      //if (style & WS_MAXIMIZE)
-      //  restore_from_maximized = true;
-
-      // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
-      // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
-      // the primary monitor and the monitor that displays the window.
-      // 
-      // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
-
-      if (ImGui::GetPlatformIO().Monitors.Size > 0)
+      // This is used to inform Windows of the min/max size of the viewport, so
+      //   that features such as Aero Snap takes the enforced size into account
+      case WM_GETMINMAXINFO:
       {
-        const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
-        ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
+        //OutputDebugString(L"WM_GETMINMAXINFO\n");
 
-        // Ensure that a "maximized" window is centered on the display
-        // Since the window manager adjusts automatically for differences between the primary monitor and the monitor that diplays the window,
-        //   we need to undo any active DPI scaling of the current display, and re-apply any active DPI scaling of the primary display.
+        MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+        static POINT size, pos;
 
-        // We are using a custom position to detect maximized state later down the line
-        pos.x = SKIF_MAXIMIZE_POS;
-        pos.y = SKIF_MAXIMIZE_POS;
+        size.x = static_cast<long> (viewport->Size.x);
+        size.y = static_cast<long> (viewport->Size.y);
+       
+        // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
+        mmi->ptMinTrackSize = size; // Minimum tracking size
+        mmi->ptMaxTrackSize = size; // Maximum tracking size
 
-        // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
-        // For top-level windows, this value is based on the position of the primary monitor.
-        mmi->ptMaxPosition = pos;
+        //DWORD style =
+        //  ::GetWindowLongPtr (hWnd, GWL_STYLE);
+
+        //if (style & WS_MAXIMIZE)
+        //  restore_from_maximized = true;
+
+        // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
+        // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
+        // the primary monitor and the monitor that displays the window.
+        // 
+        // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
+
+        if (ImGui::GetPlatformIO().Monitors.Size > 0)
+        {
+          const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
+          ImRect primWorkArea   = ImRect (primMonitor.MainPos, primMonitor.MainPos + primMonitor.WorkSize);
+
+          // Ensure that a "maximized" window is centered on the display
+          // Since the window manager adjusts automatically for differences between the primary monitor and the monitor that diplays the window,
+          //   we need to undo any active DPI scaling of the current display, and re-apply any active DPI scaling of the primary display.
+
+          // We are using a custom position to detect maximized state later down the line
+          pos.x = SKIF_MAXIMIZE_POS;
+          pos.y = SKIF_MAXIMIZE_POS;
+
+          // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
+          // For top-level windows, this value is based on the position of the primary monitor.
+          mmi->ptMaxPosition = pos;
            
-        // The maximized width (x member) and the maximized height (y member) of the window.
-        // For top-level windows, this value is based on the width of the primary monitor.
-        mmi->ptMaxSize     = size; // Maximized size
+          // The maximized width (x member) and the maximized height (y member) of the window.
+          // For top-level windows, this value is based on the width of the primary monitor.
+          mmi->ptMaxSize     = size; // Maximized size
+        }
+
+        return 0;
+
+        break;
       }
-
-      return 0;
-
-      break;
-    }
 
 #pragma endregion
 
-    case WM_CLOSE:
-      if (viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
-        PostQuitMessage (0x0);
-      else
-        viewport->PlatformRequestClose = true;
-      return 0;
+      case WM_CLOSE:
+        if (viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
+          PostQuitMessage (0x0);
+        else
+          viewport->PlatformRequestClose = true;
+        return 0;
 
-    case WM_MOVE:
-        viewport->PlatformRequestMove = true;
-      break;
+      case WM_MOVE:
+          viewport->PlatformRequestMove = true;
+        break;
 
-    case WM_SIZE:
-    {
-      //OutputDebugString(L"WM_SIZE\n");
+      case WM_SIZE:
+      {
+        //OutputDebugString(L"WM_SIZE\n");
 
-      viewport->PlatformRequestResize = true;
-      extern bool SKIF_D3D11_IsDevicePtr (void);
-      extern bool RecreateSwapChains;
+        viewport->PlatformRequestResize = true;
+        extern bool SKIF_D3D11_IsDevicePtr (void);
+        extern bool RecreateSwapChains;
 
-      // Might as well trigger a recreation on WM_SIZE when not minimized
-      // It is possible this catches device reset/hung scenarios
-      if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED)
-        RecreateSwapChains = true;
-      break;
-    }
+        // Might as well trigger a recreation on WM_SIZE when not minimized
+        // It is possible this catches device reset/hung scenarios
+        if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED)
+          RecreateSwapChains = true;
+        break;
+      }
 
-    case WM_MOUSEACTIVATE:
-      if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
-        return MA_NOACTIVATE;
-      break;
+      case WM_MOUSEACTIVATE:
+        if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
+          return MA_NOACTIVATE;
+        break;
 
-    case WM_NCHITTEST:
+      case WM_NCHITTEST:
+      {
+        OutputDebugString(L"WM_NCHITTEST\n");
+
         // Let mouse pass-through the window. This will allow the back-end to set io.MouseHoveredViewport properly (which is OPTIONAL).
         // The ImGuiViewportFlags_NoInputs flag is set while dragging a viewport, as want to detect the window behind the one we are dragging.
         // If you cannot easily access those viewport flags from your windowing/event code: you may manually synchronize its state e.g. in
         // your main loop after calling UpdatePlatformWindows(). Iterate all viewports/platform windows and pass the flag to your windowing system.
-      if (viewport->Flags & ImGuiViewportFlags_NoInputs)
-        return HTTRANSPARENT;
-      break;
+        if (viewport->Flags & ImGuiViewportFlags_NoInputs)
+          return HTTRANSPARENT;
+
+        extern bool
+            SKIF_ImGui_CanMouseDragMove (void);
+        if (SKIF_ImGui_CanMouseDragMove (    ))
+        {
+          LRESULT
+              defaultHitTest =  DefWindowProc (hWnd, msg, wParam, lParam);
+          if (defaultHitTest == HTCLIENT)
+              defaultHitTest =  HTCAPTION;
+          return
+              defaultHitTest;
+        }
+
+        break;
+      }
     }
   }
 

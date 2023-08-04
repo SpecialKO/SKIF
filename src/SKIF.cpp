@@ -108,6 +108,8 @@ int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
+bool SKIF_MouseDragMoveAllowed = true;
+bool SKIF_DisableDWMRoundedBorders = false; // Used to prevent borders from being used on software branches menu
 
 // A fixed size for the application window fixes the wobble that otherwise
 //   occurs when switching between tabs as the size isn't dynamically calculated.
@@ -121,8 +123,8 @@ ImVec2 SKIF_vecSvcMode              = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecSvcModeDefault       = ImVec2 (415.0f, 305.0f);
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorMode              = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecHorModeAdjusted      = SKIF_vecHorModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
 ImVec2 SKIF_vecHorModeDefault       = ImVec2 (1038.0f, 414.0f); // Does not include the status bar
+ImVec2 SKIF_vecHorModeAdjusted      = SKIF_vecHorModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
@@ -1218,8 +1220,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {                         msg          = { };
     static UINT uiLastMsg = 0x0;
     coverFadeActive = false; // Assume there's no cover fade effect active
-    extern bool SKIF_bWindowDragMoveAllowed;
-    SKIF_bWindowDragMoveAllowed = true;  // Reset on each frame
+
+    // Reset on each frame
+    SKIF_MouseDragMoveAllowed     = true;
+    SKIF_DisableDWMRoundedBorders = false;
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -1596,109 +1600,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if ( newWindowPos.x != windowPos.x ||
              newWindowPos.y != windowPos.y )
-          ImGui::SetNextWindowPos(newWindowPos);
+          ImGui::SetNextWindowPos (newWindowPos);
       }
-
-#pragma region Move SKIF using Windows Key + Arrow Keys
-
-      //if ((io.KeysDown[VK_LWIN] && io.KeysDownDuration[VK_LWIN] == 0.0f) ||
-      //    (io.KeysDown[VK_RWIN] && io.KeysDownDuration[VK_RWIN] == 0.0f))
-      //  KeyWinKey = true;
-      //else if (! io.KeysDown[VK_LWIN] && ! io.KeysDown[VK_RWIN])
-      //  KeyWinKey = false;
-      
-#if 0
-      if (KeyWinKey && SnapKeys)
-      {
-        if (monitor != nullptr)
-        {
-          HMONITOR currentMonitor = MonitorFromWindow (SKIF_hWnd, MONITOR_DEFAULTTONULL);
-
-          if (currentMonitor != NULL)
-          {
-            MONITORINFO currentMonitorInfo{}, nearestMonitorInfo{};
-            currentMonitorInfo.cbSize = sizeof(currentMonitorInfo);
-            nearestMonitorInfo.cbSize = sizeof(nearestMonitorInfo);
-
-            if (GetMonitorInfo(currentMonitor, (LPMONITORINFO)&currentMonitorInfo))
-            {
-              // Some simple math to basically create a dummy RECT that
-              //  lies alongside one of the sides of the current monitor
-              RECT dummy(currentMonitorInfo.rcMonitor);
-              if      (SnapKeys &  2) // Left
-              {
-                dummy.right  = dummy.left;
-                dummy.left   = dummy.left   - static_cast<long>(SKIF_vecCurrentMode.x);
-              }
-              else if (SnapKeys &  4) // Up
-              {
-                dummy.bottom = dummy.top;
-                dummy.top    = dummy.top    - static_cast<long>(SKIF_vecCurrentMode.y);
-              }
-              else if (SnapKeys &  8) // Right
-              {
-                dummy.left   = dummy.right;
-                dummy.right  = dummy.right  + static_cast<long>(SKIF_vecCurrentMode.x);
-              }
-              else if (SnapKeys & 16) // Down
-              {
-                dummy.top = dummy.bottom;
-                dummy.bottom = dummy.bottom + static_cast<long>(SKIF_vecCurrentMode.y);
-              }
-
-              // Let us retrieve the closest monitor based on our dummy rect
-              HMONITOR nearestMonitor = MonitorFromRect(&dummy, MONITOR_DEFAULTTONEAREST);
-              if (GetMonitorInfo(nearestMonitor, (LPMONITORINFO)&nearestMonitorInfo))
-              {
-                // Don't bother if the nearest monitor is also the current monitor
-                if (nearestMonitorInfo.rcMonitor != currentMonitorInfo.rcMonitor)
-                {
-                  // Loop through all platform monitors
-                  for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-                  {
-                    const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-
-                    // Skip if we are on the wrong monitor
-                    if (tmpMonitor.MainPos.x != static_cast<float>(nearestMonitorInfo.rcMonitor.left) ||
-                        tmpMonitor.MainPos.y != static_cast<float>(nearestMonitorInfo.rcMonitor.top))
-                      continue;
-
-                    // Get the screen area of the monitor
-                    ImRect tmpMonRect = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
-
-                    // Calculate the expected new size using the DPI scale of the monitor
-                    ImVec2 tmpWindowSize = 
-                                  (_registry.bServiceMode) ? ImVec2 ( SKIF_wSmallMode * tmpMonitor.DpiScale,
-                                                               SKIF_hSmallMode * tmpMonitor.DpiScale)
-                                                    : ImVec2 ( SKIF_wLargeMode * tmpMonitor.DpiScale,
-                                                               SKIF_hLargeMode * tmpMonitor.DpiScale);
-
-                    // Calculate the expected position on the new monitor
-                    ImVec2 suggestedPos = ImVec2(tmpMonRect.GetCenter().x - (tmpWindowSize.x / 2.0f), tmpMonRect.GetCenter().y - (tmpWindowSize.y / 2.0f));
-
-                    // Check if the position is within the boundaries of the
-                    //  monitor and move the suggested position if it is not.
-                    if (suggestedPos.x < tmpMonitor.MainPos.x)
-                        suggestedPos.x = tmpMonitor.MainPos.x;
-                    if (suggestedPos.y < tmpMonitor.MainPos.y)
-                        suggestedPos.y = tmpMonitor.MainPos.y;
-
-                    // Set the new window position and break out of the loop
-                    ImGui::SetNextWindowPos(suggestedPos);
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-#endif
-
-      //if (! KeyWinKey)
-      //  SnapKeys = 0;
-
-#pragma endregion
 
       //ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
 
@@ -1709,6 +1612,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGuiWindowFlags_NoTitleBar        |
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
                          ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
+                       | ImGuiWindowFlags_NoMove
       );
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
@@ -1755,8 +1659,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCursorPos ();
 
       ImGui::SetCursorPos (
-        ImVec2 ( SKIF_vecCurrentMode.x - 120.0f * SKIF_ImGui_GlobalDPIScale,
-                                           4.0f * SKIF_ImGui_GlobalDPIScale )
+        ImVec2 ( SKIF_vecCurrentMode.x - (122.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale,
+                                           (6.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale )
       );
 
       ImGui::PushStyleVar (
@@ -2437,7 +2341,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                         (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
-          SKIF_ImGui_DisallowWindowMove ( );
+          SKIF_ImGui_DisallowMouseDragMove ( );
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
@@ -2493,7 +2397,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
-        SKIF_ImGui_DisallowWindowMove ( );
+        SKIF_ImGui_DisallowMouseDragMove ( );
 
         ImGui::SameLine ();
         ImGui::Spacing  ();
@@ -2518,7 +2422,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine ();
         }
 
-        SKIF_ImGui_DisallowWindowMove ( );
+        SKIF_ImGui_DisallowMouseDragMove ( );
 
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
@@ -2528,7 +2432,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
-        SKIF_ImGui_DisallowWindowMove ( );
+        SKIF_ImGui_DisallowMouseDragMove ( );
 
         ImGui::EndPopup ();
       }
@@ -2598,9 +2502,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::OpenPopup ("###History");
       
         ImGui::SetNextWindowSize (ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
-        ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
-
+      
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       if (ImGui::BeginPopupModal (HistoryPopupTitle.c_str(), nullptr,
                                   ImGuiWindowFlags_NoResize |
                                   ImGuiWindowFlags_NoMove |
@@ -2641,7 +2545,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
-          SKIF_ImGui_DisallowWindowMove ( );
+          SKIF_ImGui_DisallowMouseDragMove ( );
 
           ImGui::PopFont        ( );
           ImGui::PopStyleColor  ( );
@@ -2663,13 +2567,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::CloseCurrentPopup ();
         }
 
-        SKIF_ImGui_DisallowWindowMove ( );
+        SKIF_ImGui_DisallowMouseDragMove ( );
 
         ImGui::EndPopup ();
       }
 
+      /* 2023-08-04: Disabled due to having been replaced by a new 
       // Special handling to allow the main window to be moved when some popups are opened
-      if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
+      if (false && ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
                  SKIF_ImGui_GetWindowModeState ( ) &&
           (      AddGamePopup == PopupState_Opened ||
                  ConfirmPopup == PopupState_Opened ||
@@ -2693,6 +2598,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         else if (     HistoryPopup == PopupState_Opened)
                       HistoryPopup  = PopupState_Open;
       }
+      */
 
       // Ensure the taskbar overlay icon always shows the correct state
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)

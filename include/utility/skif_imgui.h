@@ -22,14 +22,15 @@ void    SKIF_ImGui_OptImage           (ImTextureID user_texture_id, const ImVec2
 void    SKIF_ImGui_Columns            (int columns_count, const char* id, bool border, bool resizeble = false);
 void    SKIF_ImGui_Spacing            (float multiplier);
 void    SKIF_ImGui_Spacing            (void);
+void    SKIF_ImGui_Selectable         (const char* label);
 void    SKIF_ImGui_ServiceMenu        (void);
 ImFont* SKIF_ImGui_LoadFont           (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void    SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = true);
 void    SKIF_ImGui_SetStyle           (ImGuiStyle* dst = nullptr);
 void    SKIF_ImGui_PushDisableState   (void);
 void    SKIF_ImGui_PopDisableState    (void);
-void    SKIF_ImGui_DisallowWindowMove (void);
-bool    SKIF_ImGui_GetWindowModeState (void);
+void    SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
+bool    SKIF_ImGui_CanMouseDragMove   (void);    // True if drag move using the mouse is allowed, false if not
 void    SKIF_ImGui_InvalidateFonts    (void);
 
 // SKIF_ImGui_ImDerp, named as such as it is not a linear interpolation/lerp, is used

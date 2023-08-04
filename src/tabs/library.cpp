@@ -4255,7 +4255,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -4274,6 +4274,7 @@ Cache=false)";
 
   float fRemoveGamePopupWidth = 360.0f * SKIF_ImGui_GlobalDPIScale;
   ImGui::SetNextWindowSize (ImVec2 (fRemoveGamePopupWidth, 0.0f));
+  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
   if (ImGui::BeginPopupModal ("Remove Game###RemoveGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
@@ -4321,7 +4322,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     ImGui::SameLine    ( );
 
@@ -4333,7 +4334,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -4354,6 +4355,7 @@ Cache=false)";
 
   float fAddGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;
   ImGui::SetNextWindowSize (ImVec2 (fAddGamePopupWidth, 0.0f));
+  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
   if (ImGui::BeginPopupModal ("Add Game###AddGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
@@ -4445,7 +4447,7 @@ Cache=false)";
       }
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     ImGui::SameLine    ( );
 
@@ -4453,7 +4455,7 @@ Cache=false)";
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
@@ -4470,14 +4472,14 @@ Cache=false)";
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Name");
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -4550,7 +4552,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     if (disabled)
     {
@@ -4573,7 +4575,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -4592,6 +4594,7 @@ Cache=false)";
 
   float fModifyGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;
   ImGui::SetNextWindowSize (ImVec2 (fModifyGamePopupWidth, 0.0f));
+  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
   if (ImGui::BeginPopupModal ("Manage Game###ModifyGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
@@ -4681,7 +4684,7 @@ Cache=false)";
       }
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     ImGui::SameLine    ( );
 
@@ -4689,7 +4692,7 @@ Cache=false)";
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
@@ -4706,14 +4709,14 @@ Cache=false)";
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Name");
 
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -4800,7 +4803,7 @@ Cache=false)";
       }
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     if (disabled)
     {
@@ -4823,7 +4826,7 @@ Cache=false)";
       ImGui::CloseCurrentPopup ( );
     }
 
-    SKIF_ImGui_DisallowWindowMove ( );
+    SKIF_ImGui_DisallowMouseDragMove ( );
 
     SKIF_ImGui_Spacing ( );
 

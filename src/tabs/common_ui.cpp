@@ -74,9 +74,12 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "View release notes...");
+  //ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "View release notes...");
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+  SKIF_ImGui_Selectable   ("View release notes...");
+  ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
-  if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Left))
     HistoryPopup = PopupState_Open;
   ImGui::EndGroup         ( );
   
@@ -297,7 +300,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
       vGhostColor = vGhostColor * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
-    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - 115.0f * SKIF_ImGui_GlobalDPIScale;
+    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale;
 
     static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
     static float fMinPos   =  0.0f;

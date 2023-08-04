@@ -54,7 +54,10 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::NewLine          ( );
   ImGui::Text             ("To get started just hop on over to the");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
+  //ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
+  SKIF_ImGui_Selectable   (ICON_FA_GAMEPAD " Library###About-Lib1");
+  ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
@@ -81,7 +84,9 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::Text             ("Go to the");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), ICON_FA_GAMEPAD " Library");
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
+  SKIF_ImGui_Selectable   (ICON_FA_GAMEPAD " Library###About-Lib2");
+  ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
@@ -115,10 +120,9 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::Text             ("Go to the");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    ICON_FA_GAMEPAD " Library"
-  );
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
+  SKIF_ImGui_Selectable   (ICON_FA_GAMEPAD " Library###About-Lib3");
+  ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) SKIF_Tab_ChangeTo = UITab_Library;
   ImGui::SameLine         ( );
@@ -132,10 +136,9 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::Text             ("Click on");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      ICON_FA_SQUARE_PLUS " Add Game"
-  );
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
+  SKIF_ImGui_Selectable   (ICON_FA_SQUARE_PLUS " Add Game");
+  ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
     AddGamePopup = PopupState_Open;

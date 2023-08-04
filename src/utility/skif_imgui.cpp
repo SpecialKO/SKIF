@@ -23,8 +23,7 @@ bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontJapanese            = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false,
-     SKIF_bWindowDragMoveAllowed   =  true;
+     SKIF_bFontVietnamese          = false;
 
 ImFont* fontConsolas = nullptr;
 ImFont* fontFAS      = nullptr;
@@ -200,6 +199,8 @@ SKIF_ImGui_SetMouseCursorHand (void)
   // IsItemHovered() fixes cursor changing for overlapping items, and IsMouseHoveringRect() fixes cursor changing due to keyboard/gamepad selections
   if (ImGui::IsItemHovered ( ) && ImGui::IsMouseHoveringRect (ImGui::GetItemRectMin( ), ImGui::GetItemRectMax( )))
   {
+    extern bool SKIF_MouseDragMoveAllowed;
+    SKIF_MouseDragMoveAllowed = false;
     ImGui::SetMouseCursor (
       ImGuiMouseCursor_Hand
     );
@@ -293,6 +294,13 @@ SKIF_ImGui_Spacing (void)
   SKIF_ImGui_Spacing (0.25f);
 }
 
+// Difference to regular Selectable? Doesn't span further than the width of the label!
+void
+SKIF_ImGui_Selectable (const char* label)
+{
+  ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
+}
+
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
 SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags)
@@ -383,26 +391,6 @@ void SKIF_ImGui_BeginTabChildFrame (void)
 
   float maxContentHeight = 910.0f; // Default height // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
         maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
-
-#if 0
-  static float maxContentHeight_last = maxContentHeight;
-
-  if (maxContentHeight != maxContentHeight_last)
-  {
-    OutputDebugString(L"new maxContentHeight: ");
-    OutputDebugString(std::to_wstring(maxContentHeight).c_str());
-    OutputDebugString(L"\n");
-
-    OutputDebugString(L"new SKIF_ImGui_GlobalDPIScale: ");
-    OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
-    OutputDebugString(L"\n");
-
-    maxContentHeight_last = maxContentHeight;
-  }
-#endif
-
-  //if (_registry.bDisableStatusBar)
-  //  maxContentHeight += SKIF_fStatusBarDisabled;
 
   SKIF_ImGui_BeginChildFrame (
     frame_content_area_id,
@@ -852,16 +840,28 @@ SKIF_ImGui_PopDisableState (void)
 }
 
 void
-SKIF_ImGui_DisallowWindowMove (void)
+SKIF_ImGui_DisallowMouseDragMove (void)
 {
+  extern bool SKIF_MouseDragMoveAllowed;
+
   if (ImGui::IsItemActive ( ))
-    SKIF_bWindowDragMoveAllowed = false;
+    SKIF_MouseDragMoveAllowed = false;
 }
 
+// Allows moving the window but only in certain circumstances
 bool
-SKIF_ImGui_GetWindowModeState (void)
+SKIF_ImGui_CanMouseDragMove (void)
 {
-  return SKIF_bWindowDragMoveAllowed;
+  extern bool SKIF_MouseDragMoveAllowed;
+  return      SKIF_MouseDragMoveAllowed   &&       // Manually disabled by a few UI elements
+            ! ImGui::IsAnyItemHovered ( ) &&       // Disabled if any item is hovered
+          ( ! ImGui::IsAnyPopupOpen ( )         || // Disabled if any popup is opened..
+          (   AddGamePopup == PopupState_Opened || // ..except for a few standard ones
+              ConfirmPopup == PopupState_Opened || //   which are actually aligned to
+           ModifyGamePopup == PopupState_Opened || //   the center of the app window
+           RemoveGamePopup == PopupState_Opened ||
+         UpdatePromptPopup == PopupState_Opened ||
+              HistoryPopup == PopupState_Opened ));
 }
 
 void

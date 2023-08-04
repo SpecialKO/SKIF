@@ -1283,7 +1283,10 @@ SKIF_UI_Tab_DrawSettings (void)
     );
 
     if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &_registry.bOpenAtCursorPosition ) )
-      _registry.regKVOpenAtCursorPosition.putData (                                            _registry.bOpenAtCursorPosition );
+      _registry.regKVOpenAtCursorPosition.putData (                                  _registry.bOpenAtCursorPosition );
+
+    if ( ImGui::Checkbox ( "Always open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
+      _registry.regKVOpenInServiceMode.putData (                                     _registry.bOpenInServiceMode);
 
     if (_registry.bCloseToTray)
     {
@@ -1334,10 +1337,6 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePush         ( );
 
-    if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
-                                            &_registry.bAllowBackgroundService))
-      _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
-
     const char* LogSeverity[] = { "None",
                                   "Fatal",
                                   "Error",
@@ -1370,6 +1369,16 @@ SKIF_UI_Tab_DrawSettings (void)
             ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
       }
       ImGui::EndCombo  ( );
+    }
+
+    if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
+                                                      &_registry.bAllowBackgroundService))
+      _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
+
+    if (SKIF_Util_IsWindows11orGreater ( ))
+    {
+      if ( ImGui::Checkbox ( "Enable Win11 rounded corners (may be buggy; restart required)", &_registry.bWin11Corners) )
+        _registry.regKVWin11Corners.putData (                                                  _registry.bWin11Corners);
     }
 
     ImGui::TreePop          ( );

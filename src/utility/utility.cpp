@@ -636,6 +636,16 @@ SKIF_Util_IsWindows10v1903OrGreater (void)
   return bResult;
 }
 
+// Windows 11 (Build 22000) or newer
+bool
+SKIF_Util_IsWindows11orGreater (void)
+{
+  static bool bResult =
+    SKIF_Util_IsWindowsVersionOrGreater (10, 0, 22000);
+
+  return bResult;
+}
+
 #ifndef NT_SUCCESS
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif

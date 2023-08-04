@@ -111,11 +111,13 @@ struct SKIF_Signals { // Used for command line arguments
 
 // External declarations
 
-extern PopupState  ServiceMenu;     // Library / Small Mode: used to show an options menu for the service when right clicking
-extern PopupState  AddGamePopup;    // Library: show an  add  custom game prompt
-extern PopupState  RemoveGamePopup; // Library: show a remove custom game prompt
-extern PopupState  ModifyGamePopup; // Library: show a modify custom game prompt
-extern PopupState  ConfirmPopup;    // Library: show a confirm prompt with text set through confirmPopupText
+extern PopupState  ServiceMenu;       // Library / Service Mode: used to show an options menu for the service when right clicking
+extern PopupState  AddGamePopup;      // Library: show an  add  custom game prompt
+extern PopupState  RemoveGamePopup;   // Library: show a remove custom game prompt
+extern PopupState  ModifyGamePopup;   // Library: show a modify custom game prompt
+extern PopupState  ConfirmPopup;      // Library: show a confirm prompt with text set through confirmPopupText
+extern PopupState  UpdatePromptPopup; // App Mode: show an update prompt
+extern PopupState  HistoryPopup;      // Monitor / About: show a changelog popup
 
 extern UITab       SKIF_Tab_Selected; // Current selected tab
 extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to

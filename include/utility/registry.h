@@ -188,6 +188,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Enable Debug Mode)" );
 
+  KeyValue <bool> regKVWin11Corners =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Win11 Corners)" );
+
   KeyValue <bool> regKVDisableTooltips =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Tooltips)" );
@@ -247,6 +251,10 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVOpenAtCursorPosition =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );
+
+  KeyValue <bool> regKVOpenInServiceMode =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Open In Service Mode)" );
 
   KeyValue <bool> regKVAlwaysShowGhost =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -390,9 +398,11 @@ struct SKIF_RegistrySettings {
   bool bServiceMode             = false;
   bool bFirstLaunch             = false;
   bool bEnableDebugMode         = false;
+  bool bWin11Corners            = false;
   bool bAllowMultipleInstances  = false;
   bool bAllowBackgroundService  = false;
   bool bOpenAtCursorPosition    = false;
+  bool bOpenInServiceMode       = false;
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;
