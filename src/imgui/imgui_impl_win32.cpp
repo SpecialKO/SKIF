@@ -1795,7 +1795,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         if (ImGui::GetFrameCount  ( ) < 5)
           break;
         
-        LRESULT def =  DefWindowProc (hWnd, msg, wParam, lParam);
+        //LRESULT def =  DefWindowProc (hWnd, msg, wParam, lParam);
         WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*> (lParam);
         
         POINT ptLeftTop  = {
@@ -1831,7 +1831,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         wp->cx = static_cast<int> (viewport->Size.x); // / viewport->DpiScale * targetMonitor.DpiScale
         wp->cy = static_cast<int> (viewport->Size.y); // / viewport->DpiScale * targetMonitor.DpiScale;
 
-        return def;
+        return 0;
         break;
       }
 
