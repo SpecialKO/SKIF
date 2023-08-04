@@ -103,11 +103,7 @@ void SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // Tabs
   colors[ImGuiCol_Tab]                    = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);       //ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.80f);
   colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-
-  if (_registry.bDisableBorders)
-    colors[ImGuiCol_TabActive]            = colors[ImGuiCol_WindowBg];
-  else
-    colors[ImGuiCol_TabActive]            = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+  colors[ImGuiCol_TabActive]            = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
 
   colors[ImGuiCol_TabUnfocused]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
   colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
@@ -812,11 +808,12 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     dst->TabBorderSize   = 0.0F;
     dst->FrameBorderSize = 0.0F;
 
-    //if (_registry.iStyle != 2)
+    // Necessary to hide the 1 px separator shown at the bottom of the tabs row
     dst->Colors[ImGuiCol_TabActive] = dst->Colors[ImGuiCol_WindowBg];
   }
 
   else {
+    // Is not scaled by ScaleAllSizes() so we have to do it here
     dst->TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
     dst->FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
   }

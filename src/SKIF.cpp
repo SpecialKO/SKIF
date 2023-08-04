@@ -1643,8 +1643,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCursorPos ();
 
       ImGui::SetCursorPos (
-        ImVec2 ( SKIF_vecCurrentMode.x - (122.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale,
-                                           (6.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale )
+        ImVec2 ( SKIF_vecCurrentMode.x - ((122.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2),
+                                           ((6.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2) )
       );
 
       ImGui::PushStyleVar (

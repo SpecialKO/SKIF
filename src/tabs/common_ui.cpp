@@ -288,7 +288,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
     const  float fGhostTimeStep = 0.01f;
     static float fGhostTime     = 0.0f;
 
-    float fGhostYPos = 4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 0.5f);
+    float fGhostYPos = (4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 0.5f)) * SKIF_ImGui_GlobalDPIScale;
 
     ImVec4 vGhostColor = ImColor::ImColor (
         0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
@@ -300,7 +300,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
       vGhostColor = vGhostColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f);
 
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
-    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f - ImGui::GetStyle().FrameBorderSize * 2) * SKIF_ImGui_GlobalDPIScale;
+    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2);
 
     static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
     static float fMinPos   =  0.0f;
@@ -319,7 +319,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
     ImGui::SameLine    (0.0f, fActPos);
   
     ImGui::SetCursorPosY (
-      ImGui::GetCursorPosY ( ) + fGhostYPos
+      ImGui::GetCursorPosY ( ) - (ImGui::GetStyle().FrameBorderSize * 3) + fGhostYPos
                           );
 
     ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
