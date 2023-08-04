@@ -831,7 +831,7 @@ SKIF_UI_Tab_DrawSettings (void)
           
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Color theme: (restart required)"
+        "Color theme:"
     );
     ImGui::TreePush      ("");
 
