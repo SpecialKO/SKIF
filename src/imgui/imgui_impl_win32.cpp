@@ -1658,8 +1658,9 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
   extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
   extern ImVec2 SKIF_vecAlteredSize;
-  extern bool KeyWinKey;
-  extern int  SnapKeys; // 2 = Left, 4 = Up, 8 = Right, 16 = Down
+  extern ImVec2 SKIF_vecSvcMode;
+  //extern bool KeyWinKey;
+  //extern int  SnapKeys; // 2 = Left, 4 = Up, 8 = Right, 16 = Down
   
   //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
   //OutputDebugString((L"[ImGui_ImplWin32_WndProcHandler_PlatformWindow]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());
@@ -1820,8 +1821,16 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
                 wp->y - targetWorkArea.Min.y == SKIF_MAXIMIZE_POS)
             {
               // Change the intended position to the actual center of the display
-              wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * targetMonitor.DpiScale / 2.0f));
-              wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale / 2.0f));
+              if (_registry.bServiceMode)
+              {
+                wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecSvcMode.x * targetMonitor.DpiScale / 2.0f));
+                wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecSvcMode.y * targetMonitor.DpiScale / 2.0f));
+              }
+
+              else {
+                wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * targetMonitor.DpiScale / 2.0f));
+                wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale / 2.0f));
+              }
 
               return 0;
             }

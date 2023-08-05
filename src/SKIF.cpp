@@ -1182,6 +1182,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
   bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
 
+  bool repositionToCenter = false;
+
   // Force a one-time check before we enter the main loop
   _inject._TestServletRunlevel (true);
 
@@ -1555,18 +1557,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
 
       // RepositionSKIF -- Step 2: Repositon the window
+      // Repositions the window in the center of the monitor the cursor is currently on
       if (RepositionSKIF)
-      {
-        // Repositions the window in the center of the monitor the cursor is currently on
         ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
-      }
 
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
       //     Otherwise window gets positioned wrong on smaller monitors !
       if (RespectMonBoundaries && ImGui::GetFrameCount() > 2)
-      {
-        RespectMonBoundaries = false;
+      {   RespectMonBoundaries = false;
 
         ImVec2 topLeft      = windowPos,
                bottomRight  = windowPos + SKIF_vecCurrentMode,
@@ -1585,6 +1584,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if ( newWindowPos.x != windowPos.x ||
              newWindowPos.y != windowPos.y )
           ImGui::SetNextWindowPos (newWindowPos);
+      }
+
+      // If toggling mode when maximized, we need to reposition the window
+      if (repositionToCenter)
+      {   repositionToCenter = false;
+        ImGui::SetNextWindowPos  (monitor_extent.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
 
       //ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
@@ -1628,9 +1633,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
       if (RepositionSKIF)
-      {
         RepositionSKIF = false;
-      }
 
       static ImGuiTabBarFlags flagsInjection =
                 ImGuiTabItemFlags_None,
@@ -1714,7 +1717,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        RespectMonBoundaries = true;
+        LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+        if (lStyle & WS_MAXIMIZE)
+          repositionToCenter   = true;
+        else
+          RespectMonBoundaries = true;
 
         // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
         //   This prevent flashing and elements appearing too large during those frames.
