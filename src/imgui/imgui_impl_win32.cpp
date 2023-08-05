@@ -1952,6 +1952,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         // 
         // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
 
+#if 0
         if (ImGui::GetPlatformIO().Monitors.Size > 0)
         {
           const ImGuiPlatformMonitor& primMonitor = ImGui::GetPlatformIO().Monitors[0]; // Primary display
@@ -1963,6 +1964,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           //sizeMax.x = static_cast<long> (viewport->Size.x / primMonitor.DpiScale);
           //sizeMax.y = static_cast<long> (viewport->Size.y / primMonitor.DpiScale);
         }
+#endif
 
         sizeMax.x = static_cast<long> (viewport->Size.x);
         sizeMax.y = static_cast<long> (viewport->Size.y);
