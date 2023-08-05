@@ -2035,17 +2035,28 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         if (viewport->Flags & ImGuiViewportFlags_NoInputs)
           return HTTRANSPARENT;
 
+        LRESULT hitTest =
+          DefWindowProc (hWnd, msg, wParam, lParam);
+
         extern bool
             SKIF_ImGui_CanMouseDragMove (void);
         if (SKIF_ImGui_CanMouseDragMove (    ))
         {
-          LRESULT
-              defaultHitTest =  DefWindowProc (hWnd, msg, wParam, lParam);
-          if (defaultHitTest == HTCLIENT)
-              defaultHitTest =  HTCAPTION;
-          return
-              defaultHitTest;
+          // Necessary to allow OS provided drag-mouse functionality
+          if (hitTest == HTCLIENT)
+              hitTest  = HTCAPTION;
         }
+
+        // The following are needed for Windows 7 compatibility,
+        //   as apparently despite the 0x0 non-client area the
+        //     OS still "provides" hidden window buttons.
+        if (hitTest == HTCLOSE     ||
+            hitTest == HTMAXBUTTON ||
+            hitTest == HTMINBUTTON )
+            hitTest  = HTCLIENT;
+
+        return
+            hitTest;
 
         break;
       }
