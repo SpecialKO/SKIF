@@ -823,11 +823,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
     const char* StyleItems[] = { "SKIF Dark",
                                  "ImGui Dark",
-                                 "ImGui Light",
+                                 "SKIF Light",
                                  "ImGui Classic"
     };
-    static const char* StyleItemsCurrent = StyleItems[_registry.iStyle];
-    StyleItemsCurrent = StyleItems[_registry.iStyle];
+    static const char*
+      StyleItemsCurrent;
+      StyleItemsCurrent = StyleItems[_registry.iStyle]; // Re-apply the value on every frame as it may have changed
           
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
