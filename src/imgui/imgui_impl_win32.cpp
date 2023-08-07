@@ -1109,7 +1109,8 @@ static void
 ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   ImGuiViewportFlags  flags,
                DWORD *out_style,
-               DWORD *out_ex_style
+               DWORD *out_ex_style,
+               HWND   owner         // Used to tell if we're dealing with the main platform window or a child window
 )
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
@@ -1128,9 +1129,9 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   // - WS_MAXIMIZEBOX - Maximize button       (WndMenu -> Maximize) // enables WinKey+Up maximize shortcut
 
   if (flags & ImGuiViewportFlags_NoTaskBarIcon)
-    *out_ex_style = WS_EX_TOOLWINDOW; // Popups / Tooltips
+    *out_ex_style  = WS_EX_TOOLWINDOW; // Popups / Tooltips
   else
-    *out_ex_style = WS_EX_APPWINDOW;  // Main Window
+    *out_ex_style  = WS_EX_APPWINDOW;  // Main Window
 
   if (flags & ImGuiViewportFlags_TopMost)
     *out_ex_style |= WS_EX_TOPMOST;
@@ -1139,12 +1140,10 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
   if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
     *out_ex_style |= WS_EX_NOREDIRECTIONBITMAP;
 
-  // First window (main window) must respect nCmdShow and add
+  // Main platform window must respect nCmdShow and add
   // WS_EX_NOACTIVATE if we start in a minimized state
-      static bool
-      is_main_platform_window = true;
-  if (is_main_platform_window)
-  {   is_main_platform_window = false;
+  if (owner == nullptr)
+  {
     extern int SKIF_nCmdShow;
 
     if (SKIF_nCmdShow == SW_SHOWMINIMIZED   ||
@@ -1153,7 +1152,6 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
         SKIF_nCmdShow == SW_SHOWNA          ||
         SKIF_nCmdShow == SW_HIDE)
       *out_ex_style |= WS_EX_NOACTIVATE;
-      //*out_ex_style &= ~WS_EX_NOACTIVATE;
   }
 }
 
@@ -1168,14 +1166,8 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 
   viewport->PlatformUserData = data;
 
-  extern HWND  SKIF_ImGui_hWnd;
-  //extern HWND SKIF_hWnd;
-
-  // Select style and parent window
-  ImGui_ImplWin32_GetWin32StyleFromViewportFlags (viewport->Flags, &data->DwStyle, &data->DwExStyle);
-
+  // Select owner window
   HWND owner_window = nullptr;
-
   if (viewport->ParentViewportId != 0)
     if (ImGuiViewport *parent_viewport = ImGui::FindViewportByID (viewport->ParentViewportId))
       owner_window = (HWND)parent_viewport->PlatformHandle;
@@ -1185,6 +1177,9 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
   { (LONG)  viewport->Pos.x,                      (LONG)  viewport->Pos.y,
     (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y )
   };
+  
+  // Select style
+  ImGui_ImplWin32_GetWin32StyleFromViewportFlags (viewport->Flags, &data->DwStyle, &data->DwExStyle, owner_window);
 
   //::AdjustWindowRectEx ( &rect, data->DwStyle,
   //                       FALSE, data->DwExStyle );
@@ -1204,16 +1199,19 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
       ::GetModuleHandle (nullptr), nullptr
     ); // Parent window, Menu, Instance, Param
 
-  // If this is the overarching ImGui Platform window (main window; meaning there is no parent), store the handle globally
+  // Stuff to do for the overarching ImGui Platform window (main window; meaning there is no parent)
   if (owner_window == nullptr)
   {
+    extern HWND  SKIF_ImGui_hWnd;
+    extern float SKIF_ImGui_GlobalDPIScale;
+
+    // Store the handle globally
     SKIF_ImGui_hWnd = data->Hwnd;
 
-    extern float
-      SKIF_ImGui_GlobalDPIScale;
+    // Retrieve the DPI scaling of the current display
     SKIF_ImGui_GlobalDPIScale = ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd);
 
-    // Update the style scaling
+    // Update the style scaling to reflect the current DPI scaling
     ImGuiStyle              newStyle;
     extern void
       SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
@@ -1257,17 +1255,30 @@ static void ImGui_ImplWin32_DestroyWindow (ImGuiViewport *viewport)
 }
 
 static void
-ImGui_ImplWin32_ShowWindow (ImGuiViewport *viewport)
+ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
 {
-  ImGuiViewportDataWin32 *data =
-    (ImGuiViewportDataWin32 *)viewport->PlatformUserData;
+  ImGuiViewportDataWin32* data =
+    (ImGuiViewportDataWin32*)viewport->PlatformUserData;
 
-  IM_ASSERT (data->Hwnd != 0);
-  
-  if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
+  IM_ASSERT(data->Hwnd != 0);
+
+  static bool
+       runOnce = true;
+  if ( runOnce )
+  {    runOnce = false;
+    // Main platform window must respect nCmdShow
+    //  in the first ShowWindow() call
+    extern int SKIF_nCmdShow;
+    ::ShowWindow (data->Hwnd, SKIF_nCmdShow);
+    SKIF_nCmdShow = -1; // SKIF_nCmdShow has served its purpose by now
+  }
+
+  else if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
     ::ShowWindow (data->Hwnd, SW_SHOWNA);
+
   else
     ::ShowWindow (data->Hwnd, (g_Focused) ? SW_SHOW : SW_SHOWNA);
+
 }
 
 static void
@@ -1282,8 +1293,14 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
 
   DWORD new_style;
   DWORD new_ex_style;
+  
+  // Select owner window
+  HWND owner_window = nullptr;
+  if (viewport->ParentViewportId != 0)
+    if (ImGuiViewport *parent_viewport = ImGui::FindViewportByID (viewport->ParentViewportId))
+      owner_window = (HWND)parent_viewport->PlatformHandle;
 
-  ImGui_ImplWin32_GetWin32StyleFromViewportFlags (viewport->Flags, &new_style, &new_ex_style);
+  ImGui_ImplWin32_GetWin32StyleFromViewportFlags (viewport->Flags, &new_style, &new_ex_style, owner_window);
 
   static bool hasNoRedirectionBitmap = (bool)(data->DwExStyle & WS_EX_NOREDIRECTIONBITMAP);
 
@@ -1322,18 +1339,6 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
                                SWP_FRAMECHANGED | SWP_ASYNCWINDOWPOS );
 
     // A ShowWindow() call is necessary when we alter the style
-    
-    // This is the very first ShowWindow ( ) call made in SKIF, and
-    //   as such it must respect the value of nCmdShow !
-    static bool
-        is_main_platform_window = true;
-    if (is_main_platform_window)
-    {   is_main_platform_window = false;
-      extern int    SKIF_nCmdShow;
-      ::ShowWindow ( data->Hwnd, SKIF_nCmdShow );
-    }
-
-    else
     ::ShowWindow ( data->Hwnd, SW_SHOWNA );
 
     viewport->PlatformRequestMove =
