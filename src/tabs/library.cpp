@@ -1975,7 +1975,7 @@ EnableDirectInput7=false
 EnableDirectInput8=false
 EnableHID=false
 EnableNativePS4=false
-EnableRawInput=false
+EnableRawInput=true
 AllowHapticUI=false
 
 [Input.Keyboard]
