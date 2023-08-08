@@ -741,7 +741,7 @@ ImGui_ImplWin32_NewFrame (void)
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   // This is called by SKIF_WndProc ( ) as well as ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
-  // It gets called for the main (invisible) 0x0 SKIF window, main viewport, as well as any additional viewport windows.
+  // It gets called for the main SKIF window/viewport, as well as any additional viewport windows.
 
   if (ImGui::GetCurrentContext ( ) == NULL)
     return 0;
@@ -950,6 +950,20 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
   case WM_DISPLAYCHANGE:
     g_WantUpdateMonitors = true;
+
+    extern bool SKIF_D3D11_IsDevicePtr (void);
+    extern bool RecreateSwapChains;
+
+    // Might as well trigger a recreation on WM_SIZE when not minimized
+    // It is possible this catches device reset/hung scenarios
+    // 
+    // Moved to WM_DISPLAYCHANGE to not trigger this unnecessary on startup
+    if (SKIF_D3D11_IsDevicePtr ( )) // && wParam != SIZE_MINIMIZED) // && ImGui::GetFrameCount ( ) > 4
+    {
+      RecreateSwapChains = true;
+      //OutputDebugString(L"RecreateSwapChains = true\n");
+    }
+
     return 0;
   }
   return 0;
@@ -2017,21 +2031,13 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         return 0;
 
       case WM_MOVE:
-          viewport->PlatformRequestMove = true;
+        viewport->PlatformRequestMove = true;
         break;
 
       case WM_SIZE:
       {
-        //OutputDebugString(L"WM_SIZE\n");
-
         viewport->PlatformRequestResize = true;
-        extern bool SKIF_D3D11_IsDevicePtr (void);
-        extern bool RecreateSwapChains;
-
-        // Might as well trigger a recreation on WM_SIZE when not minimized
-        // It is possible this catches device reset/hung scenarios
-        if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED)
-          RecreateSwapChains = true;
+        //OutputDebugString(L"WM_SIZE\n");
         break;
       }
 

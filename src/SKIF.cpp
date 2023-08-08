@@ -1628,6 +1628,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
             SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+
+          // Also recreate the swapchain (applies any HDR/SDR changes between displays)
+          RecreateSwapChains = true;
         }
       }
 
