@@ -950,20 +950,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     return 0;
   case WM_DISPLAYCHANGE:
     g_WantUpdateMonitors = true;
-
-    extern bool SKIF_D3D11_IsDevicePtr (void);
-    extern bool RecreateSwapChains;
-
-    // Might as well trigger a recreation on WM_SIZE when not minimized
-    // It is possible this catches device reset/hung scenarios
-    // 
-    // Moved to WM_DISPLAYCHANGE to not trigger this unnecessary on startup
-    if (SKIF_D3D11_IsDevicePtr ( )) // && wParam != SIZE_MINIMIZED) // && ImGui::GetFrameCount ( ) > 4
-    {
-      RecreateSwapChains = true;
-      //OutputDebugString(L"RecreateSwapChains = true\n");
-    }
-
     return 0;
   }
   return 0;
@@ -2038,6 +2024,20 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       {
         viewport->PlatformRequestResize = true;
         //OutputDebugString(L"WM_SIZE\n");
+
+        extern bool SKIF_D3D11_IsDevicePtr (void);
+        extern bool RecreateSwapChains;
+
+        // Might as well trigger a recreation on WM_SIZE when not minimized
+        // It is possible this catches device reset/hung scenarios
+        // 
+        // Moved to WM_DISPLAYCHANGE to not trigger this unnecessary on startup
+        if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED) // && ImGui::GetFrameCount ( ) > 4
+        {
+          RecreateSwapChains = true;
+          //OutputDebugString(L"Renderer_SetWindowSize\n");
+          //ImGui::GetPlatformIO().Renderer_SetWindowSize (viewport, viewport->Size);
+        }
         break;
       }
 

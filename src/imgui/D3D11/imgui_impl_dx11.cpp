@@ -1165,7 +1165,7 @@ void ImGui_ImplDX11_NewFrame (void)
               ( pFactory2.p != nullptr &&
               ! pFactory2->IsCurrent () );
 
-  if (RecreateSwapChains || RecreateFactory)
+  if ((RecreateSwapChains || RecreateFactory))
   {   RecreateSwapChains = false;
 
     PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
@@ -1280,7 +1280,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.SampleDesc.Quality = 0;
 
   // Assume flip by default
-  swap_desc.BufferCount  = 3; // Must be 2-16 for flip model
+  swap_desc.BufferCount  = 3; // Must be 2-16 for flip model // 2 to prevent SKIF from rendering x2 the refresh rate
 
   if (SKIF_bCanWaitSwapchain)
     swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
@@ -1460,36 +1460,46 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                                );
     g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
                            &data->RTView );
-    
+
     // Only print swapchain info for the main swapchain
     extern HWND SKIF_ImGui_hWnd;
     if (hWnd == SKIF_ImGui_hWnd)
     {
-      PLOG_INFO   << "+-----------------+-------------------------------------+";
-      PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
-      PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
-      PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
-      if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-        PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
-      else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-        PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
-      else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-        PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
-      else
-        PLOG_INFO << "| Format          | Unexpected format";
-      PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
-      PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
-      if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
-        PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
-      else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
-        PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
-      else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
-        PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
-      else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
-        PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
-      else 
-        PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
-      PLOG_INFO   << "+-----------------+-------------------------------------+";
+      static DXGI_SWAP_CHAIN_DESC1 old_data;
+
+      if (old_data.Height     != swap_desc.Height   ||
+          old_data.Flags      != swap_desc.Flags    ||
+          old_data.Format     != swap_desc.Format   ||
+          old_data.SwapEffect != swap_desc.SwapEffect)
+      {
+        old_data = swap_desc;
+
+        PLOG_INFO   << "+-----------------+-------------------------------------+";
+        PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
+        PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
+        PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
+        if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+          PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
+        else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+          PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
+        else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+          PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
+        else
+          PLOG_INFO << "| Format          | Unexpected format";
+        PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
+        PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
+        if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
+          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
+        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
+          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
+        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
+          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
+        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
+          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
+        else 
+          PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
+        PLOG_INFO   << "+-----------------+-------------------------------------+";
+      }
     }
 
     if (SKIF_bCanWaitSwapchain && 
