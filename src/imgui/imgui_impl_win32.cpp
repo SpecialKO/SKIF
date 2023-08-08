@@ -2022,7 +2022,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
       case WM_SIZE:
       {
-        viewport->PlatformRequestResize = true;
+        //viewport->PlatformRequestResize = true;
         //OutputDebugString(L"WM_SIZE\n");
 
         extern bool SKIF_D3D11_IsDevicePtr (void);
@@ -2030,14 +2030,27 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
         // Might as well trigger a recreation on WM_SIZE when not minimized
         // It is possible this catches device reset/hung scenarios
-        // 
-        // Moved to WM_DISPLAYCHANGE to not trigger this unnecessary on startup
         if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED) // && ImGui::GetFrameCount ( ) > 4
-        {
           RecreateSwapChains = true;
-          //OutputDebugString(L"Renderer_SetWindowSize\n");
-          //ImGui::GetPlatformIO().Renderer_SetWindowSize (viewport, viewport->Size);
-        }
+        
+        // Instead of handling this on the next frame, lets just handle it all there immediately
+#if 0
+        UINT width  = LOWORD (lParam);
+        UINT height = HIWORD (lParam);
+
+        OutputDebugString((L"Size:   " + std::to_wstring(width) + L"x" + std::to_wstring(height) + L"\n").c_str());
+        OutputDebugString((L"wParam: " + std::to_wstring(wParam) + L"\n").c_str());
+
+        ImGuiViewportP* viewportP = static_cast <ImGuiViewportP*> (viewport);
+        viewport->Size =
+          viewportP->LastPlatformSize =
+          viewportP->LastRendererSize =
+                 ImVec2 (static_cast<float> (width),
+                         static_cast<float> (height));
+        ImGui::GetPlatformIO ( ).Platform_SetWindowSize (viewport, viewport->Size);
+        ImGui::GetPlatformIO ( ).Renderer_SetWindowSize (viewport, viewport->Size); // This ResizeBuffers()
+#endif
+
         break;
       }
 

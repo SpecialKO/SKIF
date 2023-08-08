@@ -1621,8 +1621,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Only act if we are, in fact, on a new display
         if (preMonitor != actMonitor || _WantUpdateMonitors)
-        {   preMonitor  = actMonitor;
-
+        {
           // Reset reduced height
           SKIF_vecAlteredSize.y = 0.0f;
 
@@ -1630,7 +1629,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
 
           // Also recreate the swapchain (applies any HDR/SDR changes between displays)
-          RecreateSwapChains = true;
+          //   but not the first time to prevent unnecessary swapchain recreation on launch
+          if (preMonitor != nullptr)
+            RecreateSwapChains = true;
+
+          preMonitor = actMonitor;
         }
       }
 

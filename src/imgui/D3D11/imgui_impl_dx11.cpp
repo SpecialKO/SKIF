@@ -1165,7 +1165,15 @@ void ImGui_ImplDX11_NewFrame (void)
               ( pFactory2.p != nullptr &&
               ! pFactory2->IsCurrent () );
 
-  if ((RecreateSwapChains || RecreateFactory))
+#if 0
+  if (RecreateSwapChains)
+    OutputDebugString(L"RecreateSwapChains == true\n");
+
+  if (RecreateFactory)
+    OutputDebugString(L"RecreateFactory == true\n");
+#endif
+
+  if (RecreateSwapChains || RecreateFactory)
   {   RecreateSwapChains = false;
 
     PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
@@ -1523,7 +1531,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
             vSwapchainWaitHandles.push_back (data->WaitHandle);
 
             // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
-            WaitForSingleObjectEx (data->WaitHandle, 1000, true);
+            //WaitForSingleObjectEx (data->WaitHandle, 1000, true);
+            WaitForSingleObject (data->WaitHandle, 1000);
             // Block this thread until the swap chain is ready for presenting. Note that it is
             // important to call this before the first Present in order to minimize the latency
             // of the swap chain.
@@ -1691,7 +1700,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     //if (data->WaitHandle)
     //  WaitForSingleObject (data->WaitHandle, INFINITE);
 
-    if (SUCCEEDED (data->SwapChain->Present(Interval, PresentFlags)))
+    if (SUCCEEDED (data->SwapChain->Present (Interval, PresentFlags)))
       data->PresentCount++;
 
     /* 2023-04-30: Does not actually seem to make a difference? We don't use dirty rectangles of Present1() at all
