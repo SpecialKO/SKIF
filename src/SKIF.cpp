@@ -24,33 +24,22 @@
 #include "../version.h"
 
 #include <strsafe.h>
-#include <wtypes.h>
 #include <dxgi1_5.h>
-
-#include <gsl/gsl_util>
 
 #include <SKIF.h>
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
 
-#include <stores/Steam/steam_library.h>
 #include <utility/injection.h>
 
 #include <fonts/fa_621.h>
-#include <fonts/fa_621b.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_win32.h>
 #include <imgui/imgui_internal.h>
-#include <dxgi1_6.h>
 #include <xinput.h>
 
 #include <utility/fsutil.h>
-#include <psapi.h>
-
-#include <codecvt>
-#include <fstream>
-#include <random>
 
 #include <filesystem>
 #include <concurrent_queue.h>
@@ -58,24 +47,10 @@
 #include "imgui/d3d11/imgui_impl_dx11.h"
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
 
-#include <unordered_set>
 
 #include <stores/Steam/app_record.h>
 
-#include <wtypes.h>
-
-#include <gsl/gsl>
-#include <comdef.h>
-
-#include <sstream>
-#include <cwctype>
-
-#include <unordered_set>
-#include <nlohmann/json.hpp>
-
-#include <dwmapi.h>
 #include <tabs/about.h>
 #include <tabs/settings.h>
 
@@ -86,6 +61,7 @@
 
 #include <utility/drvreset.h>
 #include <tabs/common_ui.h>
+#include <Dbt.h>
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
@@ -2035,13 +2011,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
 
           ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-          if (ImGui::Button ( ICON_FA_SQUARE_PLUS " Add Game"))
+          // Prevents selecting the Add Game button with a keyboard or gamepad
+          //   fixes the games list being almost inaccessible due to weird nav
+          //     selection ImGui defaults to using.
+          ImGui::PushItemFlag (ImGuiItemFlags_NoNav, true);
+          if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
           {
             AddGamePopup = PopupState_Open;
             if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo = UITab_Library;
           }
-          ImGui::PopStyleVar  ( );
+          ImGui::PopAllowKeyboardFocus ( );
+          ImGui::PopItemFlag ( );
 
           btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
@@ -2660,6 +2641,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
+    extern bool ImGui_ImplWin32_RegisterXInputNotifications (void*);
+    if (SKIF_ImGui_hWnd != nullptr)
+      ImGui_ImplWin32_RegisterXInputNotifications (SKIF_ImGui_hWnd);
+
     // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
     bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
 
@@ -3045,7 +3030,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #ifdef SKIF_D3D9_TEST
 #pragma comment (lib, "d3d9.lib")
 #define D3D_DEBUG_INFO
-#include <d3d9.h>
 #endif
 
 bool CreateDeviceD3D (HWND hWnd)

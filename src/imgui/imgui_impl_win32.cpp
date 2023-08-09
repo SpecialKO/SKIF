@@ -189,7 +189,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
 #endif
 }
 
-bool    ImGui_ImplWin32_InitXInput (void *hwnd)
+bool    ImGui_ImplWin32_InitXInput (void)
 {
   if (g_hModXInput != nullptr)
     return true;
@@ -213,6 +213,17 @@ bool    ImGui_ImplWin32_InitXInput (void *hwnd)
   ImGui_XInputGetCapabilities = (XInputGetCapabilities_pfn)
     GetProcAddress (g_hModXInput, "XInputGetCapabilities");
 
+  return true;
+}
+
+bool    ImGui_ImplWin32_RegisterXInputNotifications (void *hwnd)
+{
+  static
+    HDEVNOTIFY hRegisteredNotification = nullptr;
+
+  if (hRegisteredNotification != nullptr)
+    return true;
+
   GUID GUID_DEVINTERFACE_HID =
   { 0x4D1E55B2L, 0xF16F, 0x11CF,
          { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
@@ -223,8 +234,7 @@ bool    ImGui_ImplWin32_InitXInput (void *hwnd)
     NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
     NotificationFilter.dbcc_classguid  = GUID_DEVINTERFACE_HID;
 
-  static
-    HDEVNOTIFY hRegisteredNotification =
+  hRegisteredNotification =
       RegisterDeviceNotificationW (
         hwnd, &NotificationFilter,
         DEVICE_NOTIFY_WINDOW_HANDLE
@@ -236,6 +246,8 @@ bool    ImGui_ImplWin32_InitXInput (void *hwnd)
 // Functions
 bool    ImGui_ImplWin32_Init (void *hwnd)
 {
+  UNREFERENCED_PARAMETER (hwnd);
+
   if (!::QueryPerformanceFrequency ((LARGE_INTEGER *)&g_TicksPerSecond))
     return false;
   if (!::QueryPerformanceCounter ((LARGE_INTEGER *)&g_Time))
@@ -284,7 +296,7 @@ bool    ImGui_ImplWin32_Init (void *hwnd)
   io.KeyMap [ImGuiKey_Y]           = 'Y';
   io.KeyMap [ImGuiKey_Z]           = 'Z';
 
-  ImGui_ImplWin32_InitXInput (hwnd);
+  ImGui_ImplWin32_InitXInput ( );
 
   return true;
 }
@@ -703,7 +715,7 @@ ImGui_ImplWin32_NewFrame (void)
     io.KeyAlt   = ( ::GetKeyState (VK_MENU)    & 0x8000 ) != 0;
 
     // Update game controllers (if enabled and available)
-    ImGui_ImplWin32_UpdateGamepads ();
+    ImGui_ImplWin32_UpdateGamepads ( );
   }
 
   // io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc handler below.
@@ -930,7 +942,6 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       {
         DEV_BROADCAST_HDR* pDevHdr =
           (DEV_BROADCAST_HDR *)lParam;
-
         if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
         {
           DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
