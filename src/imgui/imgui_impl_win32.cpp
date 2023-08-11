@@ -1468,8 +1468,6 @@ ImGui_ImplWin32_SetWindowFocus (ImGuiViewport *viewport)
 
   IM_ASSERT (data->Hwnd != 0);
 
-  //OutputDebugString(L"derp2\n");
-
   ::BringWindowToTop    (data->Hwnd);
   ::SetForegroundWindow (data->Hwnd);
   ::SetFocus            (data->Hwnd);
