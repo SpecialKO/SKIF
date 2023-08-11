@@ -1576,8 +1576,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGuiWindowFlags_NoCollapse        |
                          ImGuiWindowFlags_NoTitleBar        |
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
-                         ImGuiWindowFlags_NoScrollWithMouse | // Prevent scrolling with the mouse as well
-                         ImGuiWindowFlags_NoMove
+                         ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
+                      // ImGuiWindowFlags_NoMove              // This was added in #8bf06af, but I am unsure why.
+                      // The only comment is that it was DPI related? This prevents Ctrl+Tab from moving the window so must not be used
       );
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
@@ -2011,18 +2012,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
 
           ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-          // Prevents selecting the Add Game button with a keyboard or gamepad
-          //   fixes the games list being almost inaccessible due to weird nav
-          //     selection ImGui defaults to using.
-          ImGui::PushItemFlag (ImGuiItemFlags_NoNav, true);
+
+          ImGui::PushItemFlag (ImGuiItemFlags_NoNav, true); // Prevents selecting the Add Game button with a keyboard or gamepad (fixes weird nav selection)
           if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
           {
             AddGamePopup = PopupState_Open;
             if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo = UITab_Library;
           }
-          ImGui::PopAllowKeyboardFocus ( );
-          ImGui::PopItemFlag ( );
+          ImGui::PopItemFlag  ( );
 
           btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
