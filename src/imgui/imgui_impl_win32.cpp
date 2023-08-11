@@ -830,8 +830,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //   any children of their parent window -- they're all their own separate window
 
     //OutputDebugString(L"WM_KILLFOCUS\n");
-    
-    if (ImGui::FindViewportByPlatformHandle (hwnd) == NULL) // Should be enough in all scenarios
+
+    if (ImGui::FindViewportByPlatformHandle ((void *)wParam) == NULL) // Should be enough in all scenarios
     // (SKIF_ImGui_hWnd != NULL         &&
     // (SKIF_ImGui_hWnd != (HWND)wParam &&
     //  SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
@@ -1107,7 +1107,6 @@ struct ImGuiViewportDataWin32 {
   DWORD DwExStyle;
   bool  HwndOwned;
   bool  RemovedDWMBorders;
-//ImGuiPlatformMonitor* ImGuiPlatformMonitor;
 
   ImGuiViewportDataWin32 (void)
   {
@@ -1116,7 +1115,6 @@ struct ImGuiViewportDataWin32 {
     DwStyle   =
     DwExStyle = 0;
     RemovedDWMBorders = false;
-  //ImGuiPlatformMonitor = nullptr;
   }
 
   ~ImGuiViewportDataWin32 (void) { IM_ASSERT (Hwnd == NULL); }
@@ -1190,7 +1188,7 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
     if (ImGuiViewport *parent_viewport = ImGui::FindViewportByID (viewport->ParentViewportId))
       owner_window = (HWND)parent_viewport->PlatformHandle;
 
-// Create window
+  // Create window
   RECT rect =
   { (LONG)  viewport->Pos.x,                      (LONG)  viewport->Pos.y,
     (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y )
@@ -1813,6 +1811,11 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         // Do not run this within the first 5 frames, as this prevent screwing up restoring the original position of the window
         if (ImGui::GetFrameCount  ( ) < 5)
           break;
+
+        // Do not manipulate the pos/change of the Ctrl+Tab window (not actually used)
+        //if (ImGui::FindWindowByName("###NavWindowingList") != nullptr &&
+        //    ImGui::FindWindowByName("###NavWindowingList")->Viewport == viewport)
+        //  break;
         
         //LRESULT def =  DefWindowProc (hWnd, msg, wParam, lParam);
         WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*> (lParam);

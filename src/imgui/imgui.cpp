@@ -10887,6 +10887,11 @@ ImGuiViewport* ImGui::FindViewportByID(ImGuiID id)
 
 ImGuiViewport* ImGui::FindViewportByPlatformHandle(void* platform_handle)
 {
+    // SKIF: If the platform handle is NULL, return NULL
+    //         as otherwise an unexpected return occurs
+    if (platform_handle == NULL)
+      return NULL;
+
     ImGuiContext& g = *GImGui;
     for (int i = 0; i != g.Viewports.Size; i++)
         if (g.Viewports[i]->PlatformHandle == platform_handle)
