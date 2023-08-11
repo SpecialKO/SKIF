@@ -26,7 +26,7 @@
 
 #define SKIF_MAJOR 0
 #define SKIF_MINOR 9
-#define SKIF_BUILD 88
+#define SKIF_BUILD 90
 #define SKIF_REV_N 0
 #define SKIF_REV   0
 
