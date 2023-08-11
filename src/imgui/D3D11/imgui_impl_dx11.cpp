@@ -78,9 +78,6 @@ extern bool SKIF_Util_IsHDRSupported              (bool refresh = false);
 extern bool SKIF_Util_IsHDRActive                 (bool refresh = false);
 extern int  SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 
-// Static stuff
-bool RecreateWin32Windows;
-
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
 static CComPtr <ID3D11DeviceContext>      g_pd3dDeviceContext;
@@ -1201,13 +1198,6 @@ void ImGui_ImplDX11_NewFrame (void)
     PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
-
-    // If we switch between flip and bitblt, we need to recreate the window as well
-    if (RecreateWin32Windows)
-    {   RecreateWin32Windows = false;
-      //for (int i = 0; i < g.Viewports.Size; i++)
-        //g.Viewports [i]->LastFrameActive = 0;
-    }
   }
 
   if (! g_pFontSampler)
@@ -1231,10 +1221,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer width  inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #1: ]
   // DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height inferred from the output window is zero. Taking 8 as a reasonable default instead [ MISCELLANEOUS WARNING #2: ]
   if (viewport->Size.x == 0.0f || viewport->Size.y == 0.0f)
-  {
-    //PLOG_WARNING << "DXGI WARNING: IDXGIFactory::CreateSwapChain/IDXGISwapChain::ResizeBuffers: The buffer height/width inferred from the output window is zero.";
     return;
-  }
 
   // PlatformHandleRaw should always be a HWND, whereas PlatformHandle might be a higher-level handle (e.g. GLFWWindow*, SDL_Window*).
   // Some back-end will leave PlatformHandleRaw NULL, in which case we assume PlatformHandle will contain the HWND.
@@ -1247,10 +1234,13 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   // DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory. [ MISCELLANEOUS ERROR #6: ]
   if (hWnd == nullptr)
-  {
-    //PLOG_ERROR << "DXGI ERROR: IDXGIFactory::CreateSwapChain: No target window specified in DXGI_SWAP_CHAIN_DESC, and no window associated with owning factory.";
     return;
-  }
+  
+  // Occurs when using Ctrl+Tab and closing a standalone popup...
+  // Apparently the viewport sticks around for another frame despite
+  //   the window having been terminated already
+  if (! ::IsWindow (hWnd))
+    return;
 
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
@@ -1329,21 +1319,9 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                &data->SwapChain );
   }
 
-  static bool runOnce = true;
-
-  if (runOnce)
-  {
-    prev_swapEffect = swap_desc.SwapEffect;
-    runOnce = false;
-  }
-
   // Do we have a swapchain?
   if (data->SwapChain != nullptr)
   {
-    if (prev_swapEffect != swap_desc.SwapEffect)
-      RecreateWin32Windows = true;
-
-    prev_swapEffect  = swap_desc.SwapEffect;
     data->DXGIFormat = swap_desc.Format;
 
     // Are we on a flip based model?
