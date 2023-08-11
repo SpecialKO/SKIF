@@ -801,9 +801,12 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //     in a stucked and incorrect focus state.
     //        hwnd == SKIF_hWnd in those cases.
 
-    if (SKIF_ImGui_hWnd != NULL &&
-       (SKIF_ImGui_hWnd == hwnd ||
-        SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
+    //OutputDebugString(L"WM_SETFOCUS\n");
+
+    if (ImGui::FindViewportByPlatformHandle (hwnd) != NULL) // Should be enough in all scenarios
+    // (SKIF_ImGui_hWnd != NULL &&
+    // (SKIF_ImGui_hWnd == hwnd ||
+    //  SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
     {
       g_Focused = true;
       gamepadThreadAwake.store (1);
@@ -822,13 +825,16 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     // (! IsChild (SKIF_hWnd, (HWND)wParam)) cannot be used since
     //   SKIF_hWnd is not the PARENT window, but only the ROOTOWNER
     //     of all underlying ImGui windows
-
+    // 
     // IsChild () also cannot be used since technically no ImGui popup windows are
     //   any children of their parent window -- they're all their own separate window
+
+    //OutputDebugString(L"WM_KILLFOCUS\n");
     
-    if (SKIF_ImGui_hWnd != NULL &&
-       (SKIF_ImGui_hWnd != (HWND)wParam &&
-        SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
+    if (ImGui::FindViewportByPlatformHandle (hwnd) == NULL) // Should be enough in all scenarios
+    // (SKIF_ImGui_hWnd != NULL         &&
+    // (SKIF_ImGui_hWnd != (HWND)wParam &&
+    //  SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
     {
       g_Focused = false;
       gamepadThreadAwake.store (0);
@@ -1153,10 +1159,9 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   // Main platform window must respect nCmdShow and add
   // WS_EX_NOACTIVATE if we start in a minimized state
-  if (owner == nullptr)
+  extern int SKIF_nCmdShow;
+  if (owner == nullptr && SKIF_nCmdShow != -1)
   {
-    extern int SKIF_nCmdShow;
-
     if (SKIF_nCmdShow == SW_SHOWMINIMIZED   ||
         SKIF_nCmdShow == SW_SHOWMINNOACTIVE ||
         SKIF_nCmdShow == SW_SHOWNOACTIVATE  ||
@@ -1171,6 +1176,8 @@ static void
 ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  extern HWND  SKIF_ImGui_hWnd;
+  extern float SKIF_ImGui_GlobalDPIScale;
 
   ImGuiViewportDataWin32 *data =
     IM_NEW (ImGuiViewportDataWin32)();
@@ -1211,11 +1218,8 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
     ); // Parent window, Menu, Instance, Param
 
   // Stuff to do for the overarching ImGui Platform window (main window; meaning there is no parent)
-  if (owner_window == nullptr)
+  if (owner_window == nullptr && ! IsWindow (SKIF_ImGui_hWnd))
   {
-    extern HWND  SKIF_ImGui_hWnd;
-    extern float SKIF_ImGui_GlobalDPIScale;
-
     // Store the handle globally
     SKIF_ImGui_hWnd = data->Hwnd;
 
@@ -1748,7 +1752,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
                               (255 * imguiBorderColor.y),
                               (255 * imguiBorderColor.z));
 
-        if (SKIF_ImGui_hWnd == 0)
+        if (SKIF_ImGui_hWnd == NULL)
           dwmCornerPreference = DWMWCP_ROUND;      // Main window
         else
           dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
