@@ -1543,7 +1543,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps\nEpic Games\\\\\nGOG Galaxy\\\\Games\nOrigin Games\\\\",
                               _inject.whitelist, MAX_PATH * 128 - 1,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
-                                        150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
+                                         150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
     
     if (ImGui::IsItemActive    ( ))
@@ -1639,7 +1639,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
                               _inject.blacklist, MAX_PATH * 128 - 1,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
-                                          120 * SKIF_ImGui_GlobalDPIScale ),
+                                         120 * SKIF_ImGui_GlobalDPIScale ),
                                   ImGuiInputTextFlags_Multiline );
 
     if (ImGui::IsItemActive    ( ))

@@ -2292,7 +2292,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
                                   vecNotes.data(), static_cast<int>(vecNotes.size()),
                                     ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                                                   (fontConsolas->FontSize * NumLines) ),
+                            std::min<float>(NumLines* fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.5f) ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           SKIF_ImGui_DisallowMouseDragMove ( );
@@ -2495,7 +2495,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
                                   vecHistory.data(), static_cast<int>(vecHistory.size()),
                                     ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                    (fontConsolas->FontSize * HistoryPopupNumLines) ),
+                              std::min<float>(HistoryPopupNumLines * fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.6f) ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           SKIF_ImGui_DisallowMouseDragMove ( );
