@@ -955,7 +955,7 @@ SKIF_UI_Tab_DrawSettings (void)
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
         if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
       }
     }
 
@@ -1011,7 +1011,7 @@ SKIF_UI_Tab_DrawSettings (void)
                     (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
         if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y) - (15.0f * SKIF_ImGui_GlobalDPIScale));
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
       }
     }
 
@@ -1025,12 +1025,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDisableDPIScaling))
     {
-      ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
-
-      if (_registry.bDisableDPIScaling)
-        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;
-
-      _registry.regKVDisableDPIScaling.putData      (_registry.bDisableDPIScaling);
+      extern bool
+        changedHiDPIScaling;
+        changedHiDPIScaling = true;
     }
 
     SKIF_ImGui_SetHoverTip (

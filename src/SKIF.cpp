@@ -67,7 +67,7 @@ const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
 bool RepositionSKIF        = false;
 bool RespectMonBoundaries  = false;
-bool tinyDPIFonts          = false;
+bool changedHiDPIScaling   = false;
 bool invalidateFonts       = false;
 bool failedLoadFonts       = false;
 bool failedLoadFontsPrompt = false;
@@ -103,7 +103,6 @@ ImVec2 SKIF_vecHorModeAdjusted      = SKIF_vecHorModeDefault;   // Adjusted for 
 // --- Variables
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
-float  SKIF_fReducedHeight          = 0.0f;
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
@@ -184,11 +183,10 @@ CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (m
 CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores SKIF)
 
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
-// Can go below 1.0f if SKIF is shown on a smaller screen with less than 1000px in height.
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
 // Holds last frame's DPI scaling
 float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
-float SKIF_ImGui_GlobalDPIScale_New  = 1.0f;
+//float SKIF_ImGui_GlobalDPIScale_New  = 1.0f;
 float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
 std::string SKIF_StatusBarText = "";
@@ -1333,79 +1331,83 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
-    // Set DPI related variables
-    /* EXPERIMENTAL
-    if (SKIF_ImGui_GlobalDPIScale_New != SKIF_ImGui_GlobalDPIScale)
+    // Apply any changes to the ImGui style
+    // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
+    // Note that Win11 rounded border color won't be applied until after a restart
+      
+    // F7 to cycle between color themes
+    if ( (_registry.iStyleTemp != _registry.iStyle) ||
+          ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
     {
-      if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) == false)
+      _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
+                                  ?  _registry.iStyleTemp
+                                  : (_registry.iStyle + 1) % 4;
+      _registry.regKVStyle.putData  (_registry.iStyle);
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+
+      _registry.iStyleTemp = _registry.iStyle;
+    }
+
+    // F6 to toggle DPI scaling
+    if (   changedHiDPIScaling ||
+          ( io.KeysDown[VK_F6]  &&  io.KeysDownDuration[VK_F6]  == 0.0f))
+    {
+      // We only change bDisableDPIScaling if ImGui::Checkbox (settings tab) was not used,
+      //   as otherwise it have already been changed to reflect its new value
+      if (! changedHiDPIScaling)
+        _registry.bDisableDPIScaling = ! _registry.bDisableDPIScaling;
+
+      changedHiDPIScaling = false;
+
+      _registry.regKVDisableDPIScaling.putData (_registry.bDisableDPIScaling);
+
+      // Reset reduced height
+      SKIF_vecAlteredSize.y = 0.0f;
+
+      // Take the current display into account
+      HMONITOR monitor =
+        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+        
+      SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui_ImplWin32_GetDpiScaleForMonitor (monitor);
+
+      ImGuiStyle              newStyle;
+      SKIF_ImGui_SetStyle   (&newStyle);
+
+      MONITORINFO
+        info        = {                  };
+        info.cbSize = sizeof (MONITORINFO);
+
+      if (::GetMonitorInfo (monitor, &info))
       {
-        SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_GlobalDPIScale_New;
-        ImGuiStyle            newStyle;
-        SKIF_ImGui_SetStyle (&newStyle);
-        invalidateFonts = true;
+
+        ImVec2 WorkSize =
+          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
       }
     }
-    */
+
+    // F8 to toggle UI borders
+    if (( io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f))
+    {
+      _registry.bDisableBorders = ! _registry.bDisableBorders;
+      _registry.regKVDisableBorders.putData (_registry.bDisableBorders);
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+    }
 
     if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
-    {
       invalidateFonts = true;
-      //SKIF_fReducedHeight = 0.0f;
-    }
 
     SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
     if (fontScale < 15.0F)
       fontScale += 1.0F;
-
-#if 0
-    // Handling sub-1000px resolutions by rebuilding the font at 11px
-    if (SKIF_ImGui_GlobalDPIScale < 1.0f && (! tinyDPIFonts))
-    {
-      tinyDPIFonts = true;
-
-      PLOG_VERBOSE << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts (fontScale); // 11.0F
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
-
-      invalidatedFonts = SKIF_Util_timeGetTime();
-    }
-
-    else if (SKIF_ImGui_GlobalDPIScale >= 1.0f && tinyDPIFonts)
-    {
-      tinyDPIFonts = false;
-
-      PLOG_VERBOSE << "DPI scale detected as being at or above 100%; using font scale 18.0F";
-
-      SKIF_ImGui_InitFonts (SKIF_FONTSIZE_DEFAULT);
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
-
-      invalidatedFonts = SKIF_Util_timeGetTime();
-    }
-
-    else if (invalidateFonts)
-    {
-      OutputDebugString(L"invalidated fonts\n");
-
-      OutputDebugString(L"font size: ");
-      OutputDebugString(std::to_wstring(SKIF_FONTSIZE_DEFAULT).c_str());
-      OutputDebugString(L"\n");
-
-      OutputDebugString(L"DPI scaling: ");
-      OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
-      OutputDebugString(L"\n");
-
-      PLOG_VERBOSE_IF(tinyDPIFonts) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-      SKIF_ImGui_InitFonts ((tinyDPIFonts) ? fontScale : SKIF_FONTSIZE_DEFAULT);// SKIF_FONTSIZE_DEFAULT);
-      ImGui::GetIO ().Fonts->Build ();
-      ImGui_ImplDX11_InvalidateDeviceObjects ();
-
-      invalidateFonts = false;
-      invalidatedFonts = SKIF_Util_timeGetTime();
-    }
-#endif
 
     if (invalidateFonts)
     {
@@ -1486,36 +1488,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (t.Contains (os_pos))
             {
               rectCursorMonitor = t;
-              SKIF_ImGui_GlobalDPIScale = tmpMonitor.DpiScale;
+              SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : tmpMonitor.DpiScale;
             }
           }
         }
-      }
-
-      // Apply any changes to the ImGui style
-      // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
-      // Note that Win11 rounded border color won't be applied until after a restart
-      if ( (_registry.iStyleTemp != _registry.iStyle) ||
-           ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
-      {
-        _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
-                                    ?  _registry.iStyleTemp
-                                    : (_registry.iStyle + 1) % 4;
-        _registry.regKVStyle.putData  (_registry.iStyle);
-
-        ImGuiStyle            newStyle;
-        SKIF_ImGui_SetStyle (&newStyle);
-
-        _registry.iStyleTemp = _registry.iStyle;
-      }
-
-      if (( io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f))
-      {
-        _registry.bDisableBorders = ! _registry.bDisableBorders;
-        _registry.regKVDisableBorders.putData (_registry.bDisableBorders);
-
-        ImGuiStyle            newStyle;
-        SKIF_ImGui_SetStyle (&newStyle);
       }
 
       SKIF_vecSvcMode = SKIF_vecSvcModeDefault  * SKIF_ImGui_GlobalDPIScale;
@@ -1596,14 +1572,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         static ImGuiPlatformMonitor* preMonitor = nullptr;
 
-        // Only act if we are, in fact, on a new display
+        // Only act once at launch or if we are, in fact, on a new display
         if (preMonitor != actMonitor || _WantUpdateMonitors)
         {
           // Reset reduced height
           SKIF_vecAlteredSize.y = 0.0f;
 
+          // This is only necessary to run once on launch, to account for the startup display DPI
+          SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui::GetWindowViewport()->DpiScale);
+
           if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
 
           // Also recreate the swapchain (applies any HDR/SDR changes between displays)
           //   but not the first time to prevent unnecessary swapchain recreation on launch
@@ -1949,7 +1928,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Shelly the Ghost
 
-        float title_len = (tinyDPIFonts) ? ImGui::CalcTextSize(SKIF_WINDOW_TITLE_SHORT_A).x : ImGui::CalcTextSize(SKIF_WINDOW_TITLE_A).x;
+        float title_len = ImGui::CalcTextSize (SKIF_WINDOW_TITLE_A).x;
         float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
 
         ImGui::SetCursorPosX (title_pos);
@@ -1958,9 +1937,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           (9.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2
         );
 
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f),
-                              (tinyDPIFonts) ? SKIF_WINDOW_TITLE_SHORT_A
-                                             : SKIF_WINDOW_TITLE_A);
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
         
         SKIF_UI_DrawShellyTheGhost ( );
 
@@ -2107,6 +2084,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       float ffailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
       ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
       {
@@ -2227,7 +2205,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // 715px    - Release Notes width
       //  15px    - Approx. scrollbar width
       //   7.78px - Approx. character width (700px / 90 characters)
-      ImGui::SetNextWindowSize (ImVec2 ( UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale,0.0f ));
+      ImGui::SetNextWindowSize (ImVec2 (UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
@@ -2314,7 +2292,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
                                   vecNotes.data(), static_cast<int>(vecNotes.size()),
                                     ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                                        (fontConsolas->FontSize * NumLines) * SKIF_ImGui_GlobalDPIScale ),
+                                                   (fontConsolas->FontSize * NumLines) ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           SKIF_ImGui_DisallowMouseDragMove ( );
@@ -2422,7 +2400,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
-        //HistoryPopupWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         HistoryPopupWidth = 360.0f;
 
         if (vecHistory.empty())
@@ -2464,7 +2441,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //  two from ImGui's love of having one and a half empty line below content
             HistoryPopupNumLines += 3.5f;
 
-            // Only allow up to 20 lines at most
+            // Only allow up to 40 lines at most
             if (HistoryPopupNumLines > 40.0f)
               HistoryPopupNumLines = 40.0f;
           }
@@ -2477,7 +2454,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::OpenPopup ("###History");
       
-        ImGui::SetNextWindowSize (ImVec2 ( HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
+        ImGui::SetNextWindowSize (ImVec2 (HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
       }
       
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
@@ -2518,7 +2495,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
                                   vecHistory.data(), static_cast<int>(vecHistory.size()),
                                     ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                         (fontConsolas->FontSize * HistoryPopupNumLines) * SKIF_ImGui_GlobalDPIScale ),
+                    (fontConsolas->FontSize * HistoryPopupNumLines) ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           SKIF_ImGui_DisallowMouseDragMove ( );

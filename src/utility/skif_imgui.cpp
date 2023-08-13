@@ -837,7 +837,8 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
                    _ARRAYSIZE (fa_brands_400_ttf) )
                             };
 
-  float fontSizeFA = fontSize - 2.0f;
+  float fontSizeFA       = fontSize - 2.0f;
+  float fontSizeConsolas = fontSize - 4.0f;
 
   for (auto& font : awesome_fonts)
     _UnpackFontIfNeeded ( std::get <0> (font), std::get <1> (font), std::get <2> (font) );
@@ -850,7 +851,7 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   //io.Fonts->AddFontDefault ();
 
-  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSize - 4.0f, SK_ImGui_GetGlyphRangesDefaultEx ( ));
+  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas, SK_ImGui_GetGlyphRangesDefaultEx ( ));
   //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
 
@@ -962,27 +963,10 @@ void
 SKIF_ImGui_InvalidateFonts (void)
 {
   extern float SKIF_ImGui_FontSizeDefault;
-  //extern bool tinyDPIFonts;
-  /*
-  OutputDebugString(L"invalidated fonts\n");
 
-  OutputDebugString(L"font size: ");
-  OutputDebugString(std::to_wstring(SKIF_ImGui_FontSizeDefault).c_str());
-  OutputDebugString(L"\n");
+  float fontScale = SKIF_ImGui_FontSizeDefault * SKIF_ImGui_GlobalDPIScale;
 
-  OutputDebugString(L"DPI scaling: ");
-  OutputDebugString(std::to_wstring(SKIF_ImGui_GlobalDPIScale).c_str());
-  OutputDebugString(L"\n");
-  */
-
-  float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
-  if (fontScale < 15.0F)
-    fontScale += 1.0F;
-
-  PLOG_VERBOSE_IF (SKIF_ImGui_GlobalDPIScale < 1.0f) << "DPI scale detected as being below 100%; using font scale " << fontScale << "F";
-
-
-  SKIF_ImGui_InitFonts (fontScale);// SKIF_FONTSIZE_DEFAULT);
+  SKIF_ImGui_InitFonts (fontScale); // SKIF_FONTSIZE_DEFAULT);
   ImGui::GetIO ().Fonts->Build ();
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }

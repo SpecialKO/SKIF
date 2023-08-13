@@ -4223,7 +4223,7 @@ Cache=false)";
   }
 
   float fConfirmPopupWidth = ImGui::CalcTextSize(confirmPopupText.c_str()).x + 60.0f * SKIF_ImGui_GlobalDPIScale;
-  ImGui::SetNextWindowSize (ImVec2 (fConfirmPopupWidth, 0.0f));
+  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
   if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {

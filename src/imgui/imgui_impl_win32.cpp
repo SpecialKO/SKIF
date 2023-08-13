@@ -28,10 +28,6 @@
 #include <format>
 #include <utility/injection.h>
 
-// https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
-// Minimum supported client: Windows 10, version 1703[desktop apps only]
-#define WM_GETDPISCALEDSIZE 0x02E4
-
 // PLOG
 #ifndef PLOG_ENABLE_WCHAR_INPUT
 #define PLOG_ENABLE_WCHAR_INPUT 1
@@ -1222,7 +1218,7 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
     SKIF_ImGui_hWnd = data->Hwnd;
 
     // Retrieve the DPI scaling of the current display
-    SKIF_ImGui_GlobalDPIScale = ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd);
+    SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd);
 
     // Update the style scaling to reflect the current DPI scaling
     ImGuiStyle              newStyle;
@@ -1674,7 +1670,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
   extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
   extern ImVec2 SKIF_vecAlteredSize;
-  extern ImVec2 SKIF_vecSvcMode;
+  extern ImVec2 SKIF_vecSvcModeDefault;
   //extern bool KeyWinKey;
   //extern int  SnapKeys; // 2 = Left, 4 = Up, 8 = Right, 16 = Down
   
@@ -1829,29 +1825,38 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         {
           const ImGuiPlatformMonitor& targetMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
           
-          ImVec2 MaxPos       = ImVec2 (targetMonitor.MainPos.x + targetMonitor.MainSize.x,
-                                        targetMonitor.MainPos.y + targetMonitor.MainSize.y);
-          ImRect targetWorkArea = ImRect (targetMonitor.MainPos, MaxPos); // WorkPos?
+          ImVec2 MaxWorkSize    = ImVec2 (targetMonitor.WorkPos.x + targetMonitor.WorkSize.x,
+                                          targetMonitor.WorkPos.y + targetMonitor.WorkSize.y);
+          ImRect targetWorkArea = ImRect (targetMonitor.WorkPos, MaxWorkSize);
 
           // Find the intended display
           if (targetWorkArea.Contains (ImVec2 (static_cast<float> (wp->x), static_cast<float> (wp->y))))
           {
             // If we are being maximized...
             if (wp->flags == (SWP_STATECHANGED | SWP_FRAMECHANGED) &&
-                wp->x - targetWorkArea.Min.x == SKIF_MAXIMIZE_POS &&
+                wp->x - targetWorkArea.Min.x == SKIF_MAXIMIZE_POS  &&
                 wp->y - targetWorkArea.Min.y == SKIF_MAXIMIZE_POS)
             {
-              // Change the intended position to the actual center of the display
-              if (_registry.bServiceMode)
+              ImVec2 tmpExpectedSize = ImVec2 (0.0f, 0.0f);
+
+              if (! _registry.bServiceMode)
               {
-                wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecSvcMode.x * targetMonitor.DpiScale / 2.0f));
-                wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecSvcMode.y * targetMonitor.DpiScale / 2.0f));
+                ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
+                tmpExpectedSize = SKIF_vecAppModeAdjusted * targetMonitor.DpiScale;
+
+                // Needed to account for an altered size on the target display
+                if (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale > targetWorkArea.Max.y)
+                  tmpAlteredSize.y = (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale - targetWorkArea.Max.y);
+
+                tmpExpectedSize.y -= tmpAlteredSize.y;
               }
 
-              else {
-                wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (SKIF_vecAppModeAdjusted.x * targetMonitor.DpiScale / 2.0f));
-                wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale / 2.0f));
-              }
+              else
+                tmpExpectedSize = SKIF_vecSvcModeDefault * targetMonitor.DpiScale;
+
+              // Change the intended position to the actual center of the display
+              wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (tmpExpectedSize.x * 0.5f));
+              wp->y = static_cast<int> (targetWorkArea.GetCenter().y - (tmpExpectedSize.y * 0.5f));
 
               return 0;
             }
@@ -1882,12 +1887,12 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         int g_dpi    = HIWORD (wParam);
         RECT* const prcNewWindow = (RECT*) lParam;
 
-        extern float SKIF_ImGui_GlobalDPIScale_New;
-        SKIF_ImGui_GlobalDPIScale_New = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+        //float SKIF_ImGui_GlobalDPIScale_New;
+        //SKIF_ImGui_GlobalDPIScale_New = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
         ///*
         // Update the style scaling
-        SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_GlobalDPIScale_New;
+        SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
         ImGuiStyle              newStyle;
         extern void
@@ -1922,8 +1927,8 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
             ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                      (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New > (WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale_New - (WorkSize.y));// - (50.0f * SKIF_ImGui_GlobalDPIScale));
+          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
 
           if (ImGui::IsAnyMouseDown ( ))
             return 0;
@@ -1943,7 +1948,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           else if (prcNewWindow->right >= info.rcWork.right)
           {
             // Switching to a display on the right
-            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale_New);
+            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
             reposition = true;
           }
 
