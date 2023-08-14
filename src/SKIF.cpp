@@ -1351,7 +1351,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (_registry.iLastSelectedGame == SKIF_STEAM_APPID &&
          (_registry.iStyleTemp == 2 || _registry.iStyle == 2))
-        loadCover = true;
+        loadCover = true; // TODO: Skip reloading the cover if using a custom SK cover
 
       _registry.iStyleTemp = _registry.iStyle;
     }
@@ -2720,16 +2720,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         do
         {
-          //OutputDebugString(L"ping\n");
-
-          // TODO: Redo implementation -- using ImGui_ImplWin32_UpdateGamepads () here is not thread-safe,
-          // This is basically called twice -- once from the main thread and once here, which introduces
-          // instability (and is doubtless why ImGui upgrade branch crashes). We should instead rely on
-          // two separate calls: one here which doesn't update ImGui's variables, and one in the main
-          // thread which do.
-          //extern DWORD ImGui_ImplWin32_UpdateGamepads (void);
-          //packetNew  = ImGui_ImplWin32_UpdateGamepads ( );
-
           // Reworked thread-safe iplementation
           extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
           packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
@@ -2738,9 +2728,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
               packetNew != packetLast)
           {
             packetLast = packetNew;
-            //SendMessageTimeout (SKIF_hWnd, WM_NULL, 0x0, 0x0, 0x0, 100, nullptr);
-
-            //OutputDebugString(L"Gamepad input sent!\n");
             PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
@@ -2749,19 +2736,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           //     new data.
           Sleep (5);
 
-          // Sleep an additional 50 ms on the first run to work around
-          //   stupid thread races affecting gamepadThreadSleep which
-          //   otherwise would see it disabled permanently
-          //SK_RunOnce (Sleep(50));
-
           // Only act on new gamepad input if we are actually focused.
           // This prevents SKIF from acting on gameapd input when unfocused,
           // but otherwise refreshes due to some status change.
           // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
           if (gamepadThreadAwake.load ( ) == 0)
           {
-            //gamepadThreadAwake.store(2);
-
             //OutputDebugString(L"SKIF_GamepadInputPump entering sleep\n");
             //PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
 
