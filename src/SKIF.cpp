@@ -2197,6 +2197,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (calculatedWidth > UpdateAvailableWidth)
           UpdateAvailableWidth = calculatedWidth;
 
+        UpdateAvailableWidth = std::min<float> (UpdateAvailableWidth, SKIF_vecCurrentMode.x * 0.9f);
+
         ImGui::OpenPopup ("###UpdatePrompt");
       }
 
@@ -2292,7 +2294,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
                                   vecNotes.data(), static_cast<int>(vecNotes.size()),
                                     ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                            std::min<float>(NumLines* fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.5f) ),
+                           std::min<float>(NumLines * fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.5f) ),
                                       ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
 
           SKIF_ImGui_DisallowMouseDragMove ( );
@@ -2449,6 +2451,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (calcHistoryPopupWidth > HistoryPopupWidth)
           HistoryPopupWidth = calcHistoryPopupWidth;
+
+        HistoryPopupWidth = std::min<float> (HistoryPopupWidth, SKIF_vecCurrentMode.x * 0.9f);
 
         HistoryPopupTitle = "Changelog (" + _updater.GetChannel()->first + ")###History";
 
