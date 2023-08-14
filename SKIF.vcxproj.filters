@@ -225,7 +225,7 @@
     <ClInclude Include="resources\images\patreon.png.h">
       <Filter>Resource Files\Images</Filter>
     </ClInclude>
-    <ClInclude Include="resources\images\sk_boxart.png.h">
+    <ClInclude Include="resources\images\sk_boxart.jpg.h">
       <Filter>Resource Files\Images</Filter>
     </ClInclude>
     <ClInclude Include="resources\images\sk_icon.jpg.h">
@@ -245,6 +245,9 @@
     </ClInclude>
     <ClInclude Include="packages_misc\TextFlow.hpp">
       <Filter>Header Files\Packages_Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="resources\images\sk_boxart2.jpg.h">
+      <Filter>Resource Files\Images</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

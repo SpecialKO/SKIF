@@ -64,6 +64,7 @@
 
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
+bool        loadCover               = false;
 static bool clickedGameLaunch,
             clickedGameLaunchWoSK,
             clickedGalaxyLaunch,
@@ -353,7 +354,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static bool     update         = true;
   static bool     updateInjStrat = false;
-  static bool     loadCover      = false;
   static uint32_t lastCover      = 0;
 
   struct {
@@ -3322,7 +3322,7 @@ Cache=false)";
                                                                       (! _registry.bDisableBorders),
                                                       ImGuiWindowFlags_NoScrollbar            |
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
-                        ((pApp->textures.isCustomCover || _registry.iStyle == 2) ? 0x0 : ImGuiWindowFlags_NoBackground));
+                        ((pApp->textures.isCustomCover) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground));
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 

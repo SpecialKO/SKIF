@@ -388,10 +388,11 @@
     <ClInclude Include="include\utility\injection.h" />
     <ClInclude Include="include\utility\install_utils.h" />
     <ClInclude Include="resources\images\patreon.png.h" />
+    <ClInclude Include="resources\images\sk_boxart2.jpg.h" />
     <ClInclude Include="resources\shaders\imgui_pix.h" />
     <ClInclude Include="resources\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
-    <ClInclude Include="resources\images\sk_boxart.png.h" />
+    <ClInclude Include="resources\images\sk_boxart.jpg.h" />
     <ClInclude Include="resources\images\sk_icon.jpg.h" />
     <ClInclude Include="include\utility\sk_utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />

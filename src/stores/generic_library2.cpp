@@ -7,10 +7,12 @@
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
-#include <images/sk_boxart.png.h>
+#include <images/sk_boxart.jpg.h>
+#include <images/sk_boxart2.jpg.h>
 
 #include <concurrent_queue.h>
 #include "stores/Steam/steam_library.h"
+#include <utility/registry.h>
 
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
 
@@ -159,6 +161,7 @@ LoadLibraryTexture (
         ImVec2&                             vCoverUv1,
         app_record_s*                       pApp)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static const int SKIF_STEAM_APPID = 1157970;
 
@@ -423,8 +426,8 @@ LoadLibraryTexture (
   {
     if (SUCCEEDED(
           DirectX::LoadFromWICMemory(
-            (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
-            (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? sizeof(sk_boxart_png) : sizeof(patreon_png),
+            (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ? ((_registry.iStyle == 2) ?        sk_boxart2_jpg :         sk_boxart_jpg ) :        patreon_png,
+            (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? ((_registry.iStyle == 2) ? sizeof(sk_boxart2_jpg) : sizeof(sk_boxart_jpg)) : sizeof(patreon_png),
               DirectX::WIC_FLAGS_FILTER_POINT,
                 &meta, img
           )

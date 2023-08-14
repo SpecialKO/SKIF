@@ -1339,6 +1339,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if ( (_registry.iStyleTemp != _registry.iStyle) ||
           ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
     {
+      extern bool loadCover;
+
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
                                   : (_registry.iStyle + 1) % 4;
@@ -1346,6 +1348,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
+
+      if (_registry.iLastSelectedGame == SKIF_STEAM_APPID &&
+         (_registry.iStyleTemp == 2 || _registry.iStyle == 2))
+        loadCover = true;
 
       _registry.iStyleTemp = _registry.iStyle;
     }
