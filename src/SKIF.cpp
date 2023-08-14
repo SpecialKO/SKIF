@@ -1389,6 +1389,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
           SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
       }
+
+      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+      if (lStyle & WS_MAXIMIZE)
+        repositionToCenter   = true;
+      else
+        RespectMonBoundaries = true;
     }
 
     // F8 to toggle UI borders

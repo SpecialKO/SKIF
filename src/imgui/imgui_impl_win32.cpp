@@ -1839,20 +1839,22 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
             {
               ImVec2 tmpExpectedSize = ImVec2 (0.0f, 0.0f);
 
+              float targetDPI = (_registry.bDisableDPIScaling) ? 1.0f : targetMonitor.DpiScale;
+
               if (! _registry.bServiceMode)
               {
                 ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
-                tmpExpectedSize = SKIF_vecAppModeAdjusted * targetMonitor.DpiScale;
+                tmpExpectedSize = SKIF_vecAppModeAdjusted * targetDPI;
 
                 // Needed to account for an altered size on the target display
-                if (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale > targetWorkArea.Max.y)
-                  tmpAlteredSize.y = (SKIF_vecAppModeAdjusted.y * targetMonitor.DpiScale - targetWorkArea.Max.y);
+                if (SKIF_vecAppModeAdjusted.y * targetDPI > targetWorkArea.Max.y)
+                  tmpAlteredSize.y = (SKIF_vecAppModeAdjusted.y * targetDPI - targetWorkArea.Max.y);
 
                 tmpExpectedSize.y -= tmpAlteredSize.y;
               }
 
               else
-                tmpExpectedSize = SKIF_vecSvcModeDefault * targetMonitor.DpiScale;
+                tmpExpectedSize = SKIF_vecSvcModeDefault * targetDPI;
 
               // Change the intended position to the actual center of the display
               wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (tmpExpectedSize.x * 0.5f));
