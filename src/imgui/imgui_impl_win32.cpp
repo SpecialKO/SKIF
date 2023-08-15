@@ -10,6 +10,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <dwmapi.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -1053,6 +1054,61 @@ ImGui_ImplWin32_GetDpiScaleForHwnd (void *hwnd)
     ImGui_ImplWin32_GetDpiScaleForMonitor (monitor);
 }
 
+void
+ImGui_ImplWin32_SetDWMBorders (void* hwnd)
+{
+  if (! hwnd)
+    return;
+  
+  if (! SKIF_Util_IsWindows11orGreater ( ))
+    return;
+
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  
+  if (! _registry.bWin11Corners) // && _registry.iSDRMode != 2 && _registry.iHDRMode != 2)
+    return;
+
+  DWM_WINDOW_CORNER_PREFERENCE
+           dwmCornerPreference = DWMWCP_DEFAULT;
+  COLORREF dwmBorderColor      = DWMWA_COLOR_DEFAULT; // DWMWA_COLOR_NONE
+  BOOL     dwmUseDarkMode      = true;
+  ImVec4   imguiBorderColor    = ImGui::GetStyleColorVec4 (ImGuiCol_Border);
+        
+  dwmBorderColor = RGB ((255 * imguiBorderColor.x),
+                        (255 * imguiBorderColor.y),
+                        (255 * imguiBorderColor.z));
+  
+  extern HWND SKIF_ImGui_hWnd;
+  if (SKIF_ImGui_hWnd == NULL || (HWND)hwnd == SKIF_ImGui_hWnd)
+    dwmCornerPreference = DWMWCP_ROUND;      // Main window
+  else
+    dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
+
+  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &dwmCornerPreference, sizeof (dwmCornerPreference));
+  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,  &dwmUseDarkMode,      sizeof (dwmUseDarkMode));
+  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_BORDER_COLOR,             &dwmBorderColor,      sizeof (dwmBorderColor));
+}
+
+void
+ImGui_ImplWin32_UpdateDWMBorders (void)
+{
+  if (! SKIF_Util_IsWindows11orGreater ( ))
+    return;
+
+  ImGuiPlatformIO& platform_io =
+    ImGui::GetPlatformIO ();
+
+  //// Skip the main viewport (index 0), which is always fully handled by the application!
+  for (int i = 1; i < platform_io.Viewports.Size; i++)
+  {
+    ImGuiViewport* viewport =
+       platform_io.Viewports [i];
+
+    if (viewport->PlatformHandleRaw != NULL)
+      ImGui_ImplWin32_SetDWMBorders (viewport->PlatformHandleRaw);
+  }
+}
+
 #undef  __GNUC__
 #undef  IMGUI_DISABLE_WIN32_FUNCTIONS
 #undef  IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS
@@ -1067,7 +1123,6 @@ ImGui_ImplWin32_GetDpiScaleForHwnd (void *hwnd)
 #ifdef _MSC_VER
 #pragma comment(lib, "imm32")
 #endif
-#include <dwmapi.h>
 static void
 ImGui_ImplWin32_SetImeInputPos (ImGuiViewport *viewport, ImVec2 pos)
 {
@@ -1732,27 +1787,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
     // For some reason this causes issues with focus not being properly gained on launch
     case WM_CREATE:
     {
-      if (hWnd && SKIF_Util_IsWindows11orGreater ( ) && _registry.bWin11Corners) // && _registry.iSDRMode != 2 && _registry.iHDRMode != 2)
-      {
-        DWM_WINDOW_CORNER_PREFERENCE
-                 dwmCornerPreference = DWMWCP_DEFAULT;
-        COLORREF dwmBorderColor      = DWMWA_COLOR_DEFAULT; // DWMWA_COLOR_NONE
-        BOOL     dwmUseDarkMode      = true;
-        ImVec4   imguiBorderColor    = ImGui::GetStyleColorVec4 (ImGuiCol_Border);
-        
-        dwmBorderColor = RGB ((255 * imguiBorderColor.x),
-                              (255 * imguiBorderColor.y),
-                              (255 * imguiBorderColor.z));
-
-        if (SKIF_ImGui_hWnd == NULL)
-          dwmCornerPreference = DWMWCP_ROUND;      // Main window
-        else
-          dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
-
-        ::DwmSetWindowAttribute (hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &dwmCornerPreference, sizeof (dwmCornerPreference));
-        ::DwmSetWindowAttribute (hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE,  &dwmUseDarkMode,      sizeof (dwmUseDarkMode));
-        ::DwmSetWindowAttribute (hWnd, DWMWA_BORDER_COLOR,             &dwmBorderColor,      sizeof (dwmBorderColor));
-      }
+      ImGui_ImplWin32_SetDWMBorders (hWnd);
 
 #if 0
       // Change the application window rect

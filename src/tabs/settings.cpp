@@ -842,7 +842,7 @@ SKIF_UI_Tab_DrawSettings (void)
         {
             bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
             if (ImGui::Selectable (StyleItems[n], is_selected))
-              _registry.iStyleTemp = n; // We apply the new style at the beginning of the next frame to prevent any PushStyleColor/Var from causing issues
+              _registry.iStyleTemp = n;         // We apply the new style at the beginning of the next frame to prevent any PushStyleColor/Var from causing issues
             if (is_selected)
               ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
         }

@@ -1337,7 +1337,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       
     // F7 to cycle between color themes
     if ( (_registry.iStyleTemp != _registry.iStyle) ||
-          ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
+         ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
     {
       extern bool loadCover;
 
@@ -1354,6 +1354,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         loadCover = true; // TODO: Skip reloading the cover if using a custom SK cover
 
       _registry.iStyleTemp = _registry.iStyle;
+
+      ImGui_ImplWin32_UpdateDWMBorders ( );
     }
 
     // F6 to toggle DPI scaling

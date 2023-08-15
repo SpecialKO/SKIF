@@ -17,6 +17,8 @@ IMGUI_IMPL_API void     ImGui_ImplWin32_NewFrame (void);
 // DPI-related helpers (which run and compile without requiring 8.1 or 10, neither Windows version, neither associated SDK)
 IMGUI_IMPL_API float    ImGui_ImplWin32_GetDpiScaleForHwnd    (void* hwnd);    // HWND hwnd
 IMGUI_IMPL_API float    ImGui_ImplWin32_GetDpiScaleForMonitor (void* monitor); // HMONITOR monitor
+                void    ImGui_ImplWin32_UpdateDWMBorders      (void);
+                void    ImGui_ImplWin32_SetDWMBorders         (void* hwnd);
 
 // Handler for Win32 messages, update mouse/keyboard data.
 // You may or not need this for your implementation, but it can serve as reference for handling inputs.
