@@ -65,6 +65,9 @@
 const int   SKIF_STEAM_APPID        = 1157970;
 bool        SKIF_STEAM_OWNER        = false;
 bool        loadCover               = false;
+bool        tryingToLoadCover       = true;
+std::atomic<bool> gameCoverLoading  = false;
+
 static bool clickedGameLaunch,
             clickedGameLaunchWoSK,
             clickedGalaxyLaunch,
@@ -102,7 +105,6 @@ extern std::wstring    GOGGalaxy_Path;
 //static std::wstring sshot_file = L"";
 
 std::atomic<int>  textureLoadQueueLength{ 1 };
-std::atomic<bool> gameCoverLoading = false;
 
 int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
@@ -743,7 +745,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::BeginGroup    (                                                  );
 
   static DWORD  timeLastCoverTick  = SKIF_Util_timeGetTime ( );
-  static bool   tryingToLoadCover  = true;
   static bool   coverIsMissing     = false;
   static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
@@ -758,7 +759,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
   {
     timeLastCoverTick = SKIF_Util_timeGetTime ( );
-    tryingToLoadCover = gameCoverLoading.load();
+    //tryingToLoadCover = gameCoverLoading.load(); // handled through WM_SKIF_COVER instead
     coverIsMissing    = (! tryingToLoadCover && textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr);
   }
 

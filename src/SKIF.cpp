@@ -3408,7 +3408,12 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_COVER:
       addAdditionalFrames += 3;
-        
+
+      // Update tryingToLoadCover
+      extern bool tryingToLoadCover;
+      extern std::atomic<bool> gameCoverLoading;
+      tryingToLoadCover = gameCoverLoading.load();
+      
       // Empty working set after the cover has finished loading
       SKIF_Util_CompactWorkingSet ( );
       break;
