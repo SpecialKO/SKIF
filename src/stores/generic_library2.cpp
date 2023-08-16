@@ -8,8 +8,8 @@
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
 #include <images/sk_boxart.png.h>
-#include <images/sk_boxart.jpg.h>
-#include <images/sk_boxart2.jpg.h>
+//#include <images/sk_boxart.jpg.h>
+//#include <images/sk_boxart2.jpg.h>
 
 #include <concurrent_queue.h>
 #include "stores/Steam/steam_library.h"

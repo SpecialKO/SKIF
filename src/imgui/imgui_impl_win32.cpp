@@ -1078,8 +1078,10 @@ ImGui_ImplWin32_SetDWMBorders (void* hwnd)
                         (255 * imguiBorderColor.y),
                         (255 * imguiBorderColor.z));
   
-  extern HWND SKIF_ImGui_hWnd;
-  if (SKIF_ImGui_hWnd == NULL || (HWND)hwnd == SKIF_ImGui_hWnd)
+  extern HWND
+      SKIF_ImGui_hWnd;
+  if (SKIF_ImGui_hWnd ==       NULL ||
+      SKIF_ImGui_hWnd == (HWND)hwnd) // ! ::IsWindow (SKIF_ImGui_hWnd))
     dwmCornerPreference = DWMWCP_ROUND;      // Main window
   else
     dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
@@ -1267,7 +1269,7 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
     ); // Parent window, Menu, Instance, Param
 
   // Stuff to do for the overarching ImGui Platform window (main window; meaning there is no parent)
-  if (owner_window == nullptr && ! IsWindow (SKIF_ImGui_hWnd))
+  if (owner_window == nullptr && SKIF_ImGui_hWnd == NULL) // ! IsWindow (SKIF_ImGui_hWnd)
   {
     // Store the handle globally
     SKIF_ImGui_hWnd = data->Hwnd;
@@ -1308,6 +1310,11 @@ static void ImGui_ImplWin32_DestroyWindow (ImGuiViewport *viewport)
     }
     if (data->Hwnd &&  data->HwndOwned)
       ::DestroyWindow (data->Hwnd);
+
+    // If this is the main platform window, reset the global handle for it
+    extern HWND SKIF_ImGui_hWnd;
+    if (data->Hwnd == SKIF_ImGui_hWnd)
+      SKIF_ImGui_hWnd = NULL;
 
     data->Hwnd = nullptr;
 

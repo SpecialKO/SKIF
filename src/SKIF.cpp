@@ -1966,7 +1966,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
 
-#if 1
+#if 0
 
         ImGui::SameLine ( );
 
@@ -2659,7 +2659,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
     extern bool ImGui_ImplWin32_RegisterXInputNotifications (void*);
-    if (SKIF_ImGui_hWnd != nullptr)
+    if (SKIF_ImGui_hWnd != NULL)
       ImGui_ImplWin32_RegisterXInputNotifications (SKIF_ImGui_hWnd);
 
     // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
@@ -3519,7 +3519,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   }
   
   // Tell the main thread to render at least three more frames after we have processed the message
-  if (SKIF_ImGui_hWnd != nullptr && ! msgDontRedraw)
+  if (SKIF_ImGui_hWnd != NULL && ! msgDontRedraw)
   {
     addAdditionalFrames += 3;
     //PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0, 0);
