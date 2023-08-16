@@ -249,6 +249,9 @@
     <ClInclude Include="resources\images\sk_boxart2.jpg.h">
       <Filter>Resource Files\Images</Filter>
     </ClInclude>
+    <ClInclude Include="resources\images\sk_boxart.png.h">
+      <Filter>Resource Files\Images</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">

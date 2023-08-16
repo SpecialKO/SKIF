@@ -1322,6 +1322,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // Do we have a swapchain?
   if (data->SwapChain != nullptr)
   {
+    extern bool
+      SKIF_bHDREnabled;
+      SKIF_bHDREnabled = false;
+
     data->DXGIFormat = swap_desc.Format;
 
     // Are we on a flip based model?
@@ -1427,6 +1431,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                 pSwapChain3->SetColorSpace1 (dxgi_cst);
 
                 pOutput6->GetDesc1 (&data->DXGIDesc);
+
+                SKIF_bHDREnabled = true;
               }
             }
           }

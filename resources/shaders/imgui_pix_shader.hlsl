@@ -8,7 +8,7 @@ struct PS_INPUT
   float4 uv3 : TEXCOORD2;
 };
 
-cbuffer viewportDims : register (b0)
+cbuffer viewportDims  : register (b0)
 {
   float4 viewport;
 };
@@ -43,6 +43,7 @@ float3 ApplyREC709Curve (float3 x)
 {
   return x < 0.0181 ? 4.5 * x : 1.0993 * pow(x, 0.45) - 0.0993;
 }
+
 float Luma (float3 color)
 {
   return
@@ -64,6 +65,7 @@ float3 ApplyREC2084Curve (float3 L, float maxLuminance)
 
   return pow ((c1 + c2 * Lp) / (1 + c3 * Lp), m2);
 }
+
 float3 RemoveREC2084Curve (float3 N)
 {
   float  m1 = 2610.0 / 4096.0 / 4;
@@ -78,18 +80,16 @@ float3 RemoveREC2084Curve (float3 N)
 }
 
 // Apply the ST.2084 curve to normalized linear values and outputs normalized non-linear values
-float3 LinearToST2084(float3 normalizedLinearValue)
+float3 LinearToST2084 (float3 normalizedLinearValue)
 {
     return pow((0.8359375f + 18.8515625f * pow(abs(normalizedLinearValue), 0.1593017578f)) / (1.0f + 18.6875f * pow(abs(normalizedLinearValue), 0.1593017578f)), 78.84375f);
 }
 
-
 // ST.2084 to linear, resulting in a linear normalized value
-float3 ST2084ToLinear(float3 ST2084)
+float3 ST2084ToLinear (float3 ST2084)
 {
     return pow(max(pow(abs(ST2084), 1.0f / 78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * pow(abs(ST2084), 1.0f / 78.84375f)), 1.0f / 0.1593017578f);
 }
-
 
 float3 REC709toREC2020 (float3 RGB709)
 {
@@ -118,12 +118,13 @@ float4 main (PS_INPUT input) : SV_Target
   float4 out_col =
     texture0.Sample (sampler0, input.uv);
 
-  bool hdr10 = ( input.uv3.x < 0.0 );
+  bool hdr10      = ( input.uv3.x < 0.0 );
+  bool linear_sdr =   input.uv3.w > 0;
 
   if (viewport.z > 0.f)
   {
     float4 orig_col = out_col;
-
+    
     if (input.uv2.x > 0.0f && input.uv2.y > 0.0f)
     {
       out_col.rgb =
@@ -133,7 +134,7 @@ float4 main (PS_INPUT input) : SV_Target
             ) * input.uv2.xxx;
       out_col.a   = 1.0f;
     }
-
+    
     else
     {
       out_col =
@@ -148,7 +149,7 @@ float4 main (PS_INPUT input) : SV_Target
                              :    input.uv3.x;
 
     // Do not use; EDID minimum black level is -ALWAYS- wrong...
-    float hdr_offset = 0.0f;// hdr10 ? 0.0f : input.uv3.z / 80.0;
+    float hdr_offset = 0.0f; // hdr10 ? 0.0f : input.uv3.z / 80.0;
 
     hdr_scale -= hdr_offset;
 
@@ -164,20 +165,16 @@ float4 main (PS_INPUT input) : SV_Target
     out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
     out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
 
-    // Alpha blending is linear in scRGB, but in gamma-space in the other color spaces,
-    //   so let's raise the alpha for scRGB to attempt to match the other color spaces better
-    // Different values are best for different themes (e.g. 1.7f for SKIF Dark, 2.2f for many other)
-    //out_col.a = pow (out_col.a, 2.2f);
-
     return
       out_col.rgba;
   }
+  
+  float4 return_col = linear_sdr
+      ? float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a)
+      :                        ( input.col                    *                          out_col );
+  
+  //if (linear_sdr)
+  //  return_col.a = pow (return_col.a, 1 / 2.2f);
 
-  bool linear_sdr =
-    input.uv3.w > 0;
-
-  return
-    linear_sdr ?
-      float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a)
-               :                             ( input.col    *                                        out_col );
+  return return_col;
 };

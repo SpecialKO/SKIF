@@ -108,8 +108,8 @@ int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
 }
 
-//CComPtr <ID3D11Texture2D>          pPatTex2D;
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
+CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
 
 // define character size
 #define CHAR_SIZE 128
@@ -484,7 +484,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
       if (pPatTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV, L"(patreon.png)", dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID,    pPatTexSRV, L"(patreon.png)",   dontCare1, dontCare2);
+      if (pSKLogoTexSRV.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Cover,   SKIF_STEAM_APPID, pSKLogoTexSRV, L"(sk_boxart.png)", dontCare1, dontCare2);
 
       // Clear any existing trie
       labels = Trie { };
@@ -787,17 +789,39 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
+  extern bool SKIF_bHDREnabled;
+  
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
                                                     ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    (selection.appid == SKIF_STEAM_APPID)
-                                                    ? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
-                                                    : ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
+                                                    //(selection.appid == SKIF_STEAM_APPID)
+                                                    //? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
+                                                    //ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
+                                                    ImVec4 (1.0f, 1.0f, 1.0f, ((SKIF_bHDREnabled && _registry.iHDRMode == 2) || (!SKIF_bHDREnabled && _registry.iSDRMode == 2) // Tint for other games (transition up and down as mouse is hovered)
+                                                                                ? fTint
+                                                                                : fTint)), // std::pow (fTint, 2.2f))),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
+
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ImGui::OpenPopup ("CoverMenu");
+
+  ImGui::SetCursorPos (vecPosCoverImage);
+
+  if (selection.appid == SKIF_STEAM_APPID && pSKLogoTexSRV != nullptr)
+  {
+    ImGui::Image (pSKLogoTexSRV.p,
+                                                    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                            900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                    ImVec2 (0.0f, 0.0f),                // Top Left coordinates
+                                                    ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
+                                                    ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f), // Tint for Special K's logo (always full strength)
+                                                    ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)     // Border
+    );
+  }
 
   // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
   static DWORD timeLastTick;
@@ -851,9 +875,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Increment the tick
   if (incTick)
     timeLastTick = timeCurr;
-
-  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-    ImGui::OpenPopup ("CoverMenu");
 
   if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
   {

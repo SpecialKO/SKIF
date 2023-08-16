@@ -7,6 +7,7 @@
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
+#include <images/sk_boxart.png.h>
 #include <images/sk_boxart.jpg.h>
 #include <images/sk_boxart2.jpg.h>
 
@@ -184,7 +185,8 @@ LoadLibraryTexture (
 
   // SKIF
   if (       appid == SKIF_STEAM_APPID &&
-      libTexToLoad != LibraryTexture::Patreon)
+      libTexToLoad != LibraryTexture::Patreon &&
+              name != L"(sk_boxart.png)")
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", _path_cache.specialk_userdata);
 
@@ -426,8 +428,8 @@ LoadLibraryTexture (
   {
     if (SUCCEEDED(
           DirectX::LoadFromWICMemory(
-            (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ? ((_registry.iStyle == 2) ?        sk_boxart2_jpg :         sk_boxart_jpg ) :        patreon_png,
-            (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? ((_registry.iStyle == 2) ? sizeof(sk_boxart2_jpg) : sizeof(sk_boxart_jpg)) : sizeof(patreon_png),
+            (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
+            (libTexToLoad == LibraryTexture::Icon) ? sizeof(sk_icon_jpg) : (libTexToLoad == LibraryTexture::Cover) ? sizeof(sk_boxart_png) : sizeof(patreon_png),
               DirectX::WIC_FLAGS_FILTER_POINT,
                 &meta, img
           )

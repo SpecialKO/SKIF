@@ -1339,7 +1339,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if ( (_registry.iStyleTemp != _registry.iStyle) ||
          ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
     {
-      extern bool loadCover;
+      //extern bool loadCover;
+
+      //if (_registry.iLastSelectedGame == SKIF_STEAM_APPID &&
+      //   (_registry.iStyleTemp == 2 || _registry.iStyle == 2))
+      //  loadCover = true; // TODO: Skip reloading the cover if using a custom SK cover
 
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
@@ -1348,10 +1352,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
-
-      if (_registry.iLastSelectedGame == SKIF_STEAM_APPID &&
-         (_registry.iStyleTemp == 2 || _registry.iStyle == 2))
-        loadCover = true; // TODO: Skip reloading the cover if using a custom SK cover
 
       _registry.iStyleTemp = _registry.iStyle;
 
@@ -1414,6 +1414,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
     }
+
+    // F9 to cycle between color depths
+    if (( io.KeysDown[VK_F9]  &&  io.KeysDownDuration[VK_F9]  == 0.0f))
+    {
+      if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive())
+        _registry.iHDRMode = 1 + (_registry.iHDRMode % 2); // Cycle between 1 (10 bpc) and 2 (16 bpc)
+      else 
+        _registry.iSDRMode = (_registry.iSDRMode + 1) % 3; // Cycle between 0 (8 bpc), 1 (10 bpc), and 2 (16 bpc)
+
+      RecreateSwapChains = true;
+    }
+
+    // Should we invalidate the fonts and/or recreate them?
 
     if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
       invalidateFonts = true;
@@ -1952,6 +1965,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
         );
 
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
+
+#if 1
+
+        ImGui::SameLine ( );
+
+        if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( ))
+          ImGui::Text ("HDR: %s", (_registry.iHDRMode == 1) ? "10 bpc" :                             "16 bpc"          );
+        else 
+          ImGui::Text ("SDR: %s", (_registry.iSDRMode == 1) ? "10 bpc" : (_registry.iSDRMode == 2) ? "16 bpc" : "8 bpc");
+
+#endif
         
         SKIF_UI_DrawShellyTheGhost ( );
 
