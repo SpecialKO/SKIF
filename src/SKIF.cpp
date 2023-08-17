@@ -1967,10 +1967,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // TODO: Change to a period refresh when focused (every 500ms or so) which then after
         //   having been == Game Mode a couple of times (5+ seconds) prompts SKIF to warn about it
-        if (SKIF_Util_GetEffectivePowerMode ( ) != "None")
-          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
+        //if (SKIF_Util_GetEffectivePowerMode ( ) != "None")
+        //  ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
 
-        else
+        //else
           ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
 
 #if 0

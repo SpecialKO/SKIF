@@ -744,8 +744,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::BeginGroup    (                                                  );
 
-  static DWORD  timeLastCoverTick  = SKIF_Util_timeGetTime ( );
-  static bool   coverIsMissing     = false;
   static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
   static char   cstrLabelMissing[] = "Missing cover :(";
@@ -755,14 +753,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImVec2 vecPosCoverImage    = ImGui::GetCursorPos ( );
          vecPosCoverImage.x -= 1.0f * SKIF_ImGui_GlobalDPIScale;
 
-  // Every 500 ms, periodically check if there's an ongoing attempt to load a game cover
-  if (timeLastCoverTick + 500 < SKIF_Util_timeGetTime ( ))
-  {
-    timeLastCoverTick = SKIF_Util_timeGetTime ( );
-    //tryingToLoadCover = gameCoverLoading.load(); // handled through WM_SKIF_COVER instead
-    coverIsMissing    = (! tryingToLoadCover && textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr);
-  }
-
   if (tryingToLoadCover)
   {
     ImGui::SetCursorPos (ImVec2 (
@@ -770,8 +760,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
     ImGui::TextDisabled (  cstrLabelLoading);
   }
-  else if (coverIsMissing) {
-
+  
+  else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
+  {
     extern std::wstring GOGGalaxy_UserID;
     if (pApp != nullptr && pApp->store == "GOG" && GOGGalaxy_UserID.empty())
     {
@@ -1075,8 +1066,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     loadCover = false;
 
     // Reset variables used to track whether we're still loading a game cover, or if we're missing one
-    timeLastCoverTick = 0;
     gameCoverLoading.store (true);
+    tryingToLoadCover = true;
     queuePosGameCover = textureLoadQueueLength.load() + 1;
 
 //#define _WRITE_APPID_INI
