@@ -56,6 +56,7 @@ constexpr UINT           WM_SKIF_STOP           = WM_USER + 0x2048;
 constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049;
 constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050;
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051;
+constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052;
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert

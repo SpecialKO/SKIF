@@ -1063,6 +1063,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 1;
   }
 
+  // Register to be notified if the effective power mode changes
+  SKIF_Util_SetEffectivePowerModeNotifications (true);
+
   // Show the window
   /*
   if (! SKIF_isTrayed)
@@ -1951,7 +1954,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        // Shelly the Ghost
+        // Window Title
 
         float title_len = ImGui::CalcTextSize (SKIF_WINDOW_TITLE_A).x;
         float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
@@ -1962,7 +1965,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           (9.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2
         );
 
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
+        // TODO: Change to a period refresh when focused (every 500ms or so) which then after
+        //   having been == Game Mode a couple of times (5+ seconds) prompts SKIF to warn about it
+        if (SKIF_Util_GetEffectivePowerMode ( ) != "None")
+          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
+
+        else
+          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
 
 #if 0
 
@@ -1975,6 +1984,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #endif
         
+        // Shell the Ghost
+
         SKIF_UI_DrawShellyTheGhost ( );
 
         ImGui::EndTabBar          ( );
@@ -2983,6 +2994,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
   SKIF_Util_UnregisterHotKeySVCTemp   ( );
+  SKIF_Util_SetEffectivePowerModeNotifications (false);
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_PENDING);

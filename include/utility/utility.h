@@ -55,6 +55,10 @@ int             SKIF_Util_RegisterApp                 (bool force   = false);
 bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 
+// Power Mode
+std::string     SKIF_Util_GetEffectivePowerMode              (void);
+void            SKIF_Util_SetEffectivePowerModeNotifications (bool enable);
+
 // High Dynamic Range (HDR)
 
 bool            SKIF_Util_IsHDRSupported              (bool refresh = false);

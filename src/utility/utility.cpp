@@ -1017,6 +1017,122 @@ SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
   }
 }
 
+// Effective Power Mode (Windows 10 1809+)
+typedef enum EFFECTIVE_POWER_MODE {
+    EffectivePowerModeNone    = -1,   // Used as default value if querying failed
+    EffectivePowerModeBatterySaver,
+    EffectivePowerModeBetterBattery,
+    EffectivePowerModeBalanced,
+    EffectivePowerModeHighPerformance,
+    EffectivePowerModeMaxPerformance, // EFFECTIVE_POWER_MODE_V1
+    EffectivePowerModeGameMode,
+    EffectivePowerModeMixedReality,   // EFFECTIVE_POWER_MODE_V2
+} EFFECTIVE_POWER_MODE;
+
+std::atomic<EFFECTIVE_POWER_MODE> enumEffectivePowerMode          = EffectivePowerModeNone;
+
+#define EFFECTIVE_POWER_MODE_V1 (0x00000001)
+#define EFFECTIVE_POWER_MODE_V2 (0x00000002)
+
+typedef VOID WINAPI EFFECTIVE_POWER_MODE_CALLBACK (
+    _In_     EFFECTIVE_POWER_MODE  Mode,
+    _In_opt_ VOID                 *Context
+);
+
+VOID WINAPI SKIF_Util_EffectivePowerModeCallback (
+    _In_     EFFECTIVE_POWER_MODE  Mode,
+    _In_opt_ VOID                 *Context
+)
+{
+  UNREFERENCED_PARAMETER (Context);
+
+  enumEffectivePowerMode.store (Mode);
+
+  PostMessage (SKIF_Notify_hWnd, WM_SKIF_POWERMODE, NULL, NULL);
+};
+
+// Retrieve the current effective power mode as a string
+std::string SKIF_Util_GetEffectivePowerMode (void)
+{
+  std::string sMode;
+
+  switch (enumEffectivePowerMode.load( ))
+  {
+  case EffectivePowerModeNone:
+    sMode = "None";
+    break;
+  case EffectivePowerModeBatterySaver:
+    sMode = "Battery Saver";
+    break;
+  case EffectivePowerModeBetterBattery:
+    sMode = "Better Battery";
+    break;
+  case EffectivePowerModeBalanced:
+    sMode = "Balanced";
+    break;
+  case EffectivePowerModeHighPerformance:
+    sMode = "High Performance";
+    break;
+  case EffectivePowerModeMaxPerformance:
+    sMode = "Max Performance";
+    break;
+  case EffectivePowerModeGameMode:
+    sMode = "Game Mode";
+    break;
+  case EffectivePowerModeMixedReality:
+    sMode = "Mixed Reality";
+    break;
+  default:
+    sMode = "Unknown Mode";
+    break;
+  }
+
+  return sMode;
+}
+
+// Register SKIF for effective power notifications on Windows 10 1809+
+void SKIF_Util_SetEffectivePowerModeNotifications (bool enable)
+{
+  static HANDLE
+      hEffectivePowerModeRegistration  = NULL;
+  if (hEffectivePowerModeRegistration != NULL &&   enable) return;
+  if (hEffectivePowerModeRegistration == NULL && ! enable) return;
+
+  using PowerRegisterForEffectivePowerModeNotifications_pfn =
+    HRESULT (WINAPI *)(ULONG Version, EFFECTIVE_POWER_MODE_CALLBACK *Callback, VOID *Context, VOID **RegistrationHandle);
+
+  static PowerRegisterForEffectivePowerModeNotifications_pfn
+    SKIF_PowerRegisterForEffectivePowerModeNotifications =
+        (PowerRegisterForEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "PowerRegisterForEffectivePowerModeNotifications");
+
+  using PowerUnregisterFromEffectivePowerModeNotifications_pfn =
+    HRESULT (WINAPI *)(VOID *RegistrationHandle);
+
+  static PowerUnregisterFromEffectivePowerModeNotifications_pfn
+    SKIF_PowerUnregisterFromEffectivePowerModeNotifications =
+        (PowerUnregisterFromEffectivePowerModeNotifications_pfn)GetProcAddress (LoadLibraryEx (L"powrprof.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "PowerUnregisterFromEffectivePowerModeNotifications");
+
+  if (SKIF_PowerRegisterForEffectivePowerModeNotifications      != nullptr)
+  {
+    if (SKIF_PowerUnregisterFromEffectivePowerModeNotifications != nullptr)
+    {
+      if (enable)
+      {
+        PLOG_DEBUG << "Registering SKIF for effective power mode notifications";
+        SKIF_PowerRegisterForEffectivePowerModeNotifications    (EFFECTIVE_POWER_MODE_V2, SKIF_Util_EffectivePowerModeCallback, NULL, &hEffectivePowerModeRegistration);
+      }
+
+      else {
+        PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications...";
+        SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
+      }
+    }
+  }
+}
+
+
 
 // High Dynamic Range (HDR)
 
