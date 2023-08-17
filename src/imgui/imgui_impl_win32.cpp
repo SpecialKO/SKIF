@@ -76,7 +76,6 @@ constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows11orGreater      (void);
-extern bool SKIF_bCanFlip;
 
 // Forward Declarations
 static void                  ImGui_ImplWin32_InitPlatformInterface     (void);
@@ -1205,7 +1204,7 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_ex_style |= WS_EX_TOPMOST;
 
   // This flag is Windows 8+, and only applicable to flip swapchains
-  if (SKIF_bCanFlip && SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
+  if (SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
     *out_ex_style |= WS_EX_NOREDIRECTIONBITMAP;
 
   // Main platform window must respect nCmdShow and add

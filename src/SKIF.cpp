@@ -114,9 +114,7 @@ bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
 // Graphics options set during runtime
-bool SKIF_bCanFlip                 = false, // Flip Sequential               Windows 7 (2013 Platform Update), or Windows 8+
-     SKIF_bCanWaitSwapchain        = false, // Waitable Swapchain            Windows 8.1+
-     SKIF_bCanFlipDiscard          = false, // Flip Discard                  Windows 10+
+bool SKIF_bCanWaitSwapchain        = false, // Waitable Swapchain            Windows 8.1+
      SKIF_bCanAllowTearing         = false, // DWM Tearing                   Windows 10+
      SKIF_bCanHDR                  = false, // High Dynamic Range            Windows 10 1709+ (Build 16299)
      SKIF_bHDREnabled              = false; // HDR Enabled
@@ -3072,43 +3070,35 @@ bool CreateDeviceD3D (HWND hWnd)
   if (FAILED (CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
-  // Windows 7 (with the Platform Update) and newer
-  SKIF_bCanFlip                 =         true; // Should never be set to false here
+  // Windows 7 (2013 Platform Update), or Windows 8+
+  // SKIF_bCanFlip            =         true; // Should never be set to false here
 
-  if (SKIF_bCanFlip)
+  // Windows 8.1+
+  SKIF_bCanWaitSwapchain      =
+    SKIF_Util_IsWindows8Point1OrGreater ();
+
+  // Windows 10 1709+ (Build 16299)
+  SKIF_bCanHDR                =
+    SKIF_Util_IsWindows10v1709OrGreater (    ) &&
+    SKIF_Util_IsHDRActive               (true);
+
+  CComQIPtr <IDXGIFactory5>
+                  pFactory5 (pFactory2.p);
+
+  // Windows 10+
+  if (pFactory5 != nullptr)
   {
-    // Windows 8.1+
-    SKIF_bCanWaitSwapchain      =
-      SKIF_Util_IsWindows8Point1OrGreater ();
-
-    // Windows 10+
-    SKIF_bCanFlipDiscard        =
-      SKIF_Util_IsWindows10OrGreater      ();
-
-    // Windows 10 1709+ (Build 16299)
-    SKIF_bCanHDR                =
-      SKIF_Util_IsWindows10v1709OrGreater (    ) &&
-      SKIF_Util_IsHDRActive               (true);
-
-    CComQIPtr <IDXGIFactory5>
-                   pFactory5 (pFactory2.p);
-
-    // Windows 10+
-    if (pFactory5 != nullptr)
-    {
-      BOOL supportsTearing = FALSE;
-      pFactory5->CheckFeatureSupport (
-                            DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                                          &supportsTearing,
-                                  sizeof  (supportsTearing)
-                                                );
-      SKIF_bCanAllowTearing = (supportsTearing != FALSE);
-    }
+    BOOL supportsTearing = FALSE;
+    pFactory5->CheckFeatureSupport (
+                          DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                                        &supportsTearing,
+                                sizeof  (supportsTearing)
+                                              );
+    SKIF_bCanAllowTearing = (supportsTearing != FALSE);
   }
 
   // Overrides
   //SKIF_bCanAllowTearing       = false; // Allow Tearing
-  //SKIF_bCanFlipDiscard        = false; // Flip Discard
   //SKIF_bCanFlip               = false; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
   //SKIF_bCanWaitSwapchain      = false; // Waitable Swapchain
 
@@ -3188,7 +3178,7 @@ bool CreateDeviceD3D (HWND hWnd)
     if (SKIF_bCanAllowTearing)
       swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
-    for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
+    for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD}) // DXGI_SWAP_EFFECT_FLIP_DISCARD
     {
       swap_desc.SwapEffect = _swapEffect;
 
@@ -3198,11 +3188,10 @@ bool CreateDeviceD3D (HWND hWnd)
         swap_desc.Format       = DXGI_FORMAT_R8G8B8A8_UNORM;
         swap_desc.BufferCount  = 1;
         swap_desc.Flags        = 0x0;
-        SKIF_bCanFlipDiscard   = false;
-        SKIF_bCanFlip          = false;
         SKIF_bCanHDR           = false;
         SKIF_bCanWaitSwapchain = false;
         SKIF_bCanAllowTearing  = false;
+        _registry.iUIMode      = 0;
       }
 
       if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,

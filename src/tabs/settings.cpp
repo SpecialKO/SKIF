@@ -1059,10 +1059,9 @@ SKIF_UI_Tab_DrawSettings (void)
                             "UI mode:"
     );
 
-    extern bool SKIF_bCanFlip;
-    ImGui::TreePush        ("SKIF_iSyncMode");
+    ImGui::TreePush        ("SKIF_iUIMode");
     // Flip VRR Compatibility Mode (only relevant on Windows 10+)
-    if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
+    if (SKIF_Util_IsWindows10OrGreater ( ))
     {
       if (ImGui::RadioButton ("VRR Compatibility", &_registry.iUIMode, 2))
       {

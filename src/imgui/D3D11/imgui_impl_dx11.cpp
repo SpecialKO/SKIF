@@ -62,8 +62,6 @@
 
 // External Variables
 extern bool SKIF_bCanAllowTearing;
-extern bool SKIF_bCanFlip;
-extern bool SKIF_bCanFlipDiscard;
 extern bool SKIF_bCanWaitSwapchain;
 extern bool SKIF_bCanHDR;
 extern bool RecreateSwapChains;
@@ -1289,7 +1287,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   // Normal (1) / VRR Compatibility Mode (2)
   if (_registry.iUIMode > 0)
   {
-    for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD})
+    for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD}) // DXGI_SWAP_EFFECT_FLIP_DISCARD
     {
       swap_desc.SwapEffect = _swapEffect;
 
@@ -1299,8 +1297,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         swap_desc.Format      = DXGI_FORMAT_R8G8B8A8_UNORM;
         swap_desc.BufferCount = 1;
         swap_desc.Flags       = 0x0;
-        SKIF_bCanFlip         = false;
         SKIF_bCanHDR          = false;
+        _registry.iUIMode     = 0;
       }
 
       if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
@@ -1661,13 +1659,13 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
     data->SwapChain->GetDesc1 (&swap_desc);
 
-    UINT Interval = 1; // Default to V-Sync ON (will only be relevant on Win7 and Win8.1 with default settings)
+    UINT Interval = 1;
 
-    if (SKIF_bCanFlip && SKIF_Util_IsWindows10OrGreater ( ))
-      Interval    = 2; // Flip VRR Compatibility Mode (only relevant on Windows 10+)
+    if (      _registry.iUIMode == 2)  // VRR Compatibility Mode
+      Interval    = 2; // Half Refresh Rate V-Sync
 
-    if (_registry.iUIMode == 0 || //   Safe Mode (BitBlt)
-        _registry.iUIMode == 1  ) // Normal Mode
+    else if (_registry.iUIMode == 0 || //              Safe Mode (BitBlt)
+             _registry.iUIMode == 1  ) //            Normal Mode
       Interval    = 1; // V-Sync ON
 
     UINT PresentFlags = 0x0;
@@ -1677,6 +1675,7 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     {
       PresentFlags   = DXGI_PRESENT_RESTART;
 
+      // If V-Sync is OFF (not possible at all, but keep for possible future use)
       if (Interval == 0 && SKIF_bCanAllowTearing)
         PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
     }
