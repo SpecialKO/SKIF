@@ -781,7 +781,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-  //extern bool SKIF_bHDREnabled;
+  extern bool SKIF_bHDREnabled;
   
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
@@ -791,11 +791,10 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     vecCoverUv1, // Bottom Right coordinates
                                                     //(selection.appid == SKIF_STEAM_APPID)
                                                     //? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
-                                                    //ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
-                                                    //ImVec4 (1.0f, 1.0f, 1.0f, ((SKIF_bHDREnabled && _registry.iHDRMode == 2) || (!SKIF_bHDREnabled && _registry.iSDRMode == 2) // Tint for other games (transition up and down as mouse is hovered)
-                                                    //                            ? fTint
-                                                    //                            : fTint)), // std::pow (fTint, 2.2f))),
-                                                    ImVec4 ( 1.0f,  1.0f,  1.0f, fTint * fAlpha),    // Tint for Special K (always full strength)
+                                                    ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
+                                                   // ImVec4 (1.0f, 1.0f, 1.0f, ((SKIF_bHDREnabled && _registry.iHDRMode == 2) || (!SKIF_bHDREnabled && _registry.iSDRMode == 2) // Tint for other games (transition up and down as mouse is hovered)
+                                                   //                             ? fTint
+                                                   //                             : fTint)), // std::pow (fTint, 2.2f))),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
@@ -811,7 +810,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     ImVec2 (0.0f, 0.0f),                // Top Left coordinates
                                                     ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
-                                                    ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f), // Tint for Special K's logo (always full strength)
+                                                    ImVec4 (1.0f,  1.0f,  1.0f, 1.0f),  // Tint for Special K's logo (always full strength)
                                                     ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)     // Border
     );
   }
