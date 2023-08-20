@@ -113,6 +113,13 @@ int getTextureLoadQueuePos (void) {
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
 
+float
+ApplySRGBAlpha (float a)
+{
+    return ( a < 0.0031308f ? 12.92f * a :
+                              1.055f * std::pow ( a, 1.0 / 2.4f ) - 0.55f );
+}
+
 // define character size
 #define CHAR_SIZE 128
 
@@ -782,6 +789,12 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::SetCursorPos (vecPosCoverImage);
 
   extern bool SKIF_bHDREnabled;
+
+  float fGammaCorrectedTint = 
+    ((! SKIF_bHDREnabled && _registry.iSDRMode == 2) || 
+     (  SKIF_bHDREnabled && _registry.iHDRMode == 2))
+        ? ApplySRGBAlpha (fTint)
+        : fTint;
   
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
@@ -789,12 +802,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    //(selection.appid == SKIF_STEAM_APPID)
-                                                    //? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
-                                                    ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
-                                                   // ImVec4 (1.0f, 1.0f, 1.0f, ((SKIF_bHDREnabled && _registry.iHDRMode == 2) || (!SKIF_bHDREnabled && _registry.iSDRMode == 2) // Tint for other games (transition up and down as mouse is hovered)
-                                                   //                             ? fTint
-                                                   //                             : fTint)), // std::pow (fTint, 2.2f))),
+                                                    ImVec4 (fGammaCorrectedTint, fGammaCorrectedTint, fGammaCorrectedTint, 1.0f),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
