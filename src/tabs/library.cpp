@@ -791,7 +791,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     vecCoverUv1, // Bottom Right coordinates
                                                     //(selection.appid == SKIF_STEAM_APPID)
                                                     //? ImVec4 ( 1.0f,  1.0f,  1.0f, 1.0f)    // Tint for Special K (always full strength)
-                                                    ImVec4 (fTint, fTint, fTint, fAlpha), // Tint for other games (transition up and down as mouse is hovered)
+                                                    ImVec4 (fTint, fTint, fTint, 1.0f), // Tint for other games (transition up and down as mouse is hovered)
                                                    // ImVec4 (1.0f, 1.0f, 1.0f, ((SKIF_bHDREnabled && _registry.iHDRMode == 2) || (!SKIF_bHDREnabled && _registry.iSDRMode == 2) // Tint for other games (transition up and down as mouse is hovered)
                                                    //                             ? fTint
                                                    //                             : fTint)), // std::pow (fTint, 2.2f))),
