@@ -117,7 +117,7 @@ float
 ApplySRGBAlpha (float a)
 {
     return ( a < 0.0031308f ? 12.92f * a :
-                              1.055f * std::pow ( a, 1.0 / 2.4f ) - 0.55f );
+                              1.055f * std::pow ( a, 1.0f / 2.4f ) - 0.55f );
 }
 
 // define character size
@@ -802,7 +802,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    ImVec4 (fGammaCorrectedTint, fGammaCorrectedTint, fGammaCorrectedTint, 1.0f),
+                                                    ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
