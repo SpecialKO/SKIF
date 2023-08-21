@@ -624,10 +624,10 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                        sizeof (mvp) );
     
     // Defaults
-    constant_buffer->luminance_scale [0] = 1.0f;
-    constant_buffer->luminance_scale [1] = 2.2f;
-    constant_buffer->luminance_scale [2] = 0.0f;
-    constant_buffer->luminance_scale [3] = 0.0f;
+    constant_buffer->luminance_scale [0] = 1.0f; // x - White Level
+    constant_buffer->luminance_scale [1] = 0.0f; // y - HDR (1.0f) / SDR (0.0f)
+    constant_buffer->luminance_scale [2] = 0.0f; // z - Black level (unused)
+    constant_buffer->luminance_scale [3] = 0.0f; // w - isSRGB
 
     ImGuiViewportDataDx11 *data =
       static_cast <ImGuiViewportDataDx11 *> (
@@ -639,11 +639,13 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     if (data->HDR)
     {
+      constant_buffer->luminance_scale [1] = 1.0f;
+
       // scRGB HDR 16 bpc
       if (data->HDRMode == 2)
       {
         constant_buffer->luminance_scale [0] = (_registry.iHDRBrightness          / 80.0f); // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
-        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
       }
 
       // HDR10
@@ -659,7 +661,7 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
       if (data->SDRWhiteLevel > 80)
       {
         constant_buffer->luminance_scale [0] = (data->SDRWhiteLevel               / 80.0f);
-        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
       }
 
       // SDR 16 bpc on SDR display
