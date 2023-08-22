@@ -129,12 +129,12 @@ float4 main (PS_INPUT input) : SV_Target
   float4 out_col  =
     texture0.Sample (sampler0, input.uv);
   float4 orig_col = out_col;
-
-  bool isHDR    = input.uv3.y > 0.0; // 10 bpc or 16 bpc HDR
+  
   bool isHDR10  = input.uv3.x < 0.0; // 10 bpc HDR
+  bool isHDR    = input.uv3.y > 0.0; // 10 bpc or 16 bpc HDR
   bool isSRGB   = input.uv3.w > 0.0; // scRGB 16 bpc SDR
   
-#if 0 // Test crap
+#if 1 // Test crap
   
   // Convert sRGB to Linear
   //if (isSRGB)
@@ -150,8 +150,6 @@ float4 main (PS_INPUT input) : SV_Target
   // 16 bpc scRGB SDR
   if (isSRGB)
   {
-    out_col.rgb *= out_col.a;
-    /*
     out_col =
       float4 ( RemoveSRGBCurve (input.col.rgb) *
                RemoveSRGBCurve (  out_col.rgb),
@@ -159,8 +157,40 @@ float4 main (PS_INPUT input) : SV_Target
                RemoveSRGBAlpha (input.col.a)
               );
     
-    out_col.a = 1.0 - pow (1.0 - out_col.a, 2.4);
-    */
+    float hdr_scale = input.uv3.x;
+
+    if (hdr_scale > 0.0f)
+      out_col.rgba =
+        float4 (saturate (out_col.rgb) * hdr_scale,
+                saturate (out_col.a ) );
+  }
+
+  // 10 bpc HDR  
+  else if (isHDR10)
+  {
+    out_col =
+      float4 (                            input.col.rgb *
+                                            out_col.rgb,
+                            pow (saturate (  out_col.a) *
+                                 saturate (input.col.a), 0.8)
+              );
+    
+    float hdr_scale = -input.uv3.x / 10000.0;
+
+    out_col.rgba =
+      float4 (
+        LinearToST2084 (
+          REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale
+                       ),
+                            saturate (out_col.a  ) );
+
+    //out_col.r = (orig_col.r < 0.000001f) ? 0.0f : out_col.r;
+    //out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
+    //out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
+    out_col.r *= (orig_col.r >= FLT_EPSILON);
+    out_col.g *= (orig_col.g >= FLT_EPSILON);
+    out_col.b *= (orig_col.b >= FLT_EPSILON);
+    out_col.a *= (orig_col.a >= FLT_EPSILON);
   }
   
   // 8-10 bpc SDR
@@ -181,7 +211,7 @@ float4 main (PS_INPUT input) : SV_Target
   
   
   
-#if 1 // Live
+#if 0 // Live
   
   if (viewport.z > 0.f)
   {
