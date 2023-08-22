@@ -1630,7 +1630,8 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
   }
 
   ImVec4 clear_color =
-    ImVec4 (0.0f, 0.0f, 0.0f, 1.0f);
+    ImGui::GetStyle().Colors[ImGuiCol_WindowBg]; // Use the current window bg color to clear the RTV with
+  //ImVec4 (0.0f, 0.0f, 0.0f, 1.0f);
 
   g_pd3dDeviceContext->OMSetRenderTargets ( 1,
                 &data->RTView,    nullptr );

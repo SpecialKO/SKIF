@@ -788,6 +788,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
+#if 0
   extern bool SKIF_bHDREnabled;
 
   float fGammaCorrectedTint = 
@@ -795,6 +796,7 @@ SKIF_UI_Tab_DrawLibrary (void)
      (  SKIF_bHDREnabled && _registry.iHDRMode == 2))
         ? ApplySRGBAlpha (fTint)
         : fTint;
+#endif
   
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
@@ -802,7 +804,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    ImVec4 (1.0f, 1.0f, 1.0f, fTint),
+                                                    ImVec4 (fTint, fTint, fTint, fAlpha),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
