@@ -1943,9 +1943,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
-          static float col[3] = { 1.0f };
-          ImGui::ColorEdit3 ("Color picker (for testing gradients)", col, ImGuiColorEditFlags_NoInputs);
-
           SKIF_Tab_Selected = UITab_About;
           if (SKIF_Tab_ChangeTo == UITab_About)
             SKIF_Tab_ChangeTo = UITab_None;

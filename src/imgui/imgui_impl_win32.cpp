@@ -575,22 +575,43 @@ void ImGui_ImplWin32_UpdateGamepads ( )
   ImGuiIO &io =
     ImGui::GetIO ( );
 
-  static constexpr float
-    _0 = 0.0f;
+  std::fill_n (
+    io.NavInputs, ImGuiNavInput_COUNT, 0.0f
+  );
 
-  static constexpr
-    float _fZeros [] = {
-      _0, _0, _0, _0, _0, _0, _0,
-      _0, _0, _0, _0, _0, _0, _0,
-      _0, _0, _0, _0, _0, _0, _0
-  };
+  // ----
 
-  memcpy (io.NavInputs,
-            _fZeros,
-    sizeof (_fZeros));
+  if (! g_Focused)
+    return;
 
- // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
- // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
+  if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
+    return;
+
+  //
+  // Fail-safe in case the state of g_Focused is out-of-sync
+  //
+  if (HWND focused_hwnd = ::GetForegroundWindow ())
+  {
+    DWORD
+      dwWindowOwnerPid = 0;
+
+    GetWindowThreadProcessId (
+      focused_hwnd,
+        &dwWindowOwnerPid
+    );
+
+    static DWORD
+      dwPidOfMe = GetCurrentProcessId ();
+
+    // Don't poll the gamepad when we're not focused.
+    if (dwWindowOwnerPid != dwPidOfMe)
+      return;
+  }
+
+  // ----
+
+  // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
+  // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
   if (g_WantUpdateHasGamepad && (ImGui_XInputGetCapabilities != nullptr))
   {
     XINPUT_CAPABILITIES caps;
@@ -607,19 +628,9 @@ void ImGui_ImplWin32_UpdateGamepads ( )
   {
     for ( auto idx : XUSER_INDEXES )
     {
-      g_HasGamepad [idx].store(false);
+      g_HasGamepad [idx].store (false);
     }
   }
-
-  // ----
-
-  if (! g_Focused)
-    return;
-
-  if (( io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad ) == 0)
-    return;
-
-  // ----
 
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
   
