@@ -2755,27 +2755,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         do
         {
-          // Reworked thread-safe iplementation
-          extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
-          packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
-
-          if (packetNew  > 0  &&
-              packetNew != packetLast)
+          // Only act on new gamepad input if we are actually focused
+          if (gamepadThreadAwake.load () == 1)
           {
-            packetLast = packetNew;
-            PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            // Reworked thread-safe iplementation
+            extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
+            packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
+
+            if (packetNew  > 0  &&
+                packetNew != packetLast)
+            {
+              packetLast = packetNew;
+              PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
+            }
           }
 
-          // XInput tends to have ~3-7 ms of latency between updates
-          //   best-case, try to delay the next poll until there's
-          //     new data.
-          Sleep (5);
-
-          // Only act on new gamepad input if we are actually focused.
-          // This prevents SKIF from acting on gameapd input when unfocused,
-          // but otherwise refreshes due to some status change.
           // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
-          if (gamepadThreadAwake.load ( ) == 0)
+          if (gamepadThreadAwake.load () == 0)
           {
             //OutputDebugString(L"SKIF_GamepadInputPump entering sleep\n");
             //PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
@@ -2788,6 +2784,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
             //PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
             //OutputDebugString(L"SKIF_GamepadInputPump exiting sleep\n");
           }
+
+          // XInput tends to have ~3-7 ms of latency between updates
+          //   best-case, try to delay the next poll until there's
+          //     new data.
+          Sleep (5);
         } while (! SKIF_Shutdown);
 
         LeaveCriticalSection  (&GamepadInputPump);
