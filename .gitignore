@@ -10,3 +10,4 @@
 *.tlog
 *.pdb
 /resources/shaders/imgui_pix.h
+/resources/shaders/imgui_vtx.h

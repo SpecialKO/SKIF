@@ -390,7 +390,6 @@
     <ClInclude Include="resources\images\patreon.png.h" />
     <ClInclude Include="resources\images\sk_boxart.png.h" />
     <ClInclude Include="resources\images\sk_boxart2.jpg.h" />
-    <ClInclude Include="resources\shaders\imgui_pix.h" />
     <ClInclude Include="resources\shaders\imgui_vtx.h" />
     <ClInclude Include="include\SKIF.h" />
     <ClInclude Include="resources\images\sk_boxart.jpg.h" />
