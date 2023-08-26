@@ -9,3 +9,4 @@
 /SKIF.vcxproj.user
 *.tlog
 *.pdb
+/resources/shaders/imgui_pix.h
