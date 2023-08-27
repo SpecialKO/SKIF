@@ -3475,7 +3475,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
     case WM_SKIF_EVENT_SIGNAL:
         addAdditionalFrames += 3;
-        OutputDebugString(L"WM_SKIF_EVENT_SIGNAL from SKIF_Notify_hWnd\n");
       break;
 
     case WM_TIMER:
@@ -3504,13 +3503,13 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
         case cIDT_REFRESH_INJECTACK:
-          OutputDebugString(L"cIDT_REFRESH_INJECTACK\n");
+          //OutputDebugString(L"cIDT_REFRESH_INJECTACK\n");
           break;
         case cIDT_REFRESH_PENDING:
-          OutputDebugString(L"cIDT_REFRESH_PENDING\n");
+          //OutputDebugString(L"cIDT_REFRESH_PENDING\n");
           break;
         case  IDT_REFRESH_UPDATER:
-          OutputDebugString(L"IDT_REFRESH_UPDATER\n");
+          //OutputDebugString(L"IDT_REFRESH_UPDATER\n");
           break;
       }
       break;

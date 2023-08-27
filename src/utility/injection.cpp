@@ -79,22 +79,17 @@ InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
   //   into their proper window message counterparts.
   if (hWnd == NULL && SKIF_Notify_hWnd != NULL)
   {
-    if (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK)
-    {
+    if (     wParamIDEvent == _inject.IDT_REFRESH_INJECTACK)
       PostMessage (SKIF_Notify_hWnd, Msg, cIDT_REFRESH_INJECTACK, NULL);
-    }
     else if (wParamIDEvent == _inject.IDT_REFRESH_PENDING)
-    {
       PostMessage (SKIF_Notify_hWnd, Msg, cIDT_REFRESH_PENDING,   NULL);
-    }
     else
       PLOG_DEBUG << "Unrecognized timer ID?!";
   }
 
   // Forward all timer triggers with a corresponding hWnd to their appropriate window
-  else {
+  else
     PostMessage (hWnd, Msg, wParamIDEvent, NULL);
-  }
 }
 
 // Class Members
