@@ -210,6 +210,10 @@ SKIF_Startup_SetGameAsForeground (void)
     // This is a nop, bail-out before screwing things up even more
     if (_pid == pidForegroundFocusOnExit)
       return;
+
+    if (hWndForegroundFocusOnExit != nullptr &&
+        hWndForegroundFocusOnExit == GetForegroundWindow ())
+      return;
   }
 
   PLOG_INFO << "Attempting to find game window to set as foreground...";
@@ -226,7 +230,7 @@ SKIF_Startup_SetGameAsForeground (void)
     }
   }
 
-  // Fallback approach
+  // Fallback approach -- attempt to find a window belonging to the process
   EnumWindows ( []( HWND   hWnd,
                     LPARAM lParam ) -> BOOL
   {
@@ -254,7 +258,6 @@ SKIF_Startup_SetGameAsForeground (void)
     }
     return TRUE;
   }, (LPARAM)pidForegroundFocusOnExit);
-
 }
 
 void
