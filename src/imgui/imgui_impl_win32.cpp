@@ -606,6 +606,8 @@ void ImGui_ImplWin32_UpdateGamepads ( )
     // Don't poll the gamepad when we're not focused.
     if (dwWindowOwnerPid != dwPidOfMe)
       return;
+    else
+      PLOG_WARNING << "g_Focused is out-of-sync!";
   }
 
   // ----

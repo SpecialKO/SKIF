@@ -66,6 +66,21 @@ extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, 
 extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
 extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
 
+// Helper Functions
+
+void CALLBACK
+InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
+{
+  UNREFERENCED_PARAMETER (dwTime);
+
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
+  // Translates threaded messages created before the window was created when used as a launcher
+  //   into their proper window message counterparts.
+  if (hWnd == NULL && SKIF_ImGui_hWnd != NULL)
+    PostMessage (SKIF_ImGui_hWnd, Msg, (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK) ? cIDT_REFRESH_INJECTACK : cIDT_REFRESH_PENDING, NULL);
+}
+
 // Class Members
 
 SKIF_InjectionContext::SKIF_InjectionContext (void)
@@ -315,6 +330,10 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
   // Set to its current new state
   bAckInj = newState;
 
+  // Close any existing timer
+  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_ImGui_hWnd : NULL, IDT_REFRESH_INJECTACK))
+    IDT_REFRESH_INJECTACK = 0;
+
   // Close any existing handles
   hInjectAck.Close();
 
@@ -326,6 +345,13 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
       CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
                                                                               : LR"(Local\SKIF_InjectAck)")
     );
+
+    IDT_REFRESH_INJECTACK =
+      SetTimer (SKIF_ImGui_hWnd,
+                cIDT_REFRESH_INJECTACK,
+                1000,
+                (TIMERPROC) &InjectionTimerProc
+      );
   }
 }
 
@@ -459,6 +485,15 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     
     if (hInjectExitAckEx.m_h == 0)
       SetInjectExitAckEx (true);
+
+    // Set up a periodic refresh since we are pending a new state
+    if (IDT_REFRESH_PENDING == 0)
+      IDT_REFRESH_PENDING =
+        SetTimer (SKIF_ImGui_hWnd,
+                cIDT_REFRESH_PENDING,
+                500,
+                (TIMERPROC) &InjectionTimerProc
+      );
   }
 
   // Close the events when the service is being stopped

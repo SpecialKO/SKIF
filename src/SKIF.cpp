@@ -2998,6 +2998,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_SetEffectivePowerModeNotifications (false);
 
   PLOG_INFO << "Killing timers...";
+  KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_INJECTACK);
   KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_PENDING);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);

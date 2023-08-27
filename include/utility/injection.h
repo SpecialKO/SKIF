@@ -29,8 +29,9 @@
 
 // Singleton struct
 struct SKIF_InjectionContext {
-
-  UINT_PTR IDT_REFRESH_PENDING   = 0;
+  
+  UINT_PTR IDT_REFRESH_INJECTACK = 0; // Holds current timer ID
+  UINT_PTR IDT_REFRESH_PENDING   = 0; // Holds current timer ID
 
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
