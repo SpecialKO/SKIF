@@ -3470,6 +3470,12 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       }
       break;
 
+    // Custom refresh window messages
+    case WM_SKIF_POWERMODE:
+    case WM_SKIF_EVENT_SIGNAL:
+        addAdditionalFrames += 3;
+      break;
+
     case WM_TIMER:
       msgDontRedraw = false;
       switch (wParam)

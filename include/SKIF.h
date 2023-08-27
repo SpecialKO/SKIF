@@ -46,18 +46,24 @@ const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
 const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
 const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
 
+// Cmd line argument triggers
 constexpr UINT           WM_SKIF_MINIMIZE       = WM_USER +  0x512;
 constexpr UINT           WM_SKIF_RESTORE        = WM_USER +  0x513;
 constexpr UINT           WM_SKIF_START          = WM_USER + 0x1024;
 constexpr UINT           WM_SKIF_TEMPSTART      = WM_USER + 0x1025;
 constexpr UINT           WM_SKIF_TEMPSTARTEXIT  = WM_USER + 0x1026;
-constexpr UINT           WM_SKIF_LAUNCHER       = WM_USER + 0x1027;
-constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028;
 constexpr UINT           WM_SKIF_STOP           = WM_USER + 0x2048;
-constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049;
-constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050;
-constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051;
-constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052;
+constexpr UINT           WM_SKIF_LAUNCHER       = WM_USER + 0x1027; // Another instance of SKIF is as a launcher -- signals the main instance to start the service
+constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028; // AddGame="<path-to-game" cmd line argument
+
+// Thread workers
+constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049; // Gamepad input worker detected new input
+constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover worker completed
+constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
+
+// Callbacks / Event Signals
+constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052; // Used to signal that a new effective power mode has been applied
+constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Proposed window message for SK to post when it has signaled one of the various acknowledgement events
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
