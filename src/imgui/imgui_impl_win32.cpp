@@ -607,7 +607,7 @@ void ImGui_ImplWin32_UpdateGamepads ( )
     if (dwWindowOwnerPid != dwPidOfMe)
       return;
     else
-      PLOG_WARNING << "g_Focused is out-of-sync!";
+      PLOG_VERBOSE << "g_Focused is out-of-sync!";
   }
 
   // ----
