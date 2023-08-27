@@ -194,7 +194,34 @@ HWND        SKIF_Notify_hWnd   = NULL;
 
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 
-HWND hWndOrigForeground;
+HWND  hWndOrigForeground;
+DWORD pidForegroundFocusOnExit = NULL; // Used to hold the game process ID that SKIF launched
+
+void
+SKIF_Startup_SetGameAsForeground (void)
+{
+  PLOG_INFO << "Attempting to find game window to set as foreground...";
+
+  EnumWindows ( []( HWND   hWnd,
+                    LPARAM lParam ) -> BOOL
+  {
+    DWORD _pid = NULL;
+          
+    if (GetWindowThreadProcessId (hWnd, &_pid))
+    {
+      if (_pid != NULL && 
+          _pid == (DWORD)lParam)
+      {
+        PLOG_INFO << "Found game window!";
+        if (! SetForegroundWindow (hWnd))
+          PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+
+        return FALSE; // Stop enumeration
+      }
+    }
+    return TRUE;
+  }, (LPARAM)pidForegroundFocusOnExit);
+}
 
 void
 SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
@@ -447,7 +474,13 @@ SKIF_Startup_LaunchGame (void)
   if (_Signal._GamePath.empty())
     return;
       
-  PLOG_INFO << "Launching game executable: " << _Signal._GamePath;
+  PLOG_INFO   << "Launching executable : " << _Signal._GamePath;
+  
+  if (! _Signal._GameWorkDir.empty())
+    PLOG_INFO << "   Working directory : " << _Signal._GameWorkDir;
+  
+  if (! _Signal._GameArgs.empty())
+    PLOG_INFO << "           Arguments : " << _Signal._GameArgs;
 
   SHELLEXECUTEINFOW
     sexi              = { };
@@ -457,15 +490,21 @@ SKIF_Startup_LaunchGame (void)
     sexi.lpParameters = _Signal._GameArgs.c_str();
     sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
     sexi.nShow        = SW_SHOW;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
+    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS | // SEE_MASK_NOCLOSEPROCESS because we need the PID
                         SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
 
   // Launch executable
   ShellExecuteExW (&sexi);
 
+  // Set the new process as foreground window
+  if (sexi.hInstApp > (HINSTANCE)32)
+    if (sexi.hProcess != NULL)
+      pidForegroundFocusOnExit = GetProcessId (sexi.hProcess);
+
   // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
   if (_Signal._RunningInstance)
   {
+    SKIF_Startup_SetGameAsForeground ( );
     PLOG_INFO << "Terminating as this instance has fulfilled its purpose.";
 
     ExitProcess (0x0);
@@ -1318,6 +1357,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (_registry._ExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
       static DWORD dwExitDelay = SKIF_Util_timeGetTime() + _registry._NotifyMessageDuration * 1000;
+      
+      SKIF_Startup_SetGameAsForeground ( );
 
       PLOG_INFO << "Terminating as the app is set to exit on injection...";
 
