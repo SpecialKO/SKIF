@@ -134,7 +134,7 @@ float4 main (PS_INPUT input) : SV_Target
   bool isHDR    = input.uv3.y > 0.0; // 10 bpc or 16 bpc HDR
   bool isSRGB   = input.uv3.w > 0.0; // scRGB 16 bpc SDR
   
-#if 1 // Test crap
+#if 0 // Test crap
   
   // Convert sRGB to Linear
   //if (isSRGB)
@@ -211,7 +211,7 @@ float4 main (PS_INPUT input) : SV_Target
   
   
   
-#if 0 // Live
+#if 1 // Live
   
   if (viewport.z > 0.f)
   {
