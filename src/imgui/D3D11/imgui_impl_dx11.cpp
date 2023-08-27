@@ -388,6 +388,7 @@ struct SK_IMGUI_D3D11StateBlock {
 struct ImGuiViewportDataDx11 {
   IDXGISwapChain1        *SwapChain;
   ID3D11RenderTargetView *RTView;
+  ID3D11Texture2D        *SRGBBackbuffer;
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
   int                     SDRMode;
@@ -399,7 +400,7 @@ struct ImGuiViewportDataDx11 {
   DXGI_OUTPUT_DESC1       DXGIDesc;
   DXGI_FORMAT             DXGIFormat;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; SRGBBackbuffer = nullptr; }
   ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
 
   FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
@@ -624,10 +625,10 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                        sizeof (mvp) );
     
     // Defaults
-    constant_buffer->luminance_scale [0] = 1.0f; // x - White Level
-    constant_buffer->luminance_scale [1] = 0.0f; // y - HDR (1.0f) / SDR (0.0f)
-    constant_buffer->luminance_scale [2] = 0.0f; // z - Black level (unused)
-    constant_buffer->luminance_scale [3] = 0.0f; // w - isSRGB
+    constant_buffer->luminance_scale [0] = 1.0f;
+    constant_buffer->luminance_scale [1] = 2.2f;
+    constant_buffer->luminance_scale [2] = 0.0f;
+    constant_buffer->luminance_scale [3] = 0.0f;
 
     ImGuiViewportDataDx11 *data =
       static_cast <ImGuiViewportDataDx11 *> (
@@ -639,13 +640,11 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     if (data->HDR)
     {
-      constant_buffer->luminance_scale [1] = 1.0f;
-
       // scRGB HDR 16 bpc
       if (data->HDRMode == 2)
       {
         constant_buffer->luminance_scale [0] = (_registry.iHDRBrightness          / 80.0f); // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
-      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
       }
 
       // HDR10
@@ -661,7 +660,7 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
       if (data->SDRWhiteLevel > 80)
       {
         constant_buffer->luminance_scale [0] = (data->SDRWhiteLevel               / 80.0f);
-      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+        constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
       }
 
       // SDR 16 bpc on SDR display
@@ -1028,7 +1027,7 @@ ImGui_ImplDX11_CreateDeviceObjects (void)
   blend_desc                                        = { };
   blend_desc.AlphaToCoverageEnable                  = false;
   blend_desc.RenderTarget [0].BlendEnable           = true;
-  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_SRC_ALPHA;
+  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_ONE;
   blend_desc.RenderTarget [0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
   blend_desc.RenderTarget [0].BlendOp               = D3D11_BLEND_OP_ADD;
   blend_desc.RenderTarget [0].SrcBlendAlpha         = D3D11_BLEND_ONE;
@@ -1450,8 +1449,36 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     data->SwapChain->GetBuffer ( 0, IID_PPV_ARGS (
                   &pBackBuffer.p                 )
                                );
-    g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
-                           &data->RTView );
+
+
+    if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+    {
+      D3D11_TEXTURE2D_DESC
+        texDesc                  = { };
+        texDesc.ArraySize        = 1;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Width            = swap_desc.Width;
+        texDesc.Height           = swap_desc.Height;
+        texDesc.Format           = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+        texDesc.MipLevels        = 1;
+        texDesc.BindFlags        = D3D11_BIND_RENDER_TARGET;
+
+      g_pd3dDevice->CreateTexture2D (&texDesc, nullptr, &data->SRGBBackbuffer);
+
+      D3D11_RENDER_TARGET_VIEW_DESC
+        rtvDesc               = { };
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Format        = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+      g_pd3dDevice->CreateRenderTargetView ( data->SRGBBackbuffer,
+                                               &rtvDesc, &data->RTView);
+    }
+
+    else
+    {
+      g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
+                             &data->RTView );
+    }
 
     // Only print swapchain info for the main swapchain
     extern HWND SKIF_ImGui_hWnd;
@@ -1559,6 +1586,10 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport)
         data->RTView->Release ();
         data->RTView = nullptr;
 
+    if (data->SRGBBackbuffer)
+        data->SRGBBackbuffer->Release ();
+        data->SRGBBackbuffer = nullptr;
+
     IM_DELETE (data);
   }
 
@@ -1580,6 +1611,12 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
     {
       data->RTView->Release ();
       data->RTView = nullptr;
+    }
+
+    if (data->SRGBBackbuffer)
+    {
+      data->SRGBBackbuffer->Release ();
+      data->SRGBBackbuffer = nullptr;
     }
 
     if (data->SwapChain)
@@ -1607,8 +1644,34 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
         return;
       }
 
-      g_pd3dDevice->CreateRenderTargetView ( pBackBuffer,
-                    nullptr, &data->RTView );
+      if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+      {
+        D3D11_TEXTURE2D_DESC
+          texDesc                  = { };
+          texDesc.ArraySize        = 1;
+          texDesc.SampleDesc.Count = 1;
+          texDesc.Width            = swap_desc.Width;
+          texDesc.Height           = swap_desc.Height;
+          texDesc.Format           = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+          texDesc.MipLevels        = 1;
+          texDesc.BindFlags        = D3D11_BIND_RENDER_TARGET;
+
+        g_pd3dDevice->CreateTexture2D (&texDesc, nullptr, &data->SRGBBackbuffer);
+
+        D3D11_RENDER_TARGET_VIEW_DESC
+          rtvDesc                  = { };
+          rtvDesc.ViewDimension    = D3D11_RTV_DIMENSION_TEXTURE2D;
+          rtvDesc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+        g_pd3dDevice->CreateRenderTargetView ( data->SRGBBackbuffer,
+                                                 &rtvDesc, &data->RTView);
+      }
+
+      else
+      {
+        g_pd3dDevice->CreateRenderTargetView ( pBackBuffer,
+                      nullptr, &data->RTView );
+      }
     }
   }
 }
@@ -1630,8 +1693,7 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
   }
 
   ImVec4 clear_color =
-    ImGui::GetStyle().Colors[ImGuiCol_WindowBg]; // Use the current window bg color to clear the RTV with
-  //ImVec4 (0.0f, 0.0f, 0.0f, 1.0f);
+    ImVec4 (0.0f, 0.0f, 0.0f, 1.0f);
 
   g_pd3dDeviceContext->OMSetRenderTargets ( 1,
                 &data->RTView,    nullptr );
@@ -1683,6 +1745,19 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
         PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
     }
 
+    if (data->SRGBBackbuffer != nullptr)
+    {
+      CComPtr <ID3D11Texture2D> pBackBuffer;
+      data->SwapChain->GetBuffer ( 0, IID_PPV_ARGS (
+                    &pBackBuffer.p
+                                                   )
+                                 );
+
+      if (pBackBuffer.p != nullptr)
+      {
+        g_pd3dDeviceContext->CopyResource (pBackBuffer.p, data->SRGBBackbuffer);
+      }
+    }
     //if (data->WaitHandle)
     //  WaitForSingleObject (data->WaitHandle, INFINITE);
 

@@ -73,7 +73,7 @@ static bool clickedGameLaunch,
             clickedGalaxyLaunch,
             clickedGalaxyLaunchWoSK = false,
             openedGameContextMenu   = false;
-const float fTintMin                = 0.75f;
+const float fTintMin                = 0.0f;
       float fTint                   = 1.0f;
       float fAlpha                  = 0.0f;
 
@@ -804,7 +804,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    ImVec4 (fTint, fTint, fTint, fAlpha),
+                                                    ImVec4 (1.0f, 1.0f, 1.0f, fTint * fAlpha),
                                   (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
@@ -831,6 +831,14 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool isHovered = ImGui::IsItemHovered();
   bool incTick = false;
   extern int startupFadeIn;
+
+  ImVec2 vPos22 = ImGui::GetCursorPos( );
+
+  ImGui::SetCursorPos(ImVec2(ImGui::GetWindowSize().x / 2 - 20.0f, 5.0f));
+
+  ImGui::Text("Alpha: %.2f", fTint);
+
+  ImGui::SetCursorPos(vPos22);
 
   if (startupFadeIn == 0 && pTexSRV.p != nullptr)
     startupFadeIn = 1;
