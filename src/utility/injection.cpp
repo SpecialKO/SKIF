@@ -77,8 +77,24 @@ InjectionTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
 
   // Translates threaded messages created before the window was created when used as a launcher
   //   into their proper window message counterparts.
-  if (hWnd == NULL && SKIF_ImGui_hWnd != NULL)
-    PostMessage (SKIF_ImGui_hWnd, Msg, (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK) ? cIDT_REFRESH_INJECTACK : cIDT_REFRESH_PENDING, NULL);
+  if (hWnd == NULL && SKIF_Notify_hWnd != NULL)
+  {
+    if (wParamIDEvent == _inject.IDT_REFRESH_INJECTACK)
+    {
+      PostMessage (SKIF_Notify_hWnd, Msg, cIDT_REFRESH_INJECTACK, NULL);
+    }
+    else if (wParamIDEvent == _inject.IDT_REFRESH_PENDING)
+    {
+      PostMessage (SKIF_Notify_hWnd, Msg, cIDT_REFRESH_PENDING,   NULL);
+    }
+    else
+      PLOG_DEBUG << "Unrecognized timer ID?!";
+  }
+
+  // Forward all timer triggers with a corresponding hWnd to their appropriate window
+  else {
+    PostMessage (hWnd, Msg, wParamIDEvent, NULL);
+  }
 }
 
 // Class Members
@@ -331,7 +347,7 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
   bAckInj = newState;
 
   // Close any existing timer
-  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_ImGui_hWnd : NULL, IDT_REFRESH_INJECTACK))
+  if (KillTimer ((IDT_REFRESH_INJECTACK == cIDT_REFRESH_INJECTACK) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_INJECTACK))
     IDT_REFRESH_INJECTACK = 0;
 
   // Close any existing handles
@@ -346,12 +362,17 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
                                                                               : LR"(Local\SKIF_InjectAck)")
     );
 
-    IDT_REFRESH_INJECTACK =
-      SetTimer (SKIF_ImGui_hWnd,
-                cIDT_REFRESH_INJECTACK,
-                1000,
-                (TIMERPROC) &InjectionTimerProc
-      );
+#if 0
+    // Set up a periodic refresh until the injection gets acknowledged
+    // Shouldn't be necessary after 2023-08-27 and the implementation of WM_SKIF_EVENT_SIGNAL
+    if (IDT_REFRESH_INJECTACK == 0)
+      IDT_REFRESH_INJECTACK =
+        SetTimer (SKIF_Notify_hWnd,
+                  cIDT_REFRESH_INJECTACK,
+                  1000,
+                  (TIMERPROC) &InjectionTimerProc
+        );
+#endif
   }
 }
 
@@ -489,10 +510,10 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     // Set up a periodic refresh since we are pending a new state
     if (IDT_REFRESH_PENDING == 0)
       IDT_REFRESH_PENDING =
-        SetTimer (SKIF_ImGui_hWnd,
-                cIDT_REFRESH_PENDING,
-                500,
-                (TIMERPROC) &InjectionTimerProc
+        SetTimer (SKIF_Notify_hWnd,
+                  cIDT_REFRESH_PENDING,
+                  500,
+                  (TIMERPROC) &InjectionTimerProc
       );
   }
 

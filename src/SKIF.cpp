@@ -3472,12 +3472,14 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     // Custom refresh window messages
     case WM_SKIF_POWERMODE:
+      break;
     case WM_SKIF_EVENT_SIGNAL:
         addAdditionalFrames += 3;
+        OutputDebugString(L"WM_SKIF_EVENT_SIGNAL from SKIF_Notify_hWnd\n");
       break;
 
     case WM_TIMER:
-      msgDontRedraw = false;
+      addAdditionalFrames += 3;
       switch (wParam)
       {
         case IDT_REFRESH_NOTIFY:
@@ -3486,7 +3488,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case IDT_REFRESH_TOOLTIP:
           // Do not redraw if SKIF is not being hovered by the mouse or a hover tip is not longer "active" any longer
           if (! SKIF_ImGui_IsMouseHovered ( ) || ! HoverTipActive)
+          {
             msgDontRedraw = true;
+            addAdditionalFrames -= 3; // Undo the 3 frames we added just above
+          }
           
           KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
           break;
@@ -3497,9 +3502,15 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
           }
           break;
+        // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
+        case cIDT_REFRESH_INJECTACK:
+          OutputDebugString(L"cIDT_REFRESH_INJECTACK\n");
+          break;
         case cIDT_REFRESH_PENDING:
+          OutputDebugString(L"cIDT_REFRESH_PENDING\n");
+          break;
         case  IDT_REFRESH_UPDATER:
-          // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
+          OutputDebugString(L"IDT_REFRESH_UPDATER\n");
           break;
       }
       break;

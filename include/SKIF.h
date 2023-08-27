@@ -39,8 +39,8 @@
 
 // Constants - Timers / Window Messages / HotKeys / Windows
 
-const     UINT_PTR       cIDT_REFRESH_INJECTACK =             1337; // Refresh every 1000ms if we expect an injection acknowledgement anytime soon **MAY BE REMOVED AGAIN -- Feels like an obsolete approach with SK posting window messages on events**
-const     UINT_PTR       cIDT_REFRESH_PENDING   =             1338; // Refresh every 1000ms since a new service state is pending
+const     UINT_PTR       cIDT_REFRESH_INJECTACK =             1337; // Refresh every  500 ms if we expect an injection acknowledgement anytime soon **MAY BE REMOVED AGAIN -- Feels like an obsolete approach with SK posting window messages on events**
+const     UINT_PTR       cIDT_REFRESH_PENDING   =             1338; // Refresh every 1000 ms since a new service state is pending
 const     UINT_PTR        IDT_REFRESH_GAMES     =             1340;
 const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
 const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
@@ -63,7 +63,7 @@ constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater w
 
 // Callbacks / Event Signals
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052; // Used to signal that a new effective power mode has been applied
-constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Proposed window message for SK to post when it has signaled one of the various acknowledgement events
+constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Window message Special K posts when it has signaled one of the various acknowledgement events
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
