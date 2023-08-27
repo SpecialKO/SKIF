@@ -69,7 +69,7 @@ constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + 
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
 
 constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
-constexpr const wchar_t* SKIF_WindowClass       = L"SKIF_RootWindow";
+//constexpr const wchar_t* SKIF_WindowClass     = L"SKIF_RootWindow"; // Not actually used any longer
 constexpr const wchar_t* SKIF_NotifyIcoClass    = L"SKIF_NotificationIcon";
 
 // Enums
