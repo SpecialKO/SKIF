@@ -231,9 +231,6 @@
     <ClInclude Include="resources\images\sk_icon.jpg.h">
       <Filter>Resource Files\Images</Filter>
     </ClInclude>
-    <ClInclude Include="resources\shaders\imgui_vtx.h">
-      <Filter>Resource Files\Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="include\stores\Epic\epic_library.h">
       <Filter>Header Files\Stores\Epic</Filter>
     </ClInclude>
