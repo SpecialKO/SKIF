@@ -205,14 +205,14 @@ SKIF_Startup_SetGameAsForeground (void)
   
   _pid = 0;
 
+  if (hWndForegroundFocusOnExit != nullptr &&
+      hWndForegroundFocusOnExit == GetForegroundWindow ())
+    return;
+
   if (GetWindowThreadProcessId (GetForegroundWindow (), &_pid))
   {
     // This is a nop, bail-out before screwing things up even more
     if (_pid == pidForegroundFocusOnExit)
-      return;
-
-    if (hWndForegroundFocusOnExit != nullptr &&
-        hWndForegroundFocusOnExit == GetForegroundWindow ())
       return;
   }
 
