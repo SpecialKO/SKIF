@@ -207,14 +207,29 @@ SKIF_Startup_SetGameAsForeground (void)
 
   if (hWndForegroundFocusOnExit != nullptr &&
       hWndForegroundFocusOnExit == GetForegroundWindow ())
+  {
+    // This is a nop, bail-out before screwing things up even more
+    PLOG_VERBOSE << "hWndForegroundFocusOnExit is the foreground window already";
     return;
+  }
 
   if (GetWindowThreadProcessId (GetForegroundWindow (), &_pid))
   {
-    // This is a nop, bail-out before screwing things up even more
     if (_pid == pidForegroundFocusOnExit)
+    {
+      // This is a nop, bail-out before screwing things up even more
+      PLOG_VERBOSE << "pidForegroundFocusOnExit is the foreground window already";
       return;
+    }
   }
+
+  if (SKIF_ImGui_hWnd != NULL && 
+      SKIF_ImGui_hWnd == GetForegroundWindow ( ))
+    PLOG_VERBOSE << "SKIF_ImGui_hWnd is the foreground window";
+  
+  if (SKIF_Notify_hWnd != NULL && 
+      SKIF_Notify_hWnd == GetForegroundWindow ( ))
+    PLOG_VERBOSE << "SKIF_Notify_hWnd is the foreground window";
 
   PLOG_INFO << "Attempting to find game window to set as foreground...";
 
