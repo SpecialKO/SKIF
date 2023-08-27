@@ -195,32 +195,66 @@ HWND        SKIF_Notify_hWnd   = NULL;
 CONDITION_VARIABLE SKIF_IsFocused    = { };
 
 HWND  hWndOrigForeground;
-DWORD pidForegroundFocusOnExit = NULL; // Used to hold the game process ID that SKIF launched
+HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
+DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID that SKIF launched
 
 void
 SKIF_Startup_SetGameAsForeground (void)
 {
+  static DWORD _pid;
+  
+  _pid = 0;
+
+  if (GetWindowThreadProcessId (GetForegroundWindow (), &_pid))
+  {
+    // This is a nop, bail-out before screwing things up even more
+    if (_pid == pidForegroundFocusOnExit)
+      return;
+  }
+
   PLOG_INFO << "Attempting to find game window to set as foreground...";
 
+  // Primary approach -- use the HWND reported by Special K
+  if (hWndForegroundFocusOnExit != nullptr)
+  {
+    if (IsWindow (hWndForegroundFocusOnExit))
+    {
+      PLOG_INFO << "Special K reported a game window, setting as foreground...";
+      if (! SetForegroundWindow (hWndForegroundFocusOnExit))
+        PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+      return;
+    }
+  }
+
+  // Fallback approach
   EnumWindows ( []( HWND   hWnd,
                     LPARAM lParam ) -> BOOL
   {
-    DWORD _pid = NULL;
-          
     if (GetWindowThreadProcessId (hWnd, &_pid))
     {
       if (_pid != NULL && 
           _pid == (DWORD)lParam)
       {
-        PLOG_INFO << "Found game window!";
-        if (! SetForegroundWindow (hWnd))
-          PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+        PLOG_INFO << "Found game window, setting as foreground...";
 
-        return FALSE; // Stop enumeration
+        // Try to make this awful thing more reliable, by narrowing down the candidates to
+        //   windows that show up in the taskbar when they're activated.
+        LONG_PTR dwExStyle =
+          GetWindowLongPtrW (hWnd, GWL_EXSTYLE);
+
+        // If it doesn't have this style, then don't set it foreground.
+        if (dwExStyle & WS_EX_APPWINDOW)
+        {
+          if (! SetForegroundWindow (hWnd))
+            PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+
+          return FALSE; // Stop enumeration
+        }
       }
     }
     return TRUE;
   }, (LPARAM)pidForegroundFocusOnExit);
+
 }
 
 void
@@ -1040,7 +1074,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   */
 
   SKIF_Notify_hWnd      =
-    CreateWindowExW (                                 WS_EX_NOACTIVATE,
+    CreateWindowExW (                                            WS_EX_NOACTIVATE,
       wcNotify.lpszClassName, _T("Special K Notification Icon"), WS_ICONIC,
                          0, 0,
                          0, 0,
@@ -3516,6 +3550,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
     case WM_SKIF_EVENT_SIGNAL:
         addAdditionalFrames += 3;
+
+        if ((HWND)wParam != nullptr)
+          hWndForegroundFocusOnExit = (HWND)wParam;
       break;
 
     case WM_TIMER:
