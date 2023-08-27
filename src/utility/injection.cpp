@@ -357,9 +357,10 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
                                                                               : LR"(Local\SKIF_InjectAck)")
     );
 
-#if 0
+#if 1
     // Set up a periodic refresh until the injection gets acknowledged
     // Shouldn't be necessary after 2023-08-27 and the implementation of WM_SKIF_EVENT_SIGNAL
+    // Might still be necessary due to annoying focus bugs?
     if (IDT_REFRESH_INJECTACK == 0)
       IDT_REFRESH_INJECTACK =
         SetTimer (SKIF_Notify_hWnd,
