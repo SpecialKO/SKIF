@@ -65,6 +65,7 @@
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
+bool RecreateWin32Windows  = false;
 bool RepositionSKIF        = false;
 bool RespectMonBoundaries  = false;
 bool changedHiDPIScaling   = false;
@@ -1191,11 +1192,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigViewportsNoDecoration     = false;
 
 
-  if (_registry.bDisableDPIScaling)
+#if 0
+  if (! _registry.bDPIScaling)
   {
-  //io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
-  //io.ConfigFlags |=  ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
+    //io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
+    //io.ConfigFlags |=  ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
   }
+#endif
 
   // Setup Dear ImGui style
   ImGuiStyle& style =
@@ -1230,11 +1233,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
-  if ( ! _registry.bDisableStatusBar )
+  if (_registry.bUIStatusBar)
   {
     SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
-    if (_registry.bDisableTooltips)
+    if (! _registry.bUITooltips)
       SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
   }
 
@@ -1456,14 +1459,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (   changedHiDPIScaling ||
           ( io.KeysDown[VK_F6]  &&  io.KeysDownDuration[VK_F6]  == 0.0f))
     {
-      // We only change bDisableDPIScaling if ImGui::Checkbox (settings tab) was not used,
+      // We only change bDPIScaling if ImGui::Checkbox (settings tab) was not used,
       //   as otherwise it have already been changed to reflect its new value
       if (! changedHiDPIScaling)
-        _registry.bDisableDPIScaling = ! _registry.bDisableDPIScaling;
+        _registry.bDPIScaling =        ! _registry.bDPIScaling;
+      _registry.regKVDPIScaling.putData (_registry.bDPIScaling);
 
       changedHiDPIScaling = false;
-
-      _registry.regKVDisableDPIScaling.putData (_registry.bDisableDPIScaling);
 
       // Reset reduced height
       SKIF_vecAlteredSize.y = 0.0f;
@@ -1472,7 +1474,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HMONITOR monitor =
         ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
         
-      SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui_ImplWin32_GetDpiScaleForMonitor (monitor);
+      SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForMonitor (monitor) : 1.0f;
 
       ImGuiStyle              newStyle;
       SKIF_ImGui_SetStyle   (&newStyle);
@@ -1502,8 +1504,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // F8 to toggle UI borders
     if (( io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f))
     {
-      _registry.bDisableBorders = ! _registry.bDisableBorders;
-      _registry.regKVDisableBorders.putData (_registry.bDisableBorders);
+      _registry.bUIBorders = ! _registry.bUIBorders;
+      _registry.regKVUIBorders.putData (_registry.bUIBorders);
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
@@ -1609,7 +1611,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (t.Contains (os_pos))
             {
               rectCursorMonitor = t;
-              SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : tmpMonitor.DpiScale;
+              SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? tmpMonitor.DpiScale : 1.0f;
             }
           }
         }
@@ -1700,7 +1702,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_vecAlteredSize.y = 0.0f;
 
           // This is only necessary to run once on launch, to account for the startup display DPI
-          SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui::GetWindowViewport()->DpiScale);
+          SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
           if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
             SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
@@ -2094,12 +2096,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Add a separation in Large Mode
         
         // This counteracts math performed on SKIF_vecAppMode.y at the beginning of the frame
-        if ( ! _registry.bDisableStatusBar )
+        if (_registry.bUIStatusBar)
         {
           /* 2023-08-01: Disabled in favor of just using current cursor pos
           float statusBarY  = ImGui::GetWindowSize ( ).y;
                 statusBarY -= (SKIF_fStatusBarHeight) * SKIF_ImGui_GlobalDPIScale;
-                statusBarY -= (_registry.bDisableTooltips)   ? SKIF_fStatusBarHeightTips * SKIF_ImGui_GlobalDPIScale : 0.0f;
+                statusBarY -= (_registry.bUITooltips) ? 0.0f : SKIF_fStatusBarHeightTips * SKIF_ImGui_GlobalDPIScale;
           ImGui::SetCursorPosY (statusBarY);
           */
 
@@ -2113,7 +2115,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // End Separation
         
         // Status Bar at the bottom
-        if ( ! _registry.bDisableStatusBar )
+        if (_registry.bUIStatusBar)
         {
           // Begin Add Game
           ImVec2 tmpPos = ImGui::GetCursorPos ( );
@@ -2777,6 +2779,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Update, Render and Present the main and any additional Platform Windows
       if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
       {
+        if (RecreateWin32Windows)
+        {   RecreateWin32Windows = false;
+          
+          // If the Win32 windows should be recreated, we set the LastFrameActive to 0 here to
+          //   force ImGui::UpdatePlatformWindows() below to recreate them.
+          for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)
+          {
+            ImGuiViewportP* viewport = ImGui::GetCurrentContext()->Viewports[i];
+            viewport->LastFrameActive = 0;
+          }
+        }
+
         ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
         ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
 
@@ -2784,25 +2798,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (runOnce && SKIF_ImGui_hWnd != NULL)
         {   runOnce = false;
 
-          /*
-          // Show the window
-          if (! SKIF_isTrayed)
-          {
-            ShowWindow   (SKIF_ImGui_hWnd, nCmdShow);
-            UpdateWindow (SKIF_ImGui_hWnd);
-          }
-          */
-
           SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
           //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
-
-          /* 2023-07-18: Should no longer be needed?
-          if (! IsIconic (SKIF_hWnd) && SKIF_hWnd == GetForegroundWindow ())
-          {
-            PLOG_DEBUG << "Applied keyboard focus workaround for the overarching ImGui platform window";
-            SetFocus (SKIF_ImGui_hWnd);
-          }
-          */
         }
       }
     }

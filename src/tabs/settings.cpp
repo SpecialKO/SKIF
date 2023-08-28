@@ -811,6 +811,9 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
                               );
 
+    extern bool RecreateSwapChains;
+    extern bool RecreateWin32Windows;
+
     //ImGui::Spacing    ( );
 
     SKIF_ImGui_Spacing      ( );
@@ -898,13 +901,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine        ( );
     ImGui::TextColored     (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Disable UI elements:"
+        "UI elements:"
     );
     ImGui::TreePush        ("");
 
-    if (ImGui::Checkbox ("Borders", &_registry.bDisableBorders))
+    if (ImGui::Checkbox ("Borders",    &_registry.bUIBorders))
     {
-      _registry.regKVDisableBorders.putData (  _registry.bDisableBorders);
+      _registry.regKVUIBorders.putData (_registry.bUIBorders);
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
@@ -914,9 +917,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("Tooltips", &_registry.bDisableTooltips))
+    if (ImGui::Checkbox ("Tooltips",    &_registry.bUITooltips))
     {
-      _registry.regKVDisableTooltips.putData (  _registry.bDisableTooltips);
+      _registry.regKVUITooltips.putData (_registry.bUITooltips);
 
       extern ImVec2 SKIF_vecAppModeDefault;
       extern ImVec2 SKIF_vecAppModeAdjusted;
@@ -929,11 +932,11 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
 
       // Add the status bar if it is not disabled
-      if ( ! _registry.bDisableStatusBar )
+      if (_registry.bUIStatusBar)
       {
         SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
-        if (_registry.bDisableTooltips)
+        if (! _registry.bUITooltips)
           SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
       }
 
@@ -962,17 +965,17 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::IsItemHovered ())
       SKIF_StatusBarText = "Info: ";
 
-    SKIF_ImGui_SetHoverText ("This is where the info will be displayed.");
-    SKIF_ImGui_SetHoverTip  ("The info will instead be displayed in the status bar at the bottom."
-                              "\nNote that some links cannot be previewed as a result.");
+    SKIF_ImGui_SetHoverText ("This is instead where additional information will be displayed.");
+    SKIF_ImGui_SetHoverTip  ("If tooltips are disabled the status bar will be used for additional information.\n"
+                             "Note that some links cannot be previewed as a result.");
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("Status bar", &_registry.bDisableStatusBar))
+    if (ImGui::Checkbox ("Status bar",   &_registry.bUIStatusBar))
     {
-      _registry.regKVDisableStatusBar.putData (   _registry.bDisableStatusBar);
+      _registry.regKVUIStatusBar.putData (_registry.bUIStatusBar);
 
       extern ImVec2 SKIF_vecAppModeDefault;
       extern ImVec2 SKIF_vecAppModeAdjusted;
@@ -985,11 +988,11 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
 
       // Add the status bar if it is not disabled
-      if ( ! _registry.bDisableStatusBar )
+      if (_registry.bUIStatusBar)
       {
         SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
 
-        if (_registry.bDisableTooltips)
+        if (! _registry.bUITooltips)
           SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
       }
 
@@ -1016,14 +1019,14 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     SKIF_ImGui_SetHoverTip (
-      "Combining this with disabled UI tooltips will hide all context based information or tips."
+      "Disabling the status bar as well as tooltips will hide all additional information or tips."
     );
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDisableDPIScaling))
+    if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDPIScaling))
     {
       extern bool
         changedHiDPIScaling;
@@ -1031,11 +1034,22 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     SKIF_ImGui_SetHoverTip (
-      "This application will appear smaller on HiDPI monitors."
+      "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
     );
 
-    if (_registry.bDisableTooltips &&
-        _registry.bDisableStatusBar)
+    if (SKIF_Util_IsWindows11orGreater ( ))
+    {
+      if ( ImGui::Checkbox ( "Win11 Corners", &_registry.bWin11Corners) )
+      {
+        _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
+        
+        // Force recreating the window on changes
+        RecreateWin32Windows = true;
+      }
+    }
+
+    if (! _registry.bUITooltips &&
+        ! _registry.bUIStatusBar)
     {
       ImGui::BeginGroup     ( );
       ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
@@ -1049,8 +1063,6 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::NextColumn    ( );
 
     ImGui::TreePush      ( );
-
-    extern bool RecreateSwapChains;
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1361,12 +1373,6 @@ SKIF_UI_Tab_DrawSettings (void)
                                                       &_registry.bAllowBackgroundService))
       _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
 
-    if (SKIF_Util_IsWindows11orGreater ( ))
-    {
-      if ( ImGui::Checkbox ( "Enable Win11 rounded corners (may be buggy; restart required)", &_registry.bWin11Corners) )
-        _registry.regKVWin11Corners.putData (                                                  _registry.bWin11Corners);
-    }
-
     ImGui::TreePop          ( );
 
     ImGui::Columns          (1);
@@ -1486,7 +1492,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine   (); ImGui::Text ("Note that these lists do not prevent Special K from being injected into processes.");
     ImGui::EndGroup   ();
 
-    if (_registry.bDisableTooltips)
+    if (! _registry.bUITooltips)
     {
       SKIF_ImGui_SetHoverTip (
         "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,"

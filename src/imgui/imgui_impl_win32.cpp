@@ -605,9 +605,10 @@ void ImGui_ImplWin32_UpdateGamepads ( )
 
     // Don't poll the gamepad when we're not focused.
     if (dwWindowOwnerPid != dwPidOfMe)
-      return;
-    else
+    {
       PLOG_VERBOSE << "g_Focused is out-of-sync!";
+      return;
+    }
   }
 
   // ----
@@ -820,7 +821,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       g_Focused = true;
       gamepadThreadAwake.store (1);
       //OutputDebugString(L"Gained focus\n");
-      //PLOG_VERBOSE << "Gained focus";
+      PLOG_VERBOSE << "Gained focus";
 
       extern CONDITION_VARIABLE  SKIF_IsFocused;
       WakeAllConditionVariable (&SKIF_IsFocused);
@@ -848,7 +849,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
       g_Focused = false;
       gamepadThreadAwake.store (0);
       //OutputDebugString(L"Killed focus\n");
-      //PLOG_VERBOSE << "Killed focus";
+      PLOG_VERBOSE << "Killed focus";
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );
@@ -1077,7 +1078,7 @@ ImGui_ImplWin32_SetDWMBorders (void* hwnd)
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   
-  if (! _registry.bWin11Corners) // && _registry.iSDRMode != 2 && _registry.iHDRMode != 2)
+  if (! _registry.bWin11Corners)
     return;
 
   DWM_WINDOW_CORNER_PREFERENCE
@@ -1093,7 +1094,7 @@ ImGui_ImplWin32_SetDWMBorders (void* hwnd)
   extern HWND
       SKIF_ImGui_hWnd;
   if (SKIF_ImGui_hWnd ==       NULL ||
-      SKIF_ImGui_hWnd == (HWND)hwnd) // ! ::IsWindow (SKIF_ImGui_hWnd))
+      SKIF_ImGui_hWnd == (HWND)hwnd)
     dwmCornerPreference = DWMWCP_ROUND;      // Main window
   else
     dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
@@ -1287,7 +1288,7 @@ ImGui_ImplWin32_CreateWindow (ImGuiViewport *viewport)
     SKIF_ImGui_hWnd = data->Hwnd;
 
     // Retrieve the DPI scaling of the current display
-    SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd);
+    SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (data->Hwnd) : 1.0f;
 
     // Update the style scaling to reflect the current DPI scaling
     ImGuiStyle              newStyle;
@@ -1893,7 +1894,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
             {
               ImVec2 tmpExpectedSize = ImVec2 (0.0f, 0.0f);
 
-              float targetDPI = (_registry.bDisableDPIScaling) ? 1.0f : targetMonitor.DpiScale;
+              float targetDPI = (_registry.bDPIScaling) ? targetMonitor.DpiScale : 1.0f;
 
               if (! _registry.bServiceMode)
               {
@@ -1948,7 +1949,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
         ///*
         // Update the style scaling
-        SKIF_ImGui_GlobalDPIScale = (_registry.bDisableDPIScaling) ? 1.0f : (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+        SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? (float) g_dpi / USER_DEFAULT_SCREEN_DPI : 1.0f;
 
         ImGuiStyle              newStyle;
         extern void

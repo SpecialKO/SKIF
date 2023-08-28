@@ -1622,8 +1622,9 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
   
-  if (data->SwapChain == nullptr ||
-      data->RTView    == nullptr  )
+  if (data            == nullptr || // Win32 window was destroyed
+      data->SwapChain == nullptr || // Swapchain was destroyed
+      data->RTView    == nullptr)   // Render target view was destroyed
   {
     RecreateSwapChains = true;
     return;
@@ -1657,7 +1658,8 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
                       viewport->RendererUserData
     );
 
-  if (data->SwapChain != nullptr)
+  if (data            != nullptr && // Win32 window was destroyed
+      data->SwapChain != nullptr)   // Swapchain was destroyed
   {
     DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
     data->SwapChain->GetDesc1 (&swap_desc);

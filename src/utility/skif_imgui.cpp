@@ -88,7 +88,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_ScrollbarGrabActive]    = colors[ImGuiCol_HeaderActive];  //ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
 
   // Separators
-  if (_registry.bDisableBorders)
+  if (! _registry.bUIBorders)
     colors[ImGuiCol_Separator]            = ImVec4(0.15f, 0.15f, 0.15f, 1.00f); // colors[ImGuiCol_WindowBg];
   else
     colors[ImGuiCol_Separator]            = colors[ImGuiCol_Border];
@@ -301,7 +301,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   {
    // itemHovered = szText;
 
-    if (! _registry.bDisableTooltips || ignoreDisabledTooltips)
+    if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
       ImGui::PushStyleColor (ImGuiCol_PopupBg, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
       ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
@@ -887,7 +887,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   dst->TabRounding     = dst->WindowRounding;
   dst->FrameRounding   = dst->WindowRounding;
   
-  if (_registry.bDisableBorders)
+  if (! _registry.bUIBorders)
   {
     dst->TabBorderSize   = 0.0F;
     dst->FrameBorderSize = 0.0F;

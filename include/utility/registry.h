@@ -180,29 +180,33 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
 
-  KeyValue <bool> regKVDisableDPIScaling =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable DPI Scaling)" );
-
   KeyValue <bool> regKVEnableDebugMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Enable Debug Mode)" );
+
+  // UI elements that can be toggled
+
+  KeyValue <bool> regKVUIBorders =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Borders)" );
+
+  KeyValue <bool> regKVUITooltips =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Tooltips)" );
+
+  KeyValue <bool> regKVUIStatusBar =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Status Bar)" );
+
+  KeyValue <bool> regKVDPIScaling =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(DPI Scaling)" );
 
   KeyValue <bool> regKVWin11Corners =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Win11 Corners)" );
 
-  KeyValue <bool> regKVDisableTooltips =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable Tooltips)" );
-
-  KeyValue <bool> regKVDisableStatusBar =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable Status Bar)" );
-
-  KeyValue <bool> regKVDisableBorders =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable UI Borders)" );
+  // Store libraries
 
   KeyValue <bool> regKVDisableSteamLibrary =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -387,18 +391,21 @@ struct SKIF_RegistrySettings {
 
   // Default settings (booleans)
   bool bRememberLastSelected    = false;
-  bool bDisableDPIScaling       = false;
-  bool bDisableTooltips         = false;
-  bool bDisableStatusBar        = false;
-  bool bDisableBorders          =  true; // default to true
+
+  bool bUIBorders               = false;
+  bool bUITooltips              =  true;
+  bool bUIStatusBar             =  true;
+  bool bDPIScaling              =  true;
+  bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
+
   bool bDisableSteamLibrary     = false;
   bool bDisableEGSLibrary       = false;
   bool bDisableGOGLibrary       = false;
   bool bDisableXboxLibrary      = false;
+
   bool bServiceMode             = false;
   bool bFirstLaunch             = false;
   bool bEnableDebugMode         = false;
-  bool bWin11Corners            = false;
   bool bAllowMultipleInstances  = false;
   bool bAllowBackgroundService  = false;
   bool bOpenAtCursorPosition    = false;

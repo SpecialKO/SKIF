@@ -805,7 +805,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
                                                     ImVec4 (fTint, fTint, fTint, fAlpha),
-                                  (! _registry.bDisableBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
+                                  (_registry.bUIBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
   );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
@@ -2329,7 +2329,7 @@ Cache=false)";
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                         _HEIGHT ), (! _registry.bDisableBorders),
+                                         _HEIGHT ), (_registry.bUIBorders),
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding ); // | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
@@ -2656,7 +2656,7 @@ Cache=false)";
 
 #pragma region GamesList::AddGame
 
-  if (_registry.bDisableStatusBar)
+  if (! _registry.bUIStatusBar)
   {
     float fOriginalY =
       ImGui::GetCursorPosY ( );
@@ -3120,7 +3120,7 @@ Cache=false)";
   ImGui::BeginChild (
     "###AppListInset2",
       ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-               _HEIGHT2 ), (! _registry.bDisableBorders),
+               _HEIGHT2 ), (_registry.bUIBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NavFlattened      |
@@ -3342,7 +3342,7 @@ Cache=false)";
                                                                           : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
     ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
                                                           200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                                      (! _registry.bDisableBorders),
+                                                                      (_registry.bUIBorders),
                                                       ImGuiWindowFlags_NoScrollbar            |
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
                         ((pApp->textures.isCustomCover) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground));

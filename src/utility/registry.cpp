@@ -151,10 +151,22 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData ( );
   bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch  .getData ( );
+  
+  // UI elements that can be toggled
 
-  bDisableDPIScaling       =   regKVDisableDPIScaling      .getData ( );
-  bDisableTooltips         =   regKVDisableTooltips        .getData ( );
-  bDisableStatusBar        =   regKVDisableStatusBar       .getData ( );
+  if (regKVUIBorders.hasData())
+    bUIBorders             =   regKVUIBorders              .getData ( );
+  if (regKVUITooltips.hasData())
+    bUITooltips            =   regKVUITooltips             .getData ( );
+  if (regKVUIStatusBar.hasData())
+    bUIStatusBar           =   regKVUIStatusBar            .getData ( );
+  if (regKVDPIScaling.hasData())
+    bDPIScaling            =   regKVDPIScaling             .getData ( );
+  if (regKVWin11Corners.hasData())
+    bWin11Corners          =   regKVWin11Corners           .getData ( );
+
+  // Store libraries
+
   bDisableSteamLibrary     =   regKVDisableSteamLibrary    .getData ( );
   bDisableEGSLibrary       =   regKVDisableEGSLibrary      .getData ( );
   bDisableGOGLibrary       =   regKVDisableGOGLibrary      .getData ( );
@@ -163,7 +175,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bDisableXboxLibrary    =   regKVDisableXboxLibrary     .getData ( );
 
   bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
-  bWin11Corners            =   regKVWin11Corners           .getData ( );
 //bServiceMode             =   regKVServiceMode            .getData ( );
   bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData ( );
   bFirstLaunch             =   regKVFirstLaunch            .getData ( );
@@ -206,9 +217,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   {     bAllowMultipleInstances = false;
     regKVAllowMultipleInstances .putData (bAllowMultipleInstances);
   }
-
-  if (regKVDisableBorders.hasData())
-    bDisableBorders        =   regKVDisableBorders         .getData ( );
 
   if (regKVAutoStopBehavior.hasData())
     iAutoStopBehavior      =   regKVAutoStopBehavior       .getData ( );
