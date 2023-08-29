@@ -1218,6 +1218,7 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_ex_style |= WS_EX_TOPMOST;
 
   // This flag is Windows 8+, and only applicable to flip swapchains
+  // Using this flag breaks GDI based swapchains (BitBlt Discard, DXVK, OpenGL, Vulkan, etc)
   if (SKIF_Util_IsWindows8Point1OrGreater ( ) && _registry.iUIMode > 0)
     *out_ex_style |= WS_EX_NOREDIRECTIONBITMAP;
 
