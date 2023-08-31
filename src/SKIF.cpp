@@ -175,7 +175,7 @@ bool                CreateDeviceD3D                           (HWND hWnd);
 void                CleanupDeviceD3D                          (void);
 LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-void                SKIF_Initialize                           (void);
+void                SKIF_Initialize                           (LPWSTR lpCmdLine);
 
 CHandle hInjectAck       (0); // Signalled when injection service should be stopped
 CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (minimizes SKIF)
@@ -759,7 +759,7 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 }
 
 
-void SKIF_Initialize (void)
+void SKIF_Initialize (LPWSTR lpCmdLine)
 {
   static bool isInitalized = false;
 
@@ -874,6 +874,7 @@ void SKIF_Initialize (void)
   PLOG_INFO << "Old:                " << _path_cache.skif_workdir_org;
   PLOG_INFO << "New:                " << std::filesystem::current_path ();
   PLOG_INFO << "SKIF executable:    " << _path_cache.skif_executable;
+  PLOG_INFO << "Launch arguments:   " << lpCmdLine;
   PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
   PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
   PLOG_INFO << SKIF_LOG_SEPARATOR;
@@ -909,24 +910,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
-  /*
-  if (! SKIF_Util_IsWindows8Point1OrGreater ( ))
-  {
-    PLOG_INFO << "Unsupported version of Windows detected. Special K requires at least Windows 8.1; please update to a newer version.";
-    MessageBox (NULL, L"Special K requires at least Windows 8.1\nPlease update to a newer version of Windows.", L"Unsupported Windows", MB_OK | MB_ICONERROR);
-    return 0;
-  }
-  */
-
-  // 2023-04-05: Shouldn't be needed as DPI-awareness is set through the embedded appmanifest file // Aemony
-  //ImGui_ImplWin32_EnableDpiAwareness ();
-
-  /* 2023-04-05: I'm pretty sure this block is unnecessary // Aemony
-  GetSystemMetricsForDpi =
-   (GetSystemMetricsForDpi_pfn)GetProcAddress (GetModuleHandle (L"user32.dll"),
-   "GetSystemMetricsForDpi");
-  */
-
   CoInitializeEx (nullptr, 0x0);
 
   if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
@@ -956,7 +939,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
 
   // Initialize SKIF
-  SKIF_Initialize ( ); // Relies on _path_cache and sets up logging
+  SKIF_Initialize (lpCmdLine); // Relies on _path_cache and sets up logging
 
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
