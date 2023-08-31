@@ -1023,12 +1023,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::TreePush ("");
 
-  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the injection service as well", &bAutoStartService))
-    changes = true;
-    
-
   if (ImGui::Checkbox((_registry.bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
                                                  " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+    changes = true;
+
+  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the injection service as well", &bAutoStartService))
     changes = true;
 
   ImGui::TreePop  ( );
