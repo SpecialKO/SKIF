@@ -991,7 +991,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_nCmdShow = nCmdShow;
 
   // Check if Controlled Folder Access is enabled
-  if (! _Signal.Launcher)
+  if (! _Signal.Launcher && ! _Signal.Quit)
   {
     if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess())
     {
@@ -1128,6 +1128,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //   let us start in small mode
       //if (_Signal.Start)
       //  _registry.bServiceMode = true;
+      
+      // If we are intending to quit, let us
+      //   start in small mode so that the
+      //     updater etc are not executed...
+      if (_Signal.Quit)
+        _registry.bServiceMode = true;
     }
   }
 
@@ -1139,7 +1145,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Register to be notified if the effective power mode changes
-  SKIF_Util_SetEffectivePowerModeNotifications (true);
+  //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
 
   // Show the window
   /*
@@ -1228,7 +1234,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
   // Initialize ImGui fonts
-  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher) );
+  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.Quit) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
@@ -1244,7 +1250,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          SKIF_Updater::GetInstance ( );
 
   // Register hotkeys
-  if (! _Signal.Launcher)
+  if (! _Signal.Launcher && ! _Signal.Quit)
   {
     // Register HDR toggle hotkey (if applicable)
     SKIF_Util_RegisterHotKeyHDRToggle ( );
@@ -1771,8 +1777,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             HistoryPopup = PopupState_Open;
 
           // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
-          if (_Signal.Launcher)
-          {   _Signal.Launcher = false;
+          if (_Signal.Launcher || _Signal.Quit)
+          {   _Signal.Launcher =  _Signal.Quit = false;
 
             // Register HDR toggle hotkey (if applicable)
             SKIF_Util_RegisterHotKeyHDRToggle ( );
@@ -3068,7 +3074,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
   SKIF_Util_UnregisterHotKeySVCTemp   ( );
-  SKIF_Util_SetEffectivePowerModeNotifications (false);
+  //SKIF_Util_SetEffectivePowerModeNotifications (false); // (this serves no purpose yet)
 
   PLOG_INFO << "Killing timers...";
   KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_INJECTACK);

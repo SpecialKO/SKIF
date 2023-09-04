@@ -20,9 +20,11 @@ CONDITION_VARIABLE UpdaterPaused = { };
 SKIF_Updater::SKIF_Updater (void)
 {
   InitializeConditionVariable (&UpdaterPaused);
+  extern SKIF_Signals _Signal;
   
   // Clearing out old installers...
-  ClearOldUpdates ( );
+  if (! _Signal.Launcher && ! _Signal.Quit)
+    ClearOldUpdates ( );
 
   // Start the child thread that is responsible for checking for updates
   static HANDLE hThread =
@@ -43,7 +45,7 @@ SKIF_Updater::SKIF_Updater (void)
       extern bool SKIF_Shutdown;
 
       // Sleep if SKIF is being used as a lancher
-      if (_Signal.Launcher)
+      if (_Signal.Launcher || _Signal.Quit)
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
