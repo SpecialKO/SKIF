@@ -237,10 +237,15 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         lastWritten = currWriting;
         parent.snapshot_idx_written.store (lastWritten);
 
-        SleepConditionVariableCS (
-          &LibRefreshPaused, &LibraryRefreshJob,
-            INFINITE
-        );
+        parent.awake.store (false);
+
+        while (! parent.awake.load ( ))
+        {
+          SleepConditionVariableCS (
+            &LibRefreshPaused, &LibraryRefreshJob,
+              INFINITE
+          );
+        }
 
       } while (! SKIF_Shutdown); // Keep thread alive until exit
 
@@ -257,6 +262,8 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
 void
 SKIF_GamesCollection::RefreshGames (void)
 {
+  awake.store (true);
+
   WakeConditionVariable (&LibRefreshPaused);
 }
 

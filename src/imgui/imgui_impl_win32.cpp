@@ -772,7 +772,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
-  extern std::atomic<int> gamepadThreadAwake;
+  extern std::atomic<bool> gamepadThreadAwake;
   extern HWND SKIF_ImGui_hWnd;
 
   extern bool msgDontRedraw;
@@ -819,7 +819,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //  SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
     {
       g_Focused = true;
-      gamepadThreadAwake.store (1);
+      gamepadThreadAwake.store (true);
       //OutputDebugString(L"Gained focus\n");
       PLOG_VERBOSE << "Gained focus";
 
@@ -847,7 +847,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //  SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
     {
       g_Focused = false;
-      gamepadThreadAwake.store (0);
+      gamepadThreadAwake.store (false);
       //OutputDebugString(L"Killed focus\n");
       PLOG_VERBOSE << "Killed focus";
 

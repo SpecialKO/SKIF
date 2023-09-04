@@ -91,6 +91,7 @@ private:
 
   std::atomic<bool> forced   = false; // Only used internally for forced updates
   std::atomic<bool> rollback = false; // Only used internally when triggering a rollback
+  std::atomic<bool> awake    = false; // Used to protect against sporadic wake-ups
 
   SKIF_Updater            (void);
   void ClearOldUpdates    (void);

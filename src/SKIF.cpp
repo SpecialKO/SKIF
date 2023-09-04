@@ -108,7 +108,7 @@ float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
 
-std::atomic<int> gamepadThreadAwake = 0; // 0 - No focus, so sleep.       1 - Focus, so remain awake
+std::atomic<bool> gamepadThreadAwake = false; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -2834,23 +2834,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         do
         {
-          // Only act on new gamepad input if we are actually focused
-          if (gamepadThreadAwake.load () == 1)
-          {
-            // Reworked thread-safe iplementation
-            extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
-            packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
-
-            if (packetNew  > 0  &&
-                packetNew != packetLast)
-            {
-              packetLast = packetNew;
-              PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
-            }
-          }
-
           // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
-          if (gamepadThreadAwake.load () == 0)
+          while (! gamepadThreadAwake.load ())
           {
             //OutputDebugString(L"SKIF_GamepadInputPump entering sleep\n");
             //PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
@@ -2862,6 +2847,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             //PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
             //OutputDebugString(L"SKIF_GamepadInputPump exiting sleep\n");
+          }
+
+          // Only act on new gamepad input if we are actually focused
+          // Reworked thread-safe iplementation
+          extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
+          packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
+
+          if (packetNew  > 0  &&
+              packetNew != packetLast)
+          {
+            packetLast = packetNew;
+            PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
           }
 
           // XInput tends to have ~3-7 ms of latency between updates

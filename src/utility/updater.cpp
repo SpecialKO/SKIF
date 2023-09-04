@@ -45,7 +45,7 @@ SKIF_Updater::SKIF_Updater (void)
       extern bool SKIF_Shutdown;
 
       // Sleep if SKIF is being used as a lancher
-      if (_Signal.Launcher || _Signal.Quit)
+      while (_Signal.Launcher || _Signal.Quit)
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
@@ -92,10 +92,15 @@ SKIF_Updater::SKIF_Updater (void)
         // Signal to the main thread that new results are available
         PostMessage (SKIF_Notify_hWnd, WM_SKIF_UPDATER, local.state, 0x0);
 
-        SleepConditionVariableCS (
-          &UpdaterPaused, &UpdaterJob,
-            INFINITE
-        );
+        parent.awake.store (false);
+
+        while (! parent.awake.load ( ))
+        {
+          SleepConditionVariableCS (
+            &UpdaterPaused, &UpdaterJob,
+              INFINITE
+          );
+        }
 
       } while (! SKIF_Shutdown); // Keep thread alive until exit
 
@@ -698,6 +703,7 @@ SKIF_Updater::CheckForUpdates (bool _forced, bool _rollback)
 {
   forced.store   (_forced);
   rollback.store (_rollback);
+  awake.store    (true);
 
   WakeConditionVariable       (&UpdaterPaused);
 }

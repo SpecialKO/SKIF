@@ -14,8 +14,9 @@ struct SKIF_GamesCollection {
     std::vector <std::unique_ptr<app_generic_s>>* apps;
   } snapshots [3];
   
-  std::atomic<int> snapshot_idx_reading = 0,
-                   snapshot_idx_written = 1;
+  std::atomic<int>  snapshot_idx_reading = 0,
+                    snapshot_idx_written = 1;
+  std::atomic<bool> awake                = false; // Used to protect against sporadic wake-ups
 
   void                         RefreshGames (void);
   std::vector <std::unique_ptr<app_generic_s>>* GetGames (void);

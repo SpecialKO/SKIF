@@ -911,7 +911,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         do
         {
-          if (SKIF_Tab_Selected != UITab_Monitor || ! refreshIntervalInMsec)
+          while (SKIF_Tab_Selected != UITab_Monitor || ! refreshIntervalInMsec)
           {
             SleepConditionVariableCS (
               &ProcRefreshPaused, &ProcessRefreshJob,
