@@ -402,6 +402,14 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
 
   extern HWND SKIF_Notify_hWnd;
   bool        ret = false;
+
+#if 0
+  if (! bHasServlet)
+  {
+    PLOG_ERROR << "Missing critical service components!";
+    return ret;
+  }
+#endif
   
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
@@ -433,10 +441,10 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   static std::wstring workDir   = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata);
   static std::wstring SKIFsvc32 = instDir + L"SKIFsvc32.exe";
 
-  std::error_code e;
+  std::error_code ec;
   // Create any missing directories
-  if (! std::filesystem::exists (            workDir, e))
-        std::filesystem::create_directories (workDir, e);
+  if (! std::filesystem::exists (            workDir, ec))
+        std::filesystem::create_directories (workDir, ec);
 
   SetLastError (NO_ERROR);
 

@@ -797,12 +797,12 @@ SKIF_Steam_isLibrariesSignaled (void)
         int prevCount = steam_libs_files[i];
         int currCount = 0;
 
-        std::error_code dirError;
+        std::error_code ec;
         std::filesystem::directory_iterator iterator = 
-          std::filesystem::directory_iterator (wszManifestDir, dirError);
+          std::filesystem::directory_iterator (wszManifestDir, ec);
 
         // Only iterate over the files if the directory exists and is accessible
-        if (! dirError)
+        if (! ec)
         {
           for (auto& directory_entry : iterator)
             if (directory_entry.is_regular_file())
