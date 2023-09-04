@@ -2305,8 +2305,9 @@ SKIF_UI_Tab_DrawSettings (void)
     
     ImGui::Spacing     ();
 
-    ImGui::TextWrapped ("Support depends on the GPU and display configuration. Unusual display "
-                        "configurations, such as 10 bpc in SDR mode, might lack MPO support.");
+    ImGui::TextWrapped ("Support depends on the GPU and display configuration. Unusual driver "
+                        "or display configurations might disable MPO support, such as by using "
+                        "10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc).");
 
     ImGui::PopStyleColor ();
 
