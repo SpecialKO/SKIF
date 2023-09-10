@@ -214,6 +214,7 @@ void           SK_LogSymbolName             (LPCVOID addr);
 
 char*          SK_StripUserNameFromPathA    (   char*  szInOut);
 wchar_t*       SK_StripUserNameFromPathW    (wchar_t* wszInOut);
+void           SK_LogUserNamesVerbose       (void); // Not actually SK stuff but my own SKIF custom stuff // Aemony
 
 #define SK_ConcealUserDir  SK_StripUserNameFromPathW
 #define SK_ConcealUserDirA SK_StripUserNameFromPathA
