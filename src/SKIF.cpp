@@ -3387,15 +3387,22 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );
 
-      else if (wParam == SKIF_HotKey_SVC)
+      // Only toggle the service if we think we are not already in a game
+      else if (wParam == SKIF_HotKey_SVC && hInjectExitAckEx.m_h == 0)
       {
-        // Only kickstart the service if we think we're not currently already in a game
-        if (     _inject.runState != SKIF_InjectionContext::RunningState::Started && hInjectExitAckEx.m_h == 0)
+        // If the service is not running, start it
+        if (     _inject.runState != SKIF_InjectionContext::RunningState::Started)
                  _inject._StartStopInject (false, true);
 
+        // This design is currently unsatisfactory. We want to be able to toggle injection service
+        //   on and off when no game is injected, but if a game is injected we should not be able
+        //     to trigger it... But this doesn't work as desired as SKIF isn't set up to properly
+        //       track stuff that detailed yet. 'hInjectExitAckEx' is created when the service
+        //         is started... Maybe change that to be created when injection is signaled?
+
         // If the service is running, stop it
-        else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
-                 _inject._StartStopInject (true);
+        //else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
+        //         _inject._StartStopInject (true);
       }
         
     break;
