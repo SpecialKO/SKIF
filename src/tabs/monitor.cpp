@@ -948,9 +948,9 @@ SKIF_UI_Tab_DrawMonitor (void)
             handles_by_process;
           
           static HANDLE hProcessDst =
-            GetCurrentProcess   (); // Pseudo Handle
+            SKIF_Util_GetCurrentProcess (); // Pseudo Handle
           static DWORD dwPidOfMe =
-            GetCurrentProcessId (); // Actual Pid
+            GetCurrentProcessId         (); // Actual Pid
 
 #pragma region Collect All Event Handles
           NTSTATUS ntStatusHandles;

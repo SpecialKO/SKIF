@@ -66,7 +66,7 @@ constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052; // Used to s
 constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Window message Special K posts when it has signaled one of the various acknowledgement events
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
-constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Ctrl + Shift + Insert
+constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Shift + Insert
 
 constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
 //constexpr const wchar_t* SKIF_WindowClass     = L"SKIF_RootWindow"; // Not actually used any longer

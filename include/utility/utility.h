@@ -36,7 +36,7 @@ HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& pat
 
 
 // Windows
-
+HANDLE          SKIF_Util_GetCurrentProcess           (void);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
 HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);

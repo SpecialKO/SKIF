@@ -771,7 +771,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
     
   // Let's change the current working directory to the folder of the executable itself.
-  SetCurrentDirectory (         _path_cache.specialk_install);
+  SetCurrentDirectory (_path_cache.specialk_install);
 
   // Generate 8.3 filenames
   //SK_Generate8Dot3    (_path_cache.skif_workdir_org);
@@ -867,13 +867,16 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
 #else
   PLOG_INFO << "Special K Injection Frontend (SKIF) 32-bit v " << SKIF_VERSION_STR_A;
 #endif
+  
+  wchar_t current_workdir [MAX_PATH + 2] = { };
+  GetCurrentDirectoryW    (MAX_PATH, current_workdir);
 
   PLOG_INFO << "Built " __TIME__ ", " __DATE__;
   PLOG_INFO << SKIF_LOG_SEPARATOR;
   PLOG_INFO << "Working directory:  ";
   PLOG_INFO << "Old:                " << _path_cache.skif_workdir_org;
-  PLOG_INFO << "New:                " << std::filesystem::current_path ();
-  PLOG_INFO << "SKIF executable:    " << _path_cache.skif_executable;
+  PLOG_INFO << "New:                " << current_workdir;
+  PLOG_INFO << "SKIF executable:    " <<  _path_cache.skif_executable;
   PLOG_INFO << "Launch arguments:   " << lpCmdLine;
   PLOG_INFO << "Special K install:  " << _path_cache.specialk_install;
   PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
@@ -944,6 +947,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
+
+#ifdef _DEBUG
+  // If we are debugging verbosely, output the usernames etc
+  SK_LogUserNamesVerbose ( );
+#endif
 
   // This constructs this singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
@@ -2957,12 +2965,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 
         // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
-        SetPriorityClass (GetCurrentProcess(), IDLE_PRIORITY_CLASS);
+        SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS);
         if (SKIF_SetProcessInformation != nullptr)
         {
           PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
           PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          SKIF_SetProcessInformation (GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+          SKIF_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
@@ -2980,12 +2988,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         // Wake up and disable idle priority + ECO QoS (let the system take over)
-        SetPriorityClass (GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+        SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
         if (SKIF_SetProcessInformation != nullptr)
         {
           PowerThrottling.ControlMask = 0;
           PowerThrottling.StateMask   = 0;
-          SKIF_SetProcessInformation (GetCurrentProcess (), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+          SKIF_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
         }
 
         // Always render 3 additional frames after we wake up
@@ -3379,10 +3387,16 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );
 
-      // Only kickstart the service if we think we're not currently already in a game
-      else if (wParam == SKIF_HotKey_SVC && hInjectExitAckEx.m_h == 0)
-        if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
-          _inject._StartStopInject (false, true);
+      else if (wParam == SKIF_HotKey_SVC)
+      {
+        // Only kickstart the service if we think we're not currently already in a game
+        if (     _inject.runState != SKIF_InjectionContext::RunningState::Started && hInjectExitAckEx.m_h == 0)
+                 _inject._StartStopInject (false, true);
+
+        // If the service is running, stop it
+        else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
+                 _inject._StartStopInject (true);
+      }
         
     break;
 

@@ -510,6 +510,18 @@ SKIF_Util_OpenURI (
 
 // Windows
 
+
+// Returns a pseudo handle interpreted as the current process handle
+HANDLE
+SKIF_Util_GetCurrentProcess (void)
+{
+  // A pseudo handle is a special constant, currently (HANDLE)-1, that is interpreted as the current process handle.
+  // For compatibility with future operating systems, it is best to call GetCurrentProcess instead of hard-coding this constant value.
+  static HANDLE
+         handle = GetCurrentProcess ( );
+  return handle;
+}
+
 /*
   Returns 0 for errors, 1 for x86, 2 for x64, and -1 for unknown types
 */
@@ -561,7 +573,7 @@ SKIF_Util_CompactWorkingSet (void)
 {
   return
     EmptyWorkingSet (
-      GetCurrentProcess ()
+      SKIF_Util_GetCurrentProcess ()
     );
 }
 
@@ -1587,7 +1599,7 @@ SKIF_Util_RegisterHotKeySVCTemp (void)
   */
 
   if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_SVC, MOD_WIN | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT))
-    PLOG_INFO << "Successfully registered hotkey (WinKey + Ctrl + Shift + Insert) for starting the service with auto-stop.";
+    PLOG_INFO << "Successfully registered hotkey (WinKey + Shift + Insert) for starting the service with auto-stop.";
   else
     PLOG_ERROR << "Failed to register hotkey for starting the service with auto-stop: " << SKIF_Util_GetErrorAsWStr ( );
 
