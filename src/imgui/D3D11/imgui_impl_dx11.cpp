@@ -476,17 +476,17 @@ ImGui_ImplDX11_SetupRenderState ( ImDrawData          *draw_data,
   unsigned int offset = 0;
 
   ctx->IASetInputLayout       ( g_pInputLayout                 );
-  ctx->IASetVertexBuffers     ( 0, 1, &g_pVB, &stride, &offset );
+  ctx->IASetVertexBuffers     ( 0, 1, &g_pVB.p, &stride, &offset );
   ctx->IASetIndexBuffer       ( g_pIB, sizeof (ImDrawIdx) == 2 ?
                                           DXGI_FORMAT_R16_UINT :
                                           DXGI_FORMAT_R32_UINT, 0     );
   ctx->IASetPrimitiveTopology ( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
   ctx->VSSetShader            (        g_pVertexShader, nullptr, 0 );
-  ctx->VSSetConstantBuffers   ( 0, 1, &g_pVertexConstantBuffer     );
+  ctx->VSSetConstantBuffers   ( 0, 1, &g_pVertexConstantBuffer.p     );
   ctx->PSSetShader            (        g_pPixelShader,  nullptr, 0 );
-  ctx->PSSetConstantBuffers   ( 0, 1, &g_pPixelConstantBuffer      );
-  ctx->PSSetSamplers          ( 0, 1, &g_pFontSampler              );
+  ctx->PSSetConstantBuffers   ( 0, 1, &g_pPixelConstantBuffer.p      );
+  ctx->PSSetSamplers          ( 0, 1, &g_pFontSampler.p              );
 
   // Setup blend state
   static constexpr float
@@ -1346,7 +1346,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       };
 
       UINT i = 0;
-      CComPtr <IDXGIOutput> currentOutput;
+      IDXGIOutput* currentOutput;
       float bestIntersectArea = -1;
 
       RECT m_windowBounds;
