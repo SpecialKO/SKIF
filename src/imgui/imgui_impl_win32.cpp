@@ -41,6 +41,10 @@
 // Registry Settings
 #include <utility/registry.h>
 
+#ifndef WS_EX_NOREDIRECTIONBITMAP
+#define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+#endif
+
 bool removeDWMBorders = false;
 
 auto constexpr XUSER_INDEXES =
@@ -681,7 +685,9 @@ ImGui_ImplWin32_NewFrame (void)
   ImGuiIO &io =
     ImGui::GetIO ( );
 
-  IM_ASSERT (io.Fonts->IsBuilt ( ) && "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame().");
+  // Disabling this assertion since the font isn't expected to be rendered at this point since we're using a custom callback
+  // Aemony, 2023-09-24
+  //IM_ASSERT (io.Fonts->IsBuilt ( ) && "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame().");
 
   // Setup display size (every frame to accommodate for window resizing)
   /*

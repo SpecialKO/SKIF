@@ -719,7 +719,7 @@ class SKIF_AutoStackAlloc {
 public:
   SKIF_AutoStackAlloc (size_t size) noexcept
   {
-    assert (size < _ALLOCA_S_THRESHOLD);
+    //IM_ASSERT (size < _ALLOCA_S_THRESHOLD);
 
     __try {
       if (size < _ALLOCA_S_THRESHOLD)
