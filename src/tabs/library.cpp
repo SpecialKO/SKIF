@@ -2042,7 +2042,7 @@ Cache=false)";
       }
 
       // Platform
-      ImGui::TextUnformatted          (pTargetApp->store.c_str());
+      ImGui::TextUnformatted          ((pTargetApp->store == "SKIF") ? "Other" : pTargetApp->store.c_str());
 
       // Column should have min-width 100px (scaled with the DPI)
       ImGui::ItemSize         (
