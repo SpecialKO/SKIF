@@ -84,10 +84,10 @@ ModifyPrivilege (
   IN LPCTSTR szPrivilege,
   IN BOOL    fEnable )
 {
-  TOKEN_PRIVILEGES NewState;
-  LUID             luid;
-  HRESULT          hr     = S_OK;
-  HANDLE           hToken = nullptr;
+  TOKEN_PRIVILEGES NewState = { };
+  LUID             luid     = { };
+  HRESULT          hr       = S_OK;
+  HANDLE           hToken   = nullptr;
 
   // Open the process token for this process.
   if (! OpenProcessToken ( GetCurrentProcess (),
@@ -256,6 +256,7 @@ SK_Win32_time_t_to_FILETIME (time_t epoch)
 
 
 #include <utility/fsutil.h>
+#include <utility/utility.h>
 
 HRESULT
 SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
@@ -404,12 +405,12 @@ bool
 SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder)
 {
   bool success = false;
-  IFileOpenDialog  *pFileOpen;
+  IFileOpenDialog  *pFileOpen = nullptr;
 
   if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen))))
+                                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen))))
   {
-    IShellItem* psiDefaultFolder;
+    IShellItem* psiDefaultFolder = nullptr;
     if (SUCCEEDED(SHGetKnownFolderItem(defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
     {
       pFileOpen->SetDefaultFolder(psiDefaultFolder);
@@ -420,12 +421,15 @@ SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFil
 
     if (SUCCEEDED(pFileOpen->Show(NULL)))
     {
-      IShellItem *pItem;
+      IShellItem *pItem = nullptr;
 
       if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
       {
-        if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, pszPath)))
+        HRESULT hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
+        if (SUCCEEDED(hr))
           success = true;
+        else
+          PLOG_ERROR << SKIF_Util_GetErrorAsWStr (HRESULT_CODE(hr));
 
         pItem->Release();
       }
