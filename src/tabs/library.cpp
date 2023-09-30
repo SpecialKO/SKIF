@@ -1715,9 +1715,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
       //ImGui::NewLine          ();
       ImGui::TextUnformatted  ("Injection:");
-      //ImGui::TextUnformatted  ("Injection DLL:");
       ImGui::TextUnformatted  ("Config Root:");
       ImGui::TextUnformatted  ("Config File:");
+      ImGui::TextUnformatted  ("Platform:");
       ImGui::PopStyleColor    ();
       ImGui::ItemSize         (ImVec2 (110.f * SKIF_ImGui_GlobalDPIScale,
                                          0.f)
@@ -1728,11 +1728,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Column 2
       ImGui::BeginGroup       ();
-      // Injection Strategy
-      //ImGui::TextUnformatted  (cache.injection.type.c_str   ());
-      //ImGui::NewLine          ();
 
-      // Injection DLL
+      // Injection
       if (! cache.dll.shorthand.empty ())
       {
         //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
@@ -2043,6 +2040,9 @@ Cache=false)";
         ImGui::TextUnformatted        (cache.config_repo.c_str ());
         ImGui::TextUnformatted        ("N/A");
       }
+
+      // Platform
+      ImGui::TextUnformatted          (pTargetApp->store.c_str());
 
       // Column should have min-width 100px (scaled with the DPI)
       ImGui::ItemSize         (
