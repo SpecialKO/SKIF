@@ -722,7 +722,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::SetNextItemWidth (150.0f * SKIF_ImGui_GlobalDPIScale);
 
-  if (ImGui::BeginCombo ("##SKIF_iProcRefreshIntervalCombo", RefreshIntervalCurrent)) // The second parameter is the label previewed before opening the combo.
+  if (ImGui::BeginCombo ("###SKIF_iProcRefreshIntervalCombo", RefreshIntervalCurrent)) // The second parameter is the label previewed before opening the combo.
   {
     for (int n = 0; n < IM_ARRAYSIZE (RefreshInterval); n++)
     {

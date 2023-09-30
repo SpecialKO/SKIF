@@ -608,7 +608,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (channelsDisabled)
     SKIF_ImGui_PushDisableState ( );
 
-  if (ImGui::BeginCombo ("##SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
+  if (ImGui::BeginCombo ("###SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
   {
     for (auto& updateChannel : *_updater.GetChannels ( ))
     {
@@ -839,7 +839,7 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush      ("");
 
-    if (ImGui::BeginCombo ("##_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo ("###_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
     {
         for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
         {
@@ -1351,7 +1351,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine();
 
-    if (ImGui::BeginCombo ("##_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo ("###_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
     {
       for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
       {
