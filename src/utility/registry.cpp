@@ -168,7 +168,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Store libraries
 
   bDisableSteamLibrary     =   regKVDisableSteamLibrary    .getData ( );
-  bDisableEGSLibrary       =   regKVDisableEGSLibrary      .getData ( );
+  bDisableEpicLibrary      =   regKVDisableEpicLibrary     .getData ( );
   bDisableGOGLibrary       =   regKVDisableGOGLibrary      .getData ( );
 
   if (regKVDisableXboxLibrary.hasData())

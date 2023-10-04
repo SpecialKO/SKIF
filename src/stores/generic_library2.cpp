@@ -234,11 +234,11 @@ LoadLibraryTexture (
     }
   }
 
-  // EGS
-  else if (pApp != nullptr && pApp->store == "EGS")
+  // Epic
+  else if (pApp != nullptr && pApp->store == "Epic")
   {
-    std::wstring EGSAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
-    SKIFCustomPath = std::wstring(EGSAssetPath);
+    std::wstring EpicAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+    SKIFCustomPath = std::wstring(EpicAssetPath);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";
@@ -258,10 +258,10 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Cover &&
-               PathFileExistsW ((EGSAssetPath + L"OfferImageTall.jpg").c_str()))
-        load_str =               EGSAssetPath + L"OfferImageTall.jpg";
+               PathFileExistsW ((EpicAssetPath + L"OfferImageTall.jpg").c_str()))
+        load_str =               EpicAssetPath + L"OfferImageTall.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EGSAssetPath + L"icon-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EpicAssetPath + L"icon-original.png"))
         load_str =               SKIFCustomPath + L"-original.png";
     }
   }

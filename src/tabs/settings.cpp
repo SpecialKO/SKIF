@@ -751,9 +751,9 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush      ("");
 
-    if (ImGui::Checkbox        ("Epic", &_registry.bDisableEGSLibrary))
+    if (ImGui::Checkbox        ("Epic", &_registry.bDisableEpicLibrary))
     {
-      _registry.regKVDisableEGSLibrary.putData    (_registry.bDisableEGSLibrary);
+      _registry.regKVDisableEpicLibrary.putData    (_registry.bDisableEpicLibrary);
       RepopulateGames = true;
     }
 

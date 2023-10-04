@@ -217,9 +217,9 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         if (! _registry.bDisableGOGLibrary)
           SKIF_GOG_GetInstalledAppIDs (&apps);
 
-        // Load EGS titles from disk
-        if (! _registry.bDisableEGSLibrary)
-          SKIF_EGS_GetInstalledAppIDs (&apps);
+        // Load Epic titles from disk
+        if (! _registry.bDisableEpicLibrary)
+          SKIF_Epc_GetInstalledAppIDs (&apps);
     
         if (! _registry.bDisableXboxLibrary)
           SKIF_Xbox_GetInstalledAppIDs (&apps);

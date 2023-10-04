@@ -96,10 +96,10 @@ struct app_record_s {
   std::string  store = "Steam";  // maybe enum?
   std::string  ImGuiPushID = "";
   std::string  ImGuiLabelAndID = "";
-  std::string  EGS_CatalogNamespace = "";
-  std::string  EGS_CatalogItemId = "";
-  std::string  EGS_AppName = "";
-  std::string  EGS_DisplayName = "";
+  std::string  Epic_CatalogNamespace = "";
+  std::string  Epic_CatalogItemId = "";
+  std::string  Epic_AppName = "";
+  std::string  Epic_DisplayName = "";
   std::string  Xbox_PackageName = "";
   std::string  Xbox_StoreId = "";
   std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
@@ -189,7 +189,7 @@ struct app_record_s {
     std::wstring executable;
     std::wstring executable_path;
     std::wstring description;
-    std::wstring launch_options;     // Used by GOG and EGS
+    std::wstring launch_options;     // Used by GOG and Epic
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring elevated_file;

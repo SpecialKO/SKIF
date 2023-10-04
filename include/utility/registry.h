@@ -212,9 +212,9 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Steam Library)" );
 
-  KeyValue <bool> regKVDisableEGSLibrary =
+  KeyValue <bool> regKVDisableEpicLibrary =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable EGS Library)" );
+                         LR"(Disable Epic Library)" );
 
   KeyValue <bool> regKVDisableGOGLibrary =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -399,7 +399,7 @@ struct SKIF_RegistrySettings {
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
 
   bool bDisableSteamLibrary     = false;
-  bool bDisableEGSLibrary       = false;
+  bool bDisableEpicLibrary      = false;
   bool bDisableGOGLibrary       = false;
   bool bDisableXboxLibrary      = false;
 

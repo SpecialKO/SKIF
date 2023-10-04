@@ -93,7 +93,7 @@ extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
-extern std::wstring    SKIF_EGS_AppDataPath;
+extern std::wstring    SKIF_Epic_AppDataPath;
 extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
@@ -308,7 +308,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   
-  static SKIF_DirectoryWatch SKIF_EGS_ManifestWatch;
+  static SKIF_DirectoryWatch SKIF_Epic_ManifestWatch;
 
   //static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
@@ -387,7 +387,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     //if (SKIF_Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
-    if (! _registry.bDisableEGSLibrary  && SKIF_EGS_ManifestWatch.isSignaled (SKIF_EGS_AppDataPath, true))
+    if (! _registry.bDisableEpicLibrary  && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
       RepopulateGames = true;
 
     if (! _registry.bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
@@ -453,9 +453,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (! _registry.bDisableGOGLibrary)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
-    // Load EGS titles from disk
-    if (! _registry.bDisableEGSLibrary)
-      SKIF_EGS_GetInstalledAppIDs (&apps);
+    // Load Epic titles from disk
+    if (! _registry.bDisableEpicLibrary)
+      SKIF_Epic_GetInstalledAppIDs (&apps);
     
     if (! _registry.bDisableXboxLibrary)
       SKIF_Xbox_GetInstalledAppIDs (&apps);
@@ -670,7 +670,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           load_str = L"_icon.jpg";
         else  if (app.second.store == "SKIF")  // SKIF Custom
           load_str = L"icon";
-        else  if (app.second.store == "EGS")   // EGS
+        else  if (app.second.store == "Epic")  // Epic
           load_str = L"icon";
         else  if (app.second.store == "GOG")   // GOG
           load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
@@ -921,8 +921,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          else if (pApp->store == "Epic")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
@@ -964,8 +964,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          else if (pApp->store == "Epic")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
@@ -1154,15 +1154,15 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str = L"*_glx_vertical_cover.webp";
       }
 
-      // EGS
-      else if (_pApp->store == "EGS")
+      // Epic
+      else if (_pApp->store == "Epic")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->EGS_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
-          SKIF_EGS_IdentifyAssetNew (_pApp->EGS_CatalogNamespace, _pApp->EGS_CatalogItemId, _pApp->EGS_AppName, _pApp->EGS_DisplayName);
+          SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
         }
         
         else {
@@ -1182,7 +1182,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 600 ||
                 meta.height == 900)
             {
-              SKIF_EGS_IdentifyAssetNew (_pApp->EGS_CatalogNamespace, _pApp->EGS_CatalogItemId, _pApp->EGS_AppName, _pApp->EGS_DisplayName);
+              SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
             }
           }
         }
@@ -2164,7 +2164,7 @@ Cache=false)";
         clickedGameLaunchWoSK )
       {
 
-        if ( pTargetApp->store != "Steam" && pTargetApp->store != "EGS" &&
+        if ( pTargetApp->store != "Steam" && pTargetApp->store != "Epic" &&
              pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id).find(L"InvalidPath") != std::wstring::npos )
         {
           confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pTargetApp->launch_configs[0].getExecutableFullPath(pApp->id, false));
@@ -2250,7 +2250,7 @@ Cache=false)";
             */
           }
 
-          else if (pTargetApp->store == "EGS")
+          else if (pTargetApp->store == "Epic")
           {
             // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
             SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pTargetApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
@@ -2704,7 +2704,7 @@ Cache=false)";
   {
     updateInjStrat = false;
 
-    // Handle GOG, EGS, and SKIF Custom games
+    // Handle GOG, Epic, and SKIF Custom games
     if (pApp->store != "Steam")
     {
       DWORD dwBinaryType = MAXDWORD;
@@ -2919,8 +2919,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          else if (pApp->store == "Epic")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
@@ -2973,8 +2973,8 @@ Cache=false)";
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
           else if (pApp->store == "SKIF")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "EGS")
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->EGS_AppName).c_str());
+          else if (pApp->store == "Epic")
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == "GOG")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Xbox")
@@ -3380,7 +3380,7 @@ Cache=false)";
     ImGui::EndGroup           ( );
   }
 
-  // Refresh running state of SKIF Custom, EGS, GOG, and Xbox titles
+  // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
   static DWORD lastGameRefresh = 0;
 
   if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
@@ -3450,7 +3450,7 @@ Cache=false)";
               break;
             }
 
-            // EGS, GOG and SKIF Custom should be straight forward
+            // Epic, GOG and SKIF Custom should be straight forward
             else if (fullPath == app.second.launch_configs[0].getExecutableFullPath(app.second.id, false)) // full patch
             {
               app.second._status.running = true;
@@ -4109,7 +4109,7 @@ Cache=false)";
                                         );
       }
       
-      std::wstring pcgwValue =   (pApp->store == "SKIF" || pApp->store == "EGS" || pApp->store == "Xbox")
+      std::wstring pcgwValue =   (pApp->store == "SKIF" || pApp->store == "Epic" || pApp->store == "Xbox")
                                ? SK_UTF8ToWideChar (pApp->names.normal)
                                : std::to_wstring   (pApp->id);
 

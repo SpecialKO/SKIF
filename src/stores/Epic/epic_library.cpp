@@ -12,7 +12,7 @@
 #include <utility/registry.h>
 
 /*
-EGS registry / folder struture
+Epic registry / folder struture
 
 
 Root Key:           HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\AppDataPath
@@ -36,18 +36,18 @@ Parameters and the data they contain:
 
 There are more values, but they aren't listed here.
 
-EGS Custom Default Launch Option:
+Epic Custom Default Launch Option:
 To launch a game using the user's customized launch option in the client,
-it's enough to launch the game through EGS like the start menu shortcuts does, like this:
+it's enough to launch the game through Epic like the start menu shortcuts does, like this:
 
     com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
 
 */
 
-std::wstring SKIF_EGS_AppDataPath;
+std::wstring SKIF_Epic_AppDataPath;
 
 void
-SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -64,8 +64,8 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
     dwSize = sizeof(szData) / sizeof(WCHAR);
     if (RegGetValueW (hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
     {
-      SKIF_EGS_AppDataPath = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data
-      SKIF_EGS_AppDataPath += LR"(\Manifests\)";
+      SKIF_Epic_AppDataPath  = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data
+      SKIF_Epic_AppDataPath += LR"(\Manifests\)";
 
       registrySuccess = true;
 
@@ -77,21 +77,21 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
   if (! registrySuccess)
   {
     PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
-    SKIF_EGS_AppDataPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
+    SKIF_Epic_AppDataPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
   }
 
-  PLOG_INFO << "Epic manifest location: " << SKIF_EGS_AppDataPath;
+  PLOG_INFO << "Epic manifest location: " << SKIF_Epic_AppDataPath;
 
   // Abort if the folder does not exist
-  if (! PathFileExists (SKIF_EGS_AppDataPath.c_str()))
+  if (! PathFileExists (SKIF_Epic_AppDataPath.c_str()))
   {
     PLOG_WARNING << "Folder does not exist!";
 
-    SKIF_EGS_AppDataPath = L"";
+    SKIF_Epic_AppDataPath = L"";
     return;
   }
 
-  for (const auto& entry : std::filesystem::directory_iterator(SKIF_EGS_AppDataPath))
+  for (const auto& entry : std::filesystem::directory_iterator(SKIF_Epic_AppDataPath))
   {
     if (entry.is_directory()               == false    &&
         entry.path().extension().wstring() == L".item" )
@@ -133,7 +133,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
           //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
-          record.store                = "EGS";
+          record.store                = "Epic";
           record.type                 = "Game";
           record._status.installed    = true;
           record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
@@ -142,11 +142,11 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
 
           app_record_s::launch_config_s lc;
-          lc.id                           = 0;
-          lc.valid                        = true;
-          lc.store                        = L"EGS";
-          lc.executable                   = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
-          lc.executable_path              = record.install_dir + L"\\" + lc.executable;
+          lc.id                       = 0;
+          lc.valid                    = true;
+          lc.store                    = L"Epic";
+          lc.executable               = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
+          lc.executable_path          = record.install_dir + L"\\" + lc.executable;
           std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 
           // Strip out the subfolders from the executable variable
@@ -169,23 +169,23 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
           lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
           lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
 
-          record.launch_configs[0]    = lc;
+          record.launch_configs[0]     = lc;
 
-          record.EGS_CatalogNamespace = CatalogNamespace;
-          record.EGS_CatalogItemId    = CatalogItemId;
-          record.EGS_AppName          = AppName;
-          record.EGS_DisplayName      = record.names.normal;
+          record.Epic_CatalogNamespace = CatalogNamespace;
+          record.Epic_CatalogItemId    = CatalogItemId;
+          record.Epic_AppName          = AppName;
+          record.Epic_DisplayName      = record.names.normal;
 
-          record.specialk.profile_dir = SK_UTF8ToWideChar (record.EGS_DisplayName);
+          record.specialk.profile_dir = SK_UTF8ToWideChar (record.Epic_DisplayName);
           record.specialk.injection.injection.type = sk_install_state_s::Injection::Type::Global;
 
           // Strip invalid filename characters
           record.specialk.profile_dir = SKIF_Util_StripInvalidFilenameChars (record.specialk.profile_dir);
             
           std::pair <std::string, app_record_s>
-            EGS(record.names.normal, record);
+            Epic(record.names.normal, record);
 
-          apps->emplace_back(EGS);
+          apps->emplace_back(Epic);
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
@@ -209,7 +209,7 @@ SKIF_EGS_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
 
 void
-SKIF_EGS_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
+SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
