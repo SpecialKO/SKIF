@@ -860,7 +860,7 @@ SKIF_Util_GetControlledFolderAccess (void)
   unsigned long size = 1024;
 
   // Check if Controlled Folder Access is enabled
-  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ, &hKey))
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
     if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
       state = buffer;
@@ -873,7 +873,7 @@ SKIF_Util_GetControlledFolderAccess (void)
     {
       // Regular users / unelevated processes has read access to this key on Windows 10,
       //   but apparently not on Windows 11 so this check will fail on that OS.
-      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ, &hKey))
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
       {
         static TCHAR               szExePath[MAX_PATH];
         GetModuleFileName   (NULL, szExePath, _countof(szExePath));
@@ -981,7 +981,7 @@ SKIF_Util_IsMPOsDisabledInRegistry (bool refresh)
   unsigned long size = 1024;
 
   // Check if DWM's OverlayTestMode has MPOs disabled
-  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ, &hKey))
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
     if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"OverlayTestMode", NULL, NULL, (LPBYTE)&flag, &size))
     {
@@ -1982,13 +1982,14 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 
 // Registry Watch
 
-SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait, bool bWOW6432Key )
+SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait, bool bWOW6432Key, bool bWOW6464Key )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
   _init.watch_subtree = bWatchSubtree;
   _init.filter_mask   = dwNotifyFilter;
   _init.wow64_32key   = bWOW6432Key;
+  _init.wow64_64key   = bWOW6464Key;
 
   _hEvent.m_h =
       CreateEvent ( nullptr, TRUE,
@@ -2028,7 +2029,7 @@ SKIF_RegistryWatch::reset (void)
 
   LSTATUS lStat =
     _hKeyBase.Open (_init.root,
-                    _init.sub_key.c_str (), KEY_NOTIFY | ((_init.wow64_32key) ? KEY_WOW64_32KEY : 0x0) );
+                    _init.sub_key.c_str (), KEY_NOTIFY | ((_init.wow64_32key) ? KEY_WOW64_32KEY : 0x0) | ((_init.wow64_64key) ? KEY_WOW64_64KEY : 0x0) );
 
   if (lStat == ERROR_SUCCESS)
   {

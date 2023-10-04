@@ -133,7 +133,8 @@ struct SKIF_RegistryWatch {
                        BOOL bWatchSubtree  = TRUE,
                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
                        bool bGlobalWait    = false,
-                       bool bWOW6432Key    = false);
+                       bool bWOW6432Key    = false,  // Access a 32-bit key from either a 32-bit or 64-bit application.
+                       bool bWOW6464Key    = false); // Access a 64-bit key from either a 32-bit or 64-bit application.
 
   ~SKIF_RegistryWatch (void);
 
@@ -146,7 +147,8 @@ struct SKIF_RegistryWatch {
     std::wstring sub_key;
     BOOL         watch_subtree;
     DWORD        filter_mask;
-    BOOL         wow64_32key;
+    BOOL         wow64_32key; // Access a 32-bit key from either a 32-bit or 64-bit application.
+    BOOL         wow64_64key; // Access a 64-bit key from either a 32-bit or 64-bit application.
   } _init;
 
   CRegKey _hKeyBase;

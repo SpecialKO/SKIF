@@ -43,7 +43,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   std::vector<std::pair<int, std::wstring>> gamingRoots;
 
   /* Load Xbox titles from registry */
-  if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+  if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey) == ERROR_SUCCESS)
   {
     if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, &dwIndexKey, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
     {
@@ -62,7 +62,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
         {
           // Parsing GUID keys
 
-          if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, (LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root\)" + std::wstring(szSubKeyGUID)).c_str(), 0, KEY_READ, &hSubKey) == ERROR_SUCCESS)
+          if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, (LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root\)" + std::wstring(szSubKeyGUID)).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hSubKey) == ERROR_SUCCESS)
           {
             if (RegQueryInfoKeyW (hSubKey, NULL, NULL, NULL, &dwIndexSubKey, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
             {
@@ -413,7 +413,7 @@ SKIF_Xbox_hasInstalledGamesChanged (void)
     static SKIF_RegistryWatch
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root)",
-                     L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME, true);
+                     L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME, true, false, true);
   
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
