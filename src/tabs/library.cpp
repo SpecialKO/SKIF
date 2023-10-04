@@ -668,7 +668,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         
         if (app.second.id == SKIF_STEAM_APPID) // SKIF
           load_str = L"_icon.jpg";
-        else  if (app.second.store == "SKIF")  // SKIF Custom
+        else  if (app.second.store == "Other") // SKIF Custom
           load_str = L"icon";
         else  if (app.second.store == "Epic")  // Epic
           load_str = L"icon";
@@ -919,7 +919,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "SKIF")
+          else if (pApp->store == "Other")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Epic")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -962,7 +962,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "SKIF")
+          else if (pApp->store == "Other")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Epic")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -1143,7 +1143,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // SKIF Custom
-      else if (_pApp->store == "SKIF")
+      else if (_pApp->store == "Other")
       {
         load_str = L"cover";
       }
@@ -2042,7 +2042,7 @@ Cache=false)";
       }
 
       // Platform
-      ImGui::TextUnformatted          ((pTargetApp->store == "SKIF") ? "Other" : pTargetApp->store.c_str());
+      ImGui::TextUnformatted          (pTargetApp->store.c_str());
 
       // Column should have min-width 100px (scaled with the DPI)
       ImGui::ItemSize         (
@@ -2917,7 +2917,7 @@ Cache=false)";
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "SKIF")
+          else if (pApp->store == "Other")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Epic")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -2971,7 +2971,7 @@ Cache=false)";
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "SKIF")
+          else if (pApp->store == "Other")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == "Epic")
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -3999,13 +3999,13 @@ Cache=false)";
       ImGui::PopStyleColor  ( );
 
       // Manage [Custom] Game
-      if (pApp->store == "SKIF" || pApp->store == "GOG")
+      if (pApp->store == "Other" || pApp->store == "GOG")
       {
         ImGui::Separator ( );
         
         if (ImGui::BeginMenu (ICON_FA_GEAR "  Manage"))
         {
-          if (pApp->store == "SKIF")
+          if (pApp->store == "Other")
           {
             if (ImGui::Selectable ("Properties"))
               ModifyGamePopup = PopupState_Open;
@@ -4058,7 +4058,7 @@ Cache=false)";
             ConfirmPopup = PopupState_Open;
           }
 
-          if (pApp->store == "SKIF")
+          if (pApp->store == "Other")
           {
             if (ImGui::Selectable ("Remove"))
               RemoveGamePopup = PopupState_Open;
@@ -4109,7 +4109,7 @@ Cache=false)";
                                         );
       }
       
-      std::wstring pcgwValue =   (pApp->store == "SKIF" || pApp->store == "Epic" || pApp->store == "Xbox")
+      std::wstring pcgwValue =   (pApp->store == "Other" || pApp->store == "Epic" || pApp->store == "Xbox")
                                ? SK_UTF8ToWideChar (pApp->names.normal)
                                : std::to_wstring   (pApp->id);
 
@@ -4529,7 +4529,7 @@ Cache=false)";
       if (newAppId > 0)
       {
         _registry.iLastSelectedGame   = newAppId;
-        _registry.wsLastSelectedStore = L"SKIF";
+        _registry.wsLastSelectedStore = L"Other";
         _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
         _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
         RepopulateGames = true; // Rely on the RepopulateGames method instead
@@ -4545,7 +4545,7 @@ Cache=false)";
       /*
       selection.appid = newAppId;
       for (auto& app : apps)
-        if (app.second.id == selection.appid && app.second.store == "SKIF")
+        if (app.second.id == selection.appid && app.second.store == "Other")
           pApp = &app.second;
 
       ImVec2 dontCare1, dontCare2;
@@ -4765,7 +4765,7 @@ Cache=false)";
       {
         for (auto& app : apps)
         {
-          if (app.second.id == pApp->id && app.second.store == "SKIF")
+          if (app.second.id == pApp->id && app.second.store == "Other")
           {
             app.first = pApp->names.normal;
 
@@ -4867,9 +4867,9 @@ Cache=false)";
   {
     // Change selection to the new game
     selection.appid = SelectNewSKIFGame;
-    selection.store = "SKIF";
+    selection.store = "Other";
     for (auto& app : apps)
-      if (app.second.id == selection.appid && app.second.store == "SKIF")
+      if (app.second.id == selection.appid && app.second.store == "Other")
         pApp = &app.second;
 
     update = true;

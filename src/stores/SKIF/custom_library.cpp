@@ -103,7 +103,7 @@ int SKIF_AddCustomAppID (
   {
     app_record_s record(appId);
 
-    record.store = "SKIF";
+    record.store = "Other";
     record.type  = "Game";
     record._status.installed = true;
     record.names.normal = SK_WideCharToUTF8(name);
@@ -127,7 +127,7 @@ int SKIF_AddCustomAppID (
     app_record_s::launch_config_s lc;
     lc.id               = 0;
     lc.valid            = true;
-    lc.store            = L"SKIF";
+    lc.store            = L"Other";
     lc.executable       = exeFileName;
     lc.executable_path  = exe;
     lc.working_dir      = record.install_dir;
@@ -260,7 +260,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
             app_record_s record (dwData);
 
             record.id = dwData;
-            record.store = "SKIF";
+            record.store = "Other";
             record.type  = "Game";
             record._status.installed = true;
 
@@ -287,7 +287,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               app_record_s::launch_config_s lc;
               lc.id           = 0;
               lc.valid        = true;
-              lc.store        = L"SKIF";
+              lc.store        = L"Other";
               lc.executable   = szData;
               lc.working_dir  = record.install_dir;
 

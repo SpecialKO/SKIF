@@ -207,7 +207,7 @@ LoadLibraryTexture (
   }
 
   // SKIF Custom
-  else if (pApp != nullptr && pApp->store == "SKIF")
+  else if (pApp != nullptr && pApp->store == "Other")
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, appid);
 
