@@ -281,9 +281,9 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
             if (_registry.bLowBandwidthMode)
               assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
-            PLOG_DEBUG << "Downloading OfferImageTall asset: " << assetUrl;
+            PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
 
-            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"OfferImageTall.jpg");
+            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.jpg");
           }
         }
       }
