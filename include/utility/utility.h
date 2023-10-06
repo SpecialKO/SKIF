@@ -90,6 +90,10 @@ DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_vi
 
 // Directory Watch
 
+// Both of these flags are required to properly detect new files when they have finished writing as well as deleted files
+// FILE_NOTIFY_CHANGE_FILE_NAME  - Detects when files has been created, renamed, or deleted
+// FILE_NOTIFY_CHANGE_LAST_WRITE - Detects when processes have finished writing to a file
+
 struct SKIF_DirectoryWatch
 {
   SKIF_DirectoryWatch  (void) { };
@@ -97,7 +101,7 @@ struct SKIF_DirectoryWatch
                                      bool bGlobalWait    = false,
                                      bool bWaitAllTabs   = false,
                                      BOOL bWatchSubtree  = FALSE,
-                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   ~SKIF_DirectoryWatch (void);
 
   bool isSignaled      (void);
@@ -106,21 +110,21 @@ struct SKIF_DirectoryWatch
                                      bool bGlobalWait    = false,
                                      bool bWaitAllTabs   = false,
                                      BOOL bWatchSubtree  = FALSE,
-                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   
   void reset           (void);
 
   HANDLE _hChangeNotification = INVALID_HANDLE_VALUE;
   bool   _bGlobalWait         = false;
   bool   _bWaitAllTabs        = false;
-  std::wstring _path          = L""; // Debug stuff only
+  std::wstring _path          = L"";
 
 private:
   void registerNotify  (std::wstring_view wstrPath,
                                      bool bGlobalWait    = false,
                                      bool bWaitAllTabs   = false,
                                      BOOL bWatchSubtree  = FALSE,
-                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME);
+                                    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
 };
 
 
