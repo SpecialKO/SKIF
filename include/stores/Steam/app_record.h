@@ -127,15 +127,10 @@ struct app_record_s {
   } names;
 
   struct tex_registry_s {
-    d3d11_tex_ref_s icon;
-    d3d11_tex_ref_s cover;
-    //d3d11_tex_ref_s logo;
-    //d3d11_tex_ref_s hero;
-    //d3d11_tex_ref_s header;
-    //d3d11_tex_ref_s six_by_nine;
-    bool            isCustomIcon  = false;
-    bool            isCustomCover = false;
-  } textures;
+    d3d11_tex_ref_s texture;
+    bool            isCustom  = false;
+    bool            isManaged = false; // Indicates whether the texture is managed by SKIF or not
+  } tex_icon, tex_cover;
 
   enum class Platform {
     Unknown = 0x0,

@@ -174,12 +174,21 @@ LoadLibraryTexture (
                SKIFCustomPath,
                SteamCustomPath;
 
-  bool succeeded   = false;
-  bool customAsset = false;
+  bool succeeded    = false;
+  bool customAsset  = false;
+  bool managedAsset = true; // Assume true (only GOG and SKIF itself is not managed)
 
   if (pApp != nullptr)
+  {
     appid = pApp->id;
   
+    if (libTexToLoad == LibraryTexture::Cover)
+      pApp->tex_cover.isCustom = pApp->tex_cover.isManaged = false;
+  
+    if (libTexToLoad == LibraryTexture::Icon)
+      pApp->tex_icon.isCustom  = pApp->tex_icon.isManaged  = false;
+  }
+
   //if (libTexToLoad == LibraryTexture::Cover)
   //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Attempting to load library texture...\n").c_str());
 
@@ -203,7 +212,7 @@ LoadLibraryTexture (
              PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
       load_str =               SKIFCustomPath + L".ico";
 
-    customAsset = (load_str != L"\0");
+    customAsset = managedAsset = (load_str != L"\0");
   }
 
   // SKIF Custom
@@ -258,8 +267,8 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Cover &&
-               PathFileExistsW ((EpicAssetPath + L"OfferImageTall.jpg").c_str()))
-        load_str =               EpicAssetPath + L"OfferImageTall.jpg";
+               PathFileExistsW ((EpicAssetPath + L"cover-original.jpg").c_str()))
+        load_str =               EpicAssetPath + L"cover-original.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
                SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EpicAssetPath + L"icon-original.png"))
         load_str =               SKIFCustomPath + L"-original.png";
@@ -293,11 +302,14 @@ LoadLibraryTexture (
         load_str =             SKIFCustomPath + L"-original.png";
       else if (libTexToLoad == LibraryTexture::Icon)
       {
+        managedAsset = false; // GOG default icons are not managed
         load_str =             name;
       }
 
       else if (libTexToLoad == LibraryTexture::Cover)
       {
+        managedAsset = false; // GOG covers are not managed
+
         extern std::wstring GOGGalaxy_UserID;
         load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
 
@@ -389,6 +401,8 @@ LoadLibraryTexture (
 
     if (! customAsset)
     {
+      managedAsset = false; // Steam covers are not managed
+
       if      (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
         load_str =               SteamCustomPath + L"p.png";
@@ -402,14 +416,6 @@ LoadLibraryTexture (
   }
 
   PLOG_DEBUG << "Texture to load: " << load_str;
-
-  if (pApp != nullptr)
-  {
-    if      (libTexToLoad == LibraryTexture::Cover)
-      pApp->textures.isCustomCover = customAsset;
-    else if (libTexToLoad == LibraryTexture::Icon)
-      pApp->textures.isCustomIcon  = customAsset;
-  }
 
   if (load_str != L"\0" &&
       SUCCEEDED(
@@ -557,6 +563,23 @@ LoadLibraryTexture (
       )
       {
         //pLibTexSRV = pOrigTexSRV;
+      }
+
+      // If everything went well
+      else {
+        if (pApp != nullptr)
+        {
+          if      (libTexToLoad == LibraryTexture::Cover)
+          {
+            pApp->tex_cover.isCustom  = customAsset;
+            pApp->tex_cover.isManaged = managedAsset;
+          }
+          else if (libTexToLoad == LibraryTexture::Icon)
+          {
+            pApp->tex_icon.isCustom  = customAsset;
+            pApp->tex_icon.isManaged = managedAsset;
+          }
+        }
       }
 
       // SRV is holding a reference, this is not needed anymore.
