@@ -343,7 +343,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
 
 void
 SKIF_ImGui_SetHoverText ( const std::string_view& szText,
-                                bool  overrideExistingText )
+                              bool  overrideExistingText )
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 

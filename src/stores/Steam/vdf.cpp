@@ -92,8 +92,8 @@ app_section_s::parse (section_desc_s& desc)
   if (! exception)
   {
     for ( uint8_t *cur = (uint8_t *)desc.blob             ;
-                    cur < (uint8_t *)desc.blob + desc.size ;
-                    cur++ )
+                   cur < (uint8_t *)desc.blob + desc.size ;
+                   cur++ )
     {
       auto op =
         (_TokenOp)(*cur);
