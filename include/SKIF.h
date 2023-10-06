@@ -60,9 +60,10 @@ constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028; // AddGame="
 constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049; // Gamepad input worker detected new input
 constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover worker completed
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
+constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Cover worker completed
 
 // Callbacks / Event Signals
-constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2052; // Used to signal that a new effective power mode has been applied
+constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2101; // Used to signal that a new effective power mode has been applied
 constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Window message Special K posts when it has signaled one of the various acknowledgement events
 
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
