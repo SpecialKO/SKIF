@@ -1869,20 +1869,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if ( (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f) ||
-            ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
-                                                             0.0f ) ) )
+      if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
+         (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f))
       {
         ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
       }
 
       ImGui::SameLine ();
 
-      if ( (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
-            ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale,
-                                                          0.0f ) )
-          || bKeepWindowAlive == false
-         )
+      if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
+         (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
+          bKeepWindowAlive == false)
       {
         if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
         {
@@ -2769,6 +2766,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
 
+    // Disable navigation highlight on first frames
+    SK_RunOnce(
+      ImGuiContext& g = *ImGui::GetCurrentContext();
+      g.NavDisableHighlight = true;
+    );
+
     if ( bRefresh )
     {
       ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
@@ -2951,6 +2954,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (pause)
       {
         //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][PAUSE] Rendering paused!\n").c_str());
+
+        // Empty working set before we pause
+        // - Bad idea because it will immediately hitch when that stuff has to be moved back from the pagefile
+        //   There's no predicting how long it will take to move those pages back into memory
+        SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
 
         // SetProcessInformation (Windows 8+)
         using SetProcessInformation_pfn =
@@ -3515,7 +3523,12 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       tryingToLoadCover = gameCoverLoading.load();
       
       // Empty working set after the cover has finished loading
-      SKIF_Util_CompactWorkingSet ( );
+      if (! tryingToLoadCover)
+        SKIF_Util_CompactWorkingSet ( );
+      break;
+
+    case WM_SKIF_ICON:
+      addAdditionalFrames += 3;
       break;
 
     case WM_SKIF_UPDATER:
