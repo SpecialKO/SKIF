@@ -341,10 +341,11 @@ SKIF_UI_Tab_DrawLibrary (void)
   auto& io =
     ImGui::GetIO ();
 
-  static volatile LONG icon_thread  = 1;
-  static volatile LONG need_sort    = 0;
+  //static volatile LONG icon_thread  = 1;
+  //static volatile LONG need_sort    = 0;
   bool                 sort_changed = false;
 
+#if 0
   if (InterlockedCompareExchange (&need_sort, 0, 1))
   {
     std::sort ( apps.begin (),
@@ -360,10 +361,27 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     sort_changed = true;
   }
+#endif
 
-  static bool     update         = true;
-  static bool     updateInjStrat = false;
-  static uint32_t lastCover      = 0;
+  auto _SortApps = [&](void) -> void
+  {
+    std::sort ( apps.begin (),
+                apps.end   (),
+      []( const std::pair <std::string, app_record_s>& a,
+          const std::pair <std::string, app_record_s>& b ) -> int
+      {
+        return a.second.names.all_upper_alnum.compare(
+               b.second.names.all_upper_alnum
+        ) < 0;
+      }
+    );
+
+    sort_changed = true;
+    PLOG_INFO << "Apps were sorted!";
+  };
+
+  static bool        update         = true;
+  static bool        updateInjStrat = false;
 
   struct {
     uint32_t            appid = SKIF_STEAM_APPID;
@@ -377,6 +395,17 @@ SKIF_UI_Tab_DrawLibrary (void)
       dir_watch.reset();
     }
   } static selection;
+
+  struct {
+    uint32_t            appid = 0;
+    std::string         store = "";
+
+    void reset()
+    {
+      appid = 0;
+      store = "";
+    }
+  } static lastCover;
 
   static bool     populated      = false;
 
@@ -421,7 +450,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! populated)
   {
-    InterlockedExchange (&icon_thread, 1);
+    //InterlockedExchange (&icon_thread, 1);
 
     PLOG_INFO << "Populating library list...";
 
@@ -471,16 +500,193 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (app.second.id    ==                    _registry.iLastSelectedGame  &&
             app.second.store == SK_WideCharToUTF8 (_registry.wsLastSelectedStore))
         {
-          selection.appid = app.second.id;
-          selection.store = app.second.store;
+          selection.appid        = app.second.id;
+          selection.store        = app.second.store;
+          manual_selection.id    = selection.appid;
+          //manual_selection.store = selection.store;
           update = true;
         }
       }
     }
 
+    PLOG_INFO << "Loading game names synchronously...";
+
+    // Clear any existing trie
+    labels = Trie { };
+
+    // Handle names first
+    for ( auto& app : apps )
+    {
+      //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
+
+      // Special handling for non-Steam owners of Special K / SKIF
+      if ( app.second.id == SKIF_STEAM_APPID )
+        app.first = "Special K";
+
+      // Regular handling for the remaining Steam games
+      else if (app.second.store == "Steam") {
+        app.first.clear ();
+
+        app.second._status.refresh (&app.second);
+      }
+
+      // Only bother opening the application manifest
+      //   and looking for a name if the client claims
+      //     the app is installed.
+      if (app.second._status.installed)
+      {
+        if (! app.second.names.normal.empty ())
+        {
+          app.first = app.second.names.normal;
+        }
+
+        // Some games have an install state but no name,
+        //   for those we have to consult the app manifest
+        else if (app.second.store == "Steam")
+        {
+          app.first =
+            SK_UseManifestToGetAppName (
+                          app.second.id );
+        }
+
+        // Corrupted app manifest / not known to Steam client; SKIP!
+        if (app.first.empty ())
+        {
+          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has no name; ignoring!";
+
+          app.second.id = 0;
+          continue;
+        }
+
+        std::string original_name = app.first;
+
+        // Some games use weird Unicode character combos that ImGui can't handle,
+        //  so let's replace those with the normal ones.
+
+        // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
+        //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
+        app.first = std::regex_replace(app.first, std::regex("\xE2\x80\x99"), "\x27");
+
+        // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
+        //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
+        app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
+
+        // Strip game names from special symbols (disabled due to breaking some Chinese characters)
+        //const char* chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)
+        //for (unsigned int i = 0; i < strlen(chars); ++i)
+          //app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
+
+        // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
+        app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
+
+        // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
+        app.first = std::regex_replace(app.first, std::regex("\xC2\xAE"), "");
+
+        // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
+        app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
+
+        if (original_name != app.first)
+        {
+          PLOG_DEBUG << "Game title was changed:";
+          PLOG_DEBUG << "Old: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ")";
+          PLOG_DEBUG << "New: " << SK_UTF8ToWideChar(app.first.c_str())     << " (" << app.first     << ")";
+        }
+
+        // Strip any remaining null terminators
+        app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
+
+        // Trim leftover spaces
+        app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+        app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
+          
+        // Update ImGuiLabelAndID and ImGuiPushID
+        app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
+        app.second.ImGuiPushID     = SK_FormatString("%s%i", app.second.store.c_str(), app.second.id);
+      }
+
+      // Check if install folder exists (but not for SKIF)
+      if (app.second.id != SKIF_STEAM_APPID && app.second.store != "Xbox")
+      {
+        std::wstring install_dir;
+
+        if (app.second.store == "Steam")
+          install_dir = SK_UseManifestToGetInstallDir(app.second.id);
+        else
+          install_dir = app.second.install_dir;
+          
+        if (! PathFileExists(install_dir.c_str()))
+        {
+          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has non-existent install folder; ignoring!";
+
+          app.second.id = 0;
+          continue;
+        }
+      }
+
+      // Prepare for the keyboard hint / search/filter functionality
+      if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
+      {
+        std::string all_upper = SKIF_Util_ToUpper (app.first),
+                    all_upper_alnum;
+          
+        for (const char c : app.first)
+        {
+          if (! ( isalnum (c) || isspace (c) ))
+            continue;
+
+          all_upper_alnum += (char)toupper (c);
+        }
+
+        size_t stripped = 0;
+
+        if (_registry.bLibraryIgnoreArticles)
+        {
+          static const
+            std::string toSkip [] =
+            {
+              std::string ("A "),
+              std::string ("AN "),
+              std::string ("THE ")
+            };
+
+          for ( auto& skip_ : toSkip )
+          {
+            if (all_upper_alnum.find (skip_) == 0)
+            {
+              all_upper_alnum =
+                all_upper_alnum.substr (
+                  skip_.length ()
+                );
+
+              stripped = skip_.length ();
+              break;
+            }
+          }
+        }
+
+        std::string trie_builder;
+
+        for ( const char c : all_upper_alnum)
+        {
+          trie_builder += c;
+
+          labels.insert (trie_builder);
+        }
+          
+        app.second.names.normal          = app.first;
+        app.second.names.all_upper       = all_upper;
+        app.second.names.all_upper_alnum = all_upper_alnum;
+        app.second.names.pre_stripped    = stripped;
+      }
+    }
+
+    PLOG_INFO << "Finished loading game names synchronously...";
+
+    _SortApps ( );
+
     PLOG_INFO << "Finished populating the library list.";
 
-    // We're going to stream icons in asynchronously on this thread
+    // We're going to stream game icons asynchronously on this thread
     _beginthread ([](void*)->void
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibRefreshWorker");
@@ -488,7 +694,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       CoInitializeEx (nullptr, 0x0);
 
       PLOG_INFO << "Thread started!";
-      PLOG_INFO << "Streaming game icons and names asynchronously...";
       
       PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
@@ -497,172 +702,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pSKLogoTexSRV.p == nullptr)
         LoadLibraryTexture (LibraryTexture::Cover,   SKIF_STEAM_APPID, pSKLogoTexSRV, L"(sk_boxart.png)", dontCare1, dontCare2);
 
-      // Clear any existing trie
-      labels = Trie { };
+      // FIX: This causes the whole apps vector to be resorted by the main thread
+      //   which then causes textures being loaded below to end up being assigned to the wrong game
+      //InterlockedExchange (&need_sort, 1);
 
+      // Force a refresh when the game names have finished being streamed
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+      
+      // Load icons last
       for ( auto& app : apps )
       {
-        //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
-
-        // Special handling for non-Steam owners of Special K / SKIF
-        if ( app.second.id == SKIF_STEAM_APPID )
-          app.first = "Special K";
-
-        // Regular handling for the remaining Steam games
-        else if (app.second.store == "Steam") {
-          app.first.clear ();
-
-          app.second._status.refresh (&app.second);
-        }
-
-        // Only bother opening the application manifest
-        //   and looking for a name if the client claims
-        //     the app is installed.
-        if (app.second._status.installed)
-        {
-          if (! app.second.names.normal.empty ())
-          {
-            app.first = app.second.names.normal;
-          }
-
-          // Some games have an install state but no name,
-          //   for those we have to consult the app manifest
-          else if (app.second.store == "Steam")
-          {
-            app.first =
-              SK_UseManifestToGetAppName (
-                           app.second.id );
-          }
-
-          // Corrupted app manifest / not known to Steam client; SKIP!
-          if (app.first.empty ())
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has no name; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-
-          std::string original_name = app.first;
-
-          // Some games use weird Unicode character combos that ImGui can't handle,
-          //  so let's replace those with the normal ones.
-
-          // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
-          //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
-          app.first = std::regex_replace(app.first, std::regex("\xE2\x80\x99"), "\x27");
-
-          // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
-          //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
-          app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
-
-          // Strip game names from special symbols (disabled due to breaking some Chinese characters)
-          //const char* chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)
-          //for (unsigned int i = 0; i < strlen(chars); ++i)
-            //app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
-
-          // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
-          app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
-
-          // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
-          app.first = std::regex_replace(app.first, std::regex("\xC2\xAE"), "");
-
-          // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
-          app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
-
-          if (original_name != app.first)
-          {
-            PLOG_DEBUG << "Game title was changed:";
-            PLOG_DEBUG << "Old: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ")";
-            PLOG_DEBUG << "New: " << SK_UTF8ToWideChar(app.first.c_str())     << " (" << app.first     << ")";
-          }
-
-          // Strip any remaining null terminators
-          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
-
-          // Trim leftover spaces
-          app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
-          app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
-          
-          // Update ImGuiLabelAndID and ImGuiPushID
-          app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
-          app.second.ImGuiPushID     = SK_FormatString("%s%i", app.second.store.c_str(), app.second.id);
-        }
-
-        // Check if install folder exists (but not for SKIF)
-        if (app.second.id != SKIF_STEAM_APPID && app.second.store != "Xbox")
-        {
-          std::wstring install_dir;
-
-          if (app.second.store == "Steam")
-            install_dir = SK_UseManifestToGetInstallDir(app.second.id);
-          else
-            install_dir = app.second.install_dir;
-          
-          if (! PathFileExists(install_dir.c_str()))
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has non-existent install folder; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-        }
-
-        // Prepare for the keyboard hint / search/filter functionality
-        if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
-        {
-          std::string all_upper = SKIF_Util_ToUpper (app.first),
-                      all_upper_alnum;
-          
-          for (const char c : app.first)
-          {
-            if (! ( isalnum (c) || isspace (c) ))
-              continue;
-
-            all_upper_alnum += (char)toupper (c);
-          }
-
-          size_t stripped = 0;
-
-          if (_registry.bLibraryIgnoreArticles)
-          {
-            static const
-              std::string toSkip [] =
-              {
-                std::string ("A "),
-                std::string ("AN "),
-                std::string ("THE ")
-              };
-
-            for ( auto& skip_ : toSkip )
-            {
-              if (all_upper_alnum.find (skip_) == 0)
-              {
-                all_upper_alnum =
-                  all_upper_alnum.substr (
-                    skip_.length ()
-                  );
-
-                stripped = skip_.length ();
-                break;
-              }
-            }
-          }
-
-          std::string trie_builder;
-
-          for ( const char c : all_upper_alnum)
-          {
-            trie_builder += c;
-
-            labels.insert (trie_builder);
-          }
-          
-          app.second.names.normal          = app.first;
-          app.second.names.all_upper       = all_upper;
-          app.second.names.all_upper_alnum = all_upper_alnum;
-          app.second.names.pre_stripped    = stripped;
-        }
+        if (app.second.id == 0)
+          continue;
 
         std::wstring load_str;
         
@@ -679,36 +730,19 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         LoadLibraryTexture ( LibraryTexture::Icon,
                                app.second.id,
-                                 app.second.textures.icon,
+                                 app.second.tex_icon.texture,
                                    load_str,
                                      dontCare1,
                                        dontCare2,
                                          &app.second );
-
-        // UNUSED?
-        /*
-        static auto *pFont =
-          ImGui::GetFont ();
-
-        max_app_name_len =
-          std::max ( max_app_name_len,
-                        pFont->CalcTextSizeA (1.0f, FLT_MAX, 0.0f,
-                          app.first.c_str (),
-                StrStrA (app.first.c_str (), "##")
-                        ).x
-          );
-          */
-
-        //PLOG_VERBOSE << "Finished with game!";
       }
 
-      PLOG_INFO << "Finished streaming game icons and names asynchronously...";
+      PLOG_INFO << "Finished streaming game icons asynchronously...";
+      
+      //InterlockedExchange (&icon_thread, 0);
 
-      InterlockedExchange (&icon_thread, 0);
-      InterlockedExchange (&need_sort, 1);
-
-      // Force a refresh when the game icons and names have finished being streamed
-      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+      // Force a refresh when the game icons have finished being streamed
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
       PLOG_INFO << "Thread stopped!";
     }, 0x0, NULL);
@@ -894,9 +928,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
 
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
-      if (pApp->textures.isCustomCover)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT)       .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize (  ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
+      if (pApp->tex_cover.isCustom)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
+      else if (pApp->tex_cover.isManaged)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
       ImGui::PopStyleColor (  );
@@ -909,7 +945,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Column 2: Items
       ImGui::BeginGroup (  );
       bool dontCare = false;
-      if (ImGui::Selectable ("Set Custom Artwork",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      if (ImGui::Selectable ("Change",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
         if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
@@ -945,7 +981,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
 
             update    = true;
-            lastCover = 0; // Needed as otherwise SKIF would not reload the cover
+            lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
           }
         }
       }
@@ -954,9 +990,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_ImGui_SetMouseCursorHand ( );
       }
 
-      if (pApp->textures.isCustomCover)
+      // Only show option if:
+      //   - We use a custom cover
+      //   - We use an official cover as long as:
+      //     * We do not have SKIF selected (has no official cover background to remove)
+      //     * We do not have a GOG title selected (uses GOG Galaxy artwork)
+      if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
       {
-        if (ImGui::Selectable ("Clear Custom Artwork", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == "Other") ? "Clear" : "Reset") : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           std::wstring targetPath = L"";
 
@@ -975,16 +1016,26 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (PathFileExists (targetPath.c_str()))
           {
-            targetPath += L"cover";
+            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
 
-            bool d1 = DeleteFile ((targetPath + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + L".jpg").c_str());
+            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = false,
+                 d4 = false;
+
+            // For Xbox titles we also store a fallback cover that we must reset
+            if (! pApp->tex_cover.isCustom && pApp->store == "Xbox")
+            {
+              fileName = L"cover-fallback.png";
+              d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+              d4 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
+            }
 
             // If any file was removed
-            if (d1 || d2)
+            if (d1 || d2 || d3 || d4)
             {
               update    = true;
-              lastCover = 0; // Needed as otherwise SKIF would not reload the cover
+              lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
             }
           }
         }
@@ -996,28 +1047,32 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::Separator  (  );
 
-      // Strip (recently added) from the game name
-      std::string name = pApp->names.normal;
-      try {
-        name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-      }
-      catch (const std::exception& e)
+      auto _GetSteamGridDBLink = [&](void) -> std::string
       {
-        UNREFERENCED_PARAMETER(e);
-      }
+        // Strip (recently added) from the game name
+        std::string name = pApp->names.normal;
+        try {
+          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+        }
+        catch (const std::exception& e)
+        {
+          UNREFERENCED_PARAMETER(e);
+        }
 
-      std::string linkGridDB = (pApp->store == "Steam")
-                             ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
-                             : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
+        return (pApp->store == "Steam")
+                ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
+                : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
+
+      };
 
       if (ImGui::Selectable ("Browse SteamGridDB",   dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
-        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(linkGridDB).c_str());
+        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(_GetSteamGridDBLink()).c_str());
       }
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (linkGridDB);
+        SKIF_ImGui_SetHoverText       (_GetSteamGridDBLink());
       }
 
       ImGui::EndGroup   (  );
@@ -1029,10 +1084,15 @@ SKIF_UI_Tab_DrawLibrary (void)
                 ICON_FA_FILE_IMAGE
                             );
 
-      if (pApp->textures.isCustomCover)
+      if (pApp->tex_cover.isCustom)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE_LEFT
+                              );
+      else if (pApp->tex_cover.isManaged)
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE
                               );
 
       ImGui::Separator  (  );
@@ -1062,17 +1122,19 @@ SKIF_UI_Tab_DrawLibrary (void)
     update      = false;
 
     // Ensure we aren't already loading this cover
-    if (lastCover != pApp->id)
+    if (lastCover.appid != pApp->id || lastCover.store != pApp->store)
     {
       loadCover = true;
-      lastCover = pApp->id;
+      lastCover.appid = pApp->id;
+      lastCover.store = pApp->store;
     }
   }
 
-  if (loadCover && populated /* && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) */ && ! InterlockedExchangeAdd (&icon_thread, 0))
+  if (loadCover && populated) // && ! InterlockedExchangeAdd (&icon_thread, 0)) /* && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) */
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
-    // Note from 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
-    // Note from 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
+    // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
+    // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
+    // 2023-10-05: Disabled waiting for the icon thread as well
     loadCover = false;
 
     // Reset variables used to track whether we're still loading a game cover, or if we're missing one
@@ -1139,7 +1201,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // SKIF
       if (_pApp->id == SKIF_STEAM_APPID)
       {
-        load_str = L"_library_600x900_x2.jpg";
+        // No need to change the string in any way
       }
 
       // SKIF Custom
@@ -1158,7 +1220,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (_pApp->store == "Epic")
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\OfferImageTall.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
@@ -1234,7 +1296,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! std::filesystem::exists (            load_str_2x, ec))
               std::filesystem::create_directories (load_str_2x, ec);
 
-        load_str_2x += L"library_600x900_x2.jpg";
+        load_str_2x += L"cover-original.jpg";
       
         load_str = SK_GetSteamDir ();
 
@@ -1243,17 +1305,16 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   L"_library_600x900.jpg";
 
         std::wstring load_str_final = load_str;
-        //std::wstring load_str_final = L"_library_600x900.jpg";
 
         // Get UNIX-style time
         time_t ltime;
         time (&ltime);
 
         std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
-                      url += std::to_wstring (_pApp->id);
-                      url += L"/library_600x900_2x.jpg";
-                      url += L"?t=";
-                      url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
+                     url += std::to_wstring (_pApp->id);
+                     url += L"/library_600x900_2x.jpg";
+                     url += L"?t=";
+                     url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
 
         // If 600x900 exists but 600x900_x2 cannot be found
         if (  PathFileExistsW (load_str.   c_str ()) &&
@@ -1277,7 +1338,6 @@ SKIF_UI_Tab_DrawLibrary (void)
             {
               SKIF_Util_GetWebResource (url, load_str_2x);
               load_str_final = load_str_2x;
-              //load_str_final = L"_library_600x900_x2.jpg";
             }
           }
         }
@@ -1504,8 +1564,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region PrintInjectionSummary
 
-  auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) ->
-  float
+  auto _PrintInjectionSummary = [&](app_record_s* pTargetApp) -> void
   {
     if ( pTargetApp != nullptr && pTargetApp->id != SKIF_STEAM_APPID )
     {
@@ -2015,7 +2074,7 @@ Cache=false)";
           SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
                                   "various features of Special K in an attempt to improve compatibility.");
 
-          if (ImGui::Selectable ("Reset Config File"))
+          if (ImGui::Selectable ("Reset"))
           {
             HANDLE h = CreateFile ( SK_UTF8ToWideChar (cache.config.full_path).c_str(),
                         GENERIC_READ | GENERIC_WRITE,
@@ -2316,8 +2375,6 @@ Cache=false)";
       }
 
     } // End IF (pTargetApp != nullptr) statement -- cache goes out of scope here
-
-    return 0.0f;
   };
 
 #pragma endregion
@@ -2408,8 +2465,6 @@ Cache=false)";
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
                  ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
-  static bool deferred_update = false;
-
 
   // Start populating the whole list
 
@@ -2434,7 +2489,7 @@ Cache=false)";
     ImGui::BeginGroup      ();
     ImGui::PushID          (app.second.ImGuiPushID.c_str());
 
-    SKIF_ImGui_OptImage    (app.second.textures.icon.p,
+    SKIF_ImGui_OptImage    (app.second.tex_icon.texture.p,
                               ImVec2 ( _ICON_HEIGHT,
                                        _ICON_HEIGHT )
                             );
@@ -2566,9 +2621,10 @@ Cache=false)";
           // Activate the row of the current game
           ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
 
-          if (! ImGui::IsItemVisible    (    )) {
+          if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
-          } ImGui::SetKeyboardFocusHere (    );
+          
+          ImGui::SetKeyboardFocusHere (    );
 
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
           //   without an additional keyboard input
@@ -2577,8 +2633,6 @@ Cache=false)";
         }
 
         //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());
-
-        deferred_update = true;
       }
     }
 
@@ -2587,68 +2641,6 @@ Cache=false)";
       // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
         ImGui::SetScrollHereY (0.5f);
-
-      // Disabled 2023-07-31 due to not serving any purpose?
-#if 0
-      if (! update)
-      {
-        if (std::exchange (deferred_update, false))
-        {
-          ImGui::SameLine ();
-          /*
-          auto _ClipMouseToWindowX = [&](void) -> float
-          {
-            float fWindowX   = ImGui::GetWindowPos              ().x,
-                  fScrollX   = ImGui::GetScrollX                (),
-                  fContentX0 = ImGui::GetWindowContentRegionMin ().x,
-                  fContentX1 = ImGui::GetWindowContentRegionMax ().x,
-                  fLocalX    = io.MousePos.x - fWindowX - fScrollX;
-
-            return
-              fWindowX + fScrollX +
-                std::max   ( fContentX0,
-                  std::min ( fContentX1, fLocalX ) );
-          };
-
-          // Span the entire width of the list, not just the part with text
-          ImVec2 vMax (
-            ImGui::GetItemRectMin ().x + ImGui::GetWindowContentRegionWidth (),
-            ImGui::GetItemRectMax ().y
-          );
-          */
-          /*
-          if (ImGui::IsItemVisible ())
-          {
-            auto _IsMouseInWindow = [&](void) -> bool
-            {
-              HWND  hWndActive = ::GetForegroundWindow ();
-              RECT  rcClient   = { };
-              POINT ptMouse    = { };
-
-              GetClientRect  (hWndActive, &rcClient);
-              GetCursorPos   (            &ptMouse );
-              ScreenToClient (hWndActive, &ptMouse );
-
-              return PtInRect (&rcClient, ptMouse);
-            };
-
-            if (_IsMouseInWindow ())
-            {
-              if (! ImGui::IsMouseHoveringRect (
-                            ImGui::GetItemRectMin (),
-                              vMax
-                    )
-                 ) io.MousePos.y = ImGui::GetCursorScreenPos ().y;
-              io.MousePos.x      =       _ClipMouseToWindowX ();
-              io.WantSetMousePos = true;
-            }
-          }
-          */
-
-          ImGui::Dummy    (ImVec2 (0,0));
-        }
-      }
-#endif
 
       pApp = &app.second;
     }
@@ -2892,9 +2884,11 @@ Cache=false)";
       ImGui::BeginGroup  ( );
       ImVec2 iconPos = ImGui::GetCursorPos();
 
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE)       .x, ImGui::GetTextLineHeight()));
-      if (pApp->textures.isCustomIcon)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT)         .x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
+      if (pApp->tex_icon.isCustom)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
+      else if (pApp->tex_icon.isManaged)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
       ImGui::PopStyleColor (  );
@@ -2907,7 +2901,7 @@ Cache=false)";
       // Column 2: Items
       ImGui::BeginGroup (  );
       bool dontCare = false;
-      if (ImGui::Selectable ("Set Custom Icon",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
+      if (ImGui::Selectable ("Change",    dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
         if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png;*.ico" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
@@ -2948,7 +2942,7 @@ Cache=false)";
             // Reload the icon
             LoadLibraryTexture (LibraryTexture::Icon,
                                   pApp->id,
-                                    pApp->textures.icon,
+                                    pApp->tex_icon.texture,
                                       (pApp->store == "GOG")
                                       ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                       : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), pApp->id), //L"_icon.jpg",
@@ -2963,9 +2957,9 @@ Cache=false)";
         SKIF_ImGui_SetMouseCursorHand ( );
       }
 
-      if (pApp->textures.isCustomIcon)
+      if (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged)
       {
-        if (ImGui::Selectable ("Clear Custom Icon",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ((pApp->tex_icon.isCustom) ? "Reset" : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           std::wstring targetPath = L"";
 
@@ -2984,11 +2978,11 @@ Cache=false)";
 
           if (PathFileExists(targetPath.c_str()))
           {
-            targetPath += L"icon";
+            std::wstring fileName = (pApp->tex_icon.isCustom) ? L"icon" : L"icon-original";
 
-            bool d1 = DeleteFile ((targetPath + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + L".jpg").c_str()),
-                 d3 = DeleteFile ((targetPath + L".ico").c_str());
+            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
 
             // If any file was removed
             if (d1 || d2 || d3)
@@ -2998,7 +2992,7 @@ Cache=false)";
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
-                                      pApp->textures.icon,
+                                      pApp->tex_icon.texture,
                                        (pApp->store == "GOG")
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                         : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", SK_GetSteamDir(), pApp->id), //L"_icon.jpg",
@@ -3049,10 +3043,16 @@ Cache=false)";
                 ICON_FA_FILE_IMAGE
                             );
 
-      if (pApp->textures.isCustomIcon)
+      if (pApp->tex_icon.isCustom)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE_LEFT
+                              );
+
+      else if (pApp->tex_icon.isManaged)
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE
                               );
 
       ImGui::Separator   ( );
@@ -3345,7 +3345,7 @@ Cache=false)";
                                                                       (_registry.bUIBorders),
                                                       ImGuiWindowFlags_NoScrollbar            |
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
-                        ((pApp->textures.isCustomCover) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground));
+                        ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground));
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
@@ -4322,12 +4322,12 @@ Cache=false)";
         pApp->id = 0;
 
         // Release the icon texture (the cover will be handled by LoadLibraryTexture on next frame
-        if (pApp->textures.icon.p != nullptr)
+        if (pApp->tex_icon.texture.p != nullptr)
         {
           extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
-          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->textures.icon.p << " to be released";
-          SKIF_ResourcesToFree.push(pApp->textures.icon.p);
-          pApp->textures.icon.p = nullptr;
+          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->tex_icon.texture.p << " to be released";
+          SKIF_ResourcesToFree.push(pApp->tex_icon.texture.p);
+          pApp->tex_icon.texture.p = nullptr;
         }
 
         // Reset selection to Special K
@@ -4553,7 +4553,7 @@ Cache=false)";
       // Load the new icon (hopefully)
       LoadLibraryTexture (LibraryTexture::Icon,
                             newAppId,
-                              pApp->textures.icon,
+                              pApp->tex_icon.texture,
                                 L"icon",
                                     dontCare1,
                                       dontCare2,
@@ -4811,7 +4811,8 @@ Cache=false)";
           }
         }
 
-        InterlockedExchange (&need_sort, 1);
+        //InterlockedExchange (&need_sort, 1);
+        _SortApps ( );
 
         // Clear variables
         error = false;
@@ -4896,10 +4897,10 @@ Cache=false)";
 
     for (auto& app : apps)
     {
-      if (app.second.textures.icon.p != nullptr)
+      if (app.second.tex_icon.texture.p != nullptr)
       {
-        SKIF_ResourcesToFree.push(app.second.textures.icon.p);
-        app.second.textures.icon.p = nullptr;
+        SKIF_ResourcesToFree.push(app.second.tex_icon.texture.p);
+        app.second.tex_icon.texture.p = nullptr;
       }
     }
 
