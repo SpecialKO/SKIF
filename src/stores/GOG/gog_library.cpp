@@ -76,8 +76,9 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               int appid = _wtoi(szData);
               app_record_s record(appid);
 
-              record.store = "GOG";
-              record.type  = "Game";
+              record.store      = app_record_s::Store::GOG;
+              record.store_utf8 = "GOG";
+              //record.type  = "Game";
               //GOG_record.extended_config.vac.enabled = false;
               record._status.installed = true;
 

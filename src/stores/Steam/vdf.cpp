@@ -244,7 +244,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         for (auto& app : apps)
         {
-          if (app.second.id == appid && app.second.store == "Steam")
+          if (app.second.id == appid && app.second.store == app_record_s::Store::Steam)
           {
             pAppRecord = &app.second;
             break;
@@ -413,6 +413,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                     _ParseOSArch (key);
                 }
 
+#if 0
                 if (! _stricmp (key.first, "type"))
                 {
                   if      (! _stricmp ((char *)key.second.second, "game"))
@@ -428,6 +429,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                   else
                     pAppRecord->type = SK_FormatString ("(?) %s", (char *)key.second.second);
                 }
+#endif
               }
             }
 

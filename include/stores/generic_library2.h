@@ -109,6 +109,7 @@ struct app_generic_s {
 
   uint32_t     id;
   std::wstring install_dir;
+  std::string  ImGuiPushID = "";
   std::string  ImGuiLabelAndID = "";
 
   struct client_state_s {
@@ -128,19 +129,22 @@ struct app_generic_s {
 
   struct names_s {
     std::string all_upper;
+    std::string all_upper_alnum;
     std::string normal;
+    size_t      pre_stripped = 0;
   } names;
 
   struct tex_registry_s {
     tex_ref_s icon;
     tex_ref_s cover;
   } textures;
-
+  
   enum class Store {
-    Epic        = 0x1,
-    GOG         = 0x2,
-    Steam       = 0x3,
-    Xbox        = 0x4,
+    Steam       = 0x1,   // Initial commit
+    GOG         = 0x2,   // Sep 17, 2021
+    Other       = 0x3,   // Oct 2, 2021 - SKIF custom games
+    Epic        = 0x4,   // Dec 27, 2021
+    Xbox        = 0x5,   // Mar 6, 2022
     Unspecified = 0xffff
   };
 

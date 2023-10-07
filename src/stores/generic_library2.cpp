@@ -216,7 +216,7 @@ LoadLibraryTexture (
   }
 
   // SKIF Custom
-  else if (pApp != nullptr && pApp->store == "Other")
+  else if (pApp != nullptr && pApp->store == app_record_s::Store::Other)
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, appid);
 
@@ -244,7 +244,7 @@ LoadLibraryTexture (
   }
 
   // Epic
-  else if (pApp != nullptr && pApp->store == "Epic")
+  else if (pApp != nullptr && pApp->store == app_record_s::Store::Epic)
   {
     std::wstring EpicAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
     SKIFCustomPath = std::wstring(EpicAssetPath);
@@ -276,7 +276,7 @@ LoadLibraryTexture (
   }
 
   // GOG
-  else if (pApp != nullptr && pApp->store == "GOG")
+  else if (pApp != nullptr && pApp->store == app_record_s::Store::GOG)
   {
     SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", _path_cache.specialk_userdata, appid);
 
@@ -328,7 +328,7 @@ LoadLibraryTexture (
   }
 
   // Xbox
-  else if (pApp != nullptr && pApp->store == "Xbox")
+  else if (pApp != nullptr && pApp->store == app_record_s::Store::Xbox)
   {
     std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
     SKIFCustomPath = std::wstring(XboxAssetPath);
@@ -363,7 +363,7 @@ LoadLibraryTexture (
   }
 
   // STEAM
-  else if (pApp != nullptr && pApp->store == "Steam")
+  else if (pApp != nullptr && pApp->store == app_record_s::Store::Steam)
   {
     static unsigned long SteamUserID = 0;
 

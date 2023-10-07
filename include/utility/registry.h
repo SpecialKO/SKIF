@@ -306,6 +306,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Last Selected)" );
 
+  KeyValue <int> regKVLastSelectedStore =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                          LR"(Last Selected Platform)" );
+
   KeyValue <int> regKVNotifications =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Notifications)" );
@@ -351,10 +355,6 @@ struct SKIF_RegistrySettings {
                          LR"(UI Mode)" );
 
   // Wide Strings
-
-  KeyValue <std::wstring> regKVLastSelectedStore =
-    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                          LR"(Last Selected Store)" );
 
   KeyValue <std::wstring> regKVIgnoreUpdate =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -429,7 +429,8 @@ struct SKIF_RegistrySettings {
   std::wstring wsIgnoreUpdate;
   std::wstring wsAppRegistration;
   std::wstring wsPath;
-  std::wstring wsLastSelectedStore;
+  //std::wstring wsLastSelectedStore;
+  unsigned int iLastSelectedStore;
   unsigned int iLastSelectedGame;
 
   // Ephemeral settings that doesn't stick around

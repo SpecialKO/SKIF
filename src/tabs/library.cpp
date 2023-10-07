@@ -56,8 +56,6 @@
 #include <TlHelp32.h>
 #include <gsl/gsl_util>
 
-#include <utility/games.h>
-
 #include <utility/registry.h>
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
@@ -122,143 +120,9 @@ ApplySRGBAlpha (float a)
 
 #pragma region Trie Keyboard Hint Search
 
-// define character size
-#define CHAR_SIZE 128
-
-// A Class representing a Trie node
-class Trie
-{
-public:
-  bool  isLeaf                = false;
-  Trie* character [CHAR_SIZE] = {   };
-
-  // Constructor
-  Trie (void)
-  {
-    this->isLeaf = false;
-
-    for (int i = 0; i < CHAR_SIZE; i++)
-      this->character [i] = nullptr;
-  }
-
-  void insert       (        const std::string&);
-  bool deletion     (Trie*&, const std::string&);
-  bool search       (        const std::string&);
-  bool haveChildren (Trie const*);
-};
-
-// Iterative function to insert a key in the Trie
-void
-Trie::insert (const std::string& key)
-{
-  // start from root node
-  Trie* curr = this;
-  for (size_t i = 0; i < key.length (); i++)
-  {
-    // create a new node if path doesn't exists
-    if (curr->character [key [i]] == nullptr)
-        curr->character [key [i]]  = new Trie ();
-
-    // go to next node
-    curr = curr->character [key [i]];
-  }
-
-  // mark current node as leaf
-  curr->isLeaf = true;
-}
-
-// Iterative function to search a key in Trie. It returns true
-// if the key is found in the Trie, else it returns false
-bool Trie::search (const std::string& key)
-{
-  Trie* curr = this;
-  for (size_t i = 0; i < key.length (); i++)
-  {
-    // go to next node
-    curr = curr->character [key [i]];
-
-    // if string is invalid (reached end of path in Trie)
-    if (curr == nullptr)
-      return false;
-  }
-
-  // if current node is a leaf and we have reached the
-  // end of the string, return true
-  return curr->isLeaf;
-}
-
-// returns true if given node has any children
-bool Trie::haveChildren (Trie const* curr)
-{
-  for (int i = 0; i < CHAR_SIZE; i++)
-    if (curr->character [i])
-      return true;  // child found
-
-  return false;
-}
-
-// Recursive function to delete a key in the Trie
-bool Trie::deletion (Trie*& curr, const std::string& key)
-{
-  // return if Trie is empty
-  if (curr == nullptr)
-    return false;
-
-  // if we have not reached the end of the key
-  if (key.length ())
-  {
-    // recur for the node corresponding to next character in the key
-    // and if it returns true, delete current node (if it is non-leaf)
-
-    if (        curr                      != nullptr       &&
-                curr->character [key [0]] != nullptr       &&
-      deletion (curr->character [key [0]], key.substr (1)) &&
-                curr->isLeaf == false)
-    {
-      if (! haveChildren (curr))
-      {
-        delete curr;
-        curr = nullptr;
-        return true;
-      }
-
-      else {
-        return false;
-      }
-    }
-  }
-
-  // if we have reached the end of the key
-  if (key.length () == 0 && curr->isLeaf)
-  {
-    // if current node is a leaf node and don't have any children
-    if (! haveChildren (curr))
-    {
-      // delete current node
-      delete curr;
-      curr = nullptr;
-
-      // delete non-leaf parent nodes
-      return true;
-    }
-
-    // if current node is a leaf node and have children
-    else
-    {
-      // mark current node as non-leaf node (DON'T DELETE IT)
-      curr->isLeaf = false;
-
-      // don't delete its parent nodes
-      return false;
-    }
-  }
-
-  return false;
-}
-
 struct {
-  uint32_t    id = 0;
-  std::string store;
+  uint32_t            id = 0;
+  app_record_s::Store store;
 } static manual_selection;
 
 Trie labels;
@@ -387,8 +251,8 @@ GetInjectionSummary (app_record_s* pApp)
   {
     bool ret = false;
 
-    if ((pApp->store != "Steam") ||
-        (pApp->store == "Steam"  && // Exclude the check for games with known older versions
+    if ((pApp->store != app_record_s::Store::Steam) ||
+        (pApp->store == app_record_s::Store::Steam  && // Exclude the check for games with known older versions
           _cache.app_id != 405900       && // Disgaea PC
           _cache.app_id != 359870       && // FFX/X-2 HD Remaster
         //_cache.app_id != 578330       && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
@@ -794,7 +658,7 @@ Cache=false)";
   }
 
   // Platform
-  ImGui::TextUnformatted          (pApp->store.c_str());
+  ImGui::TextUnformatted          (pApp->store_utf8.c_str());
 
   // Column should have min-width 100px (scaled with the DPI)
   ImGui::ItemSize         (
@@ -891,7 +755,7 @@ Cache=false)";
 
   ImGui::PopStyleVar ();
 
-  std::string      buttonLabel = ICON_FA_GAMEPAD "  Launch ";// + pApp->type;
+  std::string      buttonLabel = ICON_FA_GAMEPAD "  Launch";
   ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
 
   if (pApp->_status.running)
@@ -916,7 +780,7 @@ Cache=false)";
     clickedGameLaunchWoSK )
   {
 
-    if ( pApp->store != "Steam" && pApp->store != "Epic" &&
+    if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
          pApp->launch_configs[0].getExecutableFullPath(pApp->id).find(L"InvalidPath") != std::wstring::npos )
     {
       confirmPopupText = "Could not launch game due to missing executable:\n\n" + SK_WideCharToUTF8(pApp->launch_configs[0].getExecutableFullPath(pApp->id, false));
@@ -940,7 +804,7 @@ Cache=false)";
         if (usingSK)
         {
           // Whitelist the path if it haven't been already
-          if (pApp->store == "Xbox")
+          if (pApp->store == app_record_s::Store::Xbox)
           {
             if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
             {
@@ -976,7 +840,7 @@ Cache=false)";
       }
 
       // Launch game
-      if (pApp->store == "GOG" && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
+      if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
       {
         extern std::wstring GOGGalaxy_Path;
 
@@ -1002,13 +866,13 @@ Cache=false)";
         */
       }
 
-      else if (pApp->store == "Epic")
+      else if (pApp->store == app_record_s::Store::Epic)
       {
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
         SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
       }
 
-      else if (pApp->store == "Steam") {
+      else if (pApp->store == app_record_s::Store::Steam) {
         //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pApp->id)).c_str()); // This is seemingly unreliable
         SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pApp->id)).c_str());
         pApp->_status.invalidate();
@@ -1016,7 +880,7 @@ Cache=false)";
           
       else { // SKIF Custom, GOG without Galaxy, Xbox
 
-        std::wstring wszPath = (pApp->store == "Xbox")
+        std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
                               ? pApp->launch_configs[0].executable_helper
                               : pApp->launch_configs[0].getExecutableFullPath(pApp->id);
             
@@ -1076,7 +940,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   
   // Handle Steam games
-  if (pApp->store == "Steam")
+  if (pApp->store == app_record_s::Store::Steam)
   {
     pApp->specialk.injection =
       SKIF_InstallUtils_GetInjectionStrategy (pApp->id);
@@ -1234,34 +1098,6 @@ UpdateInjectionStrategy (app_record_s* pApp)
 void
 SKIF_UI_Tab_DrawLibrary (void)
 {
-#if 0
-  SKIF_GamesCollection& _games = SKIF_GamesCollection::GetInstance();
-
-  // Always read from the last written index
-  int nowReading = _games.snapshot_idx_written.load ( );
-  _games.snapshot_idx_reading.store (nowReading);
-
-  if (RepopulateGames)
-    _games.RefreshGames ( );
-
-  /*
-  std::vector <std::unique_ptr<app_generic_s>> &apps_new =
-    _games.GetGames ( );
-  */
-
-  std::vector <std::unique_ptr<app_generic_s>>* apps_new = _games.GetGames ( );
-
-  if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
-  {
-    PLOG_VERBOSE << "New library backend discovered the following games:";
-    for (auto const& app : *apps_new) {
-      PLOG_VERBOSE << app->names.normal;
-      //OutputDebugString(SK_UTF8ToWideChar(app->names.normal).c_str());
-      //OutputDebugString(L"\n");
-    }
-  }
-#endif
-
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
@@ -1269,9 +1105,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   static SKIF_DirectoryWatch SKIF_Epic_ManifestWatch;
 
-  //static CComPtr <ID3D11Texture2D>          pTex2D;
+//static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-  //static ImVec2                             vecTex2D;
+//static ImVec2                             vecTex2D;
 
   static ImVec2 vecCoverUv0 = ImVec2 (0, 0), 
                 vecCoverUv1 = ImVec2 (1, 1);
@@ -1286,6 +1122,28 @@ SKIF_UI_Tab_DrawLibrary (void)
       appinfo = std::make_unique <skValveDataFile> (std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
     );
   }
+
+#if 0
+  SKIF_GamesCollection& _games              = SKIF_GamesCollection::GetInstance  ( );
+
+  // Always read from the last written index
+  int nowReading = _games.snapshot_idx_written.load ( );
+  _games.snapshot_idx_reading.store (nowReading);
+
+  if (RepopulateGames)
+    _games.RefreshGames ( );
+
+  std::vector <std::unique_ptr<app_generic_s>>* apps_new =
+    _games.GetGames     ( );
+
+  if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
+  {
+    PLOG_VERBOSE << "New library backend discovered the following games:";
+    for (auto const& app : *apps_new) {
+      PLOG_VERBOSE << app->names.normal;
+    }
+  }
+#endif
 
   auto& io =
     ImGui::GetIO ();
@@ -1316,14 +1174,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   struct {
     uint32_t            appid = SKIF_STEAM_APPID;
-    std::string         store = "Steam";
+    app_record_s::Store store = app_record_s::Store::Steam;
     SKIF_DirectoryWatch dir_watch;
     bool                reset_to_skif = true;
 
     void reset ()
     {
-      appid = (reset_to_skif) ? SKIF_STEAM_APPID : 0;
-      store = (reset_to_skif) ? "Steam"          : "";
+      appid = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
+      store = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
       
       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
         dir_watch.reset();
@@ -1392,9 +1250,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_record.names.normal    = "Special K";
       SKIF_record.names.all_upper = "SPECIAL K";
       SKIF_record.install_dir     = _path_cache.specialk_install;
-      SKIF_record.store           = "Steam";
-      SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%s%i", SKIF_record.names.normal.c_str(), SKIF_record.store.c_str(), SKIF_record.id);
-      SKIF_record.ImGuiPushID     = SK_FormatString("%s%i", SKIF_record.store.c_str(), SKIF_record.id);
+      SKIF_record.store           = app_record_s::Store::Steam;
+      SKIF_record.store_utf8      = "Steam";
+      SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+      SKIF_record.ImGuiPushID     = SK_FormatString("%i-%i", (int)SKIF_record.store, SKIF_record.id);
 
       std::pair <std::string, app_record_s>
         SKIF ( "Special K", SKIF_record );
@@ -1421,8 +1280,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       for (auto& app : apps)
       {
-        if (app.second.id    ==                    _registry.iLastSelectedGame  &&
-            app.second.store == SK_WideCharToUTF8 (_registry.wsLastSelectedStore))
+        if (app.second.id    ==      _registry.iLastSelectedGame &&
+            app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
         {
           selection.appid        = app.second.id;
           selection.store        = app.second.store;
@@ -1441,14 +1300,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Handle names first
     for ( auto& app : apps )
     {
-      //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store << ")";
+      //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
 
       // Special handling for non-Steam owners of Special K / SKIF
       if ( app.second.id == SKIF_STEAM_APPID )
         app.first = "Special K";
 
       // Regular handling for the remaining Steam games
-      else if (app.second.store == "Steam") {
+      else if (app.second.store == app_record_s::Store::Steam) {
         app.first.clear ();
 
         app.second._status.refresh (&app.second);
@@ -1466,7 +1325,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Some games have an install state but no name,
         //   for those we have to consult the app manifest
-        else if (app.second.store == "Steam")
+        else if (app.second.store == app_record_s::Store::Steam)
         {
           app.first =
             SK_UseManifestToGetAppName (
@@ -1476,7 +1335,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Corrupted app manifest / not known to Steam client; SKIP!
         if (app.first.empty ())
         {
-          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has no name; ignoring!";
+          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has no name; ignoring!";
 
           app.second.id = 0;
           continue;
@@ -1524,23 +1383,23 @@ SKIF_UI_Tab_DrawLibrary (void)
         app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
           
         // Update ImGuiLabelAndID and ImGuiPushID
-        app.second.ImGuiLabelAndID = SK_FormatString("%s###%s%i", app.first.c_str(), app.second.store.c_str(), app.second.id);
-        app.second.ImGuiPushID     = SK_FormatString("%s%i", app.second.store.c_str(), app.second.id);
+        app.second.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
+        app.second.ImGuiPushID     = SK_FormatString("%i-%i", (int)app.second.store, app.second.id);
       }
 
       // Check if install folder exists (but not for SKIF)
-      if (app.second.id != SKIF_STEAM_APPID && app.second.store != "Xbox")
+      if (app.second.id != SKIF_STEAM_APPID && app.second.store != app_record_s::Store::Xbox)
       {
         std::wstring install_dir;
 
-        if (app.second.store == "Steam")
+        if (app.second.store == app_record_s::Store::Steam)
           install_dir = SK_UseManifestToGetInstallDir(app.second.id);
         else
           install_dir = app.second.install_dir;
           
         if (! PathFileExists(install_dir.c_str()))
         {
-          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store << ") has non-existent install folder; ignoring!";
+          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has non-existent install folder; ignoring!";
 
           app.second.id = 0;
           continue;
@@ -1596,7 +1455,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           labels.insert (trie_builder);
         }
-          
+        
         app.second.names.normal          = app.first;
         app.second.names.all_upper       = all_upper;
         app.second.names.all_upper_alnum = all_upper_alnum;
@@ -1605,8 +1464,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     PLOG_INFO << "Finished loading game names synchronously...";
-
+    
     _SortApps ( );
+
+    for (auto& app : apps)
+      UpdateInjectionStrategy (&app.second);
 
     PLOG_INFO << "Finished populating the library list.";
 
@@ -1643,13 +1505,13 @@ SKIF_UI_Tab_DrawLibrary (void)
         
         if (app.second.id == SKIF_STEAM_APPID) // SKIF
           load_str = L"_icon.jpg";
-        else  if (app.second.store == "Other") // SKIF Custom
+        else  if (app.second.store == app_record_s::Store::Other) // SKIF Custom
           load_str = L"icon";
-        else  if (app.second.store == "Epic")  // Epic
+        else  if (app.second.store == app_record_s::Store::Epic)  // Epic
           load_str = L"icon";
-        else  if (app.second.store == "GOG")   // GOG
+        else  if (app.second.store == app_record_s::Store::GOG)   // GOG
           load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
-        else if (app.second.store == "Steam")  // STEAM
+        else if (app.second.store  == app_record_s::Store::Steam)  // STEAM
           load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, app.second.id); //L"_icon.jpg"
 
         LoadLibraryTexture ( LibraryTexture::Icon,
@@ -1732,7 +1594,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
   {
     extern std::wstring GOGGalaxy_UserID;
-    if (pApp != nullptr && pApp->store == "GOG" && GOGGalaxy_UserID.empty())
+    if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
     {
       ImGui::SetCursorPos (ImVec2 (
                   vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
@@ -1774,7 +1636,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-  if (selection.appid == SKIF_STEAM_APPID && selection.store == "Steam" && pSKLogoTexSRV != nullptr)
+  if (selection.appid == SKIF_STEAM_APPID && selection.store == app_record_s::Store::Steam && pSKLogoTexSRV != nullptr)
   {
     ImGui::Image (pSKLogoTexSRV.p,
                                                     ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
@@ -1882,15 +1744,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "Other")
+          else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Epic")
+          else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == "GOG")
+          else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Xbox")
+          else if (pApp->store == app_record_s::Store::Xbox)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == "Steam")
+          else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (targetPath != L"")
@@ -1924,21 +1786,21 @@ SKIF_UI_Tab_DrawLibrary (void)
       //     * We do not have a GOG title selected (uses GOG Galaxy artwork)
       if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
       {
-        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == "Other") ? "Clear" : "Reset") : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
           std::wstring targetPath = L"";
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "Other")
+          else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Epic")
+          else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == "GOG")
+          else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Xbox")
+          else if (pApp->store == app_record_s::Store::Xbox)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == "Steam")
+          else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (PathFileExists (targetPath.c_str()))
@@ -1951,7 +1813,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                  d4 = false;
 
             // For Xbox titles we also store a fallback cover that we must reset
-            if (! pApp->tex_cover.isCustom && pApp->store == "Xbox")
+            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
             {
               fileName = L"cover-fallback.png";
               d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
@@ -1986,7 +1848,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           UNREFERENCED_PARAMETER(e);
         }
 
-        return (pApp->store == "Steam")
+        return (pApp->store == app_record_s::Store::Steam)
                 ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
                 : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
 
@@ -2070,7 +1932,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 //#define _WRITE_APPID_INI
 #ifdef _WRITE_APPID_INI 
-    if ( appinfo != nullptr && pApp->store == "Steam")
+    if ( appinfo != nullptr && pApp->store == app_record_s::Store::Steam)
     {
       skValveDataFile::appinfo_s *pAppInfo =
         appinfo->getAppInfo ( pApp->id );
@@ -2133,19 +1995,19 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // SKIF Custom
-      else if (_pApp->store == "Other")
+      else if (_pApp->store == app_record_s::Store::Other)
       {
         load_str = L"cover";
       }
 
       // GOG
-      else if (_pApp->store == "GOG")
+      else if (_pApp->store == app_record_s::Store::GOG)
       {
         load_str = L"*_glx_vertical_cover.webp";
       }
 
       // Epic
-      else if (_pApp->store == "Epic")
+      else if (_pApp->store == app_record_s::Store::Epic)
       {
         load_str = 
           SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
@@ -2179,7 +2041,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Xbox
-      else if (_pApp->store == "Xbox")
+      else if (_pApp->store == app_record_s::Store::Xbox)
       {
         load_str = 
           SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Xbox_PackageName).c_str());
@@ -2213,7 +2075,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Steam
-      else if (_pApp->store == "Steam")
+      else if (_pApp->store == app_record_s::Store::Steam)
       {
         std::wstring load_str_2x (
           SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, _pApp->id)
@@ -2370,11 +2232,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
 
     struct {
-      std::string text   = "";
-      std::string store  = "";
-      uint32_t    app_id = 0;
-      size_t      pos    = 0;
-      size_t      len    = 0;
+      std::string text          = "";
+      app_record_s::Store store = app_record_s::Store::Unspecified;
+      uint32_t    app_id        = 0;
+      size_t      pos           = 0;
+      size_t      len           = 0;
     } static result;
 
     if (bText)
@@ -2622,7 +2484,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth); // (app.first + "###" + app.second.store + std::to_string(app.second.id)).c_str()
+    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (2                    );
 
     static DWORD    timeClicked = 0;
@@ -2668,11 +2530,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::SetFocusID   (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()), ImGui::GetCurrentWindow());
 
       // Clear stuff
-      selection.appid     = 0;
-      selection.store.clear();
-      manual_selection.id = 0;
-      manual_selection.store.clear();
-      change           = true;
+      selection.appid        = 0;
+      selection.store        = app_record_s::Store::Unspecified;
+      manual_selection.id    = 0;
+      manual_selection.store = app_record_s::Store::Unspecified;
+      change                 = true;
     }
 
     change |=
@@ -2702,8 +2564,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       selection.appid      = app.second.id;
       selection.store      = app.second.store;
       selected   = true;
-      _registry.iLastSelectedGame   = selection.appid;
-      _registry.wsLastSelectedStore = SK_UTF8ToWideChar (selection.store);
+      _registry.iLastSelectedGame  = selection.appid;
+      _registry.iLastSelectedStore = (int)selection.store;
 
       if (update)
       {
@@ -2846,15 +2708,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "Other")
+          else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Epic")
+          else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == "GOG")
+          else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Xbox")
+          else if (pApp->store == app_record_s::Store::Xbox)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == "Steam")
+          else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (targetPath != L"")
@@ -2878,7 +2740,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             LoadLibraryTexture (LibraryTexture::Icon,
                                   pApp->id,
                                     pApp->tex_icon.texture,
-                                      (pApp->store == "GOG")
+                                      (pApp->store == app_record_s::Store::GOG)
                                       ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                       : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
                                           dontCare1,
@@ -2900,15 +2762,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == "Other")
+          else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Epic")
+          else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == "GOG")
+          else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == "Xbox")
+          else if (pApp->store == app_record_s::Store::Xbox)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == "Steam")
+          else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
           if (PathFileExists(targetPath.c_str()))
@@ -2928,7 +2790,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
                                       pApp->tex_icon.texture,
-                                       (pApp->store == "GOG")
+                                       (pApp->store == app_record_s::Store::GOG)
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                         : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
                                             dontCare1,
@@ -2955,7 +2817,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         UNREFERENCED_PARAMETER(e);
       }
 
-      std::string linkGridDB = (pApp->store == "Steam")
+      std::string linkGridDB = (pApp->store == app_record_s::Store::Steam)
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons", pApp->id)
                              : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", name.c_str());
 
@@ -3228,7 +3090,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
 
   // Special handling at the bottom for Special K
-  if (selection.appid == SKIF_STEAM_APPID && selection.store == "Steam") {
+  if (selection.appid == SKIF_STEAM_APPID && selection.store == app_record_s::Store::Steam) {
     ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
                                                               fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
     ImGui::BeginGroup    ();
@@ -3322,7 +3184,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     for (auto& app : apps)
     {
-      if (app.second.store == "Steam")
+      if (app.second.store == app_record_s::Store::Steam)
         continue;
       app.second._status.running = false;
     }
@@ -3375,11 +3237,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           for (auto& app : apps)
           {
             // Steam games are covered through separate registry monitoring
-            if (app.second.store == "Steam")
+            if (app.second.store == app_record_s::Store::Steam)
               continue;
 
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
-            else if (app.second.store == "Xbox" && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
+            else if (app.second.store == app_record_s::Store::Xbox && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
             {
               app.second._status.running = true;
               break;
@@ -3446,7 +3308,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Hide the Launch option for Special K
       if (pApp->id != SKIF_STEAM_APPID)
       {
-        if ( ImGui::Selectable (("Launch " + pApp->type).c_str (), false,
+        if ( ImGui::Selectable ("Launch", false,
                                ((pApp->_status.running != 0x0)
                                  ? ImGuiSelectableFlags_Disabled
                                  : ImGuiSelectableFlags_None)))
@@ -3461,7 +3323,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
           );
 
-          if ( ImGui::Selectable (("Launch " + pApp->type + " without Special K").c_str(), false,
+          if ( ImGui::Selectable ("Launch without Special K", false,
                                  ((pApp->_status.running != 0x0)
                                    ? ImGuiSelectableFlags_Disabled
                                    : ImGuiSelectableFlags_None)))
@@ -3472,7 +3334,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
         }
 
-        if (GOGGalaxy_Installed && pApp->store == "GOG")
+        if (GOGGalaxy_Installed && pApp->store == app_record_s::Store::GOG)
         {
           if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
           {
@@ -3480,7 +3342,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (ImGui::BeginMenu    ("Launch using GOG Galaxy"))
             {
-              if (ImGui::Selectable (("Launch " + pApp->type).c_str(), false,
+              if (ImGui::Selectable ("Launch", false,
                                     ((pApp->_status.running != 0x0)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
@@ -3490,7 +3352,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
               );
 
-              if (ImGui::Selectable (("Launch " + pApp->type + " without Special K").c_str(), false,
+              if (ImGui::Selectable ("Launch without Special K", false,
                                     ((pApp->_status.running != 0x0)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
@@ -3730,8 +3592,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                              );
       }
 
-      if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
-                                    (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
+      if (pApp->store == app_record_s::Store::Steam &&
+         (pApp->id != SKIF_STEAM_APPID || (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
         ImGui::Separator  ( );
 
       /*
@@ -3934,13 +3796,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::PopStyleColor  ( );
 
       // Manage [Custom] Game
-      if (pApp->store == "Other" || pApp->store == "GOG")
+      if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG)
       {
         ImGui::Separator ( );
         
         if (ImGui::BeginMenu (ICON_FA_GEAR "  Manage"))
         {
-          if (pApp->store == "Other")
+          if (pApp->store == app_record_s::Store::Other)
           {
             if (ImGui::Selectable ("Properties"))
               ModifyGamePopup = PopupState_Open;
@@ -3993,7 +3855,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             ConfirmPopup = PopupState_Open;
           }
 
-          if (pApp->store == "Other")
+          if (pApp->store == app_record_s::Store::Other)
           {
             if (ImGui::Selectable ("Remove"))
               RemoveGamePopup = PopupState_Open;
@@ -4016,12 +3878,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN)       .x, ImGui::GetTextLineHeight()));
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH).x, ImGui::GetTextLineHeight()));
 
-      if (pApp->store == "GOG")
+      if (pApp->store == app_record_s::Store::GOG)
       {
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
       }
 
-      else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
+      else if (pApp->store == app_record_s::Store::Steam && (pApp->id != SKIF_STEAM_APPID ||
                                          (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
@@ -4044,13 +3906,13 @@ SKIF_UI_Tab_DrawLibrary (void)
                                         );
       }
       
-      std::wstring pcgwValue =   (pApp->store == "Other" || pApp->store == "Epic" || pApp->store == "Xbox")
+      std::wstring pcgwValue =   (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
                                ? SK_UTF8ToWideChar (pApp->names.normal)
                                : std::to_wstring   (pApp->id);
 
-      std::wstring pcgwLink =   ((pApp->store == "GOG")   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
-                               : (pApp->store == "Steam") ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
-                                                          : L"https://www.pcgamingwiki.com/w/index.php?search=") + pcgwValue;
+      std::wstring pcgwLink =   ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
+                               : (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
+                                                                             : L"https://www.pcgamingwiki.com/w/index.php?search=") + pcgwValue;
 
       if (ImGui::Selectable  ("Browse PCGamingWiki", dontCare, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -4064,7 +3926,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         );
       }
 
-      if (pApp->store == "GOG")
+      if (pApp->store == app_record_s::Store::GOG)
       {
         if (ImGui::Selectable  ("Browse GOG Database", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
@@ -4080,8 +3942,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           );
         }
       }
-      else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
-                                         (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
+      else if (pApp->store == app_record_s::Store::Steam &&
+        (pApp->id != SKIF_STEAM_APPID || (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
         if (ImGui::Selectable  ("Browse Steam", dontCare, ImGuiSelectableFlags_SpanAllColumns))
         {
@@ -4139,15 +4001,15 @@ SKIF_UI_Tab_DrawLibrary (void)
                  ICON_FA_SCREWDRIVER_WRENCH
                            );
 
-      if (pApp->store == "GOG")
+      if (pApp->store == app_record_s::Store::GOG)
       {
         ImGui::TextColored (
          ImColor   (155, 89, 182, 255),
            ICON_FA_DATABASE );
       }
 
-      else if (pApp->store == "Steam" && (pApp->id != SKIF_STEAM_APPID ||
-                                         (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
+      else if (pApp->store == app_record_s::Store::Steam &&
+        (pApp->id != SKIF_STEAM_APPID || (pApp->id == SKIF_STEAM_APPID && SKIF_STEAM_OWNER)))
       {
 
         ImGui::TextColored (
@@ -4462,10 +4324,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (newAppId > 0)
       {
-        _registry.iLastSelectedGame   = newAppId;
-        _registry.wsLastSelectedStore = L"Other";
+        _registry.iLastSelectedGame  = newAppId;
+        _registry.iLastSelectedStore = (int)app_record_s::Store::Other;
         _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
-        _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+        _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
         RepopulateGames = true; // Rely on the RepopulateGames method instead
       }
 
@@ -4678,7 +4540,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         for (auto& app : apps)
         {
-          if (app.second.id == pApp->id && app.second.store == "Other")
+          if (app.second.id == pApp->id && app.second.store == app_record_s::Store::Other)
           {
             app.first = pApp->names.normal;
 
@@ -4781,7 +4643,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // Change selection to the new game
     selection.appid = SelectNewSKIFGame;
-    selection.store = "Other";
+    selection.store = app_record_s::Store::Other;
     for (auto& app : apps)
       if (app.second.id == selection.appid && app.second.store == selection.store)
         pApp = &app.second;

@@ -92,8 +92,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       PLOG_VERBOSE << "Root: " << szData;
 
-                      record.store = "Xbox";
-                      record.type  = "Game";
+                      record.store      = app_record_s::Store::Xbox;
+                      record.store_utf8 = "Xbox";
+                      //record.type  = "Game";
                       record._status.installed = true;
                       record.install_dir = szData;
                       record.install_dir = record.install_dir.substr(4); // Strip \\?\

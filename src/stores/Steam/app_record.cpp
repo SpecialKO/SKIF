@@ -444,7 +444,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   if ( dwTimeLastChecked <= app_record_s::client_state_s::_TimeLastNotified )
   {
-    if (pApp->store != "Steam" || SKIF_Steam_UpdateAppState (pApp))
+    if (pApp->store != app_record_s::Store::Steam || SKIF_Steam_UpdateAppState (pApp))
       dwTimeLastChecked = dwTimeNow + _RefreshInterval;
     else
       invalidate ();

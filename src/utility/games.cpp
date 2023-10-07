@@ -11,6 +11,7 @@
 // Registry Settings
 #include <utility/registry.h>
 #include <stores/Steam/steam_library.h>
+#include <regex>
 
 CONDITION_VARIABLE LibRefreshPaused = { };
 
@@ -145,7 +146,8 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         auto &snapshot =
           parent.snapshots [currWriting];
 
-        auto& Apps      = snapshot.apps;
+        auto& Apps     = snapshot.apps;
+        auto& Labels   = snapshot.labels;
 
 
         // If Apps is currently not an object, create one!
@@ -230,8 +232,178 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
 
         // END DO STUFF
 
+        // Parse titles
+
+        
+        // Handle names first
+        for (const auto& app : *Apps)
+        {
+          //PLOG_DEBUG << "Working on " << app->id << " (" << app->store << ")";
+
+          // Regular handling for the remaining Steam games
+#if 0
+          // Needs differentialized approach between platforms maybe?
+          if (app->store == app_generic_s::Store::Steam &&
+              app->id    != SKIF_STEAM_APPID)
+            app->_status.refresh (app.get());
+#endif
+
+          // Only bother opening the application manifest
+          //   and looking for a name if the client claims
+          //     the app is installed.
+          if (app->_status.installed)
+          {
+            // Some games have an install state but no name,
+            //   for those we have to consult the app manifest
+            if (app->store == app_generic_s::Store::Steam)
+            {
+              app->names.normal =
+                SK_UseManifestToGetAppName (
+                              app->id );
+            }
+
+            // Corrupted app manifest / not known to Steam client; SKIP!
+            if (app->names.normal.empty ())
+            {
+              PLOG_DEBUG << "App ID " << app->id << " (" << (int)app->store << ") has no name; ignoring!";
+
+              app->id = 0;
+              continue;
+            }
+
+            std::string original_name = app->names.normal;
+
+            // Some games use weird Unicode character combos that ImGui can't handle,
+            //  so let's replace those with the normal ones.
+
+            // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
+            //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
+            app->names.normal = std::regex_replace(app->names.normal, std::regex("\xE2\x80\x99"), "\x27");
+
+            // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
+            //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
+            app->names.normal = std::regex_replace(app->names.normal, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
+
+            // Strip game names from special symbols (disabled due to breaking some Chinese characters)
+            //const char* chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)
+            //for (unsigned int i = 0; i < strlen(chars); ++i)
+              //app->names.normal.erase(std::remove(app->names.normal.begin(), app->names.normal.end(), chars[i]), app->names.normal.end());
+
+            // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
+            app->names.normal = std::regex_replace(app->names.normal, std::regex("\xC2\xA9"), "");
+
+            // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
+            app->names.normal = std::regex_replace(app->names.normal, std::regex("\xC2\xAE"), "");
+
+            // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
+            app->names.normal = std::regex_replace(app->names.normal, std::regex("\xE2\x84\xA2"), "");
+
+            if (original_name != app->names.normal)
+            {
+              PLOG_DEBUG << "Game title was changed:";
+              PLOG_DEBUG << "Old: " << SK_UTF8ToWideChar(original_name.c_str())     << " (" << original_name     << ")";
+              PLOG_DEBUG << "New: " << SK_UTF8ToWideChar(app->names.normal.c_str()) << " (" << app->names.normal << ")";
+            }
+
+            // Strip any remaining null terminators
+            app->names.normal.erase(std::find(app->names.normal.begin(), app->names.normal.end(), '\0'), app->names.normal.end());
+
+            // Trim leftover spaces
+            app->names.normal.erase(app->names.normal.begin(), std::find_if(app->names.normal.begin(), app->names.normal.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+            app->names.normal.erase(std::find_if(app->names.normal.rbegin(), app->names.normal.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app->names.normal.end());
+          
+            // Update ImGuiLabelAndID and ImGuiPushID
+            app->ImGuiLabelAndID = SK_FormatString("%s###%i%i", app->names.normal.c_str(), (int)app->store, app->id);
+            app->ImGuiPushID     = SK_FormatString("%i%i", (int)app->store, app->id);
+          }
+
+          // Check if install folder exists (but not for SKIF)
+          if (app->id != SKIF_STEAM_APPID && app->store != app_generic_s::Store::Xbox)
+          {
+            std::wstring install_dir;
+
+            if (app->store == app_generic_s::Store::Steam)
+              install_dir = SK_UseManifestToGetInstallDir(app->id);
+            else
+              install_dir = app->install_dir;
+          
+            if (! PathFileExists(install_dir.c_str()))
+            {
+              PLOG_DEBUG << "App ID " << app->id << " (" << (int)app->store << ") has non-existent install folder; ignoring!";
+
+              app->id = 0;
+              continue;
+            }
+          }
+
+          // Prepare for the keyboard hint / search/filter functionality
+          if ( app->_status.installed || app->id == SKIF_STEAM_APPID)
+          {
+            std::string all_upper = SKIF_Util_ToUpper (app->names.normal),
+                        all_upper_alnum;
+          
+            for (const char c : app->names.normal)
+            {
+              if (! ( isalnum (c) || isspace (c) ))
+                continue;
+
+              all_upper_alnum += (char)toupper (c);
+            }
+
+            size_t stripped = 0;
+
+            if (_registry.bLibraryIgnoreArticles)
+            {
+              static const
+                std::string toSkip [] =
+                {
+                  std::string ("A "),
+                  std::string ("AN "),
+                  std::string ("THE ")
+                };
+
+              for ( auto& skip_ : toSkip )
+              {
+                if (all_upper_alnum.find (skip_) == 0)
+                {
+                  all_upper_alnum =
+                    all_upper_alnum.substr (
+                      skip_.length ()
+                    );
+
+                  stripped = skip_.length ();
+                  break;
+                }
+              }
+            }
+
+            std::string trie_builder;
+
+            for ( const char c : all_upper_alnum)
+            {
+              trie_builder += c;
+
+              Labels.insert (trie_builder);
+            }
+        
+            app->names.normal          = app->names.normal;
+            app->names.all_upper       = all_upper;
+            app->names.all_upper_alnum = all_upper_alnum;
+            app->names.pre_stripped    = stripped;
+          }
+        }
+
         // Sort the results
-        //SortProcesses (Processes);
+        std::sort ( Apps->begin (),
+                    Apps->end   (),
+          []( const std::unique_ptr<app_generic_s>& a,
+              const std::unique_ptr<app_generic_s>& b ) -> int
+          {
+            return a.get()->names.all_upper_alnum.compare(
+                   b.get()->names.all_upper
+            ) < 0;
+          }
+        );
 
         // Swap in the results
         lastWritten = currWriting;
@@ -283,3 +455,119 @@ SKIF_GamesCollection::GetGames (void)
 
   return snapshot.apps;
 }
+
+#pragma region Trie Keyboard Hint Search
+
+// Iterative function to insert a key in the Trie
+void
+Trie::insert (const std::string& key)
+{
+  // start from root node
+  Trie* curr = this;
+  for (size_t i = 0; i < key.length (); i++)
+  {
+    // create a new node if path doesn't exists
+    if (curr->character [key [i]] == nullptr)
+        curr->character [key [i]]  = new Trie ();
+
+    // go to next node
+    curr = curr->character [key [i]];
+  }
+
+  // mark current node as leaf
+  curr->isLeaf = true;
+}
+
+// Iterative function to search a key in Trie. It returns true
+// if the key is found in the Trie, else it returns false
+bool
+Trie::search (const std::string& key)
+{
+  Trie* curr = this;
+  for (size_t i = 0; i < key.length (); i++)
+  {
+    // go to next node
+    curr = curr->character [key [i]];
+
+    // if string is invalid (reached end of path in Trie)
+    if (curr == nullptr)
+      return false;
+  }
+
+  // if current node is a leaf and we have reached the
+  // end of the string, return true
+  return curr->isLeaf;
+}
+
+// returns true if given node has any children
+bool
+Trie::haveChildren (Trie const* curr)
+{
+  for (int i = 0; i < CHAR_SIZE; i++)
+    if (curr->character [i])
+      return true;  // child found
+
+  return false;
+}
+
+// Recursive function to delete a key in the Trie
+bool
+Trie::deletion (Trie*& curr, const std::string& key)
+{
+  // return if Trie is empty
+  if (curr == nullptr)
+    return false;
+
+  // if we have not reached the end of the key
+  if (key.length ())
+  {
+    // recur for the node corresponding to next character in the key
+    // and if it returns true, delete current node (if it is non-leaf)
+
+    if (        curr                      != nullptr       &&
+                curr->character [key [0]] != nullptr       &&
+      deletion (curr->character [key [0]], key.substr (1)) &&
+                curr->isLeaf == false)
+    {
+      if (! haveChildren (curr))
+      {
+        delete curr;
+        curr = nullptr;
+        return true;
+      }
+
+      else {
+        return false;
+      }
+    }
+  }
+
+  // if we have reached the end of the key
+  if (key.length () == 0 && curr->isLeaf)
+  {
+    // if current node is a leaf node and don't have any children
+    if (! haveChildren (curr))
+    {
+      // delete current node
+      delete curr;
+      curr = nullptr;
+
+      // delete non-leaf parent nodes
+      return true;
+    }
+
+    // if current node is a leaf node and have children
+    else
+    {
+      // mark current node as non-leaf node (DON'T DELETE IT)
+      curr->isLeaf = false;
+
+      // don't delete its parent nodes
+      return false;
+    }
+  }
+
+  return false;
+}
+
+#pragma endregion

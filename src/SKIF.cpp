@@ -3080,9 +3080,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (! _registry._LastSelectedWritten)
   {
     _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
-    _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+    _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
     _registry._LastSelectedWritten = true;
-    PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
+    PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
   }
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
@@ -3428,9 +3428,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (! _registry._LastSelectedWritten)
         {
           _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
-          _registry.regKVLastSelectedStore.putData (_registry.wsLastSelectedStore);
+          _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
           _registry._LastSelectedWritten = true;
-          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.wsLastSelectedStore << ")";
+          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
         }
 
         SKIF_Shutdown = true;

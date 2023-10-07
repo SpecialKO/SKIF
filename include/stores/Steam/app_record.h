@@ -89,21 +89,6 @@ private:
 struct app_record_s {
   app_record_s (uint32_t id_) : id (id_) { };
 
-  uint32_t     id;
-  bool         cloud_enabled = true; // hidecloudui=false
-  std::wstring install_dir;
-  std::string  type  =  "Game";  // TODO: Proper enum
-  std::string  store = "Steam";  // maybe enum?
-  std::string  ImGuiPushID = "";
-  std::string  ImGuiLabelAndID = "";
-  std::string  Epic_CatalogNamespace = "";
-  std::string  Epic_CatalogItemId = "";
-  std::string  Epic_AppName = "";
-  std::string  Epic_DisplayName = "";
-  std::string  Xbox_PackageName = "";
-  std::string  Xbox_StoreId = "";
-  std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
-
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
 
@@ -131,6 +116,15 @@ struct app_record_s {
     bool            isCustom  = false;
     bool            isManaged = false; // Indicates whether the texture is managed by SKIF or not
   } tex_icon, tex_cover;
+  
+  enum class Store {
+    Steam       = 0x1,   // Initial commit
+    GOG         = 0x2,   // Sep 17, 2021
+    Other       = 0x3,   // Oct 2, 2021 - SKIF custom games
+    Epic        = 0x4,   // Dec 27, 2021
+    Xbox        = 0x5,   // Mar 6, 2022
+    Unspecified = 0xffff
+  };
 
   enum class Platform {
     Unknown = 0x0,
@@ -239,6 +233,22 @@ struct app_record_s {
   std::map <int,         cloud_save_record_s> cloud_saves;
   std::map <int,         launch_config_s    > launch_configs;
   common_config_s                             common_config;
+  
+  uint32_t     id;
+  bool         cloud_enabled = true; // hidecloudui=false
+  std::wstring install_dir;
+  //std::string  type  =  "Game";  // TODO: Proper enum
+  Store store              = Store::Unspecified;
+  std::string  store_utf8  = "";  // maybe enum?
+  std::string  ImGuiPushID = "";
+  std::string  ImGuiLabelAndID = "";
+  std::string  Epic_CatalogNamespace = "";
+  std::string  Epic_CatalogItemId = "";
+  std::string  Epic_AppName = "";
+  std::string  Epic_DisplayName = "";
+  std::string  Xbox_PackageName = "";
+  std::string  Xbox_StoreId = "";
+  std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
 
   template <class _Tp> static
     constexpr bool

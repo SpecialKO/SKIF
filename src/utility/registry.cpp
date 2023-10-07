@@ -248,7 +248,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;
   iLastSelectedGame        =   STEAM_APPID; // Default selected game
-  wsLastSelectedStore      =   L"Steam";    // Default selected store
+  //wsLastSelectedStore      =   L"Steam";    // Default selected store
+  iLastSelectedStore       =   0;
 
   if (regKVRememberLastSelected.hasData())
     bRememberLastSelected  =   regKVRememberLastSelected   .getData ( );
@@ -259,7 +260,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       iLastSelectedGame    =   regKVLastSelectedGame       .getData ( );
 
     if (regKVLastSelectedStore.hasData())
-      wsLastSelectedStore  =   regKVLastSelectedStore      .getData ( );
+      iLastSelectedStore  =   regKVLastSelectedStore      .getData ( );
   }
 
   // App registration
