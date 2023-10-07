@@ -1204,8 +1204,14 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
 
   if (flags & ImGuiViewportFlags_NoDecoration)
     *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
-  else
-    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
+  else {
+    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
+    
+    // Only enable the maximized box if DragFromMaximize is available in Windows
+    extern bool SKIF_Util_GetDragFromMaximized ( );
+    if (SKIF_Util_GetDragFromMaximized ( ))
+      *out_style |= WS_MAXIMIZEBOX;
+  }
 
   // WS_OVERLAPPEDWINDOW == WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
   // - WS_OVERLAPPED  - The window is an overlapped window          // not really required by SKIF

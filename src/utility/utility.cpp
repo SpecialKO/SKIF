@@ -845,6 +845,48 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 }
 
 bool
+SKIF_Util_GetDragFromMaximized (void)
+{
+  // DragFromMaximize and WindowArrangementActive regístry keys are used since at least Windows 7
+  // For some bloody reason these are _string_ registry values that holds a '1' or a '0'... WTF?!
+
+  static int state = -1;
+
+  if (state != -1)
+    return state;
+
+  HKEY hKey;
+  DWORD dwSize = 0;
+  WCHAR szData[MAX_PATH];
+
+  // Check if DragFromMaximize is enabled
+  if (ERROR_SUCCESS   == RegOpenKeyExW (HKEY_CURRENT_USER, LR"(Control Panel\Desktop)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+  {
+    dwSize = sizeof(szData) / sizeof(WCHAR);
+    if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"DragFromMaximize",        RRF_RT_REG_SZ, NULL, &szData, &dwSize))
+      state = (wcscmp (szData, L"1") == 0);
+
+    dwSize = sizeof(szData) / sizeof(WCHAR);
+    if (state && // Only check WindowArrangementActive if DragFromMaximize is enabled
+        ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"WindowArrangementActive", RRF_RT_REG_SZ, NULL, &szData, &dwSize))
+      state = (wcscmp (szData, L"1") == 0);
+    
+    if (state)
+      PLOG_DEBUG << "DragFromMaximize and WindowArrangementActive registry keys are enabled in Windows";
+    else
+      PLOG_DEBUG << "DragFromMaximize and/or WindowArrangementActive registry keys are disabled in Windows";
+
+    RegCloseKey (hKey);
+  }
+
+  // If the state failed to be checked, assume it is disabled
+  if (state == -1)
+    state = 0;
+
+  return state;
+}
+
+bool
 SKIF_Util_GetControlledFolderAccess (void)
 {
   if (! SKIF_Util_IsWindows10OrGreater ( ))
@@ -891,7 +933,7 @@ SKIF_Util_GetControlledFolderAccess (void)
     }
   }
 
-  // If the state failed to be checked, assume it's disabled
+  // If the state failed to be checked, assume it is disabled
   if (state == -1)
     state = 0;
 
