@@ -80,6 +80,7 @@ constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows11orGreater      (void);
+extern bool SKIF_Util_GetDragFromMaximized      (void);
 
 // Forward Declarations
 static void                  ImGui_ImplWin32_InitPlatformInterface     (void);
@@ -878,15 +879,27 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
   case WM_XBUTTONDOWN:   case WM_XBUTTONDBLCLK:
   {
     int button = 0;
-    if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK || msg == WM_NCLBUTTONDOWN || msg == WM_NCLBUTTONDBLCLK) { button = 0; }
-    if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK || msg == WM_NCRBUTTONDOWN || msg == WM_NCRBUTTONDBLCLK) { button = 1; }
-    if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK || msg == WM_NCMBUTTONDOWN || msg == WM_NCMBUTTONDBLCLK) { button = 2; }
-    if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK || msg == WM_NCXBUTTONDOWN || msg == WM_NCXBUTTONDBLCLK) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK) { button = 0; }
+    if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK) { button = 1; }
+    if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK) { button = 2; }
+    if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
     if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == NULL)
       ::SetCapture (hwnd);
     io.MouseDown [button] = true;
     return 0;
   }
+  // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
+  case WM_NCRBUTTONDOWN: case WM_NCRBUTTONDBLCLK:
+  {
+    int button = 1;
+    if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == NULL)
+      ::SetCapture (hwnd);
+    io.MouseDown [button] = true;
+    return 0;
+  }
+#if 0
+  // This is not necessary since we convert HTCLIENT to HTCAPTION,
+  //   so all non-client mouse input is handled by the OS itself
   case WM_NCLBUTTONDOWN: case WM_NCLBUTTONDBLCLK:
   case WM_NCRBUTTONDOWN: case WM_NCRBUTTONDBLCLK:
   case WM_NCMBUTTONDOWN: case WM_NCMBUTTONDBLCLK:
@@ -902,21 +915,34 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     io.MouseDown [button] = true;
     //return 0;
   }
+#endif
   case WM_LBUTTONUP:
   case WM_RBUTTONUP:
   case WM_MBUTTONUP:
   case WM_XBUTTONUP:
   {
     int button = 0;
-    if (msg == WM_LBUTTONUP || msg == WM_NCLBUTTONUP) { button = 0; }
-    if (msg == WM_RBUTTONUP || msg == WM_NCRBUTTONUP) { button = 1; }
-    if (msg == WM_MBUTTONUP || msg == WM_NCMBUTTONUP) { button = 2; }
-    if (msg == WM_XBUTTONUP || msg == WM_NCXBUTTONUP) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
+    if (msg == WM_LBUTTONUP) { button = 0; }
+    if (msg == WM_RBUTTONUP) { button = 1; }
+    if (msg == WM_MBUTTONUP) { button = 2; }
+    if (msg == WM_XBUTTONUP) { button = ( GET_XBUTTON_WPARAM (wParam) == XBUTTON1 ) ? 3 : 4; }
     io.MouseDown [button] = false;
     if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
       ::ReleaseCapture ( );
     return 0;
   }
+  // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
+  case WM_NCRBUTTONUP:
+  {
+    int button = 1;
+    io.MouseDown [button] = false;
+    if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
+      ::ReleaseCapture ( );
+    return 0;
+  }
+#if 0
+  // This is not necessary since we convert HTCLIENT to HTCAPTION,
+  //   so all non-client mouse input is handled by the OS itself
   case WM_NCLBUTTONUP:
   case WM_NCRBUTTONUP:
   case WM_NCMBUTTONUP:
@@ -930,8 +956,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     io.MouseDown [button] = false;
     //if (!ImGui::IsAnyMouseDown ( ) && ::GetCapture ( ) == hwnd)
     //  ::ReleaseCapture ( );
-    //return 0;
+    return 0;
   }
+#endif
   case WM_MOUSEWHEEL:
     io.MouseWheel += (float)GET_WHEEL_DELTA_WPARAM (wParam) / (float)WHEEL_DELTA;
     return 0;
@@ -1208,7 +1235,6 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
     
     // Only enable the maximized box if DragFromMaximize is available in Windows
-    extern bool SKIF_Util_GetDragFromMaximized ( );
     if (SKIF_Util_GetDragFromMaximized ( ))
       *out_style |= WS_MAXIMIZEBOX;
   }
@@ -2184,6 +2210,15 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         return
             hitTest;
 
+        break;
+      }
+
+      case    WM_NCLBUTTONDBLCLK:
+      {
+        // Only convert "non-client" double clicks to single clicks
+        //   if dragging windows from a maximized state is disabled
+        if (! SKIF_Util_GetDragFromMaximized ( ))
+          msg = WM_NCLBUTTONDOWN;
         break;
       }
     }
