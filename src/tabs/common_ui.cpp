@@ -74,13 +74,11 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  //ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase), "View release notes...");
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-  SKIF_ImGui_Selectable   ("View release notes...");
+  if (SKIF_ImGui_Selectable ("View release notes..."))
+    HistoryPopup = PopupState_Open;
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
-  if (ImGui::IsItemClicked (ImGuiMouseButton_Left))
-    HistoryPopup = PopupState_Open;
   ImGui::EndGroup         ( );
   
   static SKIF_Updater& _updater = 

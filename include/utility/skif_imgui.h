@@ -22,7 +22,7 @@ void    SKIF_ImGui_OptImage           (ImTextureID user_texture_id, const ImVec2
 void    SKIF_ImGui_Columns            (int columns_count, const char* id, bool border, bool resizeble = false);
 void    SKIF_ImGui_Spacing            (float multiplier);
 void    SKIF_ImGui_Spacing            (void);
-void    SKIF_ImGui_Selectable         (const char* label);
+bool    SKIF_ImGui_Selectable         (const char* label);
 void    SKIF_ImGui_ServiceMenu        (void);
 ImFont* SKIF_ImGui_LoadFont           (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void    SKIF_ImGui_InitFonts          (float fontSize, bool extendedCharsets = true);

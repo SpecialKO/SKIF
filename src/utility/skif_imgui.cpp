@@ -374,10 +374,10 @@ SKIF_ImGui_Spacing (void)
 }
 
 // Difference to regular Selectable? Doesn't span further than the width of the label!
-void
+bool
 SKIF_ImGui_Selectable (const char* label)
 {
-  ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
+  return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
 }
 
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
