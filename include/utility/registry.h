@@ -244,10 +244,6 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Allow Background Service)" );
 
-  KeyValue <bool> regKVDisableVSYNC =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable VSYNC)" );
-
   KeyValue <bool> regKVDisableCFAWarning =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable CFA Warning)" );
@@ -263,6 +259,10 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVAlwaysShowGhost =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Always Show Ghost)" );
+
+  KeyValue <bool> regKVMaximizeOnDoubleClick =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Maximize On Double Click)" );
 
   KeyValue <bool> regKVMinimizeOnGameLaunch =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -414,6 +414,7 @@ struct SKIF_RegistrySettings {
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;
   bool bPreferGOGGalaxyLaunch   = false;
+  bool bMaximizeOnDoubleClick   =  true;
   bool bMinimizeOnGameLaunch    = false;
   bool bRestoreOnGameExit       = false;
   bool bDisableCFAWarning       = false; // Controlled Folder Access warning

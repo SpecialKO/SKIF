@@ -1369,6 +1369,10 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::EndCombo  ( );
     }
 
+    if (ImGui::Checkbox  ("Reposition this app to the center on double click",
+                                                      &_registry.bMaximizeOnDoubleClick))
+      _registry.regKVMaximizeOnDoubleClick.putData  (  _registry.bMaximizeOnDoubleClick);
+
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
                                                       &_registry.bAllowBackgroundService))
       _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);

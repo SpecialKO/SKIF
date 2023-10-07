@@ -208,6 +208,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   */
 
   bStopOnInjection         = ! regKVDisableStopOnInjection .getData ( );
+  if (regKVMaximizeOnDoubleClick.hasData())
+    bMaximizeOnDoubleClick =   regKVMaximizeOnDoubleClick  .getData ( );
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
   bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData ( );
   bCloseToTray             =   regKVCloseToTray            .getData ( );
