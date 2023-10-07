@@ -64,6 +64,7 @@ struct SKIF_Lib_SummaryCache
 
   AppId_t     app_id   = 0;
   DWORD       running  = 0;
+  DWORD       updating = 0;
   bool        service  = false;
   bool        autostop = false;
 

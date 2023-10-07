@@ -138,6 +138,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 
   app_id   = pApp->id;
   running  = pApp->_status.running;
+  updating = pApp->_status.updating;
   autostop = _inject.bAckInj;
 
   service  = (pApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
@@ -304,10 +305,11 @@ GetInjectionSummary (app_record_s* pApp)
 
 #pragma endregion
 
-  if (_cache.app_id   != pApp->id              ||
-      _cache.service  != _inject.bCurrentState ||
-      _cache.running  != pApp->_status.running ||
-      _cache.autostop != _inject.bAckInj        )
+  if (_cache.app_id   != pApp->id               ||
+      _cache.service  != _inject.bCurrentState  ||
+      _cache.running  != pApp->_status.running  ||
+      _cache.updating != pApp->_status.updating ||
+      _cache.autostop != _inject.bAckInj         )
   {
       _cache.Refresh    (pApp);
   }
@@ -758,9 +760,9 @@ Cache=false)";
   std::string      buttonLabel = ICON_FA_GAMEPAD "  Launch";
   ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
 
-  if (pApp->_status.running)
+  if (pApp->_status.running || pApp->_status.updating)
   {
-      buttonLabel = "Running...";
+      buttonLabel = (  pApp->_status.running) ? "Running..." : "Updating...";
       buttonFlags = ImGuiButtonFlags_Disabled;
       ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
   }
@@ -913,7 +915,7 @@ Cache=false)";
   if ( ! _inject.bHasServlet && !_cache.injection.type._Equal ("Local") )
     SKIF_ImGui_PopDisableState  ( );
 
-  if (pApp->_status.running)
+  if (pApp->_status.running || pApp->_status.updating)
     ImGui::PopStyleColor ( );
 
   if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
@@ -2504,7 +2506,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     static DWORD    timeClicked = 0;
 
     // Handle double click on a game row
-    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running )
+    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->_status.updating )
     {
       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
            timeClicked != 0 && (item_clicked.appid == pApp->id && item_clicked.store == pApp->store))
@@ -3341,7 +3343,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->id != SKIF_STEAM_APPID)
       {
         if ( ImGui::Selectable ("Launch", false,
-                               ((pApp->_status.running != 0x0)
+                               ((pApp->_status.running || pApp->_status.updating)
                                  ? ImGuiSelectableFlags_Disabled
                                  : ImGuiSelectableFlags_None)))
           clickedGameLaunch = true;
@@ -3356,7 +3358,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           );
 
           if ( ImGui::Selectable ("Launch without Special K", false,
-                                 ((pApp->_status.running != 0x0)
+                                 ((pApp->_status.running || pApp->_status.updating)
                                    ? ImGuiSelectableFlags_Disabled
                                    : ImGuiSelectableFlags_None)))
             clickedGameLaunchWoSK = true;
@@ -3375,7 +3377,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (ImGui::BeginMenu    ("Launch using GOG Galaxy"))
             {
               if (ImGui::Selectable ("Launch", false,
-                                    ((pApp->_status.running != 0x0)
+                                    ((pApp->_status.running || pApp->_status.updating)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
                 clickedGalaxyLaunch = true;
@@ -3385,7 +3387,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               );
 
               if (ImGui::Selectable ("Launch without Special K", false,
-                                    ((pApp->_status.running != 0x0)
+                                    ((pApp->_status.running || pApp->_status.updating)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
                 clickedGalaxyLaunchWoSK = true;
@@ -3397,7 +3399,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           else {
             if (ImGui::Selectable   ("Launch using GOG Galaxy", false,
-                                    ((pApp->_status.running != 0x0)
+                                    ((pApp->_status.running || pApp->_status.updating)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
               clickedGalaxyLaunch = true;
