@@ -1467,8 +1467,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     
     _SortApps ( );
 
-    for (auto& app : apps)
-      UpdateInjectionStrategy (&app.second);
+    // DEBUG ONLY: Causes SKIF to take ages to start up as it preloads
+    //   the injection strategy of all games (especially Steam games and the appinfo.vdf file)
+    //for (auto& app : apps)
+    //  UpdateInjectionStrategy (&app.second);
 
     PLOG_INFO << "Finished populating the library list.";
 
@@ -1712,6 +1714,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (pApp != nullptr)
     {
+      // Preparations
+
+      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID            ||
+                          (pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+                           pApp->store != app_record_s::Store::Other) ||
+                           pApp->tex_cover.isCustom                   ||
+                           pApp->tex_cover.isManaged);
       // Column 1: Icons
 
       ImGui::BeginGroup  ( );
@@ -1721,6 +1730,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->tex_cover.isCustom)
         ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
       else if (pApp->tex_cover.isManaged)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
+      else if (resetVisible) // If texture is neither custom nor managed
         ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
@@ -1779,14 +1790,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_ImGui_SetMouseCursorHand ( );
       }
 
-      // Only show option if:
-      //   - We use a custom cover
-      //   - We use an official cover as long as:
-      //     * We do not have SKIF selected (has no official cover background to remove)
-      //     * We do not have a GOG title selected (uses GOG Galaxy artwork)
-      if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
+      if (resetVisible)
       {
-        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
         {
           std::wstring targetPath = L"";
 
@@ -1808,9 +1814,9 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
 
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false,
-                 d4 = false;
+                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                  d3 = false,
+                  d4 = false;
 
             // For Xbox titles we also store a fallback cover that we must reset
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
@@ -1830,7 +1836,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
         else
         {
-          SKIF_ImGui_SetMouseCursorHand ( );
+          if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
+            SKIF_ImGui_SetMouseCursorHand ( );
+          else
+            SKIF_ImGui_SetHoverTip        ("Asset is managed from the platform client");
         }
       }
 
@@ -1881,6 +1890,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (pApp->tex_cover.isManaged)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE
+                              );
+      else if (resetVisible) // If texture is neither custom nor managed
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
                   ICON_FA_ROTATE
                               );
 
@@ -2676,6 +2690,14 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     if (pApp != nullptr)
     {
+      // Preparations
+
+      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID            ||
+                          (pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+                           pApp->store != app_record_s::Store::Other) ||
+                           pApp->tex_icon.isCustom                    ||
+                           pApp->tex_icon.isManaged);
+
       // Column 1: Icons
 
       ImGui::BeginGroup  ( );
@@ -2685,6 +2707,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->tex_icon.isCustom)
         ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
       else if (pApp->tex_icon.isManaged)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
+      else if (resetVisible) // If texture is neither custom nor managed
         ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
       ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
       ImGui::Separator  (  );
@@ -2753,10 +2777,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         SKIF_ImGui_SetMouseCursorHand ( );
       }
-
-      if (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged)
+      
+      if (resetVisible)
       {
-        if (ImGui::Selectable ((pApp->tex_icon.isCustom) ? "Reset" : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns))
+        if (ImGui::Selectable ((pApp->tex_icon.isCustom) ? "Reset" : "Refresh", dontCare, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_icon.isCustom || pApp->tex_icon.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
         {
           std::wstring targetPath = L"";
 
@@ -2778,8 +2802,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring fileName = (pApp->tex_icon.isCustom) ? L"icon" : L"icon-original";
 
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
+                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                  d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
 
             // If any file was removed
             if (d1 || d2 || d3)
@@ -2790,7 +2814,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               LoadLibraryTexture (LibraryTexture::Icon,
                                     pApp->id,
                                       pApp->tex_icon.texture,
-                                       (pApp->store == app_record_s::Store::GOG)
+                                        (pApp->store == app_record_s::Store::GOG)
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                         : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
                                             dontCare1,
@@ -2801,7 +2825,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
         else
         {
-          SKIF_ImGui_SetMouseCursorHand ( );
+          if (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged)
+            SKIF_ImGui_SetMouseCursorHand ( );
+          else
+            SKIF_ImGui_SetHoverTip        ("Asset is managed from the platform client");
         }
       }
 
@@ -2849,6 +2876,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (pApp->tex_icon.isManaged)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE
+                              );
+      else if (resetVisible) // If texture is neither custom nor managed
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
                   ICON_FA_ROTATE
                               );
 
