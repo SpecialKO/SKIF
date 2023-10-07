@@ -195,7 +195,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         app_record_s::launch_config_s lc;
                         lc.id = lid;
                         lc.valid = true;
-                        lc.store = L"Xbox";
+                        lc.store = app_record_s::Store::Xbox;
 
                         std::string strAppID = app.attribute("Id").value();
 

@@ -14,7 +14,7 @@ app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
 {
   std::wstring exec_path = L"";
 
-  if (store == L"Steam")
+  if (store == app_record_s::Store::Steam)
   {
     // EA games using link2ea:// protocol handlers to launch games does not have an executable,
     //  so this ensures we do not end up testing the installation folder instead (since this has

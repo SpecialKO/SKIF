@@ -174,7 +174,7 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
-    std::wstring store = L"Steam";
+    app_record_s::Store store = app_record_s::Store::Unspecified;
     std::wstring executable;
     std::wstring executable_path;
     std::wstring description;

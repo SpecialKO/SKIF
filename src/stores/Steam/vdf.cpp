@@ -516,6 +516,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           auto& id     = pAppRecord->id;
           auto& launch = launch_cfg.second;
 
+          launch.store = app_record_s::Store::Steam;
           launch.isBlacklisted (id);
 
           // File extension, so we can strip out non-executable ones
