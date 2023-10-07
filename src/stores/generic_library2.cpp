@@ -401,7 +401,7 @@ LoadLibraryTexture (
 
     if (! customAsset)
     {
-      managedAsset = false; // Steam covers are not managed
+      managedAsset = false; // Steam's user-specific custom covers are not managed
 
       if      (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
@@ -409,9 +409,10 @@ LoadLibraryTexture (
       else if (libTexToLoad == LibraryTexture::Cover &&
                PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
         load_str =               SteamCustomPath + L"p.jpg";
-      else
-        load_str = name;
-        //load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i%ws)", SK_GetSteamDir(), appid, name.c_str());
+      else {
+        load_str =               name;
+        managedAsset = true; // The fallback is managed! <%ws\Assets\Steam\%i\cover-original.jpg>
+      }
     }
   }
 
