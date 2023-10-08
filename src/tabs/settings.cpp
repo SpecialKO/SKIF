@@ -743,13 +743,13 @@ SKIF_UI_Tab_DrawSettings (void)
             
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Hide games from select platforms:"
+        "Include games from these platforms:"
     );
     ImGui::TreePush      ("");
 
-    if (ImGui::Checkbox        ("Epic", &_registry.bDisableEpicLibrary))
+    if (ImGui::Checkbox        ("Epic",   &_registry.bLibraryEpic))
     {
-      _registry.regKVDisableEpicLibrary.putData    (_registry.bDisableEpicLibrary);
+      _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
       RepopulateGames = true;
     }
 
@@ -757,9 +757,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox         ("GOG", &_registry.bDisableGOGLibrary))
+    if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
     {
-      _registry.regKVDisableGOGLibrary.putData    (_registry.bDisableGOGLibrary);
+      _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
       RepopulateGames = true;
     }
 
@@ -767,9 +767,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox       ("Steam", &_registry.bDisableSteamLibrary))
+    if (ImGui::Checkbox         ("Steam", &_registry.bLibrarySteam))
     {
-      _registry.regKVDisableSteamLibrary.putData  (_registry.bDisableSteamLibrary);
+      _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
       RepopulateGames = true;
     }
 
@@ -777,9 +777,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox        ("Xbox", &_registry.bDisableXboxLibrary))
+    if (ImGui::Checkbox        ("Xbox",   &_registry.bLibraryXbox))
     {
-      _registry.regKVDisableXboxLibrary.putData   (_registry.bDisableXboxLibrary);
+      _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
       RepopulateGames = true;
     }
 

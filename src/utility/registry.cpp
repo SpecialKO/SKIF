@@ -167,13 +167,18 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bWin11Corners          =   regKVWin11Corners           .getData ( );
 
   // Store libraries
+  
+  if (regKVLibrarySteam.hasData())
+    bLibrarySteam          =   regKVLibrarySteam           .getData ( );
 
-  bDisableSteamLibrary     =   regKVDisableSteamLibrary    .getData ( );
-  bDisableEpicLibrary      =   regKVDisableEpicLibrary     .getData ( );
-  bDisableGOGLibrary       =   regKVDisableGOGLibrary      .getData ( );
+  if (regKVLibraryEpic.hasData())
+    bLibraryEpic           =   regKVLibraryEpic            .getData ( );
 
-  if (regKVDisableXboxLibrary.hasData())
-    bDisableXboxLibrary    =   regKVDisableXboxLibrary     .getData ( );
+  if (regKVLibraryGOG.hasData())
+    bLibraryGOG            =   regKVLibraryGOG             .getData ( );
+
+  if (regKVLibraryXbox.hasData())
+    bLibraryXbox           =   regKVLibraryXbox            .getData ( );
 
   bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
 //bServiceMode             =   regKVServiceMode            .getData ( );

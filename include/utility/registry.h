@@ -203,21 +203,21 @@ struct SKIF_RegistrySettings {
 
   // Store libraries
 
-  KeyValue <bool> regKVDisableSteamLibrary =
+  KeyValue <bool> regKVLibrarySteam =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable Steam Library)" );
+                         LR"(Library Steam)" );
 
-  KeyValue <bool> regKVDisableEpicLibrary =
+  KeyValue <bool> regKVLibraryEpic =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable Epic Library)" );
+                         LR"(Library Epic)" );
 
-  KeyValue <bool> regKVDisableGOGLibrary =
+  KeyValue <bool> regKVLibraryGOG =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable GOG Library)" );
+                         LR"(Library GOG)" );
 
-  KeyValue <bool> regKVDisableXboxLibrary =
+  KeyValue <bool> regKVLibraryXbox =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Disable Xbox Library)" );
+                         LR"(Library Xbox)" );
 
 // 2023-07-31: Disabled since I believe this isn't actually used much,
 //               and the intention is to eventually have cmd line args
@@ -393,10 +393,10 @@ struct SKIF_RegistrySettings {
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
 
-  bool bDisableSteamLibrary     = false;
-  bool bDisableEpicLibrary      = false;
-  bool bDisableGOGLibrary       = false;
-  bool bDisableXboxLibrary      = false;
+  bool bLibrarySteam            =  true;
+  bool bLibraryEpic             =  true;
+  bool bLibraryGOG              =  true;
+  bool bLibraryXbox             =  true;
 
   bool bServiceMode             = false;
   bool bFirstLaunch             = false;

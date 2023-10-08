@@ -166,7 +166,7 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
         std::vector <std::pair <std::string, app_record_s>> ret;
 
         // TODO: Unsafe thread handling which can crash!!
-        if (! _registry.bDisableSteamLibrary)
+        if (_registry.bLibrarySteam)
         {
           std::set <uint32_t> unique_apps;
 

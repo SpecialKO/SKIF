@@ -695,7 +695,7 @@ SKIF_Steam_isLibrariesSignaled (void)
 
 #define MAX_STEAM_LIBRARIES 16
 
-  if ( _registry.bDisableSteamLibrary )
+  if (! _registry.bLibrarySteam)
     return false;
 
   bool isSignaled = false;
@@ -767,7 +767,7 @@ SKIF_Steam_GetInstalledAppIDs (void)
 
   std::vector <std::pair <std::string, app_record_s>> ret;
 
-  if ( _registry.bDisableSteamLibrary )
+  if (! _registry.bLibrarySteam)
     return ret;
 
   std::set <uint32_t> unique_apps;

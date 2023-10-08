@@ -765,7 +765,7 @@ Cache=false)";
       ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
   }
 
-  // Disable the button for global injection types if the servlets are missing
+  // Disable the button for the injection service types if the servlets are missing
   if ( ! _inject.bHasServlet && !_cache.injection.type._Equal ("Local") )
     SKIF_ImGui_PushDisableState ( );
 
@@ -790,7 +790,7 @@ Cache=false)";
     else {
       bool usingSK = (_cache.injection.type._Equal("Local"));
 
-      // Check if Global injection should be used
+      // Check if the injection service should be used
       if (! usingSK)
       {
         std::string fullPath     = SK_WideCharToUTF8(pApp->launch_configs[0].getExecutableFullPath (pApp->id));
@@ -909,7 +909,7 @@ Cache=false)";
     clickedGameLaunch = clickedGameLaunchWoSK = false;
   }
       
-  // Disable the button for global injection types if the servlets are missing
+  // Disable the button for the injection service types if the servlets are missing
   if ( ! _inject.bHasServlet && !_cache.injection.type._Equal ("Local") )
     SKIF_ImGui_PopDisableState  ( );
 
@@ -1116,7 +1116,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static DirectX::ScratchImage    img  = { };
 
   // Initialize the Steam appinfo.vdf Reader
-  if (! _registry.bDisableSteamLibrary)
+  if (_registry.bLibrarySteam)
   {
     SK_RunOnce (
       appinfo = std::make_unique <skValveDataFile> (std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
@@ -1198,13 +1198,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     //if (SKIF_Steam_isLibrariesSignaled ())
     //  RepopulateGames = true;
 
-    if (! _registry.bDisableEpicLibrary && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
-      RepopulateGames = true;
-
-    if (! _registry.bDisableXboxLibrary && SKIF_Xbox_hasInstalledGamesChanged ( ))
+    if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
       RepopulateGames = true;
     
-    if (! _registry.bDisableGOGLibrary)
+    if (_registry.bLibraryGOG)
     {
       if (SKIF_GOG_hasInstalledGamesChanged ( ))
         RepopulateGames = true;
@@ -1212,6 +1209,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (SKIF_GOG_hasGalaxySettingsChanged ( ))
         SKIF_GOG_UpdateGalaxyUserID ( );
     }
+
+    if (_registry.bLibraryXbox && SKIF_Xbox_hasInstalledGamesChanged ( ))
+      RepopulateGames = true;
   }
 
   if (RepopulateGames)
@@ -1262,14 +1262,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Load GOG titles from registry
-    if (! _registry.bDisableGOGLibrary)
+    if (_registry.bLibraryGOG)
       SKIF_GOG_GetInstalledAppIDs (&apps);
 
     // Load Epic titles from disk
-    if (! _registry.bDisableEpicLibrary)
+    if (_registry.bLibraryEpic)
       SKIF_Epic_GetInstalledAppIDs (&apps);
     
-    if (! _registry.bDisableXboxLibrary)
+    if (_registry.bLibraryXbox)
       SKIF_Xbox_GetInstalledAppIDs (&apps);
 
     // Load custom SKIF titles from registry
@@ -2899,9 +2899,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::EndGroup        ( );
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );
-
-#pragma endregion
-  // GamesList END
+  
+#pragma region GamesList::EmptySpaceMenu
 
   if (! ImGui::IsAnyPopupOpen   ( ) &&
       ! ImGui::IsAnyItemHovered ( ) &&
@@ -2915,32 +2914,88 @@ SKIF_UI_Tab_DrawLibrary (void)
     bool dontCare = false;
     
     ImGui::BeginGroup     ( );
+
     ImVec2 iconPos = ImGui::GetCursorPos();
     ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_SQUARE_PLUS).x, ImGui::GetTextLineHeight()));
+
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
+
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
+
+    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::Separator      ( );
+    ImGui::PopStyleColor  ( );
+
     ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_RIGHT).x, ImGui::GetTextLineHeight()));
+
     ImGui::EndGroup       ( );
 
     ImGui::SameLine       ( );
 
     ImGui::BeginGroup     ( );
+
      if (ImGui::Selectable ("Add Game", dontCare, ImGuiSelectableFlags_SpanAllColumns))
        AddGamePopup = PopupState_Open;
+
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
+
+    if (ImGui::BeginMenu("Platforms"))
+    {
+      constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
+
+      if (ImGui::MenuItem ("Epic",  spaces, &_registry.bLibraryEpic))
+      {
+        _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("GOG",   spaces, &_registry.bLibraryGOG))
+      {
+        _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Steam", spaces, &_registry.bLibrarySteam))
+      {
+        _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Xbox",  spaces, &_registry.bLibraryXbox))
+      {
+        _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
+        RepopulateGames = true;
+      }
+
+      ImGui::EndMenu ( );
+    }
+
+    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+    ImGui::Separator      ( );
+    ImGui::PopStyleColor  ( );
+
     if (ImGui::Selectable ("Refresh",  dontCare, ImGuiSelectableFlags_SpanAllColumns))
       RepopulateGames = true;
+
     ImGui::EndGroup       ( );
 
     ImGui::SetCursorPos   (iconPos);
     ImGui::Text           (ICON_FA_SQUARE_PLUS);
     ImGui::Separator      ( );
+    ImGui::Text           (ICON_FA_GEARS);
+    ImGui::Separator      ( );
     ImGui::Text           (ICON_FA_ROTATE_RIGHT);
     ImGui::EndPopup       ( );
   }
+
+#pragma endregion
+
+#pragma endregion
+  // GamesList END
 
   // Applies hover text on the whole AppListInset1
   //if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
@@ -3349,7 +3404,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
         {
           if (! _inject.bCurrentState)
-            SKIF_ImGui_SetHoverText ("Starts the global injection service as well.");
+            SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
 
           ImGui::PushStyleColor  ( ImGuiCol_Text,
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
@@ -3363,7 +3418,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           ImGui::PopStyleColor   ( );
           if (_inject.bCurrentState)
-            SKIF_ImGui_SetHoverText ("Stops the global injection service as well.");
+            SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
         }
 
         if (GOGGalaxy_Installed && pApp->store == app_record_s::Store::GOG)
@@ -3408,7 +3463,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           {
             bool usingSK = (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local);
 
-            // Check if Global injection should be used
+            // Check if the injection service should be used
             if (! usingSK)
             {
               std::string fullPath = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id));

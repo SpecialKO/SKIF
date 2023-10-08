@@ -1239,10 +1239,10 @@ SKIF_UI_Tab_DrawMonitor (void)
                   proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
 
                   if (proc.filename == L"SKIFsvc32.exe")
-                    proc.details = "Special K 32-bit Global Injection Service Host ";
+                    proc.details = "Special K 32-bit Injection Service Host ";
 
                   if (proc.filename == L"SKIFsvc64.exe")
-                    proc.details = "Special K 64-bit Global Injection Service Host ";
+                    proc.details = "Special K 64-bit Injection Service Host ";
 
                   if (proc.filename == L"SKIFdrv.exe")
                     proc.details = "Special K Driver Manager ";
