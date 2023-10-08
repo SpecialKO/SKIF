@@ -1235,7 +1235,7 @@ ImGui_ImplWin32_GetWin32StyleFromViewportFlags (
     *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
     
     // Only enable the maximized box if DragFromMaximize is available in Windows
-    if (SKIF_Util_GetDragFromMaximized ( ))
+    if (_registry.bMaximizeOnDoubleClick && SKIF_Util_GetDragFromMaximized ( ))
       *out_style |= WS_MAXIMIZEBOX;
   }
 
@@ -2217,7 +2217,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
       {
         // Only convert "non-client" double clicks to single clicks
         //   if dragging windows from a maximized state is disabled
-        if (! SKIF_Util_GetDragFromMaximized ( ))
+        if (! _registry.bMaximizeOnDoubleClick && ! SKIF_Util_GetDragFromMaximized ( ))
           msg = WM_NCLBUTTONDOWN;
         break;
       }

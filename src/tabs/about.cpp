@@ -298,9 +298,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Text             ("Do not use Special K in multiplayer games!");
   ImGui::EndGroup         ( );
 
-  SKIF_ImGui_SetHoverTip (
-    "In particular games where anti-cheat\nprotection might be present."
-  );
+  SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
 
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );

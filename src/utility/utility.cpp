@@ -850,11 +850,6 @@ SKIF_Util_GetDragFromMaximized (void)
   // DragFromMaximize and WindowArrangementActive regístry keys are used since at least Windows 7
   // For some bloody reason these are _string_ registry values that holds a '1' or a '0'... WTF?!
 
-  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-
-  if (! _registry.bMaximizeOnDoubleClick)
-    return false;
-
   static int state = -1;
 
   if (state != -1)

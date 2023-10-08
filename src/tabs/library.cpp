@@ -695,9 +695,7 @@ Cache=false)";
     quickServiceHover = ImGui::IsItemHovered ();
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverTip        (
-      _cache.injection.hover_text.c_str ()
-    );
+    SKIF_ImGui_SetHoverTip        (_cache.injection.hover_text.c_str ());
 
     if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
             ImGui::IsItemClicked (ImGuiMouseButton_Right))
@@ -1841,7 +1839,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
             SKIF_ImGui_SetMouseCursorHand ( );
           else
-            SKIF_ImGui_SetHoverTip        ("Asset is managed from the platform client");
+            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
         }
       }
 
@@ -2830,7 +2828,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged)
             SKIF_ImGui_SetMouseCursorHand ( );
           else
-            SKIF_ImGui_SetHoverTip        ("Asset is managed from the platform client");
+            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
         }
       }
 

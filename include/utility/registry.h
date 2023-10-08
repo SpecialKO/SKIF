@@ -159,11 +159,6 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                         LR"(Disable Auto-Stop)" );
 
-  // Retain legacy key, but only to allow users to disable it
-  //KeyValue <bool> regKVLegacyDisableStopOnInjection =
-  //  SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-  //                        LR"(Disable Stop On Injection)" );
-
   KeyValue <bool> regKVLowBandwidthMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Low Bandwidth Mode)" );

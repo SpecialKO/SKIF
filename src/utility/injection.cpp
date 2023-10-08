@@ -880,7 +880,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                         ImGuiButtonFlags_Disabled );
 
   if ( ! bCurrentState && _registry.bAllowBackgroundService)
-      SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
+      SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
     
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState_Open;
@@ -1084,8 +1084,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     SKIF_ImGui_PopDisableState  ( );
 
-    SKIF_ImGui_SetHoverTip ( "The current autostart method needs to be disabled to migrate over to this method.\n"
-                             "The difference is that this method autostarts SKIF, and not just the GI service." );
+    SKIF_ImGui_SetHoverTip ("The current autostart method needs to be disabled to migrate over to this method.\n"
+                            "The difference is that this method autostarts SKIF, and not just the GI service." );
   }
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
@@ -1182,9 +1182,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       }
     }
   
-    SKIF_ImGui_SetHoverTip (
-        "Note that this injection frontend (SKIF) will not start with Windows."
-    );
+    SKIF_ImGui_SetHoverTip ("Note that this frontend app will not start with Windows.");
   
     if ( bLogonTaskEnabled || 
          bAutoStartSKIF )
@@ -1192,11 +1190,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       SKIF_ImGui_PopDisableState  ( );
 
       if (bAutoStartSKIF)
-        SKIF_ImGui_SetHoverTip ( "The regular autostart method needs to be disabled to migrate over to this method.\n"
-                                  "The difference is that the current method autostarts SKIF, and not just the GI service.");
+        SKIF_ImGui_SetHoverTip ("The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                "The difference is that the current method autostarts SKIF, and not just the injection service.");
       else
-        SKIF_ImGui_SetHoverTip ( "The old legacy method needs to be disabled to migrate over to this new method.\n"
-                                  "The difference is that this method does not require elevated privileges." );
+        SKIF_ImGui_SetHoverTip ("The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                "The difference is that this method does not require elevated privileges." );
     }
 
     ImGui::EndGroup      ();

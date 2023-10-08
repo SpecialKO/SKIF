@@ -1,5 +1,6 @@
 #include <utility/registry.h>
 #include <algorithm>
+#include <utility/utility.h>
 
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
@@ -200,16 +201,15 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
   bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );
-  
-  /* 2023-05-06: Disabled as it probably does not serve any purpose any longer
-  // If the legacy key has data, but not the new key, move the data over to respect existing user's choices
-  if (!regKVDisableStopOnInjection.hasData() && regKVLegacyDisableStopOnInjection.hasData())
-    regKVDisableStopOnInjection.putData (regKVLegacyDisableStopOnInjection.getData());
-  */
-
   bStopOnInjection         = ! regKVDisableStopOnInjection .getData ( );
-  if (regKVMaximizeOnDoubleClick.hasData())
-    bMaximizeOnDoubleClick =   regKVMaximizeOnDoubleClick  .getData ( );
+
+  bMaximizeOnDoubleClick   = 
+    SKIF_Util_GetDragFromMaximized ( )         // IF the OS prerequisites are enabled
+    ? regKVMaximizeOnDoubleClick.hasData ( )   // AND we have data in the registry
+      ? regKVMaximizeOnDoubleClick.getData ( ) // THEN use the data,
+      : true                                   // otherwise default to true,
+    : false;                                   // and false if OS prerequisites are disabled
+
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
   bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData ( );
   bCloseToTray             =   regKVCloseToTray            .getData ( );

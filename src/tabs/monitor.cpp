@@ -763,9 +763,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::EndGroup         ( );
 
-    SKIF_ImGui_SetHoverTip (
-      "Real-time updates are paused."
-    );
+    SKIF_ImGui_SetHoverTip ("Real-time updates are paused.");
   }
 
   ImGui::TreePop          ( );
@@ -1519,7 +1517,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::TextColored ((bHLStatus) ? colHLActive : colHLNormal, "Status");
   SKIF_ImGui_SetMouseCursorHand ( );
-  SKIF_ImGui_SetHoverTip ("Sort by injection status");
+  SKIF_ImGui_SetHoverTip ("Injection status");
   if (ImGui::IsItemClicked ()) _ChangeSort (0);
   if (ImGui::IsItemHovered ()) bHLStatus = true; else bHLStatus = false;
   ImGui::SameLine    ( );
@@ -1527,7 +1525,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLPID) ? colHLActive : colHLNormal, "PID");
   SKIF_ImGui_SetMouseCursorHand ( );
-  SKIF_ImGui_SetHoverTip ("Sort by process ID");
+  SKIF_ImGui_SetHoverTip ("Process ID");
   if (ImGui::IsItemClicked ()) _ChangeSort (1);
   if (ImGui::IsItemHovered ()) bHLPID = true; else bHLPID = false;
   ImGui::SameLine    ( );
@@ -1538,7 +1536,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLArch) ? colHLActive : colHLNormal, "Arch");
-  SKIF_ImGui_SetHoverTip ("Sort by CPU architecture");
+  SKIF_ImGui_SetHoverTip ("CPU architecture");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked ()) _ChangeSort (2);
   if (ImGui::IsItemHovered ()) bHLArch = true; else bHLArch = false;
@@ -1546,7 +1544,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::ItemSize    (ImVec2 (220.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLAdmin) ? colHLActive : colHLNormal, "Admin");
-  SKIF_ImGui_SetHoverTip ("Sort by elevation");
+  SKIF_ImGui_SetHoverTip ("Elevated process");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked ()) _ChangeSort (3);
   if (ImGui::IsItemHovered ()) bHLAdmin = true; else bHLAdmin = false;
@@ -1554,7 +1552,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::ItemSize    (ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLName) ? colHLActive : colHLNormal, "Process Name");
-  SKIF_ImGui_SetHoverTip ("Sort by process name");
+  SKIF_ImGui_SetHoverTip ("Process name");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked ()) _ChangeSort (4);
   if (ImGui::IsItemHovered ()) bHLName = true; else bHLName = false;
@@ -1707,7 +1705,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     if (proc.details.length() > 73)
       SKIF_ImGui_SetHoverTip (proc.details);
     else if (proc.details == "<access denied>")
-      SKIF_ImGui_SetHoverTip("Injection status cannot be determined due to a lack of permissions");
+      SKIF_ImGui_SetHoverTip ("Injection status cannot be determined due to a lack of permissions.");
 
     ImGui::PopID  ( );
   }

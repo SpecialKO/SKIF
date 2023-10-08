@@ -506,9 +506,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-  SKIF_ImGui_SetHoverTip (
-    "Requires Special K injected to work as intended."
-  );
+  SKIF_ImGui_SetHoverTip ("Requires Special K injected to work as intended.");
   
   if (_registry.bAllowMultipleInstances)
   {
@@ -540,7 +538,7 @@ SKIF_UI_Tab_DrawSettings (void)
             
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
-                          "Move the mouse over each option to get more information");
+                          "Move the mouse over each option to get more information.");
   ImGui::SameLine        ( );
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -731,9 +729,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip (
-      "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
-    );
+    SKIF_ImGui_SetHoverTip ("Ignore articles like 'THE', 'A', and 'AN' when sorting games.");
 
     if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
       _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
@@ -1018,9 +1014,7 @@ SKIF_UI_Tab_DrawSettings (void)
       }
     }
 
-    SKIF_ImGui_SetHoverTip (
-      "Disabling the status bar as well as tooltips will hide all additional information or tips."
-    );
+    SKIF_ImGui_SetHoverTip ("Disabling the status bar as well as tooltips will hide all additional information or tips.");
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
@@ -1033,9 +1027,7 @@ SKIF_UI_Tab_DrawSettings (void)
         changedHiDPIScaling = true;
     }
 
-    SKIF_ImGui_SetHoverTip (
-      "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
-    );
+    SKIF_ImGui_SetHoverTip ("Disabling HiDPI scaling will make the application appear smaller on HiDPI displays.");
 
     if (SKIF_Util_IsWindows11orGreater ( ))
     {
@@ -1080,9 +1072,7 @@ SKIF_UI_Tab_DrawSettings (void)
         _registry.regKVUIMode.putData (             _registry.iUIMode);
         RecreateSwapChains = true;
       }
-      SKIF_ImGui_SetHoverTip (
-        "Avoids signal loss and flickering on VRR displays"
-      );
+      SKIF_ImGui_SetHoverTip ("Avoids signal loss and flickering on VRR displays.");
       ImGui::SameLine        ( );
     }
     if (ImGui::RadioButton ("Normal",              &_registry.iUIMode, 1))
@@ -1090,18 +1080,14 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVUIMode.putData (               _registry.iUIMode);
       RecreateSwapChains = true;
     }
-    SKIF_ImGui_SetHoverTip (
-      "Improves UI response on low fixed-refresh rate displays"
-    );
+    SKIF_ImGui_SetHoverTip ("Improves UI response on low fixed-refresh rate displays.");
     ImGui::SameLine        ( );
     if (ImGui::RadioButton ("Safe Mode",           &_registry.iUIMode, 0))
     {
       _registry.regKVUIMode.putData (               _registry.iUIMode);
       RecreateSwapChains = true;
     }
-    SKIF_ImGui_SetHoverTip (
-      "Compatibility mode for users experiencing issues with the other two modes"
-    );
+    SKIF_ImGui_SetHoverTip ("Compatibility mode for users experiencing issues with the other two modes.");
     ImGui::TreePop         ( );
 
     ImGui::Spacing         ( );
@@ -1369,9 +1355,19 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::EndCombo  ( );
     }
 
+    if (! SKIF_Util_GetDragFromMaximized ( ))
+      SKIF_ImGui_PushDisableState ( );
+
     if (ImGui::Checkbox  ("Reposition this app to the center on double click",
                                                       &_registry.bMaximizeOnDoubleClick))
       _registry.regKVMaximizeOnDoubleClick.putData  (  _registry.bMaximizeOnDoubleClick);
+    
+    if (! SKIF_Util_GetDragFromMaximized ( ))
+    {
+      SKIF_ImGui_PopDisableState ( );
+      SKIF_ImGui_SetHoverTip ("Feature is inaccessible due to snapping and/or\n"
+                              "drag from maximized being disabled in Windows.");
+    }
 
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
                                                       &_registry.bAllowBackgroundService))
@@ -1450,8 +1446,8 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::EndGroup   ();
 
         SKIF_ImGui_SetHoverTip (
-          R"(e.g. "NieRAutomataPC|Epic Games" will match any application"
-                  "installed under a NieRAutomataPC or Epic Games folder.)"
+          "(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
+          "installed under a NieRAutomataPC or Epic Games folder.)"
         );
       }
     };
@@ -1472,8 +1468,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup   ();
 
     SKIF_ImGui_SetHoverTip (
-      "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at"
-        "\nC:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
+      "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
+      "C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
     );
 
     ImGui::BeginGroup ();
@@ -1483,8 +1479,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup   ();
 
     SKIF_ImGui_SetHoverTip (
-      "e.g. a pattern like \"Epic Games\" will match any"
-        "\napplication installed under the Epic Games folder."
+      "e.g. a pattern like \"Epic Games\" will match any\n"
+      "application installed under the Epic Games folder."
     );
 
     ImGui::Spacing    ();
@@ -1499,21 +1495,19 @@ SKIF_UI_Tab_DrawSettings (void)
     if (! _registry.bUITooltips)
     {
       SKIF_ImGui_SetHoverTip (
-        "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,"
-        "\nor remain disabled/idle/inert (the blacklist) within the injected process."
+        "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
+        "or remain disabled/idle/inert (the blacklist) within the injected process."
       );
     }
 
     else
     {
       SKIF_ImGui_SetHoverTip (
-        "The global injection service injects Special K into any process that deals"
-        "\nwith system input or some sort of window or keyboard/mouse input activity."
-        "\n\n"
-
-
-        "These lists control whether Special K should be enabled (the whitelist),"
-        "\nor remain idle/inert (the blacklist) within the injected process."
+        "The global injection service injects Special K into any process that deals\n"
+        "with system input or some sort of window or keyboard/mouse input activity.\n"
+        "\n"
+        "These lists control whether Special K should be enabled (the whitelist),\n"
+        "or remain idle/inert (the blacklist) within the injected process."
       );
     }
 
@@ -1561,8 +1555,8 @@ SKIF_UI_Tab_DrawSettings (void)
     if (*_inject.whitelist == '\0')
     {
       SKIF_ImGui_SetHoverTip (
-        "These are the patterns used internally to enable Special K for these specific platforms."
-        "\nThey are presented here solely as examples of how a potential pattern might look like."
+        "These are the patterns used internally to enable Special K for these specific platforms.\n"
+        "They are presented here solely as examples of how a potential pattern might look like."
       );
     }
 
@@ -1608,8 +1602,8 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     SKIF_ImGui_SetHoverTip (
-      "Whitelists games on most platforms, such as Uplay, as"
-      "\nmost of them have 'games' in the full path somewhere."
+      "Whitelists games on most platforms, such as Uplay, as\n"
+      "most of them have \"games\" in the full path somewhere."
     );
 
     /*
@@ -1926,7 +1920,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextWrapped ("DirectFlip is engaged, bypassing desktop composition (DWM).");
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'");
+    SKIF_ImGui_SetHoverTip        ("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.");
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
 
@@ -1941,10 +1935,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip(
-                        "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'"
-                        "\nFSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'"
-    );
+    SKIF_ImGui_SetHoverTip        ("FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
+                                   "FSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.");
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
 
@@ -1959,8 +1951,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip("Appears as 'Composed: Flip', 'Composed: Composition Atlas',"
-                            "\n'Composed: Copy with CPU GDI', or 'Composed: Copy with GPU GDI'");
+    SKIF_ImGui_SetHoverTip        ("Appears as 'Composed: Flip', 'Composed: Composition Atlas',\n"
+                                   "'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'.");
 
     ImGui::Spacing();
     ImGui::Spacing();
@@ -2058,9 +2050,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     else
     {
-      SKIF_ImGui_SetHoverTip(
-        "Administrative privileges are required on the system to toggle this."
-      );
+      SKIF_ImGui_SetHoverTip ("Administrative privileges are required on the system to toggle this.");
     }
 
     ImGui::EndGroup ();
@@ -2255,8 +2245,8 @@ SKIF_UI_Tab_DrawSettings (void)
             dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500; // Trigger a refresh in 500ms
           }
         }
-        ImGui::PopStyleColor      ( );
-        SKIF_ImGui_SetHoverTip        (R"(A restart of the computer is required for the changes to be applied.)");
+        ImGui::PopStyleColor          ( );
+        SKIF_ImGui_SetHoverTip        ("A restart of the computer is required for the changes to be applied.");
         SKIF_ImGui_SetMouseCursorHand ( );
       }
     }

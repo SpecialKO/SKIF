@@ -1902,9 +1902,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::PopStyleVar ();
       
       if (_registry.bCloseToTray)
-        SKIF_ImGui_SetHoverTip ("This app will close to the notification area");
+        SKIF_ImGui_SetHoverTip ("This app will close to the notification area.");
       else if (_inject.bCurrentState && _registry.bAllowBackgroundService)
-        SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed");
+        SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
 
       ImGui::SetCursorPos (topCursorPos);
 
