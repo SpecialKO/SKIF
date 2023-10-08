@@ -80,7 +80,7 @@ constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern bool SKIF_Util_IsWindows8Point1OrGreater (void);
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
 extern bool SKIF_Util_IsWindows11orGreater      (void);
-extern bool SKIF_Util_GetDragFromMaximized      (void);
+extern bool SKIF_Util_GetDragFromMaximized      (bool refresh = false);
 
 // Forward Declarations
 static void                  ImGui_ImplWin32_InitPlatformInterface     (void);

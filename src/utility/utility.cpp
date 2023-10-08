@@ -845,14 +845,14 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 }
 
 bool
-SKIF_Util_GetDragFromMaximized (void)
+SKIF_Util_GetDragFromMaximized (bool refresh)
 {
   // DragFromMaximize and WindowArrangementActive regístry keys are used since at least Windows 7
   // For some bloody reason these are _string_ registry values that holds a '1' or a '0'... WTF?!
 
   static int state = -1;
 
-  if (state != -1)
+  if (state != -1 && ! refresh)
     return state;
 
   HKEY hKey;
