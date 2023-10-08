@@ -241,9 +241,9 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         if (! _registry._SuppressServiceNotification)
         {
           if (bAckInj)
-            SKIF_CreateNotifyToast (L"Please launch a game to continue.",             L"Special K is ready to be injected into your game!");
+            SKIF_CreateNotifyToast (L"Please launch a game to continue.",           L"Special K is ready to be injected into your game!");
           else
-            SKIF_CreateNotifyToast (L"The global injection service was started.",     L"Special K is now being injected into games!");
+            SKIF_CreateNotifyToast (L"The injection service was started.",          L"Special K is now being injected into games!");
         }
 
         else
@@ -257,7 +257,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         if (bAckInjSignaled)
           SKIF_CreateNotifyToast (L"Press Ctrl + Shift + Backspace while in-game.", L"Special K has been injected into your game!");
         else
-          SKIF_CreateNotifyToast (L"The global injection service was stopped.",     L"Special K will no longer be injected into games.");
+          SKIF_CreateNotifyToast (L"The injection service was stopped.",            L"Special K will no longer be injected into games.");
 
         bAckInj = false;
         bAckInjSignaled = false;
@@ -1095,13 +1095,13 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
        bAutoStartServiceOnly/* ||
        _registry.bEnableDebugMode*/ )
   {
-    // Legacy option that autostarts the global injection service on logon.
+    // Legacy option that autostarts the injection service on logon.
     // SKIF will not start alongside the background service!
     if (bLogonTaskEnabled)
     {
       ImGui::BeginGroup ();
   
-      if (ImGui::Checkbox ("Start Global Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
+      if (ImGui::Checkbox ("Start Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
       {
         if (
           ShellExecuteW (
@@ -1130,11 +1130,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
          bAutoStartSKIF )
       SKIF_ImGui_PushDisableState ( );
   
-    if (ImGui::Checkbox ("Start the global injection service with Windows", &dontCare))
+    if (ImGui::Checkbox ("Start the injection service with Windows", &dontCare))
     {
       if (! bAutoStartServiceOnly)
       {
-        if (MessageBox(NULL, L"This will start the global injection service hidden in the background with Windows.\n"
+        if (MessageBox(NULL, L"This will start the injection service hidden in the background with Windows.\n"
                               L"\n"
                               L"Special K Injection Frontend (SKIF) will not autostart.\n"
                               L"\n"
@@ -1223,7 +1223,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
     if (hIcon != NULL)
     {
       if (show)
-        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, hIcon, L"Global injection service is running.");
+        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, hIcon, L"Injection service is running.");
       else
         taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, NULL, NULL);
 

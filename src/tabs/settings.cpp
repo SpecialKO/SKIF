@@ -1503,27 +1503,13 @@ SKIF_UI_Tab_DrawSettings (void)
     else
     {
       SKIF_ImGui_SetHoverTip (
-        "The global injection service injects Special K into any process that deals\n"
-        "with system input or some sort of window or keyboard/mouse input activity.\n"
+        "The injection service injects Special K into any process that deals\n"
+        "with system input or some sort of window or kb/mouse input activity.\n"
         "\n"
         "These lists control whether Special K should be enabled (the whitelist),\n"
         "or remain idle/inert (the blacklist) within the injected process."
       );
     }
-
-    /*
-    ImGui::BeginGroup ();
-    ImGui::Spacing    ();
-    ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
-    ImGui::SameLine   (); ImGui::Text        ("More on the wiki.");
-    ImGui::EndGroup   ();
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-
-    if (ImGui::IsItemClicked ())
-      SKIF_Util_OpenURI (L"https://wiki.special-k.info/en/SpecialK/Global#the-global-injector-and-multiplayer-games");
-    */
 
     ImGui::PopStyleColor  ();
 

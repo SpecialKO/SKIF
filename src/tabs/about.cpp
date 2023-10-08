@@ -276,9 +276,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend, commonly referred to as \"SKIF\".\n\n"
-                           "The injection frontend is used to manage the global injection service which injects Special K into games as they start, and even games that are already running!\n\n"
-                           "The frontend also provides convenient shortcuts to special locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
+  ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly referred to as \"SKIF\".\n\n"
+                           "This app is used to manage the injection service which injects Special K into games as they start, and even games that are already running!\n\n"
+                           "The frontend also provides convenient shortcuts to various locations, including config and log files, cloud saves, and external resources like PCGamingWiki and SteamDB.");
 
   ImGui::SetCursorPosY    (fY1);
 

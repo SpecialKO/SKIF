@@ -118,7 +118,7 @@ void SKIF_UI_DrawPlatformStatus (void)
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "App is running as an administrator!");
     SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                             "Please restart this app and the global injector service as a regular user.");
+                             "Please restart this app and the injection service as a regular user.");
   }
   else {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
@@ -238,7 +238,7 @@ void SKIF_UI_DrawPlatformStatus (void)
                                    "automatically restart RTSS silently in the background.", true);
         else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
           SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                   "Please restart the frontend and the global injector service as a regular user.");
+                                   "Please restart the frontend and the injection service as a regular user.");
         else
           SKIF_ImGui_SetHoverTip (("Running elevated will prevent injection into these games.\n"
                                    "Please restart " + p.Name + " as a normal user.").c_str());
