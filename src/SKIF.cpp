@@ -63,6 +63,14 @@
 #include <tabs/common_ui.h>
 #include <Dbt.h>
 
+// Header Files for Jump List features
+#include <objectarray.h>
+#include <shobjidl.h>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <knownfolders.h>
+#include <shlobj.h>
+
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
 bool RecreateWin32Windows  = false;
@@ -86,6 +94,10 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 bool SKIF_MouseDragMoveAllowed = true;
+
+// Shell messages
+UINT SHELL_TASKBAR_RESTART        = 0;
+UINT SHELL_TASKBAR_BUTTON_CREATED = 0;
 
 // A fixed size for the application window fixes the wobble that otherwise
 //   occurs when switching between tabs as the size isn't dynamically calculated.
@@ -661,7 +673,7 @@ SKIF_Startup_RaiseRunningInstance (void)
   ExitProcess (0x0);
 }
 
-void SKIF_CreateUpdateNotifyMenu (void)
+void SKIF_Shell_CreateUpdateNotifyMenu (void)
 {
   if (hMenu != NULL)
     DestroyMenu (hMenu);
@@ -694,7 +706,7 @@ void SKIF_CreateUpdateNotifyMenu (void)
 }
 
 // This creates a notification icon
-void SKIF_CreateNotifyIcon (void)
+void SKIF_Shell_CreateNotifyIcon (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
@@ -716,7 +728,7 @@ void SKIF_CreateNotifyIcon (void)
 }
 
 // This populates the notification icon with the appropriate icon
-void SKIF_UpdateNotifyIcon (void)
+void SKIF_Shell_UpdateNotifyIcon (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
@@ -728,14 +740,14 @@ void SKIF_UpdateNotifyIcon (void)
 }
 
 // This deletes the notification icon
-void SKIF_DeleteNotifyIcon (void)
+void SKIF_Shell_DeleteNotifyIcon (void)
 {
   Shell_NotifyIcon (NIM_DELETE, &niData);
   DeleteObject     (niData.hIcon);
   niData.hIcon = 0;
 }
 
-void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
+void SKIF_Shell_CreateNotifyToast (std::wstring message, std::wstring title = L"")
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -770,6 +782,111 @@ void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
     // Set up a timer that automatically refreshes SKIF when the notification clears,
     //   allowing us to perform some maintenance and whatnot when that occurs
     SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_NOTIFY, _registry._NotifyMessageDuration * 1000, NULL);
+  }
+}
+
+void SKIF_Shell_CreateJumpList (void)
+{
+  CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
+  CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
+  CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
+  CComPtr <IObjectArray>             pRemovedItems;                             // Not actually used since we don't carry custom destinations
+  PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
+  UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
+
+  TCHAR                                    szExePath[MAX_PATH];
+  GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
+       
+  // Create a jump list COM object.
+  if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
+  {
+    pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS(&pRemovedItems));
+
+    if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
+    {
+
+      // Task #2: Start Service (w/ auto stop)
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the injection service and\n"
+                                     L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Service", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #1: Start Service (w/o autostop)
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Starts the injection service but\n"
+                                     L"does not stop it after injection.");     // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Start Service (manual stop)", &pv);
+        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
+        PropVariantClear                                (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #3: Stop Service
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Stops the injection service");    // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Stop Service", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #4: Exit
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"Quit");                                  // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+      //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Exit", &pv);
+        pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+        PropVariantClear                               (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      CComQIPtr <IObjectArray>       pTasksArray = pObjColl.p;                  // Get an IObjectArray interface for AddUserTasks.
+      pDestList   ->AddUserTasks    (pTasksArray);                              // Add the tasks to the jump list.
+      pDestList   ->CommitList      ( );                                        // Save the jump list.
+      pTasksArray  .Release         ( );
+
+      pObjColl     .Release         ( );
+    }
+    pDestList      .Release         ( );
   }
 }
 
@@ -1118,8 +1235,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
-  SKIF_CreateNotifyIcon       ();
-  SKIF_CreateUpdateNotifyMenu ();
+  SKIF_Shell_CreateNotifyIcon       ();
+  SKIF_Shell_CreateUpdateNotifyMenu ();
 
   // If there were not an instance of SKIF already running
   //   we need to handle any remaining tasks here after 
@@ -2767,7 +2884,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
-    SK_RunOnce (_inject._InitializeJumpList ( ));
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
@@ -2791,7 +2907,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     extern bool ImGui_ImplWin32_RegisterXInputNotifications (void*);
     if (SKIF_ImGui_hWnd != NULL)
+    {
       ImGui_ImplWin32_RegisterXInputNotifications (SKIF_ImGui_hWnd);
+      SK_RunOnce (SKIF_Shell_CreateJumpList ( ));
+    }
 
     // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
     bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
@@ -3130,17 +3249,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
 
   PLOG_INFO << "Shutting down ImGui...";
-  ImGui_ImplDX11_Shutdown   ( );
-  ImGui_ImplWin32_Shutdown  ( );
+  ImGui_ImplDX11_Shutdown     ( );
+  ImGui_ImplWin32_Shutdown    ( );
 
-  CleanupDeviceD3D          ( );
+  CleanupDeviceD3D            ( );
 
   PLOG_INFO << "Destroying notification icon...";
-  SKIF_DeleteNotifyIcon     ( );
+  SKIF_Shell_DeleteNotifyIcon ( );
   DestroyWindow             (SKIF_Notify_hWnd);
 
   PLOG_INFO << "Destroying ImGui context...";
-  ImGui::DestroyContext     (    );
+  ImGui::DestroyContext       ( );
 
   SKIF_ImGui_hWnd  = NULL;
   SKIF_Notify_hWnd = NULL;
@@ -3710,8 +3829,6 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   if (SKIF_WndProc (hWnd, msg, wParam, lParam))
     return true;
 
-  static UINT SHELL_TASKBAR_RESTART;
-
   switch (msg)
   {
     case WM_SKIF_NOTIFY_ICON:
@@ -3781,7 +3898,10 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_CREATE:
-      SHELL_TASKBAR_RESTART = RegisterWindowMessage (TEXT ("TaskbarCreated"));
+      SK_RunOnce (
+        SHELL_TASKBAR_RESTART        = RegisterWindowMessage (TEXT ("TaskbarCreated"));
+        SHELL_TASKBAR_BUTTON_CREATED = RegisterWindowMessage (TEXT ("TaskbarButtonCreated"));
+      );
       break;
         
     default:
@@ -3789,8 +3909,8 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       //   so we need to recreate the notification icon
       if (msg == SHELL_TASKBAR_RESTART)
       {
-        SKIF_DeleteNotifyIcon ( );
-        SKIF_CreateNotifyIcon ( );
+        SKIF_Shell_DeleteNotifyIcon ( );
+        SKIF_Shell_CreateNotifyIcon ( );
       }
       break;
   }

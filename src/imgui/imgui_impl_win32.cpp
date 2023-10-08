@@ -1810,6 +1810,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
     return true;
   
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
   // WM_NCCALCSIZE allows us to remove the Standard Frame of the window that DWM creates.
   // This is necessary as our main window requires WS_CAPTION | WS_SYSMENU and
@@ -2220,6 +2221,15 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         if (! _registry.bMaximizeOnDoubleClick && ! SKIF_Util_GetDragFromMaximized ( ))
           msg = WM_NCLBUTTONDOWN;
         break;
+      }
+
+      default:
+      {
+        extern UINT SHELL_TASKBAR_BUTTON_CREATED;
+        // When the taskbar button has been created,
+        //   the icon overlay can be set accordingly
+        if (msg == SHELL_TASKBAR_BUTTON_CREATED)
+          _inject._SetTaskbarOverlay (_inject.bCurrentState);
       }
     }
   }
