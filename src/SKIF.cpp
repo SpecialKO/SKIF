@@ -680,24 +680,31 @@ void SKIF_CreateUpdateNotifyMenu (void)
     svcStopped         = true;
 
   hMenu = CreatePopupMenu ( );
-  AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Service");
-  AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Service (manual stop)");
-  AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Service");
+  if (hMenu != NULL)
+  {
+    AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Service");
+    AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Service (manual stop)");
+    AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Service");
 
-//AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
-//AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
-  AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
-  AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
+  //AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
+  //AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
+    AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
+  }
 }
 
 // This creates a notification icon
 void SKIF_CreateNotifyIcon (void)
 {
+  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+
   ZeroMemory (&niData,  sizeof (NOTIFYICONDATA));
   niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)
   niData.uID          = SKIF_NOTIFY_ICON;
   niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
-  niData.hIcon        = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
+  niData.hIcon        = (_inject.bCurrentState)
+    ? LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY))
+    : LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
   niData.hWnd         = SKIF_Notify_hWnd;
   niData.uVersion     = NOTIFYICON_VERSION_4;
   wcsncpy_s (niData.szTip,      128, L"Special K",   128);
@@ -713,12 +720,10 @@ void SKIF_UpdateNotifyIcon (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
-  niData.uFlags        = NIF_ICON;
-  if (_inject.bCurrentState)
-    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY));
-  else
-    niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
-
+  niData.uFlags       = NIF_ICON;
+  niData.hIcon        = (_inject.bCurrentState)
+    ? LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY))
+    : LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
   Shell_NotifyIcon (NIM_MODIFY, &niData);
 }
 
@@ -963,7 +968,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SK_LogUserNamesVerbose ( );
 #endif
 
-  // This constructs this singleton object
+  // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
   
   // Process cmd line arguments (2/4)
@@ -3784,11 +3789,8 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       //   so we need to recreate the notification icon
       if (msg == SHELL_TASKBAR_RESTART)
       {
-        // Delete any remnants of the old notification icon
-        SKIF_DeleteNotifyIcon       ( );
-        // Now recreate it same way we do on launch
-        SKIF_CreateNotifyIcon       ( );
-        SKIF_CreateUpdateNotifyMenu ( );
+        SKIF_DeleteNotifyIcon ( );
+        SKIF_CreateNotifyIcon ( );
       }
       break;
   }
