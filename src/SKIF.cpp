@@ -690,6 +690,7 @@ void SKIF_CreateUpdateNotifyMenu (void)
   AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
 }
 
+// This creates a notification icon
 void SKIF_CreateNotifyIcon (void)
 {
   ZeroMemory (&niData,  sizeof (NOTIFYICONDATA));
@@ -707,6 +708,7 @@ void SKIF_CreateNotifyIcon (void)
   //Shell_NotifyIcon (NIM_SETVERSION, &niData); // Breaks shit, lol
 }
 
+// This populates the notification icon with the appropriate icon
 void SKIF_UpdateNotifyIcon (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
@@ -718,6 +720,14 @@ void SKIF_UpdateNotifyIcon (void)
     niData.hIcon       = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
 
   Shell_NotifyIcon (NIM_MODIFY, &niData);
+}
+
+// This deletes the notification icon
+void SKIF_DeleteNotifyIcon (void)
+{
+  Shell_NotifyIcon (NIM_DELETE, &niData);
+  DeleteObject     (niData.hIcon);
+  niData.hIcon = 0;
 }
 
 void SKIF_CreateNotifyToast (std::wstring message, std::wstring title = L"")
@@ -3115,21 +3125,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
 
   PLOG_INFO << "Shutting down ImGui...";
-  ImGui_ImplDX11_Shutdown   (    );
-  ImGui_ImplWin32_Shutdown  (    );
+  ImGui_ImplDX11_Shutdown   ( );
+  ImGui_ImplWin32_Shutdown  ( );
 
-  CleanupDeviceD3D          (    );
+  CleanupDeviceD3D          ( );
 
   PLOG_INFO << "Destroying notification icon...";
-  Shell_NotifyIcon          (NIM_DELETE, &niData);
-  DeleteObject              (niData.hIcon);
-  niData.hIcon               = 0;
+  SKIF_DeleteNotifyIcon     ( );
   DestroyWindow             (SKIF_Notify_hWnd);
-
-  PLOG_INFO << "Destroying main window...";
-  //if (hDC != 0)
-  //  ReleaseDC               (hWnd, hDC);
-  //DestroyWindow             (hWnd);
 
   PLOG_INFO << "Destroying ImGui context...";
   ImGui::DestroyContext     (    );
@@ -3698,9 +3701,11 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
   //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L") " + ((HWND)wParam == SKIF_hWnd ? L"== SKIF_hWnd" : ((HWND)wParam == SKIF_ImGui_hWnd ? L"== SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L"== SKIF_Notify_hWnd" : L"")) + L"\n").c_str());
   //OutputDebugString((L"[SKIF_Notify_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
-    
+
   if (SKIF_WndProc (hWnd, msg, wParam, lParam))
     return true;
+
+  static UINT SHELL_TASKBAR_RESTART;
 
   switch (msg)
   {
@@ -3767,6 +3772,23 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           if (SKIF_ImGui_hWnd != NULL)
             PostMessage (SKIF_ImGui_hWnd, WM_CLOSE, 0, 0);
           break;
+      }
+      break;
+
+    case WM_CREATE:
+      SHELL_TASKBAR_RESTART = RegisterWindowMessage (TEXT ("TaskbarCreated"));
+      break;
+        
+    default:
+      // Taskbar was recreated (explorer.exe restarted),
+      //   so we need to recreate the notification icon
+      if (msg == SHELL_TASKBAR_RESTART)
+      {
+        // Delete any remnants of the old notification icon
+        SKIF_DeleteNotifyIcon       ( );
+        // Now recreate it same way we do on launch
+        SKIF_CreateNotifyIcon       ( );
+        SKIF_CreateUpdateNotifyMenu ( );
       }
       break;
   }
