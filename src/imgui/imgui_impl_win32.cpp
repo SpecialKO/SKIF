@@ -2230,6 +2230,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
         //   the icon overlay can be set accordingly
         if (msg == SHELL_TASKBAR_BUTTON_CREATED)
           _inject._SetTaskbarOverlay (_inject.bCurrentState);
+        break;
       }
     }
   }
