@@ -80,12 +80,14 @@
     <TargetName>$(ProjectName)32</TargetName>
     <OutDir>Builds\</OutDir>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);.\resources\;.\packages_misc\;.\packages_misc\gsl\</IncludePath>
     <OutDir>Builds\</OutDir>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -97,6 +99,7 @@
     <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
     <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -107,6 +110,7 @@
     <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
     <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
     <IntDir>Builds\$(Platform)-$(Configuration)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -150,11 +154,13 @@
       <AdditionalOptions>/DEPENDENTLOADFLAG:0x800 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
-      <Message>Terminates any existing instance of SKIF</Message>
-      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+      <Message>
+      </Message>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
     <Manifest>
@@ -209,11 +215,13 @@
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Message>Terminates any existing instance of SKIF</Message>
-      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
+      <Message>
+      </Message>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
     <Manifest>
@@ -281,14 +289,16 @@
       <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
-      <Message>Terminates any existing instance of SKIF</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -353,11 +363,13 @@
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>taskkill /IM "SKIF.exe" /F /FI "STATUS eq RUNNING"</Command>
-      <Message>Terminates any existing instance of SKIF</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)"</Command>
+      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Execute post-build events</Message>
