@@ -363,7 +363,9 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
   if (! PathFileExists ((targetAssetPath + L"store.json").c_str()))
   {
     std::wstring query = L"https://storeedgefd.dsx.mp.microsoft.com/v8.0/sdk/products?market=US&locale=en-US&deviceFamily=Windows.Desktop";
-    std::string body  = SK_FormatString(R"({ "productIds": "%s" })", StoreID.c_str());
+    std::string  body  = SK_FormatString(R"({ "productIds": "%s" })", StoreID.c_str());
+    
+    PLOG_DEBUG << "Downloading platform JSON: " << query;
 
     SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
   }
@@ -376,21 +378,22 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 
     if (jf.is_discarded ( ))
     {
-      DeleteFile ((targetAssetPath + L"store.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+      PLOG_ERROR << "Could not read platform JSON!";
     }
+
     else
     {
       for (auto& image : jf["Products"][0]["LocalizedProperties"][0]["Images"])
       {
         if (image["ImagePurpose"].get <std::string_view>()._Equal(R"(Poster)"))
         {
-          // Download a downscaled copy of the cover
-
           // Convert the URL value to a regular string
           std::string assetUrl = image["Uri"]; // will throw exception if "Uri" does not exist
 
           // Strip the first two characters (//)
           assetUrl = SK_FormatString(R"(https://%s%s)", assetUrl.substr(2).c_str(), ((_registry.bLowBandwidthMode) ? "?q=90&h=900&w=600" : ""));
+
+          PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
 
           SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
         }
@@ -401,6 +404,10 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
   {
 
   }
+
+  // Delete the JSON file when we are done
+  if (_registry.iLogging < 5)
+    DeleteFile ((targetAssetPath + L"store.json").c_str());
 }
 
 bool

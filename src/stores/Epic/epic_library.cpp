@@ -215,7 +215,7 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\EGS\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
 
   std::error_code ec;
   // Create any missing directories
@@ -240,10 +240,7 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
       L"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437" // sha256Hash
     );
 
-    // Old method?
-    // https://store.epicgames.com/graphql?operationName=getCatalogOffer&variables={"locale":"en-US","country":"SE","sandboxId":"1d6b5762a1d643a4830481c44d59abfb","offerId":"7e79f5e61cc64b6e9b48d6c857d4e923"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"6797fe39bfac0e6ea1c5fce0ecbff58684157595fee77e446b4254ec45ee2dcb"}}
-
-    PLOG_DEBUG << "Downloading offer JSON: " << query;
+    PLOG_DEBUG << "Downloading platform JSON: " << query;
 
     SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json");
   }
@@ -256,16 +253,14 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
 
     if (jf.is_discarded ( ))
     {
-      PLOG_WARNING << "Could not read JSON file; deleting: " << targetAssetPath << "offer.json";
-      DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+      PLOG_ERROR << "Could not read platform JSON!";
     }
 
     else
     {
       if (jf["errors"].is_array())
       {
-        PLOG_WARNING << "Could not read JSON file; deleting: " << targetAssetPath << "offer.json";
-        DeleteFile ((targetAssetPath + L"offer.json").c_str()); // Something went wrong -- delete the file so a new attempt is performed next time
+        PLOG_ERROR << "Could not read platform JSON!";
       }
 
       else
@@ -294,6 +289,10 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
   {
 
   }
+
+  // Delete the JSON file when we are done
+  if (_registry.iLogging < 5)
+    DeleteFile ((targetAssetPath + L"offer.json").c_str());
 }
 
 void app_epic_s::launchGame(void)

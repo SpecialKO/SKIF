@@ -1758,7 +1758,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
@@ -1801,7 +1801,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
@@ -2024,7 +2024,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (_pApp->store == app_record_s::Store::Epic)
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
@@ -2101,10 +2101,8 @@ SKIF_UI_Tab_DrawLibrary (void)
               std::filesystem::create_directories (load_str_2x, ec);
 
         load_str_2x += L"cover-original.jpg";
-      
-        load_str = _path_cache.steam_install;
-
-        load_str   += LR"(/appcache/librarycache/)" +
+        load_str     = _path_cache.steam_install;
+        load_str    += LR"(/appcache/librarycache/)" +
           std::to_wstring (_pApp->id)                +
                                   L"_library_600x900.jpg";
 
@@ -2140,6 +2138,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 300 &&
                 meta.height == 450)
             {
+              PLOG_DEBUG << "Downloading cover asset: " << url;
+
               SKIF_Util_GetWebResource (url, load_str_2x);
               load_str_final = load_str_2x;
             }
@@ -2160,6 +2160,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
             {
               DeleteFile (load_str_2x.c_str ());
+
+              PLOG_DEBUG << "Downloading cover asset: " << url;
               SKIF_Util_GetWebResource (url, load_str_2x);
             }
           }
@@ -2735,7 +2737,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
@@ -2789,7 +2791,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Other)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\EGS\%ws\)",   _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
