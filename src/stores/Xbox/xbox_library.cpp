@@ -165,6 +165,11 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
 
+                      // Hardcoded override for Forza Motorsport's weirdly configured manifest
+                      if (record.Xbox_PackageName == "Microsoft.ForzaMotorsport" &&
+                          record.names.normal == "ms-resource:IDS_Title2")
+                        record.names.normal = "Forza Motorsport";
+
                       // If we have found a partial path, construct the assumed full path
                       if (! virtualFolder.empty())
                         virtualFolder = SK_FormatStringW (LR"(%ws\%ws\Content\)", virtualFolder.c_str(), SK_UTF8ToWideChar (SKIF_Util_ReplaceInvalidFilenameChars (record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
