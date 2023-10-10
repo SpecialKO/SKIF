@@ -511,8 +511,11 @@ GetInjectionSummary (app_record_s* pApp)
         if (INVALID_HANDLE_VALUE != hFind)
         {
           do {
-            Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
-            tmpPresets.push_back(newPreset);
+            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
+            {
+              Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
+              tmpPresets.push_back(newPreset);
+            }
           } while (FindNextFile (hFind, &ffd));
 
           DefaultPresets = tmpPresets;
@@ -534,8 +537,11 @@ GetInjectionSummary (app_record_s* pApp)
         if (INVALID_HANDLE_VALUE != hFind)
         {
           do {
-            Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
-            tmpPresets.push_back(newPreset);
+            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
+            {
+              Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
+              tmpPresets.push_back(newPreset);
+            }
           } while (FindNextFile (hFind, &ffd));
 
           CustomPresets = tmpPresets;
