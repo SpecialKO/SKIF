@@ -65,6 +65,8 @@ bool        SKIF_STEAM_OWNER        = false;
 bool        loadCover               = false;
 bool        tryingToLoadCover       = false;
 std::atomic<bool> gameCoverLoading  = false;
+std::atomic<bool> gameModDownloading = false;
+std::atomic<bool> gameModInstalling  = false;
 
 static bool clickedGameLaunch,
             clickedGameLaunchWoSK,
@@ -260,7 +262,7 @@ GetInjectionSummary (app_record_s* pApp)
           _cache.app_id != 429660       && // Tales of Berseria
           _cache.app_id != 372360       && // Tales of Symphonia
           _cache.app_id != 738540       && // Tales of Vesperia DE
-          _cache.app_id != 351970          // Tales of Zestiria: 
+          _cache.app_id != 351970          // Tales of Zestiria
         ))
     {
       if (SKIF_Util_CompareVersionStrings (SK_UTF8ToWideChar(_inject.SKVer32), SK_UTF8ToWideChar(_cache.dll.version)) > 0)
@@ -755,25 +757,147 @@ Cache=false)";
 
   ImGui::PopStyleVar ();
 
-  std::string      buttonLabel = ICON_FA_GAMEPAD "  Launch";
-  ImGuiButtonFlags buttonFlags = ImGuiButtonFlags_None;
+  std::string      buttonLabel   = ICON_FA_GAMEPAD "  Launch";
+  ImGuiButtonFlags buttonFlags   = ImGuiButtonFlags_None;
+  bool             buttonInstall = false;
+
+  if (  pApp->store == app_record_s::Store::Steam  && // Expose installer for those games with better specific mods
+     (//pApp->id == 405900       || // Disgaea PC
+        pApp->id == 359870       || // FFX/X-2 HD Remaster
+      //pApp->id == 578330       || // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
+      //pApp->id == 429660       || // Tales of Berseria
+        pApp->id == 372360       || // Tales of Symphonia
+        pApp->id == 738540     //|| // Tales of Vesperia DE
+      //pApp->id == 351970          // Tales of Zestiria
+      ) && ! _cache.injection.type._Equal ("Local"))
+  {
+    buttonLabel   = ICON_FA_DOWNLOAD "  Install";
+    buttonInstall = true;
+
+    if (gameModInstalling.load())
+      buttonLabel = "Installing...";
+    else if (gameModDownloading.load())
+      buttonLabel = "Downloading...";
+  }
 
   if (pApp->_status.running || pApp->_status.updating)
   {
-      buttonLabel = (  pApp->_status.running) ? "Running..." : "Updating...";
-      buttonFlags = ImGuiButtonFlags_Disabled;
-      ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
+    buttonLabel = (  pApp->_status.running) ? "Running..." : "Updating...";
+    buttonFlags = ImGuiButtonFlags_Disabled;
+    ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
   }
 
   // Disable the button for the injection service types if the servlets are missing
-  if ( ! _inject.bHasServlet && !_cache.injection.type._Equal ("Local") )
+  if ( ! _inject.bHasServlet && ! _cache.injection.type._Equal ("Local") )
     SKIF_ImGui_PushDisableState ( );
 
-  // This captures two events -- launching through context menu + large button
-  if ( ImGui::ButtonEx (
+  if (buttonInstall && 
+      ImGui::ButtonEx (
               buttonLabel.c_str (),
                   ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
-                            50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags )
+                            50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
+  {
+    static int appid;
+    appid = pApp->id;
+
+    // We're going to asynchronously download the mod installer on this thread
+    if (! gameModDownloading.load())
+    {
+      _beginthread ([](void*)->void
+      {
+        gameModDownloading.store (true);
+
+        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibGameModWorker");
+
+        CoInitializeEx (nullptr, 0x0);
+
+        PLOG_INFO << "Thread started!";
+
+        int _appid = appid;
+
+        static const std::wstring root = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
+
+        // Create any missing directories
+        std::error_code ec;
+        if (! std::filesystem::exists (            root, ec))
+              std::filesystem::create_directories (root, ec);
+      
+        std::wstring download, filename;
+
+        if      (_appid == 359870) // FFX/X-2 HD Remaster
+        {
+          filename = L"SpecialK_UnX.exe";
+          download = L"https://sk-data.special-k.info/UnX/SpecialK_UnX.exe";
+        }
+        else if (_appid == 372360) // Tales of Symphonia
+        {
+          filename = L"SpecialK_TSFix.exe";
+          download = L"https://sk-data.special-k.info/TSFix/SpecialK_TSFix.exe";
+        }
+        else if (_appid == 738540) // Tales of Vesperia DE
+        {
+          filename = L"SpecialK_TVFix.exe";
+          download = L"https://sk-data.special-k.info/TVFix/SpecialK_TVFix.exe";
+        }
+
+        if (! filename.empty() && ! download.empty())
+        {
+          // Download the installer if it does not exist
+          if (! PathFileExists ((root + filename).c_str()))
+          {
+            PLOG_INFO << "Downloading installer: " << download;
+            SKIF_Util_GetWebResource (download, root + filename);
+          }
+        
+          gameModInstalling.store (true);
+
+          // Note that any new process will inherit SKIF's environment variables
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+  
+          SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = (root + filename).c_str();
+            sexi.lpParameters = NULL;
+            sexi.lpDirectory  = NULL;
+            sexi.nShow        = SW_SHOWNORMAL;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI     | SEE_MASK_NOZONECHECKS |
+                                SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC; // Never async since we execute in short-lived child thread
+
+          // Attempt to run the downloaded installer,
+          //   and delete it on failure
+          if (! ShellExecuteExW (&sexi))
+            DeleteFile ((root + filename).c_str());
+
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+          if (sexi.hProcess != NULL)
+            WaitForSingleObject (sexi.hProcess, INFINITE); // == WAIT_OBJECT_0
+
+          gameModInstalling.store (false);
+
+          PLOG_INFO << "Finished installing a mod asynchronously...";
+        }
+
+        gameModDownloading.store (false);
+
+        // Force a refresh when the game icons have finished being streamed
+        //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+        PLOG_INFO << "Thread stopped!";
+      }, 0x0, NULL);
+    }
+  }
+
+  // This captures two events -- launching through context menu + large button
+  if (( ! buttonInstall &&
+      ImGui::ButtonEx (
+              buttonLabel.c_str (),
+                  ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
+                            50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
         ||
     clickedGameLaunch
         ||
@@ -1962,9 +2086,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     // We're going to stream the cover in asynchronously on this thread
     _beginthread ([](void*)->void
     {
-      CoInitializeEx (nullptr, 0x0);
-
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
+
+      CoInitializeEx (nullptr, 0x0);
 
       PLOG_INFO << "Thread started!";
       PLOG_INFO << "Streaming game cover asynchronously...";
