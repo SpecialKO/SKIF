@@ -1082,6 +1082,7 @@ Cache=false)";
 
 #pragma endregion
 
+
 #pragma region UpdateInjectionStrategy
 
 void
@@ -1564,57 +1565,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Prepare for the keyboard hint / search/filter functionality
       if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
       {
-        std::string all_upper = SKIF_Util_ToUpper (app.first),
-                    all_upper_alnum;
-          
-        for (const char c : app.first)
-        {
-          if (! ( isalnum (c) || isspace (c) ))
-            continue;
-
-          all_upper_alnum += (char)toupper (c);
-        }
-
-        size_t stripped = 0;
-
-        if (_registry.bLibraryIgnoreArticles)
-        {
-          static const
-            std::string toSkip [] =
-            {
-              std::string ("A "),
-              std::string ("AN "),
-              std::string ("THE ")
-            };
-
-          for ( auto& skip_ : toSkip )
-          {
-            if (all_upper_alnum.find (skip_) == 0)
-            {
-              all_upper_alnum =
-                all_upper_alnum.substr (
-                  skip_.length ()
-                );
-
-              stripped = skip_.length ();
-              break;
-            }
-          }
-        }
-
-        std::string trie_builder;
-
-        for ( const char c : all_upper_alnum)
-        {
-          trie_builder += c;
-
-          labels.insert (trie_builder);
-        }
-        
-        app.second.names.normal          = app.first;
-        app.second.names.all_upper       = all_upper;
-        app.second.names.all_upper_alnum = all_upper_alnum;
-        app.second.names.pre_stripped    = stripped;
+        InsertTrieKey (&app, &labels);
       }
     }
 
@@ -4568,6 +4519,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (newAppId > 0)
       {
+        // Attempt to extract the icon from the given executable straight away
+        std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, newAppId);
+        SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
+
         _registry.iLastSelectedGame  = newAppId;
         _registry.iLastSelectedStore = (int)app_record_s::Store::Other;
         _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
@@ -4782,56 +4737,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (SKIF_ModifyCustomAppID (pApp, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs)))
       {
-        for (auto& app : apps)
-        {
-          if (app.second.id == pApp->id && app.second.store == app_record_s::Store::Other)
-          {
-            app.first = pApp->names.normal;
-
-            std::string all_upper;
-
-            for (const char c : app.first)
-            {
-              if (! ( isalnum (c) || isspace (c)))
-                continue;
-
-              all_upper += (char)toupper (c);
-            }
-
-            static const
-              std::string toSkip [] =
-              {
-                std::string ("A "),
-                std::string ("THE ")
-              };
-
-            for ( auto& skip_ : toSkip )
-            {
-              if (all_upper.find (skip_) == 0)
-              {
-                all_upper =
-                  all_upper.substr (
-                    skip_.length ()
-                  );
-                break;
-              }
-            }
-
-            std::string trie_builder;
-
-            for ( const char c : all_upper)
-            {
-              trie_builder += c;
-
-              labels.insert (trie_builder);
-            }
-
-            pApp->names.all_upper = trie_builder;
-          }
-        }
-
-        //InterlockedExchange (&need_sort, 1);
-        _SortApps ( );
+        // Attempt to extract the icon from the given executable straight away
+        std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, pApp->id);
+        DeleteFile (SKIFCustomPath.c_str());
+        SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
+        
+        RepopulateGames = true; // Rely on the RepopulateGames method instead
 
         // Clear variables
         error = false;
