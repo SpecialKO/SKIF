@@ -61,3 +61,5 @@ private:
   SKIF_GamesCollection (void);
 };
 
+// Helper functions
+void InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels);

@@ -570,4 +570,62 @@ Trie::deletion (Trie*& curr, const std::string& key)
   return false;
 }
 
+void
+InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  std::string all_upper = SKIF_Util_ToUpper (app->first),
+              all_upper_alnum;
+          
+  for (const char c : app->first)
+  {
+    if (! ( isalnum (c) || isspace (c) ))
+      continue;
+
+    all_upper_alnum += (char)toupper (c);
+  }
+
+  size_t stripped = 0;
+
+  if (_registry.bLibraryIgnoreArticles)
+  {
+    static const
+      std::string toSkip [] =
+      {
+        std::string ("A "),
+        std::string ("AN "),
+        std::string ("THE ")
+      };
+
+    for ( auto& skip_ : toSkip )
+    {
+      if (all_upper_alnum.find (skip_) == 0)
+      {
+        all_upper_alnum =
+          all_upper_alnum.substr (
+            skip_.length ()
+          );
+
+        stripped = skip_.length ();
+        break;
+      }
+    }
+  }
+
+  std::string trie_builder;
+
+  for ( const char c : all_upper_alnum)
+  {
+    trie_builder += c;
+
+    labels->insert (trie_builder);
+  }
+        
+  app->second.names.normal          = app->first;
+  app->second.names.all_upper       = all_upper;
+  app->second.names.all_upper_alnum = all_upper_alnum;
+  app->second.names.pre_stripped    = stripped;
+}
+
 #pragma endregion
