@@ -60,13 +60,14 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
-const int   SKIF_STEAM_APPID        = 1157970;
-bool        SKIF_STEAM_OWNER        = false;
-bool        loadCover               = false;
-bool        tryingToLoadCover       = false;
-std::atomic<bool> gameCoverLoading  = false;
-std::atomic<bool> gameModDownloading = false;
-std::atomic<bool> gameModInstalling  = false;
+const int              SKIF_STEAM_APPID  = 1157970;
+bool                   SKIF_STEAM_OWNER  = false;
+bool                   loadCover         = false;
+bool                   tryingToLoadCover = false;
+std::atomic<bool>      gameCoverLoading  = false;
+std::atomic<bool>      modDownloading    = false;
+std::atomic<bool>      modInstalling     = false;
+std::atomic<uint32_t>  modAppId          = 0;
 
 static bool clickedGameLaunch,
             clickedGameLaunchWoSK,
@@ -759,7 +760,8 @@ Cache=false)";
 
   std::string      buttonLabel   = ICON_FA_GAMEPAD "  Launch";
   ImGuiButtonFlags buttonFlags   = ImGuiButtonFlags_None;
-  bool             buttonInstall = false;
+  bool             buttonInstall = false,
+                   buttonPending = false;
 
   if (  pApp->store == app_record_s::Store::Steam  && // Expose installer for those games with better specific mods
      (//pApp->id == 405900       || // Disgaea PC
@@ -771,13 +773,28 @@ Cache=false)";
       //pApp->id == 351970          // Tales of Zestiria
       ) && ! _cache.injection.type._Equal ("Local"))
   {
-    buttonLabel   = ICON_FA_DOWNLOAD "  Install";
+    buttonLabel   = ICON_FA_DOWNLOAD "  Install Mod";
     buttonInstall = true;
 
-    if (gameModInstalling.load())
-      buttonLabel = "Installing...";
-    else if (gameModDownloading.load())
-      buttonLabel = "Downloading...";
+    uint32_t _modAppId = modAppId.load();
+
+    if (_modAppId == pApp->id)
+    {
+      if (modInstalling.load())
+      {
+        buttonLabel = "Installing...";
+        buttonPending = true;
+      }
+      else if (modDownloading.load())
+      {
+        buttonLabel = "Downloading...";
+        buttonPending = true;
+      }
+    }
+    else if (_modAppId > 0) {
+      buttonLabel   = "Pending...";
+      buttonPending = true;
+    }
   }
 
   if (pApp->_status.running || pApp->_status.updating)
@@ -788,7 +805,7 @@ Cache=false)";
   }
 
   // Disable the button for the injection service types if the servlets are missing
-  if ( ! _inject.bHasServlet && ! _cache.injection.type._Equal ("Local") )
+  if ( ! _inject.bHasServlet && ! _cache.injection.type._Equal ("Local") || buttonPending )
     SKIF_ImGui_PushDisableState ( );
 
   if (buttonInstall && 
@@ -797,15 +814,15 @@ Cache=false)";
                   ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                             50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
   {
-    static int appid;
+    static uint32_t appid;
     appid = pApp->id;
 
     // We're going to asynchronously download the mod installer on this thread
-    if (! gameModDownloading.load())
+    if (! modDownloading.load())
     {
       _beginthread ([](void*)->void
       {
-        gameModDownloading.store (true);
+        modDownloading.store (true);
 
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibGameModWorker");
 
@@ -814,6 +831,7 @@ Cache=false)";
         PLOG_INFO << "Thread started!";
 
         int _appid = appid;
+        modAppId.store (_appid);
 
         static const std::wstring root = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
 
@@ -849,7 +867,7 @@ Cache=false)";
             SKIF_Util_GetWebResource (download, root + filename);
           }
         
-          gameModInstalling.store (true);
+          modInstalling.store (true);
 
           // Note that any new process will inherit SKIF's environment variables
           if (_registry._LoadedSteamOverlay)
@@ -877,12 +895,13 @@ Cache=false)";
           if (sexi.hProcess != NULL)
             WaitForSingleObject (sexi.hProcess, INFINITE); // == WAIT_OBJECT_0
 
-          gameModInstalling.store (false);
+          modInstalling.store (false);
 
           PLOG_INFO << "Finished installing a mod asynchronously...";
         }
-
-        gameModDownloading.store (false);
+        
+        modAppId.store (0);
+        modDownloading.store (false);
 
         // Force a refresh when the game icons have finished being streamed
         //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
@@ -890,6 +909,12 @@ Cache=false)";
         PLOG_INFO << "Thread stopped!";
       }, 0x0, NULL);
     }
+  }
+
+  if (buttonPending)
+  {
+    SKIF_ImGui_PopDisableState ( );
+    SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
   }
 
   // This captures two events -- launching through context menu + large button
