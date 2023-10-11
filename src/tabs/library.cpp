@@ -511,11 +511,20 @@ GetInjectionSummary (app_record_s* pApp)
         if (INVALID_HANDLE_VALUE != hFind)
         {
           do {
+            Preset newPreset = { PathFindFileName(ffd.cFileName), PresetFolder + ffd.cFileName };
+            bool add = false;
+
             if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
+              add = true;
+            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
             {
-              Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
-              tmpPresets.push_back(newPreset);
+              struct _stat64 buffer;
+              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
+                add = true;
             }
+
+            if (add)
+              tmpPresets.push_back (newPreset);
           } while (FindNextFile (hFind, &ffd));
 
           DefaultPresets = tmpPresets;
@@ -537,11 +546,20 @@ GetInjectionSummary (app_record_s* pApp)
         if (INVALID_HANDLE_VALUE != hFind)
         {
           do {
+            Preset newPreset = { PathFindFileName(ffd.cFileName), PresetFolder + ffd.cFileName };
+            bool add = false;
+
             if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
+              add = true;
+            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
             {
-              Preset newPreset = { PathFindFileName(ffd.cFileName), SK_FormatStringW (LR"(%ws\Global\Custom\%ws)", _path_cache.specialk_userdata, ffd.cFileName) };
-              tmpPresets.push_back(newPreset);
+              struct _stat64 buffer;
+              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
+                add = true;
             }
+
+            if (add)
+              tmpPresets.push_back (newPreset);
           } while (FindNextFile (hFind, &ffd));
 
           CustomPresets = tmpPresets;
@@ -563,6 +581,8 @@ GetInjectionSummary (app_record_s* pApp)
                 CopyFile (preset.Path.c_str(), _cache.config.full_pathW.c_str(), FALSE);
                 PLOG_VERBOSE << "Copying " << preset.Path << " over to " << _cache.config.full_path << ", overwriting any existing file in the process.";
               }
+
+              SKIF_ImGui_SetMouseCursorHand ();
             }
 
             if (! CustomPresets.empty())
@@ -579,6 +599,8 @@ GetInjectionSummary (app_record_s* pApp)
                 CopyFile (preset.Path.c_str(), _cache.config.full_pathW.c_str(), FALSE);
                 PLOG_VERBOSE << "Copying " << preset.Path << " over to " << _cache.config.full_path << ", overwriting any existing file in the process.";
               }
+
+              SKIF_ImGui_SetMouseCursorHand ();
             }
           }
 
@@ -639,6 +661,8 @@ Cache=false)";
         }
       }
 
+      SKIF_ImGui_SetMouseCursorHand ();
+
       SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
                               "various features of Special K in an attempt to improve compatibility.");
 
@@ -657,6 +681,8 @@ Cache=false)";
         if (h != INVALID_HANDLE_VALUE)
           CloseHandle (h);
       }
+
+      SKIF_ImGui_SetMouseCursorHand ();
 
       ImGui::EndPopup ( );
     }
