@@ -494,80 +494,60 @@ GetInjectionSummary (app_record_s* pApp)
       static std::vector<Preset> DefaultPresets;
       static std::vector<Preset> CustomPresets;
       static bool runOnceDefaultPresets = true;
-      static bool runOnceCustomPresets = true;
+      static bool runOnceCustomPresets  = true;
+      
+      // Shared function
+      auto _FindPresets = [](std::wstring folder, std::wstring find_pattern) -> std::vector<Preset>
+      {
+        HANDLE hFind = INVALID_HANDLE_VALUE;
+        WIN32_FIND_DATA ffd;
+        std::vector<Preset> tmpPresets;
+
+        hFind = FindFirstFile ((folder + find_pattern).c_str(), &ffd);
+
+        if (INVALID_HANDLE_VALUE != hFind)
+        {
+          do {
+            Preset newPreset = { PathFindFileName (ffd.cFileName), folder + ffd.cFileName };
+            bool   add       = false;
+
+            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
+              add = true;
+            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+            {
+              struct _stat64 buffer;
+              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
+                add = true;
+            }
+
+            if (add)
+              tmpPresets.push_back (newPreset);
+          } while (FindNextFile (hFind, &ffd));
+
+          FindClose (hFind);
+        }
+
+        return tmpPresets;
+      };
 
       // Directory watches -- updates the vectors automatically
       if (SKIF_GlobalWatch.isSignaled (LR"(Global)", false) || runOnceDefaultPresets)
       {
+        static std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", _path_cache.specialk_userdata);
         runOnceDefaultPresets = false;
 
-        HANDLE hFind = INVALID_HANDLE_VALUE;
-        WIN32_FIND_DATA ffd;
-        std::vector<Preset> tmpPresets;
-        std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", _path_cache.specialk_userdata);
-
-        hFind = FindFirstFile((PresetFolder + L"default_*.ini").c_str(), &ffd);
-
-        if (INVALID_HANDLE_VALUE != hFind)
-        {
-          do {
-            Preset newPreset = { PathFindFileName(ffd.cFileName), PresetFolder + ffd.cFileName };
-            bool add = false;
-
-            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
-              add = true;
-            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-            {
-              struct _stat64 buffer;
-              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
-                add = true;
-            }
-
-            if (add)
-              tmpPresets.push_back (newPreset);
-          } while (FindNextFile (hFind, &ffd));
-
-          DefaultPresets = tmpPresets;
-          FindClose (hFind);
-        }
+        DefaultPresets = _FindPresets (PresetFolder, L"default_*.ini");
       }
 
       if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)", false) || runOnceCustomPresets)
       {
+        static std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
         runOnceCustomPresets = false;
 
-        HANDLE hFind = INVALID_HANDLE_VALUE;
-        WIN32_FIND_DATA ffd;
-        std::vector<Preset> tmpPresets;
-        std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
-
-        hFind = FindFirstFile((PresetFolder + L"*.ini").c_str(), &ffd);
-
-        if (INVALID_HANDLE_VALUE != hFind)
-        {
-          do {
-            Preset newPreset = { PathFindFileName(ffd.cFileName), PresetFolder + ffd.cFileName };
-            bool add = false;
-
-            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
-              add = true;
-            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-            {
-              struct _stat64 buffer;
-              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
-                add = true;
-            }
-
-            if (add)
-              tmpPresets.push_back (newPreset);
-          } while (FindNextFile (hFind, &ffd));
-
-          CustomPresets = tmpPresets;
-          FindClose (hFind);
-        }
+        CustomPresets = _FindPresets (PresetFolder, L"*.ini");
       }
           
-      if ((! DefaultPresets.empty() || ! CustomPresets.empty()))
+      if (! DefaultPresets.empty() || ! CustomPresets.empty())
       {
         if (ImGui::BeginMenu("Apply Preset"))
         {
