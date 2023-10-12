@@ -489,10 +489,12 @@ GetInjectionSummary (app_record_s* pApp)
       };
 
       // Static stuff :D
+      static std::wstring DefaultPresetsFolder = SK_FormatStringW (LR"(%ws\Global\)",        _path_cache.specialk_userdata);
+      static std::wstring  CustomPresetsFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
       static SKIF_DirectoryWatch SKIF_GlobalWatch;
       static SKIF_DirectoryWatch SKIF_CustomWatch;
       static std::vector<Preset> DefaultPresets;
-      static std::vector<Preset> CustomPresets;
+      static std::vector<Preset>  CustomPresets;
       static bool runOnceDefaultPresets = true;
       static bool runOnceCustomPresets  = true;
       
@@ -533,18 +535,14 @@ GetInjectionSummary (app_record_s* pApp)
       // Directory watches -- updates the vectors automatically
       if (SKIF_GlobalWatch.isSignaled (LR"(Global)", false) || runOnceDefaultPresets)
       {
-        static std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\)", _path_cache.specialk_userdata);
         runOnceDefaultPresets = false;
-
-        DefaultPresets = _FindPresets (PresetFolder, L"default_*.ini");
+        DefaultPresets        = _FindPresets (DefaultPresetsFolder, L"default_*.ini");
       }
 
       if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)", false) || runOnceCustomPresets)
       {
-        static std::wstring PresetFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
         runOnceCustomPresets = false;
-
-        CustomPresets = _FindPresets (PresetFolder, L"*.ini");
+        CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
       }
           
       if (! DefaultPresets.empty() || ! CustomPresets.empty())
