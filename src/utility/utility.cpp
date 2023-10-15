@@ -23,6 +23,8 @@ std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
 
+CRITICAL_SECTION CriticalSectionDbgHelp = { };
+
 // Generic Utilities
 
 std::string
@@ -530,6 +532,8 @@ SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
 {
   int arch = 0;
 
+  EnterCriticalSection (&CriticalSectionDbgHelp);
+
   HANDLE hFile = CreateFile (pszPathToBinary, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
   if (hFile != INVALID_HANDLE_VALUE)
   {
@@ -557,12 +561,14 @@ SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
               arch = -1;
           }
         }
-        UnmapViewOfFile(addrHeader);
+        UnmapViewOfFile (addrHeader);
       }
       CloseHandle (hMapping);
     }
     CloseHandle (hFile);
   }
+
+  LeaveCriticalSection (&CriticalSectionDbgHelp);
 
   return arch;
 }

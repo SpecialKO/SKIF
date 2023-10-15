@@ -1046,6 +1046,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
   CoInitializeEx (nullptr, 0x0);
+  
+  // All DbgHelp functions, such as ImageNtHeader, are single threaded.
+  extern   CRITICAL_SECTION   CriticalSectionDbgHelp;
+  InitializeCriticalSection (&CriticalSectionDbgHelp);
 
   if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
   {
@@ -3263,6 +3267,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_ImGui_hWnd  = NULL;
   SKIF_Notify_hWnd = NULL;
+
+  DeleteCriticalSection (&CriticalSectionDbgHelp);
 
   PLOG_INFO << "Terminating process with exit code " << SKIF_ExitCode;
   return SKIF_ExitCode;
