@@ -416,7 +416,7 @@ LoadLibraryTexture (
     }
   }
 
-  PLOG_DEBUG << "Texture to load: " << load_str;
+  PLOG_DEBUG_IF (load_str != L"\0") << "Texture to load: " << load_str;
 
   if (load_str != L"\0" &&
       SUCCEEDED(
@@ -433,6 +433,13 @@ LoadLibraryTexture (
 
   else if (appid == SKIF_STEAM_APPID)
   {
+    if (libTexToLoad == LibraryTexture::Icon)
+      PLOG_DEBUG << "Texture to load: sk_icon_jpg";
+    else if (libTexToLoad == LibraryTexture::Cover)
+      PLOG_DEBUG << "Texture to load: sk_boxart_png";
+    else
+      PLOG_DEBUG << "Texture to load: patreon_png";
+
     if (SUCCEEDED(
           DirectX::LoadFromWICMemory(
             (libTexToLoad == LibraryTexture::Icon) ?        sk_icon_jpg  : (libTexToLoad == LibraryTexture::Cover) ?        sk_boxart_png  :        patreon_png,
