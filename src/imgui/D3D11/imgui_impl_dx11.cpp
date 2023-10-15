@@ -1645,6 +1645,9 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
   }
 
   ImGui_ImplDX11_RenderDrawData (viewport->DrawData);
+
+  g_pd3dDeviceContext->OMSetRenderTargets ( 0,
+                      nullptr,    nullptr );
 }
 
 static void
