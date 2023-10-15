@@ -1100,6 +1100,54 @@ ImGui_ImplDX11_InvalidateDeviceObjects (void)
   g_pVertexShader         = nullptr;
 }
 
+void
+ImGui_ImplDX11_LogSwapChainFormat (ImGuiViewport *viewport)
+{
+  ImGuiViewportDataDx11 *data =
+    static_cast <ImGuiViewportDataDx11 *> (
+                      viewport->RendererUserData
+  );
+
+  static
+    DXGI_SWAP_CHAIN_DESC1     swap_prev;
+    DXGI_SWAP_CHAIN_DESC1     swap_desc;
+  data->SwapChain->GetDesc1 (&swap_desc);
+
+  if (swap_prev.Height     != swap_desc.Height   ||
+      swap_prev.Flags      != swap_desc.Flags    ||
+      swap_prev.Format     != swap_desc.Format   ||
+      swap_prev.SwapEffect != swap_desc.SwapEffect)
+  {
+    swap_prev = swap_desc;
+
+    PLOG_INFO   << "+-----------------+-------------------------------------+";
+    PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
+    PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
+    PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
+    if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
+    else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
+    else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+      PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
+    else
+      PLOG_INFO << "| Format          | Unexpected format";
+    PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
+    PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
+    if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
+    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
+    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
+    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
+      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
+    else 
+      PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
+    PLOG_INFO   << "+-----------------+-------------------------------------+";
+  }
+}
+
 bool
 ImGui_ImplDX11_Init ( ID3D11Device        *device,
                       ID3D11DeviceContext *device_context )
@@ -1457,41 +1505,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     extern HWND SKIF_ImGui_hWnd;
     if (hWnd == SKIF_ImGui_hWnd)
     {
-      static DXGI_SWAP_CHAIN_DESC1 old_data;
-
-      if (old_data.Height     != swap_desc.Height   ||
-          old_data.Flags      != swap_desc.Flags    ||
-          old_data.Format     != swap_desc.Format   ||
-          old_data.SwapEffect != swap_desc.SwapEffect)
-      {
-        old_data = swap_desc;
-
-        PLOG_INFO   << "+-----------------+-------------------------------------+";
-        PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
-        PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
-        PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
-        if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-          PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
-        else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-          PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
-        else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-          PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
-        else
-          PLOG_INFO << "| Format          | Unexpected format";
-        PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
-        PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
-        if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
-          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
-        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
-          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
-        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
-          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
-        else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
-          PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
-        else 
-          PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
-        PLOG_INFO   << "+-----------------+-------------------------------------+";
-      }
+      ImGui_ImplDX11_LogSwapChainFormat (viewport);
     }
 
     if (SKIF_bCanWaitSwapchain && 
