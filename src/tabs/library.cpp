@@ -1435,29 +1435,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Load custom SKIF titles from registry
     SKIF_GetCustomAppIDs (&apps);
 
-    // Set to last selected if it can be found
-    if (selection.appid == SKIF_STEAM_APPID)
-    {
-      for (auto& app : apps)
-      {
-        if (app.second.id    ==      _registry.iLastSelectedGame &&
-            app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
-        {
-          selection.appid        = app.second.id;
-          selection.store        = app.second.store;
-          manual_selection.id    = selection.appid;
-          manual_selection.store = selection.store;
-          update = true;
-        }
-      }
-    }
-
     PLOG_INFO << "Loading game names synchronously...";
 
     // Clear any existing trie
     labels = Trie { };
 
-    // Handle names first
+    // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
     for ( auto& app : apps )
     {
       //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
@@ -1577,6 +1560,25 @@ SKIF_UI_Tab_DrawLibrary (void)
     
     _SortApps ( );
 
+    // Set to last selected if it can be found
+    // Only do this AFTER we have cleared the list of apps from uninstalled games
+    if (selection.appid == SKIF_STEAM_APPID)
+    {
+      for (auto& app : apps)
+      {
+        if (app.second.id    ==      _registry.iLastSelectedGame &&
+            app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
+        {
+          PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
+          selection.appid        = app.second.id;
+          selection.store        = app.second.store;
+          manual_selection.id    = selection.appid;
+          manual_selection.store = selection.store;
+          update = true;
+        }
+      }
+    }
+
     // DEBUG ONLY: Causes SKIF to take ages to start up as it preloads
     //   the injection strategy of all games (especially Steam games and the appinfo.vdf file)
     //for (auto& app : apps)
@@ -1654,6 +1656,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static
     app_record_s* pApp = nullptr;
 
+  // Ensure pApp points to the current selected game
   for (auto& app : apps)
     if (app.second.id == selection.appid && app.second.store == selection.store)
       pApp = &app.second;
@@ -2033,12 +2036,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     update      = false;
 
-    // Ensure we aren't already loading this cover
-    if (lastCover.appid != pApp->id || lastCover.store != pApp->store)
+    if (pApp != nullptr)
     {
-      loadCover = true;
-      lastCover.appid = pApp->id;
-      lastCover.store = pApp->store;
+      // Ensure we aren't already loading this cover
+      if (lastCover.appid != pApp->id || lastCover.store != pApp->store)
+      {
+        loadCover = true;
+        lastCover.appid = pApp->id;
+        lastCover.store = pApp->store;
+      }
     }
   }
 
