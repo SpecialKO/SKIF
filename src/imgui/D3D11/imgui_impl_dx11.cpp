@@ -1376,101 +1376,102 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
     data->DXGIFormat = swap_desc.Format;
 
-    // Are we on a flip based model?
-    if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD   ||
-        swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL )
+    CComQIPtr <IDXGISwapChain3>
+        pSwapChain3 (data->SwapChain);
+
+    if (pSwapChain3 != nullptr)
     {
-      // Retrieve the current default adapter.
-      CComPtr   <IDXGIOutput>   pOutput;
-      CComPtr   <IDXGIAdapter1> pAdapter;
-      CComQIPtr <IDXGIFactory2> pFactory1 (g_pFactory);
-      ThrowIfFailed (pFactory1->EnumAdapters1 (0, &pAdapter));
-
-      auto _ComputeIntersectionArea =
-            [&](long ax1, long ay1, long ax2, long ay2,
-                long bx1, long by1, long bx2, long by2) -> int
+      // Are we on a flip based model?
+      if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD   ||
+          swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL )
       {
-        return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
-      };
+        // Retrieve the current default adapter.
+        CComPtr   <IDXGIOutput>   pOutput;
+        CComPtr   <IDXGIAdapter1> pAdapter;
+        CComQIPtr <IDXGIFactory2> pFactory1 (g_pFactory);
+        ThrowIfFailed (pFactory1->EnumAdapters1 (0, &pAdapter));
 
-      UINT i = 0;
-      IDXGIOutput* currentOutput;
-      float bestIntersectArea = -1;
-
-      RECT m_windowBounds;
-      GetWindowRect (hWnd, &m_windowBounds);
-    
-      // Iterate through the DXGI outputs associated with the DXGI adapter,
-      // and find the output whose bounds have the greatest overlap with the
-      // app window (i.e. the output for which the intersection area is the
-      // greatest).
-      while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
-      {
-        // Get the retangle bounds of the app window
-        int ax1 = m_windowBounds.left;
-        int ay1 = m_windowBounds.top;
-        int ax2 = m_windowBounds.right;
-        int ay2 = m_windowBounds.bottom;
-
-        // Get the rectangle bounds of current output
-        DXGI_OUTPUT_DESC desc;
-        ThrowIfFailed(currentOutput->GetDesc(&desc));
-        RECT r  = desc.DesktopCoordinates;
-        int bx1 = r.left;
-        int by1 = r.top;
-        int bx2 = r.right;
-        int by2 = r.bottom;
-
-        // Compute the intersection
-        int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
-        if (intersectArea > bestIntersectArea)
+        auto _ComputeIntersectionArea =
+              [&](long ax1, long ay1, long ax2, long ay2,
+                  long bx1, long by1, long bx2, long by2) -> int
         {
-          pOutput = currentOutput;
-          bestIntersectArea = static_cast<float>(intersectArea);
+          return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
+        };
+
+        UINT i = 0;
+        IDXGIOutput* currentOutput;
+        float bestIntersectArea = -1;
+
+        RECT m_windowBounds;
+        GetWindowRect (hWnd, &m_windowBounds);
+    
+        // Iterate through the DXGI outputs associated with the DXGI adapter,
+        // and find the output whose bounds have the greatest overlap with the
+        // app window (i.e. the output for which the intersection area is the
+        // greatest).
+        while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+        {
+          // Get the retangle bounds of the app window
+          int ax1 = m_windowBounds.left;
+          int ay1 = m_windowBounds.top;
+          int ax2 = m_windowBounds.right;
+          int ay2 = m_windowBounds.bottom;
+
+          // Get the rectangle bounds of current output
+          DXGI_OUTPUT_DESC desc;
+          ThrowIfFailed(currentOutput->GetDesc(&desc));
+          RECT r  = desc.DesktopCoordinates;
+          int bx1 = r.left;
+          int by1 = r.top;
+          int bx2 = r.right;
+          int by2 = r.bottom;
+
+          // Compute the intersection
+          int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+          if (intersectArea > bestIntersectArea)
+          {
+            pOutput = currentOutput;
+            bestIntersectArea = static_cast<float>(intersectArea);
+          }
+
+          i++;
         }
 
-        i++;
-      }
+        // Having determined the output (display) upon which the app is primarily being 
+        // rendered, retrieve the HDR capabilities of that display by checking the color space.
+        CComQIPtr <IDXGIOutput6>
+            pOutput6 (pOutput);
 
-      // Having determined the output (display) upon which the app is primarily being 
-      // rendered, retrieve the HDR capabilities of that display by checking the color space.
-      CComQIPtr <IDXGIOutput6> pOutput6 (pOutput);
-
-      if (pOutput6 != nullptr)
-      {
-        UINT uiHdrFlags = 0x0;
-
-        pOutput6->GetDesc1 (&data->DXGIDesc);
-    
-        data->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevelForHMONITOR (data->DXGIDesc.Monitor);
-
-#pragma region Enable HDR
-        // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
-        // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
-        // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
-
-        if (SKIF_bCanHDR          && // Does the system support HDR?
-            _registry.iHDRMode  > 0) // HDR support is not disabled, is it?
+        if (pOutput6 != nullptr)
         {
-          DXGI_COLOR_SPACE_TYPE dxgi_cst =
-            (_registry.iHDRMode == 2)
-              ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
-              : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
-      
-          CComQIPtr <IDXGISwapChain3>
-              pSwapChain3 (data->SwapChain);
+          UINT uiHdrFlags = 0x0;
 
-          if (pSwapChain3 != nullptr)
+          pOutput6->GetDesc1 (&data->DXGIDesc);
+    
+          data->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevelForHMONITOR (data->DXGIDesc.Monitor);
+
+  #pragma region Enable HDR
+          // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
+          // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
+          // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
+
+          if (SKIF_bCanHDR          && // Does the system support HDR?
+              _registry.iHDRMode  > 0) // HDR support is not disabled, is it?
           {
+            DXGI_COLOR_SPACE_TYPE dxgi_cst =
+              (_registry.iHDRMode == 2)
+                ? DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709     // scRGB (FP16 only)
+                : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020; // HDR10
+
             pSwapChain3->CheckColorSpaceSupport (dxgi_cst, &uiHdrFlags);
 
             if ( DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT ==
                   ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
-               )
+                )
             {
               pOutput6->GetDesc1 (&data->DXGIDesc);
 
-              // Is the display in HDR mode?
+              // Is the output display in HDR mode?
               if (data->DXGIDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
               {
                 data->HDR     = true;
@@ -1483,6 +1484,15 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                 SKIF_bHDREnabled = true;
               }
             }
+          }
+
+          else {
+            OutputDebugString(L"Derp\n");
+            // AMD flickering bug fix?
+            if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+              pSwapChain3->SetColorSpace1 (DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709);
+            else
+              pSwapChain3->SetColorSpace1 (DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
           }
         }
 #pragma endregion
