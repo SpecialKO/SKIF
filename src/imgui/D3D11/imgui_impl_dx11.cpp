@@ -1194,8 +1194,8 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
           }
 
           else {
-            OutputDebugString(L"Derp\n");
             // AMD flickering bug fix?
+            // TODO: Fix this crap
             if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
               pSwapChain3->SetColorSpace1 (DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709);
             else
