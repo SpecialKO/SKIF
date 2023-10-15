@@ -99,6 +99,44 @@ static int                                g_VertexBufferSize = 5000,
 #define D3D11_MAX_SCISSOR_AND_VIEWPORT_ARRAYS \
   D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE
 
+// Error handling
+class SK_ComException : public
+       std::exception
+{
+public:
+  SK_ComException (
+    HRESULT hr
+  ) : __hr (hr) { }
+
+  const char*
+  what (void) const override
+  {
+    static char
+      s_str [64] = { };
+
+    sprintf_s (
+      s_str, "Failure with HRESULT of %08X",
+                    (int)__hr
+              );
+    return
+      s_str;
+  }
+
+private:
+  HRESULT
+    __hr;
+};
+
+inline void
+ThrowIfFailed (HRESULT hr)
+{
+  if (SUCCEEDED (hr))
+    return;
+
+  throw
+    SK_ComException (hr);
+}
+
 //--------------------------------------------------------------------------------------------------------
 // MULTI-VIEWPORT / PLATFORM INTERFACE SUPPORT
 // This is an _advanced_ and _optional_ feature, allowing the back-end to create and handle multiple viewports simultaneously.
@@ -161,7 +199,6 @@ struct ImGuiViewportDataDx11 {
     return HDRLuma;
   }
 };
-
 
 struct VERTEX_CONSTANT_BUFFER {
   float   mvp [4][4];
@@ -466,45 +503,6 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     global_idx_offset += cmd_list->IdxBuffer.Size;
     global_vtx_offset += cmd_list->VtxBuffer.Size;
   }
-
-////sb.Apply (ctx, _CaptureMask);
-}
-
-class SK_ComException : public
-       std::exception
-{
-public:
-  SK_ComException (
-    HRESULT hr
-  ) : __hr (hr) { }
-
-  const char*
-  what (void) const override
-  {
-    static char
-      s_str [64] = { };
-
-    sprintf_s (
-      s_str, "Failure with HRESULT of %08X",
-                    (int)__hr
-              );
-    return
-      s_str;
-  }
-
-private:
-  HRESULT
-    __hr;
-};
-
-inline void
-ThrowIfFailed (HRESULT hr)
-{
-  if (SUCCEEDED (hr))
-    return;
-
-  throw
-    SK_ComException (hr);
 }
 
 static void ImGui_ImplDX11_CreateFontsTexture (void)
@@ -1426,22 +1424,6 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
 
     if (SUCCEEDED (data->SwapChain->Present (Interval, PresentFlags)))
       data->PresentCount++;
-
-    /* 2023-04-30: Does not actually seem to make a difference? We don't use dirty rectangles of Present1() at all
-    if (data->WaitHandle)
-    {
-      CComQIPtr <IDXGISwapChain2>
-        pSwap2 (data->SwapChain);
-      
-      // if (WAIT_OBJECT_0 == WaitForSingleObject (data->WaitHandle, INFINITE))
-
-      // For waitable swapchains we wait in the main loop, so present immediately here
-      DXGI_PRESENT_PARAMETERS       pparams = { };
-      pSwap2->Present1 ( Interval, PresentFlags,
-                                    &pparams );
-      data->PresentCount++;
-    }
-    */
   }
 }
 
