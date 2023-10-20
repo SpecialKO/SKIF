@@ -1455,7 +1455,10 @@ SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
     // To get value in nits use the following conversion
     // SDRWhiteLevel in nits = (SDRWhiteLevel / 1000) * 80
     if (getSDRWhiteLevel.SDRWhiteLevel)
-      nits = (getSDRWhiteLevel.SDRWhiteLevel / 1000) * 80;
+    {
+      float fNits = (getSDRWhiteLevel.SDRWhiteLevel / 1000.0f) * 80.0f;
+      nits = static_cast<int>(fNits);
+    }
   }
 
   return nits;
