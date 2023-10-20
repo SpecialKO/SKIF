@@ -3,7 +3,6 @@ cbuffer vertexBuffer : register (b0)
 {
   float4x4 ProjectionMatrix;
   float4   Luminance;
-  float4   SteamLuminance;
 };
 
 struct VS_INPUT
