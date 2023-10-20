@@ -178,9 +178,9 @@ concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
 
 float fBottomDist = 0.0f;
 
-ID3D11Device*           g_pd3dDevice           = nullptr;
-ID3D11DeviceContext*    g_pd3dDeviceContext    = nullptr;
-ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
+ID3D11Device*           SKIF_g_pd3dDevice           = nullptr;
+ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext    = nullptr;
+//ID3D11RenderTargetView* SKIF_g_mainRenderTargetView = nullptr;
 
 // Forward declarations
 bool                CreateDeviceD3D                           (HWND hWnd);
@@ -1351,7 +1351,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Setup Platform/Renderer bindings
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
-  ImGui_ImplDX11_Init  (g_pd3dDevice, g_pd3dDeviceContext);
+  ImGui_ImplDX11_Init  (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
 
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
@@ -1710,10 +1710,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region New UI Frame
 
-    if (RecreateSwapChains)
+    if (false && RecreateSwapChains)
     {
       // If the device have been removed/reset/hung, we need to invalidate all resources
-      if (FAILED (g_pd3dDevice->GetDeviceRemovedReason ( )))
+      if (FAILED (SKIF_g_pd3dDevice->GetDeviceRemovedReason ( )))
       {
         // Invalidate resources
         ImGui_ImplDX11_InvalidateDeviceObjects ( );
@@ -1725,7 +1725,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Recreate
         CreateDeviceD3D                        (SKIF_Notify_hWnd);
-        ImGui_ImplDX11_Init                    (g_pd3dDevice, g_pd3dDeviceContext);
+        ImGui_ImplDX11_Init                    (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
 
         // This is used to flag that rendering should not occur until
         // any loaded textures and such also have been unloaded
@@ -3352,6 +3352,8 @@ bool CreateDeviceD3D (HWND hWnd)
                                 sizeof  (supportsTearing)
                                               );
     SKIF_bCanAllowTearing = (supportsTearing != FALSE);
+
+    pFactory5.Release();
   }
 
   // Overrides
@@ -3375,9 +3377,9 @@ bool CreateDeviceD3D (HWND hWnd)
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
-                                                       &g_pd3dDevice,
+                                                       &SKIF_g_pd3dDevice,
                                                                 &featureLevel,
-                                                       &g_pd3dDeviceContext)))
+                                                       &SKIF_g_pd3dDeviceContext)))
   {
     //OutputDebugString(L"D3D11CreateDevice failed!\n");
     PLOG_ERROR << "D3D11CreateDevice failed!";
@@ -3388,6 +3390,8 @@ bool CreateDeviceD3D (HWND hWnd)
   //   viewport windows. This is to ensure a compatible format is used from the
   //   get go, as e.g. using WS_EX_NOREDIRECTIONBITMAP on a BitBlt window will
   //   cause it to be hidden entirely.
+
+  return true;
 
   if (pFactory2 != nullptr)
   {
@@ -3451,11 +3455,14 @@ bool CreateDeviceD3D (HWND hWnd)
         _registry.iUIMode      = 0;
       }
 
-      if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
-                                &pSwapChain1 ))) break;
+      if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd (SKIF_g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
+                                &pSwapChain1 )))
+      {
+        pSwapChain1.Release();
+        break;
+      }
     }
 
-    pSwapChain1.Release();
     pFactory2.Release();
 
     return true;
@@ -3471,17 +3478,17 @@ void CleanupDeviceD3D (void)
   //CleanupRenderTarget ();
 
   //IUnknown_AtomicRelease ((void **)&g_pSwapChain);
-  IUnknown_AtomicRelease ((void **)&g_pd3dDeviceContext);
-  IUnknown_AtomicRelease ((void **)&g_pd3dDevice);
+  IUnknown_AtomicRelease ((void **)&SKIF_g_pd3dDeviceContext);
+  IUnknown_AtomicRelease ((void **)&SKIF_g_pd3dDevice);
 }
 
 // Prevent race conditions between asset loading and device init
 //
 void SKIF_WaitForDeviceInitD3D (void)
 {
-  while ( g_pd3dDevice        == nullptr    ||
-          g_pd3dDeviceContext == nullptr /* ||
-          g_pSwapChain        == nullptr  */ )
+  while (SKIF_g_pd3dDevice        == nullptr    ||
+         SKIF_g_pd3dDeviceContext == nullptr /* ||
+         SKIF_g_pSwapChain        == nullptr  */ )
   {
     Sleep (10UL);
   }
@@ -3494,13 +3501,13 @@ SKIF_D3D11_GetDevice (bool bWait)
     SKIF_WaitForDeviceInitD3D ();
 
   return
-    g_pd3dDevice;
+    SKIF_g_pd3dDevice;
 }
 
 bool SKIF_D3D11_IsDevicePtr (void)
 {
-  return (g_pd3dDevice != nullptr)
-                 ? true : false;
+  return (SKIF_g_pd3dDevice != nullptr)
+                     ? true : false;
 }
 
 /*
@@ -3511,14 +3518,14 @@ void CreateRenderTarget (void)
 
   if (pBackBuffer != nullptr)
   {
-    g_pd3dDevice->CreateRenderTargetView   ( pBackBuffer, nullptr, &g_mainRenderTargetView);
+    g_pd3dDevice->CreateRenderTargetView   ( pBackBuffer, nullptr, &SKIF_g_mainRenderTargetView);
                                              pBackBuffer->Release ();
   }
 }
 
 void CleanupRenderTarget (void)
 {
-  IUnknown_AtomicRelease ((void **)&g_mainRenderTargetView);
+  IUnknown_AtomicRelease ((void **)&SKIF_g_mainRenderTargetView);
 }
 */
 
