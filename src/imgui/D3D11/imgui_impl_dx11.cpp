@@ -201,12 +201,14 @@ struct ImGuiViewportDataDx11 {
 };
 
 struct VERTEX_CONSTANT_BUFFER {
-  float   mvp [4][4];
+  float mvp [4][4];
 
   // scRGB allows values > 1.0, sRGB (SDR) simply clamps them
-  float luminance_scale [4]; // For HDR displays,    1.0 = 80 Nits
-                             // For SDR displays, >= 1.0 = 80 Nits
-  float padding         [4];
+  // x = Luminance/Brightness -- For HDR displays, 1.0 = 80 Nits, For SDR displays, >= 1.0 = 80 Nits
+  // y = isHDR
+  // z = is10bpc
+  // w = is16bpc
+  float luminance_scale [4];
 };
 
 // Forward Declarations
@@ -365,6 +367,9 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                               mapped_resource.pData
         );
 
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(VERTEX_CONSTANT_BUFFER) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
     float L = draw_data->DisplayPos.x;
     float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
     float T = draw_data->DisplayPos.y;
@@ -382,9 +387,9 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     
     // Defaults
     constant_buffer->luminance_scale [0] = 1.0f; // x - White Level
-    constant_buffer->luminance_scale [1] = 0.0f; // y - HDR (1.0f) / SDR (0.0f)
-    constant_buffer->luminance_scale [2] = 0.0f; // z - Black level (unused)
-    constant_buffer->luminance_scale [3] = 0.0f; // w - isSRGB
+    constant_buffer->luminance_scale [1] = 0.0f; // y - isHDR
+    constant_buffer->luminance_scale [2] = 0.0f; // z - is10bpc
+    constant_buffer->luminance_scale [3] = 0.0f; // w - is16bpc
 
     ImGuiViewportDataDx11 *data =
       static_cast <ImGuiViewportDataDx11 *> (
@@ -402,12 +407,13 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
       if (data->HDRMode == 2)
       {
         constant_buffer->luminance_scale [0] = (_registry.iHDRBrightness          / 80.0f); // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
-      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
+        constant_buffer->luminance_scale [3] = 1.0f;
       }
 
       // HDR10
       else {
         constant_buffer->luminance_scale [0] = float (-_registry.iHDRBrightness);           // Org: -data->SKIF_GetHDRWhiteLuma ( )
+        constant_buffer->luminance_scale [2] = 1.0f;
       }
     }
 
@@ -416,16 +422,20 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     {
       // SDR 16 bpc on HDR display
       if (data->SDRWhiteLevel > 80)
-      {
         constant_buffer->luminance_scale [0] = (data->SDRWhiteLevel               / 80.0f);
-      //constant_buffer->luminance_scale [2] = (data->SKIF_GetMinHDRLuminance ( ) / 80.0f);
-      }
 
       // SDR 16 bpc on SDR display
       constant_buffer->luminance_scale [3] = 1.0f;
     }
 
-         ctx->Unmap ( g_pVertexConstantBuffer, 0 );
+    else if (data->DXGIFormat == DXGI_FORMAT_R10G10B10A2_UNORM)
+    {
+      // SDR 10 bpc on SDR display
+      constant_buffer->luminance_scale [2] = 1.0f;
+    }
+
+    ctx->Unmap ( g_pVertexConstantBuffer, 0 );
+
     if ( FAILED (ctx->Map (
            g_pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
                                    0, &mapped_resource
@@ -513,7 +523,7 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
   {
     std::ignore = slot;
 
-    auto pDev = g_pd3dDevice;
+    auto &pDev = g_pd3dDevice;
 
     // Build texture atlas
     ImGuiIO& io (
@@ -932,12 +942,39 @@ void ImGui_ImplDX11_NewFrame (void)
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
 
+    //ImGui_ImplDX11_InvalidateDeviceObjects ( );
+    // Invalidate resources
     ImGui_ImplDX11_InvalidateDeviceObjects ( );
 
-    PLOG_DEBUG << "Clearing ID3D11DeviceContext state and flushing...";
-    g_pd3dDeviceContext->ClearState ( );
-    g_pd3dDeviceContext->Flush      ( );
+    // Signal to ImGui_ImplDX11_NewFrame() that the swapchains needs recreating
+    //RecreateSwapChains = true;
 
+    if (g_pd3dDeviceContext != nullptr)
+    {
+      PLOG_DEBUG << "Clearing ID3D11DeviceContext state and flushing...";
+      g_pd3dDeviceContext->ClearState ( );
+      g_pd3dDeviceContext->Flush      ( );
+    }
+    
+    extern ID3D11Device*           SKIF_g_pd3dDevice;
+    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
+
+#if 1
+    if (SKIF_g_pd3dDeviceContext != nullptr)
+    {
+      SKIF_g_pd3dDeviceContext->ClearState ( );
+      SKIF_g_pd3dDeviceContext->Flush ( );
+    }
+#endif
+
+#if 0
+    ImGui_ImplDX11_InvalidateDevice        ( );
+
+    extern void CleanupDeviceD3D (void);
+    CleanupDeviceD3D                       ( );
+#endif
+
+#if 1
     if (RecreateFactory)
     {
       PLOG_DEBUG << "Recreating factory...";
@@ -947,6 +984,27 @@ void ImGui_ImplDX11_NewFrame (void)
 
       CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
     }
+#endif
+
+#if 0
+    // Recreate
+    extern HWND SKIF_Notify_hWnd;
+    extern bool CreateDeviceD3D (HWND hWnd);
+    extern ID3D11Device*           SKIF_g_pd3dDevice;
+    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
+    CreateDeviceD3D                        (SKIF_Notify_hWnd);
+
+    extern void SKIF_WaitForDeviceInitD3D (void);
+
+    SKIF_WaitForDeviceInitD3D ();
+
+    ImGui_ImplDX11_Init                    (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
+    
+    // This is used to flag that rendering should not occur until
+    // any loaded textures and such also have been unloaded
+    extern DWORD invalidatedDevice;
+    invalidatedDevice = 1;
+#endif
 
     SKIF_bCanHDR = SKIF_Util_IsHDRActive (true);
     
@@ -1215,8 +1273,19 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
     data->SwapChain->GetBuffer ( 0, IID_PPV_ARGS (
                   &pBackBuffer.p                 )
                                );
-    g_pd3dDevice->CreateRenderTargetView ( pBackBuffer, nullptr,
-                           &data->RTView );
+    
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+#ifdef _SRGB
+    if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+    {
+      rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    }
+#endif
+
+    g_pd3dDevice->CreateRenderTargetView ( pBackBuffer,
+                 &rtvDesc, &data->RTView );
 
     // Only print swapchain info for the main swapchain
     extern HWND SKIF_ImGui_hWnd;
@@ -1337,9 +1406,19 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
         PLOG_ERROR << "ImGui_ImplDX11_SetWindowSize() failed creating buffers";
         return;
       }
+    
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+#ifdef _SRGB
+    if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+    {
+      rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    }
+#endif
 
       g_pd3dDevice->CreateRenderTargetView ( pBackBuffer,
-                    nullptr, &data->RTView );
+                   &rtvDesc, &data->RTView );
     }
   }
 }
@@ -1357,7 +1436,7 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
       data->SwapChain == nullptr || // Swapchain was destroyed
       data->RTView    == nullptr)   // Render target view was destroyed
   {
-    RecreateSwapChains = true;
+    //RecreateSwapChains = true;
     return;
   }
 

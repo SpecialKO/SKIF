@@ -5,7 +5,7 @@ struct PS_INPUT
   float4 col : COLOR0;
   float2 uv  : TEXCOORD0;
   float2 uv2 : TEXCOORD1;
-  float4 uv3 : TEXCOORD2; // constant_buffer->luminance_scale ?
+  float4 uv3 : TEXCOORD2; // constant_buffer->luminance_scale
 };
 
 cbuffer viewportDims  : register (b0)
@@ -19,34 +19,53 @@ Texture2D texture0    : register (t0);
 Texture2D hdrUnderlay : register (t1);
 Texture2D hdrHUD      : register (t2);
 
-#define FLT_EPSILON     1.192092896e-07 // Smallest positive number, such that 1.0 + FLT_EPSILON != 1.0
+//#define FAST_SRGB
 
 float
-RemoveSRGBAlpha (float a)
+ApplySRGBCurve (float x)
 {
-  return        ( a < 0.04045f ) ?
-                  a / 12.92f     :
-          pow ( ( a + 0.055f   ) / 1.055f,
-                                   2.4f );
+#ifdef FAST_SRGB
+  return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(x - 0.00228) - 0.13448 * x + 0.005719;
+#else
+  // Approximately pow(x, 1.0 / 2.2)
+  return (x < 0.0031308 ? 12.92 * x :
+                          1.055 * pow(x, 1.0 / 2.4) - 0.055);
+#endif
+}
+
+float3
+ApplySRGBCurve (float3 x)
+{
+#ifdef FAST_SRGB
+  return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(x - 0.00228) - 0.13448 * x + 0.005719;
+#else
+  // Approximately pow(x, 1.0 / 2.2)
+  return (x < 0.0031308 ? 12.92 * x :
+                          1.055 * pow(x, 1.0 / 2.4) - 0.055);
+#endif
+}
+
+float
+RemoveSRGBCurve (float x)
+{
+#ifdef FAST_SRGB
+  return x < 0.04045 ? x / 12.92 : -7.43605 * x - 31.24297 * sqrt(-0.53792 * x + 1.279924) + 35.34864;
+#else
+  // Approximately pow(x, 2.2)
+  return (x < 0.04045 ? x / 12.92 :
+                  pow( (x + 0.055) / 1.055, 2.4 ));
+#endif
 }
 
 float3
 RemoveSRGBCurve (float3 x)
 {
-  // Negative values can come back negative after gamma, unlike pow (...).
-  x = /* High-Pass filter the input to clip negative values to 0 */
-    max ( 0.0, isfinite (x) ? x : 0.0 );
-
-  // Piecewise is more accurate, but the fitted power-law curve will not
-  //   create near-black noise when expanding LDR -> HDR
-#define ACCURATE_AND_NOISY
-#ifdef  ACCURATE_AND_NOISY
-  return ( x < 0.04045f ) ?
-          (x / 12.92f)    : // High-pass filter x or gamma will return negative!
-    pow ( (x + 0.055f) / 1.055f, 2.4f );
+#ifdef FAST_SRGB
+  return x < 0.04045 ? x / 12.92 : -7.43605 * x - 31.24297 * sqrt(-0.53792 * x + 1.279924) + 35.34864;
 #else
-  // This suffers the same problem as piecewise; x * x * x allows negative color.
-  return max (0.0, x * (x * (x * 0.305306011 + 0.682171111) + 0.012522878));
+  // Approximately pow(x, 2.2)
+  return (x < 0.04045 ? x / 12.92 :
+                  pow( (x + 0.055) / 1.055, 2.4 ));
 #endif
 }
 
@@ -91,6 +110,7 @@ float3 RemoveREC2084Curve (float3 N)
 }
 
 // Apply the ST.2084 curve to normalized linear values and outputs normalized non-linear values
+// pq_inverse_eotf
 float3 LinearToST2084 (float3 normalizedLinearValue)
 {
     return pow((0.8359375f + 18.8515625f * pow(abs(normalizedLinearValue), 0.1593017578f)) / (1.0f + 18.6875f * pow(abs(normalizedLinearValue), 0.1593017578f)), 78.84375f);
@@ -124,151 +144,224 @@ float3 REC2020toREC709 (float3 RGB2020)
   return mul (ConvMat, RGB2020);
 }
 
+// Expand bright saturated colors outside the sRGB (REC.709) gamut to fake wide gamut rendering (BT.2020).
+// Inspired by Unreal Engine 4/5 (ACES).
+// Input (and output) needs to be in sRGB linear space.
+// Calling this with a fExpandGamut value of 0 still results in changes (it's actually an edge case, don't call it).
+// Calling this with fExpandGamut values above 1 yields diminishing returns.
+float3
+expandGamut (float3 vHDRColor, float fExpandGamut = 1.0f)
+{
+  const float3 AP1_RGB2Y =
+    float3 (0.272229, 0.674082, 0.0536895);
+  
+  const float3x3 AP1_2_sRGB = {
+     1.70505, -0.62179, -0.08326,
+    -0.13026,  1.14080, -0.01055,
+    -0.02400, -0.12897,  1.15297,
+  };
+
+  //AP1 with D65 white point instead of the custom white point from ACES which is around 6000K
+  const float3x3 sRGB_2_AP1_D65_MAT =
+  {
+    0.6168509940091290, 0.334062934274955, 0.0490860717159169,
+    0.0698663939791712, 0.917416678964894, 0.0127169270559354,
+    0.0205490668158849, 0.107642210710817, 0.8718087224732980
+  };
+  const float3x3 AP1_D65_2_sRGB_MAT =
+  {
+     1.6926793984921500, -0.606218057156000, -0.08646134133615040,
+    -0.1285739800722680,  1.137933633392290, -0.00935965332001697,
+    -0.0240224650921189, -0.126211717940702,  1.15023418303282000
+  };
+  const float3x3 AP1_D65_2_XYZ_MAT =
+  {
+     0.64729265784680500, 0.13440339917805700, 0.1684710654303190,
+     0.26599824508992100, 0.67608982616840700, 0.0579119287416720,
+    -0.00544706303938401, 0.00407283027812294, 1.0897972045023700
+  };
+  // Bizarre matrix but this expands sRGB to between P3 and AP1
+  // CIE 1931 chromaticities:   x         y
+  //                Red:        0.6965    0.3065
+  //                Green:      0.245     0.718
+  //                Blue:       0.1302    0.0456
+  //                White:      0.3127    0.3291 (=D65)
+  const float3x3 Wide_2_AP1_D65_MAT = 
+  {
+    0.83451690546233900, 0.1602595895494930, 0.00522350498816804,
+    0.02554519357785500, 0.9731015318660700, 0.00135327455607548,
+    0.00192582885428273, 0.0303727970124423, 0.96770137413327500
+  };
+  const float3x3
+         ExpandMat = mul (Wide_2_AP1_D65_MAT, AP1_D65_2_sRGB_MAT);   
+  float3 ColorAP1  = mul (sRGB_2_AP1_D65_MAT, vHDRColor);
+
+  float  LumaAP1   = dot (ColorAP1, AP1_RGB2Y);
+  float3 ChromaAP1 =      ColorAP1 / LumaAP1;
+
+  float ChromaDistSqr = dot (ChromaAP1 - 1, ChromaAP1 - 1);
+  float ExpandAmount  = (1 - exp2 (-4 * ChromaDistSqr)) * (1 - exp2 (-4 * fExpandGamut * LumaAP1 * LumaAP1));
+
+  float3 ColorExpand =
+    mul (ExpandMat, ColorAP1);
+  
+  ColorAP1 =
+    lerp (ColorAP1, ColorExpand, ExpandAmount);
+
+  vHDRColor =
+    mul (AP1_2_sRGB, ColorAP1);
+  
+  return vHDRColor;
+}
+
+// NaN checker
+bool IsNan (float x)
+{
+  return
+    (asuint (x) & 0x7fffffff) > 0x7f800000;
+}
+
+bool IsInf (float x)
+{
+  return
+    (asuint (x) & 0x7FFFFFFF) == 0x7F800000;
+}
+
+#define FP16_MIN 0.00000009
+
+float3 Clamp_scRGB (float3 c)
+{
+  // Clamp to Rec 2020
+  return
+    REC2020toREC709 (
+      max (REC709toREC2020 (c), FP16_MIN)
+    );
+}
+
+float3 Clamp_scRGB_StripNaN (float3 c)
+{
+  // Remove special floating-point bit patterns, clamping is the
+  //   final step before output and outputting NaN or Infinity would
+  //     break color blending!
+  c =
+    float3 ( (! IsNan (c.r)) * (! IsInf (c.r)) * c.r,
+             (! IsNan (c.g)) * (! IsInf (c.g)) * c.g,
+             (! IsNan (c.b)) * (! IsInf (c.b)) * c.b );
+   
+  return Clamp_scRGB (c);
+}
+
 float4 main (PS_INPUT input) : SV_Target
 {
   float4 out_col  =
     texture0.Sample (sampler0, input.uv);
   float4 orig_col = out_col;
   
-  bool isHDR10  = input.uv3.x < 0.0; // 10 bpc HDR
-  bool isHDR    = input.uv3.y > 0.0; // 10 bpc or 16 bpc HDR
-  bool isSRGB   = input.uv3.w > 0.0; // scRGB 16 bpc SDR
+              // input.uv3.x        // Luminance (white point)
+  bool isHDR   = input.uv3.y > 0.0; // HDR (10 bpc or 16 bpc)
+  bool is10bpc = input.uv3.z > 0.0; // 10 bpc
+  bool is16bpc = input.uv3.w > 0.0; // 16 bpc (scRGB)
   
-#if 0 // Test crap
-  
-  // Convert sRGB to Linear
-  //if (isSRGB)
-  //  out_col = pow (out_col, 2.2f);
-  
-  //out_col.rgb = (1 - out_col.rgb) * input.col.rgb;
-  
-  //out_col.rgb *= out_col.a;
-  //out_col.r = pow(out_col.r, 2.2f);
-  //out_col.g = pow(out_col.g, 2.2f);
-  //out_col.b = pow(out_col.b, 2.2f);
-  
-  // 16 bpc scRGB SDR
-  if (isSRGB)
+  // 16 bpc scRGB (SDR/HDR)
+  // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
+  // Gamma:     1.0
+  // Primaries: BT.709 
+  if (is16bpc)
   {
+    // Clamp_scRGB_StripNaN ( expandGamut
     out_col =
-      float4 ( RemoveSRGBCurve (input.col.rgb) *
-               RemoveSRGBCurve (  out_col.rgb),
-               RemoveSRGBAlpha (  out_col.a) *
-               RemoveSRGBAlpha (input.col.a)
+      float4 (  RemoveSRGBCurve (           input.col.rgb) *
+                RemoveSRGBCurve (             out_col.rgb),
+                                  saturate (  out_col.a)  *
+                                  saturate (input.col.a)
               );
     
     float hdr_scale = input.uv3.x;
 
-    if (hdr_scale > 0.0f)
-      out_col.rgba =
-        float4 (saturate (out_col.rgb) * hdr_scale,
-                saturate (out_col.a ) );
-  }
-
-  // 10 bpc HDR  
-  else if (isHDR10)
-  {
-    out_col =
-      float4 (                            input.col.rgb *
-                                            out_col.rgb,
-                            pow (saturate (  out_col.a) *
-                                 saturate (input.col.a), 0.8)
+    out_col.rgb = Clamp_scRGB_StripNaN (expandGamut (
+                                  saturate (out_col.rgb) * hdr_scale, 0.0333)
               );
     
-    float hdr_scale = -input.uv3.x / 10000.0;
-
-    out_col.rgba =
-      float4 (
-        LinearToST2084 (
-          REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale
-                       ),
-                            saturate (out_col.a  ) );
-
-    //out_col.r = (orig_col.r < 0.000001f) ? 0.0f : out_col.r;
-    //out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
-    //out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
-    out_col.r *= (orig_col.r >= FLT_EPSILON);
-    out_col.g *= (orig_col.g >= FLT_EPSILON);
-    out_col.b *= (orig_col.b >= FLT_EPSILON);
-    out_col.a *= (orig_col.a >= FLT_EPSILON);
-  }
-  
-  // 8-10 bpc SDR
-  else
-  {
-    out_col =
-      float4 (                            input.col.rgb *
-                                            out_col.rgb,
-                            pow (saturate (  out_col.a) *
-                                 saturate (input.col.a), 0.8)
-              );
-  }
-
-  
-  return out_col;
-  
-#endif
-  
-  
-  
-#if 1 // Live
-  
-  if (viewport.z > 0.f)
-  {
-    float4 orig_col = out_col;
+    //out_col.rgb = RemoveSRGBCurve (out_col.rgb);
     
-    if (input.uv2.x > 0.0f && input.uv2.y > 0.0f)
-    {
-      out_col.rgb =
-        pow (
-          RemoveSRGBCurve (out_col.rgb),
-                input.uv2.yyy
-            ) * input.uv2.xxx;
-      out_col.a   = 1.0f;
-    }
-    
-    else
-    {
-      out_col =
-        float4 ( RemoveSRGBCurve (          input.col.rgb) *
-                 RemoveSRGBCurve (            out_col.rgb),
-                             pow (saturate (  out_col.a) *
-                                  saturate (input.col.a), 0.8)
-               );
-    }
-
-    float hdr_scale = isHDR10 ? (-input.uv3.x / 10000.0)
-                             :    input.uv3.x;
-
-    // Do not use; EDID minimum black level is -ALWAYS- wrong...
-    float hdr_offset = 0.0f; // isHDR10 ? 0.0f : input.uv3.z / 80.0;
-
-    hdr_scale -= hdr_offset;
-
-    out_col.rgba =
-      float4 (   ( isHDR10 ?
-        LinearToST2084 (
-          REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale
-                       ) :  saturate (out_col.rgb)   * hdr_scale
-                 )                                   + hdr_offset,
-                            saturate (out_col.a  ) );
-
     out_col.r = (orig_col.r < 0.000001f) ? 0.0f : out_col.r;
     out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
     out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
-
-    return
-      out_col.rgba;
+    
+    // Manipulate the alpha channel a bit...
+    out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a);
   }
   
-  float4 return_col = isSRGB
-      ? float4 (RemoveSRGBCurve (input.col.rgb), input.col.a) * float4 (RemoveSRGBCurve (out_col.rgb), out_col.a)
-      :                        ( input.col                    *                          out_col );
-  
-  //if (isSRGB)
-  //  return_col.a = pow (return_col.a, 1 / 2.2f);
+  // HDR10 (pending potential removal)
+  // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
+  // Gamma:     2084
+  // Primaries: BT.2020
+  else if (is10bpc && isHDR)
+  {
+    out_col =
+      float4 (  RemoveSRGBCurve (           input.col.rgb) *
+                RemoveSRGBCurve (             out_col.rgb),
+                                  saturate (  out_col.a)  *
+                                  saturate (input.col.a)
+              );
+    
+    float hdr_scale = (-input.uv3.x / 10000.0);
+    
+    out_col.rgb =
+        LinearToST2084 (
+          REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale);
 
-  return return_col;
-#endif
+    // Manipulate the alpha channel a bit... sometimes...
+    if (orig_col.a < 0.5f)
+      out_col.a = 1.0f - ApplySRGBCurve (1.0f - out_col.a);
+  }
   
+  // 10 bpc SDR
+  // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
+  // Gamma:     2.2
+  // Primaries: BT.709 
+  else if (is10bpc)
+  {
+    out_col =
+      float4 (  RemoveSRGBCurve (           input.col.rgb) *
+                RemoveSRGBCurve (             out_col.rgb),
+                                  saturate (  out_col.a)  *
+                                  saturate (input.col.a)
+              );
+    
+    out_col.rgb = ApplySRGBCurve (out_col.rgb);
+  }
+  
+  // 8 bpc SDR (sRGB)
+  else
+  {
+    
+#ifdef _SRGB
+    out_col =
+      float4 (   (           input.col.rgb) *
+                 (             out_col.rgb),
+                                  saturate (  out_col.a)  *
+                                  saturate (input.col.a)
+              );
+    
+    out_col.rgb = RemoveSRGBCurve (out_col.rgb);
+    
+    // Manipulate the alpha channel a bit...
+    out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a);
+#else
+    
+    out_col =
+      float4 (  RemoveSRGBCurve (           input.col.rgb) *
+                RemoveSRGBCurve (             out_col.rgb),
+                                  saturate (  out_col.a)  *
+                                  saturate (input.col.a)
+              );
+    
+    out_col.rgb = ApplySRGBCurve (out_col.rgb);
+    
+#endif
+    
+  }
+  
+  return out_col;  
 };
