@@ -1742,8 +1742,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                                    ImVec4 (fTint, fTint, fTint, fAlpha),
-                                  (_registry.bUIBorders) ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Border
+                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fTint * fAlpha)  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency
+                                  (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
   );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
