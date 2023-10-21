@@ -664,6 +664,9 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 void
 SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
+  static std::string SKVer32_old, SKSvc32_old,
+                     SKVer64_old, SKSvc64_old;
+
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf32);
@@ -678,8 +681,11 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKSvc64 = SKSvc32 =
     SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
   
-  PLOG_INFO << "SpecialK32.dll : " << SK_UTF8ToWideChar (SKVer32);
-  PLOG_INFO << "SKIFsvc32.exe  : " << SK_UTF8ToWideChar (SKSvc32);
+  PLOG_INFO_IF(SKVer32_old != SKVer32) << "SpecialK32.dll : " << SK_UTF8ToWideChar (SKVer32);
+  PLOG_INFO_IF(SKSvc32_old != SKSvc32) << "SKIFsvc32.exe  : " << SK_UTF8ToWideChar (SKSvc32);
+
+  SKVer32_old = SKVer32;
+  SKSvc32_old = SKSvc32;
 
 #ifdef _WIN64
   wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
@@ -696,8 +702,11 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKSvc64 =
     SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc64));
 
-  PLOG_INFO << "SpecialK64.dll : " << SK_UTF8ToWideChar (SKVer64);
-  PLOG_INFO << "SKIFsvc64.exe  : " << SK_UTF8ToWideChar (SKSvc64);
+  PLOG_INFO_IF(SKVer64_old != SKVer64) << "SpecialK64.dll : " << SK_UTF8ToWideChar (SKVer64);
+  PLOG_INFO_IF(SKSvc64_old != SKSvc64) << "SKIFsvc64.exe  : " << SK_UTF8ToWideChar (SKSvc64);
+
+  SKVer64_old = SKVer64;
+  SKSvc64_old = SKSvc64;
 #endif
 }
 
