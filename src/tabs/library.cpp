@@ -4019,8 +4019,18 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::PopStyleColor  ( );
 
+      static uint32_t curAppId;
+      static bool     SteamShortcutPossible;
+
+      if (curAppId != pApp->id)
+      {   curAppId  = pApp->id;
+
+        SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam &&
+                                 pApp->launch_configs[0].getExecutableFullPath(pApp->id) != L"<InvalidPath>");
+      }
+
       // Manage [Custom] Game
-      if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || pApp->store == app_record_s::Store::Steam)
+      if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || SteamShortcutPossible)
       {
         ImGui::Separator ( );
         
