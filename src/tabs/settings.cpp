@@ -470,14 +470,9 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_Tab_ChangeTo  = UITab_None;
 
 #pragma region Section: Top / General
-  // SKIF Options
-  //if (ImGui::CollapsingHeader ("Frontend v " SKIF_VERSION_STR_A " (" __DATE__ ")###SKIF_SettingsHeader-0", ImGuiTreeNodeFlags_DefaultOpen))
-  //{
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
                             );
-
-  //ImGui::Spacing    ( );
 
   SKIF_ImGui_Spacing      ( );
 
@@ -1239,6 +1234,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
       ImGui::TreePop         ( );
     }
+
+//#define COLORPICKER
+#ifdef COLORPICKER
+    static float col3[3];
+    ImGui::ColorPicker3 ("Colors", col3);
+#endif
 
     ImGui::TreePop       ( );
 
