@@ -449,9 +449,33 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   // Transform to lowercase
   std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
 
+  // Extract the SKIF_SteamAppID cmd line argument
+  const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
+  size_t posSKIF_SteamAppID_start       = cmdLineLower.find (argSKIF_SteamAppID);
+  std::wstring steamAppId               = L"";
+
+  if (posSKIF_SteamAppID_start != std::wstring::npos)
+  {
+    size_t
+      posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
+
+    if (posSKIF_SteamAppID_end == std::wstring::npos)
+      posSKIF_SteamAppID_end    = cmdLineLower.length ( );
+
+    steamAppId = cmdLineLower.substr(posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+
+    // Remove substring from the original variables
+    cmdLine     .erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+    cmdLineLower.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+  }
+
   // Extract the target path and any proxied command line arguments
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
   std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
+
+  // If it's just an empty space, strip it
+  if (proxiedCmdLine == L" ")
+    proxiedCmdLine = L"";
 
   // Path does not seem to be absolute -- add the current working directory in front of the path
   if (path.find(L"\\") == std::wstring::npos)
@@ -463,7 +487,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   
   // If the original working folder is empty or set to system32, change it to the parent folder of the game
   if (workingDirectory.empty() || workingDirectory.find(L"system32") != std::wstring::npos)
-    workingDirectory = std::filesystem::path(path).parent_path().wstring();                         
+    workingDirectory = std::filesystem::path(path).parent_path().wstring();
 
   PLOG_VERBOSE << "Executable:        " << path;
   PLOG_VERBOSE << "Command Line Args: " << proxiedCmdLine;
@@ -497,6 +521,8 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
       _Signal._GamePath        = path;
       _Signal._GameArgs        = proxiedCmdLine;
       _Signal._GameWorkDir     = workingDirectory;
+      if (! steamAppId.empty())
+        _Signal._SteamAppID    = steamAppId;
       _Signal._ElevatedService = PathFileExists (elevationFile.c_str());
     }
   }
@@ -547,6 +573,12 @@ SKIF_Startup_LaunchGame (void)
   if (! _Signal._GameArgs.empty())
     PLOG_INFO << "           Arguments : " << _Signal._GameArgs;
 
+  if (! _Signal._SteamAppID.empty ( ))
+  {
+    PLOG_INFO << "        Steam App ID : " << _Signal._SteamAppID;
+    SetEnvironmentVariable (L"SteamAppId",  _Signal._SteamAppID.c_str());
+  }
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -560,6 +592,9 @@ SKIF_Startup_LaunchGame (void)
 
   // Launch executable
   ShellExecuteExW (&sexi);
+
+  if (! _Signal._SteamAppID.empty ( ))
+    SetEnvironmentVariable (L"SteamAppId",  NULL);
 
   // Set the new process as foreground window
   if (sexi.hInstApp > (HINSTANCE)32)

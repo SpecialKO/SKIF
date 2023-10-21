@@ -116,6 +116,7 @@ struct SKIF_Signals { // Used for command line arguments
   std::wstring _GamePath    = L"";
   std::wstring _GameArgs    = L"";
   std::wstring _GameWorkDir = L"";
+  std::wstring _SteamAppID  = L"";
 };
 
 // External declarations
