@@ -73,6 +73,7 @@
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
+bool RecreateSwapChainsPending = false;
 bool RecreateWin32Windows  = false;
 bool RepositionSKIF        = false;
 bool RespectMonBoundaries  = false;

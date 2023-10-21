@@ -8,16 +8,8 @@ struct PS_INPUT
   float4 uv3 : TEXCOORD2; // constant_buffer->luminance_scale
 };
 
-cbuffer viewportDims  : register (b0)
-{
-  float4 viewport;
-};
-
 sampler   sampler0    : register (s0);
-
 Texture2D texture0    : register (t0);
-Texture2D hdrUnderlay : register (t1);
-Texture2D hdrHUD      : register (t2);
 
 //#define FAST_SRGB
 

@@ -2148,8 +2148,13 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
         // Might as well trigger a recreation on WM_SIZE when not minimized
         // It is possible this catches device reset/hung scenarios
-        if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED) // && ImGui::GetFrameCount ( ) > 4
+        if (SKIF_D3D11_IsDevicePtr ( ) && wParam != SIZE_MINIMIZED && ImGui::GetFrameCount ( ) > 4)
+        {
+          // This triggers a recreation of the swapchain on launch if allowed to run before the fourth frame...
+          //   ... which also ends up lowering present latency by half... ?
           RecreateSwapChains = true;
+          PLOG_DEBUG << "Set RecreateSwapChains = true";
+        }
         
         // Instead of handling this on the next frame, lets just handle it all there immediately
 #if 0

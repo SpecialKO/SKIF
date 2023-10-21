@@ -65,6 +65,7 @@ extern bool SKIF_bCanAllowTearing;
 extern bool SKIF_bCanWaitSwapchain;
 extern bool SKIF_bCanHDR;
 extern bool RecreateSwapChains;
+extern bool RecreateSwapChainsPending;
 
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
@@ -85,7 +86,6 @@ static CComPtr <ID3D11Buffer>             g_pIB;
 static CComPtr <ID3D11VertexShader>       g_pVertexShader;
 static CComPtr <ID3D11InputLayout>        g_pInputLayout;
 static CComPtr <ID3D11Buffer>             g_pVertexConstantBuffer;
-static CComPtr <ID3D11Buffer>             g_pPixelConstantBuffer;
 static CComPtr <ID3D11PixelShader>        g_pPixelShader;
 static CComPtr <ID3D11SamplerState>       g_pFontSampler;
 static CComPtr <ID3D11ShaderResourceView> g_pFontTextureView;
@@ -244,7 +244,6 @@ ImGui_ImplDX11_SetupRenderState ( ImDrawData          *draw_data,
   ctx->VSSetShader            (        g_pVertexShader, nullptr, 0 );
   ctx->VSSetConstantBuffers   ( 0, 1, &g_pVertexConstantBuffer.p     );
   ctx->PSSetShader            (        g_pPixelShader,  nullptr, 0 );
-  ctx->PSSetConstantBuffers   ( 0, 1, &g_pPixelConstantBuffer.p      );
   ctx->PSSetSamplers          ( 0, 1, &g_pFontSampler.p              );
 
   // Setup blend state
@@ -435,24 +434,6 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     }
 
     ctx->Unmap ( g_pVertexConstantBuffer, 0 );
-
-    if ( FAILED (ctx->Map (
-           g_pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
-                                   0, &mapped_resource
-                    ))
-       ) return;
-
-    if (data->HDR || data->DXGIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
-    {
-      static_cast <  float *> (mapped_resource.pData)[0] = 0.0f;
-      static_cast <  float *> (mapped_resource.pData)[1] = 0.0f;
-      static_cast <  float *> (mapped_resource.pData)[2] =
-      static_cast <  float  > (draw_data->DisplaySize.x);
-      static_cast <  float *> (mapped_resource.pData)[3] =
-      static_cast <  float  > (draw_data->DisplaySize.y);
-    }
-
-    ctx->Unmap ( g_pPixelConstantBuffer, 0 );
   }
 
   // Setup desired DX state
@@ -728,9 +709,6 @@ ImGui_ImplDX11_CreateDeviceObjects (void)
   buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
   buffer_desc.MiscFlags      = 0;
 
-  g_pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
-     &g_pPixelConstantBuffer );
-
   // Create the pixel shader
   if ( FAILED (
          g_pd3dDevice->CreatePixelShader (
@@ -812,7 +790,6 @@ ImGui_ImplDX11_InvalidateDeviceObjects (void)
   g_pRasterizerState      = nullptr;
   g_pPixelShader          = nullptr;
   g_pVertexConstantBuffer = nullptr;
-  g_pPixelConstantBuffer  = nullptr;
   g_pInputLayout          = nullptr;
   g_pVertexShader         = nullptr;
 }
@@ -935,8 +912,11 @@ void ImGui_ImplDX11_NewFrame (void)
     OutputDebugString(L"RecreateFactory == true\n");
 #endif
 
+  RecreateSwapChainsPending = false;
+
   if (RecreateSwapChains || RecreateFactory)
-  {   RecreateSwapChains = false;
+  {   RecreateSwapChains        = false;
+      RecreateSwapChainsPending = true;
 
     PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
@@ -1436,7 +1416,8 @@ ImGui_ImplDX11_RenderWindow ( ImGuiViewport *viewport,
       data->SwapChain == nullptr || // Swapchain was destroyed
       data->RTView    == nullptr)   // Render target view was destroyed
   {
-    //RecreateSwapChains = true;
+    if (! RecreateSwapChainsPending && ImGui::GetFrameCount() > 4)
+      RecreateSwapChains = true;
     return;
   }
 
