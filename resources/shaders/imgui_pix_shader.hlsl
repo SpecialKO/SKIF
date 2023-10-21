@@ -251,6 +251,8 @@ float3 Clamp_scRGB_StripNaN (float3 c)
   return Clamp_scRGB (c);
 }
 
+
+
 float4 main (PS_INPUT input) : SV_Target
 {
   float4 out_col  =
@@ -275,18 +277,24 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (  out_col.a)  *
                                   saturate (input.col.a)
               );
+
+//#def EXPAND
+#ifdef EXPAND
+    out_col.rgb = Clamp_scRGB_StripNaN (expandGamut (
+                                  saturate (out_col.rgb), 0.0333)
+              );
+#endif
     
     float hdr_scale = input.uv3.x;
-
-    out_col.rgb = Clamp_scRGB_StripNaN (expandGamut (
-                                  saturate (out_col.rgb) * hdr_scale, 0.0333)
-              );
     
-    //out_col.rgb = RemoveSRGBCurve (out_col.rgb);
+    out_col.rgb =                 saturate (out_col.rgb) * hdr_scale;
     
-    out_col.r = (orig_col.r < 0.000001f) ? 0.0f : out_col.r;
-    out_col.g = (orig_col.g < 0.000001f) ? 0.0f : out_col.g;
-    out_col.b = (orig_col.b < 0.000001f) ? 0.0f : out_col.b;
+#ifdef EXPAND
+    out_col.r = (orig_col.r <= 0.00013 && orig_col.r >= -0.00013) ? 0.0f : out_col.r;
+    out_col.g = (orig_col.g <= 0.00013 && orig_col.g >= -0.00013) ? 0.0f : out_col.g;
+    out_col.b = (orig_col.b <= 0.00013 && orig_col.b >= -0.00013) ? 0.0f : out_col.b;
+    out_col.a = (orig_col.a <= 0.00013 && orig_col.a >= -0.00013) ? 0.0f : out_col.a;
+#endif
     
     // Manipulate the alpha channel a bit...
     out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a);
