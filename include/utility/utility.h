@@ -32,7 +32,7 @@ std::wstring SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t r
 // ShellExecute
 
 HINSTANCE    SKIF_Util_ExplorePath                 (const std::wstring_view& path);
-HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL);
+HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
 
 
 // Windows

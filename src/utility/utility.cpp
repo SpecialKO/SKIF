@@ -474,17 +474,20 @@ SKIF_Util_OpenURI (
                int         nShow,
                LPCWSTR     verb,
                LPCWSTR     parameters,
-               LPCWSTR     directory)
+               LPCWSTR     directory,
+               UINT        flags)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   HINSTANCE ret   = 0;
 
+  if ((flags & SEE_MASK_NOASYNC) == 0x0 &&
+      (flags & SEE_MASK_ASYNCOK) == 0x0)
+    flags |= 
+      ((_registry._LoadedSteamOverlay) ? SEE_MASK_NOASYNC    //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+                                       : SEE_MASK_ASYNCOK ); // Asynchronous - It is fine to defer loading the new process until later
   
-  
-  UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
-    ((_registry._LoadedSteamOverlay) ? SEE_MASK_NOASYNC    //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-                                     : SEE_MASK_ASYNCOK ); // Asynchronous - It is fine to defer loading the new process until later
+  //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
 
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);

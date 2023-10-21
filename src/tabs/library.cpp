@@ -1034,6 +1034,25 @@ Cache=false)";
       else if (pApp->store == app_record_s::Store::Steam) {
         //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pApp->id)).c_str()); // This is seemingly unreliable
         SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pApp->id)).c_str());
+
+#if 0
+        // Proof of Concept
+        SetEnvironmentVariable (L"SteamAppId",  std::to_wstring(pApp->id).c_str());
+        SetEnvironmentVariable (L"SteamGameId", std::to_wstring(pApp->id).c_str());
+        
+        SKIF_Util_OpenURI (
+          pApp->launch_configs[0].getExecutableFullPath (pApp->id),
+          SW_SHOWDEFAULT,
+          L"OPEN",
+          pApp->launch_configs[0].launch_options.c_str(),
+          pApp->launch_configs[0].working_dir.c_str(),
+          SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC
+        );
+    
+        SetEnvironmentVariable (L"SteamAppId",  NULL);
+        SetEnvironmentVariable (L"SteamGameId", NULL);
+#endif
+
         pApp->_status.invalidate();
       }
           
@@ -4001,7 +4020,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::PopStyleColor  ( );
 
       // Manage [Custom] Game
-      if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG)
+      if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || pApp->store == app_record_s::Store::Steam)
       {
         ImGui::Separator ( );
         
@@ -4041,6 +4060,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
             std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str(), pApp->launch_configs[0].launch_options.c_str());
+
+            // Trim spaces at the end
+            linkArgs.erase (std::find_if (linkArgs.rbegin(), linkArgs.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), linkArgs.end());
+
+            if (pApp->store == app_record_s::Store::Steam)
+              linkArgs += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
             confirmPopupTitle = "Create Shortcut";
 
