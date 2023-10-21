@@ -297,7 +297,10 @@ float4 main (PS_INPUT input) : SV_Target
 #endif
     
     // Manipulate the alpha channel a bit...
-    out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a);
+  //out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a); // Sort of perfect alpha transparency handling, but worsens fonts (more haloing), in particular for bright fonts on dark backgrounds
+  //out_col.a = out_col.a;                                 // Worse alpha transparency handling, but improves fonts (less haloing)
+  //out_col.a = 1.0f - ApplySRGBCurve  (1.0f - out_col.a); // Unusable alpha transparency, and worsens dark fonts on bright backgrounds
+    // No perfect solution for various reasons (ImGui not having proper subpixel font rendering or doing linear colors for example)
   }
   
   // HDR10 (pending potential removal)
