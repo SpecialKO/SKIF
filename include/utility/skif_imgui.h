@@ -8,7 +8,12 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 
+float   SKIF_ImGui_LinearTosRGB       (float col_lin);
+ImVec4  SKIF_ImGui_LinearTosRGB       (ImVec4 col);
+float   SKIF_ImGui_sRGBtoLinear       (float col_srgb);
+ImVec4  SKIF_ImGui_sRGBtoLinear       (ImVec4 col);
 void    SKIF_ImGui_StyleColorsDark    (ImGuiStyle* dst = nullptr);
+void    SKIF_ImGui_StyleColorsLight   (ImGuiStyle* dst = nullptr);
 bool    SKIF_ImGui_IsFocused          (void);
 bool    SKIF_ImGui_IsMouseHovered     (void);
 bool    SKIF_ImGui_IsAnyInputDown     (void);

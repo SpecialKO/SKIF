@@ -1237,6 +1237,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
 //#define COLORPICKER
 #ifdef COLORPICKER
+    if (ImGui::Checkbox     ("sRGBtoLinear colors", &_registry._sRGBColors))
+    {
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+    }
+
     static float col3[3];
     ImGui::ColorPicker3 ("Colors", col3);
 #endif
@@ -2215,7 +2221,10 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::Separator ( );
 
         if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
+        {
+          PLOG_DEBUG << "Restarting the display driver...";
           ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
+        }
 
         ImGui::EndPopup ( );
       }
