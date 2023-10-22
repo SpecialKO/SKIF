@@ -262,7 +262,7 @@ GetInjectionSummary (app_record_s* pApp)
         //_cache.app_id != 578330       && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
           _cache.app_id != 429660       && // Tales of Berseria
           _cache.app_id != 372360       && // Tales of Symphonia
-          _cache.app_id != 738540       && // Tales of Vesperia DE
+        //_cache.app_id != 738540       && // Tales of Vesperia DE // Do not exclude from the updater as mainline SK further improves the game
           _cache.app_id != 351970          // Tales of Zestiria
         ))
     {
