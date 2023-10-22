@@ -293,6 +293,8 @@ float4 main (PS_INPUT input) : SV_Target
   //out_col.a = out_col.a;                                 // Worse alpha transparency handling, but improves fonts (less haloing)
   //out_col.a = 1.0f - ApplySRGBCurve  (1.0f - out_col.a); // Unusable alpha transparency, and worsens dark fonts on bright backgrounds
     // No perfect solution for various reasons (ImGui not having proper subpixel font rendering or doing linear colors for example)
+    
+    out_col.rgb *= out_col.a;
   }
   
   // HDR10 (pending potential removal)
@@ -317,6 +319,8 @@ float4 main (PS_INPUT input) : SV_Target
     // Manipulate the alpha channel a bit... sometimes...
     if (orig_col.a < 0.5f)
       out_col.a = 1.0f - ApplySRGBCurve (1.0f - out_col.a);
+    
+    out_col.rgb *= out_col.a;
   }
   
   // 10 bpc SDR
@@ -333,6 +337,8 @@ float4 main (PS_INPUT input) : SV_Target
               );
     
     out_col.rgb = ApplySRGBCurve (out_col.rgb);
+    
+    out_col.rgb *= out_col.a;
   }
   
   // 8 bpc SDR (sRGB)
@@ -363,6 +369,8 @@ float4 main (PS_INPUT input) : SV_Target
     out_col.rgb = ApplySRGBCurve (out_col.rgb);
     
 #endif
+    
+    out_col.rgb *= out_col.a;
     
   }
   

@@ -723,7 +723,7 @@ ImGui_ImplDX11_CreateDeviceObjects (void)
   blend_desc                                        = { };
   blend_desc.AlphaToCoverageEnable                  = false;
   blend_desc.RenderTarget [0].BlendEnable           = true;
-  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_SRC_ALPHA;
+  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_ONE; // D3D11_BLEND_SRC_ALPHA
   blend_desc.RenderTarget [0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
   blend_desc.RenderTarget [0].BlendOp               = D3D11_BLEND_OP_ADD;
   blend_desc.RenderTarget [0].SrcBlendAlpha         = D3D11_BLEND_ONE;
