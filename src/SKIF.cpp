@@ -588,8 +588,9 @@ SKIF_Startup_LaunchGame (void)
     sexi.lpParameters = _Signal._GameArgs.c_str();
     sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
     sexi.nShow        = SW_SHOW;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS | // SEE_MASK_NOCLOSEPROCESS because we need the PID
-                        SEE_MASK_NOASYNC    | SEE_MASK_NOZONECHECKS;
+    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                        SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
+                        SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
   // Launch executable
   ShellExecuteExW (&sexi);
@@ -598,9 +599,12 @@ SKIF_Startup_LaunchGame (void)
     SetEnvironmentVariable (L"SteamAppId",  NULL);
 
   // Set the new process as foreground window
-  if (sexi.hInstApp > (HINSTANCE)32)
-    if (sexi.hProcess != NULL)
-      pidForegroundFocusOnExit = GetProcessId (sexi.hProcess);
+  if (sexi.hInstApp  > (HINSTANCE)32 &&
+      sexi.hProcess != NULL)
+  {
+    pidForegroundFocusOnExit = GetProcessId (sexi.hProcess);
+    CloseHandle (sexi.hProcess);
+  }
 
   // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
   if (_Signal._RunningInstance)

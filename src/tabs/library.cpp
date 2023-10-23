@@ -838,7 +838,7 @@ Cache=false)";
 
         CoInitializeEx (nullptr, 0x0);
 
-        PLOG_INFO << "Thread started!";
+        PLOG_INFO << "SKIF_LibGameModWorker thread started!";
 
         int _appid = appid;
         modAppId.store (_appid);
@@ -850,7 +850,7 @@ Cache=false)";
         if (! std::filesystem::exists (            root, ec))
               std::filesystem::create_directories (root, ec);
       
-        std::wstring download, filename;
+        static std::wstring download, filename, path;
 
         if      (_appid == 359870) // FFX/X-2 HD Remaster
         {
@@ -868,13 +868,15 @@ Cache=false)";
           download = L"https://sk-data.special-k.info/TVFix/SpecialK_TVFix.exe";
         }
 
+        path = root + filename;
+
         if (! filename.empty() && ! download.empty())
         {
           // Download the installer if it does not exist
-          if (! PathFileExists ((root + filename).c_str()))
+          if (! PathFileExists (path.c_str()))
           {
             PLOG_INFO << "Downloading installer: " << download;
-            SKIF_Util_GetWebResource (download, root + filename);
+            SKIF_Util_GetWebResource (download, path);
           }
         
           modInstalling.store (true);
@@ -887,23 +889,32 @@ Cache=false)";
             sexi              = { };
             sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
             sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = (root + filename).c_str();
+            sexi.lpFile       = path.c_str();
             sexi.lpParameters = NULL;
             sexi.lpDirectory  = NULL;
-            sexi.nShow        = SW_SHOWNORMAL;
-            sexi.fMask        = SEE_MASK_FLAG_NO_UI     | SEE_MASK_NOZONECHECKS |
-                                SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC; // Never async since we execute in short-lived child thread
+            sexi.nShow        = SW_SHOW;
+            sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                                SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
+                                SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
           // Attempt to run the downloaded installer,
           //   and delete it on failure
           if (! ShellExecuteExW (&sexi))
-            DeleteFile ((root + filename).c_str());
+          {
+            PLOG_ERROR << "Something went wrong: "   << SKIF_Util_GetErrorAsWStr ( );
+            PLOG_ERROR_IF (DeleteFile(path.c_str())) << "The downloaded installer has been removed!";
+          }
 
           if (_registry._LoadedSteamOverlay)
             SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-          if (sexi.hProcess != NULL)
+          
+          // If the process was started successfully, wait for it to close down...
+          if (sexi.hInstApp  > (HINSTANCE)32 &&
+              sexi.hProcess != NULL)
+          {
             WaitForSingleObject (sexi.hProcess, INFINITE); // == WAIT_OBJECT_0
+            CloseHandle         (sexi.hProcess);
+          }
 
           modInstalling.store (false);
 
@@ -916,7 +927,7 @@ Cache=false)";
         // Force a refresh when the game icons have finished being streamed
         //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-        PLOG_INFO << "Thread stopped!";
+        PLOG_INFO << "SKIF_LibGameModWorker thread stopped!";
       }, 0x0, NULL);
     }
   }
@@ -1612,7 +1623,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_INFO << "Thread started!";
+      PLOG_INFO << "SKIF_LibRefreshWorker thread started!";
       
       PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
@@ -1663,7 +1674,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-      PLOG_INFO << "Thread stopped!";
+      PLOG_INFO << "SKIF_LibRefreshWorker thread stopped!";
     }, 0x0, NULL);
 
     populated = true;
@@ -2101,7 +2112,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_INFO << "Thread started!";
+      PLOG_INFO << "SKIF_LibCoverWorker thread started!";
       PLOG_INFO << "Streaming game cover asynchronously...";
 
       if (pApp == nullptr)
@@ -2345,7 +2356,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       PLOG_INFO << "Finished streaming game cover asynchronously...";
-      PLOG_INFO << "Thread stopped!";
+      PLOG_INFO << "SKIF_LibCoverWorker thread stopped!";
 
     }, 0x0, NULL);
 
