@@ -1279,6 +1279,24 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Always open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
       _registry.regKVOpenInServiceMode.putData (                                     _registry.bOpenInServiceMode);
 
+    if (! SKIF_Util_GetDragFromMaximized ( ))
+      SKIF_ImGui_PushDisableState ( );
+
+    if (ImGui::Checkbox  ("Reposition this app to the center on double click",
+                                                      &_registry.bMaximizeOnDoubleClick))
+      _registry.regKVMaximizeOnDoubleClick.putData  (  _registry.bMaximizeOnDoubleClick);
+    
+    if (! SKIF_Util_GetDragFromMaximized ( ))
+    {
+      SKIF_ImGui_PopDisableState ( );
+      SKIF_ImGui_SetHoverTip ("Feature is inaccessible due to snapping and/or\n"
+                              "drag from maximized being disabled in Windows.");
+    }
+
+    if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
+                                                      &_registry.bAllowBackgroundService))
+      _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
+
     if (_registry.bCloseToTray)
     {
       ImGui::BeginGroup   ( );
@@ -1327,6 +1345,11 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::NextColumn       ( );
 
     ImGui::TreePush         ( );
+    
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        ICON_FA_WRENCH " Troubleshooting:"
+    );
 
     const char* LogSeverity[] = { "None",
                                   "Fatal",
@@ -1336,15 +1359,8 @@ SKIF_UI_Tab_DrawSettings (void)
                                   "Debug",
                                   "Verbose" };
     static const char* LogSeverityCurrent = LogSeverity[_registry.iLogging];
-          
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Logging:"
-    );
 
-    ImGui::SameLine();
-
-    if (ImGui::BeginCombo ("###_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo (" Log level###_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
     {
       for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
       {
@@ -1362,23 +1378,59 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::EndCombo  ( );
     }
 
-    if (! SKIF_Util_GetDragFromMaximized ( ))
+    SKIF_ImGui_Spacing ( );
+
+    ImGui::TextWrapped ("Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game.");
+
+    ImGui::Spacing     ( );
+
+    static bool runOnceGFE = false;
+
+    if (runOnceGFE)
       SKIF_ImGui_PushDisableState ( );
 
-    if (ImGui::Checkbox  ("Reposition this app to the center on double click",
-                                                      &_registry.bMaximizeOnDoubleClick))
-      _registry.regKVMaximizeOnDoubleClick.putData  (  _registry.bMaximizeOnDoubleClick);
-    
-    if (! SKIF_Util_GetDragFromMaximized ( ))
+    if (ImGui::ButtonEx (ICON_FA_USER_SHIELD " Disable GFE notifications",
+                                 ImVec2 (250 * SKIF_ImGui_GlobalDPIScale,
+                                          25 * SKIF_ImGui_GlobalDPIScale)))
     {
-      SKIF_ImGui_PopDisableState ( );
-      SKIF_ImGui_SetHoverTip ("Feature is inaccessible due to snapping and/or\n"
-                              "drag from maximized being disabled in Windows.");
-    }
+      runOnceGFE = true;
 
-    if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
-                                                      &_registry.bAllowBackgroundService))
-      _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
+      PLOG_INFO << "Attempting to disable GeForce Experience / ShadowPlay notifications...";
+      wchar_t              wszRunDLL32 [MAX_PATH + 2] = { };
+      GetSystemDirectoryW (wszRunDLL32, MAX_PATH);
+      PathAppendW         (wszRunDLL32, L"rundll32.exe");
+
+      SHELLEXECUTEINFOW
+        sexi              = { };
+        sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+        sexi.lpVerb       = L"RUNAS";
+        sexi.lpFile       = wszRunDLL32;
+      //sexi.lpDirectory  = ;
+        sexi.lpParameters = SK_FormatStringW (LR"("%ws\SpecialK64.dll",RunDLL_DisableGFEForSKIF)", _path_cache.specialk_install).c_str();
+        sexi.nShow        = SW_SHOW;
+        sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
+        
+      SetLastError (NO_ERROR);
+
+      bool ret = ShellExecuteExW (&sexi);
+
+      if (GetLastError ( ) != NO_ERROR)
+        PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
+
+      if (ret)
+        PLOG_INFO  << "The operation was successful.";
+      else
+        PLOG_ERROR << "The operation was unsuccessful.";
+    }
+    
+    // Prevent this call from executing on the same frame as the button is pressed
+    else if (runOnceGFE)
+      SKIF_ImGui_PopDisableState ( );
+    
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip  ("This only needs to be used if GeForce Experience notifications\n"
+                             "appears on the screen whenever this app is being used.");
 
     ImGui::TreePop          ( );
 
