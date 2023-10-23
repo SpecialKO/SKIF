@@ -486,8 +486,17 @@ SKIF_Util_OpenURI (
     flags |= 
       ((_registry._LoadedSteamOverlay) ? SEE_MASK_NOASYNC    //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
                                        : SEE_MASK_ASYNCOK ); // Asynchronous - It is fine to defer loading the new process until later
-  
+
   //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
+
+#if 0
+  PLOG_VERBOSE                           << "Performing a ShellExecute call...";
+  PLOG_VERBOSE                           << "File      : " << path;
+  PLOG_VERBOSE_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
+  PLOG_VERBOSE_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
+  PLOG_VERBOSE_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
+  PLOG_VERBOSE                           << "Flags     : " << flags;
+#endif
 
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
