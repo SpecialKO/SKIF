@@ -495,7 +495,7 @@ SKIF_Util_OpenURI (
   PLOG_VERBOSE_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
   PLOG_VERBOSE_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
   PLOG_VERBOSE_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
-  PLOG_VERBOSE                           << "Flags     : " << flags;
+//PLOG_VERBOSE                           << "Flags     : " << flags;
 #endif
 
   if (_registry._LoadedSteamOverlay)
