@@ -2665,7 +2665,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (_inject.bCurrentState)
               _inject._StartStopInject(true);
 
-            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /DIR="%ws")", _path_cache.specialk_install);
+            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /StartService=%d /DIR="%ws")",
+                                                 (_inject.bCurrentState && ! _inject.bAckInj), _path_cache.specialk_install);
 
             SKIF_Util_OpenURI (updateRoot + _updater.GetResults().filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
 
