@@ -8,34 +8,37 @@
 
 #pragma comment (lib, "wininet.lib")
 
+
 // Generic Utilities
 
-std::string  SKIF_Util_ToLower               (std::string_view  input);
-std::wstring SKIF_Util_ToLowerW              (std::wstring_view input);
-std::string  SKIF_Util_ToUpper               (std::string_view  input);
-std::wstring SKIF_Util_ToUpperW              (std::wstring_view  input);
-std::wstring SKIF_Util_GetErrorAsWStr        (DWORD error = GetLastError ( ));
-void         SKIF_Util_GetErrorAsMsgBox      (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError());
-DWORD        SKIF_Util_timeGetTime           (void);
-std::wstring SKIF_Util_timeGetTimeAsWStr     (const std::wstring& format = L"H:M:s.m");
-int          SKIF_Util_CompareVersionStrings (std:: string string1, std:: string string2);
-int          SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2);
+std::string     SKIF_Util_ToLower                     (std::string_view  input);
+std::wstring    SKIF_Util_ToLowerW                    (std::wstring_view input);
+std::string     SKIF_Util_ToUpper                     (std::string_view  input);
+std::wstring    SKIF_Util_ToUpperW                    (std::wstring_view  input);
+std::wstring    SKIF_Util_GetErrorAsWStr              (DWORD error = GetLastError ( ));
+void            SKIF_Util_GetErrorAsMsgBox            (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError());
+DWORD           SKIF_Util_timeGetTime                 (void);
+std::wstring    SKIF_Util_timeGetTimeAsWStr           (const std::wstring& format = L"H:M:s.m");
+int             SKIF_Util_CompareVersionStrings       (std:: string string1, std:: string string2);
+int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std::wstring string2);
+
 
 // Filenames
 
-std::string  SKIF_Util_StripInvalidFilenameChars   (std:: string name);
-std::wstring SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
-std::string  SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
-std::wstring SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
+std::string     SKIF_Util_StripInvalidFilenameChars   (std:: string name);
+std::wstring    SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
+std::string     SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
+std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
 
 
 // ShellExecute
 
-HINSTANCE    SKIF_Util_ExplorePath                 (const std::wstring_view& path);
-HINSTANCE    SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
+HINSTANCE       SKIF_Util_ExplorePath                 (const std::wstring_view& path);
+HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
 
 
 // Windows
+
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
@@ -56,9 +59,12 @@ int             SKIF_Util_RegisterApp                 (bool force   = false);
 bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 
+
 // Power Mode
+
 std::string     SKIF_Util_GetEffectivePowerMode              (void);
 void            SKIF_Util_SetEffectivePowerModeNotifications (bool enable);
+
 
 // High Dynamic Range (HDR)
 
@@ -72,6 +78,7 @@ bool            SKIF_Util_GetHotKeyStateHDRToggle     (void);
 bool            SKIF_Util_RegisterHotKeySVCTemp       (void);
 bool            SKIF_Util_UnregisterHotKeySVCTemp     (void);
 bool            SKIF_Util_GetHotKeyStateSVCTemp       (void);
+
 
 // Web
 

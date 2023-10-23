@@ -111,7 +111,7 @@ void SKIF_UI_DrawPlatformStatus (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
 
-  static bool isSKIFAdmin = IsUserAnAdmin();
+  static bool isSKIFAdmin = ::IsUserAnAdmin ( );
   if (isSKIFAdmin)
   {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");

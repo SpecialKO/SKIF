@@ -1247,7 +1247,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                   if (proc.filename == L"SKIFdrv.exe")
                     proc.details = "Special K Driver Manager ";
 
-                  if (proc.admin && ! IsUserAnAdmin ( ))
+                  if (proc.admin && ! ::IsUserAnAdmin ( ))
                     proc.details += "<access denied> ";
 
                   // Check if process is suspended

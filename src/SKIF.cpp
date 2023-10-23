@@ -1089,7 +1089,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
   {
-    if (IsUserAnAdmin ( ))
+    if (::IsUserAnAdmin ( ))
     {
       if (! RestartDriver ( ))
         SKIF_Util_GetErrorAsMsgBox (L"Failed to restart display driver");
