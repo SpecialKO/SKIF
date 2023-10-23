@@ -893,41 +893,39 @@ ImGui_ImplDX11_DestroyWindow (ImGuiViewport *viewport);
 void ImGui_ImplDX11_NewFrame (void)
 {
   ImGuiContext& g = *GImGui;
-  CComQIPtr <IDXGIFactory2>
-                 pFactory2
-              (g_pFactory);
+  
+  // External declarations
+  extern bool CreateDeviceD3D    (HWND hWnd);
+  extern void CleanupDeviceD3D   (void);
+  extern HWND                    SKIF_Notify_hWnd;
+  extern ID3D11Device*           SKIF_g_pd3dDevice;
+  extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
+  extern DWORD                   invalidatedDevice;
+  
+  // Check if the device have been removed for any reason
+  bool  RecreateDevice  =
+    FAILED (g_pd3dDevice->GetDeviceRemovedReason ( ));
 
-  // Force DXGIFactory and swapchain recreation every time we move monitor
-  //   this solves issues with DirectFlip/Independent Flip not engaging
-  //   based on the monitor the app launched initially on.
-  bool   RecreateFactory =
-              ( pFactory2.p != nullptr &&
-              ! pFactory2->IsCurrent () );
-
-#if 0
-  if (RecreateSwapChains)
-    OutputDebugString(L"RecreateSwapChains == true\n");
-
-  if (RecreateFactory)
-    OutputDebugString(L"RecreateFactory == true\n");
-#endif
+  // Only bother checking if the factory needs to be recreated if the device hasn't been removed
+  bool  RecreateFactory =
+              ( ! RecreateDevice          &&
+                  g_pFactory.p != nullptr &&
+                ! g_pFactory->IsCurrent ( ) );
 
   RecreateSwapChainsPending = false;
 
-  if (RecreateSwapChains || RecreateFactory)
-  {   RecreateSwapChains        = false;
-      RecreateSwapChainsPending = true;
+  if (RecreateSwapChains ||
+      RecreateFactory    ||
+      RecreateDevice     )
+  {
+    RecreateSwapChains        = false;
+    RecreateSwapChainsPending = true;
 
     PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
     for (int i = 0; i < g.Viewports.Size; i++)
       ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
 
-    //ImGui_ImplDX11_InvalidateDeviceObjects ( );
-    // Invalidate resources
     ImGui_ImplDX11_InvalidateDeviceObjects ( );
-
-    // Signal to ImGui_ImplDX11_NewFrame() that the swapchains needs recreating
-    //RecreateSwapChains = true;
 
     if (g_pd3dDeviceContext != nullptr)
     {
@@ -935,56 +933,31 @@ void ImGui_ImplDX11_NewFrame (void)
       g_pd3dDeviceContext->ClearState ( );
       g_pd3dDeviceContext->Flush      ( );
     }
-    
-    extern ID3D11Device*           SKIF_g_pd3dDevice;
-    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
 
-#if 1
-    if (SKIF_g_pd3dDeviceContext != nullptr)
-    {
-      SKIF_g_pd3dDeviceContext->ClearState ( );
-      SKIF_g_pd3dDeviceContext->Flush ( );
-    }
-#endif
-
-#if 0
-    ImGui_ImplDX11_InvalidateDevice        ( );
-
-    extern void CleanupDeviceD3D (void);
-    CleanupDeviceD3D                       ( );
-#endif
-
-#if 1
-    if (RecreateFactory)
+    if (RecreateFactory || RecreateDevice)
     {
       PLOG_DEBUG << "Recreating factory...";
-
-       pFactory2.Release ();
       g_pFactory.Release ();
+      g_pFactory = nullptr;
 
-      CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
+      if (! RecreateDevice)
+        CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&g_pFactory.p);
     }
-#endif
 
-#if 0
-    // Recreate
-    extern HWND SKIF_Notify_hWnd;
-    extern bool CreateDeviceD3D (HWND hWnd);
-    extern ID3D11Device*           SKIF_g_pd3dDevice;
-    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
-    CreateDeviceD3D                        (SKIF_Notify_hWnd);
+    if (RecreateDevice)
+    {
+      PLOG_DEBUG << "Recreating the D3D11 device...";
+      ImGui_ImplDX11_InvalidateDevice ( );
+      CleanupDeviceD3D                ( );
 
-    extern void SKIF_WaitForDeviceInitD3D (void);
+      // At this point all traces of the previous device should have been cleared
+      CreateDeviceD3D                 (SKIF_Notify_hWnd);
+      ImGui_ImplDX11_Init             (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext); // This creates a new factory
 
-    SKIF_WaitForDeviceInitD3D ();
-
-    ImGui_ImplDX11_Init                    (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
-    
-    // This is used to flag that rendering should not occur until
-    // any loaded textures and such also have been unloaded
-    extern DWORD invalidatedDevice;
-    invalidatedDevice = 1;
-#endif
+      // This is used to flag that rendering should not occur until
+      // any loaded textures and such also have been unloaded
+      invalidatedDevice = 1;
+    }
 
     SKIF_bCanHDR = SKIF_Util_IsHDRActive (true);
     
@@ -1002,6 +975,12 @@ void ImGui_ImplDX11_NewFrame (void)
 static void
 ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 {
+  if (! g_pd3dDevice)
+    return;
+
+  if (! g_pFactory)
+    return;
+
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   ImGuiViewportDataDx11 *data =
@@ -1098,6 +1077,13 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
       if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                                 &data->SwapChain ))) break;
+      else {
+        if (FAILED (g_pd3dDevice->GetDeviceRemovedReason ( )))
+          return;
+
+        if (! g_pFactory->IsCurrent ( ))
+          return;
+      }
     }
   }
 
@@ -1456,7 +1442,9 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
       data->SwapChain != nullptr)   // Swapchain was destroyed
   {
     DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
-    data->SwapChain->GetDesc1 (&swap_desc);
+
+    if (FAILED (data->SwapChain->GetDesc1 (&swap_desc)))
+      return;
 
     UINT Interval = 1;
 

@@ -1746,7 +1746,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region New UI Frame
 
-    if (false && RecreateSwapChains)
+#if 0
+    if (RecreateSwapChains)
     {
       // If the device have been removed/reset/hung, we need to invalidate all resources
       if (FAILED (SKIF_g_pd3dDevice->GetDeviceRemovedReason ( )))
@@ -1768,6 +1769,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         invalidatedDevice = 1;
       }
     }
+#endif
     
     extern bool
       ImGui_ImplWin32_WantUpdateMonitors (void);
