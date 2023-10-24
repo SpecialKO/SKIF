@@ -777,7 +777,7 @@ Cache=false)";
      (//pApp->id == 405900       || // Disgaea PC
         pApp->id == 359870       || // FFX/X-2 HD Remaster
       //pApp->id == 578330       || // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
-      //pApp->id == 429660       || // Tales of Berseria
+        pApp->id == 429660       || // Tales of Berseria
         pApp->id == 372360       || // Tales of Symphonia
         pApp->id == 738540     //|| // Tales of Vesperia DE
       //pApp->id == 351970          // Tales of Zestiria
@@ -852,20 +852,27 @@ Cache=false)";
       
         static std::wstring download, filename, path;
 
-        if      (_appid == 359870) // FFX/X-2 HD Remaster
+        switch (_appid)
         {
+        case 359870: // FFX/X-2 HD Remaster
           filename = L"SpecialK_UnX.exe";
           download = L"https://sk-data.special-k.info/UnX/SpecialK_UnX.exe";
-        }
-        else if (_appid == 372360) // Tales of Symphonia
-        {
+          break;
+        case 429660: // Tales of Berseria
+          filename = L"SpecialK_TBFix.exe";
+          download = L"https://sk-data.special-k.info/TBFix/SpecialK_TBFix.exe";
+          break;
+        case 372360: // Tales of Symphonia
           filename = L"SpecialK_TSFix.exe";
           download = L"https://sk-data.special-k.info/TSFix/SpecialK_TSFix.exe";
-        }
-        else if (_appid == 738540) // Tales of Vesperia DE
-        {
+          break;
+        case 738540: // Tales of Vesperia DE
           filename = L"SpecialK_TVFix.exe";
           download = L"https://sk-data.special-k.info/TVFix/SpecialK_TVFix.exe";
+          break;
+        default:
+          PLOG_ERROR << "Unknown app id: " << _appid;
+          break;
         }
 
         path = root + filename;
