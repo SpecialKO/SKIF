@@ -70,12 +70,12 @@ extern bool RecreateSwapChainsPending;
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
 // External functions
-extern bool SKIF_Util_IsWindows8Point1OrGreater   (void);
-extern bool SKIF_Util_IsWindows10OrGreater        (void);
-extern bool SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
-extern bool SKIF_Util_IsHDRSupported              (bool refresh = false);
-extern bool SKIF_Util_IsHDRActive                 (bool refresh = false);
-extern int  SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
+extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
+extern bool  SKIF_Util_IsWindows10OrGreater        (void);
+extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool  SKIF_Util_IsHDRSupported              (bool refresh = false);
+extern bool  SKIF_Util_IsHDRActive                 (bool refresh = false);
+extern float SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 
 // DirectX data
 static CComPtr <ID3D11Device>             g_pd3dDevice;
@@ -149,7 +149,7 @@ struct ImGuiViewportDataDx11 {
   UINT                    PresentCount;
   HANDLE                  WaitHandle;
   int                     SDRMode;
-  int                     SDRWhiteLevel; // SDR white level in nits for the display
+  FLOAT                   SDRWhiteLevel; // SDR white level in nits for the display
   int                     HDRMode;
   bool                    HDR;
   FLOAT                   HDRLuma;
@@ -157,7 +157,7 @@ struct ImGuiViewportDataDx11 {
   DXGI_OUTPUT_DESC1       DXGIDesc;
   DXGI_FORMAT             DXGIFormat;
 
-   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
+   ImGuiViewportDataDx11 (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80.0f; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
   ~ImGuiViewportDataDx11 (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0);                                }
 
   FLOAT SKIF_GetMaxHDRLuminance (bool bAllowLocalRange)
@@ -172,7 +172,7 @@ struct ImGuiViewportDataDx11 {
 
   FLOAT SKIF_GetMinHDRLuminance (void)
   {
-    if (! HDR && SDRWhiteLevel == 80)
+    if (! HDR && SDRWhiteLevel == 80.0f)
       return 0.0f;
 
     if (         DXGIDesc.MinLuminance > DXGIDesc.MaxFullFrameLuminance)
@@ -420,7 +420,7 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     else if (data->DXGIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
     {
       // SDR 16 bpc on HDR display
-      if (data->SDRWhiteLevel > 80)
+      if (data->SDRWhiteLevel > 80.0f)
         constant_buffer->luminance_scale [0] = (data->SDRWhiteLevel               / 80.0f);
 
       // SDR 16 bpc on SDR display

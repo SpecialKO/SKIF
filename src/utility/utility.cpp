@@ -1370,14 +1370,12 @@ SKIF_Util_IsHDRActive (bool refresh)
 
 // Get the SDR white level for a display
 // Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/74605112/15133327
-int
+float
 SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
 {
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
   std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
   DWORD result = ERROR_SUCCESS;
-
-  int nits = 80;
 
   do
   {
@@ -1388,7 +1386,7 @@ SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
     if (result != ERROR_SUCCESS)
     {
       PLOG_ERROR << "GetDisplayConfigBufferSizes failed: " << SKIF_Util_GetErrorAsWStr (result);
-      return nits;
+      return 80.0f;
     }
 
     // Allocate the path and mode arrays
@@ -1410,7 +1408,7 @@ SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
   if (result != ERROR_SUCCESS)
   {
     PLOG_ERROR << "QueryDisplayConfig failed: " << SKIF_Util_GetErrorAsWStr (result);
-    return nits;
+    return 80.0f;
   }
 
   // Enumerate all monitors => (handle, device name)>
@@ -1467,13 +1465,10 @@ SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
     // To get value in nits use the following conversion
     // SDRWhiteLevel in nits = (SDRWhiteLevel / 1000) * 80
     if (getSDRWhiteLevel.SDRWhiteLevel)
-    {
-      float fNits = (getSDRWhiteLevel.SDRWhiteLevel / 1000.0f) * 80.0f;
-      nits = static_cast<int>(fNits);
-    }
+      return (static_cast<float> (getSDRWhiteLevel.SDRWhiteLevel) / 1000.0f) * 80.0f;
   }
 
-  return nits;
+  return 80.0f;
 }
 
 // Toggles the HDR state of the display the cursor is currently on
