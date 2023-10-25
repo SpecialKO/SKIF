@@ -115,10 +115,9 @@ CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
 
 float
-ApplySRGBAlpha (float a)
+AdjustAlpha (float a)
 {
-    return ( a < 0.0031308f ? 12.92f * a :
-                     1.055f * std::pow ( a, 1.0f / 2.4f ) - 0.55f );
+  return std::pow (a, 1.0f / 2.2f );
 }
 
 #pragma region Trie Keyboard Hint Search
@@ -1763,13 +1762,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-#if 0
+#if 1
   extern bool SKIF_bHDREnabled;
 
   float fGammaCorrectedTint = 
     ((! SKIF_bHDREnabled && _registry.iSDRMode == 2) || 
      (  SKIF_bHDREnabled && _registry.iHDRMode == 2))
-        ? ApplySRGBAlpha (fTint)
+        ? AdjustAlpha (fTint)
         : fTint;
 #endif
   
@@ -1779,7 +1778,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fTint * fAlpha)  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency
+                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * fAlpha)  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency
                                   (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
   );
 
@@ -3353,8 +3352,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                      ImVec2 (0.f,       0.f),
                                                      ImVec2 (1.f,       1.f),     0,
                                                      ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                  hoveredPatButton ? ImVec4 (  1.f,  1.f,  1.f, 1.0f)
-                                                   : ImVec4 (  .8f,  .8f,  .8f, .66f));
+                                  hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
+                                                   : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
 
     // Restore frame border
     ImGui::PopStyleVar   ( );
