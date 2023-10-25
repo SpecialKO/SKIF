@@ -1925,8 +1925,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             targetPath += L"cover";
 
-            if (ext == L".jpg")
-              DeleteFile((targetPath + L".png").c_str());
+            DeleteFile((targetPath + L".jpg").c_str());
+            DeleteFile((targetPath + L".png").c_str());
 
             CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
 
@@ -1964,9 +1964,9 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
 
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                  d3 = false,
-                  d4 = false;
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = false,
+                 d4 = false;
 
             // For Xbox titles we also store a fallback cover that we must reset
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
@@ -2957,8 +2957,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring fileName = (pApp->tex_icon.isCustom) ? L"icon" : L"icon-original";
 
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                  d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
 
             // If any file was removed
             if (d1 || d2 || d3)
@@ -4886,6 +4886,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       SKIF_ResourcesToFree.push(pPatTexSRV.p);
       pPatTexSRV.p = nullptr;
+    }
+
+    if (pSKLogoTexSRV.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(pSKLogoTexSRV.p);
+      pSKLogoTexSRV.p = nullptr;
     }
 
     for (auto& app : apps)
