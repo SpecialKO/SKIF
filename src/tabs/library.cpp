@@ -1078,8 +1078,46 @@ Cache=false)";
         std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
                               ? pApp->launch_configs[0].executable_helper
                               : pApp->launch_configs[0].getExecutableFullPath(pApp->id);
-            
-        SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", pApp->launch_configs[0].launch_options.c_str(), pApp->launch_configs[0].working_dir.c_str());
+
+        // We need to use a proxy variable since we might remove a substring of the launch options
+        std::wstring cmdLine      = pApp->launch_configs[0].launch_options;
+
+        // Transform to lowercase
+        std::wstring cmdLineLower = SKIF_Util_ToLowerW (pApp->launch_configs[0].launch_options);
+
+        // Extract the SKIF_SteamAppID cmd line argument
+        const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
+        size_t posSKIF_SteamAppID_start       = cmdLineLower.find (argSKIF_SteamAppID);
+        std::wstring steamAppId               = L"";
+
+        if (posSKIF_SteamAppID_start != std::wstring::npos)
+        {
+          size_t
+            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
+
+          if (posSKIF_SteamAppID_end == std::wstring::npos)
+            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
+
+          // Length of the substring to remove
+          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
+
+          steamAppId = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+
+          // Remove substring from the proxy variable
+          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+        }
+
+        if (! steamAppId.empty ( ))
+        {
+          PLOG_INFO << "Using Steam App ID : " << steamAppId;
+          SetEnvironmentVariable (L"SteamAppId",  steamAppId.c_str());
+        }
+
+        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+        SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), pApp->launch_configs[0].working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
+
+        if (! steamAppId.empty ( ))
+          SetEnvironmentVariable (L"SteamAppId",  NULL);
 
         /*
         SHELLEXECUTEINFOW
