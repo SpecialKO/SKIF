@@ -463,6 +463,9 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     if (posSKIF_SteamAppID_end == std::wstring::npos)
       posSKIF_SteamAppID_end    = cmdLineLower.length ( );
 
+    // Length of the substring to remove
+    posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
+
     steamAppId = cmdLineLower.substr(posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
 
     // Remove substring from the original variables
