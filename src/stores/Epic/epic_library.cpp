@@ -53,10 +53,10 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
   PLOG_INFO << "Detecting Epic games...";
 
-  HKEY hKey;
+  HKEY  hKey;
   DWORD dwSize;
   WCHAR szData[MAX_PATH];
-  bool registrySuccess = false;
+  bool  registrySuccess = false;
 
   // See if we can retrieve the launcher's appdata path from registry
   if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
@@ -111,10 +111,6 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
         if (jf.at ("LaunchExecutable").get <std::string_view>().empty())
           continue;
 
-        // Skip if the install location does not exist
-        if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
-          continue;
-
         bool isGame = false;
 
         for (auto& categories : jf["AppCategories"])
@@ -125,11 +121,29 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
         if (isGame)
         {
-          int appid = jf.at("InstallSize");
+          std::wstring egsstore_manifest =
+            SK_FormatStringW  (LR"(%ws\%ws.manifest)",
+            SK_UTF8ToWideChar (jf.at ("ManifestLocation")).c_str(),
+            SK_UTF8ToWideChar (jf.at ("InstallationGuid")).c_str()
+          );
 
-          // Set SKIF's internal "appid" to the installsize of the game.
-          //   TODO: Replace with some other proper solution that ensures no hits with other platforms
-          app_record_s record(appid);
+          // Skip if a corresponding manifest file does not reside in the expected .egstore folder
+          if (! PathFileExists (egsstore_manifest.c_str()))
+            continue;
+
+          // Skip if the install location does not exist
+          //if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
+          //  continue;
+
+          std::string CatalogNamespace    = jf.at("CatalogNamespace"),
+                      CatalogItemId       = jf.at("CatalogItemId"),
+                      AppName             = jf.at("AppName");
+
+          // Hash the AppName into a unique integer we use for internal tracking purposes
+          std::hash <std::string> stoi_hasher;
+          size_t int_hash = stoi_hasher (AppName);
+
+          app_record_s record(static_cast<uint32_t>(int_hash));
 
           //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
@@ -161,10 +175,6 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
           lc.working_dir                  = record.install_dir;
           //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
-
-          std::string CatalogNamespace    = jf.at("CatalogNamespace"),
-                      CatalogItemId       = jf.at("CatalogItemId"),
-                      AppName             = jf.at("AppName");
 
           // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
           lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
