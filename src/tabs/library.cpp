@@ -1118,20 +1118,6 @@ Cache=false)";
 
         if (! steamAppId.empty ( ))
           SetEnvironmentVariable (L"SteamAppId",  NULL);
-
-        /*
-        SHELLEXECUTEINFOW
-        sexi              = { };
-        sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-        sexi.lpVerb       = L"OPEN";
-        sexi.lpFile       = wszPath.c_str();
-        sexi.lpParameters = pApp->launch_configs[0].launch_options.c_str();
-        sexi.lpDirectory  = pApp->launch_configs[0].working_dir   .c_str();
-        sexi.nShow        = SW_SHOWDEFAULT;
-        sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS;  // SEE_MASK_ASYNCOK cannot be used since we are removing the environmental variable
-
-        ShellExecuteExW (&sexi);
-        */
       }
           
       // Fallback for minimizing SKIF when not using SK if configured as such
