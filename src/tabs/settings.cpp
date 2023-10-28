@@ -1399,6 +1399,15 @@ SKIF_UI_Tab_DrawSettings (void)
       wchar_t              wszRunDLL32 [MAX_PATH + 2] = { };
       GetSystemDirectoryW (wszRunDLL32, MAX_PATH);
       PathAppendW         (wszRunDLL32, L"rundll32.exe");
+      static std::wstring wsDisableCall = SK_FormatStringW (
+        LR"("%ws\%ws",RunDLL_DisableGFEForSKIF)",
+          _path_cache.specialk_install,
+#ifdef _WIN64
+          L"SpecialK64.dll"
+#else
+          L"SpecialK32.dll"
+#endif
+        );
 
       SHELLEXECUTEINFOW
         sexi              = { };
@@ -1406,7 +1415,7 @@ SKIF_UI_Tab_DrawSettings (void)
         sexi.lpVerb       = L"RUNAS";
         sexi.lpFile       = wszRunDLL32;
       //sexi.lpDirectory  = ;
-        sexi.lpParameters = SK_FormatStringW (LR"("%ws\SpecialK64.dll",RunDLL_DisableGFEForSKIF)", _path_cache.specialk_install).c_str();
+        sexi.lpParameters = wsDisableCall.c_str();
         sexi.nShow        = SW_SHOW;
         sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
         
