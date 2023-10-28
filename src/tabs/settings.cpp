@@ -1220,7 +1220,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine         ( );
         ImGui::TextColored      (
           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
-          ICON_FA_WINDOWS " + Ctrl + Shift + H");
+          "Ctrl + " ICON_FA_WINDOWS " + Shift + H");
         ImGui::SameLine         ( );
         ImGui::TextDisabled     ("to toggle HDR where the");
         ImGui::SameLine         ( );

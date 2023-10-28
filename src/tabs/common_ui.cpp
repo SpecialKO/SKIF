@@ -357,7 +357,7 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      ICON_FA_WINDOWS " + Ctrl + Shift + H");
+      "Ctrl + " ICON_FA_WINDOWS " + Shift + H");
     ImGui::SameLine         ( );
     ImGui::Text             ("to toggle HDR where the");
     ImGui::SameLine         ( );
@@ -386,7 +386,7 @@ void SKIF_UI_TipsAndTricks (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    ICON_FA_KEYBOARD " Ctrl + Shift");
+    "Ctrl + Shift"); // ICON_FA_KEYBOARD
   ImGui::SameLine         ( );
   ImGui::Text             ("when starting a game to access compatibility options");
   ImGui::SetCursorPosX    (fX1);
