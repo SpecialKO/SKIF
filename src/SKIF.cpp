@@ -3742,7 +3742,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_LAUNCHER:
       if (_inject.runState != SKIF_InjectionContext::RunningState::Started)
+      {
+        PLOG_INFO << "Suppressing the initial 'Please launch a game to continue' notification...";
+        _registry._SuppressServiceNotification = true;
         _inject._StartStopInject (false, true, wParam);
+      }
 
       // Reload the whitelist as it might have been changed
       _inject.LoadWhitelist      ( );
