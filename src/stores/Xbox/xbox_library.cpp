@@ -39,7 +39,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   WCHAR szSubKeyGUID[MAX_PATH] { },
         szSubKey    [MAX_PATH] { },
         szData      [MAX_PATH] { };
-  int AppID = 1; // All apps with 0 will be ignored, so start at 1
   std::vector<std::pair<int, std::wstring>> gamingRoots;
 
   /* Load Xbox titles from registry */
@@ -88,7 +87,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                     if (RegGetValueW (hSubKey, szSubKey, L"Root", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                     {
                       pugi::xml_document manifest, config;
-                      app_record_s record (AppID);
+                      app_record_s record (0); // Dummy value that will be changed further down
 
                       PLOG_VERBOSE << "Root: " << szData;
 
@@ -165,9 +164,15 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
 
+                      // Hash the PackageName into a unique integer we use for internal tracking purposes
+                      std::hash <std::string> stoi_hasher;
+                      size_t int_hash = stoi_hasher (record.Xbox_PackageName);
+
+                      record.id = static_cast<uint32_t>(int_hash);
+
                       // Hardcoded override for Forza Motorsport's weirdly configured manifest
                       if (record.Xbox_PackageName == "Microsoft.ForzaMotorsport" &&
-                          record.names.normal == "ms-resource:IDS_Title2")
+                          record.names.normal     == "ms-resource:IDS_Title2")
                         record.names.normal = "Forza Motorsport";
 
                       // If we have found a partial path, construct the assumed full path
@@ -328,9 +333,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (Xbox);
-                      
-                      // Increment the internal app ID
-                      AppID++;
                     }
                   }
                 }
