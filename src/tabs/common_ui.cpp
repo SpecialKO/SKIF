@@ -336,7 +336,13 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Start typing the name of a game in the library tab to quicky find it.");
+  ImGui::Text             ("Start typing");
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+    ICON_FA_KEYBOARD);
+  ImGui::SameLine         ( );
+  ImGui::Text             ("the name of a game in the library tab to quicky find it.");
   ImGui::EndGroup         ( );
 
 
@@ -386,7 +392,7 @@ void SKIF_UI_TipsAndTricks (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    "Ctrl + Shift"); // ICON_FA_KEYBOARD
+    "Ctrl + Shift");
   ImGui::SameLine         ( );
   ImGui::Text             ("when starting a game to access compatibility options");
   ImGui::SetCursorPosX    (fX1);
