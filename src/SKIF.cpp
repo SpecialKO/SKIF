@@ -215,6 +215,11 @@ DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID t
 void
 SKIF_Startup_SetGameAsForeground (void)
 {
+  // Exit if there is nothing to actually do
+  if (pidForegroundFocusOnExit  == NULL && 
+      hWndForegroundFocusOnExit == nullptr)
+    return;
+
   static DWORD _pid;
   
   _pid = 0;
@@ -1593,6 +1598,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //OutputDebugString(L"InjAck was signalled!\n");
       PLOG_DEBUG << "Injection was acknowledged, service is being stopped!";
       hInjectAck.Close ();
+      
+      SKIF_Startup_SetGameAsForeground ( );
 
       _inject.bAckInjSignaled = true;
       _inject._StartStopInject (true);
@@ -1602,20 +1609,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (_registry._ExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
       static DWORD dwExitDelay = SKIF_Util_timeGetTime() + _registry._NotifyMessageDuration * 1000;
-      
-      SKIF_Startup_SetGameAsForeground ( );
-
-      PLOG_INFO << "Terminating as the app is set to exit on injection...";
 
       // MessageDuration seconds delay to allow Windows to send both notifications properly
       // If notifications are disabled, exit immediately
       if (_registry.iNotifications == 0 ||
          (dwExitDelay < SKIF_Util_timeGetTime()))
       {
+        SKIF_Startup_SetGameAsForeground ( );
+
+        PLOG_INFO << "Terminating as the app is set to exit on injection...";
+
         _registry._ExitOnInjection = false;
         //PostMessage (hWnd, WM_QUIT, 0, 0);
         PostQuitMessage (0);
       }
+    }
+
+    // Attempt to set the game window as foreground after SKIF's window has appeared
+    static bool
+        runPostWindowCreation =  true;
+    if (_Signal.Launcher &&
+        runPostWindowCreation && SKIF_ImGui_hWnd != NULL)
+    {   runPostWindowCreation =  false;
+      SKIF_Startup_SetGameAsForeground ( );
     }
 
     // Apply any changes to the ImGui style
