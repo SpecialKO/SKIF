@@ -112,6 +112,7 @@ struct SKIF_Signals { // Used for command line arguments
 
   // Helper variables
   HWND _RunningInstance     = NULL;
+  BOOL _DoNotUseService     = FALSE;
   BOOL _ElevatedService     = FALSE;
   std::wstring _GamePath    = L"";
   std::wstring _GameArgs    = L"";

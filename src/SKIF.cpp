@@ -502,6 +502,12 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 
   if (PathFileExists (path.c_str()))
   {
+    _Signal._GamePath        = path;
+    _Signal._GameArgs        = proxiedCmdLine;
+    _Signal._GameWorkDir     = workingDirectory;
+    if (! steamAppId.empty())
+      _Signal._SteamAppID    = steamAppId;
+
     std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
                                                     std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
                                                     std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
@@ -511,8 +517,9 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     isLocalBlacklisted  = PathFileExistsW (blacklistFile.c_str());
     isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
-    if (! isLocalBlacklisted &&
-        ! isGlobalBlacklisted)
+    _Signal._DoNotUseService = (isLocalBlacklisted || isGlobalBlacklisted);
+
+    if (! _Signal._DoNotUseService)
     {
       // Whitelist the path if it haven't been already
       _inject.WhitelistPath (SK_WideCharToUTF8(path));
@@ -522,11 +529,6 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
                                                       std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
-      _Signal._GamePath        = path;
-      _Signal._GameArgs        = proxiedCmdLine;
-      _Signal._GameWorkDir     = workingDirectory;
-      if (! steamAppId.empty())
-        _Signal._SteamAppID    = steamAppId;
       _Signal._ElevatedService = PathFileExists (elevationFile.c_str());
     }
   }
@@ -545,23 +547,35 @@ SKIF_Startup_LaunchGameService (void)
     return;
   
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
-  PLOG_INFO << "Suppressing the initial 'Please launch a game to continue' notification...";
-  _registry._SuppressServiceNotification = true;
-
-  PLOG_INFO << "Starting injection service...";
-
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  if (_Signal._RunningInstance)
-    SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, _Signal._ElevatedService, 0x0);
-
-  else if (! _inject.bCurrentState)
+  if (_Signal._DoNotUseService)
   {
-    _registry._ExitOnInjection = true;
-    _inject._StartStopInject (false, true, _Signal._ElevatedService);
+    if (_Signal._RunningInstance && _inject.bCurrentState)
+    {
+      PLOG_INFO << "Stopping injection service...";
+      SendMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
+    }
+  }
+
+  else {
+    PLOG_INFO << "Suppressing the initial 'Please launch a game to continue' notification...";
+    _registry._SuppressServiceNotification = true;
+
+    PLOG_INFO << "Starting injection service...";
+
+    if (_Signal._RunningInstance)
+      SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, _Signal._ElevatedService, 0x0);
+
+    else if (! _inject.bCurrentState)
+    {
+
+      _registry._ExitOnInjection = true;
+      _inject._StartStopInject (false, true, _Signal._ElevatedService);
+    }
   }
 }
+
 
 void
 SKIF_Startup_LaunchGame (void)
@@ -580,7 +594,7 @@ SKIF_Startup_LaunchGame (void)
   if (! _Signal._SteamAppID.empty ( ))
   {
     PLOG_INFO << "        Steam App ID : " << _Signal._SteamAppID;
-    SetEnvironmentVariable (L"SteamAppId",  _Signal._SteamAppID.c_str());
+    SetEnvironmentVariable (L"SteamAppId",    _Signal._SteamAppID.c_str());
   }
 
   SHELLEXECUTEINFOW
@@ -610,7 +624,7 @@ SKIF_Startup_LaunchGame (void)
   }
 
   // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
-  if (_Signal._RunningInstance)
+  if (_Signal._RunningInstance || _Signal._DoNotUseService)
   {
     SKIF_Startup_SetGameAsForeground ( );
     PLOG_INFO << "Terminating as this instance has fulfilled its purpose.";
