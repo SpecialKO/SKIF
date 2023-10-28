@@ -1416,7 +1416,7 @@ SKIF_UI_Tab_DrawSettings (void)
         sexi.lpFile       = wszRunDLL32;
       //sexi.lpDirectory  = ;
         sexi.lpParameters = wsDisableCall.c_str();
-        sexi.nShow        = SW_SHOW;
+        sexi.nShow        = SW_SHOWNORMAL;
         sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
         
       SetLastError (NO_ERROR);
@@ -1896,7 +1896,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       if (PathFileExists (SKIFdrv.c_str()) && PathFileExists (SYSdrv.c_str()))
       {
-        if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+        if (ShellExecuteW (nullptr, L"runas", SKIFdrv.c_str(), wszDriverTaskCmd.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           driverStatusPending =
                 (driverStatus == Installed) ?
                               NotInstalled  : Installed;
@@ -2081,7 +2081,7 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         // S-1-5-32-559 == Group : Performance Log Users
         // S-1-5-4      == User  : NT AUTHORITY\INTERACTIVE
-        if (ShellExecuteW (nullptr, L"runas", L"powershell.exe", LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")", nullptr, SW_SHOW) > (HINSTANCE)32)
+        if (ShellExecuteW (nullptr, L"runas", L"powershell.exe", LR"(-NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-LocalGroupMember -SID 'S-1-5-32-559' -Member 'S-1-5-4'")", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           pfuState = Pending;
       }
 
@@ -2093,7 +2093,7 @@ SKIF_UI_Tab_DrawSettings (void)
         exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
 
         // Note that this can still fail apparently, as 'net' might be unable to handle some non-Latin characters properly (e.g. Russian localized names)
-        if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOW) > (HINSTANCE)32)
+        if (ShellExecuteW (nullptr, L"runas", L"net", exeArgs.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           pfuState = Pending;
       }
     }
@@ -2284,7 +2284,7 @@ SKIF_UI_Tab_DrawSettings (void)
         if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
         {
           PLOG_DEBUG << "Restarting the display driver...";
-          ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOW);
+          ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOWNORMAL);
         }
 
         ImGui::EndPopup ( );
@@ -2297,7 +2297,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::PushStyleColor     (ImGuiCol_Text, ImColor::HSV (0.11F,   1.F, 1.F).Value);
         if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset (restart required)"))
         {
-          if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOW) > (HINSTANCE)32)
+          if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           {
             dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500; // Trigger a refresh in 500ms
           }

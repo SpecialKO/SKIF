@@ -604,7 +604,7 @@ SKIF_Startup_LaunchGame (void)
     sexi.lpFile       = _Signal._GamePath.c_str();
     sexi.lpParameters = _Signal._GameArgs.c_str();
     sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
-    sexi.nShow        = SW_SHOW;
+    sexi.nShow        = SW_SHOWNORMAL;
     sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
                         SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
                         SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed

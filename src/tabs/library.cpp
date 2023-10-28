@@ -898,7 +898,7 @@ Cache=false)";
             sexi.lpFile       = path.c_str();
             sexi.lpParameters = NULL;
             sexi.lpDirectory  = NULL;
-            sexi.nShow        = SW_SHOW;
+            sexi.nShow        = SW_SHOWNORMAL;
             sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
                                 SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
                                 SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
