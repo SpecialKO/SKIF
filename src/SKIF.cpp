@@ -2489,8 +2489,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //       This also means the main DLL refresh watch is tied to the tab SKIF opens up
       //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
       static SKIF_DirectoryWatch root_folder;
-      if (root_folder.isSignaled (_path_cache.specialk_install, true))
+      static DWORD               root_folder_signaled = 0;
+      const  DWORD               root_folder_auto_refresh = 1000;
+      if (root_folder.isSignaled (_path_cache.specialk_install, true, true))
       {
+        root_folder_signaled = SKIF_Util_timeGetTime ( );
+
+        // Create a timer to trigger a refresh after the time has expired
+        SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_DIR_ROOT, root_folder_auto_refresh + 50, NULL);
+      }
+
+      // if we were signaled more than 5 seconds ago, do the usual refesh
+      if (root_folder_signaled > 0 && root_folder_signaled + root_folder_auto_refresh < SKIF_Util_timeGetTime ( ))
+      {   root_folder_signaled = 0;
+        
+        // Destroy the timer
+        KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_DIR_ROOT);
+
         // If the Special K DLL file is currently loaded, unload it
         if (hModSpecialK != 0)
         {

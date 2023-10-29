@@ -45,6 +45,7 @@ const     UINT_PTR        IDT_REFRESH_GAMES     =             1340;
 const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
 const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
 const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
+const     UINT_PTR        IDT_REFRESH_DIR_ROOT  =             1344; // Used by the directory watch for the root folder
 
 // Cmd line argument triggers
 constexpr UINT           WM_SKIF_MINIMIZE       = WM_USER +  0x512;
