@@ -214,6 +214,7 @@ struct VERTEX_CONSTANT_BUFFER {
 // Forward Declarations
 static void ImGui_ImplDX11_InitPlatformInterface     (void);
 static void ImGui_ImplDX11_ShutdownPlatformInterface (void);
+static void ImGui_ImplDX11_GetDesiredSwapChainFormat (ImGuiViewport* viewport = nullptr, DXGI_SWAP_CHAIN_DESC1* current = nullptr);
 
 static void
 ImGui_ImplDX11_SetupRenderState ( ImDrawData          *draw_data,
@@ -794,7 +795,7 @@ ImGui_ImplDX11_InvalidateDeviceObjects (void)
   g_pVertexShader         = nullptr;
 }
 
-void
+static void
 ImGui_ImplDX11_LogSwapChainFormat (ImGuiViewport *viewport)
 {
   ImGuiViewportDataDx11 *data =
@@ -1016,7 +1017,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
 
   IM_ASSERT ( data->SwapChain == nullptr &&
               data->RTView    == nullptr );
-
+  
   DXGI_FORMAT dxgi_format;
 
   // HDR formats
@@ -1075,15 +1076,11 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         _registry.iUIMode     = 0;
       }
 
-      if (SUCCEEDED (g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
+      if (SUCCEEDED (  g_pFactory->CreateSwapChainForHwnd ( g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                                 &data->SwapChain ))) break;
-      else {
-        if (FAILED (g_pd3dDevice->GetDeviceRemovedReason ( )))
+      else if (FAILED (g_pd3dDevice->GetDeviceRemovedReason ( )) ||
+                      ! g_pFactory->IsCurrent ( ))
           return;
-
-        if (! g_pFactory->IsCurrent ( ))
-          return;
-      }
     }
   }
 
@@ -1215,15 +1212,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                 SKIF_bHDREnabled = true;
               }
             }
-          }
-
-          else {
-            // AMD flickering bug fix?
-            // TODO: Fix this crap
-            if (swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-              pSwapChain3->SetColorSpace1 (DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709);
-            else
-              pSwapChain3->SetColorSpace1 (DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
           }
         }
 #pragma endregion
@@ -1493,3 +1481,52 @@ ImGui_ImplDX11_ShutdownPlatformInterface (void)
 {
   ImGui::DestroyPlatformWindows ();
 }
+
+#if 0
+static void
+ImGui_ImplDX11_GetDesiredSwapChainFormat (ImGuiViewport* viewport, DXGI_SWAP_CHAIN_DESC1* swap_desc)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  DXGI_FORMAT dxgi_format;
+
+  // HDR formats
+  if (SKIF_bCanHDR && _registry.iHDRMode > 0)
+  {
+    if      (_registry.iHDRMode == 2)
+      dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // scRGB (16 bpc)
+    else
+      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // HDR10 (10 bpc)
+  }
+
+  // SDR formats
+  else {
+    if      (_registry.iSDRMode == 2)
+      dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // 16 bpc
+    else if (_registry.iSDRMode == 1 && SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299))
+      dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // 10 bpc (apparently only supported for flip on Win10 1709+)
+    else
+      dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;     // 8 bpc;
+  }
+
+  // Create the swapchain for the viewport
+  DXGI_SWAP_CHAIN_DESC1
+    swap_desc                  = { };
+  swap_desc.Width              = (UINT)viewport->Size.x;
+  swap_desc.Height             = (UINT)viewport->Size.y;
+  swap_desc.Format             = dxgi_format;
+  swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+  swap_desc.Flags              = 0x0;
+  swap_desc.SampleDesc.Count   = 1;
+  swap_desc.SampleDesc.Quality = 0;
+
+  // Assume flip by default
+  swap_desc.BufferCount  = 3; // Must be 2-16 for flip model // 2 to prevent SKIF from rendering x2 the refresh rate
+
+  if (SKIF_bCanWaitSwapchain)
+    swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+  if (SKIF_bCanAllowTearing)
+    swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+}
+#endif
