@@ -26,6 +26,7 @@
 #include <utility/utility.h>
 #include <filesystem>
 #include <stores/Steam/apps_ignore.h>
+#include <regex>
 
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
 const GUID IID_VFS_SteamUGC =
@@ -506,6 +507,16 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 
             if (! lib_path.empty ())
             {
+              // Strip double backslashes characters from the string
+              try
+              {
+                lib_path = std::regex_replace (lib_path, std::wregex(LR"(\\\\)"), LR"(\)");
+              }
+              catch (const std::exception& e)
+              {
+                UNREFERENCED_PARAMETER(e);
+              }
+
               wcsncpy_s (
                 (wchar_t *)steam_lib_paths [steam_libs++], MAX_PATH,
                                  lib_path.c_str (),       _TRUNCATE );
