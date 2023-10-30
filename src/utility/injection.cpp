@@ -453,7 +453,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
 
 #ifdef _WIN64
   // Proxy64 cmd line argument is only available on newer service hosts and when the curDir and workDir is the same directory
-  static bool Proxy64 = (SKSvc32 >= "1.0.2.0" && instDir == workDir);
+  static bool Proxy64 = (SKSvc32 >= L"1.0.2.0" && instDir == workDir);
 
   if (Proxy64 && elevated)
   {
@@ -664,25 +664,34 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 void
 SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
-  static std::string SKVer32_old, SKSvc32_old,
-                     SKVer64_old, SKSvc64_old;
+  static std::wstring SKVer32_old, SKSvc32_old,
+                      SKVer64_old, SKSvc64_old;
 
   wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf32);
   PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
-  SKVer64 = SKVer32 =
-    SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf32));
+  SKVer64      = SKVer32      =
+    SKIF_GetSpecialKDLLVersion (wszPathToSelf32);
+  SKVer64_utf8 = SKVer32_utf8 =
+    SK_WideCharToUTF8 (SKVer64);
 
   wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSvc32);
   PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
-  SKSvc64 = SKSvc32 =
-    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc32));
-  
-  PLOG_INFO_IF(SKVer32_old != SKVer32) << "SpecialK32.dll : " << SK_UTF8ToWideChar (SKVer32);
-  PLOG_INFO_IF(SKSvc32_old != SKSvc32) << "SKIFsvc32.exe  : " << SK_UTF8ToWideChar (SKSvc32);
+  SKSvc64      = SKSvc32      =
+    SKIF_GetFileVersion (wszPathToSvc32);
+
+  SKSvc64_utf8 = SKSvc32_utf8 =
+    SK_WideCharToUTF8 (SKSvc64);
+
+  if (SKVer32_old != SKVer32)
+  {
+    PLOG_INFO << "SpecialK32.dll : " << SKVer32;
+    PLOG_INFO << "SKIFsvc32.exe  : " << SKSvc32;
+    libCacheRefresh = true;
+  }
 
   SKVer32_old = SKVer32;
   SKSvc32_old = SKSvc32;
@@ -692,18 +701,26 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf64);
   PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");
-  SKVer64 =
-    SK_WideCharToUTF8 (SKIF_GetSpecialKDLLVersion (wszPathToSelf64));
+  SKVer64      =
+    SKIF_GetSpecialKDLLVersion (wszPathToSelf64);
+  SKVer64_utf8 =
+    SK_WideCharToUTF8 (SKVer64);
 
   wchar_t                       wszPathToSvc64 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSvc64, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSvc64);
   PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
-  SKSvc64 =
-    SK_WideCharToUTF8 (SKIF_GetFileVersion (wszPathToSvc64));
+  SKSvc64      =
+    SKIF_GetFileVersion (wszPathToSvc64);
+  SKSvc64_utf8 =
+    SK_WideCharToUTF8 (SKSvc64);
 
-  PLOG_INFO_IF(SKVer64_old != SKVer64) << "SpecialK64.dll : " << SK_UTF8ToWideChar (SKVer64);
-  PLOG_INFO_IF(SKSvc64_old != SKSvc64) << "SKIFsvc64.exe  : " << SK_UTF8ToWideChar (SKSvc64);
+  if (SKVer64_old != SKVer64)
+  {
+    PLOG_INFO << "SpecialK64.dll : " << SKVer64;
+    PLOG_INFO << "SKIFsvc64.exe  : " << SKSvc64;
+    libCacheRefresh = true;
+  }
 
   SKVer64_old = SKVer64;
   SKSvc64_old = SKSvc64;
@@ -759,11 +776,11 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::BeginGroup      ();
 #ifdef _WIN64
   if (SKVer32 == SKVer64)
-    ImGui::TextUnformatted (("v " + SKVer32).c_str ());
+    ImGui::TextUnformatted (("v " + SKVer64_utf8).c_str ());
   else
     ImGui::NewLine       ();
 #else
-    ImGui::TextUnformatted (("v " + SKVer32).c_str ());
+    ImGui::TextUnformatted (("v " + SKVer32_utf8).c_str ());
 #endif
 
   // Config Root
@@ -818,8 +835,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #ifdef _WIN64
   if (SKVer32 != SKVer64)
   {
-    ImGui::Text ("( v %s )", SKVer32.c_str ());
-    ImGui::Text ("( v %s )", SKVer64.c_str ());
+    ImGui::Text ("( v %s )", SKVer32_utf8.c_str ());
+    ImGui::Text ("( v %s )", SKVer64_utf8.c_str ());
   }
   else
     ImGui::NewLine ();
@@ -918,10 +935,10 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if ( bHasServlet )
   {
 #ifdef _WIN64
-    if (SKVer64 >= "21.08.12" &&
-        SKVer32 >= "21.08.12")
+    if (SKVer64 >= L"21.08.12" &&
+        SKVer32 >= L"21.08.12")
 #else
-    if (SKVer32 >= "21.08.12")
+    if (SKVer32 >= L"21.08.12")
 #endif
     {
 

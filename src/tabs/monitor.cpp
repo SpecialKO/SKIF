@@ -802,10 +802,10 @@ SKIF_UI_Tab_DrawMonitor (void)
   SKIF_ImGui_Spacing      ( );
 
 #ifdef _WIN64
-  if ( _inject.SKVer64 >= "21.08.12" &&
-        _inject.SKVer32 >= "21.08.12" )
+  if ( _inject.SKVer64 >= L"21.08.12" &&
+       _inject.SKVer32 >= L"21.08.12" )
 #else
-  if ( _inject.SKVer32 >= "21.08.12" )
+  if ( _inject.SKVer32 >= L"21.08.12" )
 #endif
   {
     if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))

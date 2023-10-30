@@ -53,12 +53,12 @@ void SKIF_UI_DrawComponentVersion (void)
     
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer32.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer32_utf8.c_str());
 
 #ifdef _WIN64
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer64.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer64_utf8.c_str());
 #endif
     
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");

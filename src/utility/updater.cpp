@@ -342,9 +342,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   PLOG_INFO << "Update Channel: " << wsCurrentBranch;
 
 #ifdef _WIN64
-  std::string currentVersion = _inject.SKVer64;
+  std::string currentVersion = _inject.SKVer64_utf8;
 #else
-  std::string currentVersion = _inject.SKVer32;
+  std::string currentVersion = _inject.SKVer32_utf8;
 #endif
 
   PLOG_INFO << "Installed version: " << currentVersion;

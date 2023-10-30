@@ -103,8 +103,6 @@ extern std::wstring    GOGGalaxy_Path;
 #define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
 #define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
-//static std::wstring sshot_file = L"";
-
 std::atomic<int>  textureLoadQueueLength{ 1 };
 
 int getTextureLoadQueuePos (void) {
@@ -113,6 +111,11 @@ int getTextureLoadQueuePos (void) {
 
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
+
+// Forward declaration
+void UpdateInjectionStrategy (app_record_s* pApp);
+
+// Functions / Structs
 
 float
 AdjustAlpha (float a)
@@ -138,18 +141,18 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 {
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
+  sk_install_state_s& sk_install =
+    pApp->specialk.injection;
+
   app_id   = pApp->id;
   running  = pApp->_status.running;
   updating = pApp->_status.updating;
   autostop = _inject.bAckInj;
 
-  service  = (pApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
-             (pApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
-             (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
-                                                                                            _inject.pid64));
-
-  sk_install_state_s& sk_install =
-    pApp->specialk.injection;
+  service  = (sk_install.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
+             (sk_install.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
+             (sk_install.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
+                                                                              _inject.pid64));
 
   wchar_t     wszDLLPath [MAX_PATH];
   wcsncpy_s ( wszDLLPath, MAX_PATH,
@@ -159,7 +162,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   dll.full_pathW = wszDLLPath;
   dll.full_path  = SK_WideCharToUTF8 (dll.full_pathW);
 
-  PathStripPathW (wszDLLPath);
+  PathStripPathW  (wszDLLPath);
   dll.shorthandW = wszDLLPath;
   dll.shorthand  = SK_WideCharToUTF8 (dll.shorthandW);
   dll.versionW   = sk_install.injection.dll_ver;
@@ -265,7 +268,7 @@ GetInjectionSummary (app_record_s* pApp)
           _cache.app_id != 351970          // Tales of Zestiria
         ))
     {
-      if (SKIF_Util_CompareVersionStrings (SK_UTF8ToWideChar(_inject.SKVer32), SK_UTF8ToWideChar(_cache.dll.version)) > 0)
+      if (SKIF_Util_CompareVersionStrings (_inject.SKVer32, SK_UTF8ToWideChar(_cache.dll.version)) > 0)
       {
         ret = true;
       }
@@ -290,7 +293,7 @@ GetInjectionSummary (app_record_s* pApp)
 
       if (CopyFile (wszPathToGlobalDLL, SK_UTF8ToWideChar (_cache.dll.full_path).c_str(), FALSE))
       {
-        PLOG_INFO << "Successfully updated " << SK_UTF8ToWideChar (_cache.dll.full_path) << " from v " << SK_UTF8ToWideChar (_cache.dll.version) << " to v " << SK_UTF8ToWideChar (_inject.SKVer32);
+        PLOG_INFO << "Successfully updated " << _cache.dll.full_path << " from v " << _cache.dll.version << " to v " << _inject.SKVer32;
       }
 
       else {
@@ -300,20 +303,27 @@ GetInjectionSummary (app_record_s* pApp)
     }
 
     else {
-      PLOG_ERROR << "Failed to retrieve binary type from " << SK_UTF8ToWideChar (_cache.dll.full_path) << " -- returned: " << iBinaryType;
+      PLOG_ERROR << "Failed to retrieve binary type from " << _cache.dll.full_path << " -- returned: " << iBinaryType;
       PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
     }
   };
 
 #pragma endregion
 
-  if (_cache.app_id   != pApp->id               ||
-      _cache.service  != _inject.bCurrentState  ||
-      _cache.running  != pApp->_status.running  ||
-      _cache.updating != pApp->_status.updating ||
-      _cache.autostop != _inject.bAckInj         )
+  if (_cache.app_id      != pApp->id               ||
+      _cache.service     != _inject.bCurrentState  ||
+      _cache.running     != pApp->_status.running  ||
+      _cache.updating    != pApp->_status.updating ||
+      _cache.autostop    != _inject.bAckInj        ||
+      _inject.libCacheRefresh   == true            )
   {
-      _cache.Refresh    (pApp);
+    // If the global DLL files have been changed, we also need to update the injection strategy before we refresh the cache
+    if (_inject.libCacheRefresh)
+    {   _inject.libCacheRefresh  = false;
+      UpdateInjectionStrategy (pApp);
+    }
+
+    _cache.Refresh    (pApp);
   }
 
   static constexpr float
@@ -390,7 +400,7 @@ GetInjectionSummary (app_record_s* pApp)
     {
       if (_IsLocalDLLFileOutdated( ))
       {
-        if (ImGui::Selectable (("Update to v " + _inject.SKVer32).c_str( )))
+        if (ImGui::Selectable (("Update to v " + _inject.SKVer32_utf8).c_str( )))
         {
           _UpdateLocalDLLFile ( );
         }
@@ -733,7 +743,7 @@ Cache=false)";
       ImGui::PopStyleColor ( );
 
       SKIF_ImGui_SetHoverTip (("The local DLL file is outdated.\n"
-                                "Click to update it to v " + _inject.SKVer32 + "."));
+                                "Click to update it to v " + _inject.SKVer32_utf8 + "."));
     }
   }
 
@@ -1231,8 +1241,10 @@ UpdateInjectionStrategy (app_record_s* pApp)
                                        : L"SpecialK32.dll" );
 
     pApp->specialk.injection.injection.dll_path = wszPathToSelf;
-    pApp->specialk.injection.injection.dll_ver  =
-    SKIF_GetSpecialKDLLVersion (       wszPathToSelf);
+    pApp->specialk.injection.injection.dll_ver  = 
+                              bIs64Bit ? _inject.SKVer64
+                                       : _inject.SKVer32;
+    //SKIF_GetSpecialKDLLVersion (       wszPathToSelf);
 
     pApp->specialk.injection.injection.type =
       InjectionType::Global;

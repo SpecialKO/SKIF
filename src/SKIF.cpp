@@ -2597,9 +2597,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
          )
       {
 #ifdef _WIN64
-        std::string currentVersion = _inject.SKVer64;
+        std::string currentVersion = _inject.SKVer64_utf8;
 #else
-        std::string currentVersion = _inject.SKVer32;
+        std::string currentVersion = _inject.SKVer32_utf8;
 #endif
         std::string compareLabel;
         ImVec4      compareColor;
@@ -2869,7 +2869,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text        ("You are currently using");
         ImGui::SameLine    ( );
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64).c_str());
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
 
         SKIF_ImGui_Spacing ();
 
@@ -3021,11 +3021,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if ( bRefresh )
     {
+      // This renders the main viewport (index 0)
       ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
       // Update, Render and Present the main and any additional Platform Windows
       if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
       {
+        // This recreates any additional viewports (index 1+)
         if (RecreateWin32Windows)
         {   RecreateWin32Windows = false;
           
@@ -3039,15 +3041,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
-        ImGui::RenderPlatformWindowsDefault (); // Eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
+        // This renders any additional viewports (index 1+)
+        ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
+      }
 
-        static bool runOnce = true;
-        if (runOnce && SKIF_ImGui_hWnd != NULL)
-        {   runOnce = false;
+      static bool runOnce = true;
+      if (runOnce && SKIF_ImGui_hWnd != NULL)
+      {   runOnce = false;
 
-          SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
-          //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
-        }
+        SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+        //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
       }
     }
 

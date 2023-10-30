@@ -76,10 +76,15 @@ struct SKIF_InjectionContext {
   std::array <pid_file_watch_s, 1> records;
 #endif
 
-  std::string SKVer32 = "";
-  std::string SKVer64 = "";
-  std::string SKSvc32 = "";
-  std::string SKSvc64 = "";
+  std::wstring SKVer32      = L"";
+  std::string  SKVer32_utf8 = "";
+  std::wstring SKVer64      = L"";
+  std::string  SKVer64_utf8 = "";
+  std::wstring SKSvc32      = L"";
+  std::string  SKSvc32_utf8 = "";
+  std::wstring SKSvc64      = L"";
+  std::string  SKSvc64_utf8 = "";
+  bool         libCacheRefresh = false; // Signals to the library that it should refresh the injection cache for a game
   
   bool    isPending               (void);
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
