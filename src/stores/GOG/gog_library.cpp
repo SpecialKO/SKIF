@@ -78,8 +78,6 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
               record.store      = app_record_s::Store::GOG;
               record.store_utf8 = "GOG";
-              //record.type  = "Game";
-              //GOG_record.extended_config.vac.enabled = false;
               record._status.installed = true;
 
               dwSize = sizeof(szData) / sizeof(WCHAR);

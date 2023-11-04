@@ -105,8 +105,6 @@ int SKIF_AddCustomAppID (
     
     record.store      = app_record_s::Store::Other;
     record.store_utf8 = "Other";
-    //record.store = "Other";
-    //record.type  = "Game";
     record._status.installed = true;
     record.names.normal = SK_WideCharToUTF8(name);
     
@@ -262,10 +260,8 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
             app_record_s record (dwData);
 
             record.id = dwData;
-            //record.store = "Other";
             record.store      = app_record_s::Store::Other;
             record.store_utf8 = "Other";
-            //record.type  = "Game";
             record._status.installed = true;
 
             dwSize = sizeof(szData) / sizeof (WCHAR);
