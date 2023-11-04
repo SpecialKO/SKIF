@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <stores/Steam/apps_ignore.h>
 #include <regex>
+#include <vdf_parser.hpp>
 
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
 const GUID IID_VFS_SteamUGC =
@@ -651,10 +652,11 @@ SK_UseManifestToGetAppName (AppId_t appid)
   return "";
 }
 
-// This doesn't work since it cannot handle sudden { } entries (cloud data) below the appid
 std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
 {
+  // Original implementation using SKIF's SK_Steam_KeyValue implementation
+#if 0
   std::string localConfig_data =
     SK_GetLocalConfigForSteamUser (userid);
 
@@ -668,6 +670,58 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
     if (! launch_options.empty ())
     {
       return launch_options;
+    }
+  }
+#endif
+
+  // Implementation using the ValveFileVDF project
+  std::string localConfig_data =
+    SK_WideCharToUTF8 (
+      SK_Steam_GetLocalConfigPath (userid)
+  );
+
+  if (localConfig_data != "")
+  {
+    std::ifstream file (localConfig_data);
+
+    if (file.is_open())
+    {
+      try
+      {
+        auto user_localconfig = tyti::vdf::read(file);
+        if (user_localconfig.childs.size() > 0)
+        {
+          auto& apps_localconfig =
+            user_localconfig.
+              childs.at("Software") ->
+                childs.at("valve")  ->
+                  childs.at("Steam")->
+                    childs.at("apps");
+
+          if (apps_localconfig != nullptr &&
+              apps_localconfig->childs.size() > 0)
+          {
+            auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
+            if (lc_app != apps_localconfig->childs.end())
+            {
+              auto& attribs = lc_app->second->attribs;
+
+              if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
+                return attribs.at("LaunchOptions");
+            }
+          }
+        }
+      }
+
+      // I don't expect this to throw any std::out_of_range exceptions any more
+      //   but one can never be too sure when it comes to data structures like these.
+      //     - Aemony
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+      }
+
+      file.close();
     }
   }
 
