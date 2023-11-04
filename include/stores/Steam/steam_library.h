@@ -242,6 +242,8 @@ public:
 
         _clear ();
       }
+
+      else { search_tree.heapify (); } // Needed to be able to handle key/value pairs placed after { } objects
     }
 
     return ret;
