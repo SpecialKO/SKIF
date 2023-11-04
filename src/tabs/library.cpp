@@ -1457,6 +1457,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (selection.appid != 0)
       selection.reset();
 
+    // Needed as otherwise SKIF would not reload the cover, which would affect
+    //   how SKIF handles custom/managed covers and what options are available.
+    lastCover.reset();
+
     update    = true;
 
     populated = false;
@@ -1469,10 +1473,18 @@ SKIF_UI_Tab_DrawLibrary (void)
     PLOG_INFO << "Populating library list...";
 
     apps      = SKIF_Steam_GetInstalledAppIDs ();
-
+    
+    // Preload all appinfo.vdf data
+    //PLOG_DEBUG << "Loading appinfo.vdf data...";
     for (auto& app : apps)
+    {
       if (app.second.id == SKIF_STEAM_APPID)
         SKIF_STEAM_OWNER = true;
+
+      //if (appinfo != nullptr)
+      //    appinfo->getAppInfo ( app.second.id );
+    }
+    //PLOG_DEBUG << "Finished loading appinfo.vdf data!";
 
     if ( ! SKIF_STEAM_OWNER )
     {
