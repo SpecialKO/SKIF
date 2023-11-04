@@ -246,6 +246,9 @@
     <ClInclude Include="resources\images\sk_boxart.png.h">
       <Filter>Resource Files\Images</Filter>
     </ClInclude>
+    <ClInclude Include="packages_misc\vdf_parser.hpp">
+      <Filter>Header Files\Packages_Misc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
