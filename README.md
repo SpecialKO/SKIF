@@ -49,6 +49,7 @@ SKIF supports detecting and launching games from the following platforms:
 * Uses [PicoSHA2](https://github.com/okdshin/PicoSHA2), licensed under [MIT](https://github.com/okdshin/PicoSHA2/blob/master/LICENSE).
 * Uses [PLOG](https://github.com/SergiusTheBest/plog), licensed under [MIT](https://github.com/SergiusTheBest/plog/blob/master/LICENSE).
 * Uses [pugixml](https://pugixml.org/), licensed under [MIT](https://pugixml.org/license.html).
+* Uses [ValveFileVDF](https://github.com/TinyTinni/ValveFileVDF), licensed under [MIT](https://github.com/TinyTinni/ValveFileVDF/blob/master/LICENSE).
 * Uses [GSL](https://github.com/microsoft/GSL), licensed under [MIT](https://github.com/microsoft/GSL/blob/main/LICENSE).
 * Uses [TextFlowCpp](https://github.com/catchorg/textflowcpp), licensed under [BSL-1.0](https://github.com/catchorg/textflowcpp/blob/master/LICENSE.txt).
 * Uses code from [Custom Resolution Utility (CRU)](https://www.monitortests.com/forum/Thread-Custom-Resolution-Utility-CRU), licensed under a [custom license](https://github.com/SpecialKO/SKIF/blob/master/src/drvreset.cpp).
