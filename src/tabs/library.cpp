@@ -60,8 +60,6 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
-#include "../packages_misc/vdf_parser.hpp"
-
 const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
 bool                   loadCover         = false;
@@ -1051,68 +1049,35 @@ Cache=false)";
       {
         bool actualLaunchWoSK = true;
 
-        // Check localconfig.vdf if user is attempting
-        //   to launch without Special K 
+        // Check localconfig.vdf if user is attempting to launch without Special K 
         if (clickedGameLaunchWoSK)
         {
-          std::wstring path =
-            SK_Steam_GetLocalConfigPath (SKIF_Steam_GetCurrentUser (true));
-
-          if (path != L"")
+          std::string
+              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true));
+          if (launch_options.size() > 0)
           {
-            std::ifstream file (SK_WideCharToUTF8 (path));
+            std::string launch_options_lower =
+              SKIF_Util_ToLower (launch_options);
 
-            if (file.is_open())
+            if (launch_options_lower.find("skif ") != std::string::npos)
             {
-              try
-              {
-                auto user_localconfig = tyti::vdf::read(file);
+              actualLaunchWoSK = false;
 
-                if (user_localconfig.childs.size() > 0)
-                {
-                  auto& apps_localconfig =
-                    user_localconfig.childs.at("Software")->childs.at("valve")->childs.at("Steam")->childs.at("apps");
-
-                  if (apps_localconfig != nullptr &&
-                      apps_localconfig->childs.size() > 0)
-                  {
-                    auto lc_app = apps_localconfig->childs.find(std::to_string(pApp->id));
-                    if (lc_app != apps_localconfig->childs.end())
-                    {
-                      auto& map = lc_app->second->attribs;
-
-                      if (! map.empty() && map.count("LaunchOptions") > 0)
-                      {
-                        std::string launch_options       = map.at("LaunchOptions");
-                        std::string launch_options_lower = SKIF_Util_ToLower (launch_options);
-
-                        if (launch_options.find("skif "))
-                        {
-                          actualLaunchWoSK = false;
-
-                          // Escape any percent signs (%)
-                          for (auto pos  = launch_options.find ('%');          // Find the first occurence
-                                    pos != std::string::npos;                  // Validate we're still in the string
-                                    launch_options.insert      (pos, R"(%)"),  // Escape the character
-                                    pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
-                          { }
+              // Escape any percent signs (%)
+              for (auto pos  = launch_options.find ('%');          // Find the first occurence
+                        pos != std::string::npos;                  // Validate we're still in the string
+                        launch_options.insert      (pos, R"(%)"),  // Escape the character
+                        pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
+              { }
                           
-                          confirmPopupText = "Could not launch without Special K due to conflicting Steam launch options:\n\n" + launch_options;
-                          ConfirmPopup     = PopupState_Open;
+              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
+                                  "\n"
+                               +  launch_options + "\n"
+                                  "\n"
+                                  "Please change the launch options in Steam before trying again.";
+              ConfirmPopup     = PopupState_Open;
 
-                          PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              catch (const std::exception& e)
-              {
-                UNREFERENCED_PARAMETER(e);
-              }
-
-              file.close();
+              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
             }
           }
         }
@@ -4135,11 +4100,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       static uint32_t curAppId;
       static bool     SteamShortcutPossible;
 
-      if (curAppId != pApp->id)
-      {   curAppId  = pApp->id;
+      // Do not check games that are being updated (aka installed)
+      if (pApp->store == app_record_s::Store::Steam &&
+        ! pApp->_status.updating)
+      {
+        if (curAppId != pApp->id)
+        {   curAppId  = pApp->id;
+          SteamShortcutPossible = (pApp->launch_configs[0].getExecutableFullPath(pApp->id) != L"<InvalidPath>");
+        }
+      }
 
-        SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam &&
-                                 pApp->launch_configs[0].getExecutableFullPath(pApp->id) != L"<InvalidPath>");
+      else {
+        SteamShortcutPossible = false;
       }
 
       // Manage [Custom] Game
@@ -4388,17 +4360,17 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::EndPopup ();
   }
 
-
+  
+  static float fConfirmPopupWidth;
   if (ConfirmPopup == PopupState_Open)
   {
-    ImGui::OpenPopup("###ConfirmPopup");
-    //ConfirmPopup = PopupState_Opened;
+    fConfirmPopupWidth = ImGui::CalcTextSize (confirmPopupText.c_str()).x + ImGui::GetStyle().IndentSpacing * 3.0f; // 60.0f * SKIF_ImGui_GlobalDPIScale
+    ImGui::OpenPopup ("###ConfirmPopup");
+    ImGui::SetNextWindowSize (ImVec2 (fConfirmPopupWidth, 0.0f));
   }
 
-  float fConfirmPopupWidth = ImGui::CalcTextSize(confirmPopupText.c_str()).x + 60.0f * SKIF_ImGui_GlobalDPIScale;
-  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-  if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+  ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+  if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
   {
     if (ConfirmPopup == PopupState_Open)
     {
