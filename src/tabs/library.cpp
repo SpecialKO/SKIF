@@ -60,6 +60,8 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
+#include "../packages_misc/vdf_parser.hpp"
+
 const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
 bool                   loadCover         = false;
@@ -1025,7 +1027,7 @@ Cache=false)";
         _inject.SetInjectExitAckEx (true);
       }
 
-      // Launch game
+      // Launch GOG Galaxy game
       if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
       {
         extern std::wstring GOGGalaxy_Path;
@@ -1035,55 +1037,96 @@ Cache=false)";
         std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
         SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-
-        /*
-        SHELLEXECUTEINFOW
-        sexi              = { };
-        sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-        sexi.lpVerb       = L"OPEN";
-        sexi.lpFile       = GOGGalaxy_Path.c_str();
-        sexi.lpParameters = launchOptions.c_str();
-      //sexi.lpDirectory  = NULL;
-        sexi.nShow        = SW_SHOWDEFAULT;
-        sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                            SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-        ShellExecuteExW (&sexi);
-        */
       }
 
+      // Launch Epic game
       else if (pApp->store == app_record_s::Store::Epic)
       {
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
         SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
       }
 
-      else if (pApp->store == app_record_s::Store::Steam) {
-        //SKIF_Util_OpenURI_Threaded ((L"steam://run/" + std::to_wstring(pApp->id)).c_str()); // This is seemingly unreliable
-        SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pApp->id)).c_str());
+      // Launch Steam game
+      else if (pApp->store == app_record_s::Store::Steam)
+      {
+        bool actualLaunchWoSK = true;
 
-#if 0
-        // Proof of Concept
-        SetEnvironmentVariable (L"SteamAppId",  std::to_wstring(pApp->id).c_str());
-        SetEnvironmentVariable (L"SteamGameId", std::to_wstring(pApp->id).c_str());
-        
-        SKIF_Util_OpenURI (
-          pApp->launch_configs[0].getExecutableFullPath (pApp->id),
-          SW_SHOWDEFAULT,
-          L"OPEN",
-          pApp->launch_configs[0].launch_options.c_str(),
-          pApp->launch_configs[0].working_dir.c_str(),
-          SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC
-        );
-    
-        SetEnvironmentVariable (L"SteamAppId",  NULL);
-        SetEnvironmentVariable (L"SteamGameId", NULL);
-#endif
+        // Check localconfig.vdf if user is attempting
+        //   to launch without Special K 
+        if (clickedGameLaunchWoSK)
+        {
+          std::wstring path =
+            SK_Steam_GetLocalConfigPath (SKIF_Steam_GetCurrentUser (true));
 
-        pApp->_status.invalidate();
+          if (path != L"")
+          {
+            std::ifstream file (SK_WideCharToUTF8 (path));
+
+            if (file.is_open())
+            {
+              try
+              {
+                auto user_localconfig = tyti::vdf::read(file);
+
+                if (user_localconfig.childs.size() > 0)
+                {
+                  auto& apps_localconfig =
+                    user_localconfig.childs.at("Software")->childs.at("valve")->childs.at("Steam")->childs.at("apps");
+
+                  if (apps_localconfig != nullptr &&
+                      apps_localconfig->childs.size() > 0)
+                  {
+                    auto lc_app = apps_localconfig->childs.find(std::to_string(pApp->id));
+                    if (lc_app != apps_localconfig->childs.end())
+                    {
+                      auto& map = lc_app->second->attribs;
+
+                      if (! map.empty() && map.count("LaunchOptions") > 0)
+                      {
+                        std::string launch_options       = map.at("LaunchOptions");
+                        std::string launch_options_lower = SKIF_Util_ToLower (launch_options);
+
+                        if (launch_options.find("skif "))
+                        {
+                          actualLaunchWoSK = false;
+
+                          // Escape any percent signs (%)
+                          for (auto pos  = launch_options.find ('%');          // Find the first occurence
+                                    pos != std::string::npos;                  // Validate we're still in the string
+                                    launch_options.insert      (pos, R"(%)"),  // Escape the character
+                                    pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
+                          { }
+                          
+                          confirmPopupText = "Could not launch without Special K due to conflicting Steam launch options:\n\n" + launch_options;
+                          ConfirmPopup     = PopupState_Open;
+
+                          PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              catch (const std::exception& e)
+              {
+                UNREFERENCED_PARAMETER(e);
+              }
+
+              file.close();
+            }
+          }
+        }
+
+        if (actualLaunchWoSK)
+        {
+          SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pApp->id)).c_str());
+          pApp->_status.invalidate();
+        }
       }
-          
-      else { // SKIF Custom, GOG without Galaxy, Xbox
+       
+      // SKIF Custom, GOG without Galaxy, Xbox
+      else
+      {
 
         std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
                               ? pApp->launch_configs[0].executable_helper
@@ -1474,6 +1517,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     apps      = SKIF_Steam_GetInstalledAppIDs ();
     
+    // Refresh the current Steam user
+    if (_registry.bLibrarySteam)
+      SKIF_Steam_GetCurrentUser (true);
+
     // Preload all appinfo.vdf data
     //PLOG_DEBUG << "Loading appinfo.vdf data...";
     for (auto& app : apps)
@@ -1615,7 +1662,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Check if install folder exists (but not for SKIF)
-      if (app.second.id != SKIF_STEAM_APPID && app.second.store != app_record_s::Store::Xbox)
+      if (app.second.id    != SKIF_STEAM_APPID          &&
+          app.second.store != app_record_s::Store::Xbox )
       {
         std::wstring install_dir;
 
