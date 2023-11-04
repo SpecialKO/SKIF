@@ -34,20 +34,11 @@
 
 using steam_library_t = wchar_t *[MAX_PATH * 2];
 
-std::string
-SK_UseManifestToGetAppName (AppId_t appid = 0);
-
 struct SK_Steam_Depot {
   std::string  name; // Has to be queried w/ WebAPI
   DepotId_t    depot;
   ManifestId_t manifest;
 };
-
-std::vector <SK_Steam_Depot>
-SK_UseManifestToGetDepots (AppId_t appid = 0);
-
-ManifestId_t
-SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot);
 
 extern const GUID IID_VFS_SteamUGC;
 
@@ -117,8 +108,14 @@ SK_Steam_GetInstalledAppIDs (void);
 std::wstring
 SK_Steam_GetApplicationManifestPath (AppId_t appid);
 
+std::wstring
+SK_Steam_GetLocalConfigPath (SteamId3_t userid);
+
 std::string
 SK_GetManifestContentsForAppID (AppId_t appid);
+
+std::string
+SK_GetLocalConfigForSteamUser (SteamId3_t userid);
 
 #include <stack>
 
@@ -307,11 +304,11 @@ public:
 const wchar_t *
 SK_GetSteamDir (void);
 
-std::string
-SK_UseManifestToGetAppName (AppId_t appid);
-
 std::wstring
 SK_UseManifestToGetInstallDir (AppId_t appid);
+
+std::string
+SK_UseManifestToGetAppName (AppId_t appid);
 
 std::string
 SK_UseManifestToGetAppOwner (AppId_t appid);
@@ -322,8 +319,14 @@ SK_UseManifestToGetDepots (AppId_t appid);
 ManifestId_t
 SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot);
 
+std::string
+SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid);
+
 bool
 SKIF_Steam_isLibrariesSignaled (void);
 
 std::vector <std::pair <std::string, app_record_s>>
 SKIF_Steam_GetInstalledAppIDs (void);
+
+SteamId3_t
+SKIF_Steam_GetCurrentUser (bool refresh = false);

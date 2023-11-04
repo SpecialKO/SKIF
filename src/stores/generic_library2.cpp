@@ -365,24 +365,9 @@ LoadLibraryTexture (
   // STEAM
   else if (pApp != nullptr && pApp->store == app_record_s::Store::Steam)
   {
-    static unsigned long SteamUserID = 0;
 
-    if (SteamUserID == 0)
-    {
-      WCHAR                    szData [255] = { };
-      DWORD   dwSize = sizeof (szData);
-      PVOID   pvData =         szData;
-      CRegKey hKey ((HKEY)0);
-
-      if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
-      {
-        if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-          SteamUserID = *(DWORD*)pvData;
-      }
-    }
-
-    SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",           _path_cache.specialk_userdata,          appid);
-    SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", _path_cache.steam_install, SteamUserID, appid);
+    SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",           _path_cache.specialk_userdata,                          appid);
+    SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", _path_cache.steam_install, SKIF_Steam_GetCurrentUser(), appid);
 
     if (libTexToLoad == LibraryTexture::Cover)
       SKIFCustomPath += L"cover";

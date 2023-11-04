@@ -36,6 +36,7 @@
 typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 typedef uint32 AppId_t;
+typedef uint32 SteamId3_t;
 typedef uint32 DepotId_t;
 typedef uint64 PublishedFileId_t;
 typedef uint64 ManifestId_t;

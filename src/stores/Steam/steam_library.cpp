@@ -88,17 +88,7 @@ SK_VFS_Steam::WorkshopFile::getRequiredFiles (void)
 
 SK_VFS_Steam::UGC_RootFS SK_VFS_Steam::ugc_root;
 
-
 using steam_library_t = wchar_t* [MAX_PATH * 2];
-
-std::string
-SK_UseManifestToGetAppName (AppId_t appid);
-
-std::vector <SK_Steam_Depot>
-SK_UseManifestToGetDepots (AppId_t appid);
-
-ManifestId_t
-SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot);
 
 SK_VirtualFS manifest_vfs;
 
@@ -321,6 +311,32 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
   return L"";
 }
 
+std::wstring
+SK_Steam_GetLocalConfigPath (SteamId3_t userid)
+{
+
+  wchar_t    wszLocalConfig [MAX_PATH + 2] = { };
+  swprintf ( wszLocalConfig, MAX_PATH + 2,
+                LR"(%s\userdata\%i\config\localconfig.vdf)",
+              SK_GetSteamDir ( ),
+                        userid );
+
+  CHandle hLocalConfig (
+    CreateFileW ( wszLocalConfig,
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                      nullptr,        OPEN_EXISTING,
+                        GetFileAttributesW (wszLocalConfig),
+                          nullptr
+                )
+  );
+
+  if (hLocalConfig != INVALID_HANDLE_VALUE)
+    return wszLocalConfig;
+
+  return L"";
+}
+
 
 std::string
 SK_GetManifestContentsForAppID (AppId_t appid)
@@ -388,6 +404,72 @@ SK_GetManifestContentsForAppID (AppId_t appid)
   }
 
   return manifest;
+}
+
+std::string
+SK_GetLocalConfigForSteamUser (SteamId3_t userid)
+{
+  static SteamId3_t  localConfig_id = 0;
+  static std::string localConfig;
+
+  if (localConfig_id == userid && (! localConfig.empty ()))
+    return localConfig;
+
+  std::wstring wszLocalConfig =
+    SK_Steam_GetLocalConfigPath (userid);
+
+  if (wszLocalConfig.empty ())
+    return localConfig;
+
+  CHandle hLocalConfig (
+    CreateFileW ( wszLocalConfig.c_str (),
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                      nullptr,        OPEN_EXISTING,
+                        GetFileAttributesW (wszLocalConfig.c_str ()),
+                          nullptr
+                )
+  );
+
+  if (hLocalConfig != INVALID_HANDLE_VALUE)
+  {
+    //PLOG_VERBOSE << "Reading " << wszLocalConfig;
+
+    DWORD dwSizeHigh = 0,
+          dwRead     = 0,
+          dwSize     =
+     GetFileSize (hLocalConfig, &dwSizeHigh);
+
+    auto szLocalConfigData =
+      std::make_unique <char []> (
+        std::size_t (dwSize) + std::size_t (1)
+      );
+    auto localConfig_data =
+       szLocalConfigData.get ();
+
+    if (! localConfig_data)
+      return "";
+
+    const bool bRead =
+      ReadFile ( hLocalConfig,
+                  localConfig_data,
+                     dwSize,
+                    &dwRead,
+                       nullptr );
+
+    if (bRead && dwRead)
+    {
+      localConfig =
+        std::move (localConfig_data);
+
+      localConfig_id = userid;
+
+      return
+        localConfig;
+    }
+  }
+
+  return localConfig;
 }
 
 const wchar_t*
@@ -563,6 +645,29 @@ SK_UseManifestToGetAppName (AppId_t appid)
     if (! app_name.empty ())
     {
       return app_name;
+    }
+  }
+
+  return "";
+}
+
+// This doesn't work since it cannot handle sudden { } entries (cloud data) below the appid
+std::string
+SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
+{
+  std::string localConfig_data =
+    SK_GetLocalConfigForSteamUser (userid);
+
+  if (! localConfig_data.empty ())
+  {
+    std::string launch_options =
+      SK_Steam_KeyValues::getValue (
+        localConfig_data, { "UserLocalConfigStore", "Software", "valve", "Steam", "apps", std::to_string (appid) }, "LaunchOptions"
+      );
+
+    if (! launch_options.empty ())
+    {
+      return launch_options;
     }
   }
 
@@ -807,3 +912,29 @@ SKIF_Steam_GetInstalledAppIDs (void)
 
   return ret;
 };
+
+
+// Get SteamID3 of the signed in user.
+SteamId3_t
+SKIF_Steam_GetCurrentUser (bool refresh)
+{
+  static SteamId3_t SteamUserID = 0;
+
+  if (refresh)
+  {
+    WCHAR                    szData [255] = { };
+    DWORD   dwSize = sizeof (szData);
+    PVOID   pvData =         szData;
+    CRegKey hKey ((HKEY)0);
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
+    {
+      if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+        SteamUserID = *(DWORD*)pvData;
+
+      hKey.Close ( );
+    }
+  }
+
+  return SteamUserID;
+}
