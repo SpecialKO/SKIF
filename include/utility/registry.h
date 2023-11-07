@@ -349,6 +349,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Mode)" );
 
+  KeyValue <int> regKVDiagnostics =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Diagnostics)" );
+
   // Wide Strings
 
   KeyValue <std::wstring> regKVIgnoreUpdate =
@@ -383,6 +387,7 @@ struct SKIF_RegistrySettings {
   int iHDRMode                 = 1;   // 0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
   int iHDRBrightness           = 203; // HDR reference white for BT.2408
   int iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
+  int iDiagnostics             = 1;   // 0 = None,                        1 = Normal,                 2 = Enhanced (not actually used yet)
 
   // Default settings (booleans)
   bool bRememberLastSelected    = false;

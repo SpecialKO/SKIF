@@ -203,6 +203,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   
   if (regKVUIMode.hasData())
     iUIMode                =   regKVUIMode                 .getData ( );
+  
+  if (regKVDiagnostics.hasData())
+    iDiagnostics           =   regKVDiagnostics            .getData ( );
 
   bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
   bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );

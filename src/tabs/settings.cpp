@@ -1360,11 +1360,11 @@ SKIF_UI_Tab_DrawSettings (void)
                                   "Verbose" };
     static const char* LogSeverityCurrent = LogSeverity[_registry.iLogging];
 
-    if (ImGui::BeginCombo (" Log level###_registry.iLoggingCombo", LogSeverityCurrent)) // The second parameter is the label previewed before opening the combo.
+    if (ImGui::BeginCombo (" Log level###_registry.iLoggingCombo", LogSeverityCurrent))
     {
       for (int n = 0; n < IM_ARRAYSIZE (LogSeverity); n++)
       {
-        bool is_selected = (LogSeverityCurrent == LogSeverity[n]); // You can store your selection however you want, outside or inside your objects
+        bool is_selected = (LogSeverityCurrent == LogSeverity[n]);
         if (ImGui::Selectable (LogSeverity[n], is_selected))
         {
           _registry.iLogging = n;
@@ -1373,10 +1373,46 @@ SKIF_UI_Tab_DrawSettings (void)
           plog::get()->setMaxSeverity((plog::Severity)_registry.iLogging);
         }
         if (is_selected)
-            ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+          ImGui::SetItemDefaultFocus ( );
       }
       ImGui::EndCombo  ( );
     }
+
+    SKIF_ImGui_Spacing ( );
+
+    const char* Diagnostics[] = { "None",
+                                  "Normal",
+                                  "Enhanced" };
+    static const char* DiagnosticsCurrent = Diagnostics[_registry.iDiagnostics];
+
+    if (ImGui::BeginCombo (" Diagnostics###_registry.iDiagnostics", DiagnosticsCurrent))
+    {
+      for (int n = 0; n < IM_ARRAYSIZE (Diagnostics); n++)
+      {
+        bool is_selected = (DiagnosticsCurrent == Diagnostics[n]);
+        if (ImGui::Selectable (Diagnostics[n], is_selected))
+        {
+          _registry.iDiagnostics = n;
+          _registry.regKVDiagnostics.putData (_registry.iDiagnostics);
+          DiagnosticsCurrent = Diagnostics[_registry.iDiagnostics];
+        }
+        if (is_selected)
+          ImGui::SetItemDefaultFocus ( );
+      }
+      ImGui::EndCombo  ( );
+    }
+
+    ImGui::SameLine    ( );
+    ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip  ("Help improve Special K by allowing anonymized diagnostics to be sent.\n"
+                             "The data is used to identify issues, highlight common use cases, and\n"
+                             "facilitates the continued development of the application.");
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/Privacy");
+
+    if (ImGui::IsItemClicked      ())
+      SKIF_Util_OpenURI           (L"https://wiki.special-k.info/Privacy");
 
     SKIF_ImGui_Spacing ( );
 
