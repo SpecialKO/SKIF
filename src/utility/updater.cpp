@@ -96,10 +96,14 @@ SKIF_Updater::SKIF_Updater (void)
 
         while (! parent.awake.load ( ))
         {
+          PLOG_DEBUG << "SKIF_UpdaterJob thread going to sleep!";
+
           SleepConditionVariableCS (
             &UpdaterPaused, &UpdaterJob,
               INFINITE
           );
+
+          PLOG_DEBUG << "SKIF_UpdaterJob thread woke up!";
         }
 
       } while (! SKIF_Shutdown); // Keep thread alive until exit
@@ -205,7 +209,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (! forcedUpdateCheck && _registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
   {
     // Download files if any does not exist or if we're forcing an update
-    if (! PathFileExists (path_repo.c_str()) || ! PathFileExists (path_patreon.c_str()) || _registry.iCheckForUpdates == 2)
+    if (_registry.iCheckForUpdates == 2 || ! PathFileExists (path_repo.c_str()) || ! PathFileExists (path_patreon.c_str()))
     {
       downloadNewFiles = true;
     }
@@ -332,8 +336,8 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     return;
   }
 
-          std::wstring wsCurrentBranch  = _registry.wsUpdateChannel;
-          std:: string   currentBranch  = SK_WideCharToUTF8 (wsCurrentBranch);
+         std::wstring wsCurrentBranch  = _registry.wsUpdateChannel;
+         std:: string   currentBranch  = SK_WideCharToUTF8 (wsCurrentBranch);
   static std::wstring wsPreviousBranch = wsCurrentBranch;
     
   bool changedUpdateChannel = (wsPreviousBranch != wsCurrentBranch);
