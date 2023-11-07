@@ -1475,7 +1475,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip  ("This only needs to be used if GeForce Experience notifications\n"
-                             "appears on the screen whenever this app is being used.");
+                             "appear on the screen whenever this app is being used.");
 
     ImGui::TreePop          ( );
 
