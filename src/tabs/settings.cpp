@@ -590,15 +590,20 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
 
-  bool channelsDisabled = false;
-  if (_updater.IsRunning ( ) || _updater.GetChannels ( )->empty( ))
-    channelsDisabled = true;
+  bool disableCheckForUpdates = false;
+  bool disableRollbackUpdates = false;
+
+  if (_updater.IsRunning ( ))
+    disableCheckForUpdates = disableRollbackUpdates = true;
+
+  if (! disableCheckForUpdates && _updater.GetChannels ( )->empty( ))
+    disableRollbackUpdates = true;
 
   ImGui::TreePush        ("Push_UpdateChannel");
 
   ImGui::BeginGroup    ( );
 
-  if (channelsDisabled)
+  if (disableRollbackUpdates)
     SKIF_ImGui_PushDisableState ( );
 
   if (ImGui::BeginCombo ("###SKIF_wzUpdateChannel", _updater.GetChannel( )->second.c_str()))
@@ -621,7 +626,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndCombo  ( );
   }
 
+  if (disableRollbackUpdates)
+    SKIF_ImGui_PopDisableState  ( );
+
   ImGui::SameLine        ( );
+
+  if (disableCheckForUpdates)
+    SKIF_ImGui_PushDisableState ( );
 
   if (ImGui::Button      (ICON_FA_ROTATE))
   {
@@ -630,6 +641,12 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   SKIF_ImGui_SetHoverTip ("Check for updates");
+
+  if (disableCheckForUpdates)
+    SKIF_ImGui_PopDisableState  ( );
+
+  if (disableRollbackUpdates)
+    SKIF_ImGui_PushDisableState ( );
 
   if (((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback) || _updater.IsRollbackAvailable ( ))
   {
@@ -650,7 +667,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip ("Roll back to the previous version");
   }
 
-  if (channelsDisabled)
+  if (disableRollbackUpdates)
     SKIF_ImGui_PopDisableState  ( );
 
   ImGui::EndGroup      ( );
