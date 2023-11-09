@@ -40,7 +40,7 @@ SKIF_Updater::SKIF_Updater (void)
 
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-      static SKIF_Updater& parent = SKIF_Updater::GetInstance();
+      static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
       extern SKIF_Signals _Signal;
       extern bool SKIF_Shutdown;
 

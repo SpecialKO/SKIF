@@ -1733,8 +1733,8 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     return 0;
   };
   
-  PLOG_VERBOSE                         << "Method: " << std::wstring(get->method);
-  PLOG_VERBOSE                         << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
+  PLOG_VERBOSE                           << "Method: " << std::wstring(get->method);
+  PLOG_VERBOSE                           << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
   PLOG_VERBOSE_IF(! get->header.empty()) << "Header: " << get->header;
   PLOG_VERBOSE_IF(! get->body.empty())   << "  Body: " << get->body;
 
@@ -1767,9 +1767,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
               INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
 
   if (_registry.bLowBandwidthMode)
-    flags |= INTERNET_FLAG_RESYNCHRONIZE | INTERNET_FLAG_CACHE_IF_NET_FAIL | INTERNET_FLAG_CACHE_ASYNC;
+    flags  |= INTERNET_FLAG_RESYNCHRONIZE            | INTERNET_FLAG_CACHE_IF_NET_FAIL        | INTERNET_FLAG_CACHE_ASYNC;
   else
-    flags |= INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE;
+    flags  |= INTERNET_FLAG_RELOAD                   | INTERNET_FLAG_NO_CACHE_WRITE           | INTERNET_FLAG_PRAGMA_NOCACHE;
 
   hInetHTTPGetReq =
     HttpOpenRequest ( hInetHost,
@@ -1781,7 +1781,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
                                   flags,
                                     (DWORD_PTR)&dwInetCtx );
 
-  // Wait 2500 msecs for a dead connection, then give up
+  // Wait 5000 msecs for a dead connection, then give up
   //
   InternetSetOptionW ( hInetHTTPGetReq, INTERNET_OPTION_RECEIVE_TIMEOUT,
                          &ulTimeout,    sizeof (ULONG) );
