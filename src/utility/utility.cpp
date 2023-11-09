@@ -1727,8 +1727,8 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     return 0;
   };
   
-  PLOG_VERBOSE                           << "Method: " << std::wstring(get->method);
-  PLOG_VERBOSE                           << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
+  PLOG_VERBOSE                         << "Method: " << std::wstring(get->method);
+  PLOG_VERBOSE                         << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
   PLOG_VERBOSE_IF(! get->header.empty()) << "Header: " << get->header;
   PLOG_VERBOSE_IF(! get->body.empty())   << "  Body: " << get->body;
 
@@ -1911,6 +1911,14 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
     get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
 
     return SKIF_Util_GetWebUri (get);
+  }
+
+  else {
+    PLOG_ERROR << "Failed to cracks a URL into its component parts!";
+    PLOG_VERBOSE_IF(! method.empty()) << "Method: " << method;
+    PLOG_VERBOSE_IF(!    url.empty()) << "Target: " << url;
+    PLOG_VERBOSE_IF(! header.empty()) << "Header: " << header;
+    PLOG_VERBOSE_IF(!   body.empty()) << "  Body: " << body;
   }
 
   return 0;

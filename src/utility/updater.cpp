@@ -252,7 +252,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   if (downloadNewFiles)
   {
     PLOG_INFO << "Downloading patrons.txt...";
-    SKIF_Util_GetWebResource (url_patreon, path_patreon);
+    PLOG_ERROR_IF(! SKIF_Util_GetWebResource (url_patreon, path_patreon)) << "Failed to download patrons.txt";
   }
 
   // Read patrons.txt
@@ -322,7 +322,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   {
     PLOG_INFO << "Downloading repository.json...";
     DeleteFile (path_repo.c_str()); // Delete any existing file
-    SKIF_Util_GetWebResource (url_repo, path_repo);
+    PLOG_ERROR_IF(! SKIF_Util_GetWebResource (url_repo, path_repo)) << "Failed to download repository.json";
   }
   
   std::ifstream file(path_repo);
