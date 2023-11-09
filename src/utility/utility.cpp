@@ -60,13 +60,17 @@ SKIF_Util_ToUpperW     (std::wstring_view input)
 }
 
 // Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
+//                             https://learn.microsoft.com/en-us/windows/win32/wininet/appendix-c-handling-errors
 std::wstring
-SKIF_Util_GetErrorAsWStr (DWORD error)
+SKIF_Util_GetErrorAsWStr (DWORD error, HMODULE module)
 {
   LPWSTR messageBuffer = nullptr;
 
-  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+  size_t size = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                FORMAT_MESSAGE_FROM_SYSTEM     |
+                                FORMAT_MESSAGE_IGNORE_INSERTS  |
+              (module != NULL ? FORMAT_MESSAGE_FROM_HMODULE    : 0x0),
+                                module, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
 
   std::wstring message (messageBuffer, size);
   LocalFree (messageBuffer);
@@ -79,9 +83,9 @@ SKIF_Util_GetErrorAsWStr (DWORD error)
 }
 
 void
-SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD error)
+SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD error, HMODULE module)
 {
-  std::wstring message = SKIF_Util_GetErrorAsWStr (error);
+  std::wstring message = SKIF_Util_GetErrorAsWStr (error, module);
 
   if (! preMsg.empty())
     preMsg += L"\n\n";
@@ -1708,12 +1712,14 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
   {
     if (! clean)
     {
+#if 0
       DWORD dwLastError =
            GetLastError ();
 
       std::wstring wsError = (std::wstring(L"WinInet Failure (") + std::to_wstring(dwLastError) + std::wstring(L"): ") + _com_error(dwLastError).ErrorMessage());
+#endif
 
-      PLOG_VERBOSE << wsError;
+      PLOG_VERBOSE << L"WinInet Failure: " << SKIF_Util_GetErrorAsWStr (GetLastError ( ), GetModuleHandle (L"wininet.dll"));
     }
 
     if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
