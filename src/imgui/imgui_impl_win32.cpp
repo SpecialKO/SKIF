@@ -823,7 +823,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
     // 2023-11-09: Only react if SKIF is currently not trayed
     // ! SKIF_isTrayed
-    if (ImGui::FindViewportByPlatformHandle (hwnd) != NULL && IsWindowVisible (hwnd)) // Should be enough in all scenarios
+    // && IsWindowVisible (hwnd)) <- causes dropdowns to be closed?
+    if (! SKIF_isTrayed && ImGui::FindViewportByPlatformHandle (hwnd) != NULL) // Should be enough in all scenarios
     // (SKIF_ImGui_hWnd != NULL &&
     // (SKIF_ImGui_hWnd == hwnd ||
     //  SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
