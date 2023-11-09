@@ -786,6 +786,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   extern bool KeyWinKey;
   extern int  SnapKeys;
+  extern bool SKIF_isTrayed;
 
   switch (msg)
   {
@@ -820,7 +821,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
     //OutputDebugString(L"WM_SETFOCUS\n");
 
-    if (ImGui::FindViewportByPlatformHandle (hwnd) != NULL) // Should be enough in all scenarios
+    // 2023-11-09: Only react if SKIF is currently not trayed
+    // ! SKIF_isTrayed
+    if (ImGui::FindViewportByPlatformHandle (hwnd) != NULL && IsWindowVisible (hwnd)) // Should be enough in all scenarios
     // (SKIF_ImGui_hWnd != NULL &&
     // (SKIF_ImGui_hWnd == hwnd ||
     //  SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
