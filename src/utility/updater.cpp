@@ -22,9 +22,14 @@ SKIF_Updater::SKIF_Updater (void)
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
   
-  // Clearing out old installers...
-  if (! _Signal.Launcher && ! _Signal.Quit)
+  if (!_Signal.Launcher && !_Signal.Quit)
+  {
+    // Clearing out old installers...
     ClearOldUpdates ( );
+
+    // Initial patrons.txt read...
+    results.patrons = SK_WideCharToUTF8 (ReadPatronsFile ( ));
+  }
 
   // Start the child thread that is responsible for checking for updates
   static HANDLE hThread =
@@ -72,7 +77,9 @@ SKIF_Updater::SKIF_Updater (void)
         auto& local =
           parent.snapshots [currWriting].results;
 
-        local = { }; // Reset any existing data
+        local = { };    // Reset any existing data
+        local.patrons = // Copy existing patrons.txt data
+          parent.snapshots [currReading].results.patrons;
         
         // Set a timer so the main UI refreshes every 15 ms
         SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
@@ -240,9 +247,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
           // Compare with system time, and if system time is later (1), then update the local cache
           if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
-          {
             downloadNewFiles = true;
-          }
         }
       }
     }
@@ -255,67 +260,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     PLOG_ERROR_IF(! SKIF_Util_GetWebResource (url_patreon, path_patreon)) << "Failed to download patrons.txt";
   }
 
-  // Read patrons.txt
-  if (_res.patrons.empty( ))
-  {
-    std::wifstream fPatrons(L"patrons.txt");
-    std::vector<std::wstring> lines;
-    std::wstring full_text;
-
-    if (fPatrons.is_open ())
-    {
-      // Requires Windows 10 1903+ (Build 18362)
-      if (SKIF_Util_IsWindows10v1903OrGreater ( ))
-      {
-        fPatrons.imbue (
-            std::locale (".UTF-8")
-        );
-      }
-      else
-      {
-        // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
-        // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(disable : 4996)
-        fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
-      }
-
-      std::wstring line;
-
-      while (fPatrons.good ())
-      {
-        std::getline (fPatrons, line);
-
-        // Skip blank lines, since they would match everything....
-        for (const auto& it : line)
-        {
-          if (iswalpha(it) != 0)
-          {
-            lines.push_back(line);
-            break;
-          }
-        }
-      }
-
-      if (! lines.empty())
-      {
-        // Shuffle the lines using a random number generator
-        auto rd  = std::random_device{};
-        auto gen = std::default_random_engine{ rd() };
-        std::shuffle(lines.begin(), lines.end(), gen);  // Shuffle the vector
-
-        for (const auto& vline : lines) {
-          full_text += vline + L"\n";
-        }
-
-        if (full_text.length() > 0)
-          full_text.resize (full_text.length () - 1);
-
-        _res.patrons = SK_WideCharToUTF8 (full_text);
-      }
-
-      fPatrons.close ();
-    }
-  }
+  // Read patrons.txt, but only if the existing object is empty
+  // This means a restart is required for SKIF to reflect changes to patrons.txt
+  if (_res.patrons.empty ( ))
+    _res.patrons = SK_WideCharToUTF8 (ReadPatronsFile ( ));
 
   // Update repository.json
   if (downloadNewFiles)
@@ -678,6 +626,69 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
   // Set the force variable to false
   forced.store (false);
+}
+
+std::wstring
+SKIF_Updater::ReadPatronsFile (void)
+{
+  std::wstring full_text;
+  std::wifstream
+      fPatrons (L"patrons.txt");
+  if (fPatrons.is_open ())
+  {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_Util_IsWindows10v1903OrGreater ( ))
+    {
+      fPatrons.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+  #pragma warning(disable : 4996)
+      fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+    
+    std::vector <std::wstring> lines;
+    std::wstring line;
+
+    while (fPatrons.good ())
+    {
+      std::getline (fPatrons, line);
+
+      // Skip blank lines, since they would match everything....
+      for (const auto& it : line)
+      {
+        if (iswalpha(it) != 0)
+        {
+          lines.push_back(line);
+          break;
+        }
+      }
+    }
+
+    if (! lines.empty())
+    {
+      // Shuffle the lines using a random number generator
+      auto rd  = std::random_device{};
+      auto gen = std::default_random_engine{ rd() };
+      std::shuffle(lines.begin(), lines.end(), gen);  // Shuffle the vector
+
+      for (const auto& vline : lines) {
+        full_text += vline + L"\n";
+      }
+
+      if (full_text.length() > 0)
+        full_text.resize (full_text.length () - 1);
+    }
+
+    fPatrons.close ();
+  }
+
+  return full_text;
 }
 
 void

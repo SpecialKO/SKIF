@@ -93,7 +93,8 @@ private:
   std::atomic<bool> rollback = false; // Only used internally when triggering a rollback
   std::atomic<bool> awake    = false; // Used to protect against sporadic wake-ups
 
-  SKIF_Updater            (void);
-  void ClearOldUpdates    (void);
-  void PerformUpdateCheck (results_s& _res);
+               SKIF_Updater       (void);
+  void         ClearOldUpdates    (void);
+  void         PerformUpdateCheck (results_s& _res);
+  std::wstring ReadPatronsFile    (void);
 };
