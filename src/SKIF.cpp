@@ -70,6 +70,7 @@
 #include <propvarutil.h>
 #include <knownfolders.h>
 #include <shlobj.h>
+#include <netlistmgr.h>
 
 const int SKIF_STEAM_APPID = 1157970;
 bool RecreateSwapChains    = false;
@@ -87,6 +88,7 @@ bool startedMinimized      = false;
 bool msgDontRedraw         = false;
 bool coverFadeActive       = false;
 bool SKIF_Shutdown         = false;
+bool SKIF_NoInternet       = false;
 int  SKIF_ExitCode         = 0;
 int  SKIF_nCmdShow         = -1;
 int  startupFadeIn         = 0;
@@ -1451,11 +1453,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Force a one-time check before we enter the main loop
   _inject._TestServletRunlevel (true);
 
-  // Initialize the updater
-  static SKIF_Updater& _updater = 
-         SKIF_Updater::GetInstance ( );
+  // Variable related to checking for an internet connection
+  CComPtr <INetworkListManager> pNLM;
+  HRESULT hrNLM         = E_HANDLE;
+  DWORD   dwNLM         = NULL;
+  DWORD   dwNLMinterval = 5000;
 
-  // Register hotkeys
+  // Do final checks and actions if we are expected to live longer than a few seconds
   if (! _Signal.Launcher && ! _Signal.Quit)
   {
     // Register HDR toggle hotkey (if applicable)
@@ -1463,7 +1467,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   ( );
+
+    // Check if we have an internet connection
+    hrNLM = CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
+    if (SUCCEEDED (hrNLM))
+    {
+      VARIANT_BOOL connStatus = 0;
+      dwNLM = SKIF_Util_timeGetTime ( );
+      
+      PLOG_DEBUG << "Checking for an online connection...";
+      if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+        SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+    }
   }
+
+  // Initialize the updater
+  static SKIF_Updater& _updater = 
+         SKIF_Updater::GetInstance ( );
 
   // Main loop
   while (! SKIF_Shutdown ) // && IsWindow (hWnd) )
@@ -1677,6 +1697,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ? _registry.regKVMaximizeOnDoubleClick.getData ( ) // THEN use the data,
           : true                                             // otherwise default to true,
         : false;                                             // and false if OS prerequisites are disabled
+    }
+
+    // In case we have no internet connection, check for one every 5 seconds
+    if (SKIF_NoInternet)
+    {
+      if (SUCCEEDED (hrNLM) && dwNLM + dwNLMinterval < SKIF_Util_timeGetTime ( ))
+      {
+        VARIANT_BOOL connStatus = 0;
+        dwNLM = SKIF_Util_timeGetTime ( );
+      
+        PLOG_DEBUG << "Checking for an online connection...";
+        if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+          SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+
+        // Kickstart the update thread
+        if (! SKIF_NoInternet)
+          _updater.CheckForUpdates ( );
+      }
     }
 
     // F6 to toggle DPI scaling
@@ -2002,6 +2040,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // If we switch to small mode, close all popups
           ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
         }
+
         else {
           // If we switch back to large mode, re-open a few specific ones
           if (AddGamePopup == PopupState_Opened)
@@ -2022,6 +2061,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             // Register service (auto-stop) hotkey
             SKIF_Util_RegisterHotKeySVCTemp   ( );
+            
+            // Check for the presence of an internet connection
+            if (SUCCEEDED (hrNLM))
+            {
+              VARIANT_BOOL connStatus = 0;
+              dwNLM = SKIF_Util_timeGetTime ( );
+      
+              PLOG_DEBUG << "Checking for an online connection...";
+              if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+                SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+            }
 
             // Kickstart the update thread
             _updater.CheckForUpdates ( );
@@ -2372,7 +2422,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // End Add Game
 
           // Begin Pulsating Refresh Icon
-          if (_updater.IsRunning ( ))
+          if (! SKIF_NoInternet && _updater.IsRunning ( ))
           {
             ImGui::SetCursorPosX (
               ImGui::GetCursorPosX () +
@@ -2835,7 +2885,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         HistoryPopupWidth = std::min<float> (HistoryPopupWidth, SKIF_vecCurrentMode.x * 0.9f);
 
-        HistoryPopupTitle = "Changelog (" + _updater.GetChannel()->first + ")###History";
+        HistoryPopupTitle = "Changelog";
+
+        if (! _updater.GetChannel()->first.empty())
+          HistoryPopupTitle += "(" + _updater.GetChannel()->first + ")";
+
+        HistoryPopupTitle += "###History";
 
         ImGui::OpenPopup ("###History");
       

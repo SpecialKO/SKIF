@@ -22,7 +22,7 @@ SKIF_Updater::SKIF_Updater (void)
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
   
-  if (!_Signal.Launcher && !_Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.Quit)
   {
     // Clearing out old installers...
     ClearOldUpdates ( );
@@ -48,9 +48,10 @@ SKIF_Updater::SKIF_Updater (void)
       static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
       extern SKIF_Signals _Signal;
       extern bool SKIF_Shutdown;
+      extern bool SKIF_NoInternet;
 
-      // Sleep if SKIF is being used as a lancher
-      while (_Signal.Launcher || _Signal.Quit)
+      // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
+      while (_Signal.Launcher || _Signal.Quit || SKIF_NoInternet)
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
@@ -103,14 +104,10 @@ SKIF_Updater::SKIF_Updater (void)
 
         while (! parent.awake.load ( ))
         {
-          PLOG_DEBUG << "SKIF_UpdaterJob thread going to sleep!";
-
           SleepConditionVariableCS (
             &UpdaterPaused, &UpdaterJob,
               INFINITE
           );
-
-          PLOG_DEBUG << "SKIF_UpdaterJob thread woke up!";
         }
 
       } while (! SKIF_Shutdown); // Keep thread alive until exit
