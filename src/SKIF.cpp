@@ -811,14 +811,19 @@ void SKIF_Shell_DeleteNotifyIcon (void)
   niData.hIcon = 0;
 }
 
-void SKIF_Shell_CreateNotifyToast (std::wstring message, std::wstring title = L"")
+// Show a desktop notification
+// SKIF_NTOAST_UPDATE  - Appears always
+// SKIF_NTOAST_SERVICE - Appears conditionally
+void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring title = L"")
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  if ( _registry.iNotifications == 1 ||                             // Always
-      (_registry.iNotifications == 2 && ! SKIF_ImGui_IsFocused ( )) // When Unfocused
+  if (  (type == SKIF_NTOAST_UPDATE)  ||
+      (_registry.iNotifications == 1) ||                             // Always
+      (_registry.iNotifications == 2  && ! SKIF_ImGui_IsFocused ( )) // When Unfocused
      )
   {
+#if 0
     if (_registry._NotifyMessageDuration == -1)
     {
       HKEY    hKey;
@@ -835,17 +840,24 @@ void SKIF_Shell_CreateNotifyToast (std::wstring message, std::wstring title = L"
         _registry._NotifyMessageDuration = 5;
       }
     }
+#endif
 
-    niData.uFlags       = NIF_INFO;
-    niData.dwInfoFlags  = NIIF_NONE | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME;
-    wcsncpy_s(niData.szInfoTitle, 64, title.c_str(), 64);
-    wcsncpy_s(niData.szInfo, 256, message.c_str(), 256);
+    niData.uFlags       = 
+      (type == SKIF_NTOAST_SERVICE)
+      ? NIF_INFO | NIF_REALTIME // NIF_REALTIME to indicate the notifications should be discarded if not displayed immediately
+      : NIF_INFO;
+    niData.dwInfoFlags  = 
+      (type == SKIF_NTOAST_SERVICE)
+      ? NIIF_NONE | NIIF_RESPECT_QUIET_TIME | NIIF_NOSOUND // Mute the sound for service notifications
+      : NIIF_NONE | NIIF_RESPECT_QUIET_TIME;
+    wcsncpy_s (niData.szInfoTitle, 64,   title.c_str(),  64);
+    wcsncpy_s (niData.szInfo,     256, message.c_str(), 256);
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
 
     // Set up a timer that automatically refreshes SKIF when the notification clears,
     //   allowing us to perform some maintenance and whatnot when that occurs
-    SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_NOTIFY, _registry._NotifyMessageDuration * 1000, NULL);
+    SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_NOTIFY, _registry.iNotificationsDuration, NULL);
   }
 }
 
@@ -1628,7 +1640,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // If SKIF is acting as a temporary launcher, exit when the running service has been stopped
     if (_registry._ExitOnInjection && _inject.runState == SKIF_InjectionContext::RunningState::Stopped)
     {
-      static DWORD dwExitDelay = SKIF_Util_timeGetTime() + _registry._NotifyMessageDuration * 1000;
+      static DWORD dwExitDelay = SKIF_Util_timeGetTime() + _registry.iNotificationsDuration;
 
       // MessageDuration seconds delay to allow Windows to send both notifications properly
       // If notifications are disabled, exit immediately
@@ -3692,9 +3704,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   // This is the message procedure that handles all custom SKIF window messages and actions
   
   UpdateFlags uFlags = UpdateFlags_Unknown;
-
-  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+  
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   switch (msg)
   {
@@ -3856,7 +3869,39 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             ((uFlags & UpdateFlags_Ignored)    != UpdateFlags_Ignored    &&
              (uFlags & UpdateFlags_Rollback)   != UpdateFlags_Rollback   )))
         {
-          UpdatePromptPopup = PopupState_Open;
+          // If we use auto-update *experimental*
+          // But only if we have servlets, so we don't auto-install ourselves in users' Downloads folder :)
+          if (_registry.bAutoUpdate && _inject.bHasServlet)
+          {
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"Blink and you'll miss it ;)", L"An update is being installed...");
+
+            PLOG_INFO << "The app is performing an automatic update...";
+
+            bool startService   = (_Signal.Start         && NULL == SKIF_ImGui_hWnd) ||
+                                  ((_inject.bCurrentState || _inject.runState == SKIF_InjectionContext::RunningState::Starting) && ! _inject.bAckInj);
+            bool startMinimized = _Signal.Minimize && (                   // If we started minimized, and
+                                               NULL == SKIF_ImGui_hWnd || // if ImGui window haven't been created yet, or
+                           (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))  // we are currently minimized or trayed
+            );
+            
+            std::wstring update = SK_FormatStringW (LR"(%ws\Version\%ws)", _path_cache.specialk_userdata, SKIF_Updater::GetInstance ( ).GetResults ( ).filename.c_str());
+            std::wstring args   = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /StartService=%d /StartMinimized=%d /DIR="%ws")",
+                                                                                                 startService,    startMinimized, _path_cache.specialk_install);
+
+            if (_inject.bCurrentState)
+              _inject._StartStopInject (true);
+
+            SKIF_Util_OpenURI (update.c_str(), SW_SHOWNORMAL, L"OPEN", args.c_str());
+          }
+
+          // Classic update procedure
+          else {
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"Open the app to continue.", L"An update to Special K is available!");
+
+            PLOG_INFO << "An update is available!";
+
+            UpdatePromptPopup = PopupState_Open;
+          }
           addAdditionalFrames += 3;
         }
       }

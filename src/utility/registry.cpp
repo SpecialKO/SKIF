@@ -186,6 +186,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bFirstLaunch             =   regKVFirstLaunch            .getData ( );
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );
   bAllowBackgroundService  =   regKVAllowBackgroundService .getData ( );
+  bAutoUpdate              =   regKVAutoUpdate             .getData ( );
   
   if (regKVSDRMode.hasData())
     iSDRMode               =   regKVSDRMode                .getData ( );
@@ -273,13 +274,20 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       iLastSelectedStore  =   regKVLastSelectedStore      .getData ( );
   }
 
-  // App registration
-  if (regKVAppRegistration.hasData())
-    wsAppRegistration      =   regKVAppRegistration        .getData ( );
-
   if (regKVPath.hasData())
     wsPath                 =   regKVPath                   .getData ( );
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData ( );
+
+  // Windows stuff
+
+  // App registration
+  if (regKVAppRegistration.hasData())
+    wsAppRegistration      =   regKVAppRegistration        .getData ( );
+
+  // Notification duration
+  if (regKVNotificationsDuration.hasData())
+    iNotificationsDuration =   regKVNotificationsDuration  .getData ( );
+  iNotificationsDuration *= 1000; // Convert from seconds to milliseconds
 }

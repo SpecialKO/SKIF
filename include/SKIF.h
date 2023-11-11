@@ -47,6 +47,10 @@ const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
 const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
 const     UINT_PTR        IDT_REFRESH_DIR_ROOT  =             1344; // Used by the directory watch for the root folder
 
+// Desktop notification types
+constexpr UINT           SKIF_NTOAST_UPDATE     =                0; // Appears always
+constexpr UINT           SKIF_NTOAST_SERVICE    =                1; // Appears conditionally
+
 // Cmd line argument triggers
 constexpr UINT           WM_SKIF_MINIMIZE       = WM_USER +  0x512;
 constexpr UINT           WM_SKIF_RESTORE        = WM_USER +  0x513;

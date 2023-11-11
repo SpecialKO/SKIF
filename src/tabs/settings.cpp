@@ -695,7 +695,7 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::SameLine        ( );
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Show Windows notifications:"
+      "Show desktop notifications for the injection service:"
   );
   ImGui::TreePush        ("_registry.iNotifications");
   if (ImGui::RadioButton ("Never",          &_registry.iNotifications, 0))
@@ -1289,6 +1289,9 @@ SKIF_UI_Tab_DrawSettings (void)
     SK_RunOnce(
       ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
+
+    if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
+      _registry.regKVAutoUpdate.putData (                                            _registry.bAutoUpdate);
 
     if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &_registry.bOpenAtCursorPosition ) )
       _registry.regKVOpenAtCursorPosition.putData (                                  _registry.bOpenAtCursorPosition );

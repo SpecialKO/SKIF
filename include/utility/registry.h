@@ -287,6 +287,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Warning RTSS)" );
 
+  KeyValue <bool> regKVAutoUpdate =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Auto-Update)" );
+
   // Integers
 
   KeyValue <int> regKVProcessRefreshInterval =
@@ -367,10 +371,17 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Path)" );
 
+  // Windows stuff
+
   // App registration
   KeyValue <std::wstring> regKVAppRegistration =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)",
-                         L"" );
+                         L"" ); // Default value
+
+  // Notification duration
+  KeyValue <int> regKVNotificationsDuration =
+    SKIF_MakeRegKeyI ( LR"(Control Panel\Accessibility\)",
+                         LR"(MessageDuration)" );
 
   // Default settings (multiple options)
   int iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
@@ -421,6 +432,7 @@ struct SKIF_RegistrySettings {
   bool bProcessSortAscending    =  true; // default to true
   bool bProcessIncludeAll       = false;
   bool bLibraryIgnoreArticles   = false;
+  bool bAutoUpdate              = false; // Automatically runs downloaded installers
 
   // Warnings
   bool bWarningRTSS             = false;
@@ -428,18 +440,20 @@ struct SKIF_RegistrySettings {
   // Misc settings
   std::wstring wsUpdateChannel  = L"Website"; // Default to stable channel
   std::wstring wsIgnoreUpdate;
-  std::wstring wsAppRegistration;
   std::wstring wsPath;
   //std::wstring wsLastSelectedStore;
   unsigned int iLastSelectedStore;
   unsigned int iLastSelectedGame;
+
+  // Windows stuff
+  std::wstring wsAppRegistration;
+  int  iNotificationsDuration       = 5; // Defaults to 5 seconds in case Windows is not set to something else
 
   // Ephemeral settings that doesn't stick around
   bool _LastSelectedWritten         = false;
   bool _LoadedSteamOverlay          = false; // This is used to indicate whether we manually loaded the steam_appid64.dll file into SKIF or not
   bool _SuppressServiceNotification = false; // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
   bool _ExitOnInjection             = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
-  int  _NotifyMessageDuration       = -1;
   bool _sRGBColors                  = false;
 
   // Functions
