@@ -2900,7 +2900,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         HistoryPopupTitle = "Changelog";
 
         if (! _updater.GetChannel()->first.empty())
-          HistoryPopupTitle += "(" + _updater.GetChannel()->first + ")";
+          HistoryPopupTitle += " (" + _updater.GetChannel()->first + ")";
 
         HistoryPopupTitle += "###History";
 
