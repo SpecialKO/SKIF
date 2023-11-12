@@ -835,6 +835,15 @@ SKIF_Updater::ReadChangesFile (void)
     }
 
     file.close ();
+
+    if (! auto_updater_formatted.notes.empty())
+    {
+      // Remove the trailing newline
+      auto_updater_formatted.notes.pop_back();
+
+      // Increase the number of lines due to ImGui weirdness
+      auto_updater_formatted.lines += 1.5f;
+    }
   }
 }
 
