@@ -48,13 +48,10 @@
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
 
-
 #include <stores/Steam/app_record.h>
 
 #include <tabs/about.h>
 #include <tabs/settings.h>
-
-#include "TextFlow.hpp"
 
 #include <utility/registry.h>
 #include <utility/updater.h>
@@ -2581,60 +2578,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
       static float  UpdateAvailableWidth = 0.0f;
-      static float  calculatedWidth      = 0.0f;
-      static float  NumLines             = 0;
-      static size_t NumCharsOnLine       = 0;
-      static std::vector<char> vecNotes;
 
       if (UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
 
-        if (vecNotes.empty())
-        {
-          calculatedWidth = 0.0f;
-          NumLines        = 0.0f;
-          NumCharsOnLine  = 0;
-
-          if (! _updater.GetResults ( ).release_notes.empty())
-          {
-            std::string strNotes = _updater.GetResults ( ).release_notes;
-
-            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-            strNotes = TextFlow::Column(strNotes).width(110).toString();
-
-            // Calc longest line and number of lines
-            std::istringstream iss(strNotes);
-            for (std::string line; std::getline(iss, line); NumLines++)
-              if (line.length() > NumCharsOnLine)
-                NumCharsOnLine = line.length();
-
-            // 8.0f  per character
-            // 25.0f for the scrollbar
-            calculatedWidth = static_cast<float>(NumCharsOnLine) * 8.0f + 25.0f;
-
-            // Populate the vector
-            vecNotes.push_back ('\n');
-
-            for (size_t i = 0; i < strNotes.length(); i++)
-              vecNotes.push_back(strNotes[i]);
-
-            vecNotes.push_back ('\n');
-
-            // Ensure the vector array is double null terminated
-            vecNotes.push_back ('\0');
-            vecNotes.push_back ('\0');
-
-            // Increase NumLines by 3, two from vecNotes.push_back and
-            //  two from ImGui's love of having one and a half empty line below content
-            NumLines += 3.5f;
-
-            // Only allow up to 40 lines at most
-            if (NumLines > 40.0f)
-              NumLines = 40.0f;
-          }
-        }
+        // 8.0f  per character
+        // 25.0f for the scrollbar
+        float calculatedWidth = static_cast<float>(_updater.GetResults().release_notes_formatted.max_length) * 8.0f + 25.0f;
 
         if (calculatedWidth > UpdateAvailableWidth)
           UpdateAvailableWidth = calculatedWidth;
@@ -2720,7 +2672,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        if (! vecNotes.empty())
+        if (!_updater.GetResults().release_notes_formatted.notes.empty())
         {
           if (! _updater.GetResults().description_installed.empty())
           {
@@ -2734,10 +2686,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
-                                  vecNotes.data(), static_cast<int>(vecNotes.size()),
-                                    ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                           std::min<float>(NumLines * fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.5f) ),
-                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+                                    _updater.GetResults().release_notes_formatted.notes.data(),
+                                      static_cast<int>(_updater.GetResults().release_notes_formatted.notes.size()),
+                                        ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                                          std::min<float>(
+                                            std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
+                                              SKIF_vecCurrentMode.y * 0.5f)
+                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
 
           SKIF_ImGui_DisallowMouseDragMove ( );
 
@@ -2788,8 +2743,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             //Sleep(50);
             //bKeepProcessAlive = false;
-
-            vecNotes.clear();
           }
 
           UpdatePromptPopup = PopupState_Closed;
@@ -2809,7 +2762,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             _registry.regKVIgnoreUpdate.putData(SK_UTF8ToWideChar(_updater.GetResults().description));
 
-            vecNotes.clear();
             UpdatePromptPopup = PopupState_Closed;
             ImGui::CloseCurrentPopup ();
           }
@@ -2826,7 +2778,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                25 * SKIF_ImGui_GlobalDPIScale )))
         {
-          vecNotes.clear();
           UpdatePromptPopup = PopupState_Closed;
           ImGui::CloseCurrentPopup ();
         }
@@ -2837,60 +2788,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       static float  HistoryPopupWidth          = 0.0f;
-      static float  calcHistoryPopupWidth      = 0.0f;
-      static float  HistoryPopupNumLines       = 0;
-      static size_t HistoryPopupNumCharsOnLine = 0;
-      static std::vector<char> vecHistory;
       static std::string HistoryPopupTitle;
 
       if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         HistoryPopupWidth = 360.0f;
 
-        if (vecHistory.empty())
-        {
-          calcHistoryPopupWidth = 0.0f;
-          HistoryPopupNumLines        = 0.0f;
-          HistoryPopupNumCharsOnLine  = 0;
-
-          if (! _updater.GetHistory ( ).empty ( ))
-          {
-            std::string strHistory = _updater.GetHistory ( );
-
-            // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-            strHistory = TextFlow::Column(strHistory).width(110).toString();
-
-            // Calc longest line and number of lines
-            std::istringstream iss(strHistory);
-            for (std::string line; std::getline(iss, line); HistoryPopupNumLines++)
-              if (line.length() > HistoryPopupNumCharsOnLine)
-                HistoryPopupNumCharsOnLine = line.length();
-
-            // 8.0f  per character
-            // 25.0f for the scrollbar
-            calcHistoryPopupWidth = static_cast<float>(HistoryPopupNumCharsOnLine) * 8.0f + 25.0f;
-
-            // Populate the vector
-            vecHistory.push_back ('\n');
-
-            for (size_t i = 0; i < strHistory.length(); i++)
-              vecHistory.push_back(strHistory[i]);
-
-            vecHistory.push_back ('\n');
-
-            // Ensure the vector array is double null terminated
-            vecHistory.push_back ('\0');
-            vecHistory.push_back ('\0');
-
-            // Increase NumLines by 3, two from vecHistory.push_back and
-            //  two from ImGui's love of having one and a half empty line below content
-            HistoryPopupNumLines += 3.5f;
-
-            // Only allow up to 40 lines at most
-            if (HistoryPopupNumLines > 40.0f)
-              HistoryPopupNumLines = 40.0f;
-          }
-        }
+        // 8.0f  per character
+        // 25.0f for the scrollbar
+        float calcHistoryPopupWidth = static_cast<float> (_updater.GetResults().history_formatted.max_length) * 8.0f + 25.0f;
 
         if (calcHistoryPopupWidth > HistoryPopupWidth)
           HistoryPopupWidth = calcHistoryPopupWidth;
@@ -2940,15 +2846,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_Spacing ();
 
-        if (! vecHistory.empty())
+        if (! _updater.GetResults().history_formatted.notes.empty())
         {
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
-                                  vecHistory.data(), static_cast<int>(vecHistory.size()),
-                                    ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                              std::min<float>(HistoryPopupNumLines * fontConsolas->FontSize, SKIF_vecCurrentMode.y * 0.6f) ),
-                                      ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly );
+                                    _updater.GetResults().history_formatted.notes.data(),
+                                      static_cast<int>(_updater.GetResults().history_formatted.notes.size()),
+                                        ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                                          std::min<float> (
+                                              std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
+                                              SKIF_vecCurrentMode.y * 0.6f)
+                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
 
           SKIF_ImGui_DisallowMouseDragMove ( );
 
@@ -2967,7 +2876,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                               25 * SKIF_ImGui_GlobalDPIScale )))
         {
-          vecHistory.clear ( );
           HistoryPopup = PopupState_Closed;
           ImGui::CloseCurrentPopup ();
         }

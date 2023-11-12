@@ -10,6 +10,7 @@
 #include <utility/sk_utility.h>
 #include <nlohmann/json.hpp>
 #include <picosha2.h>
+#include <TextFlow.hpp>
 
 #include <utility/fsutil.h>
 #include <utility/registry.h>
@@ -87,6 +88,68 @@ SKIF_Updater::SKIF_Updater (void)
 
         // Check for updates!
         parent.PerformUpdateCheck (local);
+
+        // Format the changes for the next version
+        if (! local.release_notes.empty())
+        {
+          std::string strNotes = local.release_notes;
+
+          // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+          strNotes = TextFlow::Column(strNotes).width(110).toString();
+
+          // Calc longest line and number of lines
+          std::istringstream iss(strNotes);
+          for (std::string line; std::getline(iss, line); local.release_notes_formatted.lines++)
+            if (line.length() > local.release_notes_formatted.max_length)
+              local.release_notes_formatted.max_length = line.length();
+
+          // Populate the vector
+          local.release_notes_formatted.notes.push_back ('\n');
+
+          for (size_t i = 0; i < strNotes.length(); i++)
+            local.release_notes_formatted.notes.push_back(strNotes[i]);
+
+          local.release_notes_formatted.notes.push_back ('\n');
+
+          // Ensure the vector array is double null terminated
+          local.release_notes_formatted.notes.push_back ('\0');
+          local.release_notes_formatted.notes.push_back ('\0');
+
+          // Increase NumLines by 3, two from push_back() and
+          //  two from ImGui's love of having one and a half empty line below content
+          local.release_notes_formatted.lines += 3.5f;
+        }
+
+        // Format the historical changes
+        if (! local.history.empty ( ))
+        {
+          std::string strHistory = local.history;
+
+          // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+          strHistory = TextFlow::Column(strHistory).width(110).toString();
+
+          // Calc longest line and number of lines
+          std::istringstream iss(strHistory);
+          for (std::string line; std::getline(iss, line); local.history_formatted.lines++)
+            if (line.length() > local.history_formatted.max_length)
+              local.history_formatted.max_length = line.length();
+
+          // Populate the vector
+          local.history_formatted.notes.push_back ('\n');
+
+          for (size_t i = 0; i < strHistory.length(); i++)
+            local.history_formatted.notes.push_back(strHistory[i]);
+
+          local.history_formatted.notes.push_back ('\n');
+
+          // Ensure the vector array is double null terminated
+          local.history_formatted.notes.push_back ('\0');
+          local.history_formatted.notes.push_back ('\0');
+
+          // Increase NumLines by 3, two from vecHistory.push_back and
+          //  two from ImGui's love of having one and a half empty line below content
+          local.history_formatted.lines += 3.5f;
+        }
         
         // Kill the timer once the update process has completed
         KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);

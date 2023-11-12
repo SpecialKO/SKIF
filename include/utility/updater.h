@@ -48,6 +48,13 @@ struct SKIF_Updater {
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
     bool rollbackAvailable = false; // Indicates SKIF can roll back
     std::vector <version_s> versions;
+
+    // Used to hold formatted changes displayed in SKIF
+    struct changelog_s {
+      std::vector<char> notes;
+      float lines         = 0;
+      size_t max_length   = 0;
+    } release_notes_formatted, history_formatted;
   };
   
   // Public functions
