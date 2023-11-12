@@ -160,8 +160,8 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 
     for ( auto& record : records )
     {
-      PLOG_VERBOSE << "record.wsPidFilename                   == " << record.wsPidFilename;
-      PLOG_VERBOSE << "PathFileExistsW (record.wsPidFilename) == " << PathFileExistsW (record.wsPidFilename.c_str());
+      //PLOG_VERBOSE << "record.wsPidFilename                   == " << record.wsPidFilename;
+      //PLOG_VERBOSE << "PathFileExistsW (record.wsPidFilename) == " << PathFileExistsW (record.wsPidFilename.c_str());
 
       // If we currently assume the service is not running, check if it's running
       if (                 *record.pPid == 0 &&

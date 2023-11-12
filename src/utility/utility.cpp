@@ -493,9 +493,9 @@ SKIF_Util_OpenURI (
 
   //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
 
-#if 0
+#if 1
   PLOG_VERBOSE                           << "Performing a ShellExecute call...";
-  PLOG_VERBOSE                           << "File      : " << path;
+  PLOG_VERBOSE_IF(! path.empty())        << "File      : " << path;
   PLOG_VERBOSE_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
   PLOG_VERBOSE_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
   PLOG_VERBOSE_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
@@ -517,7 +517,10 @@ SKIF_Util_OpenURI (
     // Note that any new process will inherit SKIF's environment variables
 
   if (ShellExecuteExW (&sexi))
+  {
+    PLOG_VERBOSE << "The operation was successful.";
     ret = sexi.hInstApp;
+  }
 
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
