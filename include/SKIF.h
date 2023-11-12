@@ -134,6 +134,7 @@ extern PopupState  ModifyGamePopup;   // Library: show a modify custom game prom
 extern PopupState  ConfirmPopup;      // Library: show a confirm prompt with text set through confirmPopupText
 extern PopupState  UpdatePromptPopup; // App Mode: show an update prompt
 extern PopupState  HistoryPopup;      // Monitor / About: show a changelog popup
+extern PopupState  AutoUpdatePopup;   // Show changelog from the latest auto-installed update
 
 extern UITab       SKIF_Tab_Selected; // Current selected tab
 extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to

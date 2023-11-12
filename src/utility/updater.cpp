@@ -29,7 +29,10 @@ SKIF_Updater::SKIF_Updater (void)
     ClearOldUpdates ( );
 
     // Initial patrons.txt read...
-    results.patrons = SK_WideCharToUTF8 (ReadPatronsFile ( ));
+    results.patrons    = SK_WideCharToUTF8 (ReadPatronsFile ( ));
+
+    // Initial changes.txt read...
+    ReadChangesFile ( );
   }
 
   // Start the child thread that is responsible for checking for updates
@@ -149,6 +152,42 @@ SKIF_Updater::SKIF_Updater (void)
           // Increase NumLines by 3, two from vecHistory.push_back and
           //  two from ImGui's love of having one and a half empty line below content
           local.history_formatted.lines += 3.5f;
+        }
+
+        // Save the changes in a local file
+        if (! local.release_notes_formatted.notes.empty())
+        {
+          std::wofstream changes_file (L"changes.txt");
+
+          if (changes_file.is_open ())
+          {
+            // Requires Windows 10 1903+ (Build 18362)
+            if (SKIF_Util_IsWindows10v1903OrGreater ( ))
+            {
+              changes_file.imbue (
+                  std::locale (".UTF-8")
+              );
+            }
+
+            else
+            {
+              // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(disable : 4996)
+              changes_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+            }
+
+            std::wstring out_text =
+              SK_UTF8ToWideChar (local.release_notes_formatted.notes.data());
+
+            // Strip all null terminator \0 characters from the string
+            out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
+
+            changes_file.write(out_text.c_str(),
+              out_text.length());
+
+            changes_file.close();
+          }
+
         }
         
         // Kill the timer once the update process has completed
@@ -693,13 +732,13 @@ SKIF_Updater::ReadPatronsFile (void)
 {
   std::wstring full_text;
   std::wifstream
-      fPatrons (L"patrons.txt");
-  if (fPatrons.is_open ())
+      file (L"patrons.txt");
+  if (file.is_open ())
   {
     // Requires Windows 10 1903+ (Build 18362)
     if (SKIF_Util_IsWindows10v1903OrGreater ( ))
     {
-      fPatrons.imbue (
+      file.imbue (
           std::locale (".UTF-8")
       );
     }
@@ -709,17 +748,17 @@ SKIF_Updater::ReadPatronsFile (void)
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
   #pragma warning(disable : 4996)
-      fPatrons.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+      file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
     
     std::vector <std::wstring> lines;
     std::wstring line;
 
-    while (fPatrons.good ())
+    while (file.good ())
     {
-      std::getline (fPatrons, line);
+      std::getline (file, line);
 
-      // Skip blank lines, since they would match everything....
+      // Skip blank lines
       for (const auto& it : line)
       {
         if (iswalpha(it) != 0)
@@ -729,6 +768,8 @@ SKIF_Updater::ReadPatronsFile (void)
         }
       }
     }
+
+    file.close ();
 
     if (! lines.empty())
     {
@@ -744,11 +785,57 @@ SKIF_Updater::ReadPatronsFile (void)
       if (full_text.length() > 0)
         full_text.resize (full_text.length () - 1);
     }
-
-    fPatrons.close ();
   }
 
   return full_text;
+}
+
+// Only used by the auto-updater
+void
+SKIF_Updater::ReadChangesFile (void)
+{
+  auto_updater_formatted = { };
+
+  std::ifstream
+      file (L"changes.txt");
+  if (file.is_open ())
+  {
+    // Requires Windows 10 1903+ (Build 18362)
+    if (SKIF_Util_IsWindows10v1903OrGreater ( ))
+    {
+      file.imbue (
+          std::locale (".UTF-8")
+      );
+    }
+
+    // Contemplate removing this fallback entirely since neither Win8.1 and Win10 pre-1903 is not supported any longer by Microsoft
+    else
+    {
+      // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+  #pragma warning(disable : 4996)
+      file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+    }
+
+    std::string line;
+
+    while (file.good ())
+    {
+      std::getline (file, line);
+
+      for (size_t i = 0; i < line.length(); i++)
+        auto_updater_formatted.notes.push_back (line[i]);
+
+      // Add a newline at the end of the line
+      auto_updater_formatted.notes.push_back ('\n');
+      
+      if (line.length() > auto_updater_formatted.max_length)
+        auto_updater_formatted.max_length = line.length();
+      
+      auto_updater_formatted.lines++;
+    }
+
+    file.close ();
+  }
 }
 
 void
@@ -815,6 +902,12 @@ std::string
 SKIF_Updater::GetHistory (void)
 {
   return results.history;
+}
+
+SKIF_Updater::changelog_s
+SKIF_Updater::GetAutoUpdateNotes (void)
+{
+  return auto_updater_formatted;
 }
 
 std::vector <std::pair<std::string, std::string>>*

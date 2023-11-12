@@ -165,6 +165,7 @@ SKIF_Signals _Signal;
 
 PopupState UpdatePromptPopup = PopupState_Closed;
 PopupState HistoryPopup      = PopupState_Closed;
+PopupState AutoUpdatePopup   = PopupState_Closed;
 UITab SKIF_Tab_Selected      = UITab_Library,
       SKIF_Tab_ChangeTo      = UITab_None;
 
@@ -2884,6 +2885,107 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::EndPopup ();
       }
+      
+      static float       AutoUpdatePopupWidth          = 0.0f;
+      static std::string AutoUpdatePopupTitle;
+      static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && _registry.wsAutoUpdateVersion == _inject.SKVer32);
+
+      if (AutoUpdateChanges)
+      {
+        AutoUpdateChanges = false;
+        AutoUpdatePopup = PopupState_Open;
+      }
+
+      if (AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      {
+        AutoUpdatePopupWidth = 360.0f;
+
+        // 8.0f  per character
+        // 25.0f for the scrollbar
+        float calcAutoUpdatePopupWidth = static_cast<float> (_updater.GetAutoUpdateNotes().max_length) * 8.0f + 25.0f;
+
+        if (calcAutoUpdatePopupWidth > AutoUpdatePopupWidth)
+          AutoUpdatePopupWidth = calcAutoUpdatePopupWidth;
+
+        AutoUpdatePopupWidth = std::min<float> (AutoUpdatePopupWidth, SKIF_vecCurrentMode.x * 0.9f);
+
+        AutoUpdatePopupTitle = "An update was installed automatically###AutoUpdater";
+
+        ImGui::OpenPopup ("###AutoUpdater");
+      
+        ImGui::SetNextWindowSize (ImVec2 (AutoUpdatePopupWidth* SKIF_ImGui_GlobalDPIScale, 0.0f));
+      }
+      
+      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      if (ImGui::BeginPopupModal (AutoUpdatePopupTitle.c_str(), nullptr,
+                                  ImGuiWindowFlags_NoResize |
+                                  ImGuiWindowFlags_NoMove |
+                                  ImGuiWindowFlags_AlwaysAutoResize )
+         )
+      {
+        if (AutoUpdatePopup == PopupState_Open)
+        {
+          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+          ImGuiWindow* window = ImGui::FindWindowByName ("###AutoUpdater");
+          if (window != nullptr && ! window->Appearing)
+            AutoUpdatePopup = PopupState_Opened;
+        }
+
+        /*
+        SKIF_ImGui_Spacing ();
+
+        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(updateTxt.c_str()).x + ImGui::GetStyle().ItemSpacing.x) / 2;
+
+        ImGui::SetCursorPosX(fX);
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), updateTxt.c_str());
+        */
+
+        ImGui::Text        ("You are now using");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
+
+        SKIF_ImGui_Spacing ();
+
+        if (! _updater.GetAutoUpdateNotes().notes.empty())
+        {
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+          ImGui::PushFont       (fontConsolas);
+          ImGui::InputTextEx    ( "###AutoUpdaterChanges", "No changes detected...",
+                                    _updater.GetAutoUpdateNotes().notes.data(),
+                                      static_cast<int>(_updater.GetAutoUpdateNotes().notes.size()),
+                                        ImVec2 ( (AutoUpdatePopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
+                                          std::min<float> (
+                                              std::min<float>(_updater.GetAutoUpdateNotes().lines, 40.0f) * fontConsolas->FontSize,
+                                              SKIF_vecCurrentMode.y * 0.6f)
+                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
+
+          SKIF_ImGui_DisallowMouseDragMove ( );
+
+          ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
+
+          SKIF_ImGui_Spacing ();
+        }
+
+        SKIF_ImGui_Spacing ();
+
+        float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
+
+        ImGui::SetCursorPosX(fX);
+
+        if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                              25 * SKIF_ImGui_GlobalDPIScale )))
+        {
+          _registry.regKVAutoUpdateVersion.putData(L"");
+          AutoUpdatePopup = PopupState_Closed;
+          ImGui::CloseCurrentPopup ();
+        }
+
+        SKIF_ImGui_DisallowMouseDragMove ( );
+
+        ImGui::EndPopup ();
+      }
 
       /* 2023-08-04: Disabled due to having been replaced by a new 
       // Special handling to allow the main window to be moved when some popups are opened
@@ -2968,7 +3070,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           UpdatePromptPopup != PopupState_Open   &&
           UpdatePromptPopup != PopupState_Opened &&
                HistoryPopup != PopupState_Open   &&
-               HistoryPopup != PopupState_Opened)
+               HistoryPopup != PopupState_Opened &&
+            AutoUpdatePopup != PopupState_Open   &&
+            AutoUpdatePopup != PopupState_Opened)
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
     }
 
@@ -3784,6 +3888,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"Blink and you'll miss it ;)", L"An update is being installed...");
 
             PLOG_INFO << "The app is performing an automatic update...";
+
+            _registry.regKVAutoUpdateVersion.putData (SK_UTF8ToWideChar (SKIF_Updater::GetInstance().GetResults().version));
 
             bool startService   = (_Signal.Start         && NULL == SKIF_ImGui_hWnd) ||
                                   ((_inject.bCurrentState || _inject.runState == SKIF_InjectionContext::RunningState::Starting) && ! _inject.bAckInj);

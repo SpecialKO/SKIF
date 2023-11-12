@@ -259,7 +259,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;
   iLastSelectedGame        =   STEAM_APPID; // Default selected game
-  //wsLastSelectedStore      =   L"Steam";    // Default selected store
   iLastSelectedStore       =   0;
 
   if (regKVRememberLastSelected.hasData())
@@ -276,6 +275,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVPath.hasData())
     wsPath                 =   regKVPath                   .getData ( );
+
+  if (regKVAutoUpdateVersion.hasData())
+    wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData ( );
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData ( );

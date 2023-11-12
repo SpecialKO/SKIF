@@ -371,6 +371,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Path)" );
 
+  KeyValue <std::wstring> regKVAutoUpdateVersion =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Auto-Update Version)" );
+
   // Windows stuff
 
   // App registration
@@ -437,11 +441,13 @@ struct SKIF_RegistrySettings {
   // Warnings
   bool bWarningRTSS             = false;
   
-  // Misc settings
+  // Wide strings
   std::wstring wsUpdateChannel  = L"Website"; // Default to stable channel
   std::wstring wsIgnoreUpdate;
   std::wstring wsPath;
-  //std::wstring wsLastSelectedStore;
+  std::wstring wsAutoUpdateVersion; // Holds the version the auto-updater is trying to install
+
+  // Misc settings
   unsigned int iLastSelectedStore;
   unsigned int iLastSelectedGame;
 

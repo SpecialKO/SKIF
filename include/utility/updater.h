@@ -34,6 +34,15 @@ struct SKIF_Updater {
     bool        is_older;
   };
 
+  // Used to hold formatted changes displayed in SKIF
+  struct changelog_s {
+    std::vector<char> notes;
+    float lines         = 0;
+    size_t max_length   = 0;
+  };
+
+  // Public variables
+
   // Used to contain the results of an update check
   struct results_s {
     UpdateFlags state = UpdateFlags_Unknown;
@@ -48,13 +57,9 @@ struct SKIF_Updater {
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
     bool rollbackAvailable = false; // Indicates SKIF can roll back
     std::vector <version_s> versions;
-
-    // Used to hold formatted changes displayed in SKIF
-    struct changelog_s {
-      std::vector<char> notes;
-      float lines         = 0;
-      size_t max_length   = 0;
-    } release_notes_formatted, history_formatted;
+    
+    changelog_s release_notes_formatted;
+    changelog_s history_formatted;
   };
   
   // Public functions
@@ -64,6 +69,7 @@ struct SKIF_Updater {
   bool                                                IsRollbackAvailable (void);
   std::string                                         GetPatrons          (void);
   std::string                                         GetHistory          (void);
+  changelog_s                                         GetAutoUpdateNotes  (void);
   std::vector <std::pair <std::string, std::string>>* GetChannels         (void);
                std::pair <std::string, std::string>*  GetChannel          (void);
   void                                                SetChannel          (std::pair <std::string, std::string>* _channel);
@@ -86,11 +92,12 @@ private:
     results_s results;
   } snapshots [3];
 
-  results_s&  results = snapshots[0].results;
-  std::pair<std::string, std::string> empty = std::pair("", ""); // dummy (used when there's no match to be found)
-  std::pair<std::string, std::string>* channel = &empty;
-  std::vector <std::pair<std::string, std::string>>  channels;   // static
-  bool        pending = true;
+  results_s&                                         results = snapshots[0].results;
+  std::pair<std::string, std::string>                  empty = std::pair("", ""); // dummy (used when there's no match to be found)
+  std::pair<std::string, std::string>*               channel = &empty;
+  std::vector <std::pair<std::string, std::string>>  channels; // static
+  changelog_s                          auto_updater_formatted;
+  bool                                               pending = true;
   
   std::atomic<int> snapshot_idx_reading = 0,
                    snapshot_idx_written = 1,
@@ -104,4 +111,5 @@ private:
   void         ClearOldUpdates    (void);
   void         PerformUpdateCheck (results_s& _res);
   std::wstring ReadPatronsFile    (void);
+  void         ReadChangesFile    (void);
 };

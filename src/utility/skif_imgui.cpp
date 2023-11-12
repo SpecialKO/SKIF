@@ -1008,7 +1008,8 @@ SKIF_ImGui_CanMouseDragMove (void)
            ModifyGamePopup == PopupState_Opened || //   the center of the app window
            RemoveGamePopup == PopupState_Opened ||
          UpdatePromptPopup == PopupState_Opened ||
-              HistoryPopup == PopupState_Opened ));
+              HistoryPopup == PopupState_Opened ||
+           AutoUpdatePopup == PopupState_Opened ));
 }
 
 void
