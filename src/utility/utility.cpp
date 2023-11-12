@@ -522,6 +522,10 @@ SKIF_Util_OpenURI (
     ret = sexi.hInstApp;
   }
 
+  else {
+    PLOG_VERBOSE << "The operation failed!";
+  }
+
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
