@@ -839,7 +839,11 @@ SKIF_Updater::ReadChangesFile (void)
     if (! auto_updater_formatted.notes.empty())
     {
       // Remove the trailing newline
-      auto_updater_formatted.notes.pop_back();
+      auto_updater_formatted.notes.pop_back ( );
+
+      // Be sure to terminate the string properly
+      auto_updater_formatted.notes.push_back ('\0');
+      auto_updater_formatted.notes.push_back ('\0');
 
       // Increase the number of lines due to ImGui weirdness
       auto_updater_formatted.lines += 1.5f;
