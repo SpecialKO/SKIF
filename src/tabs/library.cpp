@@ -67,6 +67,7 @@ bool                   tryingToLoadCover = false;
 std::atomic<bool>      gameCoverLoading  = false;
 std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
+std::atomic<bool>      gameWorkerRunning = false;
 std::atomic<uint32_t>  modAppId          = 0;
 
 static bool clickedGameLaunch,
@@ -1435,8 +1436,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // Temporarily disabled since this gets triggered on game launch/shutdown as well...
     // And generally also breaks SKIF's library view on occasion
-    //if (SKIF_Steam_isLibrariesSignaled ())
-    //  RepopulateGames = true;
+    if (_registry.bLibrarySteam && SKIF_Steam_isLibrariesSignaled ())
+      RepopulateGames = true;
 
     if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
       RepopulateGames = true;
@@ -1454,9 +1455,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       RepopulateGames = true;
   }
 
-  if (RepopulateGames)
+  // We cannot manipulate the apps array while the game worker thread is running
+  if (RepopulateGames && ! gameWorkerRunning.load())
   {
     RepopulateGames = false;
+    gameWorkerRunning.store(true);
 
     // Clear cached lists
     apps.clear   ();
@@ -1479,7 +1482,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     //InterlockedExchange (&icon_thread, 1);
 
     PLOG_INFO << "Populating library list...";
-
+    
     apps      = SKIF_Steam_GetInstalledAppIDs ();
     
     // Refresh the current Steam user
@@ -1579,6 +1582,16 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.second.id = 0;
           continue;
         }
+
+        /*
+        if (app.second.launch_configs.size() == 0)
+        {
+          PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has no launch config; ignoring!";
+
+          app.second.id = 0;
+          continue;
+        }
+        */
 
         std::string original_name = app.first;
 
@@ -1737,6 +1750,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Finished streaming game icons asynchronously...";
       
       //InterlockedExchange (&icon_thread, 0);
+      gameWorkerRunning.store(false);
 
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);

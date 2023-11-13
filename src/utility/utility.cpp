@@ -817,7 +817,7 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 {
   bool ret = PathFileExists (targetPath.c_str());
 
-  if (! ret)
+  if (! ret && PathFileExists (exePath.c_str()))
   {
     std::filesystem::path target = targetPath;
 
