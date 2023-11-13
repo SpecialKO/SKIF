@@ -861,62 +861,92 @@ SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot)
 bool
 SKIF_Steam_isLibrariesSignaled (void)
 {
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  //static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  //if (! _registry.bLibrarySteam)
+  //  return false;
 
 #define MAX_STEAM_LIBRARIES 16
-
-  if (! _registry.bLibrarySteam)
-    return false;
 
   bool isSignaled = false;
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
-  static SKIF_DirectoryWatch steam_libs_watch[MAX_STEAM_LIBRARIES];
-  static int                 steam_libs_files[MAX_STEAM_LIBRARIES] = { 0 };
-  static bool                isInitialized = false;
+  static bool      isInitialized   = false;
+
+  extern HWND      SKIF_Notify_hWnd;
+
+  if (SKIF_Notify_hWnd == NULL)
+    return false;
 
   if (! steam_lib_paths)
     return false;
 
-  if (steam_libs != 0)
+  if (steam_libs == 0)
+    return false;
+
+  struct {
+    SKIF_DirectoryWatch watch;
+    DWORD               signaled = 0;
+    int                 count    = 0;
+    wchar_t             path [MAX_PATH + 2] = { };
+    UINT_PTR            timer;
+  } static steam_libraries[MAX_STEAM_LIBRARIES];
+
+  for (int i = 0; i < steam_libs; i++)
   {
-    for (int i = 0; i < steam_libs; i++)
+    auto& library =
+      steam_libraries[i];
+
+    if (! isInitialized)
     {
-      wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-      swprintf ( wszManifestDir, MAX_PATH + 2,
+      swprintf (library.path, MAX_PATH + 2,
                     LR"(%s\steamapps)",
                 (wchar_t *)steam_lib_paths [i] );
 
-      bool countFiles = false;
+      library.timer = static_cast <UINT_PTR>(1983 + i); // 1983-1999
+    }
 
-      if (steam_libs_watch[i].isSignaled (wszManifestDir, false))
-        countFiles = true;
+    bool countFiles = false;
 
-      if (countFiles || ! isInitialized)
+    // If we detect any changes, delay checking the details for a couple of seconds 
+    if (library.watch.isSignaled (library.path, true))
+    {
+      library.signaled = SKIF_Util_timeGetTime ( );
+
+      // Create a timer to trigger a refresh after the time has expired
+      SetTimer (SKIF_Notify_hWnd, library.timer, 2500 + 50, NULL);
+    }
+
+    // Only refresh if there has been no further changes to the folder recently
+    if (0 < library.signaled && library.signaled + 2500 < SKIF_Util_timeGetTime ( ))
+    {
+      KillTimer (SKIF_Notify_hWnd, library.timer);
+      library.signaled = 0;
+      countFiles = true;
+    }
+
+    if (countFiles || ! isInitialized)
+    {
+      int currCount = steam_libraries[i].count;
+
+      std::error_code ec;
+      std::filesystem::directory_iterator iterator = 
+        std::filesystem::directory_iterator (library.path, ec);
+
+      // Only iterate over the files if the directory exists and is accessible
+      if (! ec)
       {
-        int prevCount = steam_libs_files[i];
-        int currCount = 0;
+        currCount = 0;
+        for (auto& directory_entry : iterator)
+          if (directory_entry.is_regular_file())
+            currCount++;
+      }
 
-        std::error_code ec;
-        std::filesystem::directory_iterator iterator = 
-          std::filesystem::directory_iterator (wszManifestDir, ec);
-
-        // Only iterate over the files if the directory exists and is accessible
-        if (! ec)
-        {
-          for (auto& directory_entry : iterator)
-            if (directory_entry.is_regular_file())
-              currCount++;
-
-          steam_libs_files[i] = currCount;
-        }
-
-        if (countFiles && prevCount != currCount)
-        {
-          isSignaled = true;
-          //OutputDebugString(L"isSignaled 2!\n");
-        }
+      if (steam_libraries[i].count != currCount)
+      {
+        steam_libraries[i].count = currCount;
+        isSignaled = true;
       }
     }
   }
