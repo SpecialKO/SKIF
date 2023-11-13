@@ -3720,6 +3720,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  // We don't define this here to ensure it doesn't get created before we are ready to handle it
+//static SKIF_Updater&          _updater    = SKIF_Updater         ::GetInstance ( );
 
   switch (msg)
   {
@@ -3747,8 +3749,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         
     break;
 
-    case WM_QUIT:
-      SKIF_Shutdown = true;
+    // System wants to shut down and is asking if we can allow it
+    case WM_QUERYENDSESSION:
+      PLOG_INFO << "System in querying if we can shut down!";
+      return true;
       break;
 
     case WM_ENDSESSION: 
@@ -3770,9 +3774,42 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       //return 0;
       break;
 
-    case WM_QUERYENDSESSION: // System wants to shut down and is asking if we can allow it
-      PLOG_INFO << "System in querying if we can shut down!";
-      return true;
+    case WM_QUIT:
+      SKIF_Shutdown = true;
+      break;
+
+    case WM_POWERBROADCAST:
+      if (wParam == PBT_APMSUSPEND)
+      {
+        // The system allows approximately two seconds for an application to handle this notification.
+        // If an application is still performing operations after its time allotment has expired, the system may interrupt the application.
+        PLOG_INFO << "System is suspending operation.";
+        if (! _registry._LastSelectedWritten)
+        {
+          _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+          _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
+          _registry._LastSelectedWritten = true;
+          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
+        }
+      }
+
+      // If the system wakes due to an external wake signal (remote wake), the system broadcasts only the PBT_APMRESUMEAUTOMATIC event.
+      // The PBT_APMRESUMESUSPEND event is not sent.
+      if (wParam == PBT_APMRESUMEAUTOMATIC)
+      {
+        PLOG_DEBUG << "Operation is resuming automatically from a low-power state.";
+      }
+
+      // If the system wakes due to user activity (such as pressing the power button) or if the system detects user interaction at the physical
+      // console (such as mouse or keyboard input) after waking unattended, the system first broadcasts the PBT_APMRESUMEAUTOMATIC event, then
+      // it broadcasts the PBT_APMRESUMESUSPEND event. In addition, the system turns on the display.
+      // Your application should reopen files that it closed when the system entered sleep and prepare for user input.
+      if (wParam == PBT_APMRESUMESUSPEND)
+      {
+        PLOG_INFO << "Operation is resuming from a low-power state due to user activity.";
+        SKIF_Updater::GetInstance ( ).CheckForUpdates ( );
+      }
+
       break;
 
     case WM_GETICON: // Work around bug in Task Manager sending this message every time it refreshes its process list
@@ -3889,7 +3926,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             PLOG_INFO << "The app is performing an automatic update...";
 
-            _registry.regKVAutoUpdateVersion.putData (SK_UTF8ToWideChar (SKIF_Updater::GetInstance().GetResults().version));
+            _registry.regKVAutoUpdateVersion.putData (SK_UTF8ToWideChar (SKIF_Updater::GetInstance ( ).GetResults ( ).version));
 
             bool startService   = (_Signal.Start         && NULL == SKIF_ImGui_hWnd) ||
                                   ((_inject.bCurrentState || _inject.runState == SKIF_InjectionContext::RunningState::Starting) && ! _inject.bAckInj);
