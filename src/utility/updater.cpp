@@ -15,6 +15,7 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 #include <utility/injection.h>
+#include <netlistmgr.h>
 
 CONDITION_VARIABLE UpdaterPaused = { };
 
@@ -47,15 +48,17 @@ SKIF_Updater::SKIF_Updater (void)
 
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdaterJob");
 
+      CoInitializeEx       (nullptr, 0x0);
+
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
       extern SKIF_Signals _Signal;
       extern bool SKIF_Shutdown;
-      extern bool SKIF_NoInternet;
+      bool SKIF_NoInternet = false;
 
       // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
-      while (_Signal.Launcher || _Signal.Quit || SKIF_NoInternet)
+      while (_Signal.Launcher || _Signal.Quit)
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
@@ -67,6 +70,33 @@ SKIF_Updater::SKIF_Updater (void)
 
       do
       {
+        static CComPtr <INetworkListManager> pNLM;
+        static HRESULT hrNLM  =
+          CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
+
+        // Check if we have an internet connection,
+        //   and if not, check again every 5 seconds
+        if (SUCCEEDED (hrNLM))
+        {
+          do {
+            VARIANT_BOOL connStatus = 0;
+
+            if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+              SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+
+            // Resume the update thread
+            if (! SKIF_NoInternet)
+              break;
+            
+            Sleep (5000);
+          } while (SKIF_NoInternet);
+        }
+
+        else {
+          SK_RunOnce (PLOG_ERROR << "Failed checking for an internet connection!");
+          SKIF_NoInternet = true; // Assume we have an internet connection if something fails
+        }
+
         parent.updater_running.store (1);
 
         static int lastWritten = 0;
@@ -85,6 +115,8 @@ SKIF_Updater::SKIF_Updater (void)
         local = { };    // Reset any existing data
         local.patrons = // Copy existing patrons.txt data
           parent.snapshots [currReading].results.patrons;
+
+        PLOG_INFO << "Checking for updates...";
         
         // Set a timer so the main UI refreshes every 15 ms
         SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
@@ -216,7 +248,9 @@ SKIF_Updater::SKIF_Updater (void)
 
       PLOG_DEBUG << "SKIF_UpdaterJob thread stopped!";
 
-      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+      SetThreadPriority     (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+      CoUninitialize        ( );
 
       LeaveCriticalSection  (&UpdaterJob);
       DeleteCriticalSection (&UpdaterJob);
@@ -876,11 +910,14 @@ SKIF_Updater::RefreshResults (void)
 void
 SKIF_Updater::CheckForUpdates (bool _forced, bool _rollback)
 {
-  forced.store   (_forced);
-  rollback.store (_rollback);
-  awake.store    (true);
+  if (awake.load ( ) == false)
+  {
+    forced.store   (_forced);
+    rollback.store (_rollback);
+    awake.store    (true);
 
-  WakeConditionVariable       (&UpdaterPaused);
+    WakeConditionVariable       (&UpdaterPaused);
+  }
 }
 
 bool
