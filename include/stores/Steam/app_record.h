@@ -237,7 +237,6 @@ struct app_record_s {
   uint32_t     id;
   bool         cloud_enabled = true; // hidecloudui=false
   std::wstring install_dir;
-  //std::string  type  =  "Game";  // TODO: Proper enum
   Store store              = Store::Unspecified;
   std::string  store_utf8  = "";  // maybe enum?
   std::string  ImGuiPushID = "";

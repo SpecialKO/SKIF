@@ -116,6 +116,7 @@ struct SKIF_Signals { // Used for command line arguments
 //BOOL Restore              =  TRUE; // Only executed once
   BOOL AddSKIFGame          = FALSE;
   BOOL Launcher             = FALSE;
+  BOOL LauncherURI          = FALSE;
   BOOL CheckForUpdates      = FALSE;
 
   // Helper variables

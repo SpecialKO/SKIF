@@ -316,12 +316,16 @@ SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
   _Signal.AddSKIFGame =
     StrStrIW (lpCmdLine, L"AddGame=")   != NULL;
 
+  _Signal.LauncherURI =
+    StrStrIW (lpCmdLine, L"SKIF_URI=") != NULL;
+
   _Signal.CheckForUpdates =
     StrStrIW (lpCmdLine, L"RunUpdater") != NULL;
 
-  // Both AddSKIFGame and Launcher can include .exe in the argument
-  //   so only set Launcher if AddSKIFGame is false.
-  if (! _Signal.AddSKIFGame)
+  // Both AddSKIFGame, SKIF_URI, and Launcher can include .exe in
+  //   the argument so only set Launcher if the others are false.
+  if (! _Signal.AddSKIFGame &&
+      ! _Signal.LauncherURI)
         _Signal.Launcher =
       StrStrIW (lpCmdLine, L".exe")     != NULL;
 
@@ -550,6 +554,60 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 }
 
 void
+SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
+{
+  if (! _Signal.LauncherURI)
+    return;
+
+  PLOG_INFO << "Preparing the shell execute call...";
+
+  if (! _Signal.Start)
+    _Signal._DoNotUseService = true;
+
+  //static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  //static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  std::wstring cmdLine      = std::wstring     (lpCmdLine);
+  std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
+
+  const std::wstring argSKIF_URI = L"skif_uri=";
+  std::wstring argSKIF_URI_found = L"";
+  size_t posArgumentStart        = cmdLineLower.find (argSKIF_URI);
+  
+  // Extract the SKIF_XXX cmd line argument
+  if (posArgumentStart != std::wstring::npos)
+  {
+    size_t
+      posArgumentEnd = cmdLineLower.find (L" ", posArgumentStart);
+
+    if (posArgumentEnd == std::wstring::npos)
+      posArgumentEnd = cmdLineLower.length ( );
+
+    // Length of the substring to remove
+    posArgumentEnd -= posArgumentStart;
+
+    argSKIF_URI_found = cmdLineLower.substr(posArgumentStart + argSKIF_URI.length ( ), posArgumentEnd);
+
+    // Remove substring from the original variables
+    cmdLine     .erase (posArgumentStart, posArgumentEnd);
+    cmdLineLower.erase (posArgumentStart, posArgumentEnd);
+  }
+
+  PLOG_VERBOSE_IF(! argSKIF_URI_found.empty()) << "URI: " << argSKIF_URI_found;
+
+  if (! argSKIF_URI_found.empty())
+  {
+    _Signal._GamePath = argSKIF_URI_found;
+  }
+
+  else {
+    PLOG_ERROR << "Non-valid URI detected: " << cmdLine;
+
+    ExitProcess (0x0);
+  }
+}
+
+void
 SKIF_Startup_LaunchGameService (void)
 {
   if (_Signal._GamePath.empty())
@@ -560,7 +618,9 @@ SKIF_Startup_LaunchGameService (void)
 
   if (_Signal._DoNotUseService)
   {
-    if (_Signal._RunningInstance && _inject.bCurrentState)
+    // 2023-11-14: I am unsure how effective _inject.bCurrentState is here...
+    //             Is it even accurate at this point in time? // Aemony
+    if (_Signal._RunningInstance && (_inject.bCurrentState || _Signal.LauncherURI))
     {
       PLOG_INFO << "Stopping injection service...";
       SendMessage (_Signal._RunningInstance, WM_SKIF_STOP, 0x0, 0x0);
@@ -897,7 +957,10 @@ void SKIF_Shell_CreateJumpList (void)
   // Create a jump list COM object.
   if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
   {
-    pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS(&pRemovedItems));
+    pDestList     ->SetAppID        (L"SpecialK.Injection.Frontend");
+    pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS (&pRemovedItems));
+
+    pDestList     ->AppendKnownCategory (KDC_RECENT);
 
     if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
     {
@@ -908,8 +971,8 @@ void SKIF_Shell_CreateJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments  
-        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.
         pLink     ->SetDescription  (L"Starts the injection service and\n"
                                      L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Service", &pv);
@@ -927,8 +990,8 @@ void SKIF_Shell_CreateJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Start");                                 // Set the arguments  
-        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.  
+        pLink     ->SetArguments    (L"Start");                                 // Set the arguments
+        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.
         pLink     ->SetDescription  (L"Starts the injection service but\n"
                                      L"does not stop it after injection.");     // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Service (manual stop)", &pv);
@@ -946,8 +1009,8 @@ void SKIF_Shell_CreateJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
-        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
+        pLink     ->SetArguments    (L"Stop");                                  // Set the arguments
+        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.
         pLink     ->SetDescription  (L"Stops the injection service");           // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Stop Service", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
@@ -978,8 +1041,8 @@ void SKIF_Shell_CreateJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"RunUpdater");                            // Set the arguments  
-        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+        pLink     ->SetArguments    (L"RunUpdater");                            // Set the arguments
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
         pLink     ->SetDescription  (L"Checks for any available updates");      // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Check for Updates", &pv);
         pPropStore->SetValue                   (PKEY_Title, pv);                // Set the title property.
@@ -1012,8 +1075,8 @@ void SKIF_Shell_CreateJumpList (void)
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
         pLink     ->SetPath         (szExePath);
-        pLink     ->SetArguments    (L"Quit");                                  // Set the arguments  
-        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+        pLink     ->SetArguments    (L"Quit");                                  // Set the arguments
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
       //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Exit", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
@@ -1032,6 +1095,41 @@ void SKIF_Shell_CreateJumpList (void)
       pObjColl     .Release         ( );
     }
     pDestList      .Release         ( );
+  }
+}
+
+void SKIF_Shell_AddJumpList (std::wstring lpszName, std::wstring lpszArguments, bool bService)
+{
+  CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
+  PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
+  TCHAR                              szExePath[MAX_PATH];
+  GetModuleFileName           (NULL, szExePath, _countof(szExePath));           // Set the executable path
+
+  if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+  {
+    CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+    lpszArguments = L"SKIF_URI=" + lpszArguments;
+
+    if (! bService)
+      lpszName    = lpszName + L" (w/o Special K)";
+    else
+      lpszArguments = L"Start Temp " + lpszArguments;
+
+    pLink     ->SetPath         (szExePath);
+    pLink     ->SetArguments    (lpszArguments.c_str());                    // Set the arguments
+    //pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
+    pLink     ->SetDescription  (lpszArguments.c_str());                    // Set the link description (tooltip on the jump list item)
+    InitPropVariantFromString   (lpszName.c_str(), &pv);
+    pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
+    PropVariantClear                               (&pv);
+    pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+
+    // Add to the Recent list
+    SHAddToRecentDocs           (SHARD_LINK, pLink.p);
+
+    pPropStore .Release         ( );
+    pLink      .Release         ( );
   }
 }
 
@@ -1121,14 +1219,16 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   // Now we can proceed with initializing the logging
   // If SKIF is used as a launcher, use a separate log file
   std::wstring logPath =
-    SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log)" 
-                                         : LR"(%ws\SKIF.log)",
+    SK_FormatStringW ((_Signal.Launcher || _Signal.LauncherURI)
+                ? LR"(%ws\SKIF_launcher.log)" 
+                : LR"(%ws\SKIF.log)",
           _path_cache.specialk_userdata
     );
 
   std::wstring logPath_old =
-    SK_FormatStringW ((_Signal.Launcher) ? LR"(%ws\SKIF_launcher.log.bak)" 
-                                         : LR"(%ws\SKIF.log.bak)",
+    SK_FormatStringW ((_Signal.Launcher || _Signal.LauncherURI)
+                ? LR"(%ws\SKIF_launcher.log.bak)" 
+                : LR"(%ws\SKIF.log.bak)",
           _path_cache.specialk_userdata
     );
 
@@ -1159,7 +1259,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   PLOG_INFO << "Special K userdata: " << _path_cache.specialk_userdata;
   PLOG_INFO << SKIF_LOG_SEPARATOR;
 
-  if (_Signal.Launcher)
+  if (_Signal.Launcher || _Signal.LauncherURI)
     PLOG_INFO << "SKIF is being used as a launcher.";
 }
 
@@ -1239,9 +1339,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   // Process cmd line arguments (2/4)
   hWndOrigForeground = // Remember what third-party window is currently in the foreground
-    GetForegroundWindow ();
-  SKIF_Startup_AddGame (lpCmdLine);
+    GetForegroundWindow ( );
+  SKIF_Startup_AddGame               (lpCmdLine);
   SKIF_Startup_LaunchGamePreparation (lpCmdLine);
+  SKIF_Startup_LaunchURIPreparation  (lpCmdLine);
+
+  // Force a one-time check so we know whether to start/stop the service...
+  _inject._TestServletRunlevel (true);
 
   // If there already an instance of SKIF running we do not
   //   need to create a window to service the cmd line args
@@ -1280,7 +1384,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_nCmdShow = nCmdShow;
 
   // Check if Controlled Folder Access is enabled
-  if (! _Signal.Launcher && ! _Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit)
   {
     if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess())
     {
@@ -1523,7 +1627,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
   // Initialize ImGui fonts
-  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.Quit) );
+  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
@@ -1531,37 +1635,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   bool repositionToCenter = false;
 
-  // Force a one-time check before we enter the main loop
-  _inject._TestServletRunlevel (true);
-
-  // Variable related to checking for an internet connection
-  //CComPtr <INetworkListManager> pNLM;
-  //HRESULT hrNLM         = E_HANDLE;
-  //DWORD   dwNLM         = NULL;
-  //DWORD   dwNLMinterval = 5000;
-
   // Do final checks and actions if we are expected to live longer than a few seconds
-  if (! _Signal.Launcher && ! _Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit)
   {
     // Register HDR toggle hotkey (if applicable)
     SKIF_Util_RegisterHotKeyHDRToggle ( );
 
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   ( );
-
-    /*
-    // Check if we have an internet connection
-    hrNLM = CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
-    if (SUCCEEDED (hrNLM))
-    {
-      VARIANT_BOOL connStatus = 0;
-      dwNLM = SKIF_Util_timeGetTime ( );
-      
-      PLOG_DEBUG << "Checking for an online connection...";
-      if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
-        SKIF_NoInternet = (VARIANT_FALSE == connStatus);
-    }
-    */
   }
 
   // Initialize the updater
@@ -1731,7 +1812,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Attempt to set the game window as foreground after SKIF's window has appeared
     static bool
         runPostWindowCreation =  true;
-    if (_Signal.Launcher &&
+    if ((_Signal.Launcher || _Signal.LauncherURI) &&
         runPostWindowCreation && SKIF_ImGui_hWnd != NULL)
     {   runPostWindowCreation =  false;
       SKIF_Startup_SetGameAsForeground ( );
@@ -1781,26 +1862,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           : true                                             // otherwise default to true,
         : false;                                             // and false if OS prerequisites are disabled
     }
-
-    // In case we have no internet connection, check for one every 5 seconds
-    /*
-    if (SKIF_NoInternet)
-    {
-      if (SUCCEEDED (hrNLM) && dwNLM + dwNLMinterval < SKIF_Util_timeGetTime ( ))
-      {
-        VARIANT_BOOL connStatus = 0;
-        dwNLM = SKIF_Util_timeGetTime ( );
-      
-        PLOG_DEBUG << "Checking for an online connection...";
-        if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
-          SKIF_NoInternet = (VARIANT_FALSE == connStatus);
-
-        // Kickstart the update thread
-        if (! SKIF_NoInternet)
-          _updater.CheckForUpdates ( );
-      }
-    }
-    */
 
     // F6 to toggle DPI scaling
     if (   changedHiDPIScaling ||
@@ -2138,8 +2199,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             HistoryPopup = PopupState_Open;
 
           // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
-          if (_Signal.Launcher || _Signal.Quit)
-          {   _Signal.Launcher =  _Signal.Quit = false;
+          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit)
+          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit = false;
 
             // Register HDR toggle hotkey (if applicable)
             SKIF_Util_RegisterHotKeyHDRToggle ( );

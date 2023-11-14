@@ -16,9 +16,9 @@ void         SKIF_Epic_IdentifyAssetNew     (std::string CatalogNamespace, std::
 // Epic entries
 struct app_epic_s : app_generic_s {
   std::string  Epic_CatalogNamespace = "";
-  std::string  Epic_CatalogItemId = "";
-  std::string  Epic_AppName = "";
-  std::string  Epic_DisplayName = "";
+  std::string  Epic_CatalogItemId    = "";
+  std::string  Epic_AppName          = "";
+  std::string  Epic_DisplayName      = "";
   
   void                      launchGame (void) override;
   ID3D11ShaderResourceView* getCover   (void) override;

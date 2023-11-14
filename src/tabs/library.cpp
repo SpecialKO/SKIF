@@ -975,7 +975,8 @@ Cache=false)";
     }
 
     else {
-      bool usingSK = (_cache.injection.type._Equal("Local"));
+      bool localInjection = (_cache.injection.type._Equal ("Local"));
+      bool usingSK = localInjection;
 
       // Check if the injection service should be used
       if (! usingSK)
@@ -1042,13 +1043,15 @@ Cache=false)";
       else if (pApp->store == app_record_s::Store::Epic)
       {
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-        SKIF_Util_OpenURI ((L"com.epicgames.launcher://apps/" + pApp->launch_configs[0].launch_options + L"?action=launch&silent=true").c_str());
+
+        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true")", pApp->launch_configs[0].launch_options.c_str());
+        SKIF_Util_OpenURI (launchOptions);
       }
 
       // Launch Steam game
       else if (pApp->store == app_record_s::Store::Steam)
       {
-        bool actualLaunchWoSK = true;
+        bool launchDecision = true;
 
         // Check localconfig.vdf if user is attempting to launch without Special K 
         if (clickedGameLaunchWoSK)
@@ -1062,7 +1065,7 @@ Cache=false)";
 
             if (launch_options_lower.find("skif ") != std::string::npos)
             {
-              actualLaunchWoSK = false;
+              launchDecision = false;
 
               // Escape any percent signs (%)
               for (auto pos  = launch_options.find ('%');          // Find the first occurence
@@ -1083,17 +1086,20 @@ Cache=false)";
           }
         }
 
-        if (actualLaunchWoSK)
+        if (launchDecision)
         {
-          SKIF_Util_OpenURI ((L"steam://run/" + std::to_wstring(pApp->id)).c_str());
+          std::wstring launchOptions = SK_FormatStringW(LR"(steam://run/%d)", pApp->id);
+          SKIF_Util_OpenURI (launchOptions);
           pApp->_status.invalidate();
+
+          extern void SKIF_Shell_AddJumpList (std::wstring lpszName, std::wstring lpszArguments, bool bService);
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchOptions, (! localInjection && usingSK));
         }
       }
        
       // SKIF Custom, GOG without Galaxy, Xbox
       else
       {
-
         std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
                               ? pApp->launch_configs[0].executable_helper
                               : pApp->launch_configs[0].getExecutableFullPath(pApp->id);
