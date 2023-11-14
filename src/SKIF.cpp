@@ -155,6 +155,7 @@ DWORD HoverTipDuration             = 0;
 #define SKIF_NOTIFY_START                   0x1332 // 4914
 #define SKIF_NOTIFY_STOP                    0x1333 // 4915
 #define SKIF_NOTIFY_STARTWITHSTOP           0x1334 // 4916
+#define SKIF_NOTIFY_RUN_UPDATER             0x1335 // 4917
 #define WM_SKIF_NOTIFY_ICON      (WM_USER + 0x150) // 1360
 bool SKIF_isTrayed = false;
 NOTIFYICONDATA niData;
@@ -298,22 +299,25 @@ void
 SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
 {
   _Signal.Start =
-    StrStrIW (lpCmdLine, L"Start")    != NULL;
+    StrStrIW (lpCmdLine, L"Start")      != NULL;
 
   _Signal.Temporary =
-    StrStrIW (lpCmdLine, L"Temp")     != NULL;
+    StrStrIW (lpCmdLine, L"Temp")       != NULL;
 
   _Signal.Stop =
-    StrStrIW (lpCmdLine, L"Stop")     != NULL;
+    StrStrIW (lpCmdLine, L"Stop")       != NULL;
 
   _Signal.Quit =
-    StrStrIW (lpCmdLine, L"Quit")     != NULL;
+    StrStrIW (lpCmdLine, L"Quit")       != NULL;
 
   _Signal.Minimize =
-    StrStrIW (lpCmdLine, L"Minimize") != NULL;
+    StrStrIW (lpCmdLine, L"Minimize")   != NULL;
 
   _Signal.AddSKIFGame =
-    StrStrIW (lpCmdLine, L"AddGame=") != NULL;
+    StrStrIW (lpCmdLine, L"AddGame=")   != NULL;
+
+  _Signal.CheckForUpdates =
+    StrStrIW (lpCmdLine, L"RunUpdater") != NULL;
 
   // Both AddSKIFGame and Launcher can include .exe in the argument
   //   so only set Launcher if AddSKIFGame is false.
@@ -647,6 +651,7 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   if (! _Signal.Start            && 
       ! _Signal.Stop             &&
       ! _Signal.Minimize         &&
+      ! _Signal.CheckForUpdates  &&
       ! _Signal.Quit)
     return;
 
@@ -680,6 +685,22 @@ SKIF_Startup_ProxyCommandLineArguments (void)
       if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
         if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
           PostMessage (hWnd, WM_SKIF_MINIMIZE, 0x0, 0x0);
+      return TRUE;
+    }, (LPARAM)SKIF_NotifyIcoClass);
+  }
+
+  if (_Signal.CheckForUpdates)
+  {
+    // PostMessage (_Signal._RunningInstance, WM_SKIF_RUN_UPDATER, 0x0, 0x0);
+
+    // Send WM_SKIF_RUN_UPDATER to all running instances (including ourselves)
+    EnumWindows ( []( HWND   hWnd,
+                      LPARAM lParam ) -> BOOL
+    {
+      wchar_t                         wszRealWindowClass [64] = { };
+      if (RealGetWindowClassW (hWnd,  wszRealWindowClass, 64))
+        if (StrCmpIW ((LPWSTR)lParam, wszRealWindowClass) == 0)
+          PostMessage (hWnd, WM_SKIF_RUN_UPDATER, 0x0, 0x0);
       return TRUE;
     }, (LPARAM)SKIF_NotifyIcoClass);
   }
@@ -759,6 +780,8 @@ void SKIF_Shell_CreateUpdateNotifyMenu (void)
     AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Service");
     AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Service (manual stop)");
     AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Service");
+    AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_RUN_UPDATER,   L"Check for updates");
 
   //AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
   //AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
@@ -925,7 +948,7 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetPath         (szExePath);
         pLink     ->SetArguments    (L"Stop");                                  // Set the arguments  
         pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.  
-        pLink     ->SetDescription  (L"Stops the injection service");    // Set the link description (tooltip on the jump list item)
+        pLink     ->SetDescription  (L"Stops the injection service");           // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Stop Service", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
         PropVariantClear                               (&pv);
@@ -935,7 +958,55 @@ void SKIF_Shell_CreateJumpList (void)
         pLink      .Release         ( );
       }
 
-      // Task #4: Exit
+      // Separator
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        InitPropVariantFromBoolean  (TRUE, &pv);
+        pPropStore->SetValue (PKEY_AppUserModel_IsDestListSeparator, pv);       // Set the separator property.
+        PropVariantClear                                  (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      // Task #4: Check for Updates
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        pLink     ->SetPath         (szExePath);
+        pLink     ->SetArguments    (L"RunUpdater");                            // Set the arguments  
+        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.  
+        pLink     ->SetDescription  (L"Checks for any available updates");      // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (L"Check for Updates", &pv);
+        pPropStore->SetValue                   (PKEY_Title, pv);                // Set the title property.
+        PropVariantClear                                  (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+
+      /*
+      // Separator
+      if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+      {
+        CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+
+        InitPropVariantFromBoolean  (TRUE, &pv);
+        pPropStore->SetValue (PKEY_AppUserModel_IsDestListSeparator, pv);       // Set the separator property.
+        PropVariantClear                                  (&pv);
+        pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+        pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
+        pPropStore .Release         ( );
+        pLink      .Release         ( );
+      }
+      */
+
+      // Task #5: Exit
       if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
@@ -1464,10 +1535,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _inject._TestServletRunlevel (true);
 
   // Variable related to checking for an internet connection
-  CComPtr <INetworkListManager> pNLM;
-  HRESULT hrNLM         = E_HANDLE;
-  DWORD   dwNLM         = NULL;
-  DWORD   dwNLMinterval = 5000;
+  //CComPtr <INetworkListManager> pNLM;
+  //HRESULT hrNLM         = E_HANDLE;
+  //DWORD   dwNLM         = NULL;
+  //DWORD   dwNLMinterval = 5000;
 
   // Do final checks and actions if we are expected to live longer than a few seconds
   if (! _Signal.Launcher && ! _Signal.Quit)
@@ -1478,6 +1549,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   ( );
 
+    /*
     // Check if we have an internet connection
     hrNLM = CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
     if (SUCCEEDED (hrNLM))
@@ -1489,6 +1561,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
         SKIF_NoInternet = (VARIANT_FALSE == connStatus);
     }
+    */
   }
 
   // Initialize the updater
@@ -1710,6 +1783,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // In case we have no internet connection, check for one every 5 seconds
+    /*
     if (SKIF_NoInternet)
     {
       if (SUCCEEDED (hrNLM) && dwNLM + dwNLMinterval < SKIF_Util_timeGetTime ( ))
@@ -1726,6 +1800,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _updater.CheckForUpdates ( );
       }
     }
+    */
 
     // F6 to toggle DPI scaling
     if (   changedHiDPIScaling ||
@@ -2072,6 +2147,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Register service (auto-stop) hotkey
             SKIF_Util_RegisterHotKeySVCTemp   ( );
             
+            /*
             // Check for the presence of an internet connection
             if (SUCCEEDED (hrNLM))
             {
@@ -2082,6 +2158,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
               if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
                 SKIF_NoInternet = (VARIANT_FALSE == connStatus);
             }
+            */
 
             // Kickstart the update thread
             _updater.CheckForUpdates ( );
@@ -2432,7 +2509,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // End Add Game
 
           // Begin Pulsating Refresh Icon
-          if (! SKIF_NoInternet && _updater.IsRunning ( ))
+          if (_updater.IsRunning ( ))
           {
             ImGui::SetCursorPosX (
               ImGui::GetCursorPosX () +
@@ -3807,7 +3884,8 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (wParam == PBT_APMRESUMESUSPEND)
       {
         PLOG_INFO << "Operation is resuming from a low-power state due to user activity.";
-        SKIF_Updater::GetInstance ( ).CheckForUpdates ( );
+        if (_registry.iCheckForUpdates == 2)
+          SKIF_Updater::GetInstance ( ).CheckForUpdates ( );
       }
 
       break;
@@ -3902,6 +3980,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SKIF_ICON:
       addAdditionalFrames += 3;
+      break;
+
+    case WM_SKIF_RUN_UPDATER:
+      SKIF_Updater::GetInstance ( ).CheckForUpdates ( );
       break;
 
     case WM_SKIF_UPDATER:
@@ -4151,6 +4233,9 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         case SKIF_NOTIFY_STOP:
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_STOP, 0, 0);
+          break;
+        case SKIF_NOTIFY_RUN_UPDATER:
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_RUN_UPDATER, 0, 0);
           break;
         case SKIF_NOTIFY_EXIT:
           if (SKIF_ImGui_hWnd != NULL)

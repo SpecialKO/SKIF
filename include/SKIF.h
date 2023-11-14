@@ -61,6 +61,7 @@ constexpr UINT           WM_SKIF_TEMPSTARTEXIT  = WM_USER + 0x1026;
 constexpr UINT           WM_SKIF_STOP           = WM_USER + 0x2048;
 constexpr UINT           WM_SKIF_LAUNCHER       = WM_USER + 0x1027; // Another instance of SKIF is as a launcher -- signals the main instance to start the service
 constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028; // AddGame="<path-to-game" cmd line argument
+constexpr UINT           WM_SKIF_RUN_UPDATER    = WM_USER + 0x1029; // Triggers a check for updates
 
 // Thread workers
 constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049; // Gamepad input worker detected new input
@@ -115,6 +116,7 @@ struct SKIF_Signals { // Used for command line arguments
 //BOOL Restore              =  TRUE; // Only executed once
   BOOL AddSKIFGame          = FALSE;
   BOOL Launcher             = FALSE;
+  BOOL CheckForUpdates      = FALSE;
 
   // Helper variables
   HWND _RunningInstance     = NULL;
