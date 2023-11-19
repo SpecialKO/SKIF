@@ -491,7 +491,7 @@ SKIF_Util_OpenURI (
       ((_registry._LoadedSteamOverlay) ? SEE_MASK_NOASYNC    //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
                                        : SEE_MASK_ASYNCOK ); // Asynchronous - It is fine to defer loading the new process until later
 
-  //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS |
+  //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS
 
 #if 1
   PLOG_VERBOSE                           << "Performing a ShellExecute call...";

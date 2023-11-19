@@ -116,6 +116,9 @@ CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
 // Forward declaration
 void UpdateInjectionStrategy (app_record_s* pApp);
 
+// External declaration
+extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService);
+
 // Functions / Structs
 
 float
@@ -976,7 +979,7 @@ Cache=false)";
 
     else {
       bool localInjection = (_cache.injection.type._Equal ("Local"));
-      bool usingSK = localInjection;
+      bool usingSK        = localInjection;
 
       // Check if the injection service should be used
       if (! usingSK)
@@ -1037,6 +1040,8 @@ Cache=false)";
         std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
         SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (pApp->id), (! localInjection && usingSK));
       }
 
       // Launch Epic game
@@ -1044,8 +1049,10 @@ Cache=false)";
       {
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
 
-        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true")", pApp->launch_configs[0].launch_options.c_str());
+        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", pApp->launch_configs[0].launch_options.c_str());
         SKIF_Util_OpenURI (launchOptions);
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (pApp->id), (! localInjection && usingSK));
       }
 
       // Launch Steam game
@@ -1088,12 +1095,11 @@ Cache=false)";
 
         if (launchDecision)
         {
-          std::wstring launchOptions = SK_FormatStringW(LR"(steam://run/%d)", pApp->id);
+          std::wstring launchOptions = SK_FormatStringW (LR"(steam://run/%d)", pApp->id);
           SKIF_Util_OpenURI (launchOptions);
           pApp->_status.invalidate();
 
-          extern void SKIF_Shell_AddJumpList (std::wstring lpszName, std::wstring lpszArguments, bool bService);
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchOptions, (! localInjection && usingSK));
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (pApp->id), (! localInjection && usingSK));
         }
       }
        
@@ -1102,7 +1108,7 @@ Cache=false)";
       {
         std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
                               ? pApp->launch_configs[0].executable_helper
-                              : pApp->launch_configs[0].getExecutableFullPath(pApp->id);
+                              : pApp->launch_configs[0].getExecutableFullPath (pApp->id);
 
         // We need to use a proxy variable since we might remove a substring of the launch options
         std::wstring cmdLine      = pApp->launch_configs[0].launch_options;
@@ -1143,6 +1149,8 @@ Cache=false)";
 
         if (! steamAppId.empty ( ))
           SetEnvironmentVariable (L"SteamAppId",  NULL);
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, pApp->launch_configs[0].launch_options, pApp->launch_configs[0].working_dir.c_str(), pApp->launch_configs[0].getExecutableFullPath (pApp->id), (! localInjection && usingSK));
       }
           
       // Fallback for minimizing SKIF when not using SK if configured as such
@@ -3696,7 +3704,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (clickedGalaxyLaunch ||
               clickedGalaxyLaunchWoSK)
           {
-            bool usingSK = (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local);
+            bool localInjection = (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local);
+            bool usingSK        = localInjection;
 
             // Check if the injection service should be used
             if (! usingSK)
@@ -3736,6 +3745,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
             SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+
+            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (pApp->id), (! localInjection && usingSK));
 
             /*
             SHELLEXECUTEINFOW

@@ -976,8 +976,8 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetDescription  (L"Starts the injection service and\n"
                                      L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Service", &pv);
-        pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
-        PropVariantClear                                (&pv);
+        pPropStore->SetValue               (PKEY_Title, pv);                    // Set the title property.
+        PropVariantClear                              (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
         pObjColl  ->AddObject       (pLink);                                    // Add this shell link to the object collection.
         pPropStore .Release         ( );
@@ -1098,7 +1098,7 @@ void SKIF_Shell_CreateJumpList (void)
   }
 }
 
-void SKIF_Shell_AddJumpList (std::wstring lpszName, std::wstring lpszArguments, bool bService)
+void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService)
 {
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
@@ -1109,27 +1109,43 @@ void SKIF_Shell_AddJumpList (std::wstring lpszName, std::wstring lpszArguments, 
   {
     CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-    lpszArguments = L"SKIF_URI=" + lpszArguments;
+    bool uriLaunch = (! PathFileExists (path.c_str()));
 
-    if (! bService)
-      lpszName    = lpszName + L" (w/o Special K)";
-    else
-      lpszArguments = L"Start Temp " + lpszArguments;
+    if (uriLaunch)
+    {
+      parameters = L"SKIF_URI=" + parameters;
 
-    pLink     ->SetPath         (szExePath);
-    pLink     ->SetArguments    (lpszArguments.c_str());                    // Set the arguments
-    //pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
-    pLink     ->SetDescription  (lpszArguments.c_str());                    // Set the link description (tooltip on the jump list item)
-    InitPropVariantFromString   (lpszName.c_str(), &pv);
-    pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
-    PropVariantClear                               (&pv);
-    pPropStore->Commit          ( );                                        // Save the changes we made to the property store
+      if (! bService)
+        name       = name + L" (w/o Special K)";
+      else
+        parameters = L"Start Temp " + parameters;
+    }
 
-    // Add to the Recent list
-    SHAddToRecentDocs           (SHARD_LINK, pLink.p);
+    else {
+      parameters = SK_FormatStringW (LR"("%ws" %ws)", path.c_str(), parameters.c_str());
+    }
 
-    pPropStore .Release         ( );
-    pLink      .Release         ( );
+    pLink     ->SetPath             (szExePath);                           // Point to SKIF.exe
+    pLink     ->SetArguments        (parameters.c_str());                  // Set the arguments
+
+    if (! directory.empty())
+      pLink   ->SetWorkingDirectory (directory.c_str());                   // Set the working directory
+
+    if (PathFileExists (icon_path.c_str()))
+      pLink   ->SetIconLocation     (icon_path.c_str(), 0);                // Set the icon location
+
+    pLink     ->SetDescription      (parameters.c_str());                  // Set the link description (tooltip on the jump list item)
+
+    InitPropVariantFromString       (name.c_str(), &pv);
+    pPropStore->SetValue            (PKEY_Title,    pv);                   // Set the title property
+    PropVariantClear                              (&pv);
+
+    pPropStore->Commit              ( );                                   // Save the changes we made to the property store
+
+    SHAddToRecentDocs               (SHARD_LINK, pLink.p);                 // Add to the Recent list
+
+    pPropStore .Release             ( );
+    pLink      .Release             ( );
   }
 }
 
@@ -1352,6 +1368,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Process cmd line arguments (3/4)
   if (_Signal._RunningInstance)
   {
+    PLOG_INFO << "An already running instance was detected.";
+
     SKIF_Startup_LaunchGameService         ( );
     SKIF_Startup_LaunchGame                ( );
 
