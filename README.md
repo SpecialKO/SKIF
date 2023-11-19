@@ -36,7 +36,8 @@ SKIF supports detecting and launching games from the following platforms:
 | `Quit`                    | Closes running instances of SKIF. |
 | `Minimize`                | Launches SKIF minimized *or* minimizes any running instances of SKIF, to the taskbar or notification area depending on configuration. |
 | `"<path>.exe"`            | Uses SKIF as a launcher to start the injection service, launch another application, and then stop the service. Any arguments specified after the path is proxied to the launched application. Called through `SKIF %COMMAND%` from within the Steam client. |
-| `SKIF_SteamAppID=<int>` | Sets a specific Steam App ID as the environment variable when used as a launcher or launching a custom game. This can replace the use of a special `steam_appid.txt` file in the game folder. |
+| `SKIF_SteamAppID=<int>`   | Sets a specific Steam App ID as the environment variable when used as a launcher or launching a custom game. This can replace the use of a special `steam_appid.txt` file in the game folder. |
+| `SKIF_URI=<string>`       | Uses SKIF as a launcher to call a specific command, as a replacement of the "<path>.exe" cmd line argument. This is used for Steam and Epic games in the app jump list. |
 | `AddGame="<path>"`        | **Experimental!** Adds the specified application to the library of SKIF as a custom game. |
 | `RestartDisplDrv`         | **Requires elevation!** Restarts the display driver (useful as this can sometimes fix MPOs). |
 
