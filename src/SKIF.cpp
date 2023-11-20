@@ -904,29 +904,9 @@ void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring
       (_registry.iNotifications == 2  && ! SKIF_ImGui_IsFocused ( )) // When Unfocused
      )
   {
-#if 0
-    if (_registry._NotifyMessageDuration == -1)
-    {
-      HKEY    hKey;
-      DWORD32 dwData  = 0;
-      DWORD   dwSize  = sizeof (DWORD32);
-
-      if (RegOpenKeyW (HKEY_CURRENT_USER, LR"(Control Panel\Accessibility\)", &hKey) == ERROR_SUCCESS)
-      {
-        _registry._NotifyMessageDuration = (RegGetValueW (hKey, NULL, L"MessageDuration", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS) ? dwData : 5;
-        RegCloseKey (hKey);
-      }
-
-      else {
-        _registry._NotifyMessageDuration = 5;
-      }
-    }
-#endif
-
     niData.uFlags       = 
-      (type == SKIF_NTOAST_SERVICE)
-      ? NIF_INFO | NIF_REALTIME // NIF_REALTIME to indicate the notifications should be discarded if not displayed immediately
-      : NIF_INFO;
+        NIF_INFO  | NIF_REALTIME;  // NIF_REALTIME to indicate the notifications should be discarded if not displayed immediately
+
     niData.dwInfoFlags  = 
       (type == SKIF_NTOAST_SERVICE)
       ? NIIF_NONE | NIIF_RESPECT_QUIET_TIME | NIIF_NOSOUND // Mute the sound for service notifications
@@ -4115,6 +4095,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             UpdatePromptPopup = PopupState_Open;
           }
           addAdditionalFrames += 3;
+        }
+
+        else if ((uFlags & UpdateFlags_Failed) == UpdateFlags_Failed)
+        {
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"The update will be retried later.", L"Update failed :(");
         }
       }
       break;
