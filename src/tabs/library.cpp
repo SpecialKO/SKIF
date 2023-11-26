@@ -3529,6 +3529,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if ((intptr_t)hProcessSnap.m_h > 0)
     {
       pe32.dwSize = sizeof (PROCESSENTRY32W);
+      std::wstring exeFileLast, exeFileNew;
 
       if (Process32FirstW (hProcessSnap, &pe32))
       {
@@ -3540,6 +3541,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (hProcess == nullptr)
             continue;
+
+          exeFileNew = pe32.szExeFile;
+
+          // Skip duplicate processes
+          // NOTE: Potential bug is that Epic, GOG and SKIF Custom games with two running and identically named executables (launcher + game) may not be detected as such
+          if (exeFileLast == exeFileNew)
+            continue;
+
+          exeFileLast = exeFileNew;
 
           std::wstring fullPath;
 
