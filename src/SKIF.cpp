@@ -3588,9 +3588,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 // D3D9 test stuff
 //#define SKIF_D3D9_TEST
+
 #ifdef SKIF_D3D9_TEST
-#pragma comment (lib, "d3d9.lib")
+
 #define D3D_DEBUG_INFO
+#pragma comment (lib, "d3d9.lib")
+#include <D3D9.h>
+
 #endif
 
 bool CreateDeviceD3D (HWND hWnd)
@@ -3600,34 +3604,34 @@ bool CreateDeviceD3D (HWND hWnd)
 #ifdef SKIF_D3D9_TEST
   /* Test D3D9 debugging */
   IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
-  if (d3d == nullptr)
+
+  if (d3d != nullptr)
   {
-    OutputDebugString(L"Direct3DCreate9() failed!\n");
-  } else {
-    OutputDebugString(L"Direct3DCreate9() succeeded!?\n");
+    D3DPRESENT_PARAMETERS pp = {};
+    pp.BackBufferWidth = 800;
+    pp.BackBufferHeight = 600;
+    pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+    pp.BackBufferCount = 1;
+    pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+    pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    pp.hDeviceWindow = NULL;
+    pp.Windowed = TRUE;
+    pp.EnableAutoDepthStencil = TRUE;
+    pp.AutoDepthStencilFormat = D3DFMT_D16;
+
+    IDirect3DDevice9* device = nullptr;
+    // Intentionally passing an invalid parameter to CreateDevice to cause an exception to be thrown by the D3D9 debug layer
+    //HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
+    HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, (D3DDEVTYPE)100, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
+
+    if (FAILED(hr))
+    {
+      //OutputDebugString(L"d3d->CreateDevice() failed!\n");
+    }
   }
 
-  D3DPRESENT_PARAMETERS pp = {};
-  pp.BackBufferWidth = 800;
-  pp.BackBufferHeight = 600;
-  pp.BackBufferFormat = D3DFMT_X8R8G8B8;
-  pp.BackBufferCount = 1;
-  pp.MultiSampleType = D3DMULTISAMPLE_NONE;
-  pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-  pp.hDeviceWindow = NULL;
-  pp.Windowed = TRUE;
-  pp.EnableAutoDepthStencil = TRUE;
-  pp.AutoDepthStencilFormat = D3DFMT_D16;
-
-  IDirect3DDevice9* device = nullptr;
-  // Intentionally passing an invalid parameter to CreateDevice to cause an exception to be thrown by the D3D9 debug layer
-  //HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
-  HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, (D3DDEVTYPE)100, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device);
-  if (FAILED(hr))
-  {
-    OutputDebugString(L"d3d->CreateDevice() failed!\n");
-  } else {
-    OutputDebugString(L"d3d->CreateDevice() succeeded!?\n");
+  else {
+    OutputDebugString(L"Direct3DCreate9() failed!\n");
   }
 #endif
   
