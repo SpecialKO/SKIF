@@ -577,7 +577,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               PLOG_INFO << "Found version: "    << branchVersion;
 
               std::wstring branchInstaller    = SK_UTF8ToWideChar(version["Installer"]   .get<std::string>());
-              std::wstring filename           = branchInstaller.substr(branchInstaller.find_last_of(L"/"));
+              std::wstring filename;
+
+              if (branchInstaller.find_last_of(L"/") < branchInstaller.length())
+                filename = branchInstaller.substr (branchInstaller.find_last_of(L"/") + 1);
 
               _res.version       = branchVersion;
               _res.filename      = filename;
@@ -592,7 +595,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
                   _res.release_notes += version["ReleaseNotes"].get<std::string>();
               }
 
-              if (_res.description == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
+              if (_res.version == SK_WideCharToUTF8 (_registry.wsIgnoreUpdate))
               {
                 PLOG_INFO << "Version is set to be ignored!";
                 _res.state |= UpdateFlags_Ignored;
@@ -606,84 +609,98 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               if (changedUpdateChannel || rollbackDesired)
                 _res.state |= UpdateFlags_Forced;
 
-              if ((_res.state & UpdateFlags_Forced)      == UpdateFlags_Forced     ||
-                  (! PathFileExists ((root + filename).c_str()) &&
-                  (_res.state & UpdateFlags_Ignored   )  != UpdateFlags_Ignored    &&
-                  (_res.state & UpdateFlags_Rollback  )  != UpdateFlags_Rollback))
-              {
-                PLOG_INFO << "Downloading installer: " << branchInstaller;
-                SKIF_Util_GetWebResource (branchInstaller, root + filename);
-              }
-
-              // Validate downloaded file
-              bool fallback = false;
-              std::string hex_str_expected, hex_str;
-              try
-              {
-                // If the repository.json file includes a hash, check it
-                hex_str_expected = version["SHA256"].get<std::string>();
-
-                std::ifstream fileStream (root + filename, std::ios::binary);
-                std::vector<unsigned char> hash (picosha2::k_digest_size);
-                picosha2::hash256 (fileStream, hash.begin(), hash.end());
-                fileStream.close  ();
-
-                hex_str = picosha2::bytes_to_hex_string(hash.begin(), hash.end());
-              }
-              catch (const std::exception&)
-              {
-              }
-
-              if (hex_str_expected.empty())
-              {
-                PLOG_WARNING << "No checksum present. Falling back to size validation...";
-                fallback = true;
-              }
-
-              else if (hex_str_expected == hex_str)
-              {
-                PLOG_INFO << "Installer matched the expected checksum!";
+              if (PathFileExists ((root + filename).c_str()))
                 _res.state |= UpdateFlags_Downloaded;
-              }
 
-              else {
-                PLOG_ERROR << "Installer did not match the expected checksum!";
-                PLOG_ERROR << "SHA256  : " << hex_str;
-                PLOG_ERROR << "Expected: " << hex_str_expected;
-              }
-
-              // Fallback (check if file is > 0 bytes)
-              if (fallback)
+              if ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
               {
-                CHandle hInstaller (
-                  CreateFileW ( (root + filename).c_str(),
-                                  GENERIC_READ,
-                                  FILE_SHARE_READ,
-                                    nullptr,        OPEN_EXISTING,
-                                      GetFileAttributesW ((root + filename).c_str()),
-                                        nullptr
-                              )
-                );
-
-                if (hInstaller != INVALID_HANDLE_VALUE)
+                if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
+                   ((_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
+                    (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
                 {
-                  LARGE_INTEGER size = { };
-                  if (GetFileSizeEx (hInstaller, &size))
-                  {
-                    if (size.QuadPart > 0)
-                      _res.state |= UpdateFlags_Downloaded;
-                    else
-                      PLOG_ERROR << "Installer file size was zero (0)!";
-                  }
+                  PLOG_INFO << "Downloading installer: " << branchInstaller;
+                  if (SKIF_Util_GetWebResource (branchInstaller, root + filename))
+                    _res.state |= UpdateFlags_Downloaded;
                 }
               }
 
-              // Check if we managed to download a file
-              if ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+              // Validate downloaded file
+              if ((_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded)
               {
-                _res.state |= UpdateFlags_Failed;
-                PLOG_ERROR << "Download failed!";
-                DeleteFile ((root + filename).c_str());
+                PLOG_VERBOSE << "File: " << (root + filename);
+
+                bool fallback = false;
+                std::string hex_str_expected, hex_str;
+                try
+                {
+                  // If the repository.json file includes a hash, check it
+                  hex_str_expected = version["SHA256"].get<std::string>();
+
+                  std::ifstream fileStream (root + filename, std::ios::binary);
+                  std::vector<unsigned char> hash (picosha2::k_digest_size);
+                  picosha2::hash256 (fileStream, hash.begin(), hash.end());
+                  fileStream.close  ();
+
+                  hex_str = picosha2::bytes_to_hex_string(hash.begin(), hash.end());
+                }
+                catch (const std::exception&)
+                {
+                }
+
+                if (hex_str_expected.empty())
+                {
+                  PLOG_WARNING << "No checksum present. Falling back to size validation...";
+                  fallback = true;
+                }
+
+                else if (hex_str_expected == hex_str)
+                {
+                  PLOG_INFO << "Installer matched the expected checksum!";
+                }
+
+                else {
+                  PLOG_ERROR << "Installer did not match the expected checksum!";
+                  PLOG_ERROR << "SHA256  : " << hex_str;
+                  PLOG_ERROR << "Expected: " << hex_str_expected;
+                  _res.state &= ~UpdateFlags_Downloaded;
+                }
+
+                // Fallback (check if file is > 0 bytes)
+                if (fallback)
+                {
+                  CHandle hInstaller (
+                    CreateFileW ( (root + filename).c_str(),
+                                    GENERIC_READ,
+                                    FILE_SHARE_READ,
+                                      nullptr,        OPEN_EXISTING,
+                                        GetFileAttributesW ((root + filename).c_str()),
+                                          nullptr
+                                )
+                  );
+
+                  if (hInstaller != INVALID_HANDLE_VALUE)
+                  {
+                    LARGE_INTEGER size = { };
+                    if (GetFileSizeEx (hInstaller, &size))
+                    {
+                      if (size.QuadPart > 0)
+                        _res.state |= UpdateFlags_Downloaded;
+                      else
+                      {
+                        PLOG_ERROR << "Installer file size was zero (0)!";
+                        _res.state &= ~UpdateFlags_Downloaded;
+                      }
+                    }
+                  }
+                }
+
+                // Check if something went wrong...
+                if ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+                {
+                  _res.state |= UpdateFlags_Failed;
+                  PLOG_ERROR << "Download failed!";
+                  DeleteFile ((root + filename).c_str());
+                }
               }
 
               // If the download looks correct, we set it as available

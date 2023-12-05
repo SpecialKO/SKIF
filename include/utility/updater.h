@@ -7,14 +7,14 @@ typedef unsigned int UpdateFlags;  // -> enum UpdateFlags_
 
 enum UpdateFlags_
 {
-  UpdateFlags_Unknown    = 0,
-  UpdateFlags_Available  = 1 << 1, // Indicate a version is available
-  UpdateFlags_Newer      = 1 << 2, // Indicate the found version is newer
-  UpdateFlags_Rollback   = 1 << 3, // Indicate the found version is older
-  UpdateFlags_Downloaded = 1 << 4, // Indicate the found version is available locally
-  UpdateFlags_Ignored    = 1 << 5, // Indicate the found version is ignored (registry)
-  UpdateFlags_Failed     = 1 << 6, // Indicate the download failed
-  UpdateFlags_Forced     = 1 << 7, // Indicate the update check was forced
+  UpdateFlags_Unknown           = 0,
+  UpdateFlags_Available         = 1 << 0, // Indicate a version is available
+  UpdateFlags_Newer             = 1 << 1, // Indicate the found version is newer
+  UpdateFlags_Rollback          = 1 << 2, // Indicate the found version is older
+  UpdateFlags_Downloaded        = 1 << 3, // Indicate the found version is available locally
+  UpdateFlags_Ignored           = 1 << 4, // Indicate the found version is ignored (registry)
+  UpdateFlags_Failed            = 1 << 5, // Indicate the download failed
+  UpdateFlags_Forced            = 1 << 6  // Indicate the update check was forced
 };
 
 // Singleton struct

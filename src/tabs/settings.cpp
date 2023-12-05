@@ -656,7 +656,9 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       extern PopupState UpdatePromptPopup;
 
-      _updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().description_latest)); // Ignore the latest version
+      // Ignore the current version
+      //_updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().version));
+      _updater.SetIgnoredUpdate (_inject.SKVer32);
 
       if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
         UpdatePromptPopup = PopupState_Open;
