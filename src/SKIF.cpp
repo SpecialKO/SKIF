@@ -937,7 +937,7 @@ void SKIF_Shell_CreateJumpList (void)
   // Create a jump list COM object.
   if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
   {
-    pDestList     ->SetAppID        (L"SpecialK.Injection.Frontend");
+    pDestList     ->SetAppID        (SKIF_AppUserModelID);
     pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS (&pRemovedItems));
 
     pDestList     ->AppendKnownCategory (KDC_RECENT);
@@ -1074,8 +1074,13 @@ void SKIF_Shell_CreateJumpList (void)
 
       pObjColl     .Release         ( );
     }
+    else
+      PLOG_ERROR << "Failed to create CLSID_EnumerableObjectCollection object!";
+
     pDestList      .Release         ( );
   }
+  else
+    PLOG_ERROR << "Failed to create CLSID_DestinationList object!";
 }
 
 void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService)
@@ -1358,6 +1363,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (! _registry.bAllowMultipleInstances)
       SKIF_Startup_RaiseRunningInstance    ( );
   }
+
+  // Sets the current process app user model ID (used for jump lists and the like)
+  if (FAILED (SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
+    PLOG_ERROR << "Call to SetCurrentProcessExplicitAppUserModelID failed!";
 
   // Initialize the SKIF_IsFocused variable that the gamepad thread will sleep on
   InitializeConditionVariable (&SKIF_IsFocused);
@@ -4103,7 +4112,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         else if ((uFlags & UpdateFlags_Failed) == UpdateFlags_Failed)
         {
-          //SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"The update will be retried later.", L"Update failed :(");
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"The update will be retried later.", L"Update failed :(");
         }
       }
       break;
