@@ -94,7 +94,7 @@ void SKIF_UI_DrawComponentVersion (void)
 
     std::string btnLabel = ICON_FA_WRENCH "  Update";
 
-    if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
+    if ((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older)
       btnLabel = ICON_FA_WRENCH "  Rollback";
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));

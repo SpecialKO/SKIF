@@ -10,7 +10,7 @@ enum UpdateFlags_
   UpdateFlags_Unknown           = 0,
   UpdateFlags_Available         = 1 << 0, // Indicate a version is available
   UpdateFlags_Newer             = 1 << 1, // Indicate the found version is newer
-  UpdateFlags_Rollback          = 1 << 2, // Indicate the found version is older
+  UpdateFlags_Older             = 1 << 2, // Indicate the found version is older
   UpdateFlags_Downloaded        = 1 << 3, // Indicate the found version is available locally
   UpdateFlags_Ignored           = 1 << 4, // Indicate the found version is ignored (registry)
   UpdateFlags_Failed            = 1 << 5, // Indicate the download failed
@@ -57,6 +57,10 @@ struct SKIF_Updater {
     std::vector <std::pair<std::string, std::string>> update_channels; // only ever used on the very first run
     bool rollbackAvailable = false; // Indicates SKIF can roll back
     std::vector <version_s> versions;
+
+    //version_s* ver_local    = nullptr;
+    //version_s* ver_next     = nullptr;
+    //version_s* ver_previous = nullptr;
     
     changelog_s release_notes_formatted;
     changelog_s history_formatted;

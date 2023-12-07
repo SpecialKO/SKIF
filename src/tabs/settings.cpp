@@ -648,7 +648,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (disableRollbackUpdates)
     SKIF_ImGui_PushDisableState ( );
 
-  if (((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback) || _updater.IsRollbackAvailable ( ))
+  if (((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older) || _updater.IsRollbackAvailable ( ))
   {
     ImGui::SameLine        ( );
 
@@ -660,7 +660,7 @@ SKIF_UI_Tab_DrawSettings (void)
       //_updater.SetIgnoredUpdate (SK_UTF8ToWideChar (_updater.GetResults().version));
       _updater.SetIgnoredUpdate (_inject.SKVer32);
 
-      if ((_updater.GetState() & UpdateFlags_Rollback) == UpdateFlags_Rollback)
+      if ((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older)
         UpdatePromptPopup = PopupState_Open;
       else
         _updater.CheckForUpdates (false, true); // Trigger a rollback

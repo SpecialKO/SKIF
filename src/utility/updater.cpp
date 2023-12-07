@@ -604,19 +604,23 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               if (versionDiff > 0)
                 _res.state |= UpdateFlags_Newer;
               else
-                _res.state |= UpdateFlags_Rollback;
+                _res.state |= UpdateFlags_Older;
 
               if (changedUpdateChannel || rollbackDesired)
+              {
+                PLOG_VERBOSE << "Update is being forced...";
                 _res.state |= UpdateFlags_Forced;
+              }
 
               if (PathFileExists ((root + filename).c_str()))
                 _res.state |= UpdateFlags_Downloaded;
 
               if ((_res.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
               {
-                if ((_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                   ((_res.state & UpdateFlags_Ignored   ) != UpdateFlags_Ignored    &&
-                    (_res.state & UpdateFlags_Rollback  ) != UpdateFlags_Rollback))
+                PLOG_VERBOSE << "File " << (root + filename) << " has not been downloaded...";
+                if (((_res.state & UpdateFlags_Forced ) == UpdateFlags_Forced)    ||
+                    ((_res.state & UpdateFlags_Ignored) != UpdateFlags_Ignored    &&
+                     (_res.state & UpdateFlags_Older  ) != UpdateFlags_Older))
                 {
                   PLOG_INFO << "Downloading installer: " << branchInstaller;
                   if (SKIF_Util_GetWebResource (branchInstaller, root + filename))
@@ -706,7 +710,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               // If the download looks correct, we set it as available
               if ((_res.state & UpdateFlags_Newer)      == UpdateFlags_Newer      ||
                   (_res.state & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
-                  ((_res.state & UpdateFlags_Rollback)  == UpdateFlags_Rollback   &&
+                  ((_res.state & UpdateFlags_Older)  == UpdateFlags_Older   &&
                   (_res.state & UpdateFlags_Downloaded) == UpdateFlags_Downloaded ))
                 _res.state |= UpdateFlags_Available;
             }

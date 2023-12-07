@@ -2874,8 +2874,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
 
             // Trigger a new check for updates (which should download the installer)
-            _updater.CheckForUpdates ( );
+            _updater.CheckForUpdates (false, ! compareNewer);
           }
+
           else {
             std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /StartService=%d /DIR="%ws")",
                                                  (_inject.bCurrentState && ! _inject.bAckInj), _path_cache.specialk_install);
@@ -4070,7 +4071,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ( (uFlags & UpdateFlags_Downloaded) == UpdateFlags_Downloaded &&
             ((uFlags & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
             ((uFlags & UpdateFlags_Ignored)    != UpdateFlags_Ignored    &&
-             (uFlags & UpdateFlags_Rollback)   != UpdateFlags_Rollback   )))
+             (uFlags & UpdateFlags_Older)   != UpdateFlags_Older   )))
         {
           // If we use auto-update *experimental*
           // But only if we have servlets, so we don't auto-install ourselves in users' Downloads folder :)
