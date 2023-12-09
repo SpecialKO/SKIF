@@ -377,6 +377,11 @@ struct SKIF_RegistrySettings {
 
   // Windows stuff
 
+  // SKIFdrv install location
+  KeyValue <std::wstring> regKVSKIFdrvLocation =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{A459BBFA-0819-49C4-8BF7-5BDF1559ED0C}_is1\)",
+                         LR"(InstallLocation)", HKEY_LOCAL_MACHINE );
+
   // App registration
   KeyValue <std::wstring> regKVAppRegistration =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\SKIF.exe)",
@@ -384,7 +389,7 @@ struct SKIF_RegistrySettings {
 
   // Notification duration
   KeyValue <int> regKVNotificationsDuration =
-    SKIF_MakeRegKeyI ( LR"(Control Panel\Accessibility\)",
+    SKIF_MakeRegKeyI  ( LR"(Control Panel\Accessibility\)",
                          LR"(MessageDuration)" );
 
   // Default settings (multiple options)
@@ -452,6 +457,7 @@ struct SKIF_RegistrySettings {
   unsigned int iLastSelectedGame;
 
   // Windows stuff
+  std::wstring wsSKIFdrvLocation;
   std::wstring wsAppRegistration;
   int  iNotificationsDuration       = 5; // Defaults to 5 seconds in case Windows is not set to something else
 

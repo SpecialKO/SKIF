@@ -427,9 +427,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static std::wstring
             driverBinaryPath    = L"",
-            SKIFdrvFolder = SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", _path_cache.specialk_install),
-            SKIFdrv       = SKIFdrvFolder + L"SKIFdrv.exe", // TODO: Should be reworked to support a separate install location as well
-            SYSdrv        = SKIFdrvFolder + L"WinRing0x64.sys"; // TODO: Should be reworked to support a separate install location as well
+            SKIFdrvFolder = (_registry.wsSKIFdrvLocation.length() > 0)
+                           ? _registry.wsSKIFdrvLocation
+                           : SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", _path_cache.specialk_install), // fallback
+            SKIFdrv       = SKIFdrvFolder + L"\\SKIFdrv.exe",
+            SYSdrv        = SKIFdrvFolder + L"\\WinRing0x64.sys";
   
   static SKIF_DirectoryWatch SKIF_DriverWatch;
   static bool HDRSupported = false;

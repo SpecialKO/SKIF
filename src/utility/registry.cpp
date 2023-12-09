@@ -284,6 +284,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   // Windows stuff
 
+  // SKIFdrv install location
+  if (regKVSKIFdrvLocation.hasData())
+    wsSKIFdrvLocation      =   regKVSKIFdrvLocation        .getData ( );
+
   // App registration
   if (regKVAppRegistration.hasData())
     wsAppRegistration      =   regKVAppRegistration        .getData ( );
