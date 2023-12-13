@@ -150,6 +150,8 @@ bool  HoverTipActive               = false;
 DWORD HoverTipDuration             = 0;
 
 // Notification icon stuff
+static const GUID SKIF_NOTIFY_GUID = // {8142287D-5BC6-4131-95CD-709A2613E1F5}
+{ 0x8142287d, 0x5bc6, 0x4131, { 0x95, 0xcd, 0x70, 0x9a, 0x26, 0x13, 0xe1, 0xf5 } };
 #define SKIF_NOTIFY_ICON                    0x1330 // 4912
 #define SKIF_NOTIFY_EXIT                    0x1331 // 4913
 #define SKIF_NOTIFY_START                   0x1332 // 4914
@@ -858,7 +860,8 @@ void SKIF_Shell_CreateNotifyIcon (void)
   ZeroMemory (&niData,  sizeof (NOTIFYICONDATA));
   niData.cbSize       = sizeof (NOTIFYICONDATA); // 6.0.6 or higher (Windows Vista and later)
   niData.uID          = SKIF_NOTIFY_ICON;
-  niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
+//niData.guidItem     = SKIF_NOTIFY_GUID; // Prevents notification icons from appearing for separate running instances
+  niData.uFlags       = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP; // NIF_GUID
   niData.hIcon        = (_inject.bCurrentState)
     ? LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIFONNOTIFY))
     : LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
