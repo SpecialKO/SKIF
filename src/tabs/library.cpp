@@ -3648,6 +3648,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Hide the Launch option for Special K
       if (pApp->id != SKIF_STEAM_APPID)
       {
+        
+        ImGui::PushStyleColor      (ImGuiCol_Text,
+          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+        );
+
+        ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
+          ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+        );
+
         if ( ImGui::Selectable ("Launch", false,
                                ((pApp->_status.running || pApp->_status.updating)
                                  ? ImGuiSelectableFlags_Disabled
@@ -3659,21 +3668,123 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (! _inject.bCurrentState)
             SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
 
-          ImGui::PushStyleColor  ( ImGuiCol_Text,
-            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
-          );
-
           if ( ImGui::Selectable ("Launch without Special K", false,
                                  ((pApp->_status.running || pApp->_status.updating)
                                    ? ImGuiSelectableFlags_Disabled
                                    : ImGuiSelectableFlags_None)))
             clickedGameLaunchWoSK = true;
 
-          ImGui::PopStyleColor   ( );
           if (_inject.bCurrentState)
             SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
         }
+        
+        // Steam quick launch options
+        if (pApp->store == app_record_s::Store::Steam)
+        { 
+          bool clickedQuickLaunch     = false,
+               clickedQuickLaunchWoSK = false;
+          
+          if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
+          {
+            ImGui::Separator        ( );
 
+            if (ImGui::BeginMenu    ("Quick launch (experimental)"))
+            {
+              if (ImGui::Selectable ("Quick launch", false,
+                                    ((pApp->_status.running || pApp->_status.updating)
+                                      ? ImGuiSelectableFlags_Disabled
+                                      : ImGuiSelectableFlags_None)))
+                clickedQuickLaunch = true;
+
+              if (ImGui::Selectable ("Quick launch without Special K", false,
+                                    ((pApp->_status.running || pApp->_status.updating)
+                                      ? ImGuiSelectableFlags_Disabled
+                                      : ImGuiSelectableFlags_None)))
+                clickedQuickLaunchWoSK = true;
+
+              ImGui::EndMenu        ( );
+            }
+            
+            SKIF_ImGui_SetHoverText ("This launches the game directly instead of through Steam.");
+          }
+
+          else {
+            if (ImGui::Selectable   ("Quick launch (experimental)", false,
+                                    ((pApp->_status.running || pApp->_status.updating)
+                                      ? ImGuiSelectableFlags_Disabled
+                                      : ImGuiSelectableFlags_None)))
+              clickedQuickLaunch = true;
+
+            SKIF_ImGui_SetHoverText ("This launches the game directly instead of through Steam.");
+          }
+
+          if (clickedQuickLaunch ||
+              clickedQuickLaunchWoSK)
+          {
+            bool localInjection = pApp->specialk.injection.injection.type == sk_install_state_s::Injection::Type::Local;
+            bool usingSK        = localInjection;
+
+            // Check if the injection service should be used
+            if (! usingSK)
+            {
+              std::string fullPath     = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id));
+              bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted (pApp->id),
+                   isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
+
+              usingSK = ! clickedQuickLaunchWoSK &&
+                        ! isLocalBlacklisted     &&
+                        ! isGlobalBlacklisted;
+
+              // Kickstart service if it is currently not running
+              if (! _inject.bCurrentState && usingSK)
+                _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated (pApp->id));
+
+              // Stop the service if the user attempts to launch without SK
+              else if (clickedQuickLaunchWoSK && _inject.bCurrentState)
+                _inject._StartStopInject (true);
+            }
+
+            // Create the injection acknowledge events in case of a local injection
+            else {
+              _inject.SetInjectAckEx     (true);
+              _inject.SetInjectExitAckEx (true);
+            }
+
+            PLOG_INFO << "Using Steam App ID : " << pApp->id;
+            SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
+
+            //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+            SKIF_Util_OpenURI (pApp->launch_configs[0].getExecutableFullPath(pApp->id).c_str(),
+                               SW_SHOWDEFAULT, L"OPEN",
+                               pApp->launch_configs[0].launch_options.c_str(),
+                               pApp->launch_configs[0].working_dir.c_str(),
+                               SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
+            );
+
+            SetEnvironmentVariable (L"SteamAppId",  NULL);
+
+            std::wstring launchOptions  = SK_FormatStringW (LR"(%ws)", pApp->launch_configs[0].launch_options.c_str());
+                         launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+
+            // Trim spaces at the end
+            launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
+
+            if (pApp->store == app_record_s::Store::Steam)
+
+            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
+              pApp->launch_configs[0].getExecutableFullPath (pApp->id).c_str(),
+              launchOptions,
+              pApp->launch_configs[0].working_dir.c_str(),
+              pApp->launch_configs[0].getExecutableFullPath (pApp->id),
+              (! localInjection && usingSK));
+          }
+        }
+
+        ImGui::PopStyleColor   ( );
+
+        ImGui::PopStyleColor   ( );
+
+        // GOG launch options
         if (GOGGalaxy_Installed && pApp->store == app_record_s::Store::GOG)
         {
           if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
