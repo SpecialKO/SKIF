@@ -1174,6 +1174,14 @@ Cache=false)";
     openedGameContextMenu = true;
   }
 
+  if (pApp->extended_config.vac.enabled == 1)
+  {
+    ImGui::SameLine ( );
+    ImGui::SetCursorPosY (50.0f + ImGui::GetStyle().FramePadding.y * SKIF_ImGui_GlobalDPIScale);
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
+    SKIF_ImGui_SetHoverTip ("Warning: VAC protected game; injection is not recommended!");
+  }
+
   ImGui::EndChildFrame ();
 }
 
@@ -1236,16 +1244,15 @@ UpdateInjectionStrategy (app_record_s* pApp)
       test_paths[1] = L"";
 
     struct {
-      InjectionBitness bitness;
       InjectionPoint   entry_pt;
       std::wstring     name;
       std::wstring     path;
     } test_dlls [] = {
-      { pApp->specialk.injection.injection.bitness, InjectionPoint::D3D9,    L"d3d9",     L"" },
-      { pApp->specialk.injection.injection.bitness, InjectionPoint::DXGI,    L"dxgi",     L"" },
-      { pApp->specialk.injection.injection.bitness, InjectionPoint::D3D11,   L"d3d11",    L"" },
-      { pApp->specialk.injection.injection.bitness, InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-      { pApp->specialk.injection.injection.bitness, InjectionPoint::DInput8, L"dinput8",  L"" }
+      { InjectionPoint::D3D9,    L"d3d9",     L"" },
+      { InjectionPoint::DXGI,    L"dxgi",     L"" },
+      { InjectionPoint::D3D11,   L"d3d11",    L"" },
+      { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
+      { InjectionPoint::DInput8, L"dinput8",  L"" }
     };
 
     // Assume Global 32-bit if we don't know otherwise
@@ -1296,7 +1303,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
           if (! dll_ver.empty ())
           {
             pApp->specialk.injection.injection = {
-              dll.bitness,
+              pApp->specialk.injection.injection.bitness,
               dll.entry_pt, InjectionType::Local,
               dll.path,     dll_ver
             };
@@ -1348,6 +1355,152 @@ UpdateInjectionStrategy (app_record_s* pApp)
 
 #pragma endregion
 
+void
+RefreshRunningApps (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  
+  static DWORD lastGameRefresh = 0;
+  static std::wstring exeSteam = L"steam.exe";
+  extern bool SteamClient_Running;
+
+  if (SKIF_Util_timeGetTime() > lastGameRefresh + 2500 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  {
+    bool new_SteamClient_Running = false;
+
+    for (auto& app : apps)
+    {
+      if (app.second.store == app_record_s::Store::Steam && SteamClient_Running)
+        continue;
+      app.second._status.running = false;
+    }
+
+    PROCESSENTRY32W none = { },
+                    pe32 = { };
+
+    SK_AutoHandle hProcessSnap (
+      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+    );
+
+    if ((intptr_t)hProcessSnap.m_h > 0)
+    {
+      pe32.dwSize = sizeof (PROCESSENTRY32W);
+      std::wstring exeFileLast, exeFileNew;
+
+      if (Process32FirstW (hProcessSnap, &pe32))
+      {
+        do
+        {
+          SetLastError (NO_ERROR);
+          CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe32.th32ProcessID));
+          // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
+
+          if (hProcess == nullptr)
+            continue;
+
+          exeFileNew = pe32.szExeFile;
+
+          // Skip duplicate processes
+          // NOTE: Potential bug is that Epic, GOG and SKIF Custom games with two running and identically named executables (launcher + game) may not be detected as such
+          if (exeFileLast == exeFileNew)
+            continue;
+
+          exeFileLast = exeFileNew;
+
+          // Recognize that the Steam client is running
+          if (_wcsnicmp (exeFileLast.c_str(), exeSteam.c_str(), exeSteam.length()) == 0)
+          {
+            new_SteamClient_Running = true;
+            continue;
+          }
+
+          std::wstring fullPath;
+
+          bool accessDenied =
+            GetLastError ( ) == ERROR_ACCESS_DENIED;
+
+          // Get exit code to filter out zombie processes
+          DWORD dwExitCode = 0;
+          GetExitCodeProcess (hProcess, &dwExitCode);
+
+          if (! accessDenied)
+          {
+            // If the process is not active any longer, skip it (terminated or zombie process)
+            if (dwExitCode != STILL_ACTIVE)
+              continue;
+
+            WCHAR szExePath[MAX_PATH];
+            DWORD len = MAX_PATH;
+
+            // See if we can retrieve the full path of the executable
+            if (QueryFullProcessImageName (hProcess, 0, szExePath, &len))
+              fullPath = std::wstring (szExePath);
+          }
+
+          for (auto& app : apps)
+          {
+            // Steam games are covered through separate registry monitoring
+            if (app.second.store == app_record_s::Store::Steam)
+            {
+              if (SteamClient_Running)
+                continue;
+
+              if (fullPath == app.second.launch_configs[0].getExecutableFullPath (app.second.id)) // full patch
+              {
+                app.second._status.running = true;
+                break;
+              }
+            }
+
+            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
+            else if (app.second.store == app_record_s::Store::Xbox && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
+            {
+              app.second._status.running = true;
+              break;
+            }
+
+            // Epic, GOG and SKIF Custom should be straight forward
+            else if (fullPath == app.second.launch_configs[0].getExecutableFullPath (app.second.id, false)) // full patch
+            {
+              app.second._status.running = true;
+              break;
+
+              // One can also perform a partial match with the below OR clause in the IF statement, however from testing
+              //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
+              //     even to elevated processes, meaning the below OR clause is unnecessary.
+              // 
+              // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
+              //
+            }
+          }
+
+          if (! _registry.bWarningRTSS    &&
+              ! ImGui::IsAnyPopupOpen ( ) &&
+              ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
+          {
+            _registry.bWarningRTSS = true;
+            _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
+            confirmPopupTitle = "One-time warning about RTSS.exe";
+            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+                                "Try closing it down if Special K does not behave as expected, or enable\n"
+                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+                                "\n"
+                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+                                "automatically restart RTSS silently in the background.\n"
+                                "\n"
+                                "This warning will not appear again.";
+            ConfirmPopup      = PopupState_Open;
+          }
+
+        } while (Process32NextW (hProcessSnap, &pe32));
+      }
+    }
+
+    SteamClient_Running = new_SteamClient_Running;
+
+    lastGameRefresh = SKIF_Util_timeGetTime();
+  }
+}
 
 
 void
@@ -1504,16 +1657,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_Steam_GetCurrentUser (true);
 
     // Preload all appinfo.vdf data
-    //PLOG_DEBUG << "Loading appinfo.vdf data...";
+    // This is needed for SKIF's fallback process tracking
+    //   of Steam games that relies on the executable name
+    PLOG_DEBUG << "Loading appinfo.vdf data...";
     for (auto& app : apps)
     {
       if (app.second.id == SKIF_STEAM_APPID)
         SKIF_STEAM_OWNER = true;
 
-      //if (appinfo != nullptr)
-      //    appinfo->getAppInfo ( app.second.id );
+      if (appinfo != nullptr)
+        appinfo->getAppInfo ( app.second.id );
     }
-    //PLOG_DEBUG << "Finished loading appinfo.vdf data!";
+    PLOG_DEBUG << "Finished loading appinfo.vdf data!";
 
     if ( ! SKIF_STEAM_OWNER )
     {
@@ -1554,7 +1709,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     labels = Trie { };
 
     // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
-    for ( auto& app : apps )
+    for (auto& app : apps)
     {
       //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
 
@@ -1734,7 +1889,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
       
       // Load icons last
-      for ( auto& app : apps )
+      for (auto& app : apps)
       {
         if (app.second.id == 0)
           continue;
@@ -3265,12 +3420,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     GetInjectionSummary (pApp);
 
-    if ( pApp->extended_config.vac.enabled == 1 )
-    {
-        SKIF_StatusBarText = "Warning: ";
-        SKIF_StatusBarHelp = "VAC protected game - Injection is not recommended!";
-    }
-
     if ( pApp->specialk.injection.injection.type != InjectionType::Local )
     {
       ImGui::SetCursorPosY (
@@ -3336,7 +3485,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
       }
 
-      else if ( ! pApp->launch_configs.empty() )
+      // Only show the bottom options if there's some launch configs, and the first one is valid...
+      else if ( ! pApp->launch_configs.empty() &&
+                  pApp->launch_configs.begin()->second.valid)
       {
         bool elevate =
           pApp->launch_configs[0].isElevated (pApp->id);
@@ -3355,14 +3506,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         );
 
         // If there is only one launch option
-        if ( pApp->launch_configs.size  () == 1 )
+        if (pApp->launch_configs.size  () == 1 )
         {
-          // Only if it is a valid one
-          if ( pApp->launch_configs.begin()->second.valid)
-          {
-            _BlacklistCfg          (
-                 pApp->launch_configs.begin ()->second );
-          }
+          _BlacklistCfg          (
+                pApp->launch_configs.begin ()->second );
         }
 
         // If there are more than one launch option
@@ -3508,125 +3655,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
-  static DWORD lastGameRefresh = 0;
-
-  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
-  {
-    for (auto& app : apps)
-    {
-      if (app.second.store == app_record_s::Store::Steam)
-        continue;
-      app.second._status.running = false;
-    }
-
-    PROCESSENTRY32W none = { },
-                    pe32 = { };
-
-    SK_AutoHandle hProcessSnap (
-      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
-    );
-
-    if ((intptr_t)hProcessSnap.m_h > 0)
-    {
-      pe32.dwSize = sizeof (PROCESSENTRY32W);
-      std::wstring exeFileLast, exeFileNew;
-
-      if (Process32FirstW (hProcessSnap, &pe32))
-      {
-        do
-        {
-          SetLastError (NO_ERROR);
-          CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe32.th32ProcessID));
-          // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
-
-          if (hProcess == nullptr)
-            continue;
-
-          exeFileNew = pe32.szExeFile;
-
-          // Skip duplicate processes
-          // NOTE: Potential bug is that Epic, GOG and SKIF Custom games with two running and identically named executables (launcher + game) may not be detected as such
-          if (exeFileLast == exeFileNew)
-            continue;
-
-          exeFileLast = exeFileNew;
-
-          std::wstring fullPath;
-
-          bool accessDenied =
-            GetLastError ( ) == ERROR_ACCESS_DENIED;
-
-          // Get exit code to filter out zombie processes
-          DWORD dwExitCode = 0;
-          GetExitCodeProcess (hProcess, &dwExitCode);
-
-          if (! accessDenied)
-          {
-            // If the process is not active any longer, skip it (terminated or zombie process)
-            if (dwExitCode != STILL_ACTIVE)
-              continue;
-
-            WCHAR szExePath[MAX_PATH];
-            DWORD len = MAX_PATH;
-
-            // See if we can retrieve the full path of the executable
-            if (QueryFullProcessImageName (hProcess, 0, szExePath, &len))
-              fullPath = std::wstring (szExePath);
-          }
-
-          for (auto& app : apps)
-          {
-            // Steam games are covered through separate registry monitoring
-            if (app.second.store == app_record_s::Store::Steam)
-              continue;
-
-            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
-            else if (app.second.store == app_record_s::Store::Xbox && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
-            {
-              app.second._status.running = true;
-              break;
-            }
-
-            // Epic, GOG and SKIF Custom should be straight forward
-            else if (fullPath == app.second.launch_configs[0].getExecutableFullPath(app.second.id, false)) // full patch
-            {
-              app.second._status.running = true;
-              break;
-
-              // One can also perform a partial match with the below OR clause in the IF statement, however from testing
-              //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
-              //     even to elevated processes, meaning the below OR clause is unnecessary.
-              // 
-              // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
-              //
-            }
-          }
-
-          if (! _registry.bWarningRTSS    &&
-              ! ImGui::IsAnyPopupOpen ( ) &&
-              ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
-          {
-            _registry.bWarningRTSS = true;
-            _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
-            confirmPopupTitle = "One-time warning about RTSS.exe";
-            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
-                                "Try closing it down if Special K does not behave as expected, or enable\n"
-                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
-                                "\n"
-                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
-                                "automatically restart RTSS silently in the background.\n"
-                                "\n"
-                                "This warning will not appear again.";
-            ConfirmPopup      = PopupState_Open;
-          }
-
-        } while (Process32NextW (hProcessSnap, &pe32));
-      }
-    }
-
-    lastGameRefresh = SKIF_Util_timeGetTime();
-  }
-
+  RefreshRunningApps ( );
 
   extern void SKIF_ImGui_ServiceMenu (void);
 
@@ -3645,6 +3674,25 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     if (pApp != nullptr)
     {
+      static bool SteamShortcutPossible;
+
+      // Do not check games that are being updated (aka installed)
+      if (pApp->store == app_record_s::Store::Steam &&
+          pApp->id    != SKIF_STEAM_APPID           &&
+        ! pApp->_status.updating)
+      {
+        static uint32_t curAppId;
+
+        if (curAppId != pApp->id)
+        {   curAppId  = pApp->id;
+          SteamShortcutPossible = (pApp->launch_configs[0].getExecutableFullPath (pApp->id) != L"<InvalidPath>");
+        }
+      }
+
+      else {
+        SteamShortcutPossible = false;
+      }
+
       // Hide the Launch option for Special K
       if (pApp->id != SKIF_STEAM_APPID)
       {
@@ -3679,10 +3727,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
         
         // Steam quick launch options
-        if (pApp->store == app_record_s::Store::Steam)
+        if (SteamShortcutPossible)
         { 
           bool clickedQuickLaunch     = false,
                clickedQuickLaunchWoSK = false;
+
+          std::string fullPath     = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath (pApp->id));
           
           if (pApp->specialk.injection.injection.type != sk_install_state_s::Injection::Type::Local)
           {
@@ -3696,11 +3746,15 @@ SKIF_UI_Tab_DrawLibrary (void)
                                       : ImGuiSelectableFlags_None)))
                 clickedQuickLaunch = true;
 
+              SKIF_ImGui_SetHoverText (fullPath);
+
               if (ImGui::Selectable ("Quick launch without Special K", false,
                                     ((pApp->_status.running || pApp->_status.updating)
                                       ? ImGuiSelectableFlags_Disabled
                                       : ImGuiSelectableFlags_None)))
                 clickedQuickLaunchWoSK = true;
+
+              SKIF_ImGui_SetHoverText (fullPath);
 
               ImGui::EndMenu        ( );
             }
@@ -3727,7 +3781,6 @@ SKIF_UI_Tab_DrawLibrary (void)
             // Check if the injection service should be used
             if (! usingSK)
             {
-              std::string fullPath     = SK_WideCharToUTF8 (pApp->launch_configs[0].getExecutableFullPath(pApp->id));
               bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted (pApp->id),
                    isGlobalBlacklisted = _inject._TestUserList (fullPath.c_str (), false);
 
@@ -4248,23 +4301,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       ImGui::PopStyleColor  ( );
-
-      static uint32_t curAppId;
-      static bool     SteamShortcutPossible;
-
-      // Do not check games that are being updated (aka installed)
-      if (pApp->store == app_record_s::Store::Steam &&
-        ! pApp->_status.updating)
-      {
-        if (curAppId != pApp->id)
-        {   curAppId  = pApp->id;
-          SteamShortcutPossible = (pApp->launch_configs[0].getExecutableFullPath(pApp->id) != L"<InvalidPath>");
-        }
-      }
-
-      else {
-        SteamShortcutPossible = false;
-      }
 
       // Manage [Custom] Game
       if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || SteamShortcutPossible)
