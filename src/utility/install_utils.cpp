@@ -273,7 +273,8 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 
     for ( auto& launch_cfg : app.second.launch_configs )
     {
-#if 0
+#define TRUST_LAUNCH_CONFIG
+#ifdef TRUST_LAUNCH_CONFIG
       app_record_s::CPUType
                     cputype = app.second.
       common_config.cpu_type;
@@ -325,7 +326,8 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
             install_state.injection.bitness = InjectionBitness::SixtyFour;
         }
       }
-#endif
+
+#else
 
       std::wstring exec_path =
         launch_cfg.second.getExecutableFullPath (appid, false);
@@ -339,21 +341,22 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
           install_state.injection.bitness = InjectionBitness::SixtyFour;
       }
 
+#endif
+
       std::wstring test_path =
         launch_cfg.second.getExecutableDir (pApp->id, false);
         //launch_cfg.second.working_dir; // Doesn't contain a full path
 
       struct {
-        InjectionBitness bitness;
         InjectionPoint   entry_pt;
         std::wstring     name;
         std::wstring     path;
       } test_dlls [] = {
-        { install_state.injection.bitness, InjectionPoint::D3D9,    L"d3d9",     L"" },
-        { install_state.injection.bitness, InjectionPoint::DXGI,    L"dxgi",     L"" },
-        { install_state.injection.bitness, InjectionPoint::D3D11,   L"d3d11",    L"" },
-        { install_state.injection.bitness, InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-        { install_state.injection.bitness, InjectionPoint::DInput8, L"dinput8",  L"" }
+        { InjectionPoint::D3D9,    L"d3d9",     L"" },
+        { InjectionPoint::DXGI,    L"dxgi",     L"" },
+        { InjectionPoint::D3D11,   L"d3d11",    L"" },
+        { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
+        { InjectionPoint::DInput8, L"dinput8",  L"" }
       };
 
       for ( auto& dll : test_dlls )
@@ -370,7 +373,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
           if (! dll_ver.empty ())
           {
             install_state.injection = {
-              dll.bitness,
+              install_state.injection.bitness,
               dll.entry_pt, InjectionType::Local,
               dll.path,     dll_ver
             };
