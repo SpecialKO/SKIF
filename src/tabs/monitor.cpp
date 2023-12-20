@@ -786,7 +786,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::TreePush   ( );
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
-  if (ImGui::Button ( ICON_FA_TOGGLE_ON  "  Force Start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
+  if (ImGui::Button ( ICON_FA_TOGGLE_ON  "  Force start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject (false, _registry.bStopOnInjection);
   ImGui::PopStyleColor ( );
@@ -794,7 +794,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine   ( );
     
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-  if (ImGui::Button ( ICON_FA_TOGGLE_OFF "  Force Stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
+  if (ImGui::Button ( ICON_FA_TOGGLE_OFF "  Force stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject(true);
   ImGui::PopStyleColor ( );
@@ -822,7 +822,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
     
-  if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Config Root", ImColor(255, 207, 72)))
+  if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Install folder", ImColor(255, 207, 72)))
     SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
 
   SKIF_ImGui_SetMouseCursorHand ();

@@ -566,16 +566,16 @@ void SKIF_ImGui_ServiceMenu (void)
   if (ImGui::BeginPopup ("ServiceMenu", ImGuiWindowFlags_NoMove))
   {
     ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
+      ImColor::HSV (0.11F, 1.F, 1.F),
         "Troubleshooting:"
     );
 
     ImGui::Separator ( );
 
-    if (ImGui::Selectable("Force Start Service"))
+    if (ImGui::Selectable("Force start service"))
       _inject._StartStopInject (false, _registry.bStopOnInjection);
 
-    if (ImGui::Selectable("Force Stop Service"))
+    if (ImGui::Selectable("Force stop service"))
       _inject._StartStopInject (true);
 
     ImGui::EndPopup ( );

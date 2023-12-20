@@ -757,7 +757,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::BeginGroup      ();
   ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted ("Config Root:");
+  ImGui::TextUnformatted ("Config folder:");
   ImGui::TextUnformatted ("32-bit Service:");
 #ifdef _WIN64
   ImGui::TextUnformatted ("64-bit Service:");
@@ -797,7 +797,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   SKIF_ImGui_SetHoverText       (
     SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
   );
-  //SKIF_ImGui_SetHoverTip        ("Open the config root folder");
 
   // 32-bit/64-bit Services
   if (pid32 && bAckInj)

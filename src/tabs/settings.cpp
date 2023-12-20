@@ -1372,7 +1372,7 @@ SKIF_UI_Tab_DrawSettings (void)
     
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        ICON_FA_WRENCH " Troubleshooting:"
+        ICON_FA_WRENCH "  Troubleshooting:"
     );
 
     const char* LogSeverity[] = { "None",

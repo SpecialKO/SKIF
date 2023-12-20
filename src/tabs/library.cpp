@@ -1454,8 +1454,8 @@ GetInjectionSummary (app_record_s* pApp)
   ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   //ImGui::NewLine          ();
   ImGui::TextUnformatted  ("Injection:");
-  ImGui::TextUnformatted  ("Config Root:");
-  ImGui::TextUnformatted  ("Config File:");
+  ImGui::TextUnformatted  ("Config folder:");
+  ImGui::TextUnformatted  ("Config file:");
   ImGui::TextUnformatted  ("Platform:");
   ImGui::PopStyleColor    ();
   ImGui::ItemSize         (ImVec2 (110.f * SKIF_ImGui_GlobalDPIScale,
