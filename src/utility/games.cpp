@@ -257,9 +257,8 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
             //   for those we have to consult the app manifest
             if (app->store == app_generic_s::Store::Steam)
             {
-              app->names.normal =
-                SK_UseManifestToGetAppName (
-                              app->id );
+              //app->names.normal =
+              //  SK_UseManifestToGetAppName (app.get());
             }
 
             // Corrupted app manifest / not known to Steam client; SKIP!
@@ -322,10 +321,10 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
           {
             std::wstring install_dir;
 
-            if (app->store == app_generic_s::Store::Steam)
-              install_dir = SK_UseManifestToGetInstallDir(app->id);
-            else
-              install_dir = app->install_dir;
+            //if (app->store == app_generic_s::Store::Steam)
+            //  install_dir = SK_UseManifestToGetInstallDir (app.get()); // TODO: app_generic_s != app_record_s
+            //else
+            //  install_dir = app->install_dir;
           
             if (! PathFileExists(install_dir.c_str()))
             {

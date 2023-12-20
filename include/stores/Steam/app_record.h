@@ -175,8 +175,15 @@ struct app_record_s {
     Platform     platforms = Platform::All;
 
     app_record_s* parent = nullptr;
+
     std::wstring executable;
+    std:: string executable_utf8;
+    bool         executable_valid;
+
     std::wstring executable_path;
+    std:: string executable_path_utf8;
+    bool         executable_path_valid;
+
     std::wstring description;
     std::wstring launch_options;     // Used by GOG and Epic
     std::wstring working_dir;
@@ -189,14 +196,19 @@ struct app_record_s {
     int          blacklisted = -1;
     int          elevated    = -1;
 
-    std::wstring getBlacklistFilename  (int32_t appid);
-    bool         setBlacklisted        (int32_t appid, bool blacklist);
-    bool         isBlacklisted         (int32_t appid);
-    std::wstring getElevatedFilename   (int32_t appid);
-    bool         setElevated           (int32_t appid, bool elevated);
-    bool         isElevated            (int32_t appid);
-    std::wstring getExecutableDir      (int32_t appid, bool validate = true);
-    std::wstring getExecutableFullPath (int32_t appid, bool validate = true);
+    std::wstring getBlacklistFilename       (void);
+    bool         setBlacklisted             (bool blacklist);
+    bool         isBlacklisted              (void);
+    std::wstring getElevatedFilename        (void);
+    bool         setElevated                (bool elevated);
+    bool         isElevated                 (void);
+
+    std::wstring getExecutableDir           (void);
+    bool          isExecutableDirValid      (void);
+
+    std::wstring getExecutableFullPath      (void);
+    std:: string getExecutableFullPathUTF8  (void);
+    bool          isExecutableFullPathValid (void);
   };
 
   struct cloud_save_record_s {
@@ -235,18 +247,21 @@ struct app_record_s {
   common_config_s                             common_config;
   
   uint32_t     id;
-  bool         cloud_enabled = true; // hidecloudui=false
+  bool         processed             =  false; // indicates if we have processed appinfo
+  bool         cloud_enabled         =   true; // hidecloudui=false
   std::wstring install_dir;
-  Store store              = Store::Unspecified;
-  std::string  store_utf8  = "";  // maybe enum?
-  std::string  ImGuiPushID = "";
-  std::string  ImGuiLabelAndID = "";
-  std::string  Epic_CatalogNamespace = "";
-  std::string  Epic_CatalogItemId = "";
-  std::string  Epic_AppName = "";
-  std::string  Epic_DisplayName = "";
-  std::string  Xbox_PackageName = "";
-  std::string  Xbox_StoreId = "";
+  Store store                        =  Store::Unspecified;
+  std::string  store_utf8            =  "";  // maybe enum?
+  std::string  ImGuiPushID           =  "";
+  std::string  ImGuiLabelAndID       =  "";
+  std::string  Steam_ManifestData    =  "";
+  std::wstring Steam_ManifestPath    = L"";
+  std::string  Epic_CatalogNamespace =  "";
+  std::string  Epic_CatalogItemId    =  "";
+  std::string  Epic_AppName          =  "";
+  std::string  Epic_DisplayName      =  "";
+  std::string  Xbox_PackageName      =  "";
+  std::string  Xbox_StoreId          =  "";
   std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
 
   template <class _Tp> static

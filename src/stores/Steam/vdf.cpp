@@ -292,7 +292,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           pAppRecord->launch_configs.empty ();
 
         pAppRecord->install_dir =
-          SK_UseManifestToGetInstallDir (appid);
+          SK_UseManifestToGetInstallDir (pAppRecord);
 
         // Strip double backslashes characters from the string
         try
@@ -513,12 +513,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         for ( auto& launch_cfg : pAppRecord->launch_configs )
         {
-          auto& id     = pAppRecord->id;
           auto& launch = launch_cfg.second;
 
           //launch.store = app_record_s::Store::Steam;
           launch.parent = pAppRecord;
-          launch.isBlacklisted (id);
+          launch.isBlacklisted ( );
 
           // File extension, so we can strip out non-executable ones
           wchar_t  wszExtension[MAX_PATH] = { };
@@ -548,7 +547,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                    launch.working_dir [0] == L'\0' )
               {
                 launch.working_dir =
-                  launch.getExecutableDir (appid);
+                  launch.getExecutableDir ( );
               }
             }
 
@@ -841,7 +840,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                             }
 
                             Steam64BitID = std::stoull (
-                              SK_UseManifestToGetAppOwner (pAppRecord->id));
+                              SK_UseManifestToGetAppOwner (pAppRecord));
                           };
 
                         SK_RunOnce (
@@ -904,6 +903,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 #ifdef _WRITE_APPID_INI
         fclose (fTest);
 #endif
+
+        if (pAppRecord != nullptr)
+          pAppRecord->processed = true;
 
         return pIter;
       }

@@ -185,7 +185,7 @@ struct app_generic_s {
     bool         setElevated           (int32_t appid, bool elevated);
     bool         isElevated            (int32_t appid);
     std::wstring getExecutableDir      (int32_t appid, bool validate = true);
-    std::wstring getExecutableFullPath (int32_t appid, bool validate = true);
+    std::wstring getExecutableFullPath (bool validate = true);
   };
 
   struct specialk_config_s {

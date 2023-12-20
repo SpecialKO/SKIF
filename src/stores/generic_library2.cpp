@@ -238,7 +238,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), SKIFCustomPath + L"-original.png"))
         load_str =                SKIFCustomPath + L"-original.png";
     }
   }
@@ -270,7 +270,7 @@ LoadLibraryTexture (
                PathFileExistsW ((EpicAssetPath + L"cover-original.jpg").c_str()))
         load_str =               EpicAssetPath + L"cover-original.jpg";
       else if (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), EpicAssetPath + L"icon-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), EpicAssetPath + L"icon-original.png"))
         load_str =               SKIFCustomPath + L"-original.png";
     }
   }
@@ -298,7 +298,7 @@ LoadLibraryTexture (
     if (! customAsset)
     {
       if      (libTexToLoad == LibraryTexture::Icon &&
-               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath(pApp->id), SKIFCustomPath + L"-original.png"))
+               SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), SKIFCustomPath + L"-original.png"))
         load_str =             SKIFCustomPath + L"-original.png";
       else if (libTexToLoad == LibraryTexture::Icon)
       {

@@ -141,8 +141,6 @@ std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
 bool         GOGGalaxy_Installed   = false;
 
-bool         SteamClient_Running   = false;
-
 DWORD    RepopulateGamesWasSet     = 0;
 bool     RepopulateGames           = false,
          RefreshSettingsTab        = false;

@@ -274,9 +274,12 @@ SK_Steam_GetInstalledAppIDs (void)
 }
 
 std::wstring
-SK_Steam_GetApplicationManifestPath (AppId_t appid)
+SK_Steam_GetApplicationManifestPath (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
+
+  if (! app->Steam_ManifestPath.empty())
+    return app->Steam_ManifestPath;
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
@@ -292,7 +295,7 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
       swprintf ( wszManifest, MAX_PATH + 2,
                    LR"(%s\steamapps\appmanifest_%u.acf)",
                (wchar_t *)steam_lib_paths [i],
-                            appid );
+                            app->id );
 
       CHandle hManifest (
         CreateFileW ( wszManifest,
@@ -305,11 +308,14 @@ SK_Steam_GetApplicationManifestPath (AppId_t appid)
       );
 
       if (hManifest != INVALID_HANDLE_VALUE)
-        return wszManifest;
+      {
+        app->Steam_ManifestPath = wszManifest;
+        break;
+      }
     }
   }
 
-  return L"";
+  return app->Steam_ManifestPath;
 }
 
 std::wstring
@@ -340,71 +346,90 @@ SK_Steam_GetLocalConfigPath (SteamId3_t userid)
 
 
 std::string
-SK_GetManifestContentsForAppID (AppId_t appid)
+SK_GetManifestContentsForAppID (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   static AppId_t     manifest_id = 0;
   static std::string manifest;
+  
+  if (! app->Steam_ManifestData.empty())
+    return app->Steam_ManifestData;
 
-  if (manifest_id == appid && (! manifest.empty ()))
+  if (manifest_id == app->id && (! manifest.empty ()))
     return manifest;
 
-  std::wstring wszManifest =
-    SK_Steam_GetApplicationManifestPath (appid);
+  steam_library_t* steam_lib_paths = nullptr;
+  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
 
-  if (wszManifest.empty ())
-    return manifest;
+  if (! steam_lib_paths)
+    return "";
 
-  CHandle hManifest (
-    CreateFileW ( wszManifest.c_str (),
-                    GENERIC_READ,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                      nullptr,        OPEN_EXISTING,
-                        GetFileAttributesW (wszManifest.c_str ()),
-                          nullptr
-                )
-  );
-
-  if (hManifest != INVALID_HANDLE_VALUE)
+  if (steam_libs != 0)
   {
-    //PLOG_VERBOSE << "Reading " << wszManifest;
-
-    DWORD dwSizeHigh = 0,
-          dwRead     = 0,
-          dwSize     =
-     GetFileSize (hManifest, &dwSizeHigh);
-
-    auto szManifestData =
-      std::make_unique <char []> (
-        std::size_t (dwSize) + std::size_t (1)
-      );
-    auto manifest_data =
-      szManifestData.get ();
-
-    if (! manifest_data)
-      return "";
-
-    const bool bRead =
-      ReadFile ( hManifest,
-                   manifest_data,
-                     dwSize,
-                    &dwRead,
-                       nullptr );
-
-    if (bRead && dwRead)
+    for (int i = 0; i < steam_libs; i++)
     {
-      manifest =
-        std::move (manifest_data);
+      wchar_t    wszManifest [MAX_PATH + 2] = { };
+      swprintf ( wszManifest, MAX_PATH + 2,
+                   LR"(%s\steamapps\appmanifest_%u.acf)",
+               (wchar_t *)steam_lib_paths [i],
+                            app->id );
 
-      manifest_id = appid;
+      CHandle hManifest (
+        CreateFileW ( wszManifest,
+                        GENERIC_READ,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          nullptr,        OPEN_EXISTING,
+                            GetFileAttributesW (wszManifest),
+                              nullptr
+                    )
+      );
 
-      return
-        manifest;
+      if (hManifest != INVALID_HANDLE_VALUE)
+      {
+        //PLOG_VERBOSE << "Reading " << wszManifest;
+
+        DWORD dwSizeHigh = 0,
+              dwRead     = 0,
+              dwSize     =
+         GetFileSize (hManifest, &dwSizeHigh);
+
+        auto szManifestData =
+          std::make_unique <char []> (
+            std::size_t (dwSize) + std::size_t (1)
+          );
+        auto manifest_data =
+          szManifestData.get ();
+
+        if (! manifest_data)
+          return "";
+
+        const bool bRead =
+          ReadFile ( hManifest,
+                       manifest_data,
+                         dwSize,
+                        &dwRead,
+                           nullptr );
+
+        if (bRead && dwRead)
+        {
+          manifest =
+            std::move (manifest_data);
+
+          manifest_id = app->id;
+
+          app->Steam_ManifestData = manifest;
+          app->Steam_ManifestPath = wszManifest;
+          return app->Steam_ManifestData;
+        }
+      }
     }
   }
 
-  return manifest;
+  app->Steam_ManifestData =  "<InvalidData>";
+  app->Steam_ManifestPath = L"<InvalidPath>";
+
+  return "";
 }
 
 std::string
@@ -627,20 +652,21 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 }
 
 std::string
-SK_UseManifestToGetAppName (AppId_t appid)
+SK_UseManifestToGetAppName (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
-  std::string manifest_data =
-    SK_GetManifestContentsForAppID (appid);
+  if (app->Steam_ManifestData.empty())
+      app->Steam_ManifestData =
+        SK_GetManifestContentsForAppID (app);
 
-  if (! manifest_data.empty ())
+  if (! app->Steam_ManifestData.empty ())
   {
     //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::string app_name =
       SK_Steam_KeyValues::getValue (
-        manifest_data, { "AppState" }, "name"
+        app->Steam_ManifestData, { "AppState" }, "name"
       );
 
     if (! app_name.empty ())
@@ -729,12 +755,12 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
 }
 
 std::string
-SK_UseManifestToGetAppOwner (AppId_t appid)
+SK_UseManifestToGetAppOwner (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
-    SK_GetManifestContentsForAppID (appid);
+    SK_GetManifestContentsForAppID (app);
 
   if (! manifest_data.empty ())
   {
@@ -755,55 +781,56 @@ SK_UseManifestToGetAppOwner (AppId_t appid)
 }
 
 std::wstring
-SK_UseManifestToGetInstallDir (AppId_t appid)
+SK_UseManifestToGetInstallDir (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
-  std::string manifest_data =
-    SK_GetManifestContentsForAppID (appid);
+  if (! app->install_dir.empty())
+    return app->install_dir;
 
-  if (! manifest_data.empty ())
+  if (app->Steam_ManifestData.empty())
+    app->Steam_ManifestData =
+      SK_GetManifestContentsForAppID (app);
+
+  if (! app->Steam_ManifestData.empty ())
   {
     //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::wstring app_path =
       SK_Steam_KeyValues::getValueAsUTF16 (
-        manifest_data, { "AppState" }, "installdir"
+        app->Steam_ManifestData, { "AppState" }, "installdir"
       );
 
     if (! app_path.empty ())
     {
-      std::wstring manifest_path =
-        SK_Steam_GetApplicationManifestPath (appid);
-
       wchar_t    app_root [MAX_PATH] = { };
       wcsncpy_s (app_root, MAX_PATH,
-            manifest_path.c_str (), _TRUNCATE);
+            app->Steam_ManifestPath.c_str (), _TRUNCATE);
 
       PathRemoveFileSpecW (app_root);
       PathAppendW         (app_root, L"common\\");
 
-      wchar_t ret [MAX_PATH];
+      wchar_t path [MAX_PATH];
 
-      PathCombineW ( ret, app_root,
-                          app_path.c_str () );
+      PathCombineW (path, app_root,
+                          app_path.c_str ());
 
-      return ret;
+      app->install_dir = path;
     }
   }
 
-  return L"";
+  return app->install_dir;
 }
 
 std::vector <SK_Steam_Depot>
-SK_UseManifestToGetDepots (AppId_t appid)
+SK_UseManifestToGetDepots (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::vector <SK_Steam_Depot> depots;
 
   std::string manifest_data =
-    SK_GetManifestContentsForAppID (appid);
+    SK_GetManifestContentsForAppID (app);
 
   if (! manifest_data.empty ())
   {
@@ -832,12 +859,12 @@ SK_UseManifestToGetDepots (AppId_t appid)
 }
 
 ManifestId_t
-SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot)
+SK_UseManifestToGetDepotManifest (app_record_s *app, DepotId_t depot)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
   std::string manifest_data =
-    SK_GetManifestContentsForAppID (appid);
+    SK_GetManifestContentsForAppID (app);
 
   if (! manifest_data.empty ())
   {
@@ -960,15 +987,10 @@ SKIF_Steam_isLibrariesSignaled (void)
 // There's two of these:
 // *   SK_Steam_GetInstalledAppIDs ( )
 // * SKIF_Steam_GetInstalledAppIDs ( ) <- The one below
-std::vector <std::pair <std::string, app_record_s>>
-SKIF_Steam_GetInstalledAppIDs (void)
+void
+SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
-  std::vector <std::pair <std::string, app_record_s>> ret;
-
-  if (! _registry.bLibrarySteam)
-    return ret;
 
   std::set <uint32_t> unique_apps;
 
@@ -988,13 +1010,11 @@ SKIF_Steam_GetInstalledAppIDs (void)
 
       // Opening the manifests to read the names is a
       //   lengthy operation, so defer names and icons
-      ret.emplace_back (
+      apps->emplace_back (
         "Loading...", record
       );
     }
   }
-
-  return ret;
 };
 
 

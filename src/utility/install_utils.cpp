@@ -315,7 +315,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
       else if (cputype == app_record_s::CPUType::Any)
       {
         std::wstring exec_path =
-          launch_cfg.second.getExecutableFullPath (appid);
+          launch_cfg.second.getExecutableFullPath ( );
 
         DWORD dwBinaryType = MAXDWORD;
         if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
@@ -330,7 +330,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 #else
 
       std::wstring exec_path =
-        launch_cfg.second.getExecutableFullPath (appid, false);
+        launch_cfg.second.getExecutableFullPath ( );
 
       DWORD dwBinaryType = MAXDWORD;
       if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
@@ -344,7 +344,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
 #endif
 
       std::wstring test_path =
-        launch_cfg.second.getExecutableDir (pApp->id, false);
+        launch_cfg.second.getExecutableDir ( );
         //launch_cfg.second.working_dir; // Doesn't contain a full path
 
       struct {
@@ -430,7 +430,7 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
   if (pApp != nullptr)
   {
     install_state.localized_name =
-      SK_UseManifestToGetAppName (pApp->id);
+      SK_UseManifestToGetAppName (pApp);
   }
 
   else

@@ -10,10 +10,8 @@ using app_branch_record_s =
       app_record_s::branch_record_s;
 
 std::wstring
-app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
+app_launch_config_s::getExecutableFullPath (void)
 {
-  std::wstring exec_path = L"";
-
   if (parent        != nullptr &&
       parent->store == app_record_s::Store::Steam)
   {
@@ -23,29 +21,39 @@ app_launch_config_s::getExecutableFullPath (int32_t appid, bool validate)
     if (executable.empty())
       return L"<InvalidPath>";
 
-    exec_path = SK_UseManifestToGetInstallDir (appid);
-    exec_path.append (L"\\");
-    exec_path.append (executable);
+    if (executable_path.empty() && ! parent->install_dir.empty())
+    {
+      executable_path = parent->install_dir;
+      executable_path.append (L"\\");
+      executable_path.append (executable);
+    }
   }
 
-  else {
-    exec_path = executable_path;
-  }
+  return executable_path;
+}
 
-  if (! validate || PathFileExistsW (exec_path.c_str ()))
-    return exec_path;
+std::string
+app_launch_config_s::getExecutableFullPathUTF8 (void)
+{
+  if (! executable_path_utf8.empty())
+    return executable_path_utf8;
 
-  return L"<InvalidPath>";
+  executable_path_utf8 = SK_WideCharToUTF8 (getExecutableFullPath ( ));
+
+  return executable_path_utf8;
+}
+
+bool
+app_launch_config_s::isExecutableFullPathValid (void)
+{
+  return PathFileExistsW (getExecutableFullPath ( ).c_str());
 }
 
 std::wstring
-app_launch_config_s::getExecutableDir (int32_t appid, bool validate)
+app_launch_config_s::getExecutableDir (void)
 {
   std::wstring exec_path =
-    getExecutableFullPath (appid, false);
-
-  if (validate && ! PathFileExistsW (exec_path.c_str ()))
-    return L"<InvalidDir>";
+    getExecutableFullPath ( );
 
   wchar_t  wszExecutableBase [MAX_PATH] = { };
   StrCatW (wszExecutableBase, exec_path.c_str ());
@@ -55,14 +63,20 @@ app_launch_config_s::getExecutableDir (int32_t appid, bool validate)
   return wszExecutableBase;
 }
 
+bool
+app_launch_config_s::isExecutableDirValid (void)
+{
+  return PathFileExistsW (getExecutableDir ( ).c_str());
+}
+
 std::wstring
-app_launch_config_s::getBlacklistFilename (int32_t appid)
+app_launch_config_s::getBlacklistFilename (void)
 {
   if (! blacklist_file.empty ())
     return blacklist_file;
 
   std::wstring full_path =
-    getExecutableFullPath (appid, false);
+    getExecutableFullPath ( );
 
   valid =
     PathFileExistsW (full_path.c_str ());
@@ -95,11 +109,10 @@ app_launch_config_s::getBlacklistFilename (int32_t appid)
 }
 
 bool
-app_launch_config_s::setBlacklisted ( int32_t appid,
-                                      bool    blacklist )
+app_launch_config_s::setBlacklisted (bool blacklist)
 {
   std::wstring blacklist_path =
-    getBlacklistFilename (appid);
+    getBlacklistFilename ( );
 
   auto _Blacklist =
   [&](bool set) -> bool
@@ -115,7 +128,7 @@ app_launch_config_s::setBlacklisted ( int32_t appid,
     return blacklisted;
   };
 
-  if (blacklist != isBlacklisted (appid))
+  if (blacklist != isBlacklisted ( ))
   {
     if (blacklist)
     {
@@ -124,7 +137,7 @@ app_launch_config_s::setBlacklisted ( int32_t appid,
 
       if (fBlacklist != nullptr)
       {
-        fputws ((L"Dummy! ID: " + std::to_wstring(appid) + L"\n").c_str(), fBlacklist);
+        fputws (L"This file tells Special K to remain disabled for the executable.", fBlacklist);
         fclose (           fBlacklist);
 
         return _Blacklist (blacklist);
@@ -146,14 +159,14 @@ app_launch_config_s::setBlacklisted ( int32_t appid,
 }
 
 bool
-app_launch_config_s::isBlacklisted (int32_t appid)
+app_launch_config_s::isBlacklisted (void)
 {
   if (blacklisted != -1)
     return (blacklisted != 0);
 
   bool black =
     PathFileExistsW (
-      getBlacklistFilename (appid).c_str ()
+      getBlacklistFilename ( ).c_str ()
     );
 
   blacklisted = black ?
@@ -163,13 +176,13 @@ app_launch_config_s::isBlacklisted (int32_t appid)
 }
 
 std::wstring
-app_launch_config_s::getElevatedFilename (int32_t appid)
+app_launch_config_s::getElevatedFilename (void)
 {
   if (! elevated_file.empty ())
     return elevated_file;
 
   std::wstring full_path =
-    getExecutableFullPath (appid, false);
+    getExecutableFullPath ( );
 
   valid =
     PathFileExistsW (full_path.c_str ());
@@ -202,11 +215,10 @@ app_launch_config_s::getElevatedFilename (int32_t appid)
 }
 
 bool
-app_launch_config_s::setElevated ( int32_t appid,
-                                   bool    elevate )
+app_launch_config_s::setElevated (bool elevate)
 {
   std::wstring elevated_path =
-    getElevatedFilename (appid);
+    getElevatedFilename ( );
 
   auto _Elevate =
   [&](bool set) -> bool
@@ -222,7 +234,7 @@ app_launch_config_s::setElevated ( int32_t appid,
     return elevated;
   };
 
-  if (elevate != isElevated (appid))
+  if (elevate != isElevated ( ))
   {
     if (elevate)
     {
@@ -231,7 +243,7 @@ app_launch_config_s::setElevated ( int32_t appid,
 
       if (fElevate != nullptr)
       {
-        fputws ((L"Dummy! ID: " + std::to_wstring(appid) + L"\n").c_str(), fElevate);
+        fputws (L"This file tells Special K Injection Frontend (SKIF) to elevate the injection services for the executable.", fElevate);
         fclose (           fElevate);
 
         return _Elevate (elevate);
@@ -253,14 +265,14 @@ app_launch_config_s::setElevated ( int32_t appid,
 }
 
 bool
-app_launch_config_s::isElevated (int32_t appid)
+app_launch_config_s::isElevated (void)
 {
   if (elevated != -1)
     return (elevated != 0);
 
   bool elevate =
     PathFileExistsW (
-      getElevatedFilename (appid).c_str ()
+      getElevatedFilename ( ).c_str ()
     );
 
   elevated = elevate ?
@@ -445,7 +457,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
 
   if ( dwTimeLastChecked <= app_record_s::client_state_s::_TimeLastNotified )
   {
-    if (pApp->store != app_record_s::Store::Steam || SKIF_Steam_UpdateAppState (pApp))
+    if (SKIF_Steam_UpdateAppState (pApp))
       dwTimeLastChecked = dwTimeNow + _RefreshInterval;
     else
       invalidate ();

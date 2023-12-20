@@ -106,13 +106,13 @@ std::vector <AppId_t>
 SK_Steam_GetInstalledAppIDs (void);
 
 std::wstring
-SK_Steam_GetApplicationManifestPath (AppId_t appid);
+SK_Steam_GetApplicationManifestPath (app_record_s *app);
 
 std::wstring
 SK_Steam_GetLocalConfigPath (SteamId3_t userid);
 
 std::string
-SK_GetManifestContentsForAppID (AppId_t appid);
+SK_GetManifestContentsForAppID (app_record_s *app);
 
 std::string
 SK_GetLocalConfigForSteamUser (SteamId3_t userid);
@@ -307,19 +307,19 @@ const wchar_t *
 SK_GetSteamDir (void);
 
 std::wstring
-SK_UseManifestToGetInstallDir (AppId_t appid);
+SK_UseManifestToGetInstallDir (app_record_s *app);
 
 std::string
-SK_UseManifestToGetAppName (AppId_t appid);
+SK_UseManifestToGetAppName (app_record_s *app);
 
 std::string
-SK_UseManifestToGetAppOwner (AppId_t appid);
+SK_UseManifestToGetAppOwner (app_record_s *app);
 
 std::vector <SK_Steam_Depot>
-SK_UseManifestToGetDepots (AppId_t appid);
+SK_UseManifestToGetDepots (app_record_s *app);
 
 ManifestId_t
-SK_UseManifestToGetDepotManifest (AppId_t appid, DepotId_t depot);
+SK_UseManifestToGetDepotManifest (app_record_s *app, DepotId_t depot);
 
 std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid);
@@ -327,8 +327,8 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid);
 bool
 SKIF_Steam_isLibrariesSignaled (void);
 
-std::vector <std::pair <std::string, app_record_s>>
-SKIF_Steam_GetInstalledAppIDs (void);
+void
+SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps);
 
 SteamId3_t
 SKIF_Steam_GetCurrentUser (bool refresh = false);
