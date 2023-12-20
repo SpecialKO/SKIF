@@ -277,7 +277,7 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
   );
 
-  if ( ImGui::Selectable ("Play", false,
+  if ( ImGui::Selectable ("Play###GameContextMenu_Launch", false,
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
@@ -292,7 +292,7 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if ( ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K", false,
+    if ( ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_LaunchWoSK", false,
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
@@ -312,7 +312,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::Separator        ( );
 
-    if (ImGui::Selectable ("Instant play", false,
+    if (ImGui::Selectable ("Instant play###GameContextMenu_QuickLaunch", false,
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
@@ -328,7 +328,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
       );
 
-      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K", false,
+      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_QuickLaunchWoSK", false,
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
@@ -406,7 +406,7 @@ DrawGameContextMenu (app_record_s* pApp)
     if (pApp->specialk.injection.injection.type != InjectionType::Local)
       ImGui::Separator        ( );
 
-    if (ImGui::Selectable ("Play using GOG Galaxy", false,
+    if (ImGui::Selectable ("Play using GOG Galax###GameContextMenu_GalaxyLaunch", false,
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
@@ -418,7 +418,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
       );
 
-      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K", false,
+      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_GalaxyLaunchWoSK", false,
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
