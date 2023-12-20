@@ -189,12 +189,6 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   config.shorthand      = wszConfigPath;
   config.shorthand_utf8 = SK_WideCharToUTF8 (config.shorthand);
 
-  //if (! PathFileExistsW (sk_install.config.file.c_str ()))
-  //  config.shorthand.clear ();
-
-  //if (! PathFileExistsA (dll.full_path.c_str ()))
-  //  dll.shorthand.clear ();
-
   injection.type        = "None";
   injection.status.text.clear ();
   injection.hover_text.clear  ();
@@ -203,7 +197,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   {
     case InjectionType::Local:
       injection.type = "Local";
-      injection.type_version = SK_FormatString (R"(%s v %s (%s))", injection.type.c_str(), dll.version.c_str(), dll.shorthand_utf8.c_str());
+      injection.type_version = SK_FormatString (R"(%s v %s (%s))", injection.type.c_str(), dll.version_utf8.c_str(), dll.shorthand_utf8.c_str());
       break;
 
     case InjectionType::Global:
@@ -212,7 +206,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
       if ( _inject.bHasServlet )
       {
         injection.type         = "Global";
-        injection.type_version = SK_FormatString (R"(%s v %s)", injection.type.c_str(), dll.version.c_str());
+        injection.type_version = SK_FormatString (R"(%s v %s)", injection.type.c_str(), dll.version_utf8.c_str());
         injection.status.text  = 
                     (service)  ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
                                : "                                "; //"Service Status";
@@ -2304,15 +2298,18 @@ UpdateInjectionStrategy (app_record_s* pApp)
 
   }
   
-  // Handle GOG, Epic, and SKIF Custom games
+  // Handle GOG, Epic, SKIF Custom, and Xbox games
   else {
-    DWORD dwBinaryType = MAXDWORD;
-    if ( GetBinaryTypeW (pApp->launch_configs[0].getExecutableFullPath ( ).c_str (), &dwBinaryType) )
+    if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
     {
-      if (dwBinaryType == SCS_32BIT_BINARY)
-        pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-      else if (dwBinaryType == SCS_64BIT_BINARY)
-        pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+      DWORD dwBinaryType = MAXDWORD;
+      if ( GetBinaryTypeW (pApp->launch_configs[0].getExecutableFullPath ( ).c_str (), &dwBinaryType) )
+      {
+        if (dwBinaryType == SCS_32BIT_BINARY)
+          pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+        else if (dwBinaryType == SCS_64BIT_BINARY)
+          pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+      }
     }
 
     std::wstring test_paths[] = { 
@@ -2354,8 +2351,8 @@ UpdateInjectionStrategy (app_record_s* pApp)
     pApp->specialk.injection.injection.dll_ver  = 
                               bIs64Bit ? _inject.SKVer64
                                        : _inject.SKVer32;
-    //SKIF_GetSpecialKDLLVersion (       wszPathToSelf);
 
+    // Assume global
     pApp->specialk.injection.injection.type =
       InjectionType::Global;
     pApp->specialk.injection.injection.entry_pt =

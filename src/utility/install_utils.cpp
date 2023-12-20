@@ -244,6 +244,8 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
   app_record_s::sk_install_state_s
      install_state;
+
+  // Assume global at first
      install_state = {
         .injection = { .bitness  = InjectionBitness::Unknown,
                        .entry_pt = InjectionPoint::CBTHook,
@@ -259,9 +261,6 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
     appinfo->getAppInfo ( pApp->id );
 
   UNREFERENCED_PARAMETER (pAppInfo);
-
-  install_state.injection.bitness =
-        InjectionBitness::Unknown;
 
   for ( auto& launch_cfg : pApp->launch_configs )
   {
