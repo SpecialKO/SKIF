@@ -515,7 +515,6 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           auto& launch = launch_cfg.second;
 
-          //launch.store = app_record_s::Store::Steam;
           launch.parent = pAppRecord;
           launch.isBlacklisted ( );
 
@@ -554,16 +553,17 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             _launches.push_back (launch);
           }
         }
-
+        
         pAppRecord->launch_configs.clear ();
 
         for ( auto& launch : _launches )
         {
+          int i = static_cast<int> (pAppRecord->launch_configs.size());
+
           //if (_used_launches.emplace (launch.blacklist_file).second)
           //{
-            pAppRecord->launch_configs
-              [static_cast<int> (pAppRecord->launch_configs.size())] =
-                                             launch;
+            pAppRecord->launch_configs[i]        = launch;
+            pAppRecord->launch_configs[i].parent = pAppRecord;
           //}
         }
 

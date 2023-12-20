@@ -29,6 +29,9 @@ app_launch_config_s::getExecutableFullPath (void)
     }
   }
 
+  //else if (parent == nullptr)
+    //OutputDebugString(L"no parent\n");
+
   return executable_path;
 }
 
@@ -46,6 +49,8 @@ app_launch_config_s::getExecutableFullPathUTF8 (void)
 bool
 app_launch_config_s::isExecutableFullPathValid (void)
 {
+  //OutputDebugString(getExecutableFullPath().c_str());
+  //OutputDebugString(L"\n");
   return PathFileExistsW (getExecutableFullPath ( ).c_str());
 }
 

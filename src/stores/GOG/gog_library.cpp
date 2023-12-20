@@ -95,7 +95,6 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 lc.id         = 0;
                 lc.valid      = true;
                 //lc.store    = app_record_s::Store::GOG;
-                lc.parent     = &record;
                 lc.executable = szData;
                 // lc.working_dir = record.install_dir;
 
@@ -126,6 +125,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                   GOG(record.names.normal, record);
 
                 apps->emplace_back(GOG);
+                apps->back().second.launch_configs[0].parent = &apps->back().second;
 
                 dwRead++;
               }

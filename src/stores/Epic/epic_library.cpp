@@ -159,7 +159,6 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           lc.id                       = 0;
           lc.valid                    = true;
           //lc.store                  = app_record_s::Store::Epic;
-          lc.parent                   = &record;
           lc.executable               = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
           lc.executable_path          = record.install_dir + L"\\" + lc.executable;
           std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
@@ -197,6 +196,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
             Epic(record.names.normal, record);
 
           apps->emplace_back(Epic);
+          apps->back().second.launch_configs[0].parent = &apps->back().second;
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
