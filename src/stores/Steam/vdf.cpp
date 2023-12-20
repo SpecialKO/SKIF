@@ -877,6 +877,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         if (pAppRecord != nullptr)
         {
+          std::set <std::wstring> _used_paths;
+
           for ( auto& cloud_save : pAppRecord->cloud_saves )
           {
             // This only needs to be done once per-game, per-cloud path
@@ -894,6 +896,10 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
             cloud_save.second.evaluated_dir =
               wszTestPath;
+
+            // Skip duplicate Auto-Cloud entries
+            if (! _used_paths.emplace (cloud_save.second.evaluated_dir).second)
+              continue;
 
             cloud_save.second.valid =
               PathFileExistsW (wszTestPath);
