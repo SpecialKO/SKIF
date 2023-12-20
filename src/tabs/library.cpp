@@ -1416,7 +1416,6 @@ RefreshRunningApps (void)
             continue;
           }
 
-          std::wstring fullPath;
 
           bool accessDenied =
             GetLastError ( ) == ERROR_ACCESS_DENIED;
@@ -1424,6 +1423,9 @@ RefreshRunningApps (void)
           // Get exit code to filter out zombie processes
           DWORD dwExitCode = 0;
           GetExitCodeProcess (hProcess, &dwExitCode);
+          
+          WCHAR szExePath[MAX_PATH] = { };
+          DWORD szExePathLen = MAX_PATH;
 
           if (! accessDenied)
           {
@@ -1431,48 +1433,48 @@ RefreshRunningApps (void)
             if (dwExitCode != STILL_ACTIVE)
               continue;
 
-            WCHAR szExePath[MAX_PATH];
-            DWORD len = MAX_PATH;
-
             // See if we can retrieve the full path of the executable
-            if (QueryFullProcessImageName (hProcess, 0, szExePath, &len))
-              fullPath = std::wstring (szExePath);
+            if (! QueryFullProcessImageName (hProcess, 0, szExePath, &szExePathLen))
+              szExePathLen = 0;
           }
 
           for (auto& app : apps)
           {
-            // Steam games are covered through separate registry monitoring
-            if (app.second.store == app_record_s::Store::Steam)
+            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
+            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].executable.c_str(), pe32.szExeFile, MAX_PATH) == 0)
             {
-              if (! steamFallback)
-                continue;
+              app.second._status.running = true;
+              break;
+            }
 
-              if (fullPath == app.second.launch_configs[0].getExecutableFullPath ( )) // full patch
+            else if (szExePathLen != 0)
+            {
+              // Steam games are covered through separate registry monitoring
+              if (app.second.store == app_record_s::Store::Steam)
+              {
+                if (! steamFallback)
+                  continue;
+              
+                if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0)
+                {
+                  app.second._status.running = true;
+                  break;
+                }
+              }
+
+              // Epic, GOG and SKIF Custom should be straight forward
+              else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full patch
               {
                 app.second._status.running = true;
                 break;
+
+                // One can also perform a partial match with the below OR clause in the IF statement, however from testing
+                //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
+                //     even to elevated processes, meaning the below OR clause is unnecessary.
+                // 
+                // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
+                //
               }
-            }
-
-            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
-            else if (app.second.store == app_record_s::Store::Xbox && (! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str())))
-            {
-              app.second._status.running = true;
-              break;
-            }
-
-            // Epic, GOG and SKIF Custom should be straight forward
-            else if (fullPath == app.second.launch_configs[0].getExecutableFullPath ( )) // full patch
-            {
-              app.second._status.running = true;
-              break;
-
-              // One can also perform a partial match with the below OR clause in the IF statement, however from testing
-              //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
-              //     even to elevated processes, meaning the below OR clause is unnecessary.
-              // 
-              // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
-              //
             }
           }
 
