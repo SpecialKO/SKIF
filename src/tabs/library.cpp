@@ -474,21 +474,6 @@ DrawGameContextMenu (app_record_s* pApp)
 
       SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (), (! localInjection && usingSK));
 
-      /*
-      SHELLEXECUTEINFOW
-      sexi              = { };
-      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-      sexi.lpVerb       = L"OPEN";
-      sexi.lpFile       = GOGGalaxy_Path.c_str();
-      sexi.lpParameters = launchOptions.c_str();
-    //sexi.lpDirectory  = NULL;
-      sexi.nShow        = SW_SHOWDEFAULT;
-      sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                          SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
-
-      ShellExecuteExW (&sexi);
-      */
-
       // Also minimize SKIF if configured as such
       // Disable the first service notification
       if (_registry.bMinimizeOnGameLaunch)
