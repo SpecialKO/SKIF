@@ -167,27 +167,27 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
                 sk_install.injection.dll_path.c_str (),
                         _TRUNCATE );
 
-  dll.full_pathW = wszDLLPath;
-  dll.full_path  = SK_WideCharToUTF8 (dll.full_pathW);
+  dll.full_path      = wszDLLPath;
+  dll.full_path_utf8 = SK_WideCharToUTF8 (dll.full_path);
 
-  PathStripPathW  (wszDLLPath);
-  dll.shorthandW = wszDLLPath;
-  dll.shorthand  = SK_WideCharToUTF8 (dll.shorthandW);
-  dll.versionW   = sk_install.injection.dll_ver;
-  dll.version    = SK_WideCharToUTF8 (dll.versionW);
+  PathStripPathW      (wszDLLPath);
+  dll.shorthand      = wszDLLPath;
+  dll.shorthand_utf8 = SK_WideCharToUTF8 (dll.shorthand);
+  dll.version        = sk_install.injection.dll_ver;
+  dll.version_utf8   = SK_WideCharToUTF8 (dll.version);
 
   wchar_t     wszConfigPath [MAX_PATH];
   wcsncpy_s ( wszConfigPath, MAX_PATH,
                 sk_install.config.file.c_str (),
                         _TRUNCATE );
   
-  config.root_dirW  = sk_install.config.dir;
-  config.root_dir   = SK_WideCharToUTF8 (config.root_dirW);
-  config.full_pathW = wszConfigPath;
-  config.full_path  = SK_WideCharToUTF8 (config.full_pathW);
-  PathStripPathW     (wszConfigPath);
-  config.shorthandW = wszConfigPath;
-  config.shorthand  = SK_WideCharToUTF8 (config.shorthandW);
+  config.root_dir       = sk_install.config.dir;
+  config.root_dir_utf8  = SK_WideCharToUTF8 (config.root_dir);
+  config.full_path      = wszConfigPath;
+  config.full_path_utf8 = SK_WideCharToUTF8 (config.full_path);
+  PathStripPathW         (wszConfigPath);
+  config.shorthand      = wszConfigPath;
+  config.shorthand_utf8 = SK_WideCharToUTF8 (config.shorthand);
 
   //if (! PathFileExistsW (sk_install.config.file.c_str ()))
   //  config.shorthand.clear ();
@@ -203,7 +203,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   {
     case InjectionType::Local:
       injection.type = "Local";
-      injection.type_version = SK_FormatString (R"(%s v %s (%s))", injection.type.c_str(), dll.version.c_str(), dll.shorthand.c_str());
+      injection.type_version = SK_FormatString (R"(%s v %s (%s))", injection.type.c_str(), dll.version.c_str(), dll.shorthand_utf8.c_str());
       break;
 
     case InjectionType::Global:
@@ -1356,7 +1356,7 @@ GetInjectionSummary (app_record_s* pApp)
           _cache.app_id != 351970          // Tales of Zestiria
         ))
     {
-      if (SKIF_Util_CompareVersionStrings (_inject.SKVer32, SK_UTF8ToWideChar(_cache.dll.version)) > 0)
+      if (SKIF_Util_CompareVersionStrings (_inject.SKVer32, _cache.dll.version) > 0)
       {
         ret = true;
       }
@@ -1371,7 +1371,7 @@ GetInjectionSummary (app_record_s* pApp)
 
   auto _UpdateLocalDLLFile = [&](void) -> void
   {
-    int iBinaryType = SKIF_Util_GetBinaryType (SK_UTF8ToWideChar (_cache.dll.full_path).c_str());
+    int iBinaryType = SKIF_Util_GetBinaryType (_cache.dll.full_path.c_str());
     if (iBinaryType > 0)
     {
       wchar_t                       wszPathToGlobalDLL [MAX_PATH + 2] = { };
@@ -1379,13 +1379,13 @@ GetInjectionSummary (app_record_s* pApp)
       PathRemoveFileSpecW (         wszPathToGlobalDLL);
       PathAppendW         (         wszPathToGlobalDLL, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
 
-      if (CopyFile (wszPathToGlobalDLL, SK_UTF8ToWideChar (_cache.dll.full_path).c_str(), FALSE))
+      if (CopyFile (wszPathToGlobalDLL, _cache.dll.full_path.c_str(), FALSE))
       {
         PLOG_INFO << "Successfully updated " << _cache.dll.full_path << " from v " << _cache.dll.version << " to v " << _inject.SKVer32;
       }
 
       else {
-        PLOG_ERROR << "Failed to copy " << wszPathToGlobalDLL << " to " << SK_UTF8ToWideChar (_cache.dll.full_path);
+        PLOG_ERROR << "Failed to copy " << wszPathToGlobalDLL << " to " << _cache.dll.full_path;
         PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
       }
     }
@@ -1454,7 +1454,7 @@ GetInjectionSummary (app_record_s* pApp)
   ImGui::BeginGroup       ();
 
   // Injection
-  if (!_cache.dll.shorthand.empty ())
+  if (! _cache.dll.shorthand.empty ())
   {
     //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
     ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
@@ -1479,7 +1479,7 @@ GetInjectionSummary (app_record_s* pApp)
         openLocalMenu = true;
     }
 
-    SKIF_ImGui_SetHoverText       (_cache.dll.full_path.c_str  ());
+    SKIF_ImGui_SetHoverText       (_cache.dll.full_path_utf8.c_str());
         
     if (openLocalMenu && ! ImGui::IsPopupOpen ("LocalDLLMenu"))
       ImGui::OpenPopup    ("LocalDLLMenu");
@@ -1489,20 +1489,15 @@ GetInjectionSummary (app_record_s* pApp)
       if (_IsLocalDLLFileOutdated( ))
       {
         if (ImGui::Selectable (("Update to v " + _inject.SKVer32_utf8).c_str( )))
-        {
           _UpdateLocalDLLFile ( );
-        }
 
         ImGui::Separator ( );
       }
 
       if (ImGui::Selectable ("Uninstall"))
       {
-
-        if (DeleteFile (_cache.dll.full_pathW.c_str()))
-        {
+        if (DeleteFile (_cache.dll.full_path.c_str()))
           PLOG_INFO << "Successfully uninstalled local DLL v " << _cache.dll.version << " from " << _cache.dll.full_path;
-        }
       }
 
       ImGui::EndPopup ( );
@@ -1514,34 +1509,30 @@ GetInjectionSummary (app_record_s* pApp)
 
   // Config Root
   // Config File
-  if (!_cache.config.shorthand.empty ())
+  if (! _cache.config.shorthand.empty ())
   {
     // Config Root
     if (ImGui::Selectable         (_cache.config_repo.c_str ()))
     {
-      std::wstring wsRootDir = _cache.config.root_dirW;
-
       std::error_code ec;
       // Create any missing directories
-      if (! std::filesystem::exists (            wsRootDir, ec))
-            std::filesystem::create_directories (wsRootDir, ec);
+      if (! std::filesystem::exists             (_cache.config.root_dir, ec))
+            std::filesystem::create_directories (_cache.config.root_dir, ec);
 
-      SKIF_Util_ExplorePath       (wsRootDir);
+      SKIF_Util_ExplorePath       (_cache.config.root_dir);
     }
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (_cache.config.root_dir.c_str ());
+    SKIF_ImGui_SetHoverText       (_cache.config.root_dir_utf8.c_str ());
 
     // Config File
-    if (ImGui::Selectable         (_cache.config.shorthand.c_str ()))
+    if (ImGui::Selectable         (_cache.config.shorthand_utf8.c_str ()))
     {
-      std::wstring wsRootDir = _cache.config.root_dirW;
-
       std::error_code ec;
       // Create any missing directories
-      if (! std::filesystem::exists (            wsRootDir, ec))
-            std::filesystem::create_directories (wsRootDir, ec);
+      if (! std::filesystem::exists             (_cache.config.root_dir, ec))
+            std::filesystem::create_directories (_cache.config.root_dir, ec);
 
-      HANDLE h = CreateFile ( _cache.config.full_pathW.c_str(),
+      HANDLE h = CreateFile (_cache.config.full_path.c_str(),
                       GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                           NULL,
@@ -1549,15 +1540,15 @@ GetInjectionSummary (app_record_s* pApp)
                               FILE_ATTRIBUTE_NORMAL,
                                 NULL );
 
-      // We need to close the handle as well, as otherwise Notepad will think the file
+      // We need to close the handle as well, as otherwise apps will think the file
       //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
       if (h != INVALID_HANDLE_VALUE)
         CloseHandle (h);
 
-      SKIF_Util_OpenURI (_cache.config.full_pathW.c_str(), SW_SHOWNORMAL, NULL);
+      SKIF_Util_OpenURI (_cache.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (_cache.config.full_path.c_str ());
+    SKIF_ImGui_SetHoverText       (_cache.config.full_path_utf8.c_str ());
 
 
     if ( ! ImGui::IsPopupOpen ("ConfigFileMenu") &&
@@ -1653,7 +1644,7 @@ GetInjectionSummary (app_record_s* pApp)
             {
               if (ImGui::Selectable (preset.Name.c_str()))
               {
-                CopyFile (preset.Path.c_str(), _cache.config.full_pathW.c_str(), FALSE);
+                CopyFile (preset.Path.c_str(), _cache.config.full_path.c_str(), FALSE);
                 PLOG_VERBOSE << "Copying " << preset.Path << " over to " << _cache.config.full_path << ", overwriting any existing file in the process.";
               }
 
@@ -1671,7 +1662,7 @@ GetInjectionSummary (app_record_s* pApp)
             {
               if (ImGui::Selectable (preset.Name.c_str()))
               {
-                CopyFile (preset.Path.c_str(), _cache.config.full_pathW.c_str(), FALSE);
+                CopyFile (preset.Path.c_str(), _cache.config.full_path.c_str(), FALSE);
                 PLOG_VERBOSE << "Copying " << preset.Path << " over to " << _cache.config.full_path << ", overwriting any existing file in the process.";
               }
 
@@ -1687,7 +1678,7 @@ GetInjectionSummary (app_record_s* pApp)
 
       if (ImGui::Selectable ("Apply Compatibility Config"))
       {
-        std::wofstream config_file(_cache.config.full_pathW.c_str());
+        std::wofstream config_file(_cache.config.full_path.c_str());
 
         if (config_file.is_open())
         {
@@ -1743,7 +1734,7 @@ Cache=false)";
 
       if (ImGui::Selectable ("Reset"))
       {
-        HANDLE h = CreateFile ( _cache.config.full_pathW.c_str(),
+        HANDLE h = CreateFile ( _cache.config.full_path.c_str(),
                     GENERIC_READ | GENERIC_WRITE,
                       FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                         NULL,
@@ -1751,7 +1742,7 @@ Cache=false)";
                             FILE_ATTRIBUTE_NORMAL,
                               NULL );
 
-        // We need to close the handle as well, as otherwise Notepad will think the file
+        // We need to close the handle as well, as otherwise apps will think the file
         //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
         if (h != INVALID_HANDLE_VALUE)
           CloseHandle (h);

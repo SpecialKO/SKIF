@@ -45,21 +45,21 @@ struct SKIF_Lib_SummaryCache
   std::string config_repo;
 
   struct {
-    std::wstring shorthandW;
-    std::string  shorthand; // Converted to utf-8 from utf-16
-    std::wstring root_dirW;
-    std::string  root_dir;  // Converted to utf-8 from utf-16
-    std::wstring full_pathW;
-    std::string  full_path; // Converted to utf-8 from utf-16
+    std::wstring shorthand;
+    std::string  shorthand_utf8; // Converted to utf-8 from utf-16
+    std::wstring root_dir;
+    std::string  root_dir_utf8;  // Converted to utf-8 from utf-16
+    std::wstring full_path;
+    std::string  full_path_utf8; // Converted to utf-8 from utf-16
   } config;
 
   struct {
-    std::wstring shorthandW;
-    std::string  shorthand; // Converted to utf-8 from utf-16
-    std::wstring versionW;
-    std::string  version;   // Converted to utf-8 from utf-16
-    std::wstring full_pathW;
-    std::string  full_path; // Converted to utf-8 from utf-16
+    std::wstring shorthand;
+    std::string  shorthand_utf8; // Converted to utf-8 from utf-16
+    std::wstring version;
+    std::string  version_utf8;   // Converted to utf-8 from utf-16
+    std::wstring full_path;
+    std::string  full_path_utf8; // Converted to utf-8 from utf-16
   } dll;
 
   AppId_t     app_id   = 0;
