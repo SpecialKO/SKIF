@@ -22,54 +22,7 @@
 
 #pragma once
 
-#include <string>
-
-struct sk_install_state_s {
-  struct Injection {
-    enum class Bitness {
-      ThirtyTwo = 0x1,
-      SixtyFour = 0x2,
-      Unknown   = 0x0
-    }            bitness = Bitness::Unknown;
-    enum class EntryPoint {
-      D3D9    = 0x1,
-      D3D11   = 0x2,
-      DXGI    = 0x4,
-      OpenGL  = 0x8,
-      DInput8 = 0x10,
-      CBTHook = 0x20,
-      Unknown = 0x0
-    }            entry_pt = EntryPoint::Unknown;
-    enum class Type {
-      Global  = 0x1,
-      Local   = 0x2,
-      Unknown = 0x0
-    }            type     = Type::Unknown;
-    std::wstring dll_path = L"";
-    std::wstring dll_ver  = L"";
-  } injection;
-
-  struct Config {
-    enum class Type {
-      Centralized = 0x1,
-      Localized   = 0x2,
-      Unknown     = 0x0
-    }            type = Type::Unknown;
-    std::wstring dir  = L"";
-    std::wstring file = L"";
-  } config;
-
-  std::string    localized_name; // UTF-8
-};
-
-using InjectionBitness =
-  sk_install_state_s::Injection::Bitness;
-using InjectionPoint =
-  sk_install_state_s::Injection::EntryPoint;
-using InjectionType =
-  sk_install_state_s::Injection::Type;
-using ConfigType =
-  sk_install_state_s::Config::Type;
+#include <stores/Steam/app_record.h>
 
 std::wstring
 SKIF_GetSpecialKDLLVersion (const wchar_t* wszName);
@@ -80,5 +33,5 @@ SKIF_GetFileVersion        (const wchar_t* wszName);
 std::wstring
 SKIF_GetProductName        (const wchar_t* wszName);
 
-sk_install_state_s
-SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid);
+app_record_s::sk_install_state_s
+SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp);

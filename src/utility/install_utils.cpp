@@ -237,12 +237,12 @@ SKIF_GetProductName (const wchar_t* wszName)
 }
 
 
-sk_install_state_s
-SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
+app_record_s::sk_install_state_s
+SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  sk_install_state_s
+  app_record_s::sk_install_state_s
      install_state;
      install_state = {
         .injection = { .bitness  = InjectionBitness::Unknown,
@@ -254,81 +254,57 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
                      }
                      };
 
-  app_record_s    *pApp     =    nullptr;
   skValveDataFile::appinfo_s
                   *pAppInfo =
-    appinfo->getAppInfo ( appid );
+    appinfo->getAppInfo ( pApp->id );
 
   UNREFERENCED_PARAMETER (pAppInfo);
 
   install_state.injection.bitness =
         InjectionBitness::Unknown;
 
-  for (auto& app : apps)
+  for ( auto& launch_cfg : pApp->launch_configs )
   {
-    if (app.second.id != appid)
-      continue;
-
-    pApp = &app.second;
-
-    for ( auto& launch_cfg : app.second.launch_configs )
-    {
 #define TRUST_LAUNCH_CONFIG
 #ifdef TRUST_LAUNCH_CONFIG
-      app_record_s::CPUType
-                    cputype = app.second.
-      common_config.cpu_type;
+    app_record_s::CPUType
+                  cputype = pApp->common_config.cpu_type;
 
-      if (cputype != app_record_s::CPUType::Any)
+    if (cputype != app_record_s::CPUType::Any)
+    {
+      if (launch_cfg.second.cpu_type != app_record_s::CPUType::Common)
       {
-        if (launch_cfg.second.cpu_type != app_record_s::CPUType::Common)
-        {
-          cputype =
-            launch_cfg.second.cpu_type;
-        }
+        cputype =
+          launch_cfg.second.cpu_type;
       }
+    }
 
-      else
-      {
-        // The any case will just be 64-bit for us, since SK only runs on
-        //   64-bit systems. Thus, ignore 32-bit launch configs.
+    else
+    {
+      // The any case will just be 64-bit for us, since SK only runs on
+      //   64-bit systems. Thus, ignore 32-bit launch configs.
 #ifdef _WIN64
-        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
+      if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
 #else
-        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
+      if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
 #endif
-        {
-          //OutputDebugStringW (launch_cfg.second.description.c_str ());
-          continue;
-        }
-
-        else {
-          cputype =
-            launch_cfg.second.cpu_type;
-        }
-      }
-
-      if (cputype == app_record_s::CPUType::x86)
-        install_state.injection.bitness = InjectionBitness::ThirtyTwo;
-      else if (cputype == app_record_s::CPUType::x64)
-        install_state.injection.bitness = InjectionBitness::SixtyFour;
-      else if (cputype == app_record_s::CPUType::Any)
       {
-        std::wstring exec_path =
-          launch_cfg.second.getExecutableFullPath ( );
-
-        DWORD dwBinaryType = MAXDWORD;
-        if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
-        {
-          if (dwBinaryType == SCS_32BIT_BINARY)
-            install_state.injection.bitness = InjectionBitness::ThirtyTwo;
-          else if (dwBinaryType == SCS_64BIT_BINARY)
-            install_state.injection.bitness = InjectionBitness::SixtyFour;
-        }
+        //OutputDebugStringW (launch_cfg.second.description.c_str ());
+        continue;
       }
 
-#else
+      else {
+        cputype =
+          launch_cfg.second.cpu_type;
+      }
+    }
 
+    if (cputype == app_record_s::CPUType::x86)
+      install_state.injection.bitness = InjectionBitness::ThirtyTwo;
+    else if (cputype == app_record_s::CPUType::x64)
+      install_state.injection.bitness = InjectionBitness::SixtyFour;
+    else if (cputype == app_record_s::CPUType::Any)
+    {
       std::wstring exec_path =
         launch_cfg.second.getExecutableFullPath ( );
 
@@ -340,69 +316,83 @@ SKIF_InstallUtils_GetInjectionStrategy (uint32_t appid)
         else if (dwBinaryType == SCS_64BIT_BINARY)
           install_state.injection.bitness = InjectionBitness::SixtyFour;
       }
+    }
+
+#else
+
+    std::wstring exec_path =
+      launch_cfg.second.getExecutableFullPath ( );
+
+    DWORD dwBinaryType = MAXDWORD;
+    if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+    {
+      if (dwBinaryType == SCS_32BIT_BINARY)
+        install_state.injection.bitness = InjectionBitness::ThirtyTwo;
+      else if (dwBinaryType == SCS_64BIT_BINARY)
+        install_state.injection.bitness = InjectionBitness::SixtyFour;
+    }
 
 #endif
 
-      std::wstring test_path =
-        launch_cfg.second.getExecutableDir ( );
-        //launch_cfg.second.working_dir; // Doesn't contain a full path
+    std::wstring test_path =
+      launch_cfg.second.getExecutableDir ( );
+      //launch_cfg.second.working_dir; // Doesn't contain a full path
 
-      struct {
-        InjectionPoint   entry_pt;
-        std::wstring     name;
-        std::wstring     path;
-      } test_dlls [] = {
-        { InjectionPoint::D3D9,    L"d3d9",     L"" },
-        { InjectionPoint::DXGI,    L"dxgi",     L"" },
-        { InjectionPoint::D3D11,   L"d3d11",    L"" },
-        { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-        { InjectionPoint::DInput8, L"dinput8",  L"" }
-      };
+    struct {
+      InjectionPoint   entry_pt;
+      std::wstring     name;
+      std::wstring     path;
+    } test_dlls [] = {
+      { InjectionPoint::D3D9,    L"d3d9",     L"" },
+      { InjectionPoint::DXGI,    L"dxgi",     L"" },
+      { InjectionPoint::D3D11,   L"d3d11",    L"" },
+      { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
+      { InjectionPoint::DInput8, L"dinput8",  L"" }
+    };
 
-      for ( auto& dll : test_dlls )
+    for ( auto& dll : test_dlls )
+    {
+      dll.path =
+        ( test_path + LR"(\)" ) +
+          ( dll.name + L".dll" );
+
+      if (PathFileExistsW (dll.path.c_str ()))
       {
-        dll.path =
-          ( test_path + LR"(\)" ) +
-            ( dll.name + L".dll" );
+        std::wstring dll_ver =
+          SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
 
-        if (PathFileExistsW (dll.path.c_str ()))
+        if (! dll_ver.empty ())
         {
-          std::wstring dll_ver =
-            SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
+          install_state.injection = {
+            install_state.injection.bitness,
+            dll.entry_pt, InjectionType::Local,
+            dll.path,     dll_ver
+          };
 
-          if (! dll_ver.empty ())
+          if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
           {
-            install_state.injection = {
-              install_state.injection.bitness,
-              dll.entry_pt, InjectionType::Local,
-              dll.path,     dll_ver
-            };
-
-            if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-            {
-              install_state.config.type =
-                ConfigType::Centralized;
-            }
-
-            else
-            {
-              install_state.config = {
-                ConfigType::Localized,
-                test_path
-              };
-            }
-
-            install_state.config.file =
-              dll.name + L".ini";
-
-            break;
+            install_state.config.type =
+              ConfigType::Centralized;
           }
+
+          else
+          {
+            install_state.config = {
+              ConfigType::Localized,
+              test_path
+            };
+          }
+
+          install_state.config.file =
+            dll.name + L".ini";
+
+          break;
         }
       }
-
-      // Naively assume the first launch config's always the one we want
-      break;
     }
+
+    // Naively assume the first launch config's always the one we want
+    break;
   }
 
   if ( InjectionType::Global ==
