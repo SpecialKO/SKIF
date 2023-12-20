@@ -1366,7 +1366,7 @@ RefreshRunningApps (void)
   static DWORD lastGameRefresh = 0;
   static std::wstring exeSteam = L"steam.exe";
 
-  if (SKIF_Util_timeGetTime() > lastGameRefresh + 2500 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
   {
     bool new_steamRunning = false;
 
