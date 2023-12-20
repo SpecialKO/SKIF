@@ -237,24 +237,21 @@ SKIF_GetProductName (const wchar_t* wszName)
 }
 
 
-app_record_s::sk_install_state_s
+// Only used for Steam games!
+void
 SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  app_record_s::sk_install_state_s
-     install_state;
-
-  // Assume global at first
-     install_state = {
-        .injection = { .bitness  = InjectionBitness::Unknown,
-                       .entry_pt = InjectionPoint::CBTHook,
-                       .type     = InjectionType::Global,
-                     },
-           .config = { .type = ConfigType::Centralized,
-                       .file = L"SpecialK.ini",
-                     }
-                     };
+  // Assume global
+  pApp->specialk.injection.injection.type =
+    InjectionType::Global;
+  pApp->specialk.injection.injection.entry_pt =
+    InjectionPoint::CBTHook;
+  pApp->specialk.injection.config.type =
+    ConfigType::Centralized;
+  pApp->specialk.injection.config.file =
+    L"SpecialK.ini";
 
   skValveDataFile::appinfo_s
                   *pAppInfo =
@@ -264,46 +261,65 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
   for ( auto& launch_cfg : pApp->launch_configs )
   {
+    // Check bitness
+    if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
+    {
+
 #define TRUST_LAUNCH_CONFIG
 #ifdef TRUST_LAUNCH_CONFIG
-    app_record_s::CPUType
-                  cputype = pApp->common_config.cpu_type;
+      app_record_s::CPUType
+                    cputype = pApp->common_config.cpu_type;
 
-    if (cputype != app_record_s::CPUType::Any)
-    {
-      if (launch_cfg.second.cpu_type != app_record_s::CPUType::Common)
+      if (cputype != app_record_s::CPUType::Any)
       {
-        cputype =
-          launch_cfg.second.cpu_type;
+        if (launch_cfg.second.cpu_type != app_record_s::CPUType::Common)
+        {
+          cputype =
+            launch_cfg.second.cpu_type;
+        }
       }
-    }
 
-    else
-    {
-      // The any case will just be 64-bit for us, since SK only runs on
-      //   64-bit systems. Thus, ignore 32-bit launch configs.
+      else
+      {
+        // The any case will just be 64-bit for us, since SK only runs on
+        //   64-bit systems. Thus, ignore 32-bit launch configs.
 #ifdef _WIN64
-      if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
+        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
 #else
-      if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
+        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
 #endif
+        {
+          //OutputDebugStringW (launch_cfg.second.description.c_str ());
+          continue;
+        }
+
+        else {
+          cputype =
+            launch_cfg.second.cpu_type;
+        }
+      }
+
+      if (cputype == app_record_s::CPUType::x86)
+        pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+      else if (cputype == app_record_s::CPUType::x64)
+        pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+      else if (cputype == app_record_s::CPUType::Any)
       {
-        //OutputDebugStringW (launch_cfg.second.description.c_str ());
-        continue;
+        std::wstring exec_path =
+          launch_cfg.second.getExecutableFullPath ( );
+
+        DWORD dwBinaryType = MAXDWORD;
+        if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+        {
+          if (dwBinaryType == SCS_32BIT_BINARY)
+            pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+          else if (dwBinaryType == SCS_64BIT_BINARY)
+            pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+        }
       }
 
-      else {
-        cputype =
-          launch_cfg.second.cpu_type;
-      }
-    }
+#else
 
-    if (cputype == app_record_s::CPUType::x86)
-      install_state.injection.bitness = InjectionBitness::ThirtyTwo;
-    else if (cputype == app_record_s::CPUType::x64)
-      install_state.injection.bitness = InjectionBitness::SixtyFour;
-    else if (cputype == app_record_s::CPUType::Any)
-    {
       std::wstring exec_path =
         launch_cfg.second.getExecutableFullPath ( );
 
@@ -315,23 +331,10 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
         else if (dwBinaryType == SCS_64BIT_BINARY)
           install_state.injection.bitness = InjectionBitness::SixtyFour;
       }
-    }
-
-#else
-
-    std::wstring exec_path =
-      launch_cfg.second.getExecutableFullPath ( );
-
-    DWORD dwBinaryType = MAXDWORD;
-    if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
-    {
-      if (dwBinaryType == SCS_32BIT_BINARY)
-        install_state.injection.bitness = InjectionBitness::ThirtyTwo;
-      else if (dwBinaryType == SCS_64BIT_BINARY)
-        install_state.injection.bitness = InjectionBitness::SixtyFour;
-    }
 
 #endif
+
+    } // End checking bitness
 
     std::wstring test_path =
       launch_cfg.second.getExecutableDir ( );
@@ -362,27 +365,27 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
         if (! dll_ver.empty ())
         {
-          install_state.injection = {
-            install_state.injection.bitness,
+          pApp->specialk.injection.injection = {
+            pApp->specialk.injection.injection.bitness,
             dll.entry_pt, InjectionType::Local,
             dll.path,     dll_ver
           };
 
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
           {
-            install_state.config.type =
+            pApp->specialk.injection.config.type =
               ConfigType::Centralized;
           }
 
           else
           {
-            install_state.config = {
+            pApp->specialk.injection.config = {
               ConfigType::Localized,
               test_path
             };
           }
 
-          install_state.config.file =
+          pApp->specialk.injection.config.file =
             dll.name + L".ini";
 
           break;
@@ -395,15 +398,12 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
   }
 
   if ( InjectionType::Global ==
-         install_state.injection.type )
+         pApp->specialk.injection.injection.type )
   {
     // Assume 32-bit if we don't know otherwise
     bool bIs64Bit =
-      ( install_state.injection.bitness ==
+      (pApp->specialk.injection.injection.bitness ==
                        InjectionBitness::SixtyFour );
-
-    //install_state.config.type =
-    //  ConfigType::Centralized;
 
     wchar_t                 wszPathToSelf [MAX_PATH] = { };
     GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
@@ -411,26 +411,26 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
     PathAppendW         (   wszPathToSelf,
                               bIs64Bit ? L"SpecialK64.dll"
                                        : L"SpecialK32.dll" );
-    install_state.injection.dll_path = wszPathToSelf;
-    install_state.injection.dll_ver  =
+    pApp->specialk.injection.injection.dll_path = wszPathToSelf;
+    pApp->specialk.injection.injection.dll_ver  =
     SKIF_GetSpecialKDLLVersion (       wszPathToSelf);
   }
 
   if (pApp != nullptr)
   {
-    install_state.localized_name =
+    pApp->specialk.injection.localized_name =
       SK_UseManifestToGetAppName (pApp);
   }
 
   else
-    install_state.localized_name = "<executable_name_here>";
+    pApp->specialk.injection.localized_name = "<executable_name_here>";
 
   if ( ConfigType::Centralized ==
-         install_state.config.type )
+         pApp->specialk.injection.config.type )
   {
     std::wstring name =
       SK_UTF8ToWideChar (
-        install_state.localized_name
+        pApp->specialk.injection.localized_name
       );
 
     name.erase ( std::remove_if ( name.begin (),
@@ -473,15 +473,13 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
       else                   break;
     }
 
-    install_state.config.dir =
+    pApp->specialk.injection.config.dir =
       SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
                            _path_cache.specialk_userdata,
                              name.c_str () );
   }
 
-  install_state.config.file =
-    ( install_state.config.dir + LR"(\)" ) +
-      install_state.config.file;
-
-  return install_state;
+  pApp->specialk.injection.config.file =
+    (pApp->specialk.injection.config.dir + LR"(\)" ) +
+     pApp->specialk.injection.config.file;
 }

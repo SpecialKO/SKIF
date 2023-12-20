@@ -33,5 +33,5 @@ SKIF_GetFileVersion        (const wchar_t* wszName);
 std::wstring
 SKIF_GetProductName        (const wchar_t* wszName);
 
-app_record_s::sk_install_state_s
+void
 SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp);

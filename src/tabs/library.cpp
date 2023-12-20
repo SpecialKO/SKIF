@@ -2272,8 +2272,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   // Handle Steam games
   if (pApp->store == app_record_s::Store::Steam)
   {
-    pApp->specialk.injection = 
-      SKIF_InstallUtils_GetInjectionStrategy (pApp);
+    SKIF_InstallUtils_GetInjectionStrategy (pApp);
 
     // What purpose does this even serve?
 #if 0
