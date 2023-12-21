@@ -106,8 +106,11 @@ app_launch_config_s::getBlacklistFilename (void)
   }
 
   else
+  {
+    blacklisted    = 1;
     blacklist_file =
       L"InvalidLaunchConfig.NeverInject";
+  }
 
   return
     blacklist_file;
@@ -167,17 +170,18 @@ bool
 app_launch_config_s::isBlacklisted (void)
 {
   if (blacklisted != -1)
-    return (blacklisted != 0);
+    return blacklisted;
 
-  bool black =
-    PathFileExistsW (
-      getBlacklistFilename ( ).c_str ()
-    );
+  std::wstring full_path =
+    getBlacklistFilename ( );
 
-  blacklisted = black ?
-                    1 : 0;
+  // getBlacklistFilename ( ) can set blacklisted == 1 for
+  //   invalid launch configs, requiring no duplicate testing
+  if (blacklisted == -1)
+    blacklisted = 
+      PathFileExistsW (full_path.c_str ());
 
-  return black;
+  return blacklisted;
 }
 
 std::wstring
@@ -212,8 +216,11 @@ app_launch_config_s::getElevatedFilename (void)
   }
 
   else
+  {
+    elevated      = 0;
     elevated_file =
       L"InvalidLaunchConfig.NeverInject";
+  }
 
   return
     elevated_file;
@@ -273,17 +280,18 @@ bool
 app_launch_config_s::isElevated (void)
 {
   if (elevated != -1)
-    return (elevated != 0);
+    return elevated;
 
-  bool elevate =
-    PathFileExistsW (
-      getElevatedFilename ( ).c_str ()
-    );
+  std::wstring full_path =
+    getElevatedFilename ( );
 
-  elevated = elevate ?
-                    1 : 0;
+  // getElevatedFilename ( ) can set elevated == 1 for
+  //   invalid launch configs, requiring no duplicate testing
+  if (elevated == -1)
+    elevated =
+      PathFileExistsW (full_path.c_str ());
 
-  return elevate;
+  return elevated;
 }
 
 std::string
