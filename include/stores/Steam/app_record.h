@@ -218,7 +218,7 @@ struct app_record_s {
     std::wstring evaluated_dir;
     std::wstring pattern;
 
-    bool        valid = false; // Path points to a real directory
+    int          valid = -1; // Path points to a real directory
   };
 
   struct branch_record_s {

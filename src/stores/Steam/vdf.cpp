@@ -900,9 +900,6 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             // Skip duplicate Auto-Cloud entries
             if (! _used_paths.emplace (cloud_save.second.evaluated_dir).second)
               continue;
-
-            cloud_save.second.valid =
-              PathFileExistsW (wszTestPath);
           }
         }
 

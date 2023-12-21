@@ -527,16 +527,18 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         for (auto& cloud : pApp->cloud_saves)
         {
-          if (! cloud.second.valid)
+          if (cloud.second.valid == -1)
+            cloud.second.valid =
+              PathFileExistsW (cloud.second.evaluated_dir.c_str());
+
+          if (cloud.second.valid == 0)
             continue;
 
           if ( app_record_s::Platform::Unknown == cloud.second.platforms ||
                app_record_s::supports (           cloud.second.platforms,
                app_record_s::Platform::Windows )
              )
-          {
             cloud_paths_.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
-          }
         }
       }
     }
