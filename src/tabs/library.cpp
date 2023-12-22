@@ -306,8 +306,11 @@ DrawGameContextMenu (app_record_s* pApp)
         if (_launch_cfg.first == 0)
           continue;
 
-        if (_launch_cfg.second.valid)
-          numSecondaryLaunchConfigs++;
+        if (! _launch_cfg.second.valid ||
+              _launch_cfg.second.duplicate_exe_args)
+          continue;
+        
+        numSecondaryLaunchConfigs++;
       }
     }
 
@@ -359,6 +362,10 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         for (auto& _launch_cfg : pApp->launch_configs)
         {
+          if (! _launch_cfg.second.valid ||
+                _launch_cfg.second.duplicate_exe_args)
+            continue;
+
           auto& _launch = _launch_cfg.second;
 
           char        szButtonLabel [256] = { };
@@ -382,8 +389,13 @@ DrawGameContextMenu (app_record_s* pApp)
 
           ImGui::PopStyleColor  ( );
 
+          std::string hoverTip = _launch.getExecutableFullPathUTF8();
+
+          if (! _launch.getLaunchOptionsUTF8().empty())
+            hoverTip += (" " + _launch.getLaunchOptionsUTF8());
+
           SKIF_ImGui_SetMouseCursorHand ( );
-          SKIF_ImGui_SetHoverText       (_launch.getExecutableFullPathUTF8());
+          SKIF_ImGui_SetHoverText       (hoverTip.c_str());
         }
 
         ImGui::EndMenu ();
@@ -400,6 +412,10 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         for (auto& _launch_cfg : pApp->launch_configs)
         {
+          if (! _launch_cfg.second.valid ||
+                _launch_cfg.second.duplicate_exe_args)
+            continue;
+
           auto& _launch = _launch_cfg.second;
 
           char        szButtonLabel [256] = { };
@@ -4704,8 +4720,26 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::GetStyle       ( ).ItemSpacing.x * 2
         );
 
+        static uint32_t currAppId  = 0;
+        static int      numOfItems = 0;
+
+        if (currAppId != pApp->id)
+        {   currAppId  = pApp->id;
+
+          numOfItems = 0;
+
+          for ( auto& launch : pApp->launch_configs )
+          {
+            if (! launch.second.valid ||
+                  launch.second.duplicate_exe)
+              continue;
+
+            numOfItems++;
+          }
+        }
+
         // If there is only one launch option
-        if (pApp->launch_configs.size  () == 1 )
+        if (numOfItems == 1)
         {
           _BlacklistCfg          (
                 pApp->launch_configs.begin ()->second );
@@ -4740,6 +4774,10 @@ SKIF_UI_Tab_DrawLibrary (void)
             //std::set <std::wstring> _used_launches;
             for ( auto& launch : pApp->launch_configs )
             {
+              if (! launch.second.valid || 
+                    launch.second.duplicate_exe)
+                continue;
+
               // TODO: Secondary-Launch-Options: Need to ensure launch options that share an executable only gets listed once.
               //if (! launch.second.valid ) /* ||
                   //! _used_launches.emplace (launch.second.blacklist_file).second ) */

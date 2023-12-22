@@ -509,7 +509,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           }
         }
 
-        std::set    <std::wstring>             _used_launches;
+        std::set    <std::wstring>          _used_executables;
+        std::set    <std::wstring>          _used_executables_arguments;
         std::vector <app_record_s::launch_config_s> _launches;
 
         for ( auto& launch_cfg : pAppRecord->launch_configs )
@@ -530,11 +531,23 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
           wcsncpy_s (wszExtension, MAX_PATH, pwszExt, _TRUNCATE);
 
+          // Flag duplicates
+          if (launch.isExecutableFileNameValid())
+          {
+            // Use the executable to identify duplicates (affects Disable Special K menu)
+            if (! _used_executables.emplace (launch.getExecutableFileName()).second)
+              launch.duplicate_exe = true;
+
+            // Use a combination of the executable and arguments to identify duplicates (affects Instant Play menu)
+            if (!_used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions()).second)
+              launch.duplicate_exe_args = true;
+          } 
+
           // TODO: Secondary-Launch-Options: Need to stop filtering out launch options sharing the same executable here.
           if ( (! app_record_s::supports (launch.platforms,
                                      app_record_s::Platform::Windows) )  ||
                (  _wcsicmp (wszExtension, L".exe") != 0)                 || // Let's filter out all non-executables
-        //     (! _used_launches.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
+        //     (! _used_executables.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
                (!       launch.valid)
              )
           {
@@ -566,7 +579,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           int i = static_cast<int> (pAppRecord->launch_configs.size());
 
-          //if (_used_launches.emplace (launch.blacklist_file).second)
+          //if (_used_executables.emplace (launch.blacklist_file).second)
           //{
             pAppRecord->launch_configs[i]        = launch;
             pAppRecord->launch_configs[i].parent = pAppRecord;

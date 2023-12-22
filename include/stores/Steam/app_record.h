@@ -257,9 +257,11 @@ struct app_record_s {
     std::wstring type;
     std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
 
-    int          valid       = -1; // Launch config is valid (what does this actually mean?)
-    int          blacklisted = -1;
-    int          elevated    = -1;
+    int          valid              = -1; // Launch config is valid (what does this actually mean?)
+    bool         duplicate_exe      = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable as another)
+    bool         duplicate_exe_args = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable and arguments as another)
+    int          blacklisted        = -1;
+    int          elevated           = -1;
   };
 
   struct cloud_save_record_s {

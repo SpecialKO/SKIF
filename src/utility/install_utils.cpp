@@ -260,7 +260,7 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
   UNREFERENCED_PARAMETER (pAppInfo);
 
-  bool firstValidFound = false;
+  int firstValidFound = -1;
 
   // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
   for ( auto& launch_cfg : pApp->launch_configs )
@@ -270,6 +270,9 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
     if (! launch_cfg.second.isExecutableFullPathValid ( ))
       continue;
+
+    if (firstValidFound == -1)
+      firstValidFound = launch_cfg.first;
 
     // Check bitness
     if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
@@ -405,15 +408,15 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
 
     // Naively assume the first valid launch config that we are pointed to is the primary one
     // If we're not at the first launch config, move it to the first position
-    if (launch_cfg.first != 0 && ! firstValidFound)
-    {
-      app_record_s::launch_config_s copy = pApp->launch_configs[0];
-      pApp->launch_configs[0] = launch_cfg.second;
-      launch_cfg.second = pApp->launch_configs[0];
-    }
-
-    firstValidFound = true;
     //break;
+  }
+
+  // Swap out the first element for the first valid one we found
+  if (firstValidFound != -1)
+  {
+    app_record_s::launch_config_s copy    = pApp->launch_configs[0];
+    pApp->launch_configs[0]               = pApp->launch_configs[firstValidFound];
+    pApp->launch_configs[firstValidFound] = copy;
   }
 
   if ( InjectionType::Global ==
