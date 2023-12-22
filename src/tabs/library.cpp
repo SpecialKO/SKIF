@@ -102,6 +102,7 @@ extern std::wstring    SKIF_Epic_AppDataPath;
 extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
+extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
 
 #define _WIDTH   (415.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
@@ -3692,7 +3693,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (_pTexSRV.p != nullptr)
       {
         PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
-        extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
         PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
         SKIF_ResourcesToFree.push(_pTexSRV.p);
         _pTexSRV.p = nullptr;
@@ -4864,7 +4864,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Release the icon texture (the cover will be handled by LoadLibraryTexture on next frame
         if (pApp->tex_icon.texture.p != nullptr)
         {
-          extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
           PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->tex_icon.texture.p << " to be released";
           SKIF_ResourcesToFree.push(pApp->tex_icon.texture.p);
           pApp->tex_icon.texture.p = nullptr;
@@ -5087,7 +5086,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Unload any current cover
       if (pTexSRV.p != nullptr)
       {
-        extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
         PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV.p << " to be released";;
         SKIF_ResourcesToFree.push(pTexSRV.p);
         pTexSRV.p = nullptr;
@@ -5360,7 +5358,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (invalidatedDevice == 1)
   {   invalidatedDevice  = 2;
 
-    extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
     if (pTexSRV.p != nullptr)
     {
       SKIF_ResourcesToFree.push(pTexSRV.p);
@@ -5418,7 +5415,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (app.second.processed == true)
           continue;
-
+        
+        PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
         appinfo->getAppInfo ( app.second.id );
 
         fallbackAvailable = false;

@@ -401,7 +401,7 @@ LoadLibraryTexture (
     }
   }
 
-  PLOG_DEBUG_IF (load_str != L"\0") << "Texture to load: " << load_str;
+  PLOG_VERBOSE_IF (load_str != L"\0") << "Texture to load: " << load_str;
 
   if (load_str != L"\0" &&
       SUCCEEDED(
@@ -419,11 +419,11 @@ LoadLibraryTexture (
   else if (appid == SKIF_STEAM_APPID)
   {
     if (libTexToLoad == LibraryTexture::Icon)
-      PLOG_DEBUG << "Texture to load: sk_icon_jpg";
+      PLOG_VERBOSE << "Texture to load: sk_icon_jpg";
     else if (libTexToLoad == LibraryTexture::Cover)
-      PLOG_DEBUG << "Texture to load: sk_boxart_png";
+      PLOG_VERBOSE << "Texture to load: sk_boxart_png";
     else
-      PLOG_DEBUG << "Texture to load: patreon_png";
+      PLOG_VERBOSE << "Texture to load: patreon_png";
 
     if (SUCCEEDED(
           DirectX::LoadFromWICMemory(
@@ -442,7 +442,7 @@ LoadLibraryTexture (
   // Push the existing texture to a stack to be released after the frame
   if (pLibTexSRV.p != nullptr)
   {
-    extern concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+    extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
     PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
     SKIF_ResourcesToFree.push (pLibTexSRV.p);
     pLibTexSRV.p = nullptr;

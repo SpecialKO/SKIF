@@ -178,7 +178,7 @@ HICON   hIcon        = nullptr;
 #define GCL_HICON      (-14)
 
 // Texture related locks to prevent driver crashes
-concurrency::concurrent_queue <CComPtr <IUnknown>> SKIF_ResourcesToFree;
+concurrency::concurrent_queue <IUnknown*> SKIF_ResourcesToFree; // CComPtr <IUnknown>
 
 float fBottomDist = 0.0f;
 
@@ -3290,13 +3290,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Release any leftover resources from last frame
-    CComPtr <IUnknown> pResource = nullptr;
+    IUnknown* pResource = nullptr;
     while (! SKIF_ResourcesToFree.empty ())
     {
       if (SKIF_ResourcesToFree.try_pop (pResource))
       {
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << pResource.p;
-        pResource.p->Release();
+        CComPtr <IUnknown> ptr = pResource;
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << ptr.p;
+        ptr.p->Release();
       }
       
       if (invalidatedDevice == 2)
