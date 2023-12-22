@@ -249,23 +249,10 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  static bool SteamShortcutPossible;
-
   // Do not check games that are being updated (aka installed)
-  if (pApp->store == app_record_s::Store::Steam &&
-    ! pApp->_status.updating)
-  {
-    static uint32_t curAppId = 0;
-
-    if (curAppId != pApp->id)
-    {   curAppId  = pApp->id;
-      SteamShortcutPossible = pApp->launch_configs[0].isExecutableFullPathValid ( );
-    }
-  }
-
-  else {
-    SteamShortcutPossible = false;
-  }
+  bool SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
+                             ?  pApp->launch_configs[0].isExecutableFullPathValid ( )
+                             : false;
   
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
@@ -2277,7 +2264,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   {
     SKIF_InstallUtils_GetInjectionStrategy (pApp);
 
-    // What purpose does this even serve?
+    // Not actually used atm, so no need to scan the profile folder either
 #if 0
 
     // Scan Special K configuration, etc.
@@ -2680,8 +2667,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
-    // Temporarily disabled since this gets triggered on game launch/shutdown as well...
-    // And generally also breaks SKIF's library view on occasion
     if (_registry.bLibrarySteam && SKIF_Steam_isLibrariesSignaled ())
       RepopulateGames = true;
 
