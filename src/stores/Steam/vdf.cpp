@@ -522,6 +522,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           wchar_t  wszExtension[MAX_PATH] = { };
           const wchar_t* pwszExt =
             PathFindExtension (launch.executable.c_str());
+
+          // If we cannot find an extension, treat it as non-valid (does this filter out LINK2EA ???)
+          if (pwszExt == NULL || (pwszExt + 1) == NULL)
+            launch.valid = false;
+
           wcsncpy_s (wszExtension, MAX_PATH, pwszExt, _TRUNCATE);
 
           // TODO: Secondary-Launch-Options: Need to stop filtering out launch options sharing the same executable here.
