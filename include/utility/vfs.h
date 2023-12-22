@@ -59,6 +59,8 @@ public:
   class vfsNode
   {
   public:
+    int last_scan_frame = 0; // Quick and dirty way to prevent multiple scans on the same frame
+
     enum class type {
       File,
       Directory,

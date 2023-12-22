@@ -29,6 +29,10 @@
 #include <regex>
 #include <vdf_parser.hpp>
 
+#define MAX_STEAM_LIBRARIES 16
+
+extern int SKIF_FrameCount;
+
 // {95FF906C-3D28-4463-B558-A4D1E5786767}
 const GUID IID_VFS_SteamUGC =
 { 0x95ff906c, 0x3d28, 0x4463, { 0xb5, 0x58, 0xa4, 0xd1, 0xe5, 0x78, 0x67, 0x67 } };
@@ -91,11 +95,22 @@ SK_VFS_Steam::UGC_RootFS SK_VFS_Steam::ugc_root;
 
 using steam_library_t = wchar_t* [MAX_PATH * 2];
 
-SK_VirtualFS manifest_vfs;
+//SK_VirtualFS manifest_vfs;
+
+struct {
+  int                 frame_last_scanned = 0; // 0 == not initialized nor scanned
+  SKIF_DirectoryWatch watch;
+  SK_VirtualFS        manifest_vfs;
+  DWORD               signaled = 0;
+  int                 count    = 0;
+  wchar_t             path [MAX_PATH + 2] = { };
+  UINT_PTR            timer;
+} static steam_libraries[MAX_STEAM_LIBRARIES];
 
 int
 SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
                                 wchar_t* wszDir,
+                                wchar_t* wszPattern,
                                     int  max_depth,
                                     int      depth,
                   SK_VirtualFS::vfsNode* pVFSImmutableRoot )
@@ -111,13 +126,16 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
   int        found                  = 0;
   wchar_t    wszPath [MAX_PATH + 2] = { };
-  _swprintf (wszPath, LR"(%s\*)", wszDir);
+  _swprintf (wszPath, LR"(%s\%s)", wszDir, wszPattern);
 
   WIN32_FIND_DATA fd          = {   };
   HANDLE          hFind       =
     FindFirstFileW (wszPath, &fd);
 
   if (hFind == INVALID_HANDLE_VALUE) { return 0; }
+
+  // 2023-12-22: Added the input directory as parent directory for all files
+  pVFSRoot = pVFSImmutableRoot->addDirectory (wszDir);
 
   do
   {
@@ -138,15 +156,17 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
           pVFSImmutableRoot->addDirectory (wszDescend);
 
         found +=
-          SK_VFS_ScanTree (child, wszDescend, max_depth, depth + 1, pVFSImmutableRoot);
+          SK_VFS_ScanTree (child, wszDescend, L"*", max_depth, depth + 1, pVFSImmutableRoot);
       }
     }
 
     else
     {
+
 #ifdef _DEBUG
       SK_VirtualFS::File* pFile =
 #endif
+
         pVFSRoot->addFile (fd.cFileName);
 
 #ifdef _DEBUG
@@ -162,7 +182,6 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
   return found;
 }
-
 
 // There's two of these:
 // *   SK_Steam_GetInstalledAppIDs ( ) <- The one below
@@ -184,30 +203,53 @@ SK_Steam_GetInstalledAppIDs (void)
 
   if (steam_libs != 0)
   {
+    // Scan through the libraries first for all appmanifest files they contain
     for (int i = 0; i < steam_libs; i++)
     {
-      wchar_t    wszManifestDir [MAX_PATH + 2] = { };
-      swprintf ( wszManifestDir, MAX_PATH + 2,
-                   LR"(%s\steamapps)",
-               (wchar_t *)steam_lib_paths [i] );
+      auto& library =
+        steam_libraries[i];
 
-      SK_VFS_ScanTree ( manifest_vfs,
-                          wszManifestDir, 0 );
-
-      SK_VirtualFS::vfsNode* pFile =
-        manifest_vfs;
-
-      for (const auto& it : pFile->children)
+      // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
+      if (library.frame_last_scanned == 0)
       {
-        uint32_t appid;
-        if ( swscanf ( it.first.c_str (),
-                         L"appmanifest_%lu.acf",
-                           &appid ) == 1 )
-        {
-          apps.push_back (appid);
+        swprintf (library.path, MAX_PATH + 2,
+                      LR"(%s\steamapps)",
+                  (wchar_t *)steam_lib_paths [i] );
 
-          if (appid == 1157970)
-            bHasSpecialK = true;
+        library.timer = static_cast <UINT_PTR>(1983 + i); // 1983-1999
+      }
+
+      // Scan the folder if we haven't already done so during this frame
+      if (library.frame_last_scanned != SKIF_FrameCount)
+      {   library.frame_last_scanned  = SKIF_FrameCount;
+
+        SK_VFS_ScanTree ( library.manifest_vfs,
+                          library.path, L"appmanifest_*.acf", 0);
+      }
+      
+      SK_VirtualFS::vfsNode* pFolder =
+        library.manifest_vfs;
+
+      // Really, this will just iterate once, across pFolder->children[0]
+      //   ...as long as SKIF doesn't dynamically recognize
+      //        new Steam libraries during runtime, that is...
+      for (const auto& folder : pFolder->children)
+      {
+        // Now add the App IDs of all manifests that are installed,
+        //   and also check for Special K ownership on Steam...
+        for (const auto& file : folder.second->children)
+        {
+          uint32_t appid;
+
+          if ( swscanf (file.first.c_str(),
+                            L"appmanifest_%lu.acf",
+                              &appid ) == 1 )
+          {
+            apps.push_back (appid);
+
+            if (appid == 1157970)
+              bHasSpecialK = true;
+          }
         }
       }
     }
@@ -367,61 +409,89 @@ SK_GetManifestContentsForAppID (app_record_s *app)
 
   if (steam_libs != 0)
   {
+    bool found = false;
+    wchar_t    wszManifestFullPath [MAX_PATH + 2] = { };
+
     for (int i = 0; i < steam_libs; i++)
     {
+      auto& library =
+        steam_libraries[i];
+
+      SK_VirtualFS::vfsNode* pFolder =
+        library.manifest_vfs;
+
       wchar_t    wszManifest [MAX_PATH + 2] = { };
       swprintf ( wszManifest, MAX_PATH + 2,
-                   LR"(%s\steamapps\appmanifest_%u.acf)",
-               (wchar_t *)steam_lib_paths [i],
+                   LR"(appmanifest_%u.acf)",
                             app->id );
-
-      CHandle hManifest (
-        CreateFileW ( wszManifest,
-                        GENERIC_READ,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          nullptr,        OPEN_EXISTING,
-                            GetFileAttributesW (wszManifest),
-                              nullptr
-                    )
-      );
-
-      if (hManifest != INVALID_HANDLE_VALUE)
+      
+      // This will really only iterate once, over [0]...
+      for (const auto& folder : pFolder->children)
       {
-        //PLOG_VERBOSE << "Reading " << wszManifest;
-
-        DWORD dwSizeHigh = 0,
-              dwRead     = 0,
-              dwSize     =
-         GetFileSize (hManifest, &dwSizeHigh);
-
-        auto szManifestData =
-          std::make_unique <char []> (
-            std::size_t (dwSize) + std::size_t (1)
-          );
-        auto manifest_data =
-          szManifestData.get ();
-
-        if (! manifest_data)
-          return "";
-
-        const bool bRead =
-          ReadFile ( hManifest,
-                       manifest_data,
-                         dwSize,
-                        &dwRead,
-                           nullptr );
-
-        if (bRead && dwRead)
+        if (folder.second->containsFile (wszManifest))
         {
-          manifest =
-            std::move (manifest_data);
+          auto* file =
+            folder.second->children[wszManifest];
 
-          manifest_id = app->id;
-
-          app->Steam_ManifestData = manifest;
-          app->Steam_ManifestPath = wszManifest;
-          return app->Steam_ManifestData;
+          wcsncpy_s (wszManifestFullPath,  MAX_PATH,
+             file->getFullPath().c_str(), _TRUNCATE
+          );
+          
+          found = true;
+          break;
         }
+      }
+
+      if (found)
+        break;
+    }
+
+    CHandle hManifest (
+      CreateFileW ( wszManifestFullPath,
+                      GENERIC_READ,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE,
+                        nullptr,        OPEN_EXISTING,
+                          GetFileAttributesW (wszManifestFullPath),
+                            nullptr
+                  )
+    );
+
+    if (hManifest != INVALID_HANDLE_VALUE)
+    {
+      //PLOG_VERBOSE << "Reading " << wszManifest;
+
+      DWORD dwSizeHigh = 0,
+            dwRead     = 0,
+            dwSize     =
+        GetFileSize (hManifest, &dwSizeHigh);
+
+      auto szManifestData =
+        std::make_unique <char []> (
+          std::size_t (dwSize) + std::size_t (1)
+        );
+      auto manifest_data =
+        szManifestData.get ();
+
+      if (! manifest_data)
+        return "";
+
+      const bool bRead =
+        ReadFile ( hManifest,
+                      manifest_data,
+                        dwSize,
+                      &dwRead,
+                          nullptr );
+
+      if (bRead && dwRead)
+      {
+        manifest =
+          std::move (manifest_data);
+
+        manifest_id = app->id;
+
+        app->Steam_ManifestData = manifest;
+        app->Steam_ManifestPath = wszManifestFullPath;
+        return app->Steam_ManifestData;
       }
     }
   }
@@ -532,8 +602,6 @@ SK_GetSteamDir (void)
 int
 SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 {
-#define MAX_STEAM_LIBRARIES 16
-
   static bool            scanned_libs = false;
   static int             steam_libs   = 0;
   static steam_library_t steam_lib_paths [MAX_STEAM_LIBRARIES] = { };
@@ -893,8 +961,6 @@ SKIF_Steam_isLibrariesSignaled (void)
   //if (! _registry.bLibrarySteam)
   //  return false;
 
-#define MAX_STEAM_LIBRARIES 16
-
   bool isSignaled = false;
 
   steam_library_t* steam_lib_paths = nullptr;
@@ -912,20 +978,13 @@ SKIF_Steam_isLibrariesSignaled (void)
   if (steam_libs == 0)
     return false;
 
-  struct {
-    SKIF_DirectoryWatch watch;
-    DWORD               signaled = 0;
-    int                 count    = 0;
-    wchar_t             path [MAX_PATH + 2] = { };
-    UINT_PTR            timer;
-  } static steam_libraries[MAX_STEAM_LIBRARIES];
-
   for (int i = 0; i < steam_libs; i++)
   {
     auto& library =
       steam_libraries[i];
 
-    if (! isInitialized)
+    // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
+    if (library.frame_last_scanned == 0)
     {
       swprintf (library.path, MAX_PATH + 2,
                     LR"(%s\steamapps)",
@@ -953,28 +1012,17 @@ SKIF_Steam_isLibrariesSignaled (void)
       countFiles = true;
     }
 
-    if (countFiles || ! isInitialized)
-    {
-      int currCount = steam_libraries[i].count;
+    if (library.frame_last_scanned == 0 || countFiles)
+    {   library.frame_last_scanned  = SKIF_FrameCount;
 
-      std::error_code ec;
-      std::filesystem::directory_iterator iterator = 
-        std::filesystem::directory_iterator (library.path, ec);
+      int prevCount = library.count;
 
-      // Only iterate over the files if the directory exists and is accessible
-      if (! ec)
-      {
-        currCount = 0;
-        for (auto& directory_entry : iterator)
-          if (directory_entry.is_regular_file())
-            currCount++;
-      }
+      library.count =
+        SK_VFS_ScanTree ( library.manifest_vfs,
+                          library.path, L"appmanifest_*.acf", 0);
 
-      if (steam_libraries[i].count != currCount)
-      {
-        steam_libraries[i].count = currCount;
+      if (library.count != prevCount)
         isSignaled = true;
-      }
     }
   }
 

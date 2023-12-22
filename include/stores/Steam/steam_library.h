@@ -90,14 +90,16 @@ namespace SK_VFS_Steam
   extern UGC_RootFS ugc_root;
 };
 
-extern SK_VirtualFS manifest_vfs;
+//extern SK_VirtualFS manifest_vfs;
 
 int
 SK_VFS_ScanTree (SK_VirtualFS::vfsNode *pVFSRoot,
-  wchar_t *wszDir,
-  int  max_depth = 1,
-  int      depth = 0,
-  SK_VirtualFS::vfsNode *pVFSImmutableRoot = nullptr);
+                 wchar_t               *wszDir,
+                 wchar_t               *wszPattern        = L"*",
+                 int                     max_depth        = 1,
+                 int                         depth        = 0,
+                 SK_VirtualFS::vfsNode *pVFSImmutableRoot = nullptr
+);
 
 int
 SK_Steam_GetLibraries (steam_library_t **ppLibraries);
