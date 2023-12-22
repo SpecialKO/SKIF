@@ -1459,7 +1459,16 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     //  WaitForSingleObject (data->WaitHandle, INFINITE);
 
     if (SUCCEEDED (data->SwapChain->Present (Interval, PresentFlags)))
+    {
       data->PresentCount++;
+
+      static bool
+          runOnce = true;
+      if (runOnce)
+      {   runOnce = false;
+        PLOG_INFO << "Presented first frame!";
+      }
+    }
   }
 }
 
