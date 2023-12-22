@@ -313,7 +313,7 @@ app_launch_config_s::getElevatedFilename (void)
 
     elevated_file =
       SK_FormatStringW (
-        L"%ws\\SpecialK.deny.%ws",
+        L"%ws\\SpecialK.admin.%ws",
           wszElevatedPath, wszExecutableBase
                        );
   }
