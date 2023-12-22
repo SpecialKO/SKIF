@@ -516,7 +516,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           auto& launch = launch_cfg.second;
 
           launch.parent = pAppRecord;
-          launch.isBlacklisted ( );
+        //launch.isBlacklisted ( );
 
           // File extension, so we can strip out non-executable ones
           wchar_t  wszExtension[MAX_PATH] = { };
@@ -528,7 +528,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           if ( (! app_record_s::supports (launch.platforms,
                                      app_record_s::Platform::Windows) )  ||
                (  _wcsicmp (wszExtension, L".exe") != 0)                 || // Let's filter out all non-executables
-               (! _used_launches.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
+        //     (! _used_launches.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
                (!       launch.valid)
              )
           {

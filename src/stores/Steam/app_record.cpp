@@ -10,8 +10,53 @@ using app_branch_record_s =
       app_record_s::branch_record_s;
 
 std::wstring
+app_launch_config_s::getExecutableFileName (void)
+{
+  if (! executable.empty())
+    return executable;
+
+  // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+  //  so this ensures we do not end up testing the installation folder instead (since this has
+  //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
+  executable_valid = 0;
+  executable = L"<InvalidPath>";
+
+  return executable;
+}
+
+std::string
+app_launch_config_s::getExecutableFileNameUTF8 (void)
+{
+  if (! executable_utf8.empty())
+    return executable_utf8;
+
+  executable_utf8 = SK_WideCharToUTF8 (getExecutableFileName ( ));
+
+  return executable_utf8;
+}
+
+bool
+app_launch_config_s::isExecutableFileNameValid (void)
+{
+  if (executable_valid != -1)
+    return executable_valid;
+
+  // TODO: Look up how Star Wars: Jedi Survivor etc are set up
+  executable_valid = ! executable.empty ( );
+    
+  // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+  //  so this ensures we do not end up testing the installation folder instead (since this has
+  //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
+  if (executable_valid == 0)
+    executable = L"<InvalidPath>";
+
+  return executable_valid;
+}
+
+std::wstring
 app_launch_config_s::getExecutableFullPath (void)
 {
+  // TODO: This Steam specific block should be moved into vdf.cpp !! (maybe?)
   if (parent        != nullptr &&
       parent->store == app_record_s::Store::Steam)
   {
@@ -19,7 +64,10 @@ app_launch_config_s::getExecutableFullPath (void)
     //  so this ensures we do not end up testing the installation folder instead (since this has
     //   bearing on whether a launch config is deemed valid or not as part of the blacklist check) 
     if (executable.empty())
+    {
+      executable_valid = 0;
       return L"<InvalidPath>";
+    }
 
     if (executable_path.empty() && ! parent->install_dir.empty())
     {
@@ -28,9 +76,6 @@ app_launch_config_s::getExecutableFullPath (void)
       executable_path.append (executable);
     }
   }
-
-  //else if (parent == nullptr)
-    //OutputDebugString(L"no parent\n");
 
   return executable_path;
 }
@@ -49,9 +94,20 @@ app_launch_config_s::getExecutableFullPathUTF8 (void)
 bool
 app_launch_config_s::isExecutableFullPathValid (void)
 {
-  //OutputDebugString(getExecutableFullPath().c_str());
-  //OutputDebugString(L"\n");
-  return PathFileExistsW (getExecutableFullPath ( ).c_str());
+  if (executable_path_valid != -1)
+    return executable_path_valid;
+
+  std::wstring full_path =
+    getExecutableFullPath ( );
+
+  executable_path_valid =
+                  (! full_path.empty ( )                                   &&
+                     full_path.find (L"InvalidPath") != std::wstring::npos &&
+    PathFileExistsW (full_path.c_str ()) == TRUE);
+  
+  valid = executable_path_valid;
+
+  return executable_path_valid;
 }
 
 std::wstring
@@ -77,16 +133,21 @@ app_launch_config_s::isExecutableDirValid (void)
 std::wstring
 app_launch_config_s::getBlacklistFilename (void)
 {
-  if (! blacklist_file.empty ())
+  if (! blacklist_file.empty () && valid != -1)
     return blacklist_file;
+
+  bool assumedValid;
 
   std::wstring full_path =
     getExecutableFullPath ( );
 
-  valid =
-    PathFileExistsW (full_path.c_str ());
+  // We don't want to test the path if it hasn't been validated yet
+  if (valid == -1)
+    assumedValid = (! full_path.empty() &&
+                      full_path.find(L"InvalidPath") != std::wstring::npos);
+      // PathFileExistsW (full_path.c_str ());
 
-  if (valid)
+  if (valid || assumedValid)
   {
     wchar_t wszExecutableBase [MAX_PATH] = { };
     wchar_t wszBlacklistPath  [MAX_PATH] = { };

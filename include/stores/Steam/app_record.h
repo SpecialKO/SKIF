@@ -173,15 +173,34 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
+    std::wstring getBlacklistFilename       (void);
+    bool         setBlacklisted             (bool blacklist);
+    bool         isBlacklisted              (void);
+    std::wstring getElevatedFilename        (void);
+    bool         setElevated                (bool elevated);
+    bool         isElevated                 (void);
+
+    std::wstring getExecutableFileName      (void);
+    std:: string getExecutableFileNameUTF8  (void);
+    bool          isExecutableFileNameValid (void);
+
+    std::wstring getExecutableDir           (void);
+    bool          isExecutableDirValid      (void);
+
+    std::wstring getExecutableFullPath      (void);
+    std:: string getExecutableFullPathUTF8  (void);
+    bool          isExecutableFullPathValid (void);
+
+  //private:
     app_record_s* parent = nullptr;
 
     std::wstring executable;
     std:: string executable_utf8;
-    bool         executable_valid;
+    int          executable_valid      = -1;
 
     std::wstring executable_path;
     std:: string executable_path_utf8;
-    bool         executable_path_valid;
+    int          executable_path_valid = -1;
 
     std::wstring description;
     std::wstring launch_options;     // Used by GOG and Epic
@@ -191,23 +210,9 @@ struct app_record_s {
     std::wstring type;
     std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
 
-    bool         valid       = false; // Path points to a real directory
+    int          valid       = -1; // Launch config is valid (what does this actually mean?)
     int          blacklisted = -1;
     int          elevated    = -1;
-
-    std::wstring getBlacklistFilename       (void);
-    bool         setBlacklisted             (bool blacklist);
-    bool         isBlacklisted              (void);
-    std::wstring getElevatedFilename        (void);
-    bool         setElevated                (bool elevated);
-    bool         isElevated                 (void);
-
-    std::wstring getExecutableDir           (void);
-    bool          isExecutableDirValid      (void);
-
-    std::wstring getExecutableFullPath      (void);
-    std:: string getExecutableFullPathUTF8  (void);
-    bool          isExecutableFullPathValid (void);
   };
 
   struct cloud_save_record_s {
