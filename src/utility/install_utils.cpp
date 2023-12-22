@@ -253,14 +253,27 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
   pApp->specialk.injection.config.file =
     L"SpecialK.ini";
 
+  // Parse appinfo data for the current game
   skValveDataFile::appinfo_s
                   *pAppInfo =
     appinfo->getAppInfo ( pApp->id );
 
   UNREFERENCED_PARAMETER (pAppInfo);
 
+  // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
+  //       Maybe "move" the most likely correct launch config to the front of the stack?
+
+  int i = -1;
   for ( auto& launch_cfg : pApp->launch_configs )
   {
+    i++;
+
+    if (! launch_cfg.second.valid)
+      continue;
+
+    if (! launch_cfg.second.isExecutableFullPathValid ( ))
+      continue;
+
     // Check bitness
     if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
     {
@@ -393,7 +406,15 @@ SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
       }
     }
 
-    // Naively assume the first launch config's always the one we want
+    // If we're not at the first launch config, move this to the first position
+    if (i > 0)
+    {
+      app_record_s::launch_config_s copy = pApp->launch_configs[0];
+      pApp->launch_configs[0] = launch_cfg.second;
+      launch_cfg.second = pApp->launch_configs[0];
+    }
+
+    // Naively assume the first valid launch config that we are pointed to is the right one
     break;
   }
 
