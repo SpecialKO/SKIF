@@ -1103,7 +1103,7 @@ SKIF_Steam_GetCurrentUser (bool refresh)
 
 // Only used for Steam games!
 void
-SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp)
+SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 

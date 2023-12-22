@@ -345,4 +345,4 @@ SteamId3_t
 SKIF_Steam_GetCurrentUser (bool refresh = false);
 
 void
-SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp);
+SKIF_Steam_GetInjectionStrategy (app_record_s* pApp);

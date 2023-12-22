@@ -2410,7 +2410,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   // Handle Steam games
   if (pApp->store == app_record_s::Store::Steam)
   {
-    SKIF_InstallUtils_GetInjectionStrategy (pApp);
+    SKIF_Steam_GetInjectionStrategy (pApp);
 
     // Not actually used atm, so no need to scan the profile folder either
 #if 0
@@ -3086,10 +3086,17 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // DEBUG ONLY: Causes SKIF to take ages to start up as it preloads
+    // DEBUG ONLY: Causes SKIF to take quite a long time to start up as it preloads
     //   the injection strategy of all games (especially Steam games and the appinfo.vdf file)
-    //for (auto& app : g_apps)
-    //  UpdateInjectionStrategy (&app.second);
+    // 2023-12-22: The massive slowdowns have been resolved, and processing 100 games here takes only 800ms, lol // Aemony
+#if 0
+    PLOG_DEBUG << "[Injection Strategy] Started processing games...";
+
+    for (auto& app : g_apps)
+      UpdateInjectionStrategy (&app.second);
+
+    PLOG_DEBUG << "[Injection Strategy] Finished processing inejction strategy for " << g_apps.size() << " games!";
+#endif
 
     PLOG_INFO << "Finished populating the library list.";
 
