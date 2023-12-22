@@ -547,6 +547,216 @@ SKIF_Util_GetCurrentProcess (void)
   return handle;
 }
 
+using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
+using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);
+
+std::wstring
+SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
+{
+  if (! wszName)
+    return L"";
+
+  /*
+  static VerQueryValueW_pfn
+    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "VerQueryValueW"                                     );
+
+  static GetFileVersionInfoExW_pfn
+    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetFileVersionInfoExW"                                            );
+  */
+
+  UINT cbTranslatedBytes = 0,
+       cbProductBytes    = 0,
+       cbVersionBytes    = 0;
+
+  std::vector <uint8_t>
+    cbData (16384, 0ui8);
+
+  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
+  wchar_t* wszVersion    = nullptr;
+
+  struct LANGANDCODEPAGE {
+    WORD wLanguage;
+    WORD wCodePage;
+  } *lpTranslate = nullptr;
+
+  BOOL bRet =
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                              wszName,
+                                0x00,
+              static_cast <DWORD> (cbData.size ()),
+                                    cbData.data () );
+
+  if (! bRet) return L"";
+
+  if ( VerQueryValueW ( cbData.data (),
+                          TEXT ("\\VarFileInfo\\Translation"),
+        static_cast_p2p <void> (&lpTranslate),
+                                &cbTranslatedBytes ) &&
+                                  cbTranslatedBytes   && lpTranslate )
+  {
+    wchar_t        wszPropName [64] = { };
+    _snwprintf_s ( wszPropName, 63,
+                   LR"(\StringFileInfo\%04x%04x\ProductName)",
+                     lpTranslate   [0].wLanguage,
+                       lpTranslate [0].wCodePage );
+
+    VerQueryValueW ( cbData.data (),
+                       wszPropName,
+      static_cast_p2p <void> (&wszProduct),
+                              &cbProductBytes );
+
+    if ( cbProductBytes && (StrStrIW (wszProduct, L"Special K")) )
+    {
+      _snwprintf_s ( wszPropName, 63,
+                       LR"(\StringFileInfo\%04x%04x\ProductVersion)",
+                         lpTranslate   [0].wLanguage,
+                           lpTranslate [0].wCodePage );
+
+      VerQueryValueW ( cbData.data (),
+                         wszPropName,
+        static_cast_p2p <void> (&wszVersion),
+                                &cbVersionBytes );
+
+      if (cbVersionBytes)
+        return wszVersion;
+    }
+  }
+
+  return L"";
+}
+
+std::wstring
+SKIF_Util_GetFileVersion (const wchar_t* wszName)
+{
+  if (! wszName)
+    return L"";
+
+  /*
+  static VerQueryValueW_pfn
+    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "VerQueryValueW"                                     );
+
+  static GetFileVersionInfoExW_pfn
+    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetFileVersionInfoExW"                                            );
+  */
+
+  UINT cbTranslatedBytes = 0,
+       cbVersionBytes    = 0;
+
+  std::vector <uint8_t>
+    cbData (16384, 0ui8);
+
+  wchar_t* wszVersion    = nullptr; // Will point somewhere in cbData
+
+  struct LANGANDCODEPAGE {
+    WORD wLanguage;
+    WORD wCodePage;
+  } *lpTranslate = nullptr;
+
+  BOOL bRet =
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                                   wszName,
+                                     0x00,
+                    static_cast <DWORD> (cbData.size ()),
+                                         cbData.data () );
+
+  if (! bRet) return L"";
+
+  if ( VerQueryValueW ( cbData.data (),
+                             TEXT ("\\VarFileInfo\\Translation"),
+            static_cast_p2p <void> (&lpTranslate),
+                                    &cbTranslatedBytes ) &&
+                                     cbTranslatedBytes   && lpTranslate )
+  {
+    wchar_t        wszPropName [64] = { };
+    _snwprintf_s ( wszPropName, 63,
+                      LR"(\StringFileInfo\%04x%04x\ProductVersion)",
+                        lpTranslate   [0].wLanguage,
+                          lpTranslate [0].wCodePage );
+
+    VerQueryValueW ( cbData.data (),
+                            wszPropName,
+            static_cast_p2p <void> (&wszVersion),
+                                    &cbVersionBytes );
+
+    if (cbVersionBytes)
+      return wszVersion;
+  }
+
+  return L"";
+}
+
+std::wstring
+SKIF_Util_GetProductName (const wchar_t* wszName)
+{
+  if (! wszName)
+    return L"";
+
+  /*
+  static VerQueryValueW_pfn
+    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "VerQueryValueW"                                     );
+
+  static GetFileVersionInfoExW_pfn
+    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetFileVersionInfoExW"                                            );
+  */
+
+  UINT cbTranslatedBytes = 0,
+       cbProductBytes    = 0;
+
+  std::vector <uint8_t>
+    cbData (16384, 0ui8);
+
+  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
+
+  struct LANGANDCODEPAGE {
+    WORD wLanguage;
+    WORD wCodePage;
+  } *lpTranslate = nullptr;
+
+  BOOL bRet =
+    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
+                                   wszName,
+                                     0x00,
+                    static_cast <DWORD> (cbData.size ()),
+                                         cbData.data () );
+
+  if (! bRet) return L"";
+
+  if ( VerQueryValueW ( cbData.data (),
+                             TEXT ("\\VarFileInfo\\Translation"),
+            static_cast_p2p <void> (&lpTranslate),
+                                    &cbTranslatedBytes ) &&
+                                     cbTranslatedBytes   && lpTranslate )
+  {
+    wchar_t        wszPropName [64] = { };
+    _snwprintf_s ( wszPropName, 63,
+                   LR"(\StringFileInfo\%04x%04x\ProductName)",
+                     lpTranslate   [0].wLanguage,
+                       lpTranslate [0].wCodePage );
+
+    VerQueryValueW ( cbData.data (),
+                            wszPropName,
+           static_cast_p2p <void> (&wszProduct),
+                                   &cbProductBytes );
+
+    if ( cbProductBytes )
+      return std::wstring(wszProduct);
+  }
+
+  return L"";
+}
+
 /*
   Returns 0 for errors, 1 for x86, 2 for x64, and -1 for unknown types
 */

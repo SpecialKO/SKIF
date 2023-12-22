@@ -10,8 +10,8 @@
 #include <stores/generic_library2.h>
 #include <stores/Steam/app_record.h>
 
-void         SKIF_Epic_GetInstalledAppIDs   (std::vector <std::pair < std::string, app_record_s > > *apps);
-void         SKIF_Epic_IdentifyAssetNew     (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName);
+void      SKIF_Epic_GetInstalledAppIDs   (std::vector <std::pair < std::string, app_record_s > > *apps);
+void      SKIF_Epic_IdentifyAssetNew     (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName);
 
 // Epic entries
 struct app_epic_s : app_generic_s {

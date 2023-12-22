@@ -55,8 +55,8 @@
 
 // External functions
 extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern std::wstring SKIF_GetSpecialKDLLVersion (const wchar_t*);
-extern std::wstring SKIF_GetFileVersion        (const wchar_t*);
+extern std::wstring SKIF_Util_GetSpecialKDLLVersion (const wchar_t*);
+extern std::wstring SKIF_Util_GetFileVersion        (const wchar_t*);
 
 // Helper Functions
 
@@ -672,7 +672,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSelf32);
   PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
   SKVer64      = SKVer32      =
-    SKIF_GetSpecialKDLLVersion (wszPathToSelf32);
+    SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf32);
   SKVer64_utf8 = SKVer32_utf8 =
     SK_WideCharToUTF8 (SKVer64);
 
@@ -681,7 +681,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSvc32);
   PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
   SKSvc64      = SKSvc32      =
-    SKIF_GetFileVersion (wszPathToSvc32);
+    SKIF_Util_GetFileVersion (wszPathToSvc32);
 
   SKSvc64_utf8 = SKSvc32_utf8 =
     SK_WideCharToUTF8 (SKSvc64);
@@ -702,7 +702,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSelf64);
   PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");
   SKVer64      =
-    SKIF_GetSpecialKDLLVersion (wszPathToSelf64);
+    SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf64);
   SKVer64_utf8 =
     SK_WideCharToUTF8 (SKVer64);
 
@@ -711,7 +711,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSvc64);
   PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
   SKSvc64      =
-    SKIF_GetFileVersion (wszPathToSvc64);
+    SKIF_Util_GetFileVersion (wszPathToSvc64);
   SKSvc64_utf8 =
     SK_WideCharToUTF8 (SKSvc64);
 

@@ -399,7 +399,6 @@
     <ClInclude Include="include\imgui\imstb_textedit.h" />
     <ClInclude Include="include\imgui\imstb_truetype.h" />
     <ClInclude Include="include\utility\injection.h" />
-    <ClInclude Include="include\utility\install_utils.h" />
     <ClInclude Include="resources\images\patreon.png.h" />
     <ClInclude Include="resources\images\sk_boxart.png.h" />
     <ClInclude Include="resources\images\sk_boxart2.jpg.h" />
@@ -412,7 +411,6 @@
     <ClInclude Include="include\stores\GOG\gog_library.h" />
     <ClInclude Include="include\stores\SKIF\custom_library.h" />
     <ClInclude Include="include\stores\Steam\apps_ignore.h" />
-    <ClInclude Include="include\stores\Steam\apps_list.h" />
     <ClInclude Include="include\stores\Steam\app_record.h" />
     <ClInclude Include="include\stores\Steam\steam_library.h" />
     <ClInclude Include="include\stores\Steam\vdf.h" />
@@ -442,12 +440,10 @@
     <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\utility\injection.cpp" />
-    <ClCompile Include="src\utility\install_utils.cpp" />
     <ClCompile Include="src\SKIF.cpp" />
     <ClCompile Include="src\utility\sk_utility.cpp" />
     <ClCompile Include="src\stores\GOG\gog_library.cpp" />
     <ClCompile Include="src\stores\SKIF\custom_library.cpp" />
-    <ClCompile Include="src\stores\Steam\apps_list.cpp" />
     <ClCompile Include="src\stores\Steam\app_record.cpp" />
     <ClCompile Include="src\stores\Steam\steam_library.cpp" />
     <ClCompile Include="src\stores\Steam\ugc.cpp" />

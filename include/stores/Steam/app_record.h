@@ -31,8 +31,6 @@
 #include <assert.h>
 #include <Shlwapi.h>
 
-//#include <utility/install_utils.h>
-
 #include <utility/sk_utility.h>
 
 #include <Windows.h>

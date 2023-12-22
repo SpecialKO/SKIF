@@ -22,7 +22,6 @@ std::wstring    SKIF_Util_timeGetTimeAsWStr           (const std::wstring& forma
 int             SKIF_Util_CompareVersionStrings       (std:: string string1, std:: string string2);
 int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std::wstring string2);
 
-
 // Filenames
 
 std::string     SKIF_Util_StripInvalidFilenameChars   (std:: string name);
@@ -40,6 +39,9 @@ HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& 
 // Windows
 
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
+std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
+std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
+std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
 HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);

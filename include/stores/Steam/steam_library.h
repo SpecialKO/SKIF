@@ -29,8 +29,17 @@
 
 //#include "steam/steam_api.h"
 #include <utility/vfs.h>
+#include <stores/Steam/vdf.h>
 
 #include <vector>
+
+extern
+  std::vector <
+    std::pair < std::string, app_record_s >
+              > g_apps;
+
+extern
+  std::unique_ptr <skValveDataFile> appinfo;
 
 using steam_library_t = wchar_t *[MAX_PATH * 2];
 
@@ -334,3 +343,6 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 
 SteamId3_t
 SKIF_Steam_GetCurrentUser (bool refresh = false);
+
+void
+SKIF_InstallUtils_GetInjectionStrategy (app_record_s* pApp);

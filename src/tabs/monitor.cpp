@@ -898,7 +898,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-        extern std::wstring SKIF_GetProductName (const wchar_t* wszName);
+        extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);
 
         struct known_dll_s {
           std::wstring path;
@@ -1110,7 +1110,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                           // DLL file is not known -- let it be known
                           else {
-                            std::wstring productName = SKIF_GetProductName (me32.szExePath);
+                            std::wstring productName = SKIF_Util_GetProductName (me32.szExePath);
 
                             known_dll_s be_known = known_dll_s{};
                             be_known.path = me32.szExePath;

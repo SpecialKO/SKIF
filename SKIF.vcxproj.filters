@@ -144,9 +144,6 @@
     <ClInclude Include="include\utility\fsutil.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="include\stores\Steam\apps_list.h">
-      <Filter>Header Files\Stores\Steam</Filter>
-    </ClInclude>
     <ClInclude Include="include\SKIF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -181,9 +178,6 @@
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
     <ClInclude Include="include\utility\injection.h">
-      <Filter>Header Files\Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utility\install_utils.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\utility\vfs.h">
@@ -290,13 +284,7 @@
     <ClCompile Include="src\utility\sk_utility.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
-    <ClCompile Include="src\stores\Steam\apps_list.cpp">
-      <Filter>Source Files\Stores\Steam</Filter>
-    </ClCompile>
     <ClCompile Include="src\utility\injection.cpp">
-      <Filter>Source Files\Utility</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utility\install_utils.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\vfs.cpp">

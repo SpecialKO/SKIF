@@ -21,8 +21,6 @@
 //
 
 #include <stores/Steam/vdf.h>
-#include <stores/Steam/apps_list.h>
-
 #include <utility/fsutil.h>
 #include <regex>
 #include <stores/Steam/steam_library.h>
@@ -242,7 +240,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
       {
         app_record_s* pAppRecord = nullptr;
 
-        for (auto& app : apps)
+        for (auto& app : g_apps)
         {
           if (app.second.id == appid && app.second.store == app_record_s::Store::Steam)
           {

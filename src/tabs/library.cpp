@@ -35,7 +35,6 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
-#include <stores/Steam/apps_list.h>
 #include <stores/GOG/gog_library.h>
 #include <stores/epic/epic_library.h>
 #include <stores/Xbox/xbox_library.h>
@@ -59,7 +58,6 @@
 #include <utility/registry.h>
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
-#include <utility/install_utils.h>
 
 const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
@@ -2514,7 +2512,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
         if (PathFileExistsW (dll.path.c_str ()))
         {
           std::wstring dll_ver =
-            SKIF_GetSpecialKDLLVersion (dll.path.c_str ());
+            SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
 
           if (! dll_ver.empty ())
           {
@@ -2583,7 +2581,7 @@ RefreshRunningApps (void)
   {
     bool new_steamRunning = false;
 
-    for (auto& app : apps)
+    for (auto& app : g_apps)
     {
       if (app.second.store == app_record_s::Store::Steam && (steamRunning || ! steamFallback))
         continue;
@@ -2650,7 +2648,7 @@ RefreshRunningApps (void)
               szExePathLen = 0;
           }
 
-          for (auto& app : apps)
+          for (auto& app : g_apps)
           {
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
             if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].executable.c_str(), pe32.szExeFile, MAX_PATH) == 0)
@@ -2781,8 +2779,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   auto _SortApps = [&](void) -> void
   {
-    std::sort ( apps.begin (),
-                apps.end   (),
+    std::sort ( g_apps.begin (),
+                g_apps.end   (),
       []( const std::pair <std::string, app_record_s>& a,
           const std::pair <std::string, app_record_s>& b ) -> int
       {
@@ -2843,7 +2841,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     gameWorkerRunning.store(true);
 
     // Clear cached lists
-    apps.clear   ();
+    g_apps.clear   ();
 
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
@@ -2865,12 +2863,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     PLOG_INFO << "Populating library list...";
 
     // Clear all games
-    apps.clear();
+    g_apps.clear();
     
     // Load Steam titles from disk
     if (_registry.bLibrarySteam)
     {
-      SKIF_Steam_GetInstalledAppIDs (&apps);
+      SKIF_Steam_GetInstalledAppIDs (&g_apps);
 
       // Refresh the current Steam user
       SKIF_Steam_GetCurrentUser     (true);
@@ -2880,7 +2878,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       //   of Steam games that relies on the executable name
 #if 0
       PLOG_DEBUG << "Loading appinfo.vdf data...";
-      for (auto& app : apps)
+      for (auto& app : g_apps)
       {
         if (app.second.id == SKIF_STEAM_APPID)
           SKIF_STEAM_OWNER = true;
@@ -2888,7 +2886,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (appinfo != nullptr)
           appinfo->getAppInfo ( app.second.id );
       }
-      PLOG_DEBUG << "Finished loading appinfo.vdf data for " << apps.size() << " games!";
+      PLOG_DEBUG << "Finished loading appinfo.vdf data for " << g_apps.size() << " games!";
       steamFallback = true;
 #endif
     }
@@ -2913,22 +2911,22 @@ SKIF_UI_Tab_DrawLibrary (void)
       std::pair <std::string, app_record_s>
         SKIF ( "Special K", SKIF_record );
 
-      apps.emplace_back (SKIF);
+      g_apps.emplace_back (SKIF);
     }
 
     // Load GOG titles from registry
     if (_registry.bLibraryGOG)
-      SKIF_GOG_GetInstalledAppIDs (&apps);
+      SKIF_GOG_GetInstalledAppIDs (&g_apps);
 
     // Load Epic titles from disk
     if (_registry.bLibraryEpic)
-      SKIF_Epic_GetInstalledAppIDs (&apps);
+      SKIF_Epic_GetInstalledAppIDs (&g_apps);
     
     if (_registry.bLibraryXbox)
-      SKIF_Xbox_GetInstalledAppIDs (&apps);
+      SKIF_Xbox_GetInstalledAppIDs (&g_apps);
 
     // Load custom SKIF titles from registry
-    SKIF_GetCustomAppIDs (&apps);
+    SKIF_GetCustomAppIDs (&g_apps);
 
     PLOG_INFO << "Loading game names synchronously...";
 
@@ -2936,7 +2934,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     labels = Trie { };
 
     // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
-    for (auto& app : apps)
+    for (auto& app : g_apps)
     {
       //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
 
@@ -3073,7 +3071,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Only do this AFTER we have cleared the list of apps from uninstalled games
     if (selection.appid == SKIF_STEAM_APPID)
     {
-      for (auto& app : apps)
+      for (auto& app : g_apps)
       {
         if (app.second.id    ==      _registry.iLastSelectedGame &&
             app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
@@ -3090,7 +3088,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // DEBUG ONLY: Causes SKIF to take ages to start up as it preloads
     //   the injection strategy of all games (especially Steam games and the appinfo.vdf file)
-    //for (auto& app : apps)
+    //for (auto& app : g_apps)
     //  UpdateInjectionStrategy (&app.second);
 
     PLOG_INFO << "Finished populating the library list.";
@@ -3119,7 +3117,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
       
       // Load icons last
-      for (auto& app : apps)
+      for (auto& app : g_apps)
       {
         if (app.second.id == 0)
           continue;
@@ -3167,7 +3165,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     app_record_s* pApp = nullptr;
 
   // Ensure pApp points to the current selected game
-  for (auto& app : apps)
+  for (auto& app : g_apps)
     if (app.second.id == selection.appid && app.second.store == selection.store)
       pApp = &app.second;
 
@@ -3331,7 +3329,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     //static
      // app_record_s* pApp = nullptr;
 
-    //for (auto& app : apps)
+    //for (auto& app : g_apps)
     //  if (app.second.id == appid)
     //    pApp = &app.second;
 
@@ -3886,7 +3884,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Prioritize trie search first
       if (labels.search (test_))
       {
-        for (auto& app : apps)
+        for (auto& app : g_apps)
         {
           if (app.second.names.all_upper_alnum.find (test_) == 0)
           {
@@ -3913,7 +3911,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         //strncpy (test_, result.text.c_str (), 1023);
 
-        for (auto& app : apps)
+        for (auto& app : g_apps)
         {
           size_t 
               pos  = app.second.names.all_upper.find (test_);
@@ -4082,7 +4080,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Start populating the whole list
 
-  for (auto& app : apps)
+  for (auto& app : g_apps)
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
     if (app.second.id == 0)
@@ -5032,7 +5030,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Reset selection to Special K
         selection.reset ( );
 
-        for (auto& app : apps)
+        for (auto& app : g_apps)
           if (app.second.id == selection.appid && app.second.store == selection.store)
             pApp = &app.second;
 
@@ -5135,7 +5133,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           else {
-            std::wstring productName = SKIF_GetProductName (wszTarget);
+            std::wstring productName = SKIF_Util_GetProductName (wszTarget);
             productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
             strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
@@ -5147,7 +5145,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         else if (pathExtension == L".exe") {
-          std::wstring productName = SKIF_GetProductName (path.c_str());
+          std::wstring productName = SKIF_Util_GetProductName (path.c_str());
           productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
           strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
@@ -5222,7 +5220,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (ImGui::Button  ("Add Game", vButtonSize))
     {
-      int newAppId = SKIF_AddCustomAppID(&apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
+      int newAppId = SKIF_AddCustomAppID(&g_apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
 
       if (newAppId > 0)
       {
@@ -5361,7 +5359,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           else {
-            std::wstring productName = SKIF_GetProductName (wszTarget);
+            std::wstring productName = SKIF_Util_GetProductName (wszTarget);
             productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
             strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
@@ -5369,7 +5367,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         else if (pathExtension == L".exe") {
-          std::wstring productName = SKIF_GetProductName (path.c_str());
+          std::wstring productName = SKIF_Util_GetProductName (path.c_str());
           productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
           strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
@@ -5505,7 +5503,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Change selection to the new game
     selection.appid = SelectNewSKIFGame;
     selection.store = app_record_s::Store::Other;
-    for (auto& app : apps)
+    for (auto& app : g_apps)
       if (app.second.id == selection.appid && app.second.store == selection.store)
         pApp = &app.second;
 
@@ -5536,7 +5534,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       pSKLogoTexSRV.p = nullptr;
     }
 
-    for (auto& app : apps)
+    for (auto& app : g_apps)
     {
       if (app.second.tex_icon.texture.p != nullptr)
       {
@@ -5562,7 +5560,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       bool fallbackAvailable = true;
 
-      for (auto& app : apps)
+      for (auto& app : g_apps)
       {
         if (app.second.store != app_record_s::Store::Steam)
           continue;
