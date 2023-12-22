@@ -131,9 +131,47 @@ app_launch_config_s::isExecutableDirValid (void)
 }
 
 std::wstring
+app_launch_config_s::getDescription (void)
+{
+  if (! description.empty())
+    return description;
+
+  description = SK_UTF8ToWideChar (parent->names.normal);
+  return description;
+}
+
+std::string
+app_launch_config_s::getDescriptionUTF8 (void)
+{
+  if (! description_utf8.empty())
+    return description_utf8;
+
+  description_utf8 = SK_WideCharToUTF8 (getDescription ( ));
+
+  return description_utf8;
+}
+
+std::wstring
+app_launch_config_s::getLaunchOptions (void)
+{
+  return launch_options;
+}
+
+std::string
+app_launch_config_s::getLaunchOptionsUTF8 (void)
+{
+  if (! launch_options_utf8.empty())
+    return launch_options_utf8;
+
+  launch_options_utf8 = SK_WideCharToUTF8 (getLaunchOptions ( ));
+
+  return launch_options_utf8;
+}
+
+std::wstring
 app_launch_config_s::getBlacklistFilename (void)
 {
-  if (! blacklist_file.empty () && valid != -1)
+  if (! blacklist_file.empty () && executable_valid != -1)
     return blacklist_file;
 
   bool assumedValid = false;
@@ -142,12 +180,11 @@ app_launch_config_s::getBlacklistFilename (void)
     getExecutableFullPath ( );
 
   // We don't want to test the path if it hasn't been validated yet
-  if (valid == -1)
+  if (executable_valid == -1)
     assumedValid = (! full_path.empty() &&
                       full_path.find (L"InvalidPath") == std::wstring::npos);
-  // PathFileExistsW (full_path.c_str());
 
-  if (valid || assumedValid)
+  if (executable_valid || assumedValid)
   {
     wchar_t wszExecutableBase [MAX_PATH] = { };
     wchar_t wszBlacklistPath  [MAX_PATH] = { };
@@ -248,30 +285,35 @@ app_launch_config_s::isBlacklisted (void)
 std::wstring
 app_launch_config_s::getElevatedFilename (void)
 {
-  if (! elevated_file.empty ())
+  
+  if (! elevated_file.empty () && executable_valid != -1)
     return elevated_file;
+
+  bool assumedValid = false;
 
   std::wstring full_path =
     getExecutableFullPath ( );
 
-  valid =
-    PathFileExistsW (full_path.c_str ());
+  // We don't want to test the path if it hasn't been validated yet
+  if (executable_valid == -1)
+    assumedValid = (! full_path.empty() &&
+                      full_path.find (L"InvalidPath") == std::wstring::npos);
 
-  if (valid)
+  if (executable_valid || assumedValid)
   {
     wchar_t wszExecutableBase [MAX_PATH] = { };
-    wchar_t wszElevatedPath  [MAX_PATH] = { };
+    wchar_t wszElevatedPath   [MAX_PATH] = { };
 
     StrCatW (wszExecutableBase, executable.c_str ());
-    StrCatW (wszElevatedPath,  full_path.c_str  ());
+    StrCatW (wszElevatedPath,   full_path.c_str  ());
 
-    PathRemoveFileSpecW  ( wszElevatedPath  );
+    PathRemoveFileSpecW  ( wszElevatedPath   );
     PathStripPathW       ( wszExecutableBase );
     PathRemoveExtensionW ( wszExecutableBase );
 
     elevated_file =
       SK_FormatStringW (
-        L"%ws\\SpecialK.admin.%ws",
+        L"%ws\\SpecialK.deny.%ws",
           wszElevatedPath, wszExecutableBase
                        );
   }

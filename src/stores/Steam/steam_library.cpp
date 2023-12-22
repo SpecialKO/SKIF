@@ -170,8 +170,8 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
         pVFSRoot->addFile (fd.cFileName);
 
 #ifdef _DEBUG
-      OutputDebugStringW (pFile->getFullPath ().c_str ());
-      OutputDebugStringW (L"\n");
+      //OutputDebugStringW (pFile->getFullPath ().c_str ());
+      //OutputDebugStringW (L"\n");
 #endif
 
       ++found;

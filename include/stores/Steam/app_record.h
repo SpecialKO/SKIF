@@ -146,99 +146,6 @@ struct app_record_s {
     Any    = 0xffff
   };
 
-  struct common_config_s {
-    uint32_t     appid     = 0;
-    CPUType      cpu_type  = CPUType::x86;
-  };
-
-  struct extended_config_s {
-    struct vac_config_s    {
-      uint32_t    vacmacmodulecache =     0;
-      uint32_t    vacmodulecache    =     0;
-      std::string vacmodulefilename =    "";
-      int         enabled           =    -1;
-    } vac;
-
-    struct developer_config_s {
-      std::string publisher;
-      std::string developer;
-      std::string homepage;
-    } dev;
-  } extended_config;
-
-  struct launch_config_s {
-    int          id        = 0;
-
-    AppType      app_type  = AppType::Default;
-    CPUType      cpu_type  = CPUType::Common;
-    Platform     platforms = Platform::All;
-
-    std::wstring getBlacklistFilename       (void);
-    bool         setBlacklisted             (bool blacklist);
-    bool         isBlacklisted              (void);
-    std::wstring getElevatedFilename        (void);
-    bool         setElevated                (bool elevated);
-    bool         isElevated                 (void);
-
-    std::wstring getExecutableFileName      (void);
-    std:: string getExecutableFileNameUTF8  (void);
-    bool          isExecutableFileNameValid (void);
-
-    std::wstring getExecutableDir           (void);
-    bool          isExecutableDirValid      (void);
-
-    std::wstring getExecutableFullPath      (void);
-    std:: string getExecutableFullPathUTF8  (void);
-    bool          isExecutableFullPathValid (void);
-
-  //private:
-    app_record_s* parent = nullptr;
-
-    std::wstring executable;
-    std:: string executable_utf8;
-    int          executable_valid      = -1;
-
-    std::wstring executable_path;
-    std:: string executable_path_utf8;
-    int          executable_path_valid = -1;
-
-    std::wstring description;
-    std::wstring launch_options;     // Used by GOG and Epic
-    std::wstring working_dir;
-    std::wstring blacklist_file;
-    std::wstring elevated_file;
-    std::wstring type;
-    std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
-
-    int          valid       = -1; // Launch config is valid (what does this actually mean?)
-    int          blacklisted = -1;
-    int          elevated    = -1;
-  };
-
-  struct cloud_save_record_s {
-    Platform     platforms = Platform::Unknown;
-
-    std::wstring root;
-    std::wstring path;
-    std::wstring evaluated_dir;
-    std::wstring pattern;
-
-    int          valid = -1; // Path points to a real directory
-  };
-
-  struct branch_record_s {
-    app_record_s *parent;
-    std::wstring  description;
-    uint32_t      build_id;
-    uint32_t      pwd_required;
-    time_t        time_updated;
-    std::string   time_string; // Cached text representation
-    std::string   desc_utf8;   // For non-Latin characters to print in ImGui
-
-    std::string  getTimeAsCStr (void) const;
-    std::string& getDescAsUTF8 (void);
-  };
-
   struct sk_install_state_s {
     struct Injection {
       enum class Bitness {
@@ -275,6 +182,108 @@ struct app_record_s {
     } config;
 
     std::string    localized_name; // UTF-8
+  };
+
+  struct common_config_s {
+    uint32_t     appid     = 0;
+    CPUType      cpu_type  = CPUType::x86;
+  };
+
+  struct extended_config_s {
+    struct vac_config_s    {
+      uint32_t    vacmacmodulecache =     0;
+      uint32_t    vacmodulecache    =     0;
+      std::string vacmodulefilename =    "";
+      int         enabled           =    -1;
+    } vac;
+
+    struct developer_config_s {
+      std::string publisher;
+      std::string developer;
+      std::string homepage;
+    } dev;
+  } extended_config;
+
+  struct launch_config_s {
+    int          id        = 0; // Used only by Steam client, mostly, I guess?
+    sk_install_state_s     injection;
+
+    AppType      app_type  = AppType::Default;
+    CPUType      cpu_type  = CPUType::Common;
+    Platform     platforms = Platform::All;
+
+    std::wstring getBlacklistFilename       (void);
+    bool         setBlacklisted             (bool blacklist);
+    bool         isBlacklisted              (void);
+    std::wstring getElevatedFilename        (void);
+    bool         setElevated                (bool elevated);
+    bool         isElevated                 (void);
+
+    std::wstring getExecutableFileName      (void);
+    std:: string getExecutableFileNameUTF8  (void);
+    bool          isExecutableFileNameValid (void);
+
+    std::wstring getExecutableDir           (void);
+    bool          isExecutableDirValid      (void);
+
+    std::wstring getExecutableFullPath      (void);
+    std:: string getExecutableFullPathUTF8  (void);
+    bool          isExecutableFullPathValid (void);
+    
+    std::wstring getDescription             (void);
+    std:: string getDescriptionUTF8         (void);
+    
+    std::wstring getLaunchOptions           (void);
+    std:: string getLaunchOptionsUTF8       (void);
+
+  //private:
+    app_record_s* parent = nullptr;
+
+    std::wstring executable;
+    std:: string executable_utf8;
+    int          executable_valid      = -1;
+
+    std::wstring executable_path;
+    std:: string executable_path_utf8;
+    int          executable_path_valid = -1;
+
+    std::wstring description;
+    std:: string description_utf8;
+    std::wstring launch_options;
+    std:: string launch_options_utf8;
+    std::wstring working_dir;
+    std::wstring blacklist_file;
+    std::wstring elevated_file;
+    std::wstring type;
+    std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
+
+    int          valid       = -1; // Launch config is valid (what does this actually mean?)
+    int          blacklisted = -1;
+    int          elevated    = -1;
+  };
+
+  struct cloud_save_record_s {
+    Platform     platforms = Platform::Unknown;
+
+    std::wstring root;
+    std::wstring path;
+    std::wstring evaluated_dir;
+    std::wstring pattern;
+
+    int          valid = -1; // Path points to a real directory
+  };
+
+  struct branch_record_s {
+    app_record_s *parent;
+    std::wstring  description;
+    uint32_t      build_id;
+    uint32_t      pwd_required;
+    time_t        time_updated;
+    std::string   time_string; // Cached text representation
+    std::string   desc_utf8;   // For non-Latin characters to print in ImGui
+
+    std::string  getTimeAsCStr (void) const;
+    std::string& getDescAsUTF8 (void);
   };
 
   struct specialk_config_s {

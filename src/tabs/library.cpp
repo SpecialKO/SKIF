@@ -292,33 +292,153 @@ DrawGameContextMenu (app_record_s* pApp)
     bool clickedQuickLaunch     = false,
          clickedQuickLaunchWoSK = false;
 
+    static uint32_t curAppId                  = 0;
+    static int      numSecondaryLaunchConfigs = 0;
+
+    if (curAppId != pApp->id)
+    {   curAppId  = pApp->id;
+    
+      numSecondaryLaunchConfigs  = 0;
+
+      // Check how many secondary launch configs are valid
+      for (auto& _launch_cfg : pApp->launch_configs)
+      {
+        if (_launch_cfg.first == 0)
+          continue;
+
+        if (_launch_cfg.second.valid)
+          numSecondaryLaunchConfigs++;
+      }
+    }
+
+    app_record_s::launch_config_s*
+        launch_cfg = &pApp->launch_configs[0]; // Default to primary launch config
+
     ImGui::Separator        ( );
 
-    if (ImGui::Selectable ("Instant play###GameContextMenu_QuickLaunch", false,
-                          ((pApp->_status.running || pApp->_status.updating)
-                            ? ImGuiSelectableFlags_Disabled
-                            : ImGuiSelectableFlags_None)))
-      clickedQuickLaunch = true;
-
-    SKIF_ImGui_SetHoverText (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ));
-    SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
-                             "including steps such as Steam Cloud synchronization.");
-          
-    if (pApp->specialk.injection.injection.type != InjectionType::Local)
+    // If there is only one valid launch config
+    if (numSecondaryLaunchConfigs == 0)
     {
+      if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
+                            ((pApp->_status.running || pApp->_status.updating)
+                              ? ImGuiSelectableFlags_Disabled
+                              : ImGuiSelectableFlags_None)))
+        clickedQuickLaunch = true;
+
+      SKIF_ImGui_SetHoverText (launch_cfg->getExecutableFullPathUTF8 ( ));
+      SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
+                               "including steps such as Steam Cloud synchronization.");
+          
+      if (pApp->specialk.injection.injection.type != InjectionType::Local)
+      {
+        ImGui::PushStyleColor      (ImGuiCol_Text,
+          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+        );
+
+        if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSK", false,
+                              ((pApp->_status.running || pApp->_status.updating)
+                                ? ImGuiSelectableFlags_Disabled
+                                : ImGuiSelectableFlags_None)))
+          clickedQuickLaunchWoSK = true;
+
+        ImGui::PopStyleColor   ( );
+
+        SKIF_ImGui_SetHoverText (launch_cfg->getExecutableFullPathUTF8 ( ));
+      }
+    }
+
+    // Multiple launch configs
+    else
+    {
+      bool disabled = (pApp->_status.running || pApp->_status.updating);
+
+      if (disabled)
+        SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::BeginMenu ("Instant play###GameContextMenu_InstantPlayMenu"))
+      {
+        for (auto& _launch_cfg : pApp->launch_configs)
+        {
+          auto& _launch = _launch_cfg.second;
+
+          char        szButtonLabel [256] = { };
+
+          sprintf_s ( szButtonLabel, 255,
+                        "%s###GameContextMenu_InstantPlayMenu-%d",
+                          _launch.getDescriptionUTF8().empty ()
+                            ? _launch.getExecutableFileNameUTF8().c_str ()
+                            : _launch.getDescriptionUTF8().c_str (),
+                          _launch.id);
+
+          ImGui::PushStyleColor ( ImGuiCol_Text,
+            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
+          );
+
+          if (ImGui::Selectable (szButtonLabel))
+          {
+            launch_cfg         = &_launch_cfg.second;
+            clickedQuickLaunch = true;
+          }
+
+          ImGui::PopStyleColor  ( );
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (_launch.getExecutableFullPathUTF8());
+        }
+
+        ImGui::EndMenu ();
+      }
+
+      SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
+                               "including steps such as Steam Cloud synchronization.");
+      
       ImGui::PushStyleColor      (ImGuiCol_Text,
         ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
       );
 
-      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_QuickLaunchWoSK", false,
-                            ((pApp->_status.running || pApp->_status.updating)
-                              ? ImGuiSelectableFlags_Disabled
-                              : ImGuiSelectableFlags_None)))
-        clickedQuickLaunchWoSK = true;
+      if (ImGui::BeginMenu (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSKMenu"))
+      {
+        for (auto& _launch_cfg : pApp->launch_configs)
+        {
+          auto& _launch = _launch_cfg.second;
+
+          char        szButtonLabel [256] = { };
+
+          sprintf_s ( szButtonLabel, 255,
+                        "%s###GameContextMenu_InstantPlayWoSKMenu-%d",
+                          _launch.getDescriptionUTF8().empty ()
+                            ? _launch.getExecutableFileNameUTF8().c_str ()
+                            : _launch.getDescriptionUTF8().c_str (),
+                          _launch.id);
+
+          ImGui::PushStyleColor ( ImGuiCol_Text,
+            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
+          );
+
+          if (ImGui::Selectable (szButtonLabel))
+          {
+            launch_cfg             = &_launch_cfg.second;
+            clickedQuickLaunchWoSK = true;
+          }
+
+          ImGui::PopStyleColor  ( );
+
+          std::string hoverTip = _launch.getExecutableFullPathUTF8();
+
+          if (! _launch.getLaunchOptionsUTF8().empty())
+            hoverTip += (" " + _launch.getLaunchOptionsUTF8());
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (hoverTip.c_str());
+        }
+
+        ImGui::EndMenu ();
+      }
 
       ImGui::PopStyleColor   ( );
 
-      SKIF_ImGui_SetHoverText (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ));
+      if (disabled)
+        SKIF_ImGui_PopDisableState ( );
     }
 
     if (clickedQuickLaunch ||
@@ -330,8 +450,8 @@ DrawGameContextMenu (app_record_s* pApp)
       // Check if the injection service should be used
       if (! usingSK)
       {
-        bool isLocalBlacklisted = pApp->launch_configs[0].isBlacklisted ( ),
-            isGlobalBlacklisted = _inject._TestUserList (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str (), false);
+        bool isLocalBlacklisted = launch_cfg->isBlacklisted ( ),
+            isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
 
         usingSK = ! clickedQuickLaunchWoSK &&
                   ! isLocalBlacklisted     &&
@@ -339,7 +459,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
         // Kickstart service if it is currently not running
         if (! _inject.bCurrentState && usingSK)
-          _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated ( ));
+          _inject._StartStopInject (false, true, launch_cfg->isElevated ( ));
 
         // Stop the service if the user attempts to launch without SK
         else if (clickedQuickLaunchWoSK && _inject.bCurrentState)
@@ -356,17 +476,17 @@ DrawGameContextMenu (app_record_s* pApp)
       SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
 
       //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-      SKIF_Util_OpenURI (pApp->launch_configs[0].getExecutableFullPath ( ),
+      SKIF_Util_OpenURI (launch_cfg->getExecutableFullPath ( ),
                           SW_SHOWDEFAULT, L"OPEN",
-                          pApp->launch_configs[0].launch_options.c_str(),
-                          pApp->launch_configs[0].working_dir.c_str(),
+                          launch_cfg->launch_options.c_str(),
+                          launch_cfg->working_dir.c_str(),
                           SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
       );
 
       SetEnvironmentVariable (L"SteamAppId",  NULL);
 
-      std::wstring launchOptions  = SK_FormatStringW (LR"(%ws)", pApp->launch_configs[0].launch_options.c_str());
-                    launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+      std::wstring launchOptions  = launch_cfg->getLaunchOptions();
+                   launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
       // Trim spaces at the end
       launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
@@ -374,10 +494,10 @@ DrawGameContextMenu (app_record_s* pApp)
       if (pApp->store == app_record_s::Store::Steam)
 
       SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-        pApp->launch_configs[0].getExecutableFullPath ( ),
+        launch_cfg->getExecutableFullPath ( ),
         launchOptions,
-        pApp->launch_configs[0].working_dir.c_str(),
-        pApp->launch_configs[0].getExecutableFullPath ( ),
+        launch_cfg->working_dir.c_str(),
+        launch_cfg->getExecutableFullPath ( ),
         (! localInjection && usingSK));
     }
   }
@@ -827,7 +947,7 @@ DrawGameContextMenu (app_record_s* pApp)
         name = SKIF_Util_StripInvalidFilenameChars (name);
 
         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
-        std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].launch_options.c_str());
+        std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
 
         // Trim spaces at the end
         linkArgs.erase (std::find_if (linkArgs.rbegin(), linkArgs.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), linkArgs.end());
@@ -2108,7 +2228,7 @@ Cache=false)";
       {
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
 
-        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", pApp->launch_configs[0].launch_options.c_str());
+        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", pApp->launch_configs[0].getLaunchOptions().c_str());
         SKIF_Util_OpenURI (launchOptions);
 
         SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath ( ), (! localInjection && usingSK));
@@ -2170,10 +2290,10 @@ Cache=false)";
                               : pApp->launch_configs[0].getExecutableFullPath ( );
 
         // We need to use a proxy variable since we might remove a substring of the launch options
-        std::wstring cmdLine      = pApp->launch_configs[0].launch_options;
+        std::wstring cmdLine      = pApp->launch_configs[0].getLaunchOptions();
 
         // Transform to lowercase
-        std::wstring cmdLineLower = SKIF_Util_ToLowerW (pApp->launch_configs[0].launch_options);
+        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
 
         // Extract the SKIF_SteamAppID cmd line argument
         const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
@@ -2209,7 +2329,7 @@ Cache=false)";
         if (! steamAppId.empty ( ))
           SetEnvironmentVariable (L"SteamAppId",  NULL);
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, pApp->launch_configs[0].launch_options, pApp->launch_configs[0].working_dir.c_str(), pApp->launch_configs[0].getExecutableFullPath ( ), (! localInjection && usingSK));
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, pApp->launch_configs[0].getLaunchOptions(), pApp->launch_configs[0].working_dir.c_str(), pApp->launch_configs[0].getExecutableFullPath(), (!localInjection && usingSK));
       }
           
       // Fallback for minimizing SKIF when not using SK if configured as such
@@ -4535,25 +4655,28 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (menu)
           sprintf_s ( szButtonLabel, 255,
-                        " for \"%ws\"###DisableLaunch%d",
-                          launch_cfg.description.empty ()
-                            ? launch_cfg.executable .c_str ()
-                            : launch_cfg.description.c_str (),
+                        " for %s###DisableSpecialK-%d",
+                          launch_cfg.getDescriptionUTF8().empty()
+                            ? launch_cfg.getExecutableFileNameUTF8().c_str ()
+                            : launch_cfg.getDescriptionUTF8().c_str (),
                           launch_cfg.id);
         else
           sprintf_s ( szButtonLabel, 255,
-                        " Disable Special K###DisableLaunch%d",
+                        " Disable Special K###DisableSpecialK%d",
                           launch_cfg.id );
           
         if (ImGui::Checkbox (szButtonLabel,   &blacklist))
           launch_cfg.setBlacklisted (blacklist);
 
-        SKIF_ImGui_SetHoverText (
-                    SK_FormatString (
-                      R"(%ws)",
-                      launch_cfg.executable.c_str  ()
-                    ).c_str ()
-        );
+        std::string hoverTip = launch_cfg.getExecutableFullPathUTF8();
+
+        if (! launch_cfg.getLaunchOptionsUTF8().empty())
+          hoverTip += (" " + launch_cfg.getLaunchOptionsUTF8());
+
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (hoverTip.c_str());
+
+        SKIF_ImGui_SetHoverText (hoverTip.c_str());
       };
 
       if ( ! _inject.bHasServlet )
@@ -5145,7 +5268,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
-      strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].launch_options).c_str(), 500);
+      strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].getLaunchOptions()).c_str(), 500);
       //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", _path_cache.specialk_userdata, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
       
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)

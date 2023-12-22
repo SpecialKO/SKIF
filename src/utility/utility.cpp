@@ -38,7 +38,7 @@ SKIF_Util_ToLower      (std::string_view input)
 std::wstring
 SKIF_Util_ToLowerW     (std::wstring_view input)
 {
-  std::wstring copy = std::wstring(input);
+  std::wstring    copy = std::wstring(input);
   std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towlower(c); });
   return copy;
 }

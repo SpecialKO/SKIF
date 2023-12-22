@@ -450,10 +450,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
               std::unordered_map <std::string, std::wstring*>
                 string_map = {
-                  { "executable",  &launch_cfg.executable  },
-                  { "description", &launch_cfg.description },
-                  { "workingdir",  &launch_cfg.working_dir },
-                  { "type",        &launch_cfg.type        }
+                  { "executable",  &launch_cfg.executable     },
+                  { "arguments",   &launch_cfg.launch_options },
+                  { "description", &launch_cfg.description    },
+                  { "workingdir",  &launch_cfg.working_dir    },
+                  { "type",        &launch_cfg.type           }
                 };
 
               for (auto& key : finished_section.keys)
