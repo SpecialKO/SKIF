@@ -2317,6 +2317,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
+      ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
+      ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
+
+      static bool closeButtonHoverActive = false;
+
+      if (_registry.iStyle == 2 && closeButtonHoverActive)
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImVec4 (0.9F, 0.9F, 0.9F, 1.0f));
+
       if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
          (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
           bKeepWindowAlive == false)
@@ -2338,6 +2346,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           bKeepProcessAlive = false;
         }
       }
+      
+      if (_registry.iStyle == 2)
+      {
+        if (closeButtonHoverActive)
+          ImGui::PopStyleColor ( );
+          
+        closeButtonHoverActive = (ImGui::IsItemHovered () || ImGui::IsItemActivated ());
+      }
+
+      ImGui::PopStyleColor (2);
 
       ImGui::PopStyleVar ();
       
