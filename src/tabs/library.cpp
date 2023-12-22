@@ -356,7 +356,7 @@ DrawGameContextMenu (app_record_s* pApp)
       bool disabled = (pApp->_status.running || pApp->_status.updating);
 
       if (disabled)
-        SKIF_ImGui_PushDisableState ( );
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
 
       if (ImGui::BeginMenu ("Instant play###GameContextMenu_InstantPlayMenu"))
       {
@@ -377,24 +377,30 @@ DrawGameContextMenu (app_record_s* pApp)
                             : _launch.getDescriptionUTF8().c_str (),
                           _launch.id);
 
-          ImGui::PushStyleColor ( ImGuiCol_Text,
-            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
-          );
+          if (disabled)
+            ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+          else
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
           if (ImGui::Selectable (szButtonLabel))
           {
             launch_cfg         = &_launch_cfg.second;
             clickedQuickLaunch = true;
           }
-
-          ImGui::PopStyleColor  ( );
+          
+          if (disabled)
+            ImGui::PopItemFlag    ( );
+          else
+            ImGui::PopStyleColor  ( );
 
           std::string hoverTip = _launch.getExecutableFullPathUTF8();
 
           if (! _launch.getLaunchOptionsUTF8().empty())
             hoverTip += (" " + _launch.getLaunchOptionsUTF8());
+          
+          if (! disabled)
+            SKIF_ImGui_SetMouseCursorHand ( );
 
-          SKIF_ImGui_SetMouseCursorHand ( );
           SKIF_ImGui_SetHoverText       (hoverTip.c_str());
         }
 
@@ -404,9 +410,10 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
                                "including steps such as Steam Cloud synchronization.");
       
-      ImGui::PushStyleColor      (ImGuiCol_Text,
-        ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-      );
+      if (! disabled)
+        ImGui::PushStyleColor      (ImGuiCol_Text,
+          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+        );
 
       if (ImGui::BeginMenu (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSKMenu"))
       {
@@ -426,35 +433,42 @@ DrawGameContextMenu (app_record_s* pApp)
                             ? _launch.getExecutableFileNameUTF8().c_str ()
                             : _launch.getDescriptionUTF8().c_str (),
                           _launch.id);
-
-          ImGui::PushStyleColor ( ImGuiCol_Text,
-            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
-          );
+          
+          if (disabled)
+            ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+          else
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
           if (ImGui::Selectable (szButtonLabel))
           {
             launch_cfg             = &_launch_cfg.second;
             clickedQuickLaunchWoSK = true;
           }
-
-          ImGui::PopStyleColor  ( );
+          
+          if (disabled)
+            ImGui::PopItemFlag    ( );
+          else
+            ImGui::PopStyleColor  ( );
 
           std::string hoverTip = _launch.getExecutableFullPathUTF8();
 
           if (! _launch.getLaunchOptionsUTF8().empty())
             hoverTip += (" " + _launch.getLaunchOptionsUTF8());
 
-          SKIF_ImGui_SetMouseCursorHand ( );
+          if (! disabled)
+            SKIF_ImGui_SetMouseCursorHand ( );
+
           SKIF_ImGui_SetHoverText       (hoverTip.c_str());
         }
 
         ImGui::EndMenu ();
       }
-
-      ImGui::PopStyleColor   ( );
-
+      
+      if (! disabled)
+        ImGui::PopStyleColor ( );
+      
       if (disabled)
-        SKIF_ImGui_PopDisableState ( );
+        ImGui::PopStyleColor ( );
     }
 
     if (clickedQuickLaunch ||
