@@ -1083,21 +1083,19 @@ SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
     dm        = { };
     dm.dmSize = sizeof (DEVMODE);
     
+  MONITORINFOEX
+    minfoex        = { };
+    minfoex.cbSize = sizeof (MONITORINFOEX);
+
   HMONITOR
       hMonitor  = MonitorFromWindow (hwnd, dwFlags);
   if (hMonitor != NULL)
-  {
-    MONITORINFOEX
-      minfoex        = { };
-      minfoex.cbSize = sizeof (MONITORINFOEX);
-
     if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
       if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
         dwPeriod = (1000 / dm.dmDisplayFrequency);
 
-    if (dwPeriod == 0)
-      dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
-  }
+  if (dwPeriod < 16)
+    dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
 }
 
 // Effective Power Mode (Windows 10 1809+)
