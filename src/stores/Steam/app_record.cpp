@@ -101,9 +101,9 @@ app_launch_config_s::isExecutableFullPathValid (void)
     getExecutableFullPath ( );
 
   executable_path_valid =
-                  (! full_path.empty ( )                                   &&
-                     full_path.find (L"InvalidPath") != std::wstring::npos &&
-    PathFileExistsW (full_path.c_str ()) == TRUE);
+                  (! full_path.empty( )                                    &&
+                     full_path.find (L"InvalidPath") == std::wstring::npos &&
+    PathFileExistsW (full_path.c_str()) == TRUE);
   
   valid = executable_path_valid;
 
@@ -136,7 +136,7 @@ app_launch_config_s::getBlacklistFilename (void)
   if (! blacklist_file.empty () && valid != -1)
     return blacklist_file;
 
-  bool assumedValid;
+  bool assumedValid = false;
 
   std::wstring full_path =
     getExecutableFullPath ( );
@@ -144,8 +144,8 @@ app_launch_config_s::getBlacklistFilename (void)
   // We don't want to test the path if it hasn't been validated yet
   if (valid == -1)
     assumedValid = (! full_path.empty() &&
-                      full_path.find(L"InvalidPath") != std::wstring::npos);
-      // PathFileExistsW (full_path.c_str ());
+                      full_path.find (L"InvalidPath") == std::wstring::npos);
+  // PathFileExistsW (full_path.c_str());
 
   if (valid || assumedValid)
   {
