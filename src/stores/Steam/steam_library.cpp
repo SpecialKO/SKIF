@@ -1283,6 +1283,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     pApp->launch_configs[firstValidFound] = copy;
   }
 
+  // TODO: Make the specialk.injection bitness/state/etc stuff bound
+  //         to launch_config so it is not universal any longer
+
   if ( InjectionType::Global ==
          pApp->specialk.injection.injection.type )
   {

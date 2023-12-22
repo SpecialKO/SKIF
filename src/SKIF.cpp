@@ -1837,12 +1837,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if ( (_registry.iStyleTemp != _registry.iStyle) ||
          ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
     {
-      //extern bool loadCover;
-
-      //if (_registry.iLastSelectedGame == SKIF_STEAM_APPID &&
-      //   (_registry.iStyleTemp == 2 || _registry.iStyle == 2))
-      //  loadCover = true; // TODO: Skip reloading the cover if using a custom SK cover
-
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
                                   : (_registry.iStyle + 1) % 4;
@@ -2711,12 +2705,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       svcTransitionFromPendingState = _inject._TestServletRunlevel (false);
 
       // Another Directory Watch signal to check if DLL files should be refreshed.
-      // 
-      // TODO: This directory watch gets assigned to the current tab only, meaning it won't
-      //       trigger an automated refresh if the user switches tabs before it is signaled.
-      // 
-      //       This also means the main DLL refresh watch is tied to the tab SKIF opens up
-      //       on, whether that be SMALL MODE, LIBRARY, or ABOUT tab (first launch).
       static SKIF_DirectoryWatch root_folder;
       static DWORD               root_folder_signaled = 0;
       const  DWORD               root_folder_auto_refresh = 1000;
@@ -4039,7 +4027,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject   (true);
       break;
 
-    case WM_SKIF_REFRESHGAMES: // TODO: Contemplate this design, and its position in the new design with situational pausing. Concerns WM_SKIF_REFRESHGAMES / IDT_REFRESH_GAMES.
+    case WM_SKIF_REFRESHGAMES:
       RepopulateGamesWasSet = SKIF_Util_timeGetTime();
       RepopulateGames = true;
       SelectNewSKIFGame = (uint32_t)wParam;

@@ -523,7 +523,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           const wchar_t* pwszExt =
             PathFindExtension (launch.executable.c_str());
 
-          // If we cannot find an extension, treat it as non-valid (does this filter out LINK2EA ???)
+          // If we cannot find an extension, treat it as non-valid (does this filter out Link2EA ???)
           if (pwszExt == NULL || (pwszExt + 1) == NULL)
             launch.valid = false;
 
@@ -539,13 +539,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             // Use a combination of the executable and arguments to identify duplicates (affects Instant Play menu)
             if (!_used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions()).second)
               launch.duplicate_exe_args = true;
-          } 
+          }
 
-          // TODO: Secondary-Launch-Options: Need to stop filtering out launch options sharing the same executable here.
           if ( (! app_record_s::supports (launch.platforms,
                                      app_record_s::Platform::Windows) )  ||
                (  _wcsicmp (wszExtension, L".exe") != 0)                 || // Let's filter out all non-executables
-        //     (! _used_executables.emplace (launch.blacklist_file).second) || // <-- This filters out launch options sharing the same executable
                (!       launch.valid)
              )
           {

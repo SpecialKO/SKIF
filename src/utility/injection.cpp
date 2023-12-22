@@ -1477,17 +1477,6 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
       ! whitelist_ && *blacklist == '\0')
     return false;
 
-  // Check if the executable filename has "launcher" in it:
-  // TODO: Confirm this shit works!
-  /*
-  char     szExecutableCopy [MAX_PATH] = { };
-  strncpy (szExecutableCopy, szExecutable, MAX_PATH);
-  PathStripPathA (szExecutableCopy);
-
-  if (! whitelist_ && StrStrIA (szExecutableCopy, "Launcher") != NULL )
-    return true;
-  */
-
   std::istringstream iss(  (whitelist_)
                           ? whitelist
                           : blacklist);

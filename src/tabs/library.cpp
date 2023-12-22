@@ -4797,11 +4797,6 @@ SKIF_UI_Tab_DrawLibrary (void)
                     launch.second.duplicate_exe)
                 continue;
 
-              // TODO: Secondary-Launch-Options: Need to ensure launch options that share an executable only gets listed once.
-              //if (! launch.second.valid ) /* ||
-                  //! _used_launches.emplace (launch.second.blacklist_file).second ) */
-                //continue;
-
               _BlacklistCfg (launch.second, true);
             }
 
