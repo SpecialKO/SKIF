@@ -366,17 +366,24 @@ DrawGameContextMenu (app_record_s* pApp)
 
           auto& _launch = _launch_cfg.second;
 
+          bool blacklisted = (_launch.isBlacklisted ( ) || _inject._TestUserList (_launch.getExecutableFullPathUTF8 ( ).c_str (), false));
+
           char        szButtonLabel [256] = { };
 
           sprintf_s ( szButtonLabel, 255,
-                        "%s###GameContextMenu_InstantPlayMenu-%d",
+                        "%s%s%s###GameContextMenu_InstantPlayMenu-%d",
+                                       (blacklisted) ? (ICON_FA_LOCK        "  ") : "",
+                         (_launch.isElevated    ( )) ? (ICON_FA_USER_SHIELD "  ") : "",
                           _launch.getDescriptionUTF8().empty ()
                             ? _launch.getExecutableFileNameUTF8().c_str ()
                             : _launch.getDescriptionUTF8().c_str (),
                           _launch.id);
 
-          if (disabled)
+          if (disabled || blacklisted)
+          {
             ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+          }
           else
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
@@ -386,20 +393,26 @@ DrawGameContextMenu (app_record_s* pApp)
             clickedQuickLaunch = true;
           }
           
-          if (disabled)
+          if (disabled || blacklisted)
+          {
+            ImGui::PopStyleColor  ( );
             ImGui::PopItemFlag    ( );
+          }
           else
             ImGui::PopStyleColor  ( );
 
-          std::string hoverTip = _launch.getExecutableFullPathUTF8();
+          std::string hoverText = _launch.getExecutableFullPathUTF8();
 
           if (! _launch.getLaunchOptionsUTF8().empty())
-            hoverTip += (" " + _launch.getLaunchOptionsUTF8());
+            hoverText += (" " + _launch.getLaunchOptionsUTF8());
           
-          if (! disabled)
+          if (! disabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
+          
+          SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
-          SKIF_ImGui_SetHoverText       (hoverTip.c_str());
+          if (blacklisted)
+            SKIF_ImGui_SetHoverTip      ("Special K has been disabled for this launch configuration.");
         }
 
         ImGui::EndMenu ();
@@ -423,17 +436,24 @@ DrawGameContextMenu (app_record_s* pApp)
 
           auto& _launch = _launch_cfg.second;
 
+          bool localDisabled = (_launch.injection.injection.type == InjectionType::Local);
+
           char        szButtonLabel [256] = { };
 
           sprintf_s ( szButtonLabel, 255,
-                        "%s###GameContextMenu_InstantPlayWoSKMenu-%d",
+                        "%s%s%s###GameContextMenu_InstantPlayWoSKMenu-%d",
+                             (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
+                      (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
                           _launch.getDescriptionUTF8().empty ()
                             ? _launch.getExecutableFileNameUTF8().c_str ()
                             : _launch.getDescriptionUTF8().c_str (),
                           _launch.id);
           
-          if (disabled)
+          if (disabled || localDisabled)
+          {
             ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+          }
           else
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
@@ -443,20 +463,26 @@ DrawGameContextMenu (app_record_s* pApp)
             clickedQuickLaunchWoSK = true;
           }
           
-          if (disabled)
+          if (disabled || localDisabled)
+          {
+            ImGui::PopStyleColor  ( );
             ImGui::PopItemFlag    ( );
+          }
           else
             ImGui::PopStyleColor  ( );
 
-          std::string hoverTip = _launch.getExecutableFullPathUTF8();
+          std::string hoverText = _launch.getExecutableFullPathUTF8();
 
           if (! _launch.getLaunchOptionsUTF8().empty())
-            hoverTip += (" " + _launch.getLaunchOptionsUTF8());
+            hoverText += (" " + _launch.getLaunchOptionsUTF8());
 
-          if (! disabled)
+          if (! disabled && ! localDisabled)
             SKIF_ImGui_SetMouseCursorHand ( );
+          
+          SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
-          SKIF_ImGui_SetHoverText       (hoverTip.c_str());
+          if (localDisabled)
+            SKIF_ImGui_SetHoverTip      ("This option is not available due to a local injection being used.");
         }
 
         ImGui::EndMenu ();
@@ -478,8 +504,8 @@ DrawGameContextMenu (app_record_s* pApp)
       // Check if the injection service should be used
       if (! usingSK)
       {
-        bool isLocalBlacklisted = launch_cfg->isBlacklisted ( ),
-            isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
+        bool isLocalBlacklisted  = launch_cfg->isBlacklisted ( ),
+             isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
 
         usingSK = ! clickedQuickLaunchWoSK &&
                   ! isLocalBlacklisted     &&
@@ -567,7 +593,7 @@ DrawGameContextMenu (app_record_s* pApp)
       if (! usingSK)
       {
         bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted ( ),
-              isGlobalBlacklisted = _inject._TestUserList (pApp->launch_configs[0].getExecutableFullPathUTF8 ().c_str (), false);
+             isGlobalBlacklisted = _inject._TestUserList (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str (), false);
 
         usingSK = ! clickedGalaxyLaunchWoSK &&
                   ! isLocalBlacklisted      &&
@@ -1918,7 +1944,7 @@ Cache=false)";
 
     if (ImGui::Selectable (_cache.injection.status.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
     {
-      _inject._StartStopInject (_cache.service, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated( ));
+      _inject._StartStopInject (_cache.service, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ));
 
       _cache.app_id = 0;
     }
@@ -2223,11 +2249,11 @@ Cache=false)";
         }
 
         // Kickstart service if it is currently not running
-        if (! _inject.bCurrentState && usingSK )
+        if (! _inject.bCurrentState && usingSK)
           _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated( ));
 
         // Stop the service if the user attempts to launch without SK
-        else if ( clickedGameLaunchWoSK && _inject.bCurrentState )
+        else if (clickedGameLaunchWoSK && _inject.bCurrentState)
           _inject._StartStopInject (true);
       }
 
@@ -4302,7 +4328,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (pApp != nullptr)
   {
     // Update the injection strategy for the game
-    if (selection.dir_watch.isSignaled ( ))
+    if (selection.dir_watch.isSignaled ( )) // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
     {
       UpdateInjectionStrategy (pApp);
       _cache.Refresh          (pApp);
