@@ -179,7 +179,7 @@ struct app_record_s {
       std::wstring file = L"";
     } config;
 
-    std::string    localized_name; // UTF-8
+      std::string    localized_name; // UTF-8
   };
 
   struct common_config_s {
@@ -212,10 +212,11 @@ struct app_record_s {
 
     std::wstring getBlacklistFilename       (void);
     bool         setBlacklisted             (bool blacklist);
-    bool         isBlacklisted              (void);
+    bool         isBlacklisted              (bool refresh = false);
+
     std::wstring getElevatedFilename        (void);
     bool         setElevated                (bool elevated);
-    bool         isElevated                 (void);
+    bool         isElevated                 (bool refresh = false);
 
     std::wstring getExecutableFileName      (void);
     std:: string getExecutableFileNameUTF8  (void);

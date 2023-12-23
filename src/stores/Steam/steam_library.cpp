@@ -1107,16 +1107,6 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  // Assume global
-  pApp->specialk.injection.injection.type =
-    InjectionType::Global;
-  pApp->specialk.injection.injection.entry_pt =
-    InjectionPoint::CBTHook;
-  pApp->specialk.injection.config.type =
-    ConfigType::Centralized;
-  pApp->specialk.injection.config.file =
-    L"SpecialK.ini";
-
   // Parse appinfo data for the current game
   skValveDataFile::appinfo_s
                   *pAppInfo =
@@ -1138,8 +1128,18 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     if (firstValidFound == -1)
       firstValidFound = launch_cfg.first;
 
+    // Assume global
+    launch_cfg.second.injection.injection.type =
+      InjectionType::Global;
+    launch_cfg.second.injection.injection.entry_pt =
+      InjectionPoint::CBTHook;
+    launch_cfg.second.injection.config.type =
+      ConfigType::Centralized;
+    launch_cfg.second.injection.config.file =
+      L"SpecialK.ini";
+
     // Check bitness
-    if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
+    if (launch_cfg.second.injection.injection.bitness == InjectionBitness::Unknown)
     {
 
 #define TRUST_LAUNCH_CONFIG
@@ -1177,9 +1177,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
       }
 
       if (cputype == app_record_s::CPUType::x86)
-        pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+        launch_cfg.second.injection.injection.bitness = InjectionBitness::ThirtyTwo;
       else if (cputype == app_record_s::CPUType::x64)
-        pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+        launch_cfg.second.injection.injection.bitness = InjectionBitness::SixtyFour;
       else if (cputype == app_record_s::CPUType::Any)
       {
         std::wstring exec_path =
@@ -1189,9 +1189,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
         if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
         {
           if (dwBinaryType == SCS_32BIT_BINARY)
-            pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+            launch_cfg.second.injection.injection.bitness = InjectionBitness::ThirtyTwo;
           else if (dwBinaryType == SCS_64BIT_BINARY)
-            pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+            launch_cfg.second.injection.injection.bitness = InjectionBitness::SixtyFour;
         }
       }
 
@@ -1242,33 +1242,37 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
         if (! dll_ver.empty ())
         {
-          pApp->specialk.injection.injection = {
-            pApp->specialk.injection.injection.bitness,
+          launch_cfg.second.injection.injection = {
+            launch_cfg.second.injection.injection.bitness,
             dll.entry_pt, InjectionType::Local,
             dll.path,     dll_ver
           };
 
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
           {
-            pApp->specialk.injection.config.type =
+            launch_cfg.second.injection.config.type =
               ConfigType::Centralized;
           }
 
           else
           {
-            pApp->specialk.injection.config = {
+            launch_cfg.second.injection.config = {
               ConfigType::Localized,
               test_path
             };
           }
 
-          pApp->specialk.injection.config.file =
+          launch_cfg.second.injection.config.file =
             dll.name + L".ini";
 
           break;
         }
       }
     }
+
+    // Check if the launch config is elevated or blacklisted
+    launch_cfg.second.isElevated    (true);
+    launch_cfg.second.isBlacklisted (true);
 
     // Naively assume the first valid launch config that we are pointed to is the primary one
     // If we're not at the first launch config, move it to the first position
@@ -1285,6 +1289,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
   // TODO: Make the specialk.injection bitness/state/etc stuff bound
   //         to launch_config so it is not universal any longer
+
+  // Main UI stuff should follow the primary launch config
+  pApp->specialk.injection = pApp->launch_configs[0].injection;
 
   if ( InjectionType::Global ==
          pApp->specialk.injection.injection.type )

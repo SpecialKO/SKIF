@@ -265,9 +265,9 @@ app_launch_config_s::setBlacklisted (bool blacklist)
 }
 
 bool
-app_launch_config_s::isBlacklisted (void)
+app_launch_config_s::isBlacklisted (bool refresh)
 {
-  if (blacklisted != -1)
+  if (blacklisted != -1 && ! refresh)
     return blacklisted;
 
   std::wstring full_path =
@@ -275,7 +275,7 @@ app_launch_config_s::isBlacklisted (void)
 
   // getBlacklistFilename ( ) can set blacklisted == 1 for
   //   invalid launch configs, requiring no duplicate testing
-  if (blacklisted == -1)
+  if (blacklisted == -1 || refresh)
     blacklisted = 
       PathFileExistsW (full_path.c_str ());
 
@@ -380,9 +380,9 @@ app_launch_config_s::setElevated (bool elevate)
 }
 
 bool
-app_launch_config_s::isElevated (void)
+app_launch_config_s::isElevated (bool refresh)
 {
-  if (elevated != -1)
+  if (elevated != -1 && ! refresh)
     return elevated;
 
   std::wstring full_path =
@@ -390,7 +390,7 @@ app_launch_config_s::isElevated (void)
 
   // getElevatedFilename ( ) can set elevated == 1 for
   //   invalid launch configs, requiring no duplicate testing
-  if (elevated == -1)
+  if (elevated == -1 || refresh)
     elevated =
       PathFileExistsW (full_path.c_str ());
 
