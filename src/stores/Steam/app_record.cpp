@@ -42,13 +42,18 @@ app_launch_config_s::isExecutableFileNameValid (void)
     return executable_valid;
 
   // TODO: Look up how Star Wars: Jedi Survivor etc are set up
-  executable_valid = ! executable.empty ( );
+  executable_valid = (! executable.empty( ) &&
+                        executable.find (L"InvalidPath") == std::wstring::npos);
     
   // EA games using link2ea:// protocol handlers to launch games does not have an executable,
   //  so this ensures we do not end up testing the installation folder instead (since this has
   //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
   if (executable_valid == 0)
+  {
+    executable_path_valid = 0;
+    valid                 = 0;
     executable = L"<InvalidPath>";
+  }
 
   return executable_valid;
 }
@@ -154,17 +159,10 @@ app_launch_config_s::getBlacklistFilename (void)
   if (! blacklist_file.empty () && executable_valid != -1)
     return blacklist_file;
 
-  bool assumedValid = false;
-
   std::wstring full_path =
     getExecutableFullPath ( );
 
-  // We don't want to test the path if it hasn't been validated yet
-  if (executable_valid == -1)
-    assumedValid = (! full_path.empty() &&
-                      full_path.find (L"InvalidPath") == std::wstring::npos);
-
-  if (executable_valid || assumedValid)
+  if (isExecutableFileNameValid ( ))
   {
     wchar_t wszExecutableBase [MAX_PATH] = { };
     wchar_t wszBlacklistPath  [MAX_PATH] = { };
@@ -265,21 +263,13 @@ app_launch_config_s::isBlacklisted (bool refresh)
 std::wstring
 app_launch_config_s::getElevatedFilename (void)
 {
-  
   if (! elevated_file.empty () && executable_valid != -1)
     return elevated_file;
-
-  bool assumedValid = false;
 
   std::wstring full_path =
     getExecutableFullPath ( );
 
-  // We don't want to test the path if it hasn't been validated yet
-  if (executable_valid == -1)
-    assumedValid = (! full_path.empty() &&
-                      full_path.find (L"InvalidPath") == std::wstring::npos);
-
-  if (executable_valid || assumedValid)
+  if (isExecutableFileNameValid ( ))
   {
     wchar_t wszExecutableBase [MAX_PATH] = { };
     wchar_t wszElevatedPath   [MAX_PATH] = { };
