@@ -1290,6 +1290,20 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
   // TODO: Make the specialk.injection bitness/state/etc stuff bound
   //         to launch_config so it is not universal any longer
 
+  // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
+  if (pApp->launch_configs[0].injection.injection.type == InjectionType::Unknown)
+  {
+    // Assume global
+    pApp->launch_configs[0].injection.injection.type =
+      InjectionType::Global;
+    pApp->launch_configs[0].injection.injection.entry_pt =
+      InjectionPoint::CBTHook;
+    pApp->launch_configs[0].injection.config.type =
+      ConfigType::Centralized;
+    pApp->launch_configs[0].injection.config.file =
+      L"SpecialK.ini";
+  }
+
   // Main UI stuff should follow the primary launch config
   pApp->specialk.injection = pApp->launch_configs[0].injection;
 

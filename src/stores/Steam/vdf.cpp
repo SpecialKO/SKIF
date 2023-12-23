@@ -574,12 +574,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         for ( auto& launch : _launches )
         {
           int i = static_cast<int> (pAppRecord->launch_configs.size());
-
-          //if (_used_executables.emplace (launch.blacklist_file).second)
-          //{
-            pAppRecord->launch_configs[i]        = launch;
-          //pAppRecord->launch_configs[i].parent = pAppRecord;
-          //}
+          pAppRecord->launch_configs.emplace (i, launch);
+        //pAppRecord->launch_configs[i].parent = pAppRecord;
         }
 
         std::map <std::string, std::wstring> roots = {
