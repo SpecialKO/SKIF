@@ -2676,6 +2676,10 @@ RefreshRunningApps (void)
 
           for (auto& app : g_apps)
           {
+            if (! app.second.launch_configs.contains (0))
+                  //|| app.second.launch_configs [0].parent != &app.second)
+              continue;
+
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
             if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].executable.c_str(), pe32.szExeFile, MAX_PATH) == 0)
             {

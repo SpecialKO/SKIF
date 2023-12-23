@@ -56,27 +56,6 @@ app_launch_config_s::isExecutableFileNameValid (void)
 std::wstring
 app_launch_config_s::getExecutableFullPath (void)
 {
-  // TODO: This Steam specific block should be moved into vdf.cpp !! (maybe?)
-  if (parent        != nullptr &&
-      parent->store == app_record_s::Store::Steam)
-  {
-    // EA games using link2ea:// protocol handlers to launch games does not have an executable,
-    //  so this ensures we do not end up testing the installation folder instead (since this has
-    //   bearing on whether a launch config is deemed valid or not as part of the blacklist check) 
-    if (executable.empty())
-    {
-      executable_valid = 0;
-      return L"<InvalidPath>";
-    }
-
-    if (executable_path.empty() && ! parent->install_dir.empty())
-    {
-      executable_path = parent->install_dir;
-      executable_path.append (L"\\");
-      executable_path.append (executable);
-    }
-  }
-
   return executable_path;
 }
 
@@ -136,7 +115,8 @@ app_launch_config_s::getDescription (void)
   if (! description.empty())
     return description;
 
-  description = SK_UTF8ToWideChar (parent->names.normal);
+  description = L"<InvalidDescription>";
+
   return description;
 }
 

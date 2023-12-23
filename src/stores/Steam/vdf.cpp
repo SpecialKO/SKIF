@@ -515,7 +515,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           auto& launch = launch_cfg.second;
 
-          launch.parent = pAppRecord;
+        //launch.parent = pAppRecord;
         //launch.isBlacklisted ( );
 
           // File extension, so we can strip out non-executable ones
@@ -578,7 +578,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           //if (_used_executables.emplace (launch.blacklist_file).second)
           //{
             pAppRecord->launch_configs[i]        = launch;
-            pAppRecord->launch_configs[i].parent = pAppRecord;
+          //pAppRecord->launch_configs[i].parent = pAppRecord;
           //}
         }
 
@@ -915,6 +915,30 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             // Skip duplicate Auto-Cloud entries
             if (! _used_paths.emplace (cloud_save.second.evaluated_dir).second)
               continue;
+          }
+
+          // Steam requires we resolve executable_path here as well
+          for ( auto& launch_cfg : pAppRecord->launch_configs )
+          {
+            // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+            //  so this ensures we do not end up testing the installation folder instead (since this has
+            //   bearing on whether a launch config is deemed valid or not as part of the blacklist check) 
+            if (launch_cfg.second.isExecutableFileNameValid ( ))
+            {
+              if (! pAppRecord->install_dir.empty())
+              {
+                launch_cfg.second.executable_path = pAppRecord->install_dir;
+                launch_cfg.second.executable_path.append (L"\\");
+                launch_cfg.second.executable_path.append (launch_cfg.second.getExecutableFileName ( ));
+              }
+            }
+
+            // Populate empty launch descriptions as well
+            if (launch_cfg.second.description.empty())
+            {
+              launch_cfg.second.description      = SK_UTF8ToWideChar (pAppRecord->names.normal);
+              launch_cfg.second.description_utf8 = pAppRecord->names.normal;
+            }
           }
         }
 
