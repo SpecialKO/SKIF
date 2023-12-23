@@ -2870,9 +2870,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     RepopulateGames = false;
     gameWorkerRunning.store(true);
 
-    // Clear cached lists
-    g_apps.clear   ();
-
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
       selection.reset();
@@ -3199,9 +3196,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int   tmp_iDimCovers = _registry.iDimCovers;
   
   static
-    app_record_s* pApp = nullptr;
+    app_record_s* pApp      = nullptr;
 
   // Ensure pApp points to the current selected game
+  // This should be the only place where pApp changes during the whole frame!
   for (auto& app : g_apps)
     if (app.second.id == selection.appid && app.second.store == selection.store)
       pApp = &app.second;
@@ -4237,10 +4235,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       update = (selection.appid != app.second.id ||
                 selection.store != app.second.store);
 
-      selection.appid      = app.second.id;
-      selection.store      = app.second.store;
-      selected   = true;
-      _registry.iLastSelectedGame  = selection.appid;
+      selection.appid              = app.second.id;
+      selection.store              = app.second.store;
+      selected                     = true;
+      _registry.iLastSelectedGame  =      selection.appid;
       _registry.iLastSelectedStore = (int)selection.store;
 
       if (update)
@@ -4277,12 +4275,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
         ImGui::SetScrollHereY (0.5f);
 
-      pApp = &app.second;
+      //pApp = &app.second; // Don't change the pApp in the middle of the frame, you doofy!! // Aemony, 2023-12-23
+      // Change it on the next frame instead!
 
       if (update)
       {
-        UpdateInjectionStrategy (pApp);
-        _cache.Refresh          (pApp);
+        UpdateInjectionStrategy (&app.second); // pApp
+        _cache.Refresh          (&app.second); // pApp
       }
     }
   }
@@ -4656,10 +4655,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
   // GamesList END
 
-  // Applies hover text on the whole AppListInset1
-  //if (SKIF_StatusBarText.empty ()) // Prevents the text from overriding the keyboard search hint
-    //SKIF_ImGui_SetHoverText ("Right click for more options");
-
   ImGui::BeginChild (
     "###AppListInset2",
       ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
@@ -4751,7 +4746,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Only show the bottom options if there's some launch configs, and the first one is valid...
       else if ( ! pApp->launch_configs.empty() &&
-                  pApp->launch_configs.begin()->second.valid)
+                  pApp->launch_configs[0].isExecutableFileNameValid())
       {
         bool elevate =
           pApp->launch_configs[0].isElevated ( );
@@ -5062,9 +5057,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Reset selection to Special K
         selection.reset ( );
 
-        for (auto& app : g_apps)
-          if (app.second.id == selection.appid && app.second.store == selection.store)
-            pApp = &app.second;
+        //for (auto& app : g_apps)
+        //  if (app.second.id == selection.appid && app.second.store == selection.store)
+        //    pApp = &app.second;
 
         update = true;
       }
@@ -5535,9 +5530,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Change selection to the new game
     selection.appid = SelectNewSKIFGame;
     selection.store = app_record_s::Store::Other;
-    for (auto& app : g_apps)
-      if (app.second.id == selection.appid && app.second.store == selection.store)
-        pApp = &app.second;
+
+    //for (auto& app : g_apps)
+    //  if (app.second.id == selection.appid && app.second.store == selection.store)
+    //    pApp = &app.second;
 
     update = true;
 
