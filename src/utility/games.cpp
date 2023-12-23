@@ -86,7 +86,7 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
               if (RegGetValueW (hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 lc.launch_options = szData;
 
-              //record.launch_configs[0] = lc;
+              //record.launch_configs.emplace (0, lc);
 
               /*
               dwSize = sizeof (szData) / sizeof (WCHAR);

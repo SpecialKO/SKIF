@@ -236,7 +236,7 @@ struct app_record_s {
     std:: string getLaunchOptionsUTF8       (void);
 
   //private:
-    app_record_s* parent = nullptr;
+  //app_record_s* parent = nullptr;
 
     std::wstring executable;
     std:: string executable_utf8;

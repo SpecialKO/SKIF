@@ -179,7 +179,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
           lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
 
-          record.launch_configs[0]     = lc;
+          record.launch_configs.emplace (0, lc);
 
           record.Epic_CatalogNamespace = CatalogNamespace;
           record.Epic_CatalogItemId    = CatalogItemId;
@@ -196,7 +196,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
             Epic(record.names.normal, record);
 
           apps->emplace_back(Epic);
-          apps->back().second.launch_configs[0].parent = &apps->back().second;
+        //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());

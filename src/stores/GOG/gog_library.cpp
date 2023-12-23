@@ -125,7 +125,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                   GOG(record.names.normal, record);
 
                 apps->emplace_back(GOG);
-                apps->back().second.launch_configs[0].parent = &apps->back().second;
+              //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
                 dwRead++;
               }

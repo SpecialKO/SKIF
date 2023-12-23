@@ -133,7 +133,7 @@ int SKIF_AddCustomAppID (
     lc.working_dir      = record.install_dir;
     lc.launch_options   = args;
 
-    record.launch_configs[0] = lc;
+    record.launch_configs.emplace (0, lc);
     record.specialk.profile_dir = exeFileName; // THIS CAN BE WRONG!!!!
     record.specialk.injection.injection.type = InjectionType::Global;
 
@@ -141,7 +141,7 @@ int SKIF_AddCustomAppID (
       SKIF(record.names.normal, record);
 
     apps->emplace_back(SKIF);
-    apps->back().second.launch_configs[0].parent = &apps->back().second;
+  //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
     return appId;
   }
@@ -315,7 +315,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
                 pair (record.names.normal, record);
 
               apps->emplace_back (pair);
-              apps->back().second.launch_configs[0].parent = &apps->back().second;
+            //apps->back().second.launch_configs[0].parent = &apps->back().second;
             }
           }
         }
