@@ -1119,27 +1119,29 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
   // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
   for ( auto& launch_cfg : pApp->launch_configs )
   {
-    if (! launch_cfg.second.valid)
+    auto& launch = launch_cfg.second;
+
+    if (! launch.valid)
       continue;
 
-    if (! launch_cfg.second.isExecutableFullPathValid ( ))
+    if (! launch.isExecutableFullPathValid ( ))
       continue;
 
     if (firstValidFound == -1)
       firstValidFound = launch_cfg.first;
 
     // Assume global
-    launch_cfg.second.injection.injection.type =
+    launch.injection.injection.type =
       InjectionType::Global;
-    launch_cfg.second.injection.injection.entry_pt =
+    launch.injection.injection.entry_pt =
       InjectionPoint::CBTHook;
-    launch_cfg.second.injection.config.type =
+    launch.injection.config.type =
       ConfigType::Centralized;
-    launch_cfg.second.injection.config.file =
+    launch.injection.config.file =
       L"SpecialK.ini";
 
     // Check bitness
-    if (launch_cfg.second.injection.injection.bitness == InjectionBitness::Unknown)
+    if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
 
 #define TRUST_LAUNCH_CONFIG
@@ -1149,10 +1151,10 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
       if (cputype != app_record_s::CPUType::Any)
       {
-        if (launch_cfg.second.cpu_type != app_record_s::CPUType::Common)
+        if (launch.cpu_type != app_record_s::CPUType::Common)
         {
           cputype =
-            launch_cfg.second.cpu_type;
+            launch.cpu_type;
         }
       }
 
@@ -1161,44 +1163,44 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
         // The any case will just be 64-bit for us, since SK only runs on
         //   64-bit systems. Thus, ignore 32-bit launch configs.
 #ifdef _WIN64
-        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x86)
+        if (launch.cpu_type == app_record_s::CPUType::x86)
 #else
-        if (launch_cfg.second.cpu_type == app_record_s::CPUType::x64)
+        if (launch.cpu_type == app_record_s::CPUType::x64)
 #endif
         {
-          //OutputDebugStringW (launch_cfg.second.description.c_str ());
+          //OutputDebugStringW (launch.description.c_str ());
           continue;
         }
 
         else {
           cputype =
-            launch_cfg.second.cpu_type;
+            launch.cpu_type;
         }
       }
 
       if (cputype == app_record_s::CPUType::x86)
-        launch_cfg.second.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+        launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
       else if (cputype == app_record_s::CPUType::x64)
-        launch_cfg.second.injection.injection.bitness = InjectionBitness::SixtyFour;
+        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
       else if (cputype == app_record_s::CPUType::Any)
       {
         std::wstring exec_path =
-          launch_cfg.second.getExecutableFullPath ( );
+          launch.getExecutableFullPath ( );
 
         DWORD dwBinaryType = MAXDWORD;
         if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
         {
           if (dwBinaryType == SCS_32BIT_BINARY)
-            launch_cfg.second.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+            launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
           else if (dwBinaryType == SCS_64BIT_BINARY)
-            launch_cfg.second.injection.injection.bitness = InjectionBitness::SixtyFour;
+            launch.injection.injection.bitness = InjectionBitness::SixtyFour;
         }
       }
 
 #else
 
       std::wstring exec_path =
-        launch_cfg.second.getExecutableFullPath ( );
+        launch.getExecutableFullPath ( );
 
       DWORD dwBinaryType = MAXDWORD;
       if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
@@ -1214,8 +1216,8 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     } // End checking bitness
 
     std::wstring test_path =
-      launch_cfg.second.getExecutableDir ( );
-      //launch_cfg.second.working_dir; // Doesn't contain a full path
+      launch.getExecutableDir ( );
+      //launch.working_dir; // Doesn't contain a full path
 
     struct {
       InjectionPoint   entry_pt;
@@ -1242,27 +1244,27 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
         if (! dll_ver.empty ())
         {
-          launch_cfg.second.injection.injection = {
-            launch_cfg.second.injection.injection.bitness,
+          launch.injection.injection = {
+            launch.injection.injection.bitness,
             dll.entry_pt, InjectionType::Local,
             dll.path,     dll_ver
           };
 
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
           {
-            launch_cfg.second.injection.config.type =
+            launch.injection.config.type =
               ConfigType::Centralized;
           }
 
           else
           {
-            launch_cfg.second.injection.config = {
+            launch.injection.config = {
               ConfigType::Localized,
               test_path
             };
           }
 
-          launch_cfg.second.injection.config.file =
+          launch.injection.config.file =
             dll.name + L".ini";
 
           break;
@@ -1271,8 +1273,8 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     }
 
     // Check if the launch config is elevated or blacklisted
-    launch_cfg.second.isElevated    (true);
-    launch_cfg.second.isBlacklisted (true);
+    launch.isElevated    (true);
+    launch.isBlacklisted (true);
 
     // Naively assume the first valid launch config that we are pointed to is the primary one
     // If we're not at the first launch config, move it to the first position

@@ -565,6 +565,14 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               }
             }
 
+            // Fix working directories
+            // TODO: Test this out properly with games with different working directories set!
+            //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
+            if (! launch.working_dir.empty()                        &&
+                  launch.working_dir != launch.getExecutableDir ( ) &&
+                  launch.working_dir != pAppRecord->install_dir)
+              launch.working_dir = pAppRecord->install_dir + launch.working_dir;
+
             _launches.push_back (launch);
           }
         }
