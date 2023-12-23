@@ -490,6 +490,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">imgui_ps_bytecode</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">imgui_ps_bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(DefiningProjectDirectory)\resources\shaders\imgui_pix.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)\resources\shaders\imgui_pix.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="resources\shaders\imgui_vtx_shader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
@@ -514,6 +522,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">imgui_vs_bytecode</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">imgui_vs_bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(DefiningProjectDirectory)\resources\shaders\imgui_vtx.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)\resources\shaders\imgui_vtx.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
