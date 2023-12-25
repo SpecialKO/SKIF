@@ -2872,6 +2872,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
   SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
 
+  // Check if any monitored platforms have been signaled
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
     if (_registry.bLibrarySteam && SKIF_Steam_isLibrariesSignaled ())
@@ -2982,7 +2983,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_Xbox_GetInstalledAppIDs (&g_apps);
 
     // Load custom SKIF titles from registry
-    SKIF_GetCustomAppIDs (&g_apps);
+    if (_registry.bLibraryCustom)
+      SKIF_GetCustomAppIDs (&g_apps);
 
     PLOG_INFO << "Loading game names synchronously...";
 
@@ -4658,6 +4660,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         RepopulateGames = true;
       }
 
+      ImGui::Separator ( );
+
+      if (ImGui::MenuItem ("Custom",spaces, &_registry.bLibraryCustom))
+      {
+        _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
+        RepopulateGames = true;
+      }
+
       ImGui::EndMenu ( );
     }
 
@@ -5044,7 +5054,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SKIF_ImGui_Spacing ( );
 
-    ImGui::Text        ("Do you want to remove this game from SKIF?");
+    ImGui::Text        ("Do you want to remove this game from the app?");
 
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );

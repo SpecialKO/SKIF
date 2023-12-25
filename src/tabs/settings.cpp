@@ -799,6 +799,16 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+    
+    if (ImGui::Checkbox        ("Custom", &_registry.bLibraryCustom))
+    {
+      _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
+      RepopulateGames = true;
+    }
+
     ImGui::TreePop          ( );
 
     ImGui::TreePop          ( );

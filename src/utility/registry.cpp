@@ -180,6 +180,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVLibraryXbox.hasData())
     bLibraryXbox           =   regKVLibraryXbox            .getData ( );
 
+  if (regKVLibraryCustom.hasData())
+    bLibraryCustom         =   regKVLibraryCustom          .getData ( );
+
   bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
 //bServiceMode             =   regKVServiceMode            .getData ( );
   bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData ( );

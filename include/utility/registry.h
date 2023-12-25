@@ -219,6 +219,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Xbox)" );
 
+  KeyValue <bool> regKVLibraryCustom =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Custom)" );
+
 // 2023-07-31: Disabled since I believe this isn't actually used much,
 //               and the intention is to eventually have cmd line args
 //                 trigger service mode automatically when interacting
@@ -422,6 +426,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryEpic             =  true;
   bool bLibraryGOG              =  true;
   bool bLibraryXbox             =  true;
+  bool bLibraryCustom           =  true;
 
   bool bServiceMode             = false;
   bool bFirstLaunch             = false;
