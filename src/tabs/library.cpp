@@ -535,8 +535,20 @@ DrawGameContextMenu (app_record_s* pApp)
         _inject.SetInjectExitAckEx (true);
       }
 
-      PLOG_INFO << "Using Steam App ID : " << pApp->id;
+      bool steamOverlay        = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
+      bool tmpSKIFOverlayState = _registry._LoadedSteamOverlay;
+
+      PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
       SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
+
+      if (! steamOverlay)
+      {
+        PLOG_DEBUG << "Disabling the Steam Overlay...";
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+        // We need to set this to false to prevent SKIF_Util_OpenURI() from removing the env variable
+        _registry._LoadedSteamOverlay = false;
+      }
 
       //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
       SKIF_Util_OpenURI (launch_cfg->getExecutableFullPath ( ),
@@ -545,6 +557,14 @@ DrawGameContextMenu (app_record_s* pApp)
                          launch_cfg->working_dir.c_str(),
                          SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
       );
+
+      if (! steamOverlay)
+      {
+        // Restore the original state after the SKIF_Util_OpenURI() call
+        _registry._LoadedSteamOverlay = tmpSKIFOverlayState;
+
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+      }
 
       SetEnvironmentVariable (L"SteamAppId",  NULL);
 

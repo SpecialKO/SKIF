@@ -336,6 +336,9 @@ std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid);
 
 bool
+SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid);
+
+bool
 SKIF_Steam_isLibrariesSignaled (void);
 
 void

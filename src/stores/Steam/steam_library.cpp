@@ -792,8 +792,11 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
       try
       {
         auto user_localconfig = tyti::vdf::read(file);
+        file.close();
+
         if (user_localconfig.childs.size() > 0)
         {
+          // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
           auto& apps_localconfig =
             user_localconfig.
               childs.at("Software") ->
@@ -823,12 +826,76 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
       {
         UNREFERENCED_PARAMETER(e);
       }
-
-      file.close();
     }
   }
 
   return "";
+}
+
+bool
+SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
+{
+  std::string localConfig_data =
+    SK_WideCharToUTF8 (
+      SK_Steam_GetLocalConfigPath (userid)
+  );
+
+  if (localConfig_data != "")
+  {
+    std::ifstream file (localConfig_data);
+
+    if (file.is_open())
+    {
+      try
+      {
+        auto user_localconfig = tyti::vdf::read(file);
+        file.close();
+
+        if (user_localconfig.childs.size() > 0)
+        {
+          // There are two relevant here:
+          // - Global state is tracked at "UserLocalConfigStore" -> "system" -> "EnableGameOverlay"
+          // - Game-specific state is tracked at "UserLocalConfigStore" -> "apps" -> "<app-id>" -> "OverlayAppEnable"
+
+          auto& system_localconfig =
+            user_localconfig.
+              childs.at("system");
+
+          // If global state is disabled, don't bother checking the local state
+          if (! system_localconfig->attribs.empty() && system_localconfig->attribs.count("EnableGameOverlay") > 0 && system_localconfig->attribs.at("EnableGameOverlay") == "0")
+            return false;
+
+          // Continue checking the local state
+          auto& apps_localconfig =
+            user_localconfig.
+              childs.at("apps");
+
+          if (apps_localconfig != nullptr &&
+              apps_localconfig->childs.size() > 0)
+          {
+            auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
+            if (lc_app != apps_localconfig->childs.end())
+            {
+              auto& attribs = lc_app->second->attribs;
+
+              if (! attribs.empty() && attribs.count("OverlayAppEnable") > 0 && attribs.at("OverlayAppEnable") == "0")
+                return false;
+            }
+          }
+        }
+      }
+
+      // I don't expect this to throw any std::out_of_range exceptions any more
+      //   but one can never be too sure when it comes to data structures like these.
+      //     - Aemony
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+      }
+    }
+  }
+
+  return true;
 }
 
 std::string
