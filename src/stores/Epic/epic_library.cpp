@@ -131,10 +131,6 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           if (! PathFileExists (egsstore_manifest.c_str()))
             continue;
 
-          // Skip if the install location does not exist
-          //if (! PathFileExists (SK_UTF8ToWideChar (std::string (jf.at ("InstallLocation"))).c_str()))
-          //  continue;
-
           std::string CatalogNamespace    = jf.at("CatalogNamespace"),
                       CatalogItemId       = jf.at("CatalogItemId"),
                       AppName             = jf.at("AppName");
@@ -158,9 +154,9 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           app_record_s::launch_config_s lc;
           lc.id                       = 0;
           lc.valid                    = true;
-          //lc.store                  = app_record_s::Store::Epic;
           lc.executable               = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
           lc.executable_path          = record.install_dir + L"\\" + lc.executable;
+          lc.install_dir              = record.install_dir;
           std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 
           // Strip out the subfolders from the executable variable
@@ -172,7 +168,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           if (! substr.empty() )
             lc.executable = substr;
 
-          lc.working_dir                  = record.install_dir;
+          lc.working_dir               = record.install_dir;
           //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
 
           // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
@@ -196,7 +192,6 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
             Epic(record.names.normal, record);
 
           apps->emplace_back(Epic);
-        //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());

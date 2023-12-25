@@ -204,7 +204,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         app_record_s::launch_config_s lc;
                         lc.id = lid;
                         lc.valid = true;
-                        //lc.store = app_record_s::Store::Xbox;
 
                         std::string strAppID = app.attribute("Id").value();
 
@@ -268,6 +267,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                             record.names.normal = appDisplayName;
                         }
                       
+                        lc.install_dir = record.install_dir;
                         lc.working_dir = record.install_dir;
 
                         record.launch_configs.emplace (lid, lc);
@@ -332,7 +332,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (Xbox);
-                    //apps->back().second.launch_configs[0].parent = &apps->back().second;
                     }
                   }
                 }

@@ -246,6 +246,8 @@ struct app_record_s {
     std:: string executable_path_utf8;
     int          executable_path_valid = -1;
 
+    std::wstring install_dir;
+
     std::wstring description;
     std:: string description_utf8;
     std::wstring launch_options;

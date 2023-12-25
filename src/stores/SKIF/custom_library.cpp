@@ -127,9 +127,9 @@ int SKIF_AddCustomAppID (
     app_record_s::launch_config_s lc;
     lc.id               = 0;
     lc.valid            = true;
-    //lc.store          = app_record_s::Store::Other;
     lc.executable       = exeFileName;
     lc.executable_path  = exe;
+    lc.install_dir      = record.install_dir;
     lc.working_dir      = record.install_dir;
     lc.launch_options   = args;
 
@@ -141,7 +141,6 @@ int SKIF_AddCustomAppID (
       SKIF(record.names.normal, record);
 
     apps->emplace_back(SKIF);
-  //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
     return appId;
   }
@@ -218,6 +217,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->install_dir = installDir;
     pApp->launch_configs[0].executable = exeFileName;
     pApp->launch_configs[0].executable_path = exe;
+    pApp->launch_configs[0].install_dir = pApp->install_dir;
     pApp->launch_configs[0].working_dir = pApp->install_dir;
     pApp->launch_configs[0].launch_options = args;
     pApp->specialk.profile_dir = exeFileName; // THIS CAN BE WRONG!!!!
@@ -288,8 +288,8 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               app_record_s::launch_config_s lc;
               lc.id           = 0;
               lc.valid        = true;
-              //lc.store      = app_record_s::Store::Other;
               lc.executable   = szData;
+              lc.install_dir  = record.install_dir;
               lc.working_dir  = record.install_dir;
 
               dwSize = sizeof (szData) / sizeof (WCHAR);
@@ -300,22 +300,15 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               if (RegGetValueW (hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 lc.launch_options = szData;
 
-              record.launch_configs[0] = lc;
+              record.launch_configs.emplace (0, lc);
 
-              /*
-              dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                record.specialk.profile_dir = szData;
-              */
               record.specialk.profile_dir = lc.executable;
-
               record.specialk.injection.injection.type = InjectionType::Global;
 
               std::pair <std::string, app_record_s>
                 pair (record.names.normal, record);
 
               apps->emplace_back (pair);
-            //apps->back().second.launch_configs[0].parent = &apps->back().second;
             }
           }
         }

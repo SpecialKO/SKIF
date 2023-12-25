@@ -41,18 +41,15 @@ app_launch_config_s::isExecutableFileNameValid (void)
   if (executable_valid != -1)
     return executable_valid;
 
-  // TODO: Look up how Star Wars: Jedi Survivor etc are set up
-  executable_valid = (! executable.empty( ) &&
-                        executable.find (L"InvalidPath") == std::wstring::npos);
-    
-  // EA games using link2ea:// protocol handlers to launch games does not have an executable,
-  //  so this ensures we do not end up testing the installation folder instead (since this has
-  //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
+  executable_valid = (! executable.empty( )                                    &&
+                        executable.find (L"InvalidPath") == std::wstring::npos &&
+                        executable.find (L"link2ea")     == std::wstring::npos);
+
   if (executable_valid == 0)
   {
     executable_path_valid = 0;
     valid                 = 0;
-    executable = L"<InvalidPath>";
+  //executable            = L"<InvalidPath>";
   }
 
   return executable_valid;
@@ -183,9 +180,17 @@ app_launch_config_s::getBlacklistFilename (void)
 
   else
   {
+    blacklist_file =
+      SK_FormatStringW (
+        L"%ws\\SpecialK.deny",
+          install_dir.c_str()
+                       );
+
+    /* Not used any longer to support shell execute based "executables"
     blacklisted    = 1;
     blacklist_file =
       L"InvalidLaunchConfig.NeverInject";
+    */
   }
 
   return
@@ -290,9 +295,17 @@ app_launch_config_s::getElevatedFilename (void)
 
   else
   {
+    elevated_file =
+      SK_FormatStringW (
+        L"%ws\\SpecialK.admin",
+          install_dir.c_str()
+                       );
+
+    /* Not used any longer to support shell execute based "executables"
     elevated      = 0;
     elevated_file =
       L"InvalidLaunchConfig.NeverInject";
+    */
   }
 
   return

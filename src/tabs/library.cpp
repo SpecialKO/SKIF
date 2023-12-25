@@ -247,9 +247,16 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
+  app_record_s::launch_config_s*
+      launch_cfg = &pApp->launch_configs[0]; // Default to primary launch config
+
+  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
+  //         is even available (or if "without Special K" is the only option available)
+
   // Do not check games that are being updated (aka installed)
+  //   nor expose the option for shell execute based games (e.g. Link2EA, which requires the Steam client running)
   bool SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
-                             ?  pApp->launch_configs[0].isExecutableFullPathValid ( )
+                             ? launch_cfg->isExecutableFullPathValid ( )
                              : false;
   
   // Push styling for Disabled
@@ -312,9 +319,6 @@ DrawGameContextMenu (app_record_s* pApp)
       }
     }
 
-    app_record_s::launch_config_s*
-        launch_cfg = &pApp->launch_configs[0]; // Default to primary launch config
-
     ImGui::Separator        ( );
 
     // If there is only one valid launch config
@@ -326,7 +330,12 @@ DrawGameContextMenu (app_record_s* pApp)
                               : ImGuiSelectableFlags_None)))
         clickedQuickLaunch = true;
 
-      SKIF_ImGui_SetHoverText (launch_cfg->getExecutableFullPathUTF8 ( ));
+      std::string hoverText = launch_cfg->getExecutableFullPathUTF8();
+
+      if (! launch_cfg->getLaunchOptionsUTF8().empty())
+        hoverText += (" " + launch_cfg->getLaunchOptionsUTF8());
+
+      SKIF_ImGui_SetHoverText (hoverText.c_str());
       SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
                                "including steps such as Steam Cloud synchronization.");
           
@@ -343,8 +352,8 @@ DrawGameContextMenu (app_record_s* pApp)
           clickedQuickLaunchWoSK = true;
 
         ImGui::PopStyleColor   ( );
-
-        SKIF_ImGui_SetHoverText (launch_cfg->getExecutableFullPathUTF8 ( ));
+        
+        SKIF_ImGui_SetHoverText (hoverText.c_str());
       }
     }
 
@@ -372,8 +381,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           sprintf_s ( szButtonLabel, 255,
                         "%s%s%s###GameContextMenu_InstantPlayMenu-%d",
-                                       (blacklisted) ? (ICON_FA_LOCK        "  ") : "",
-                         (_launch.isElevated    ( )) ? (ICON_FA_USER_SHIELD "  ") : "",
+                                  (blacklisted) ? (ICON_FA_LOCK        "  ") : "",
+                         (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
                           _launch.getDescriptionUTF8().empty ()
                             ? _launch.getExecutableFileNameUTF8().c_str ()
                             : _launch.getDescriptionUTF8().c_str (),
@@ -442,8 +451,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           sprintf_s ( szButtonLabel, 255,
                         "%s%s%s###GameContextMenu_InstantPlayWoSKMenu-%d",
-                             (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
-                      (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
+                                (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
+                         (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
                           _launch.getDescriptionUTF8().empty ()
                             ? _launch.getExecutableFileNameUTF8().c_str ()
                             : _launch.getDescriptionUTF8().c_str (),
@@ -531,10 +540,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
       //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
       SKIF_Util_OpenURI (launch_cfg->getExecutableFullPath ( ),
-                          SW_SHOWDEFAULT, L"OPEN",
-                          launch_cfg->launch_options.c_str(),
-                          launch_cfg->working_dir.c_str(),
-                          SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
+                         SW_SHOWDEFAULT, L"OPEN",
+                         launch_cfg->launch_options.c_str(),
+                         launch_cfg->working_dir.c_str(),
+                         SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
       );
 
       SetEnvironmentVariable (L"SteamAppId",  NULL);
@@ -592,8 +601,8 @@ DrawGameContextMenu (app_record_s* pApp)
       // Check if the injection service should be used
       if (! usingSK)
       {
-        bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted ( ),
-             isGlobalBlacklisted = _inject._TestUserList (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str (), false);
+        bool isLocalBlacklisted  = launch_cfg->isBlacklisted ( ),
+             isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
 
         usingSK = ! clickedGalaxyLaunchWoSK &&
                   ! isLocalBlacklisted      &&
@@ -602,14 +611,14 @@ DrawGameContextMenu (app_record_s* pApp)
         if (usingSK)
         {
           // Whitelist the path if it haven't been already
-          if (pApp->launch_configs[0].isExecutableFullPathValid ( ) &&
-              _inject.WhitelistPath (pApp->launch_configs[0].getExecutableFullPathUTF8 ()))
+          if (launch_cfg->isExecutableFullPathValid ( ) &&
+              _inject.WhitelistPath (launch_cfg->getExecutableFullPathUTF8 ()))
             _inject.SaveWhitelist ( );
         }
 
         // Kickstart service if it is currently not running
         if (! _inject.bCurrentState && usingSK)
-          _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated( ));
+          _inject._StartStopInject (false, true, launch_cfg->isElevated( ));
 
         // Stop the service if the user attempts to launch without SK
         else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
@@ -628,7 +637,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
 
-      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath (), (! localInjection && usingSK));
+      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", launch_cfg->getExecutableFullPath (), (! localInjection && usingSK));
 
       // Also minimize SKIF if configured as such
       // Disable the first service notification
@@ -3624,8 +3633,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_INFO << "SKIF_LibCoverWorker thread started!";
-      PLOG_INFO << "Streaming game cover asynchronously...";
+      PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
+      PLOG_INFO  << "Streaming game cover asynchronously...";
 
       if (pApp == nullptr)
       {
@@ -3866,8 +3875,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         _pTexSRV.p = nullptr;
       }
 
-      PLOG_INFO << "Finished streaming game cover asynchronously...";
-      PLOG_INFO << "SKIF_LibCoverWorker thread stopped!";
+      PLOG_INFO  << "Finished streaming game cover asynchronously...";
+      PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
 
     }, 0x0, NULL);
 
@@ -4697,16 +4706,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       );
 
       auto _BlacklistCfg =
-      [&](app_record_s::launch_config_s& launch_cfg, bool menu = false) ->
+      [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
       void
       {
-        /*
-        if (pApp->extended_config.vac.enabled == 1)
-        {
-          launch_cfg.setBlacklisted (pApp->id, true);
-        }
-        */
-
         bool blacklist =
           launch_cfg.isBlacklisted ( );
           //|| _inject._TestUserList(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath()).c_str(), false);
@@ -4728,15 +4730,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (ImGui::Checkbox (szButtonLabel,   &blacklist))
           launch_cfg.setBlacklisted (blacklist);
 
-        std::string hoverTip = launch_cfg.getExecutableFullPathUTF8();
-
-        if (! launch_cfg.getLaunchOptionsUTF8().empty())
-          hoverTip += (" " + launch_cfg.getLaunchOptionsUTF8());
-
-        SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (hoverTip.c_str());
-
-        SKIF_ImGui_SetHoverText (hoverTip.c_str());
+        SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
       };
 
       if ( ! _inject.bHasServlet )
@@ -4745,8 +4739,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Only show the bottom options if there's some launch configs, and the first one is valid...
-      else if ( ! pApp->launch_configs.empty() &&
-                  pApp->launch_configs[0].isExecutableFileNameValid())
+      else if ( ! pApp->launch_configs.empty()) //&&
+                  //pApp->launch_configs[0].isExecutableFileNameValid())
       {
         bool elevate =
           pApp->launch_configs[0].isElevated ( );
@@ -4782,11 +4776,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        // If there is only one launch option
-        if (numOfItems == 1)
+        // If there is 0-1 valid launch option
+        if (numOfItems <= 1)
         {
           _BlacklistCfg          (
-                pApp->launch_configs.begin ()->second );
+                pApp->launch_configs.begin ()->second, false );
         }
 
         // If there are more than one launch option

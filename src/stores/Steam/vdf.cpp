@@ -497,12 +497,6 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                     SK_UTF8ToWideChar ((const char *)key.second.second);
                 }
               }
-
-              // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
-              if (! launch_cfg.executable.empty ())
-                std::replace (launch_cfg.executable.begin  (), launch_cfg.executable.end  (), '/', '\\');
-              if (! launch_cfg.working_dir.empty ())
-                std::replace (launch_cfg.working_dir.begin (), launch_cfg.working_dir.end (), '/', '\\');
             }
           }
         }
@@ -515,19 +509,22 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           auto& launch = launch_cfg.second;
 
-        //launch.parent = pAppRecord;
-        //launch.isBlacklisted ( );
+          // Skip launch configurations for other OSes
+          if ( (! app_record_s::supports (launch.platforms,
+                                   app_record_s::Platform::Windows) ))
+            continue;
 
-          // File extension, so we can strip out non-executable ones
-          wchar_t  wszExtension[MAX_PATH] = { };
-          const wchar_t* pwszExt =
+          // Skip launch configurations lacking an executable
+          if (launch.executable.empty())
+            continue;
+
+          // File extension, so we can flag out non-executable ones (e.g. link2ea)
+          const wchar_t* pwszExtension =
             PathFindExtension (launch.executable.c_str());
 
-          // If we cannot find an extension, treat it as non-valid (does this filter out Link2EA ???)
-          if (pwszExt == NULL || (pwszExt + 1) == NULL)
+          // If we cannot find an extension, or if it's not .exe, flag the launch config as invalid
+          if (pwszExtension == NULL || (pwszExtension + 1) == NULL || _wcsicmp (pwszExtension, L".exe") != 0)
             launch.valid = false;
-
-          wcsncpy_s (wszExtension, MAX_PATH, pwszExt, _TRUNCATE);
 
           // Flag duplicates
           if (launch.isExecutableFileNameValid())
@@ -537,53 +534,51 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               launch.duplicate_exe = true;
 
             // Use a combination of the executable and arguments to identify duplicates (affects Instant Play menu)
-            if (!_used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions()).second)
+            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions()).second)
               launch.duplicate_exe_args = true;
           }
 
-          if ( (! app_record_s::supports (launch.platforms,
-                                     app_record_s::Platform::Windows) )  ||
-               (  _wcsicmp (wszExtension, L".exe") != 0)                 || // Let's filter out all non-executables
-               (!       launch.valid)
-             )
+          // Working dir = empty, ., / or \ all need fixups
+          if ( wcslen (launch.working_dir.c_str ()) < 2 )
           {
-            launch.valid = false;
-          }
-
-          else
-          {
-            // Working dir = empty, ., / or \ all need fixups
-            if ( wcslen (launch.working_dir.c_str ()) < 2 )
+            if ( launch.working_dir [0] == L'/'  ||
+                 launch.working_dir [0] == L'\\' ||
+                 launch.working_dir [0] == L'.'  ||
+                 launch.working_dir [0] == L'\0' )
             {
-              if ( launch.working_dir [0] == L'/'  ||
-                   launch.working_dir [0] == L'\\' ||
-                   launch.working_dir [0] == L'.'  ||
-                   launch.working_dir [0] == L'\0' )
-              {
-                launch.working_dir =
-                  launch.getExecutableDir ( );
-              }
+              launch.working_dir =
+                launch.getExecutableDir ( );
             }
-
-            // Fix working directories
-            // TODO: Test this out properly with games with different working directories set!
-            //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
-            if (! launch.working_dir.empty()                        &&
-                  launch.working_dir != launch.getExecutableDir ( ) &&
-                  launch.working_dir != pAppRecord->install_dir)
-              launch.working_dir = pAppRecord->install_dir + launch.working_dir;
-
-            _launches.push_back (launch);
           }
+
+          // Fix working directories
+          // TODO: Test this out properly with games with different working directories set!
+          //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
+          if (launch.working_dir != launch.getExecutableDir ( ) &&
+              launch.working_dir != pAppRecord->install_dir)
+              launch.working_dir  = pAppRecord->install_dir + launch.working_dir;
+
+          // Flag the launch config to be added back
+          _launches.push_back (launch);
         }
         
         pAppRecord->launch_configs.clear ();
 
         for ( auto& launch : _launches )
         {
-          int i = static_cast<int> (pAppRecord->launch_configs.size());
-          pAppRecord->launch_configs.emplace (i, launch);
-        //pAppRecord->launch_configs[i].parent = pAppRecord;
+          // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
+          if (launch.valid)
+          {
+            if (! launch.executable.empty ())
+              std::replace (launch.executable.begin  (), launch.executable.end  (), '/', '\\');
+            if (! launch.working_dir.empty ())
+              std::replace (launch.working_dir.begin (), launch.working_dir.end (), '/', '\\');
+          }
+
+          // Add it back
+          pAppRecord->launch_configs.emplace (
+            static_cast<int> (pAppRecord->launch_configs.size()),
+            launch);
         }
 
         std::map <std::string, std::wstring> roots = {
@@ -924,12 +919,14 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           // Steam requires we resolve executable_path here as well
           for ( auto& launch_cfg : pAppRecord->launch_configs )
           {
-            // EA games using link2ea:// protocol handlers to launch games does not have an executable,
-            //  so this ensures we do not end up testing the installation folder instead (since this has
-            //   bearing on whether a launch config is deemed valid or not as part of the blacklist check) 
-            if (launch_cfg.second.isExecutableFileNameValid ( ))
+            if (! pAppRecord->install_dir.empty())
             {
-              if (! pAppRecord->install_dir.empty())
+              launch_cfg.second.install_dir = pAppRecord->install_dir;
+              
+              // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+              //  so this ensures we do not end up testing the installation folder instead (since this has
+              //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
+              if (launch_cfg.second.isExecutableFileNameValid ( ))
               {
                 launch_cfg.second.executable_path = pAppRecord->install_dir;
                 launch_cfg.second.executable_path.append (L"\\");

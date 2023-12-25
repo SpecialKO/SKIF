@@ -94,9 +94,8 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 app_record_s::launch_config_s lc;
                 lc.id         = 0;
                 lc.valid      = true;
-                //lc.store    = app_record_s::Store::GOG;
                 lc.executable = szData;
-                // lc.working_dir = record.install_dir;
+                lc.install_dir = record.install_dir;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
                 if (RegGetValueW (hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
@@ -110,22 +109,15 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                 if (RegGetValueW (hKey, szSubKey, L"launchParam", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   lc.launch_options = szData;
 
-                record.launch_configs[0] = lc;
+                record.launch_configs.emplace (0, lc);
 
-                /*
-                dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW (hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                  record.specialk.profile_dir = szData;
-                */
                 record.specialk.profile_dir = lc.executable;
-
                 record.specialk.injection.injection.type = InjectionType::Global;
 
                 std::pair <std::string, app_record_s>
                   GOG(record.names.normal, record);
 
                 apps->emplace_back(GOG);
-              //apps->back().second.launch_configs[0].parent = &apps->back().second;
 
                 dwRead++;
               }
