@@ -298,7 +298,7 @@ SKIF_Updater::ClearOldUpdates (void)
     return false;
   };
 
-  HANDLE hFind = INVALID_HANDLE_VALUE;
+  HANDLE hFind        = INVALID_HANDLE_VALUE;
   WIN32_FIND_DATA ffd = { };
 
   std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", _path_cache.specialk_userdata);
