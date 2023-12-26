@@ -137,9 +137,10 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   wchar_t    wszPath [MAX_PATH + 2] = { };
   _swprintf (wszPath, LR"(%s\%s)", wszDir, wszPattern);
 
-  WIN32_FIND_DATA fd          = {   };
+  WIN32_FIND_DATA ffd         = { };
   HANDLE          hFind       =
-    FindFirstFileW (wszPath, &fd);
+    FindFirstFileExW (wszPath, FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+  //FindFirstFileW   (wszPath, &fd);
 
   if (hFind == INVALID_HANDLE_VALUE) { return 0; }
 
@@ -148,16 +149,16 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
   do
   {
-    if ( wcscmp (fd.cFileName, L".")  == 0 ||
-         wcscmp (fd.cFileName, L"..") == 0 )
+    if ( wcscmp (ffd.cFileName, L".")  == 0 ||
+         wcscmp (ffd.cFileName, L"..") == 0 )
     {
       continue;
     }
 
-    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
        wchar_t   wszDescend [MAX_PATH + 2] = { };
-      _swprintf (wszDescend, LR"(%s\%s)", wszDir, fd.cFileName);
+      _swprintf (wszDescend, LR"(%s\%s)", wszDir, ffd.cFileName);
 
       if (! pVFSImmutableRoot->containsDirectory (wszDescend))
       {
@@ -176,7 +177,7 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
       SK_VirtualFS::File* pFile =
 #endif
 
-        pVFSRoot->addFile (fd.cFileName);
+        pVFSRoot->addFile (ffd.cFileName);
 
 #ifdef _DEBUG
       //OutputDebugStringW (pFile->getFullPath ().c_str ());
@@ -185,7 +186,7 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
       ++found;
     }
-  } while (FindNextFile (hFind, &fd));
+  } while (FindNextFile (hFind, &ffd));
 
   FindClose (hFind);
 
@@ -1299,9 +1300,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     std::wstring test_pattern =
       test_path + LR"(\*.dll)";
 
-    WIN32_FIND_DATA fd          = {   };
+    WIN32_FIND_DATA ffd         = { };
     HANDLE          hFind       =
-      FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, NULL);
+      FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
 
     if (hFind != INVALID_HANDLE_VALUE)
     {
@@ -1309,11 +1310,11 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
       do
       {
-        if ( wcscmp (fd.cFileName, L".")  == 0 ||
-             wcscmp (fd.cFileName, L"..") == 0 )
+        if ( wcscmp (ffd.cFileName, L".")  == 0 ||
+             wcscmp (ffd.cFileName, L"..") == 0 )
           continue;
 
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
           continue;
 
         for ( auto& dll : test_dlls )
@@ -1321,7 +1322,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
           // Filename + extension
           dll.path = dll.name + L".dll";
 
-          if (fd.cFileName != dll.path)
+          if (ffd.cFileName != dll.path)
             continue;
           
           // Full path
@@ -1354,7 +1355,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
         if (breakOuterLoop)
           break;
 
-      } while (FindNextFile (hFind, &fd));
+      } while (FindNextFile (hFind, &ffd));
 
       FindClose (hFind);
     }

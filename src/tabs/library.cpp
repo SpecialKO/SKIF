@@ -1648,11 +1648,13 @@ GetInjectionSummary (app_record_s* pApp)
       // Shared function
       auto _FindPresets = [](std::wstring folder, std::wstring find_pattern) -> std::vector<Preset>
       {
-        HANDLE hFind = INVALID_HANDLE_VALUE;
-        WIN32_FIND_DATA ffd;
+        HANDLE hFind        = INVALID_HANDLE_VALUE;
+        WIN32_FIND_DATA ffd = { };;
         std::vector<Preset> tmpPresets;
 
-        hFind = FindFirstFile ((folder + find_pattern).c_str(), &ffd);
+        hFind = 
+          FindFirstFileExW ((folder + find_pattern).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+        //FindFirstFile    ((folder + find_pattern).c_str(), &ffd);
 
         if (INVALID_HANDLE_VALUE != hFind)
         {
@@ -2221,19 +2223,19 @@ UpdateInjectionStrategy (app_record_s* pApp)
       std::wstring test_pattern =
         test_path + LR"(\*.dll)";
 
-      WIN32_FIND_DATA fd          = {   };
+      WIN32_FIND_DATA ffd         = { };
       HANDLE          hFind       =
-        FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, NULL);
+        FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
 
       if (hFind != INVALID_HANDLE_VALUE)
       {
         do
         {
-          if ( wcscmp (fd.cFileName, L".")  == 0 ||
-               wcscmp (fd.cFileName, L"..") == 0 )
+          if ( wcscmp (ffd.cFileName, L".")  == 0 ||
+               wcscmp (ffd.cFileName, L"..") == 0 )
             continue;
 
-          if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+          if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             continue;
 
           for ( auto& dll : test_dlls )
@@ -2241,7 +2243,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
             // Filename + extension
             dll.path = dll.name + L".dll";
 
-            if (fd.cFileName != dll.path)
+            if (ffd.cFileName != dll.path)
               continue;
           
             // Full path
@@ -2274,7 +2276,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
           if (breakOuterLoop)
             break;
 
-        } while (FindNextFile (hFind, &fd));
+        } while (FindNextFile (hFind, &ffd));
 
         FindClose (hFind);
       }
@@ -2878,11 +2880,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pSKLogoTexSRV.p == nullptr)
         LoadLibraryTexture (LibraryTexture::Cover,   SKIF_STEAM_APPID, pSKLogoTexSRV, L"(sk_boxart.png)", dontCare1, dontCare2);
 
-      // FIX: This causes the whole apps vector to be resorted by the main thread
-      //   which then causes textures being loaded below to end up being assigned to the wrong game
-      //InterlockedExchange (&need_sort, 1);
-
-      // Force a refresh when the game names have finished being streamed
+      // Force a refresh when the Patreon and Cover textures have finished loading
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
       
       // Load icons last

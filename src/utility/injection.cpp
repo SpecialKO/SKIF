@@ -561,10 +561,12 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
     }
 
     void cleanOldFiles (void) const {
-      HANDLE hFind = INVALID_HANDLE_VALUE;
-      WIN32_FIND_DATA ffd;
+      HANDLE hFind        = INVALID_HANDLE_VALUE;
+      WIN32_FIND_DATA ffd = { };
 
-      hFind = FindFirstFile       (L"*.old", &ffd);
+      hFind =
+        FindFirstFileExW (L"*.old", FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+      //FindFirstFile    (L"*.old", &fd);
 
       if (INVALID_HANDLE_VALUE != hFind)
       {

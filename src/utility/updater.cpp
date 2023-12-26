@@ -299,11 +299,13 @@ SKIF_Updater::ClearOldUpdates (void)
   };
 
   HANDLE hFind = INVALID_HANDLE_VALUE;
-  WIN32_FIND_DATA ffd;
+  WIN32_FIND_DATA ffd = { };
 
   std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", _path_cache.specialk_userdata);
 
-  hFind = FindFirstFile ((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
+  hFind = 
+    FindFirstFileExW ((VersionFolder + L"SpecialK_*.exe").c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+  //FindFirstFile    ((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
 
   if (INVALID_HANDLE_VALUE != hFind)
   {

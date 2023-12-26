@@ -313,10 +313,12 @@ LoadLibraryTexture (
         extern std::wstring GOGGalaxy_UserID;
         load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
 
-        HANDLE hFind = INVALID_HANDLE_VALUE;
-        WIN32_FIND_DATA ffd;
+        HANDLE hFind        = INVALID_HANDLE_VALUE;
+        WIN32_FIND_DATA ffd = { };
 
-        hFind = FindFirstFile((load_str + name).c_str(), &ffd);
+        hFind =
+          FindFirstFileExW ((load_str + name).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+        //FindFirstFile((load_str + name).c_str(), &ffd);
 
         if (INVALID_HANDLE_VALUE != hFind)
         {
