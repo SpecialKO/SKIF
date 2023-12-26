@@ -71,14 +71,17 @@ std::atomic<bool>      modInstalling     = false;
 std::atomic<bool>      gameWorkerRunning = false;
 std::atomic<uint32_t>  modAppId          = 0;
 
-static bool clickedGameLaunch,
-            clickedGameLaunchWoSK,
-            clickedGalaxyLaunch,
-            clickedGalaxyLaunchWoSK = false,
-            openedGameContextMenu   = false;
-const float fTintMin                = 0.75f;
-      float fTint                   = 1.0f;
-      float fAlpha                  = 0.0f;
+app_record_s::launch_config_s*
+                       launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
+bool                   launchGame        = false;
+bool                   launchGalaxyGame  = false;
+bool                   launchInstant     = false;
+bool                   launchWithoutSK   = false;
+bool                   openedGameContextMenu   = false;
+
+const float fTintMin   = 0.75f;
+      float fTint      = 1.0f;
+      float fAlpha     = 0.0f;
 
 PopupState IconMenu        = PopupState_Closed;
 PopupState ServiceMenu     = PopupState_Closed;
@@ -247,16 +250,13 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  app_record_s::launch_config_s*
-      launch_cfg = &pApp->launch_configs[0]; // Default to primary launch config
-
   // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
   //         is even available (or if "without Special K" is the only option available)
 
   // Do not check games that are being updated (aka installed)
   //   nor expose the option for shell execute based games (e.g. Link2EA, which requires the Steam client running)
   bool SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
-                             ? launch_cfg->isExecutableFullPathValid ( )
+                             ? launchConfig->isExecutableFullPathValid ( )
                              : false;
   
   // Push styling for Disabled
@@ -268,7 +268,7 @@ DrawGameContextMenu (app_record_s* pApp)
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
-    clickedGameLaunch = true;
+    launchGame = true;
 
   if (pApp->specialk.injection.injection.type != InjectionType::Local)
   {
@@ -283,7 +283,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
-      clickedGameLaunchWoSK = true;
+      launchGame = launchWithoutSK = true;
 
     ImGui::PopStyleColor   ( );
 
@@ -291,12 +291,9 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
   }
         
-  // Steam quick launch options
+  // Instant Play options for Steam games
   if (SteamShortcutPossible)
-  { 
-    bool clickedQuickLaunch     = false,
-         clickedQuickLaunchWoSK = false;
-
+  {
     static uint32_t curAppId                  = 0;
     static int      numSecondaryLaunchConfigs = 0;
 
@@ -328,12 +325,12 @@ DrawGameContextMenu (app_record_s* pApp)
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
-        clickedQuickLaunch = true;
+        launchInstant = true;
 
-      std::string hoverText = launch_cfg->getExecutableFullPathUTF8();
+      std::string hoverText = launchConfig->getExecutableFullPathUTF8();
 
-      if (! launch_cfg->getLaunchOptionsUTF8().empty())
-        hoverText += (" " + launch_cfg->getLaunchOptionsUTF8());
+      if (! launchConfig->getLaunchOptionsUTF8().empty())
+        hoverText += (" " + launchConfig->getLaunchOptionsUTF8());
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
       SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
@@ -349,7 +346,7 @@ DrawGameContextMenu (app_record_s* pApp)
                               ((pApp->_status.running || pApp->_status.updating)
                                 ? ImGuiSelectableFlags_Disabled
                                 : ImGuiSelectableFlags_None)))
-          clickedQuickLaunchWoSK = true;
+          launchInstant = launchWithoutSK = true;
 
         ImGui::PopStyleColor   ( );
         
@@ -398,8 +395,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (ImGui::Selectable (szButtonLabel))
           {
-            launch_cfg         = &_launch_cfg.second;
-            clickedQuickLaunch = true;
+            launchConfig = &_launch_cfg.second;
+            launchInstant = true;
           }
           
           if (disabled || blacklisted)
@@ -468,8 +465,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (ImGui::Selectable (szButtonLabel))
           {
-            launch_cfg             = &_launch_cfg.second;
-            clickedQuickLaunchWoSK = true;
+            launchConfig = &_launch_cfg.second;
+            launchInstant = launchWithoutSK = true;
           }
           
           if (disabled || localDisabled)
@@ -503,86 +500,6 @@ DrawGameContextMenu (app_record_s* pApp)
       if (disabled)
         ImGui::PopStyleColor ( );
     }
-
-    if (clickedQuickLaunch ||
-        clickedQuickLaunchWoSK)
-    {
-      bool localInjection = pApp->specialk.injection.injection.type == InjectionType::Local;
-      bool usingSK        = localInjection;
-
-      // Check if the injection service should be used
-      if (! usingSK)
-      {
-        bool isLocalBlacklisted  = launch_cfg->isBlacklisted ( ),
-             isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
-
-        usingSK = ! clickedQuickLaunchWoSK &&
-                  ! isLocalBlacklisted     &&
-                  ! isGlobalBlacklisted;
-
-        // Kickstart service if it is currently not running
-        if (! _inject.bCurrentState && usingSK)
-          _inject._StartStopInject (false, true, launch_cfg->isElevated ( ));
-
-        // Stop the service if the user attempts to launch without SK
-        else if (clickedQuickLaunchWoSK && _inject.bCurrentState)
-          _inject._StartStopInject (true);
-      }
-
-      // Create the injection acknowledge events in case of a local injection
-      else {
-        _inject.SetInjectAckEx     (true);
-        _inject.SetInjectExitAckEx (true);
-      }
-
-      bool steamOverlay        = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
-      bool tmpSKIFOverlayState = _registry._LoadedSteamOverlay;
-
-      PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
-      SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
-
-      if (! steamOverlay)
-      {
-        PLOG_DEBUG << "Disabling the Steam Overlay...";
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-        // We need to set this to false to prevent SKIF_Util_OpenURI() from removing the env variable
-        _registry._LoadedSteamOverlay = false;
-      }
-
-      //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-      SKIF_Util_OpenURI (launch_cfg->getExecutableFullPath ( ),
-                         SW_SHOWDEFAULT, L"OPEN",
-                         launch_cfg->launch_options.c_str(),
-                         launch_cfg->working_dir.c_str(),
-                         SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
-      );
-
-      if (! steamOverlay)
-      {
-        // Restore the original state after the SKIF_Util_OpenURI() call
-        _registry._LoadedSteamOverlay = tmpSKIFOverlayState;
-
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-      }
-
-      SetEnvironmentVariable (L"SteamAppId",  NULL);
-
-      std::wstring launchOptions  = launch_cfg->getLaunchOptions();
-                   launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
-
-      // Trim spaces at the end
-      launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
-
-      if (pApp->store == app_record_s::Store::Steam)
-
-      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-        launch_cfg->getExecutableFullPath ( ),
-        launchOptions,
-        launch_cfg->working_dir.c_str(),
-        launch_cfg->getExecutableFullPath ( ),
-        (! localInjection && usingSK));
-    }
   }
 
   // GOG launch options
@@ -595,7 +512,7 @@ DrawGameContextMenu (app_record_s* pApp)
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
-      clickedGalaxyLaunch = true;
+      launchGalaxyGame = true;
 
     if (pApp->specialk.injection.injection.type != InjectionType::Local)
     {
@@ -607,70 +524,9 @@ DrawGameContextMenu (app_record_s* pApp)
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
-        clickedGalaxyLaunchWoSK = true;
+        launchGalaxyGame = launchWithoutSK = true;
 
       ImGui::PopStyleColor  ( );
-    }
-
-    if (clickedGalaxyLaunch ||
-        clickedGalaxyLaunchWoSK)
-    {
-      bool localInjection = (pApp->specialk.injection.injection.type != InjectionType::Local);
-      bool usingSK        = localInjection;
-
-      // Check if the injection service should be used
-      if (! usingSK)
-      {
-        bool isLocalBlacklisted  = launch_cfg->isBlacklisted ( ),
-             isGlobalBlacklisted = _inject._TestUserList (launch_cfg->getExecutableFullPathUTF8 ( ).c_str (), false);
-
-        usingSK = ! clickedGalaxyLaunchWoSK &&
-                  ! isLocalBlacklisted      &&
-                  ! isGlobalBlacklisted;
-
-        if (usingSK)
-        {
-          // Whitelist the path if it haven't been already
-          if (launch_cfg->isExecutableFullPathValid ( ) &&
-              _inject.WhitelistPath (launch_cfg->getExecutableFullPathUTF8 ()))
-            _inject.SaveWhitelist ( );
-        }
-
-        // Kickstart service if it is currently not running
-        if (! _inject.bCurrentState && usingSK)
-          _inject._StartStopInject (false, true, launch_cfg->isElevated( ));
-
-        // Stop the service if the user attempts to launch without SK
-        else if (clickedGalaxyLaunchWoSK && _inject.bCurrentState)
-          _inject._StartStopInject (true);
-      }
-
-      // Create the injection acknowledge events in case of a local injection
-      else {
-        _inject.SetInjectAckEx     (true);
-        _inject.SetInjectExitAckEx (true);
-      }
-
-      // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
-
-      std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
-
-      SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-
-      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", launch_cfg->getExecutableFullPath (), (! localInjection && usingSK));
-
-      // Also minimize SKIF if configured as such
-      // Disable the first service notification
-      if (_registry.bMinimizeOnGameLaunch)
-      {
-        _registry._SuppressServiceNotification = true;
-          
-        // Fallback for minimizing SKIF when not using SK if configured as such
-        if (! usingSK && SKIF_ImGui_hWnd != NULL)
-          ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
-      }
-
-      clickedGalaxyLaunch = clickedGalaxyLaunchWoSK = false;
     }
   }
 
@@ -686,7 +542,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       std::wstring path;
       std:: string path_utf8;
-      std::string  label;
+      std:: string label;
 
       CloudPath (int i, std::wstring p)
       {
@@ -2093,124 +1949,129 @@ Cache=false)";
   if ( ! _inject.bHasServlet && ! _cache.injection.type._Equal ("Local") || buttonPending )
     SKIF_ImGui_PushDisableState ( );
 
-  if (buttonInstall && 
-      ImGui::ButtonEx (
+  if (ImGui::ButtonEx (
               buttonLabel.c_str (),
                   ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                             50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
   {
-    static uint32_t appid;
-    appid = pApp->id;
+    if (! buttonInstall)
+      launchGame = true;
 
-    // We're going to asynchronously download the mod installer on this thread
-    if (! modDownloading.load())
+    else
     {
-      _beginthread ([](void*)->void
+      static uint32_t appid;
+      appid = pApp->id;
+
+      // We're going to asynchronously download the mod installer on this thread
+      if (! modDownloading.load())
       {
-        modDownloading.store (true);
+        _beginthread ([](void*)->void
+        {
+          modDownloading.store (true);
 
-        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibGameModWorker");
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibGameModWorker");
 
-        CoInitializeEx (nullptr, 0x0);
+          CoInitializeEx (nullptr, 0x0);
 
-        PLOG_INFO << "SKIF_LibGameModWorker thread started!";
+          PLOG_DEBUG << "SKIF_LibGameModWorker thread started!";
 
-        int _appid = appid;
-        modAppId.store (_appid);
+          int _appid = appid;
+          modAppId.store (_appid);
 
-        static const std::wstring root = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
+          static const std::wstring root = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
 
-        // Create any missing directories
-        std::error_code ec;
-        if (! std::filesystem::exists (            root, ec))
-              std::filesystem::create_directories (root, ec);
+          // Create any missing directories
+          std::error_code ec;
+          if (! std::filesystem::exists (            root, ec))
+                std::filesystem::create_directories (root, ec);
       
-        static std::wstring download, filename, path;
+          static std::wstring download, filename, path;
 
-        switch (_appid)
-        {
-        case 359870: // FFX/X-2 HD Remaster
-          filename = L"SpecialK_UnX.exe";
-          download = L"https://sk-data.special-k.info/UnX/SpecialK_UnX.exe";
-          break;
-        case 429660: // Tales of Berseria
-          filename = L"SpecialK_TBFix.exe";
-          download = L"https://sk-data.special-k.info/TBFix/SpecialK_TBFix.exe";
-          break;
-        case 372360: // Tales of Symphonia
-          filename = L"SpecialK_TSFix.exe";
-          download = L"https://sk-data.special-k.info/TSFix/SpecialK_TSFix.exe";
-          break;
-        case 738540: // Tales of Vesperia DE
-          filename = L"SpecialK_TVFix.exe";
-          download = L"https://sk-data.special-k.info/TVFix/SpecialK_TVFix.exe";
-          break;
-        default:
-          PLOG_ERROR << "Unknown app id: " << _appid;
-          break;
-        }
-
-        path = root + filename;
-
-        if (! filename.empty() && ! download.empty())
-        {
-          // Download the installer if it does not exist
-          if (! PathFileExists (path.c_str()))
+          switch (_appid)
           {
-            PLOG_INFO << "Downloading installer: " << download;
-            SKIF_Util_GetWebResource (download, path);
+          case 359870: // FFX/X-2 HD Remaster
+            filename = L"SpecialK_UnX.exe";
+            download = L"https://sk-data.special-k.info/UnX/SpecialK_UnX.exe";
+            break;
+          case 429660: // Tales of Berseria
+            filename = L"SpecialK_TBFix.exe";
+            download = L"https://sk-data.special-k.info/TBFix/SpecialK_TBFix.exe";
+            break;
+          case 372360: // Tales of Symphonia
+            filename = L"SpecialK_TSFix.exe";
+            download = L"https://sk-data.special-k.info/TSFix/SpecialK_TSFix.exe";
+            break;
+          case 738540: // Tales of Vesperia DE
+            filename = L"SpecialK_TVFix.exe";
+            download = L"https://sk-data.special-k.info/TVFix/SpecialK_TVFix.exe";
+            break;
+          default:
+            PLOG_ERROR << "Unknown app id: " << _appid;
+            break;
           }
-        
-          modInstalling.store (true);
 
-          // Note that any new process will inherit SKIF's environment variables
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+          path = root + filename;
+
+          if (! filename.empty() && ! download.empty())
+          {
+            // Download the installer if it does not exist
+            if (! PathFileExists (path.c_str()))
+            {
+              PLOG_INFO << "Downloading installer: " << download;
+              SKIF_Util_GetWebResource (download, path);
+            }
+        
+            modInstalling.store (true);
+
+            // Note that any new process will inherit SKIF's environment variables
+            if (_registry._LoadedSteamOverlay)
+              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
   
-          SHELLEXECUTEINFOW
-            sexi              = { };
-            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-            sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = path.c_str();
-            sexi.lpParameters = NULL;
-            sexi.lpDirectory  = NULL;
-            sexi.nShow        = SW_SHOWNORMAL;
-            sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
-                                SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
-                                SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+            SHELLEXECUTEINFOW
+              sexi              = { };
+              sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+              sexi.lpVerb       = L"OPEN";
+              sexi.lpFile       = path.c_str();
+              sexi.lpParameters = NULL;
+              sexi.lpDirectory  = NULL;
+              sexi.nShow        = SW_SHOWNORMAL;
+              sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                                  SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
+                                  SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
-          // Attempt to run the downloaded installer,
-          //   and delete it on failure
-          if (! ShellExecuteExW (&sexi))
-          {
-            PLOG_ERROR << "Something went wrong: "   << SKIF_Util_GetErrorAsWStr ( );
-            PLOG_ERROR_IF (DeleteFile(path.c_str())) << "The downloaded installer has been removed!";
-          }
+            // Attempt to run the downloaded installer,
+            //   and delete it on failure
+            if (! ShellExecuteExW (&sexi))
+            {
+              PLOG_ERROR << "Something went wrong: "   << SKIF_Util_GetErrorAsWStr ( );
+              PLOG_ERROR_IF (DeleteFile(path.c_str())) << "The downloaded installer has been removed!";
+            }
 
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+            if (_registry._LoadedSteamOverlay)
+              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
           
-          // If the process was started successfully, wait for it to close down...
-          if (sexi.hInstApp  > (HINSTANCE)32 &&
-              sexi.hProcess != NULL)
-          {
-            WaitForSingleObject (sexi.hProcess, INFINITE); // == WAIT_OBJECT_0
-            CloseHandle         (sexi.hProcess);
+            // If the process was started successfully, wait for it to close down...
+            if (sexi.hInstApp  > (HINSTANCE)32 &&
+                sexi.hProcess != NULL)
+            {
+              WaitForSingleObject (sexi.hProcess, INFINITE); // == WAIT_OBJECT_0
+              CloseHandle         (sexi.hProcess);
+            }
+
+            modInstalling.store (false);
+
+            PLOG_INFO << "Finished installing a mod asynchronously...";
           }
-
-          modInstalling.store (false);
-
-          PLOG_INFO << "Finished installing a mod asynchronously...";
-        }
         
-        modAppId.store (0);
-        modDownloading.store (false);
+          modAppId.store (0);
+          modDownloading.store (false);
 
-        // Force a refresh when the game icons have finished being streamed
-        //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+          // Force a refresh when the game icons have finished being streamed
+          //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-        PLOG_INFO << "SKIF_LibGameModWorker thread stopped!";
-      }, 0x0, NULL);
+          PLOG_DEBUG << "SKIF_LibGameModWorker thread stopped!";
+        }, 0x0, NULL);
+      }
     }
   }
 
@@ -2218,209 +2079,6 @@ Cache=false)";
   {
     SKIF_ImGui_PopDisableState ( );
     SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
-  }
-
-  // This captures two events -- launching through context menu + large button
-  if (( ! buttonInstall &&
-      ImGui::ButtonEx (
-              buttonLabel.c_str (),
-                  ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
-                            50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
-        ||
-    clickedGameLaunch
-        ||
-    clickedGameLaunchWoSK )
-  {
-
-    if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
-       ! pApp->launch_configs[0].isExecutableFullPathValid ( ))
-    {
-      confirmPopupText = "Could not launch game due to missing executable:\n\n" + pApp->launch_configs[0].getExecutableFullPathUTF8 ( );
-      ConfirmPopup     = PopupState_Open;
-    }
-
-    else {
-      bool localInjection        = (_cache.injection.type._Equal ("Local"));
-      bool usingSK               = localInjection;
-
-      // Check if the injection service should be used
-      if (! usingSK)
-      {
-        bool isLocalBlacklisted  = pApp->launch_configs[0].isBlacklisted ( ),
-             isGlobalBlacklisted = _inject._TestUserList (pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str (), false);
-
-        usingSK = ! clickedGameLaunchWoSK &&
-                  ! isLocalBlacklisted    &&
-                  ! isGlobalBlacklisted;
-
-        if (usingSK)
-        {
-          // Whitelist the path if it haven't been already
-          if (pApp->store == app_record_s::Store::Xbox)
-          {
-            if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
-            {
-              if (_inject.WhitelistPattern (pApp->Xbox_PackageName))
-                _inject.SaveWhitelist ( );
-            }
-          }
-
-          else
-          {
-            if (pApp->launch_configs[0].isExecutableFullPathValid ( ) &&
-                _inject.WhitelistPath (pApp->launch_configs[0].getExecutableFullPathUTF8 ( )))
-              _inject.SaveWhitelist ( );
-          }
-
-          // Disable the first service notification
-          if (_registry.bMinimizeOnGameLaunch)
-            _registry._SuppressServiceNotification = true;
-        }
-
-        // Kickstart service if it is currently not running
-        if (! _inject.bCurrentState && usingSK)
-          _inject._StartStopInject (false, true, pApp->launch_configs[0].isElevated( ));
-
-        // Stop the service if the user attempts to launch without SK
-        else if (clickedGameLaunchWoSK && _inject.bCurrentState)
-          _inject._StartStopInject (true);
-      }
-
-      // Create the injection acknowledge events in case of a local injection
-      else {
-        _inject.SetInjectAckEx     (true);
-        _inject.SetInjectExitAckEx (true);
-      }
-
-      // Launch GOG Galaxy game
-      if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && _registry.bPreferGOGGalaxyLaunch && ! clickedGameLaunch && ! clickedGameLaunchWoSK)
-      {
-        extern std::wstring GOGGalaxy_Path;
-
-        // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
-
-        std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
-
-        SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath ( ), (! localInjection && usingSK));
-      }
-
-      // Launch Epic game
-      else if (pApp->store == app_record_s::Store::Epic)
-      {
-        // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-
-        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", pApp->launch_configs[0].getLaunchOptions().c_str());
-        SKIF_Util_OpenURI (launchOptions);
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath ( ), (! localInjection && usingSK));
-      }
-
-      // Launch Steam game
-      else if (pApp->store == app_record_s::Store::Steam)
-      {
-        bool launchDecision = true;
-
-        // Check localconfig.vdf if user is attempting to launch without Special K 
-        if (clickedGameLaunchWoSK)
-        {
-          std::string
-              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true));
-          if (launch_options.size() > 0)
-          {
-            std::string launch_options_lower =
-              SKIF_Util_ToLower (launch_options);
-
-            if (launch_options_lower.find("skif ") != std::string::npos)
-            {
-              launchDecision = false;
-
-              // Escape any percent signs (%)
-              for (auto pos  = launch_options.find ('%');          // Find the first occurence
-                        pos != std::string::npos;                  // Validate we're still in the string
-                        launch_options.insert      (pos, R"(%)"),  // Escape the character
-                        pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
-              { }
-                          
-              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
-                                  "\n"
-                               +  launch_options + "\n"
-                                  "\n"
-                                  "Please change the launch options in Steam before trying again.";
-              ConfirmPopup     = PopupState_Open;
-
-              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
-            }
-          }
-        }
-
-        if (launchDecision)
-        {
-          std::wstring launchOptions = SK_FormatStringW (LR"(steam://run/%d)", pApp->id);
-          SKIF_Util_OpenURI (launchOptions);
-          pApp->_status.invalidate();
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", pApp->launch_configs[0].getExecutableFullPath ( ), (! localInjection && usingSK));
-        }
-      }
-       
-      // SKIF Custom, GOG without Galaxy, Xbox
-      else
-      {
-        std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
-                              ? pApp->launch_configs[0].executable_helper
-                              : pApp->launch_configs[0].getExecutableFullPath ( );
-
-        // We need to use a proxy variable since we might remove a substring of the launch options
-        std::wstring cmdLine      = pApp->launch_configs[0].getLaunchOptions();
-
-        // Transform to lowercase
-        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
-
-        // Extract the SKIF_SteamAppID cmd line argument
-        const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
-        size_t posSKIF_SteamAppID_start       = cmdLineLower.find (argSKIF_SteamAppID);
-        std::wstring steamAppId               = L"";
-
-        if (posSKIF_SteamAppID_start != std::wstring::npos)
-        {
-          size_t
-            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
-
-          if (posSKIF_SteamAppID_end == std::wstring::npos)
-            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
-
-          // Length of the substring to remove
-          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
-
-          steamAppId = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
-
-          // Remove substring from the proxy variable
-          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
-        }
-
-        if (! steamAppId.empty ( ))
-        {
-          PLOG_INFO << "Using Steam App ID : " << steamAppId;
-          SetEnvironmentVariable (L"SteamAppId",  steamAppId.c_str());
-        }
-
-        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-        SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), pApp->launch_configs[0].working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
-
-        if (! steamAppId.empty ( ))
-          SetEnvironmentVariable (L"SteamAppId",  NULL);
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, pApp->launch_configs[0].getLaunchOptions(), pApp->launch_configs[0].working_dir.c_str(), pApp->launch_configs[0].getExecutableFullPath(), (!localInjection && usingSK));
-      }
-          
-      // Fallback for minimizing SKIF when not using SK if configured as such
-      if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
-        ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
-    }
-
-    clickedGameLaunch = clickedGameLaunchWoSK = false;
   }
       
   // Disable the button for the injection service types if the servlets are missing
@@ -3234,6 +2892,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   for (auto& app : g_apps)
     if (app.second.id == selection.appid && app.second.store == selection.store)
       pApp = &app.second;
+
+  // Default to primary launch config
+  launchConfig = (pApp != nullptr) ? &pApp->launch_configs.begin()->second : nullptr;
 
   // Apply changes when the selected game changes
   if (update)
@@ -4202,7 +3863,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         timeClicked       = 0;
         item_clicked.reset ( );
-        clickedGameLaunch = true;
+        launchGame = true;
       }
       
       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
@@ -4987,6 +4648,259 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
+
+#pragma region GameLaunchLogic
+
+  if ((launchGame || launchInstant || launchGalaxyGame) &&
+       pApp != nullptr && launchConfig != nullptr)
+  {
+    if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
+       ! launchConfig->isExecutableFullPathValid ( ))
+    {
+      confirmPopupText = "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( );
+      ConfirmPopup     = PopupState_Open;
+    }
+
+    else {
+      bool localInjection        = (_cache.injection.type._Equal ("Local"));
+      bool usingSK               = localInjection;
+
+      // Check if the injection service should be used
+      if (! usingSK)
+      {
+        bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
+             isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
+
+        usingSK = ! launchWithoutSK       &&
+                  ! isLocalBlacklisted    &&
+                  ! isGlobalBlacklisted;
+
+        if (usingSK)
+        {
+          // Whitelist the path if it haven't been already
+          if (pApp->store == app_record_s::Store::Xbox)
+          {
+            if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
+            {
+              if (_inject.WhitelistPattern (pApp->Xbox_PackageName))
+                _inject.SaveWhitelist ( );
+            }
+          }
+
+          else
+          {
+            if (launchConfig->isExecutableFullPathValid ( ) &&
+                _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
+              _inject.SaveWhitelist ( );
+          }
+
+          // Disable the first service notification
+          if (_registry.bMinimizeOnGameLaunch)
+            _registry._SuppressServiceNotification = true;
+        }
+
+        // Kickstart service if it is currently not running
+        if (usingSK && ! _inject.bCurrentState)
+          _inject._StartStopInject (false, true, launchConfig->isElevated( ));
+
+        // Stop the service if the user attempts to launch without SK
+        else if (! usingSK && _inject.bCurrentState)
+          _inject._StartStopInject (true);
+      }
+
+      // Create the injection acknowledge events in case of a local injection
+      else {
+        _inject.SetInjectAckEx     (true);
+        _inject.SetInjectExitAckEx (true);
+      }
+
+      // Launch GOG Galaxy game
+      if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && (_registry.bPreferGOGGalaxyLaunch || launchGalaxyGame))
+      {
+        extern std::wstring GOGGalaxy_Path;
+
+        // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+        std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
+
+        SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+      }
+
+      // Launch Epic game
+      else if (pApp->store == app_record_s::Store::Epic)
+      {
+        // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+
+        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
+        SKIF_Util_OpenURI (launchOptions);
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+      }
+
+      // Launch Steam game (Instant Play)
+      else if (pApp->store == app_record_s::Store::Steam && launchInstant)
+      {
+        bool steamOverlay        = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
+        bool tmpSKIFOverlayState = _registry._LoadedSteamOverlay;
+
+        PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
+        SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
+
+        if (! steamOverlay)
+        {
+          PLOG_DEBUG << "Disabling the Steam Overlay...";
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+          // We need to set this to false to prevent SKIF_Util_OpenURI() from removing the env variable
+          _registry._LoadedSteamOverlay = false;
+        }
+
+        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+        SKIF_Util_OpenURI (launchConfig->getExecutableFullPath ( ),
+                           SW_SHOWDEFAULT, L"OPEN",
+                           launchConfig->launch_options.c_str(),
+                           launchConfig->working_dir.c_str(),
+                           SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
+        );
+
+        if (! steamOverlay)
+        {
+          // Restore the original state after the SKIF_Util_OpenURI() call
+          _registry._LoadedSteamOverlay = tmpSKIFOverlayState;
+
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        }
+
+        SetEnvironmentVariable (L"SteamAppId",  NULL);
+
+        std::wstring launchOptions  = launchConfig->getLaunchOptions();
+                     launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+
+        // Trim spaces at the end
+        launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
+          launchConfig->getExecutableFullPath ( ),
+          launchOptions,
+          launchConfig->working_dir.c_str(),
+          launchConfig->getExecutableFullPath ( ),
+          (! localInjection && usingSK));
+      }
+
+      // Launch Steam game (regular)
+      else if (pApp->store == app_record_s::Store::Steam)
+      {
+        bool launchDecision = true;
+
+        // Check localconfig.vdf if user is attempting to launch without Special K 
+        if (! usingSK && ! localInjection)
+        {
+          std::string
+              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true));
+          if (launch_options.size() > 0)
+          {
+            std::string launch_options_lower =
+              SKIF_Util_ToLower (launch_options);
+
+            if (launch_options_lower.find("skif ") != std::string::npos)
+            {
+              launchDecision = false;
+
+              // Escape any percent signs (%)
+              for (auto pos  = launch_options.find ('%');          // Find the first occurence
+                        pos != std::string::npos;                  // Validate we're still in the string
+                        launch_options.insert      (pos, R"(%)"),  // Escape the character
+                        pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
+              { }
+                          
+              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
+                                  "\n"
+                               +  launch_options + "\n"
+                                  "\n"
+                                  "Please change the launch options in Steam before trying again.";
+              ConfirmPopup     = PopupState_Open;
+
+              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
+            }
+          }
+        }
+
+        if (launchDecision)
+        {
+          std::wstring launchOptions = SK_FormatStringW (LR"(steam://run/%d)", pApp->id);
+          SKIF_Util_OpenURI (launchOptions);
+          pApp->_status.invalidate();
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        }
+      }
+       
+      // SKIF Custom, GOG without Galaxy, Xbox
+      else
+      {
+        std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
+                              ? launchConfig->executable_helper
+                              : launchConfig->getExecutableFullPath ( );
+
+        // We need to use a proxy variable since we might remove a substring of the launch options
+        std::wstring cmdLine      = launchConfig->getLaunchOptions();
+
+        // Transform to lowercase
+        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
+
+        // Extract the SKIF_SteamAppID cmd line argument
+        const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
+        size_t posSKIF_SteamAppID_start       = cmdLineLower.find (argSKIF_SteamAppID);
+        std::wstring steamAppId               = L"";
+
+        if (posSKIF_SteamAppID_start != std::wstring::npos)
+        {
+          size_t
+            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
+
+          if (posSKIF_SteamAppID_end == std::wstring::npos)
+            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
+
+          // Length of the substring to remove
+          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
+
+          steamAppId = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+
+          // Remove substring from the proxy variable
+          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+        }
+
+        if (! steamAppId.empty ( ))
+        {
+          PLOG_INFO << "Using Steam App ID : " << steamAppId;
+          SetEnvironmentVariable (L"SteamAppId",  steamAppId.c_str());
+        }
+
+        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
+        SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), launchConfig->working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
+
+        if (! steamAppId.empty ( ))
+          SetEnvironmentVariable (L"SteamAppId",  NULL);
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, launchConfig->getLaunchOptions(), launchConfig->working_dir.c_str(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+      }
+          
+      // Fallback for minimizing SKIF when not using SK if configured as such
+      if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
+        ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
+    }
+
+    launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
+    launchGame       = false;
+    launchGalaxyGame = false;
+    launchInstant    = false;
+    launchWithoutSK  = false;
+  }
+
+#pragma endregion
+
   
   static float fConfirmPopupWidth;
   if (ConfirmPopup == PopupState_Open)
