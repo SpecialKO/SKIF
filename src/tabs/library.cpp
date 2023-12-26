@@ -4402,7 +4402,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         bool blacklist =
           launch_cfg.isBlacklisted ( );
-          //|| _inject._TestUserList(SK_WideCharToUTF8(launch_cfg.getExecutableFullPath()).c_str(), false);
+        bool blacklist_pattern =
+          launch_cfg.isExecutableFullPathValid () &&
+          _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
 
         char          szButtonLabel [256] = { };
 
@@ -4417,9 +4419,21 @@ SKIF_UI_Tab_DrawLibrary (void)
           sprintf_s ( szButtonLabel, 255,
                         " Disable Special K###DisableSpecialK%d",
                           launch_cfg.id );
+
+        if (blacklist_pattern)
+        {
+          blacklist = true;
+          SKIF_ImGui_PushDisableState ( );
+        }
           
         if (ImGui::Checkbox (szButtonLabel,   &blacklist))
           launch_cfg.setBlacklisted (blacklist);
+
+        if (blacklist_pattern)
+        {
+          SKIF_ImGui_PopDisableState ( );
+          SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.");
+        }
 
         SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
       };
