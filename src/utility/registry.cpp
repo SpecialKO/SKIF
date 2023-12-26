@@ -281,6 +281,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVAutoUpdateVersion.hasData())
     wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData ( );
+  
+  bDeveloperMode           =   regKVDeveloperMode          .getData ( );
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData ( );

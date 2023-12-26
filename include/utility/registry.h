@@ -295,6 +295,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Auto-Update)" );
 
+  KeyValue <bool> regKVDeveloperMode =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Developer Mode)" );
+
   // Integers
 
   KeyValue <int> regKVProcessRefreshInterval =
@@ -447,6 +451,7 @@ struct SKIF_RegistrySettings {
   bool bProcessIncludeAll       = false;
   bool bLibraryIgnoreArticles   = false;
   bool bAutoUpdate              = false; // Automatically runs downloaded installers
+  bool bDeveloperMode           = false;
 
   // Warnings
   bool bWarningRTSS             = false;

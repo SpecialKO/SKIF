@@ -1376,6 +1376,12 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Requires 'Close to the notification area' to be disabled.");
     }
 
+    if (ImGui::Checkbox  ("Developer mode",
+                                                      &_registry.bDeveloperMode))
+      _registry.regKVDeveloperMode.putData            (_registry.bDeveloperMode);
+
+    SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
+
     ImGui::NextColumn       ( );
 
     ImGui::TreePush         ( );
