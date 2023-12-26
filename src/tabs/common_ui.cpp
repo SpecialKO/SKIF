@@ -379,6 +379,27 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::Spacing          ( );
   }
 
+  
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                        (const char *)u8"\u2022 ");
+  ImGui::SameLine         ( );
+  ImGui::Text             ("Use");
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+    ICON_FA_WINDOWS " + Shift + Insert");
+  ImGui::SameLine         ( );
+  ImGui::Text             ("to start the injection service.");
+  ImGui::EndGroup         ( );
+
+
+  ImGui::Spacing          ( );
+  ImGui::Spacing          ( );
+
 
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );

@@ -52,7 +52,7 @@ SKIF_UI_Tab_DrawAbout (void)
                             "DirectX 11 and 12 titles can make use of one if not more of these features."
   );
   ImGui::NewLine          ( );
-  ImGui::Text             ("To get started just hop on over to the");
+  ImGui::Text             ("Just hop on over to the");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
   if (SKIF_ImGui_Selectable (ICON_FA_GAMEPAD " Library###About-Lib1"))
@@ -71,7 +71,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                            "Getting started with Epic, GOG, Steam, or Xbox games:");
+                            "Getting started with a game:");
 
   SKIF_ImGui_Spacing      ( );
 
@@ -99,41 +99,13 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextWrapped      ("Select and launch the game.");
 
-  ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
-
-  float fY2 = ImGui::GetCursorPosY();
-
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Getting started with other games:"
-  );
-
-  SKIF_ImGui_Spacing      ( );
-
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                        "1 ");
+                        "3 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Go to the");
-  ImGui::SameLine         ( );
-  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
-  if (SKIF_ImGui_Selectable (ICON_FA_GAMEPAD " Library###About-Lib3"))
-    SKIF_Tab_ChangeTo = UITab_Library;
-  ImGui::PopStyleColor    ( );
-  SKIF_ImGui_SetMouseCursorHand ( );
-  ImGui::SameLine         ( );
-  ImGui::Text             ("tab.");
-
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                        "2 ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("Click on");
+  ImGui::Text             ("If the game is missing, use");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
   if (SKIF_ImGui_Selectable (ICON_FA_SQUARE_PLUS " Add Game"))
@@ -144,20 +116,12 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   ImGui::SameLine         ( );
-  ImGui::Text             ("to add the game to the list.");
-
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                        "3 ");
-  ImGui::SameLine         ( );
-  ImGui::TextWrapped      ("Launch the game.");
+  ImGui::Text             ("to add it to the list.");
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
 
-  float fY3 = ImGui::GetCursorPosY();
+  float fY2 = ImGui::GetCursorPosY();
           
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
@@ -247,7 +211,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
 
-  float fY4 = ImGui::GetCursorPosY();
+//float fY3 = ImGui::GetCursorPosY();
           
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
@@ -257,8 +221,10 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  // Show a randomized select of tips and tricks
+  // Show a (currently not randomized) selection of tips and tricks
   SKIF_UI_TipsAndTricks   ( );
+
+//float fY4 = ImGui::GetCursorPosY();
 
   float pushColumnSeparator =
     (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
@@ -349,7 +315,10 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Local");
   ImGui::EndGroup         ( );
 
-  ImGui::SetCursorPosY    (fY3);
+  //ImGui::SetCursorPosY    (fY3);
+
+  ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -446,14 +415,18 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/Privacy");
   ImGui::EndGroup         ( );
 
+  /*
   // Move up a line to allow the "view release notes..." link to appear without pushing down the Update button
   static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
   if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
     ImGui::SetCursorPosY (fY4 - ImGui::GetFontSize());
   else
     ImGui::SetCursorPosY (fY4);
+  */
 
-    
+  ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
+  
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                             );
