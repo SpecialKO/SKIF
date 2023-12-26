@@ -2166,25 +2166,31 @@ UpdateInjectionStrategy (app_record_s* pApp)
   
   // Handle GOG, Epic, SKIF Custom, and Xbox games
   else {
-    if (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown)
+    
+    auto& launch = pApp->launch_configs.begin()->second;
+
+    // Assume global
+    launch.injection.injection.type =
+      InjectionType::Global;
+    launch.injection.injection.entry_pt =
+      InjectionPoint::CBTHook;
+    launch.injection.config.type =
+      ConfigType::Centralized;
+    launch.injection.config.file =
+      L"SpecialK.ini";
+
+    if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
       DWORD dwBinaryType = MAXDWORD;
-      if ( GetBinaryTypeW (pApp->launch_configs[0].getExecutableFullPath ( ).c_str (), &dwBinaryType) )
+      if (GetBinaryTypeW (launch.getExecutableFullPath ( ).c_str (), &dwBinaryType))
       {
         if (dwBinaryType == SCS_32BIT_BINARY)
-          pApp->specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+          launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
         else if (dwBinaryType == SCS_64BIT_BINARY)
-          pApp->specialk.injection.injection.bitness = InjectionBitness::SixtyFour;
+          launch.injection.injection.bitness = InjectionBitness::SixtyFour;
       }
     }
-
-    std::wstring test_paths[] = { 
-      pApp->launch_configs[0].getExecutableDir ( ),
-      pApp->launch_configs[0].working_dir
-    };
-
-    if (test_paths[0] == test_paths[1])
-      test_paths[1] = L"";
+    // End checking bitness
 
     struct {
       InjectionPoint   entry_pt;
@@ -2198,95 +2204,119 @@ UpdateInjectionStrategy (app_record_s* pApp)
       { InjectionPoint::DInput8, L"dinput8",  L"" }
     };
 
-    // Assume Global 32-bit if we don't know otherwise
-    bool bIs64Bit =
-      ( pApp->specialk.injection.injection.bitness ==
-                        InjectionBitness::SixtyFour );
+    std::wstring test_paths[] = { 
+      pApp->launch_configs[0].getExecutableDir ( ),
+      pApp->launch_configs[0].working_dir
+    };
 
-    pApp->specialk.injection.config.type =
-      ConfigType::Centralized;
-
-    wchar_t                 wszPathToSelf [MAX_PATH] = { };
-    GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
-    PathRemoveFileSpecW (   wszPathToSelf);
-    PathAppendW         (   wszPathToSelf,
-                              bIs64Bit ? L"SpecialK64.dll"
-                                       : L"SpecialK32.dll" );
-
-    pApp->specialk.injection.injection.dll_path = wszPathToSelf;
-    pApp->specialk.injection.injection.dll_ver  = 
-                              bIs64Bit ? _inject.SKVer64
-                                       : _inject.SKVer32;
-
-    // Assume global
-    pApp->specialk.injection.injection.type =
-      InjectionType::Global;
-    pApp->specialk.injection.injection.entry_pt =
-      InjectionPoint::CBTHook;
-    pApp->specialk.injection.config.file =
-      L"SpecialK.ini";
+    if (test_paths[0] == test_paths[1])
+      test_paths[1] = L"";
 
     bool breakOuterLoop = false;
     for ( auto& test_path : test_paths)
     {
       if (test_path.empty())
         continue;
+      
+      std::wstring test_pattern =
+        test_path + LR"(\*.dll)";
 
-      for ( auto& dll : test_dlls )
+      WIN32_FIND_DATA fd          = {   };
+      HANDLE          hFind       =
+        FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, NULL);
+
+      if (hFind != INVALID_HANDLE_VALUE)
       {
-        dll.path =
-          ( test_path + LR"(\)" ) +
-            ( dll.name + L".dll" );
-
-        if (PathFileExistsW (dll.path.c_str ()))
+        do
         {
-          std::wstring dll_ver =
-            SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+          if ( wcscmp (fd.cFileName, L".")  == 0 ||
+               wcscmp (fd.cFileName, L"..") == 0 )
+            continue;
 
-          if (! dll_ver.empty ())
+          if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            continue;
+
+          for ( auto& dll : test_dlls )
           {
-            pApp->specialk.injection.injection = {
-              pApp->specialk.injection.injection.bitness,
+            // Filename + extension
+            dll.path = dll.name + L".dll";
+
+            if (fd.cFileName != dll.path)
+              continue;
+          
+            // Full path
+            dll.path = test_path + LR"(\)" + dll.path;
+
+            std::wstring dll_ver =
+              SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+
+            if (dll_ver.empty ())
+              continue;
+
+            launch.injection.injection = {
+              launch.injection.injection.bitness,
               dll.entry_pt, InjectionType::Local,
               dll.path,     dll_ver
             };
 
             if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-            {
-              pApp->specialk.injection.config.type =
-                ConfigType::Centralized;
-            }
-
+              launch.injection.config.type =   ConfigType::Centralized;
             else
-            {
-              pApp->specialk.injection.config = {
-                ConfigType::Localized,
-                test_path
-              };
-            }
+              launch.injection.config      = { ConfigType::Localized, test_path };
 
-            pApp->specialk.injection.config.file =
+            launch.injection.config.file =
               dll.name + L".ini";
 
             breakOuterLoop = true;
             break;
           }
 
-          else
-            PLOG_VERBOSE << "Local wrapper was not detected as being Special K: " << dll.path;
-        }
+          if (breakOuterLoop)
+            break;
+
+        } while (FindNextFile (hFind, &fd));
+
+        FindClose (hFind);
       }
 
       if (breakOuterLoop)
         break;
     }
 
-    if (pApp->specialk.injection.config.type == ConfigType::Centralized)
+    // Main UI stuff should follow the primary launch config
+    pApp->specialk.injection = pApp->launch_configs[0].injection;
+
+    if ( InjectionType::Global ==
+        pApp->specialk.injection.injection.type )
+    {
+      // Assume Global 32-bit if we don't know otherwise
+      bool bIs64Bit =
+        (launch.injection.injection.bitness ==
+                          InjectionBitness::SixtyFour );
+
+      pApp->specialk.injection.config.type =
+        ConfigType::Centralized;
+
+      wchar_t                 wszPathToSelf [MAX_PATH] = { };
+      GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
+      PathRemoveFileSpecW (   wszPathToSelf);
+      PathAppendW         (   wszPathToSelf,
+                                bIs64Bit ? L"SpecialK64.dll"
+                                         : L"SpecialK32.dll" );
+
+      pApp->specialk.injection.injection.dll_path = wszPathToSelf;
+      pApp->specialk.injection.injection.dll_ver  = 
+                                bIs64Bit ? _inject.SKVer64
+                                         : _inject.SKVer32;
+    }
+
+    if ( ConfigType::Centralized ==
+           pApp->specialk.injection.config.type )
     {
       pApp->specialk.injection.config.dir =
-        SK_FormatStringW(LR"(%ws\Profiles\%ws)",
-          _path_cache.specialk_userdata,
-          pApp->specialk.profile_dir.c_str());
+        SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
+                             _path_cache.specialk_userdata,
+                              pApp->specialk.profile_dir.c_str());
     }
 
     pApp->specialk.injection.config.file =

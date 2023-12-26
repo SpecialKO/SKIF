@@ -1282,10 +1282,6 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
     } // End checking bitness
 
-    std::wstring test_path =
-      launch.getExecutableDir ( );
-      //launch.working_dir; // Doesn't contain a full path
-
     struct {
       InjectionPoint   entry_pt;
       std::wstring     name;
@@ -1298,19 +1294,45 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
       { InjectionPoint::DInput8, L"dinput8",  L"" }
     };
 
-    for ( auto& dll : test_dlls )
+    std::wstring test_path    =
+      launch.getExecutableDir ( );
+    std::wstring test_pattern =
+      test_path + LR"(\*.dll)";
+
+    WIN32_FIND_DATA fd          = {   };
+    HANDLE          hFind       =
+      FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, NULL);
+
+    if (hFind != INVALID_HANDLE_VALUE)
     {
-      dll.path =
-        ( test_path + LR"(\)" ) +
-          ( dll.name + L".dll" );
+      bool breakOuterLoop = false;
 
-      if (PathFileExistsW (dll.path.c_str ()))
+      do
       {
-        std::wstring dll_ver =
-          SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+        if ( wcscmp (fd.cFileName, L".")  == 0 ||
+             wcscmp (fd.cFileName, L"..") == 0 )
+          continue;
 
-        if (! dll_ver.empty ())
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+          continue;
+
+        for ( auto& dll : test_dlls )
         {
+          // Filename + extension
+          dll.path = dll.name + L".dll";
+
+          if (fd.cFileName != dll.path)
+            continue;
+          
+          // Full path
+          dll.path = test_path + LR"(\)" + dll.path;
+
+          std::wstring dll_ver =
+            SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+
+          if (dll_ver.empty ())
+            continue;
+
           launch.injection.injection = {
             launch.injection.injection.bitness,
             dll.entry_pt, InjectionType::Local,
@@ -1318,25 +1340,23 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
           };
 
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-          {
-            launch.injection.config.type =
-              ConfigType::Centralized;
-          }
-
+            launch.injection.config.type =   ConfigType::Centralized;
           else
-          {
-            launch.injection.config = {
-              ConfigType::Localized,
-              test_path
-            };
-          }
+            launch.injection.config      = { ConfigType::Localized, test_path };
 
           launch.injection.config.file =
             dll.name + L".ini";
 
+          breakOuterLoop = true;
           break;
         }
-      }
+
+        if (breakOuterLoop)
+          break;
+
+      } while (FindNextFile (hFind, &fd));
+
+      FindClose (hFind);
     }
 
     // Check if the launch config is elevated or blacklisted
