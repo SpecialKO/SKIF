@@ -1692,6 +1692,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ();
 
+#if 0
     ImGui::TextColored (ImColor(255, 207, 72), ICON_FA_FOLDER_PLUS);
     ImGui::SameLine    ( );
     ImGui::TextColored (
@@ -1744,6 +1745,9 @@ SKIF_UI_Tab_DrawSettings (void)
     */
 
     ImGui::EndGroup ();
+
+#endif
+
     ImGui::EndGroup ();
 
     ImGui::Spacing  ();
