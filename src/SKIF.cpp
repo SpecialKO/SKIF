@@ -386,10 +386,10 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
     cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
       
-    WCHAR wszTarget   [MAX_PATH];
-    WCHAR wszArguments[MAX_PATH];
+    WCHAR wszTarget   [MAX_PATH + 2] = { };
+    WCHAR wszArguments[MAX_PATH + 2] = { };
 
-    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH);
+    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
 
     cmdLine     = std::wstring(wszTarget);
     cmdLineArgs = std::wstring(wszArguments);
@@ -935,7 +935,7 @@ void SKIF_Shell_CreateJumpList (void)
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
   UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
 
-  TCHAR                                    szExePath[MAX_PATH];
+  TCHAR                                    szExePath[MAX_PATH + 2];
   GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
        
   // Create a jump list COM object.
@@ -1091,7 +1091,7 @@ void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring 
 {
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
-  TCHAR                              szExePath[MAX_PATH];
+  TCHAR                              szExePath[MAX_PATH + 2];
   GetModuleFileName           (NULL, szExePath, _countof(szExePath));           // Set the executable path
 
   if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))

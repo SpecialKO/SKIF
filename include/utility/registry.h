@@ -24,8 +24,8 @@ struct SKIF_RegistrySettings {
     {
       struct KeyDesc {
         HKEY         hKey                 = HKEY_CURRENT_USER;
-        wchar_t    wszSubKey   [MAX_PATH] =               L"";
-        wchar_t    wszKeyValue [MAX_PATH] =               L"";
+        wchar_t    wszSubKey   [MAX_PATH] =               { };
+        wchar_t    wszKeyValue [MAX_PATH] =               { };
         DWORD        dwType               =          REG_NONE;
         DWORD        dwFlags              =        RRF_RT_ANY;
       };

@@ -54,9 +54,9 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   PLOG_INFO << "Detecting Epic games...";
 
   HKEY  hKey;
-  DWORD dwSize;
-  WCHAR szData[MAX_PATH];
-  bool  registrySuccess = false;
+  DWORD dwSize = 0;
+  WCHAR szData[MAX_PATH] = { };
+  bool  registrySuccess  = false;
 
   // See if we can retrieve the launcher's appdata path from registry
   if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)

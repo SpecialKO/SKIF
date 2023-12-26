@@ -36,9 +36,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
         dwIndexSubKey = 0,
         dwResult      = 0,
         dwSize        = 0;
-  WCHAR szSubKeyGUID[MAX_PATH] { },
-        szSubKey    [MAX_PATH] { },
-        szData      [MAX_PATH] { };
+  WCHAR szSubKeyGUID[MAX_PATH] = { },
+        szSubKey    [MAX_PATH] = { },
+        szData      [MAX_PATH] = { };
   std::vector<std::pair<int, std::wstring>> gamingRoots;
 
   /* Load Xbox titles from registry */

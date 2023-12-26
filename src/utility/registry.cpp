@@ -113,10 +113,10 @@ SKIF_RegistrySettings::KeyValue<_Tp>::MakeKeyValue (const wchar_t* wszSubKey, co
 {
   KeyValue <_Tp> kv;
 
-  wcsncpy_s ( kv._desc.wszSubKey,  MAX_PATH,
+  wcsncpy_s ( kv._desc.wszSubKey,   MAX_PATH,
                         wszSubKey, _TRUNCATE );
 
-  wcsncpy_s ( kv._desc.wszKeyValue,  MAX_PATH,
+  wcsncpy_s ( kv._desc.wszKeyValue,   MAX_PATH,
                         wszKeyValue, _TRUNCATE );
 
   kv._desc.hKey    = hKey;

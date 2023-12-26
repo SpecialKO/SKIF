@@ -164,7 +164,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
              (sk_install.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
                                                                               _inject.pid64));
 
-  wchar_t     wszDLLPath [MAX_PATH];
+  wchar_t     wszDLLPath [MAX_PATH + 2];
   wcsncpy_s ( wszDLLPath, MAX_PATH,
                 sk_install.injection.dll_path.c_str (),
                         _TRUNCATE );
@@ -178,7 +178,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   dll.version        = sk_install.injection.dll_ver;
   dll.version_utf8   = SK_WideCharToUTF8 (dll.version);
 
-  wchar_t     wszConfigPath [MAX_PATH];
+  wchar_t     wszConfigPath [MAX_PATH + 2];
   wcsncpy_s ( wszConfigPath, MAX_PATH,
                 sk_install.config.file.c_str (),
                         _TRUNCATE );
@@ -2299,7 +2299,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
       pApp->specialk.injection.config.type =
         ConfigType::Centralized;
 
-      wchar_t                 wszPathToSelf [MAX_PATH] = { };
+      wchar_t                 wszPathToSelf [MAX_PATH + 2] = { };
       GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
       PathRemoveFileSpecW (   wszPathToSelf);
       PathAppendW         (   wszPathToSelf,
@@ -2395,8 +2395,8 @@ RefreshRunningApps (void)
           DWORD dwExitCode = 0;
           GetExitCodeProcess (hProcess, &dwExitCode);
           
-          WCHAR szExePath[MAX_PATH] = { };
-          DWORD szExePathLen = MAX_PATH;
+          WCHAR szExePath     [MAX_PATH + 2] = { };
+          DWORD szExePathLen = MAX_PATH; // Specifies the size of the lpExeName buffer, in characters.
 
           if (! accessDenied)
           {
@@ -5118,9 +5118,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         AddGamePopup = PopupState_Opened;
     }
 
-    static char charName     [MAX_PATH],
-                charPath     [MAX_PATH],
-                charArgs     [500];
+    static char charName     [MAX_PATH + 2] = { },
+                charPath     [MAX_PATH + 2] = { },
+                charArgs     [     500 + 2] = { };
     static bool error = false;
 
     ImGui::TreePush    ("");
@@ -5144,10 +5144,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (pathExtension == L".lnk")
         {
-          WCHAR wszTarget    [MAX_PATH];
-          WCHAR wszArguments [MAX_PATH];
+          WCHAR wszTarget    [MAX_PATH + 2];
+          WCHAR wszArguments [MAX_PATH + 2];
 
-          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
 
           if (! PathFileExists (wszTarget))
           {
@@ -5322,9 +5322,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopupModal ("Manage Game###ModifyGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
-    static char charName     [MAX_PATH],
-                charPath     [MAX_PATH],
-                charArgs     [500];
+    static char charName     [MAX_PATH + 2] = { },
+                charPath     [MAX_PATH + 2] = { },
+                charArgs     [     500 + 2] = { };
                 //charProfile  [MAX_PATH];
     static bool error = false;
 
@@ -5370,10 +5370,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (pathExtension == L".lnk")
         {
-          WCHAR wszTarget    [MAX_PATH];
-          WCHAR wszArguments [MAX_PATH];
+          WCHAR wszTarget    [MAX_PATH + 2] = { };
+          WCHAR wszArguments [MAX_PATH + 2] = { };
 
-          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH);
+          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
 
           if (! PathFileExists (wszTarget))
           {

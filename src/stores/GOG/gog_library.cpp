@@ -43,9 +43,12 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
   PLOG_INFO << "Detecting GOG games...";
 
   HKEY  hKey;
-  DWORD dwIndex = 0, dwResult, dwSize, dwRead = 0;
-  WCHAR szSubKey[MAX_PATH];
-  WCHAR szData[MAX_PATH];
+  DWORD dwIndex  = 0,
+        dwResult = 0,
+        dwSize   = 0,
+        dwRead   = 0;
+  WCHAR szSubKey[MAX_PATH] = { };
+  WCHAR szData  [MAX_PATH] = { };
 
   /* Load GOG titles from registry */
   if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\GOG.com\Games\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
@@ -171,8 +174,8 @@ SKIF_GOG_UpdateGalaxyUserID (void)
   GOGGalaxy_UserID = L""; // Reset it
 
   HKEY  hKey;
-  DWORD dwSize;
-  WCHAR szData[MAX_PATH];
+  DWORD dwSize = 0;
+  WCHAR szData[MAX_PATH] = { };
 
   dwSize = sizeof(szData) / sizeof(WCHAR);
   if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\GOG.com\Galaxy\settings\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)

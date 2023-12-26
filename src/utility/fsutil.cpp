@@ -268,7 +268,7 @@ SK_Shell32_GetKnownFolderPath ( _In_ REFKNOWNFOLDERID rfid,
   [&] (void)->HRESULT
   {
     wchar_t wszCurrentDir [MAX_PATH + 2] = { };
-    GetCurrentDirectoryW         (MAX_PATH, wszCurrentDir);
+    GetCurrentDirectoryW  (MAX_PATH, wszCurrentDir);
 
     dir = wszCurrentDir;
 
@@ -351,7 +351,7 @@ SKIF_CommonPathsCache::SKIF_CommonPathsCache (void)
   GetModuleFileNameW  (nullptr, skif_executable, MAX_PATH);
 
   // Store the full path to the folder SKIF.exe is running from
-  wcsncpy_s (specialk_install,   MAX_PATH,
+  wcsncpy_s (specialk_install,  MAX_PATH,
               skif_executable, _TRUNCATE );
   PathRemoveFileSpecW (specialk_install); // Strip SKIF.exe from the path
 

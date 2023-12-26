@@ -22,8 +22,8 @@ void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_gen
   HKEY    hKey;
   DWORD   dwIndex = 0, dwResult, dwSize;
   DWORD32 dwData  = 0;
-  WCHAR   szSubKey[MAX_PATH * sizeof (WCHAR)];
-  WCHAR   szData  [     500 * sizeof (WCHAR)];
+  WCHAR   szSubKey[MAX_PATH];
+  WCHAR   szData  [     500];
 
   extern uint32_t SelectNewSKIFGame;
 

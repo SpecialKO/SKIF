@@ -231,10 +231,12 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
   PLOG_INFO << "Detecting custom SKIF games...";
 
   HKEY    hKey;
-  DWORD   dwIndex = 0, dwResult, dwSize;
-  DWORD32 dwData  = 0;
-  WCHAR   szSubKey[MAX_PATH * sizeof (WCHAR)];
-  WCHAR   szData  [     500 * sizeof (WCHAR)];
+  DWORD   dwIndex  = 0,
+          dwResult = 0,
+          dwSize   = 0;
+  DWORD32 dwData   = 0;
+  WCHAR   szSubKey[MAX_PATH]     = { };
+  WCHAR   szData  [MAX_PATH * 2] = { };
 
   extern uint32_t SelectNewSKIFGame;
 

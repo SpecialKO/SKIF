@@ -552,7 +552,7 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
     }
 
     bool isNewer (void) const {
-      wchar_t        wszNewFile [MAX_PATH] = { };
+      wchar_t        wszNewFile [MAX_PATH + 2] = { };
       combineParts ( wszNewFile, wszFileName,
                       L".new" );
 
@@ -582,9 +582,9 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
     // In rare cases, SK's DLLs may be stuck in a rogue app and we cannot
     //   release the lock on them. We need to move the files out of the way.
     bool shuffleLockedFiles (void) const {
-      wchar_t wszNewFile [MAX_PATH] = { },
-              wszOldFile [MAX_PATH] = { },
-              wszIOFile  [MAX_PATH] = { };
+      wchar_t wszNewFile [MAX_PATH + 2] = { },
+              wszOldFile [MAX_PATH + 2] = { },
+              wszIOFile  [MAX_PATH + 2] = { };
 
       combineParts (wszNewFile, wszFileName, L".new");
       combineParts (wszOldFile, wszFileName, L".old");
@@ -1020,7 +1020,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   if ( ! argsChecked )
   {
-    WCHAR szArguments[MAX_PATH];
+    WCHAR szArguments[MAX_PATH + 2] = { };
 
     if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS)
     {
@@ -1075,7 +1075,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     {
       if (bAutoStartSKIF)
       {
-          static TCHAR               szExePath[MAX_PATH];
+          static TCHAR               szExePath[MAX_PATH + 2];
           GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
           std::wstring wsPath = LR"(")" + std::wstring(szExePath) + LR"(" )" + args;
@@ -1163,7 +1163,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
         {
           if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
           {
-            TCHAR               szExePath[MAX_PATH];
+            TCHAR               szExePath[MAX_PATH + 2];
             GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
             std::wstring wsPath = std::wstring(szExePath);

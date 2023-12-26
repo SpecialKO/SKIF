@@ -102,8 +102,6 @@ SK_VFS_Steam::WorkshopFile::getRequiredFiles (void)
 
 SK_VFS_Steam::UGC_RootFS SK_VFS_Steam::ugc_root;
 
-using steam_library_t = wchar_t* [MAX_PATH * 2];
-
 //SK_VirtualFS manifest_vfs;
 
 struct {
@@ -344,7 +342,7 @@ SK_Steam_GetApplicationManifestPath (app_record_s *app)
     for (int i = 0; i < steam_libs; i++)
     {
       wchar_t    wszManifest [MAX_PATH + 2] = { };
-      swprintf ( wszManifest, MAX_PATH + 2,
+      swprintf ( wszManifest, MAX_PATH,
                    LR"(%s\steamapps\appmanifest_%u.acf)",
                (wchar_t *)steam_lib_paths [i],
                             app->id );
@@ -375,7 +373,7 @@ SK_Steam_GetLocalConfigPath (SteamId3_t userid)
 {
 
   wchar_t    wszLocalConfig [MAX_PATH + 2] = { };
-  swprintf ( wszLocalConfig, MAX_PATH + 2,
+  swprintf ( wszLocalConfig, MAX_PATH,
                 LR"(%s\userdata\%i\config\localconfig.vdf)",
               SK_GetSteamDir ( ),
                         userid );
@@ -431,7 +429,7 @@ SK_GetManifestContentsForAppID (app_record_s *app)
         library.manifest_vfs;
 
       wchar_t    wszManifest [MAX_PATH + 2] = { };
-      swprintf ( wszManifest, MAX_PATH + 2,
+      swprintf ( wszManifest, MAX_PATH,
                    LR"(appmanifest_%u.acf)",
                             app->id );
       
@@ -948,14 +946,14 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
 
     if (! app_path.empty ())
     {
-      wchar_t    app_root [MAX_PATH] = { };
+      wchar_t    app_root [MAX_PATH + 2] = { };
       wcsncpy_s (app_root, MAX_PATH,
             app->Steam_ManifestPath.c_str (), _TRUNCATE);
 
       PathRemoveFileSpecW (app_root);
       PathAppendW         (app_root, L"common\\");
 
-      wchar_t path [MAX_PATH];
+      wchar_t path [MAX_PATH + 2];
 
       PathCombineW (path, app_root,
                           app_path.c_str ());
@@ -1063,7 +1061,7 @@ SKIF_Steam_isLibrariesSignaled (void)
     // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
     if (library.frame_last_scanned == 0)
     {
-      swprintf (library.path, MAX_PATH + 2,
+      swprintf (library.path, MAX_PATH,
                     LR"(%s\steamapps)",
                 (wchar_t *)steam_lib_paths [i] );
 
@@ -1405,7 +1403,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
       (pApp->specialk.injection.injection.bitness ==
                        InjectionBitness::SixtyFour );
 
-    wchar_t                 wszPathToSelf [MAX_PATH] = { };
+    wchar_t                 wszPathToSelf [MAX_PATH + 2] = { };
     GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
     PathRemoveFileSpecW (   wszPathToSelf);
     PathAppendW         (   wszPathToSelf,

@@ -43,10 +43,10 @@ ModifyPrivilege (
 // Cache of paths that do not change
 struct SKIF_CommonPathsCache {
   struct win_path_s {
-    KNOWNFOLDERID   folderid        = { };
-    const wchar_t*  legacy_env_var  = L"";
-    wchar_t         path [MAX_PATH] = { };
-    volatile LONG __init            =  0;
+    KNOWNFOLDERID   folderid            = { };
+    const wchar_t*  legacy_env_var      = L"";
+    wchar_t         path [MAX_PATH + 2] = { };
+    volatile LONG __init                =  0;
   };
 
   win_path_s my_documents       =

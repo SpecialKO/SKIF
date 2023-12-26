@@ -97,7 +97,7 @@ app_launch_config_s::getExecutableDir (void)
   std::wstring exec_path =
     getExecutableFullPath ( );
 
-  wchar_t  wszExecutableBase [MAX_PATH] = { };
+  wchar_t  wszExecutableBase [MAX_PATH + 2] = { };
   StrCatW (wszExecutableBase, exec_path.c_str ());
 
   PathRemoveFileSpecW (wszExecutableBase);
@@ -161,8 +161,8 @@ app_launch_config_s::getBlacklistFilename (void)
 
   if (isExecutableFileNameValid ( ))
   {
-    wchar_t wszExecutableBase [MAX_PATH] = { };
-    wchar_t wszBlacklistPath  [MAX_PATH] = { };
+    wchar_t wszExecutableBase [MAX_PATH + 2] = { };
+    wchar_t wszBlacklistPath  [MAX_PATH + 2] = { };
 
     StrCatW (wszExecutableBase, executable.c_str ());
     StrCatW (wszBlacklistPath,  full_path.c_str  ());
@@ -276,8 +276,8 @@ app_launch_config_s::getElevatedFilename (void)
 
   if (isExecutableFileNameValid ( ))
   {
-    wchar_t wszExecutableBase [MAX_PATH] = { };
-    wchar_t wszElevatedPath   [MAX_PATH] = { };
+    wchar_t wszExecutableBase [MAX_PATH + 2] = { };
+    wchar_t wszElevatedPath   [MAX_PATH + 2] = { };
 
     StrCatW (wszExecutableBase, executable.c_str ());
     StrCatW (wszElevatedPath,   full_path.c_str  ());
@@ -437,7 +437,7 @@ SKIF_Steam_GetAppStateString (       AppId_t  appid,
                                const wchar_t *wszStateKey )
 {
   std::wstring str ( MAX_PATH, L'\0' );
-  DWORD     len    = MAX_PATH;
+  DWORD        len = MAX_PATH;
   LSTATUS   status =
     RegGetValueW ( HKEY_CURRENT_USER,
       SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",

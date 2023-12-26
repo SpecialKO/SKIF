@@ -1156,7 +1156,7 @@ SKIF_Util_GetControlledFolderAccess (void)
       //   but apparently not on Windows 11 so this check will fail on that OS.
       if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
       {
-        static TCHAR               szExePath[MAX_PATH];
+        static TCHAR               szExePath[MAX_PATH + 2];
         GetModuleFileName   (NULL, szExePath, _countof(szExePath));
 
         if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
@@ -2394,8 +2394,8 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
 {
   IShellLink* psl = nullptr;
 
-  WCHAR szArguments [MAX_PATH];
-  WCHAR szTarget    [MAX_PATH];
+  WCHAR szArguments [MAX_PATH + 2] = { };
+  WCHAR szTarget    [MAX_PATH + 2] = { };
 
   *lpszTarget    = 0; // Assume failure
   *lpszArguments = 0; // Assume failure

@@ -375,14 +375,14 @@ std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
   // It's not really related to MAX_PATH, but I guess it should be enough.
   // Though the docs say "The first null-terminated string stored into the buffer is the current mapping for the device.
   //                      The other null-terminated strings represent undeleted prior mappings for the device."
-  wchar_t devicePath[MAX_PATH] = { 0 };
+  wchar_t devicePath[MAX_PATH + 2] = { 0 };
   std::map<std::wstring, std::wstring> result;
   std::wstring dosPath = L"A:";
 
   for (wchar_t letter = L'A'; letter <= L'Z'; ++letter)
   {
     dosPath[0] = letter;
-    if (QueryDosDeviceW(dosPath.c_str(), devicePath, MAX_PATH)) // may want to properly handle errors instead ... e.g. check ERROR_INSUFFICIENT_BUFFER
+    if (QueryDosDeviceW (dosPath.c_str(), devicePath, MAX_PATH)) // may want to properly handle errors instead ... e.g. check ERROR_INSUFFICIENT_BUFFER
     {
       result[dosPath] = std::wstring(devicePath) + LR"(\)";
     }
@@ -1199,7 +1199,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                 // If some form of injection was detected, add it to the list
                 if (_registry.bProcessIncludeAll || proc.status != 255)
                 {
-                  wchar_t                                wszProcessName [MAX_PATH] = { };
+                  wchar_t                                wszProcessName [MAX_PATH + 2] = { };
                   GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
                   std::wstring friendlyPath = std::wstring(wszProcessName);

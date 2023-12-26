@@ -2143,17 +2143,17 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       std::wstring exeArgs;
 
-      TCHAR pfuName[MAX_PATH],
-            intName[MAX_PATH];
-      DWORD pfuNameLength = sizeof(pfuName),
-            intNameLength = sizeof(intName);
+      TCHAR pfuName        [MAX_PATH + 2] = { },
+            intName        [MAX_PATH + 2] = { };
+      DWORD pfuNameLength = MAX_PATH,
+            intNameLength = MAX_PATH;
 
       // Unused variables
       SID_NAME_USE pfuSnu, intSnu;
-      TCHAR pfuDomainName[MAX_PATH], 
-            intDomainName[MAX_PATH];
-      DWORD pfuDomainNameLength = sizeof(pfuDomainName),
-            intDomainNameLength = sizeof(intDomainName);
+      TCHAR pfuDomainName        [MAX_PATH + 2] = { },
+            intDomainName        [MAX_PATH + 2] = { };
+      DWORD pfuDomainNameLength = MAX_PATH,
+            intDomainNameLength = MAX_PATH;
 
       // For Windows 10+ we rely on modern PowerShell cmdlets as this 
       //   is the easiest way of handling non-English localizations
@@ -2168,7 +2168,7 @@ SKIF_UI_Tab_DrawSettings (void)
       // On older versions we need to rely on 'net', but we also need to retrieve the local names first
       //   as non-English languages has localized user and group names...
       else if (LookupAccountSid (NULL, pfuSID, pfuName, &pfuNameLength, pfuDomainName, &pfuDomainNameLength, &pfuSnu) &&
-          LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
+               LookupAccountSid (NULL, intSID, intName, &intNameLength, intDomainName, &intDomainNameLength, &intSnu))
       {
         exeArgs = LR"(localgroup ")" + std::wstring(pfuName) + LR"(" ")" + std::wstring(intName) + LR"(" /add)";
 

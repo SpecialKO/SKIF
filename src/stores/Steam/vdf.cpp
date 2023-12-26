@@ -899,8 +899,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             if (! cloud_save.second.evaluated_dir.empty ())
               continue;
 
-            wchar_t     wszTestPath [MAX_PATH] = { };
-            wnsprintf ( wszTestPath, MAX_PATH - 1,
+            wchar_t     wszTestPath [MAX_PATH + 2] = { };
+            wnsprintf ( wszTestPath, MAX_PATH,
                           L"%s\\%s", cloud_save.second.root.c_str (),
                                      cloud_save.second.path.c_str () );
 

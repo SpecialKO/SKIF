@@ -41,7 +41,7 @@ extern
 extern
   std::unique_ptr <skValveDataFile> appinfo;
 
-using steam_library_t = wchar_t *[MAX_PATH * 2];
+using steam_library_t = wchar_t [MAX_PATH + 2];
 
 struct SK_Steam_Depot {
   std::string  name; // Has to be queried w/ WebAPI

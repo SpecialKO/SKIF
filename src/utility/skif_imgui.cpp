@@ -705,7 +705,7 @@ SKIF_ImGui_LoadFont ( const std::wstring& filename, float point_size, const ImWc
   auto& io =
     ImGui::GetIO ();
 
-  wchar_t wszFullPath [ MAX_PATH + 2 ] = { };
+  wchar_t wszFullPath [MAX_PATH + 2] = { };
 
   if (GetFileAttributesW (              filename.c_str ()) != INVALID_FILE_ATTRIBUTES)
      wcsncpy_s ( wszFullPath, MAX_PATH, filename.c_str (),
