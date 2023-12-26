@@ -1308,6 +1308,34 @@ SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
     dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
 }
 
+bool
+SKIF_Util_SetClipboardData (const std::wstring_view& data)
+{
+  bool result = false;
+
+  if (OpenClipboard (SKIF_ImGui_hWnd))
+  {
+    HGLOBAL hGlobal = GlobalAlloc (GMEM_MOVEABLE, (data.size() + 1)  * sizeof (wchar_t));
+
+    if (hGlobal)
+    {
+      EmptyClipboard ( );
+
+      memcpy (GlobalLock (hGlobal), data.data(), (data.size() + 1)  * sizeof (wchar_t));
+      GlobalUnlock (hGlobal);
+
+      result = SetClipboardData (CF_UNICODETEXT, hGlobal);
+
+      if (! result)
+        GlobalFree (hGlobal);
+    }
+
+    CloseClipboard ( );
+  }
+
+  return result;
+}
+
 // Effective Power Mode (Windows 10 1809+)
 typedef enum EFFECTIVE_POWER_MODE {
     EffectivePowerModeNone    = -1,   // Used as default value if querying failed

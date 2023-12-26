@@ -710,116 +710,6 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 #endif
 
-#if 0
-      
-  ImGui::PushStyleColor ( ImGuiCol_Text,
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
-  );
-
-  if (! pApp->branches.empty ())
-  {
-    bool bMenuOpen =
-      ImGui::BeginMenu (ICON_FA_CODE_BRANCH "   Software Branches");
-
-    static
-      std::set  < std::string >
-                  used_branches_;
-
-    using branch_ptr_t =
-      std::pair <          std::string*,
-          app_record_s::branch_record_s* >;
-
-    static
-      std::multimap <
-        int64_t, branch_ptr_t
-      > branches;
-
-    // Clear the cache when changing selection
-    if ( (! branches.empty ()) &&
-            branches.begin ()->second.second->parent != pApp )
-    {
-      branches.clear       ();
-      used_branches_.clear ();
-    }
-
-    if (bMenuOpen)
-    {
-      if (branches.empty ())
-      {
-        for ( auto& it : pApp->branches )
-        {
-          if (used_branches_.emplace (it.first).second)
-          {
-            auto& branch =
-              it.second;
-
-            // Sort in descending order
-            branches.emplace (
-              std::make_pair   (-(int64_t)branch.build_id,
-                std::make_pair (
-                  const_cast <std::string                   *> (&it.first),
-                  const_cast <app_record_s::branch_record_s *> (&it.second)
-                )
-              )
-            );
-          }
-        }
-      }
-
-      for ( auto& it : branches )
-      {
-        auto& branch_name =
-              *(it.second.first);
-
-        auto& branch =
-              *(it.second.second);
-
-        ImGui::PushStyleColor (
-          ImGuiCol_Text, branch.pwd_required ?
-                            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
-                                              :
-                            ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
-        );
-
-        bool bExpand =
-          ImGui::BeginMenu (branch_name.c_str ());
-
-        ImGui::PopStyleColor ();
-
-        if (bExpand)
-        {
-          if (! branch.description.empty ())
-          {
-            ImGui::MenuItem ( "Description",
-                        branch.getDescAsUTF8 ().c_str () );
-          }
-
-          ImGui::MenuItem ( "App Build #",
-                              std::to_string (
-                                              branch.build_id
-                                              ).c_str ()
-          );
-
-          if (branch.time_updated > 0)
-          {
-            ImGui::MenuItem ( "Last Update", branch.getTimeAsCStr ().c_str () );
-          }
-
-          ImGui::MenuItem ( "Accessibility", branch.pwd_required ?
-                                    "Private (Password Required)" :
-                                          "Public (No Password)" );
-
-          ImGui::EndMenu ();
-        }
-      }
-
-      ImGui::EndMenu ();
-    }
-  }
-
-  ImGui::PopStyleColor  ( );
-#endif
-
   // Manage [Custom] Game
   if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || SteamShortcutPossible)
   {
@@ -1082,6 +972,132 @@ DrawGameContextMenu (app_record_s* pApp)
                           );
 
     ImGui::EndMenu ( );
+  }
+
+  
+  if (_registry.bDeveloperMode)
+  {
+    ImGui::Separator ( );
+
+    if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
+    {
+      if (! pApp->branches.empty ())
+      {
+        bool bMenuOpen =
+          ImGui::BeginMenu (ICON_FA_CODE_BRANCH "  Branches");
+
+        static
+          std::set  < std::string >
+                      used_branches_;
+
+        using branch_ptr_t =
+          std::pair <          std::string*,
+              app_record_s::branch_record_s* >;
+
+        static
+          std::multimap <
+            int64_t, branch_ptr_t
+          > branches;
+
+        // Clear the cache when changing selection
+        if ( (! branches.empty ()) &&
+                branches.begin ()->second.second->parent != pApp )
+        {
+          branches.clear       ();
+          used_branches_.clear ();
+        }
+
+        if (bMenuOpen)
+        {
+          if (branches.empty ())
+          {
+            for ( auto& it : pApp->branches )
+            {
+              if (used_branches_.emplace (it.first).second)
+              {
+                auto& branch =
+                  it.second;
+
+                // Sort in descending order
+                branches.emplace (
+                  std::make_pair   (-(int64_t)branch.build_id,
+                    std::make_pair (
+                      const_cast <std::string                   *> (&it.first),
+                      const_cast <app_record_s::branch_record_s *> (&it.second)
+                    )
+                  )
+                );
+              }
+            }
+          }
+
+          for ( auto& it : branches )
+          {
+            auto& branch_name =
+                  *(it.second.first);
+
+            auto& branch =
+                  *(it.second.second);
+
+            ImGui::PushStyleColor (
+              ImGuiCol_Text, branch.pwd_required ?
+                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
+                                                  :
+                                ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+            );
+
+            bool bExpand =
+              ImGui::BeginMenu (branch_name.c_str ());
+
+            ImGui::PopStyleColor ();
+
+            if (bExpand)
+            {
+              if (! branch.description.empty ())
+                ImGui::MenuItem ( "Description",
+                            branch.getDescAsUTF8 ().c_str () );
+
+              ImGui::MenuItem ( "App Build #",
+                                  std::to_string (
+                                                  branch.build_id
+                                                  ).c_str ()
+              );
+
+              if (branch.time_updated > 0)
+                ImGui::MenuItem ( "Last Update", branch.getTimeAsCStr ().c_str () );
+
+              ImGui::MenuItem ( "Accessibility", branch.pwd_required ?
+                                        "Private (password required)" :
+                                              "Public" );
+
+              ImGui::EndMenu ();
+            }
+          }
+
+          ImGui::EndMenu ();
+        }
+
+        ImGui::Separator ( );
+      }
+
+      // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
+      if (ImGui::Selectable ("Copy App ID"))
+      {
+        switch (pApp->store)
+        {
+        case app_record_s::Store::Epic:
+          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->Epic_AppName));
+          break;
+        case app_record_s::Store::Xbox:
+          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->Xbox_PackageName));
+          break;
+        default:
+          SKIF_Util_SetClipboardData (std::to_wstring (pApp->id));
+        }
+      }
+
+      ImGui::EndMenu ();
+    }
   }
 }
 
