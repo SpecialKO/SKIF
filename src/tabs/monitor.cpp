@@ -1072,6 +1072,8 @@ SKIF_UI_Tab_DrawMonitor (void)
                           L"dxgi.dll",
                           L"d3d11.dll",
                           L"d3d9.dll",
+                          L"d3d8.dll",
+                          L"ddraw.dll",
                           L"dinput8.dll",
                           L"opengl32.dll"
                         };
