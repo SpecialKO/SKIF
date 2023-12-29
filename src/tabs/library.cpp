@@ -5044,7 +5044,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         bool bProc = SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
-                           launchConfig->launch_options.c_str(),
+                           cmdLine.c_str(),
                         (! launchConfig->working_dir.empty())
                              ? launchConfig->working_dir.c_str()
                              : launchConfig->getExecutableDir().c_str(),
