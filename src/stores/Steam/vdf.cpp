@@ -249,11 +249,16 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           }
         }
 
+        // If we're dealing with an unrecognized app, process it into a dummy object
         if (! pAppRecord)
         {
           static app_record_s _non_steam (appid);
           pAppRecord = &_non_steam;
         }
+
+        // Skip already processed apps
+        else if (pAppRecord->processed)
+          break;
 
         static DWORD dwSingleThread  = GetCurrentThreadId ();
         assert      (dwSingleThread == GetCurrentThreadId ());
@@ -292,10 +297,13 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (pAppRecord);
 
-        // Strip double backslashes characters from the string
         try
         {
-          pAppRecord->install_dir = std::regex_replace(pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
+          // Replace forward slashes with backslashes
+          std::replace (pAppRecord->install_dir.begin(), pAppRecord->install_dir.end(), '/', '\\');
+
+          // Strip double backslashes characters from the string
+          pAppRecord->install_dir = std::regex_replace (pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
         }
         catch (const std::exception& e)
         {
@@ -546,17 +554,18 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                  launch.working_dir [0] == L'.'  ||
                  launch.working_dir [0] == L'\0' )
             {
-              launch.working_dir =
-                launch.getExecutableDir ( );
+              launch.working_dir.clear();
+
+              //launch.working_dir =
+              //  launch.getExecutableDir ( ); // Returns NULL at this point
             }
           }
 
           // Fix working directories
           // TODO: Test this out properly with games with different working directories set!
           //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
-          if (launch.working_dir != launch.getExecutableDir ( ) &&
-              launch.working_dir != pAppRecord->install_dir)
-              launch.working_dir  = pAppRecord->install_dir + launch.working_dir;
+          if (! launch.working_dir.empty())
+              launch.working_dir = std::wstring (pAppRecord->install_dir + LR"(\)" + launch.working_dir + L"\0\0");
 
           // Flag the launch config to be added back
           _launches.push_back (launch);
@@ -587,9 +596,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           { "WinAppDataLocalLow",    _path_cache.app_data_local_low.path    },
           { "WinAppDataRoaming",     _path_cache.app_data_roaming.path      },
           { "WinSavedGames",         _path_cache.win_saved_games.path       },
-          { "App Install Directory", pAppRecord->install_dir               },
-          { "gameinstall",           pAppRecord->install_dir               },
-          { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                 }
+          { "App Install Directory", pAppRecord->install_dir                },
+          { "gameinstall",           pAppRecord->install_dir                },
+          { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                  }
         };
 
         std::wstring account_id_str   = L"anonymous";
@@ -928,7 +937,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
               if (launch_cfg.second.isExecutableFileNameValid ( ))
               {
-                launch_cfg.second.executable_path = pAppRecord->install_dir;
+                launch_cfg.second.executable_path = launch_cfg.second.install_dir;
                 launch_cfg.second.executable_path.append (L"\\");
                 launch_cfg.second.executable_path.append (launch_cfg.second.getExecutableFileName ( ));
               }

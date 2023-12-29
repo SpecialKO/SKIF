@@ -953,7 +953,7 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
       PathRemoveFileSpecW (app_root);
       PathAppendW         (app_root, L"common\\");
 
-      wchar_t path [MAX_PATH + 2];
+      wchar_t path [MAX_PATH + 2] = { };
 
       PathCombineW (path, app_root,
                           app_path.c_str ());
@@ -1174,11 +1174,13 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   // Parse appinfo data for the current game
-  skValveDataFile::appinfo_s
-                  *pAppInfo =
+  //skValveDataFile::appinfo_s
+  //                *pAppInfo =
+
+  if (! pApp->processed)
     appinfo->getAppInfo ( pApp->id );
 
-  UNREFERENCED_PARAMETER (pAppInfo);
+  //UNREFERENCED_PARAMETER (pAppInfo);
 
   int firstValidFound = -1;
 
