@@ -117,9 +117,9 @@ struct app_record_s {
   enum class Store {
     Steam       = 0x1,   // Initial commit
     GOG         = 0x2,   // Sep 17, 2021
-    Other       = 0x3,   // Oct 2, 2021 - SKIF custom games
+    Other       = 0x3,   // Oct  2, 2021 - SKIF custom games
     Epic        = 0x4,   // Dec 27, 2021
-    Xbox        = 0x5,   // Mar 6, 2022
+    Xbox        = 0x5,   // Mar  6, 2022
     Unspecified = 0xffff
   };
 

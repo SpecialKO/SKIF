@@ -37,7 +37,7 @@ std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_
 // Struct used to hold monitored data populated by worker threads
 struct SKIF_Util_CreateProcess_s {
   uint32_t            id            = 0; // App ID
-//app_record_s::Store store         = app_record_s::Store::Steam;
+  int                 store_id      = -1;
   std::atomic<HANDLE> hWorkerThread = INVALID_HANDLE_VALUE; // Holds a handle to SKIF's worker thread servicing the request
   std::atomic<HANDLE> hProcess      = INVALID_HANDLE_VALUE; // Holds a handle to the spawned process
 };

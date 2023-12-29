@@ -79,6 +79,7 @@ bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 bool                   openedGameContextMenu = false;
 
+// Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
 const float fTintMin   = 0.75f;
@@ -2480,6 +2481,65 @@ RefreshRunningApps (void)
 
     lastGameRefresh = SKIF_Util_timeGetTime();
   }
+
+  
+  // Instant Play monitoring...
+
+  for (auto& monitored_app : iPlayCache)
+  {
+    if (monitored_app.id != 0)
+    {
+      HANDLE hProcess      = monitored_app.hProcess.load();
+      HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
+
+      for (auto& app : g_apps)
+      {
+        if (monitored_app.id       ==      app.second.id &&
+            monitored_app.store_id == (int)app.second.store)
+        {
+          app.second._status.running = 1;
+
+          // Monitor the external process primarily
+          if (hProcess != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
+            {
+              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
+              app.second._status.running = 0;
+
+              monitored_app.id       =  0;
+              monitored_app.store_id = -1;
+
+              CloseHandle (hProcess);
+              hProcess = INVALID_HANDLE_VALUE;
+              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+
+              // Clean up these as well if they haven't been done so yet
+              if (hWorkerThread != INVALID_HANDLE_VALUE)
+              {
+                CloseHandle(hWorkerThread);
+                hWorkerThread = INVALID_HANDLE_VALUE;
+                monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+              }
+            }
+          }
+          
+          // If we cannot monitor the game process, monitor the worker thread
+          if (hWorkerThread != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
+            {
+              PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
+
+              CloseHandle (hWorkerThread);
+              hWorkerThread = INVALID_HANDLE_VALUE;
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 
@@ -3849,55 +3909,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
                  ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
-  // Process Instant Play monitoring...
-
-  for (auto& monitored_app : iPlayCache)
-  {
-    if (monitored_app.id != 0)
-    {
-      HANDLE hProcess      = monitored_app.hProcess.load();
-      HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
-
-      for (auto& app : g_apps)
-      {
-        if (app.second.store == app_record_s::Store::Steam && app.second.id == monitored_app.id)
-        {
-          app.second._status.running = 1;
-
-          // Monitor the external process primarily
-          if (hProcess != INVALID_HANDLE_VALUE)
-          {
-            if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
-            {
-              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " has ended!";
-              app.second._status.running = 0;
-
-              monitored_app.id = 0;
-
-              CloseHandle (hProcess);
-              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
-
-              // Clean up these as well if they haven't been done so yet
-              CloseHandle (hWorkerThread);
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
-            }
-          }
-          
-          if (hWorkerThread != INVALID_HANDLE_VALUE)
-          {
-            if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
-            {
-              PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " has ended!";
-
-              CloseHandle (hWorkerThread);
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
-            }
-          }
-        }
-      }
-    }
-  }
-
   // Start populating the whole list
 
   for (auto& app : g_apps)
@@ -4867,8 +4878,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           if (item.id == 0)
           {
-            proc     = &item;
-            proc->id = pApp->id;
+            proc           = &item;
+            proc->id       = pApp->id;
+            proc->store_id = (int)pApp->store;
             break;
           }
         }
