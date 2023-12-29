@@ -560,7 +560,9 @@ SKIF_Util_CreateProcess (
   uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
     {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcess");
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
+
+      PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
 
       thread_s* _data = static_cast<thread_s*>(var);
       
@@ -572,12 +574,12 @@ SKIF_Util_CreateProcess (
   PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
 #endif
 
-      PROCESS_INFORMATION proc = { };
-      STARTUPINFO supinfo = { };
-      SecureZeroMemory(&supinfo, sizeof(STARTUPINFO));
-      supinfo.cb = sizeof (STARTUPINFO);
+      PROCESS_INFORMATION procinfo = { };
+      STARTUPINFO         supinfo  = { };
+      SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
+      supinfo.cb                   = sizeof (STARTUPINFO);
       
-      LPVOID lpEnvBlock = nullptr;
+      LPVOID lpEnvBlock            = nullptr;
       std::wstring wsEnvBlock;
       
       // Create a clear and empty environment block for the current user
@@ -603,13 +605,16 @@ SKIF_Util_CreateProcess (
           const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
           _data->directory.c_str(),
           &supinfo,
-          &proc))
+          &procinfo))
       {
         // We should pass the process handle outwards
-        _data->proc->hProcess.store (proc.hProcess);
+        if (_data->proc != nullptr)
+          _data->proc->hProcess.store (procinfo.hProcess);
+        else
+          CloseHandle (procinfo.hProcess);
 
         // Close the external thread handle as we do not use it for anything
-        CloseHandle (proc.hThread);
+        CloseHandle (procinfo.hThread);
       }
 
       else {
@@ -619,26 +624,21 @@ SKIF_Util_CreateProcess (
       // Free up the memory we allocated
       delete _data;
 
-      _endthreadex (0x0);
+      PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
 
       return 0;
     }, data, 0x0, nullptr);
 
-  /*
-  // Wait for the process to finish
-  if (WAIT_OBJECT_0 == WaitForSingleObject (reinterpret_cast<HANDLE>(hThread), 1000))
-    ret = data->hProcess;
-  else
-    PLOG_VERBOSE << "Failed waiting on the thread handle: " << SKIF_Util_GetErrorAsWStr ( );
-  */
+  bool threadCreated = (hWorkerThread != 0);
 
-  if (hWorkerThread != 0)
+  if (threadCreated && proc != nullptr)
     proc->hWorkerThread.store (reinterpret_cast<HANDLE>(hWorkerThread));
-  
-  // Close the thread handle
-  //CloseHandle (reinterpret_cast<HANDLE>(hThread));
+  else if (threadCreated) // We don't have a proc structure, so the handle is unneeded
+    CloseHandle (reinterpret_cast<HANDLE>(hWorkerThread));
+  else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+    delete data;
 
-  return (hWorkerThread != 0);
+  return threadCreated;
 }
 
 
