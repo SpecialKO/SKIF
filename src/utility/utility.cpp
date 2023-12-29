@@ -535,11 +535,11 @@ SKIF_Util_OpenURI (
 
 bool
 SKIF_Util_CreateProcess (
-  const std::wstring_view& path,
-               LPCWSTR     parameters,
-               LPCWSTR     directory,
+                     const std::wstring_view& path,
+                                     LPCWSTR  parameters,
+                                     LPCWSTR  directory,
         std::map<std::wstring, std::wstring>* env,
-        SKIF_Util_CreateProcess_s*            proc)
+                   SKIF_Util_CreateProcess_s* proc)
 {
   struct thread_s {
     std::wstring path          = L"";
@@ -562,17 +562,17 @@ SKIF_Util_CreateProcess (
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
 
+      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
 
       thread_s* _data = static_cast<thread_s*>(var);
       
-#if 1
-  PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
-  PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
-  PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
-  PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
-  PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
-#endif
+      PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
+      PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
+      PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
+      PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
+      PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
 
       PROCESS_INFORMATION procinfo = { };
       STARTUPINFO         supinfo  = { };
@@ -607,19 +607,17 @@ SKIF_Util_CreateProcess (
           &supinfo,
           &procinfo))
       {
-        // We should pass the process handle outwards
         if (_data->proc != nullptr)
           _data->proc->hProcess.store (procinfo.hProcess);
-        else
+        else // We don't have a proc structure, so the handle is unneeded
           CloseHandle (procinfo.hProcess);
 
         // Close the external thread handle as we do not use it for anything
         CloseHandle (procinfo.hThread);
       }
 
-      else {
+      else
         PLOG_VERBOSE << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr ( );
-      }
 
       // Free up the memory we allocated
       delete _data;
