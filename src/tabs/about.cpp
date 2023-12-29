@@ -423,8 +423,11 @@ SKIF_UI_Tab_DrawAbout (void)
   else
     ImGui::SetCursorPosY (fY4);
   */
+  
+  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
+  if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
+    ImGui::NewLine        ( );
 
-  ImGui::NewLine          ( );
   ImGui::NewLine          ( );
   
   ImGui::PushStyleColor   (
