@@ -567,12 +567,6 @@ SKIF_Util_CreateProcess (
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
 
       thread_s* _data = static_cast<thread_s*>(var);
-      
-      PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
-      PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
-      PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
-      PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
-      PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
 
       PROCESS_INFORMATION procinfo = { };
       STARTUPINFO         supinfo  = { };
@@ -594,6 +588,12 @@ SKIF_Util_CreateProcess (
 
       // Destroy the block once we are done with it
       DestroyEnvironmentBlock (lpEnvBlock);
+      
+    //PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
+      PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
+      PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
+      PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
+      PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
 
       if (CreateProcessW (
           _data->path.c_str(),

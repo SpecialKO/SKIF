@@ -4860,12 +4860,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Launch Steam game (Instant Play)
       else if (pApp->store == app_record_s::Store::Steam && launchInstant)
       {
-        bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
-
         std::map<std::wstring, std::wstring> env;
 
         PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
         env.emplace (L"SteamAppId", std::to_wstring (pApp->id));
+
+        bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
 
         if (! steamOverlay)
         {
@@ -4894,12 +4894,12 @@ SKIF_UI_Tab_DrawLibrary (void)
                               proc
         );
 
-        if (bProc)
-          PLOG_DEBUG << "Process creation was successful!";
-        else {
-          PLOG_DEBUG << "Process creation failed?!";
+        if (! bProc)
+        {
+          PLOG_DEBUG << "Process creation failed ?!";
 
-          proc->id = 0;
+          proc->id       =  0;
+          proc->store_id = -1;
         }
 
         std::wstring launchOptions  = launchConfig->getLaunchOptions();
@@ -5001,6 +5001,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
         }
 
+        /* Legacy:
         if (! steamAppId.empty ( ))
         {
           PLOG_INFO << "Using Steam App ID : " << steamAppId;
@@ -5012,6 +5013,52 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (! steamAppId.empty ( ))
           SetEnvironmentVariable (L"SteamAppId",  NULL);
+        */
+
+        std::map<std::wstring, std::wstring> env;
+
+        if (! steamAppId.empty ( ))
+        {
+          PLOG_DEBUG << "Using Steam App ID : " << steamAppId;
+          env.emplace       (L"SteamAppId",        steamAppId);
+          
+          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (std::stoi (steamAppId), SKIF_Steam_GetCurrentUser (true));
+
+          if (! steamOverlay)
+          {
+            PLOG_DEBUG << "Disabling the Steam Overlay...";
+            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
+          }
+        }
+
+        SKIF_Util_CreateProcess_s* proc = nullptr;
+        for (auto& item : iPlayCache)
+        {
+          if (item.id == 0)
+          {
+            proc           = &item;
+            proc->id       = pApp->id;
+            proc->store_id = (int)pApp->store;
+            break;
+          }
+        }
+
+        bool bProc = SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+                           launchConfig->launch_options.c_str(),
+                        (! launchConfig->working_dir.empty())
+                             ? launchConfig->working_dir.c_str()
+                             : launchConfig->getExecutableDir().c_str(),
+                              &env,
+                              proc
+        );
+
+        if (! bProc)
+        {
+          PLOG_DEBUG << "Process creation failed ?!";
+
+          proc->id       =  0;
+          proc->store_id = -1;
+        }
 
         SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, launchConfig->getLaunchOptions(), launchConfig->working_dir.c_str(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
       }
