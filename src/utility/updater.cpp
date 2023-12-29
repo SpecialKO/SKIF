@@ -24,7 +24,7 @@ SKIF_Updater::SKIF_Updater (void)
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
   
-  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Clearing out old installers...
     ClearOldUpdates ( );
@@ -58,7 +58,7 @@ SKIF_Updater::SKIF_Updater (void)
       bool SKIF_NoInternet = false;
 
       // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
-      while (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit)
+      while (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,

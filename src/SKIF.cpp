@@ -302,28 +302,31 @@ void
 SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
 {
   _Signal.Start =
-    StrStrIW (lpCmdLine, L"Start")      != NULL;
+    StrStrIW (lpCmdLine, L"Start")       != NULL;
 
   _Signal.Temporary =
-    StrStrIW (lpCmdLine, L"Temp")       != NULL;
+    StrStrIW (lpCmdLine, L"Temp")        != NULL;
 
   _Signal.Stop =
-    StrStrIW (lpCmdLine, L"Stop")       != NULL;
+    StrStrIW (lpCmdLine, L"Stop")        != NULL;
 
   _Signal.Quit =
-    StrStrIW (lpCmdLine, L"Quit")       != NULL;
+    StrStrIW (lpCmdLine, L"Quit")        != NULL;
 
   _Signal.Minimize =
-    StrStrIW (lpCmdLine, L"Minimize")   != NULL;
+    StrStrIW (lpCmdLine, L"Minimize")    != NULL;
 
   _Signal.AddSKIFGame =
-    StrStrIW (lpCmdLine, L"AddGame=")   != NULL;
+    StrStrIW (lpCmdLine, L"AddGame=")    != NULL;
 
   _Signal.LauncherURI =
-    StrStrIW (lpCmdLine, L"SKIF_URI=") != NULL;
+    StrStrIW (lpCmdLine, L"SKIF_URI=")   != NULL;
 
   _Signal.CheckForUpdates =
-    StrStrIW (lpCmdLine, L"RunUpdater") != NULL;
+    StrStrIW (lpCmdLine, L"RunUpdater")  != NULL;
+
+  _Signal.ServiceMode =
+    StrStrIW (lpCmdLine, L"ServiceMode") != NULL;
 
   // Both AddSKIFGame, SKIF_URI, and Launcher can include .exe in
   //   the argument so only set Launcher if the others are false.
@@ -727,7 +730,7 @@ SKIF_Startup_ProxyCommandLineArguments (void)
     if (SKIF_Notify_hWnd != NULL && _Signal._RunningInstance == SKIF_Notify_hWnd)
     {
       PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTARTEXIT : WM_SKIF_START, 0x0, 0x0);
-      _Signal.Quit = false; // Disallow using Start and Quit at the same time
+      _Signal.Quit = false; // Disallow using Start and Quit at the same time, but only if Temp is not being used
     }
     else
       PostMessage (_Signal._RunningInstance, (_Signal.Temporary) ? WM_SKIF_TEMPSTART     : WM_SKIF_START, 0x0, 0x0);
@@ -1395,7 +1398,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_nCmdShow = nCmdShow;
 
   // Check if Controlled Folder Access is enabled
-  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess())
     {
@@ -1532,6 +1535,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //   let us start in small mode
       //if (_Signal.Start)
       //  _registry.bServiceMode = true;
+
+      if (_Signal.ServiceMode)
+        _registry.bServiceMode = true;
       
       // If we are intending to quit, let us
       //   start in small mode so that the
@@ -1638,7 +1644,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
 
   // Initialize ImGui fonts
-  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit) );
+  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
@@ -1647,7 +1653,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   bool repositionToCenter = false;
 
   // Do final checks and actions if we are expected to live longer than a few seconds
-  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit)
+  if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Register HDR toggle hotkey (if applicable)
     SKIF_Util_RegisterHotKeyHDRToggle ( );
@@ -2206,8 +2212,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             HistoryPopup = PopupState_Open;
 
           // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
-          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit)
-          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit = false;
+          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
 
             // Register HDR toggle hotkey (if applicable)
             SKIF_Util_RegisterHotKeyHDRToggle ( );

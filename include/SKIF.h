@@ -118,6 +118,7 @@ struct SKIF_Signals { // Used for command line arguments
   BOOL Launcher             = FALSE;
   BOOL LauncherURI          = FALSE;
   BOOL CheckForUpdates      = FALSE;
+  BOOL ServiceMode          = FALSE;
 
   // Helper variables
   HWND _RunningInstance     = NULL;
