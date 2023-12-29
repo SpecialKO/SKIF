@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <DbgHelp.h>
 #include <gdiplus.h>
+#include <UserEnv.h>
 
 #pragma comment (lib, "Gdiplus.lib")
 
@@ -532,6 +533,114 @@ SKIF_Util_OpenURI (
   return ret;
 }
 
+bool
+SKIF_Util_CreateProcess (
+  const std::wstring_view& path,
+               LPCWSTR     parameters,
+               LPCWSTR     directory,
+        std::map<std::wstring, std::wstring>* env,
+        SKIF_Util_CreateProcess_s*            proc)
+{
+  struct thread_s {
+    std::wstring path          = L"";
+    std::wstring parameters    = L"";
+    std::wstring directory     = L"";
+    std::map<std::wstring, std::wstring> env;
+    SKIF_Util_CreateProcess_s* proc;
+  };
+  
+  thread_s* data = new thread_s;
+
+  data->path       = path;
+  data->parameters = parameters;
+  data->directory  = directory;
+  data->env        = *env;
+  data->proc       = proc;
+
+  uintptr_t hWorkerThread =
+    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+    {
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcess");
+
+      thread_s* _data = static_cast<thread_s*>(var);
+      
+#if 1
+  PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
+  PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
+  PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
+  PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
+  PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
+#endif
+
+      PROCESS_INFORMATION proc = { };
+      STARTUPINFO supinfo = { };
+      SecureZeroMemory(&supinfo, sizeof(STARTUPINFO));
+      supinfo.cb = sizeof (STARTUPINFO);
+      
+      LPVOID lpEnvBlock = nullptr;
+      std::wstring wsEnvBlock;
+      
+      // Create a clear and empty environment block for the current user
+      CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
+
+      // Convert to a nicely stored wstring
+      wsEnvBlock = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
+
+      // Add any custom variables to it
+      for (auto& env_var : _data->env)
+        wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
+
+      // Destroy the block once we are done with it
+      DestroyEnvironmentBlock (lpEnvBlock);
+
+      if (CreateProcessW (
+          _data->path.c_str(),
+          const_cast<wchar_t *>(_data->parameters.c_str()),
+          NULL,
+          NULL,
+          FALSE,
+          NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
+          const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
+          _data->directory.c_str(),
+          &supinfo,
+          &proc))
+      {
+        // We should pass the process handle outwards
+        _data->proc->hProcess.store (proc.hProcess);
+
+        // Close the external thread handle as we do not use it for anything
+        CloseHandle (proc.hThread);
+      }
+
+      else {
+        PLOG_VERBOSE << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr ( );
+      }
+
+      // Free up the memory we allocated
+      delete _data;
+
+      _endthreadex (0x0);
+
+      return 0;
+    }, data, 0x0, nullptr);
+
+  /*
+  // Wait for the process to finish
+  if (WAIT_OBJECT_0 == WaitForSingleObject (reinterpret_cast<HANDLE>(hThread), 1000))
+    ret = data->hProcess;
+  else
+    PLOG_VERBOSE << "Failed waiting on the thread handle: " << SKIF_Util_GetErrorAsWStr ( );
+  */
+
+  if (hWorkerThread != 0)
+    proc->hWorkerThread.store (reinterpret_cast<HANDLE>(hWorkerThread));
+  
+  // Close the thread handle
+  //CloseHandle (reinterpret_cast<HANDLE>(hThread));
+
+  return (hWorkerThread != 0);
+}
+
 
 // Windows
 
@@ -546,6 +655,16 @@ SKIF_Util_GetCurrentProcess (void)
          handle = GetCurrentProcess ( );
   return handle;
 }
+
+// Returns a pseudo handle interpreted as the access token associated with a process
+HANDLE
+SKIF_Util_GetCurrentProcessToken (void)
+{
+  // A pseudo handle is a special constant, currently (HANDLE)-4, that is interpreted as the current process access token.
+  // https://github.com/microsoft/win32metadata/issues/436
+  return (HANDLE)(LONG_PTR) -4;
+}
+
 
 using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
 using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);
@@ -1332,6 +1451,65 @@ SKIF_Util_SetClipboardData (const std::wstring_view& data)
 
     CloseClipboard ( );
   }
+
+  return result;
+}
+
+std::wstring
+SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varname, const std::wstring& varvalue)
+{
+  std::map<std::wstring, std::wstring> env;
+  const wchar_t* currentEnv = (const wchar_t*)pEnvBlock;
+  std::wstring result;
+
+  // parse the current block into a map of key/value pairs
+  while (*currentEnv)
+  {
+    std::wstring keyValue = currentEnv;
+    std::wstring key;
+    std::wstring value;
+
+    size_t pos = keyValue.find_last_of(L'=');
+    if (pos != std::wstring::npos)
+    {
+        key   = keyValue.substr(0, pos);
+        value = keyValue; // entire string
+    }
+    else
+    {
+        // ??? no '=' sign, just save it off
+        key   = keyValue;
+        value = keyValue;
+    }
+    value += L'\0'; // reappend the null char
+
+    env[SKIF_Util_ToLowerW (key)] = value;
+    currentEnv                  += keyValue.size() + 1;
+  }
+
+  if (! varname.empty())
+  {
+    if (varvalue.empty())
+      env.erase (SKIF_Util_ToLowerW (varname));
+    else
+      env[       SKIF_Util_ToLowerW (varname)] = varname + L'=' + varvalue + L'\0';
+  }
+
+  for (auto& item : env)
+  {
+    OutputDebugString(L"key: ");
+    OutputDebugString(item.first.c_str());
+    OutputDebugString(L" - value: ");
+    OutputDebugString(item.second.c_str());
+    OutputDebugString(L"\n");
+  }
+
+  // serialize the map into the buffer we just allocated
+  for (auto& item : env)
+    result += item.second;
+
+  result += L'\0';
+  //auto ptr = result.c_str();
 
   return result;
 }

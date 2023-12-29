@@ -5,6 +5,8 @@
 #include <WinInet.h>
 #include <atlbase.h>
 #include <Tlhelp32.h>
+#include <map>
+#include <atomic>
 
 #pragma comment (lib, "wininet.lib")
 
@@ -32,13 +34,23 @@ std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_
 
 // ShellExecute
 
+// Struct used to hold monitored data populated by worker threads
+struct SKIF_Util_CreateProcess_s {
+  uint32_t            id            = 0; // App ID
+//app_record_s::Store store         = app_record_s::Store::Steam;
+  std::atomic<HANDLE> hWorkerThread = INVALID_HANDLE_VALUE; // Holds a handle to SKIF's worker thread servicing the request
+  std::atomic<HANDLE> hProcess      = INVALID_HANDLE_VALUE; // Holds a handle to the spawned process
+};
+
 HINSTANCE       SKIF_Util_ExplorePath                 (const std::wstring_view& path);
-HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
+HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb       = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
+bool            SKIF_Util_CreateProcess               (const std::wstring_view& path, LPCWSTR parameters = NULL, LPCWSTR directory = NULL, std::map<std::wstring, std::wstring>* env = nullptr, SKIF_Util_CreateProcess_s* proc = nullptr);
 
 
 // Windows
 
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
+HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
 std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
@@ -61,6 +73,7 @@ int             SKIF_Util_RegisterApp                 (bool force   = false);
 bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
+std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varname, const std::wstring& varvalue);
 
 
 // Power Mode

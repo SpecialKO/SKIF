@@ -77,7 +77,9 @@ bool                   launchGame        = false;
 bool                   launchGalaxyGame  = false;
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
-bool                   openedGameContextMenu   = false;
+bool                   openedGameContextMenu = false;
+
+SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
 const float fTintMin   = 0.75f;
       float fTint      = 1.0f;
@@ -104,7 +106,6 @@ extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
-
 
 #define _WIDTH   (415.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
 #define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
@@ -3340,7 +3341,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 //#define _WRITE_APPID_INI
 #ifdef _WRITE_APPID_INI 
-    if ( appinfo != nullptr && pApp->store == app_record_s::Store::Steam)
+    if ( appinfo != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->processed)
     {
       skValveDataFile::appinfo_s *pAppInfo =
         appinfo->getAppInfo ( pApp->id );
@@ -3848,6 +3849,54 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
                  ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
+  // Process Instant Play monitoring...
+
+  for (auto& monitored_app : iPlayCache)
+  {
+    if (monitored_app.id != 0)
+    {
+      HANDLE hProcess      = monitored_app.hProcess.load();
+      HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
+
+      for (auto& app : g_apps)
+      {
+        if (app.second.store == app_record_s::Store::Steam && app.second.id == monitored_app.id)
+        {
+          app.second._status.running = 1;
+
+          // Monitor the external process primarily
+          if (hProcess != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
+            {
+              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " has ended!";
+              app.second._status.running = 0;
+
+              monitored_app.id = 0;
+
+              CloseHandle (hProcess);
+              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+
+              // Clean up these as well if they haven't been done so yet
+              CloseHandle (hWorkerThread);
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
+          
+          if (hWorkerThread != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
+            {
+              PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " has ended!";
+
+              CloseHandle (hWorkerThread);
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Start populating the whole list
 
@@ -4800,38 +4849,46 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Launch Steam game (Instant Play)
       else if (pApp->store == app_record_s::Store::Steam && launchInstant)
       {
-        bool steamOverlay        = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
-        bool tmpSKIFOverlayState = _registry._LoadedSteamOverlay;
+        bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
+
+        std::map<std::wstring, std::wstring> env;
 
         PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
-        SetEnvironmentVariable (L"SteamAppId", std::to_wstring(pApp->id).c_str());
+        env.emplace (L"SteamAppId", std::to_wstring (pApp->id));
 
         if (! steamOverlay)
         {
           PLOG_DEBUG << "Disabling the Steam Overlay...";
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-          // We need to set this to false to prevent SKIF_Util_OpenURI() from removing the env variable
-          _registry._LoadedSteamOverlay = false;
+          env.emplace (L"SteamNoOverlayUIDrawing", L"1");
         }
 
-        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-        SKIF_Util_OpenURI (launchConfig->getExecutableFullPath ( ),
-                           SW_SHOWDEFAULT, L"OPEN",
+        SKIF_Util_CreateProcess_s* proc = nullptr;
+        for (auto& item : iPlayCache)
+        {
+          if (item.id == 0)
+          {
+            proc     = &item;
+            proc->id = pApp->id;
+            break;
+          }
+        }
+
+        bool bProc = SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
                            launchConfig->launch_options.c_str(),
-                           launchConfig->working_dir.c_str(),
-                           SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS
+                        (! launchConfig->working_dir.empty())
+                             ? launchConfig->working_dir.c_str()
+                             : launchConfig->getExecutableDir().c_str(),
+                              &env,
+                              proc
         );
 
-        if (! steamOverlay)
-        {
-          // Restore the original state after the SKIF_Util_OpenURI() call
-          _registry._LoadedSteamOverlay = tmpSKIFOverlayState;
+        if (bProc)
+          PLOG_DEBUG << "Process creation was successful!";
+        else {
+          PLOG_DEBUG << "Process creation failed?!";
 
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+          proc->id = 0;
         }
-
-        SetEnvironmentVariable (L"SteamAppId",  NULL);
 
         std::wstring launchOptions  = launchConfig->getLaunchOptions();
                      launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
@@ -4842,7 +4899,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
           launchConfig->getExecutableFullPath ( ),
           launchOptions,
-          launchConfig->working_dir.c_str(),
+       (! launchConfig->working_dir.empty())
+            ? launchConfig->working_dir.c_str()
+            : launchConfig->getExecutableDir().c_str(),
           launchConfig->getExecutableFullPath ( ),
           (! localInjection && usingSK));
       }
@@ -5118,6 +5177,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         AddGamePopup = PopupState_Opened;
     }
 
+    // TODO: Go through and correct the buf_size of all ImGui::InputText to include the null terminator
     static char charName     [MAX_PATH + 2] = { },
                 charPath     [MAX_PATH + 2] = { },
                 charArgs     [     500 + 2] = { };
@@ -5220,7 +5280,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 502, ImVec2(0,0), ImGuiInputTextFlags_None);
     SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
@@ -5325,7 +5385,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     static char charName     [MAX_PATH + 2] = { },
                 charPath     [MAX_PATH + 2] = { },
                 charArgs     [     500 + 2] = { };
-                //charProfile  [MAX_PATH];
     static bool error = false;
 
     if (ModifyGamePopup == PopupState_Open)
@@ -5342,7 +5401,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       strncpy (charName, name.c_str( ), MAX_PATH);
       strncpy (charPath, pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
       strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].getLaunchOptions()).c_str(), 500);
-      //strncpy (charProfile, SK_WideCharToUTF8 (SK_FormatStringW(LR"(%s\Profiles\%s)", _path_cache.specialk_userdata, pApp->specialk.profile_dir.c_str())).c_str(), MAX_PATH);
       
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");
@@ -5439,7 +5497,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::SetCursorPosX (fModifyGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 500, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 502, ImVec2(0, 0), ImGuiInputTextFlags_None);
     SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
@@ -5595,7 +5653,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (app.second.id == SKIF_STEAM_APPID)
           continue;
 
-        if (app.second.processed == true)
+        if (app.second.processed)
           continue;
         
         PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
