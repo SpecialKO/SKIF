@@ -75,7 +75,7 @@ int             SKIF_Util_RegisterApp                 (bool force   = false);
 bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
-std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varname, const std::wstring& varvalue);
+std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
 
 
 // Power Mode

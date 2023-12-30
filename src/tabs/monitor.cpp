@@ -369,7 +369,7 @@ typedef struct _PROCESS_EXTENDED_BASIC_INFORMATION {
 
 
 
-// CC BY-SA 4.0: https://stackoverflow.com/a/59908355/15133327
+// CC BY-SA 4.0: https://stackoverflow.com/a/59908355
 std::map<std::wstring, std::wstring> GetDosPathDevicePathMap()
 {
   // It's not really related to MAX_PATH, but I guess it should be enough.
@@ -417,7 +417,7 @@ typedef struct _OBJECT_TYPE_INFORMATION_V2 {
   ULONG DefaultNonPagedPoolCharge;
 } OBJECT_TYPE_INFORMATION_V2, *POBJECT_TYPE_INFORMATION_V2;
 
-// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745
 typedef struct _OBJECT_TYPES_INFORMATION {
   LONG NumberOfTypes;
 } OBJECT_TYPES_INFORMATION, *POBJECT_TYPES_INFORMATION;
@@ -466,12 +466,12 @@ bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
   return (path.find("SteamApps") != std::string::npos);
 }
 
-// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745
 //               https://jadro-windows.cz/download/ntqueryobject.zip
 #define ALIGN_DOWN(Length, Type)       ((ULONG)(Length) & ~(sizeof(Type) - 1))
 #define ALIGN_UP(Length, Type)         (ALIGN_DOWN(((ULONG)(Length) + sizeof(Type) - 1), Type))
 
-// CC BY-SA 3.0: https://stackoverflow.com/a/39104745/15133327
+// CC BY-SA 3.0: https://stackoverflow.com/a/39104745
 //               https://jadro-windows.cz/download/ntqueryobject.zip
 // Modified to use POBJECT_TYPE_INFORMATION_V2 instead of POBJECT_TYPE_INFORMATION
 USHORT GetTypeIndexByName (std::wstring TypeName)
@@ -1723,12 +1723,12 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   if (static_proc.pid != 0)
   {
-    ImGui::OpenPopup         ("SKIF Task Manager");
+    ImGui::OpenPopup         ("Task Manager###TaskManagerMonitor");
 
     ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
     ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-    if (ImGui::BeginPopupModal ( "SKIF Task Manager", nullptr,
+    if (ImGui::BeginPopupModal ( "Task Manager###TaskManagerMonitor", nullptr,
                                     ImGuiWindowFlags_NoResize |
                                     ImGuiWindowFlags_NoMove |
                                     ImGuiWindowFlags_AlwaysAutoResize )
@@ -1762,7 +1762,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       ImGui::SameLine ( );
 
       if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                              25 * SKIF_ImGui_GlobalDPIScale )))
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_proc = standby_record_s{};
         ImGui::CloseCurrentPopup ( );

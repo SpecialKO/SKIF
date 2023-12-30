@@ -544,7 +544,8 @@ SK_StripUserNameFromPathA (char* szInOut)
   return szInOut;
 }
 
-// This modifies the input variable -- needs to be rewritten to just return a santitized copy of the input variable instead
+// This modifies the input variable 
+// TODO: Needs to be rewritten to just return a santitized copy of the input variable instead
 wchar_t*
 SK_StripUserNameFromPathW (wchar_t* wszInOut)
 {

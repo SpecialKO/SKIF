@@ -580,7 +580,7 @@ SKIF_Util_CreateProcess (
       CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
 
       // Convert to a nicely stored wstring
-      wsEnvBlock = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
+      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
 
       // Add any custom variables to it
       for (auto& env_var : _data->env)
@@ -1476,46 +1476,45 @@ SKIF_Util_SetClipboardData (const std::wstring_view& data)
   return result;
 }
 
+// Adds/removes environment variables in a given environment block
+// Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/59597519
 std::wstring
-SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varname, const std::wstring& varvalue)
+SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue)
 {
-  std::map<std::wstring, std::wstring> env;
-  const wchar_t* currentEnv = (const wchar_t*)pEnvBlock;
-  std::wstring result;
+  std::map <std::wstring,
+            std::wstring> env;
+  const wchar_t*   currentEnv = (const wchar_t*)pEnvBlock;
 
-  // parse the current block into a map of key/value pairs
+  // Parse the given block into a map of key/value pairs
   while (*currentEnv)
   {
-    std::wstring keyValue = currentEnv;
-    std::wstring key;
-    std::wstring value;
+    std::wstring  key, value,
+                  keyValue = currentEnv;
 
-    size_t pos = keyValue.find_last_of(L'=');
-    if (pos != std::wstring::npos)
-    {
-        key   = keyValue.substr(0, pos);
-        value = keyValue; // entire string
-    }
+    size_t pos  = keyValue.find_last_of(L'=');
+    if (   pos !=     std::wstring::npos)
+      key       = keyValue.substr(0, pos); // Extract the environment variable name from the given "key=value" string
     else
-    {
-        // ??? no '=' sign, just save it off
-        key   = keyValue;
-        value = keyValue;
-    }
-    value += L'\0'; // reappend the null char
+      key       = keyValue; // Environment variable lacks a = sign ?! Use the whole
+    
+    // We store the whole "key=value" string as the value in the map
+    // Environment variables must also end with a null terminator
+    value       = keyValue + L'\0';
 
     env[SKIF_Util_ToLowerW (key)] = value;
-    currentEnv                  += keyValue.size() + 1;
+    currentEnv += keyValue.size() + 1;
   }
 
-  if (! varname.empty())
+  // If given a variable name, add/remove it based on the given variable value
+  if (! varName.empty())
   {
-    if (varvalue.empty())
-      env.erase (SKIF_Util_ToLowerW (varname));
+    if (varValue.empty())
+      env.erase (SKIF_Util_ToLowerW (varName));
     else
-      env[       SKIF_Util_ToLowerW (varname)] = varname + L'=' + varvalue + L'\0';
+      env[       SKIF_Util_ToLowerW (varName)] = varName + L'=' + varValue + L'\0';
   }
 
+#if _DEBUG
   for (auto& item : env)
   {
     OutputDebugString(L"key: ");
@@ -1524,13 +1523,16 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varnam
     OutputDebugString(item.second.c_str());
     OutputDebugString(L"\n");
   }
+#endif
+  
+  // Serialize the map into a new buffer
+  std::wstring result;
 
-  // serialize the map into the buffer we just allocated
   for (auto& item : env)
     result += item.second;
 
+  // Indicate the end of the environment block using an additional null terminator
   result += L'\0';
-  //auto ptr = result.c_str();
 
   return result;
 }
@@ -1815,7 +1817,7 @@ SKIF_Util_IsHDRActive (bool refresh)
 }
 
 // Get the SDR white level for a display
-// Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/74605112/15133327
+// Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/74605112
 float
 SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor)
 {
