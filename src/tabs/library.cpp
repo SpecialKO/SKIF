@@ -112,6 +112,12 @@ extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 #define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
 #define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
+struct terminate_process_s {
+  uint32_t      pid = 0;
+  HANDLE     handle = INVALID_HANDLE_VALUE;
+  std::string  name = "";
+} static static_proc;
+
 std::atomic<int>  textureLoadQueueLength{ 1 };
 
 int getTextureLoadQueuePos (void) {
@@ -529,6 +535,42 @@ DrawGameContextMenu (app_record_s* pApp)
         launchGalaxyGame = launchWithoutSK = true;
 
       ImGui::PopStyleColor  ( );
+    }
+  }
+
+  if (pApp->_status.running)
+  {
+    SKIF_Util_CreateProcess_s* mon_app = nullptr;
+    for (auto& monitored_app : iPlayCache)
+      if (monitored_app.id == pApp->id && monitored_app.store_id == (int)pApp->store)
+        mon_app = &monitored_app;
+
+    if (mon_app != nullptr)
+    {
+      HANDLE hProcess = mon_app->hProcess.load();
+
+      ImGui::Separator ( );
+
+      if (ImGui::Selectable (ICON_FA_SQUARE_XMARK "  Terminate game", false,
+                            ((hProcess == INVALID_HANDLE_VALUE)
+                              ? ImGuiSelectableFlags_Disabled
+                              : ImGuiSelectableFlags_None)))
+      {
+        static_proc.pid    = 1337;
+        static_proc.handle = hProcess;
+        static_proc.name   = pApp->names.normal;
+      }
+    }
+
+    else if (pApp->_status.running_pid != 0)
+    {
+      ImGui::Separator ( );
+
+      if (ImGui::Selectable (ICON_FA_SQUARE_XMARK "  Terminate game"))
+      {
+        static_proc.pid    = pApp->_status.running_pid;
+        static_proc.name   = pApp->names.normal;
+      }
     }
   }
 
@@ -2346,9 +2388,12 @@ RefreshRunningApps (void)
 
     for (auto& app : g_apps)
     {
+      app.second._status.running_pid = 0;
+
       if (app.second.store == app_record_s::Store::Steam && (steamRunning || ! steamFallback))
         continue;
-      app.second._status.running = false;
+
+      app.second._status.running     = false;
     }
 
     PROCESSENTRY32W none = { },
@@ -2414,27 +2459,29 @@ RefreshRunningApps (void)
           for (auto& app : g_apps)
           {
             if (! app.second.launch_configs.contains (0))
-                  //|| app.second.launch_configs [0].parent != &app.second)
               continue;
 
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
             if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].executable.c_str(), pe32.szExeFile, MAX_PATH) == 0)
             {
-              app.second._status.running = true;
+              app.second._status.running     = true;
+              app.second._status.running_pid = pe32.th32ProcessID;
               break;
             }
 
             else if (szExePathLen != 0)
             {
-              // Steam games are covered through separate registry monitoring
               if (app.second.store == app_record_s::Store::Steam)
               {
-                if (! steamFallback)
-                  continue;
-              
                 if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0)
                 {
-                  app.second._status.running = true;
+                  app.second._status.running_pid = pe32.th32ProcessID;
+
+                  // Only set the running state if the primary registry monitoring is unavailable
+                  if (! steamFallback)
+                    continue;
+
+                  app.second._status.running     = true;
                   break;
                 }
               }
@@ -2442,7 +2489,8 @@ RefreshRunningApps (void)
               // Epic, GOG and SKIF Custom should be straight forward
               else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full patch
               {
-                app.second._status.running = true;
+                app.second._status.running     = true;
+                app.second._status.running_pid = pe32.th32ProcessID;
                 break;
 
                 // One can also perform a partial match with the below OR clause in the IF statement, however from testing
@@ -3113,6 +3161,13 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (startupFadeIn == 0 && pTexSRV.p != nullptr)
     startupFadeIn = 1;
 
+  else if (startupFadeIn == 2 && pTexSRV.p == nullptr)
+  {
+    // Reset the cover fade-in effect
+    startupFadeIn = 0;
+    fAlpha        = 0.0f;
+  }
+
   if (startupFadeIn == 1)
   {
     if (fAlpha < 1.0f && pTexSRV.p != nullptr)
@@ -3158,22 +3213,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
   {
-    //static
-     // app_record_s* pApp = nullptr;
-
-    //for (auto& app : g_apps)
-    //  if (app.second.id == appid)
-    //    pApp = &app.second;
-
     if (pApp != nullptr)
     {
       // Preparations
 
-      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID            ||
-                          (pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
-                           pApp->store != app_record_s::Store::Other) ||
-                           pApp->tex_cover.isCustom                   ||
-                           pApp->tex_cover.isManaged);
+      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+                            pApp->store != app_record_s::Store::Other) ||
+                            pApp->tex_cover.isCustom                   ||
+                            pApp->tex_cover.isManaged);
       // Column 1: Icons
 
       ImGui::BeginGroup  ( );
@@ -5634,6 +5681,78 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
   else {
     ModifyGamePopup = PopupState_Closed;
+  }
+
+  
+    
+  // Confirm prompt
+
+  if (static_proc.pid != 0)
+  {
+    ImGui::OpenPopup         ("Task Manager###TaskManagerLibrary");
+
+    static std::string warning = "Any unsaved game data may be lost.";
+    float fXwarning = ImGui::CalcTextSize (warning.c_str()).x; // DPI related so cannot be static
+
+    ImGui::SetNextWindowSize (
+      ImVec2 (
+        std::max (ImGui::CalcTextSize (static_proc.name.c_str()).x + 170.0f * SKIF_ImGui_GlobalDPIScale,
+                  fXwarning + ImGui::GetStyle().ItemSpacing.x * 2),
+        0.0f
+      )
+    );
+    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal ( "Task Manager###TaskManagerLibrary", nullptr,
+                                    ImGuiWindowFlags_NoResize |
+                                    ImGuiWindowFlags_NoMove   |
+                                    ImGuiWindowFlags_AlwaysAutoResize )
+        )
+    {
+
+      ImGui::Text        ("Do you want to end");
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_proc.name.c_str());
+      ImGui::SameLine    ( );
+      ImGui::Text        ("?");
+      SKIF_ImGui_Spacing ( );
+
+
+      float fX = (ImGui::GetContentRegionAvail().x - fXwarning) / 2 + ImGui::GetStyle().ItemSpacing.x;
+      ImGui::SetCursorPosX (fX);
+      ImGui::Text        (warning.c_str());
+
+      SKIF_ImGui_Spacing ( );
+
+      fX = (ImGui::GetContentRegionAvail().x - 200 * SKIF_ImGui_GlobalDPIScale) / 2;
+
+      ImGui::SetCursorPosX (fX);
+
+      if (ImGui::Button ("End Process", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+                                                   25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        if (static_proc.handle != INVALID_HANDLE_VALUE)
+          SKIF_Util_TerminateProcess (static_proc.handle, 0x0);
+        else
+          SKIF_Util_TerminateProcess (static_proc.pid,    0x0);
+
+        static_proc = terminate_process_s { };
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      ImGui::SameLine ( );
+      ImGui::Spacing  ( );
+      ImGui::SameLine ( );
+
+      if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        static_proc = terminate_process_s { };
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      ImGui::EndPopup ( );
+    }
   }
 
   extern uint32_t SelectNewSKIFGame;

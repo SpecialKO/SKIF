@@ -1495,7 +1495,7 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
     if (   pos !=     std::wstring::npos)
       key       = keyValue.substr(0, pos); // Extract the environment variable name from the given "key=value" string
     else
-      key       = keyValue; // Environment variable lacks a = sign ?! Use the whole
+      key       = keyValue; // Environment variable lacks a = sign ?!
     
     // We store the whole "key=value" string as the value in the map
     // Environment variables must also end with a null terminator

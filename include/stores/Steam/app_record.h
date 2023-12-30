@@ -89,9 +89,11 @@ struct app_record_s {
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
 
-    DWORD running   = 0;
-    DWORD installed = 0;
-    DWORD updating  = 0;
+    DWORD running     = 0;
+    DWORD installed   = 0;
+    DWORD updating    = 0;
+
+    DWORD running_pid = 0;
 
     // For Registry Key Watch
     static DWORD
