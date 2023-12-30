@@ -1751,7 +1751,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::Button ("End Process", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
                                                    25 * SKIF_ImGui_GlobalDPIScale )))
       {
-        SK_TerminatePID (static_proc.pid, 0x0);
+        SKIF_Util_TerminateProcess (static_proc.pid, 0x0);
 
         static_proc = standby_record_s{};
         ImGui::CloseCurrentPopup ( );

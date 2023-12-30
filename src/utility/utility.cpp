@@ -663,6 +663,29 @@ SKIF_Util_GetCurrentProcessToken (void)
   return (HANDLE)(LONG_PTR) -4;
 }
 
+// Terminates the process with the given process ID
+BOOL
+SKIF_Util_TerminateProcess (DWORD dwProcessId, UINT uExitCode)
+{
+  CHandle hProcess (
+    OpenProcess (PROCESS_TERMINATE, FALSE, dwProcessId)
+  );
+
+  return
+    SKIF_Util_TerminateProcess (hProcess, uExitCode);
+}
+
+// Terminates the process of the given handle
+BOOL
+SKIF_Util_TerminateProcess (HANDLE hProcess, UINT uExitCode)
+{
+  if (hProcess == INVALID_HANDLE_VALUE)
+    return FALSE;
+   
+  return
+    TerminateProcess (hProcess, uExitCode);
+}
+
 
 using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
 using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);

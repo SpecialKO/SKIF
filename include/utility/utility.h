@@ -51,6 +51,8 @@ bool            SKIF_Util_CreateProcess               (const std::wstring_view& 
 
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
+BOOL            SKIF_Util_TerminateProcess            (DWORD  dwProcessId, UINT uExitCode);
+BOOL            SKIF_Util_TerminateProcess            (HANDLE  hProcess,   UINT uExitCode);
 std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);

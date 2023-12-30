@@ -789,21 +789,4 @@ SK_make_unique_nothrow (Args && ... args) noexcept
 );
 
 
-static auto
-SK_TerminatePID =
-   [](DWORD dwProcessId, UINT uExitCode)
--> BOOL
-   {
-     CHandle hProcess (
-       OpenProcess (PROCESS_TERMINATE, FALSE, dwProcessId)
-     );
-   
-     if (hProcess == INVALID_HANDLE_VALUE)
-       return FALSE;
-   
-     return
-       TerminateProcess (hProcess, uExitCode);
-   };
-
-
 #endif /* __SK__UTILITY_H__ */

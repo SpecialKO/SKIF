@@ -639,7 +639,7 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         DeleteFileW (wszPIDFile);
 
         if (count == 1 &&  pid != 0)
-          SK_TerminatePID (pid, 0x0);
+          SKIF_Util_TerminateProcess (pid, 0x0);
       }
 
       shuffleLockedFiles ();
