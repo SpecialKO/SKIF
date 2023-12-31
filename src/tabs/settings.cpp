@@ -1055,8 +1055,19 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling HiDPI scaling will make the application appear smaller on HiDPI displays.");
 
+    // New line
+
+    if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
+    {
+      _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
+    }
+
     if (SKIF_Util_IsWindows11orGreater ( ))
     {
+      ImGui::SameLine ( );
+      ImGui::Spacing  ( );
+      ImGui::SameLine ( );
+
       if ( ImGui::Checkbox ( "Win11 Corners", &_registry.bWin11Corners) )
       {
         _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);

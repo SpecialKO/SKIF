@@ -89,7 +89,6 @@ bool SKIF_NoInternet       = false;
 int  SKIF_ExitCode         = 0;
 int  SKIF_nCmdShow         = -1;
 int  SKIF_FrameCount       = 0;
-int  startupFadeIn         = 0;
 int addAdditionalFrames    = 0;
 DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
@@ -3403,7 +3402,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we transitioned away from a pending service state
     else if (1.0f > ImGui::GetCurrentContext()->DimBgRatio && ImGui::GetCurrentContext()->DimBgRatio > 0.0f)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
-    else if (SKIF_Tab_Selected == UITab_Library && (startupFadeIn == 1 || coverFadeActive))
+    else if (SKIF_Tab_Selected == UITab_Library && coverFadeActive)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
     else if (addAdditionalFrames > 0)
       renderAdditionalFrames = ImGui::GetFrameCount ( ) + addAdditionalFrames; // Used when the cover is currently loading in, or the update check just completed

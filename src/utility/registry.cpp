@@ -283,6 +283,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData ( );
   
   bDeveloperMode           =   regKVDeveloperMode          .getData ( );
+  
+  bFadeCovers              =   regKVFadeCovers             .getData ( );
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData ( );

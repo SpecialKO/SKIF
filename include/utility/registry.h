@@ -299,6 +299,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Developer Mode)" );
 
+  KeyValue <bool> regKVFadeCovers =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Fade Covers)" );
+
   // Integers
 
   KeyValue <int> regKVProcessRefreshInterval =
@@ -452,6 +456,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryIgnoreArticles   = false;
   bool bAutoUpdate              = false; // Automatically runs downloaded installers
   bool bDeveloperMode           = false;
+  bool bFadeCovers              =  true;
 
   // Warnings
   bool bWarningRTSS             = false;

@@ -85,6 +85,7 @@ SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 const float fTintMin   = 0.75f;
       float fTint      = 1.0f;
       float fAlpha     = 0.0f;
+      float fAlphaPrev = 1.0f;
 
 PopupState IconMenu        = PopupState_Closed;
 PopupState ServiceMenu     = PopupState_Closed;
@@ -1501,22 +1502,6 @@ GetInjectionSummary (app_record_s* pApp)
 
 #pragma endregion
 
-  if (_cache.app_id      != pApp->id               ||
-      _cache.service     != _inject.bCurrentState  ||
-      _cache.running     != pApp->_status.running  ||
-      _cache.updating    != pApp->_status.updating ||
-      _cache.autostop    != _inject.bAckInj        ||
-      _inject.libCacheRefresh   == true            )
-  {
-    // If the global DLL files have been changed, we also need to update the injection strategy before we refresh the cache
-    if (_inject.libCacheRefresh)
-    {   _inject.libCacheRefresh  = false;
-      UpdateInjectionStrategy (pApp);
-    }
-
-    _cache.Refresh    (pApp);
-  }
-
   static constexpr float
         num_lines = 4.0f;
   auto line_ht   =
@@ -1698,25 +1683,78 @@ GetInjectionSummary (app_record_s* pApp)
 
         hFind = 
           FindFirstFileExW ((folder + find_pattern).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-        //FindFirstFile    ((folder + find_pattern).c_str(), &ffd);
 
         if (INVALID_HANDLE_VALUE != hFind)
         {
           do {
             Preset newPreset = { PathFindFileName (ffd.cFileName), folder + ffd.cFileName };
-            bool   add       = false;
+            bool         add = false;
+            ULONG_PTR   size = 0;
 
-            if (0 < ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow))
-              add = true;
-            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
             {
               struct _stat64 buffer;
-              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer) && 0 < buffer.st_size)
-                add = true;
+              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer))
+                size = buffer.st_size;
+            }
+            
+            else
+              size = ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow);
+
+            // All files larger than 4 bytes should be added
+            if (4 < size)
+              add = true;
+
+            // All files between 1-4 bytes should be checked for byte order marks (0 byte files are skipped automatically)
+            else if (0 < size && size <= 4)
+            {
+              CHandle hPreset (
+                CreateFileW (newPreset.Path.c_str(),
+                                GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                  nullptr,        OPEN_EXISTING,
+                                    GetFileAttributesW (newPreset.Path.c_str()),
+                                      nullptr
+                            )
+              );
+
+              if (hPreset != INVALID_HANDLE_VALUE)
+              {
+                DWORD dwRead     = 0;
+
+                auto szPresetData =
+                  std::make_unique <char []> (
+                    std::size_t (size) + std::size_t (1)
+                  );
+
+                auto preset_data =
+                  szPresetData.get ();
+
+                if (preset_data)
+                {
+                  const bool bRead =
+                    ReadFile (hPreset, preset_data, static_cast<DWORD>(size), &dwRead, nullptr);
+
+                  if (bRead && dwRead)
+                  {
+                    std::string string =
+                      std::move (preset_data);
+                    
+                    // Skip files only containing byte order marks
+                    if (string != "\xEF\xBB\xBF"     && // UTF-8,  with BOM
+                        string != "\xFF\xFE"         && // UTF-16, little endian
+                        string != "\xFE\xFF"         && // UTF-16, big endian
+                        string != "\xFF\xFE\x00\x00" && // UTF-32, little endian
+                        string != "\x00\x00\xFE\xFF"  ) // UTF-32, big endian
+                      add = true;
+                  }
+                }
+              }
             }
 
             if (add)
               tmpPresets.push_back (newPreset);
+
           } while (FindNextFile (hFind, &ffd));
 
           FindClose (hFind);
@@ -2443,7 +2481,7 @@ RefreshRunningApps (void)
           GetExitCodeProcess (hProcess, &dwExitCode);
           
           WCHAR szExePath     [MAX_PATH + 2] = { };
-          DWORD szExePathLen = MAX_PATH; // Specifies the size of the lpExeName buffer, in characters.
+          DWORD szExePathLen = MAX_PATH + 2; // Specifies the size of the lpExeName buffer, in characters.
 
           if (! accessDenied)
           {
@@ -2461,8 +2499,9 @@ RefreshRunningApps (void)
             if (! app.second.launch_configs.contains (0))
               continue;
 
-            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe
-            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].executable.c_str(), pe32.szExeFile, MAX_PATH) == 0)
+            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
+            // TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
+            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile, MAX_PATH) == 0)
             {
               app.second._status.running     = true;
               app.second._status.running_pid = pe32.th32ProcessID;
@@ -2599,14 +2638,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   static SKIF_Lib_SummaryCache& _cache      = SKIF_Lib_SummaryCache::GetInstance ( );
   
-  static SKIF_DirectoryWatch SKIF_Epic_ManifestWatch;
+  static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
-//static CComPtr <ID3D11Texture2D>          pTex2D;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-//static ImVec2                             vecTex2D;
+  static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
 
-  static ImVec2 vecCoverUv0 = ImVec2 (0, 0), 
-                vecCoverUv1 = ImVec2 (1, 1);
+  static ImVec2 vecCoverUv0     = ImVec2 (0, 0),
+                vecCoverUv1     = ImVec2 (1, 1),
+                vecCoverUv0_old = ImVec2 (0, 0),
+                vecCoverUv1_old = ImVec2 (1, 1);
 
   static DirectX::TexMetadata     meta = { };
   static DirectX::ScratchImage    img  = { };
@@ -3047,26 +3087,80 @@ SKIF_UI_Tab_DrawLibrary (void)
       pApp = &app.second;
 
   // Default to primary launch config
-  launchConfig = (pApp != nullptr) ? &pApp->launch_configs.begin()->second : nullptr;
-
-  // Apply changes when the selected game changes
-  if (update)
+  launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+  
+  // Update the injection strategy and cache for the selected game
+  // Only do this once per frame to prevent data from "leaking" between pApp's
+  if (pApp != nullptr)
   {
-    fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
-    
-    if (pApp != nullptr)
+    if (update)
     {
       if (  pApp->install_dir != selection.dir_watch._path)
         selection.dir_watch.reset ( );
 
       if (! pApp->install_dir.empty())
         selection.dir_watch.isSignaled (pApp->install_dir, true);
+    }
 
-      //UpdateInjectionStrategy (pApp);
-      //_cache.Refresh (pApp);
+    if (update                                       ||
+        selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+       _cache.service     != _inject.bCurrentState   ||
+       _cache.running     !=  pApp->_status.running  ||
+       _cache.updating    !=  pApp->_status.updating ||
+       _cache.autostop    != _inject.bAckInj         ||
+       _inject.libCacheRefresh                       ) // If the global DLL files have been changed
+    {
+      _inject.libCacheRefresh = false;
+
+      UpdateInjectionStrategy (pApp);
+      _cache.Refresh          (pApp);
+    }
+
+    // Load a new cover
+    // Ensure we aren't already loading this cover
+    if (lastCover.appid != pApp->id   ||
+        lastCover.store != pApp->store)
+    {
+      loadCover       = true;
+      lastCover.appid = pApp->id;
+      lastCover.store = pApp->store;
+
+      // Hide the current cover and set it up to be unloaded
+      if (pTexSRV.p != nullptr)
+      {
+        // If there already is an old cover, we need to push it for release
+        if (pTexSRV_old.p != nullptr)
+        {
+          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
+          SKIF_ResourcesToFree.push(pTexSRV_old.p);
+          pTexSRV_old.p = nullptr;
+        }
+
+        // Set up the current one to be released
+        vecCoverUv0_old = vecCoverUv0;
+        vecCoverUv1_old = vecCoverUv1;
+        pTexSRV_old.p   = pTexSRV.p;
+        pTexSRV.p       = nullptr;
+        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha : 0.0f;
+        fAlpha          = (_registry.bFadeCovers) ?   0.0f : 1.0f;
+      }
+    }
+
+    // Release old cover after it has faded away, or instantly if we don't fade covers
+    if (fAlphaPrev <= 0.0f)
+    {
+      if (pTexSRV_old.p != nullptr)
+      {
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
+        SKIF_ResourcesToFree.push(pTexSRV_old.p);
+        pTexSRV_old.p = nullptr;
+      }
     }
   }
 
+  // Apply changes when the selected game changes
+  if (update)
+    fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
   // Apply changes when the _registry.iDimCovers var has been changed in the Settings tab
   else if (tmp_iDimCovers != _registry.iDimCovers)
   {
@@ -3086,7 +3180,12 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImVec2 vecPosCoverImage    = ImGui::GetCursorPos ( );
          vecPosCoverImage.x -= 1.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (tryingToLoadCover)
+  if (loadCover)
+  {
+    // A new cover is meant to be loaded, so don't do anything for now...
+  }
+
+  else if (tryingToLoadCover)
   {
     ImGui::SetCursorPos (ImVec2 (
       vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
@@ -3123,7 +3222,22 @@ SKIF_UI_Tab_DrawLibrary (void)
         ? AdjustAlpha (fTint)
         : fTint;
 #endif
-  
+
+  // Display previous fading out cover
+  if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
+  {
+    SKIF_ImGui_OptImage  (pTexSRV_old.p,
+                                                      ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
+                                                              900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                      vecCoverUv0_old, // Top Left coordinates
+                                                      vecCoverUv1_old, // Bottom Right coordinates
+                                    (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * fAlphaPrev)  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
+                                    (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
+    );
+
+    ImGui::SetCursorPos (vecPosCoverImage);
+  }
+
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
                                                     ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
@@ -3155,33 +3269,47 @@ SKIF_UI_Tab_DrawLibrary (void)
   static DWORD timeLastTick;
   DWORD timeCurr = SKIF_Util_timeGetTime();
   bool isHovered = ImGui::IsItemHovered();
-  bool incTick = false;
-  extern int startupFadeIn;
+  bool incTick   = false;
 
-  if (startupFadeIn == 0 && pTexSRV.p != nullptr)
-    startupFadeIn = 1;
+  /*
+  if (pTexSRV.p     == nullptr)
+    fAlpha           = (_registry.bFadeCovers) ? 0.0f : 1.0f;
 
-  else if (startupFadeIn == 2 && pTexSRV.p == nullptr)
+  if (pTexSRV_old.p == nullptr && _registry.bFadeCovers)
+    fAlphaPrev       = 1.0f;
+  */
+
+  // Fade in/out transition
+
+  if (_registry.bFadeCovers)
   {
-    // Reset the cover fade-in effect
-    startupFadeIn = 0;
-    fAlpha        = 0.0f;
-  }
-
-  if (startupFadeIn == 1)
-  {
+    // Fade in the new cover
     if (fAlpha < 1.0f && pTexSRV.p != nullptr)
     {
       if (timeCurr - timeLastTick > 15)
       {
-        fAlpha += 0.05f;
+        fAlpha     += 0.05f;
         incTick = true;
       }
+
+      coverFadeActive = true;
     }
 
-    if (fAlpha >= 1.0f)
-      startupFadeIn = 2;
+    // Fade out the old one
+
+    if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
+    {
+      if (timeCurr - timeLastTick > 15)
+      {
+        fAlphaPrev -= 0.05f;
+        incTick = true;
+      }
+
+      coverFadeActive = true;
+    }
   }
+
+  // Dim covers
 
   if (_registry.iDimCovers == 2)
   {
@@ -3195,6 +3323,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       coverFadeActive = true;
     }
+
     else if (! isHovered && fTint > fTintMin)
     {
       if (timeCurr - timeLastTick > 15)
@@ -3424,13 +3553,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (pApp != nullptr)
     {
-      // Ensure we aren't already loading this cover
-      if (lastCover.appid != pApp->id || lastCover.store != pApp->store)
-      {
-        loadCover = true;
-        lastCover.appid = pApp->id;
-        lastCover.store = pApp->store;
-      }
     }
   }
 
@@ -3485,22 +3607,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       static ImVec2 _vecCoverUv0(vecCoverUv0);
       static ImVec2 _vecCoverUv1(vecCoverUv1);
       static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
-
-      // Most textures are pushed to be released by LoadLibraryTexture(),
-      //  however the current cover pointer is only updated to the new one
-      //   *after* the old cover has been pushed to be released.
-      //  
-      // This means there's a short thread race where the main thread
-      //  can still reference a texture that has already been released.
-      //
-      // As a result, we preface the whole loading of the new cover texture
-      //  by explicitly changing the current cover texture to point to nothing.
-      //
-      // The only downside is that the cover transition is not seemless;
-      //  a black/non-existent cover will be displayed in-between.
-      // 
-      // But at least SKIF does not run the risk of crashing as often :)
-      pTexSRV = nullptr;
 
       std::wstring load_str;
 
@@ -4117,15 +4223,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
         ImGui::SetScrollHereY (0.5f);
-
-      //pApp = &app.second; // Don't change the pApp in the middle of the frame, you doofy!! // Aemony, 2023-12-23
-      // Change it on the next frame instead!
-
-      if (update)
-      {
-        UpdateInjectionStrategy (&app.second); // pApp
-        _cache.Refresh          (&app.second); // pApp
-      }
     }
   }
 
@@ -4170,17 +4267,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 
   // Stop populating the whole list
-
-  if (pApp != nullptr)
-  {
-    // Update the injection strategy for the game
-    if (selection.dir_watch.isSignaled ( )) // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-    {
-      UpdateInjectionStrategy (pApp);
-      _cache.Refresh          (pApp);
-    }
-  }
-
 
 #pragma region GamesList::IconMenu
 
@@ -4693,7 +4779,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   
 
   // Special handling at the bottom for Special K
-  if (selection.appid == SKIF_STEAM_APPID && selection.store == app_record_s::Store::Steam) {
+  if (pApp        != nullptr            &&
+      pApp->id    == SKIF_STEAM_APPID   &&
+      pApp->store == app_record_s::Store::Steam)
+  {
     ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
                                                               fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
     ImGui::BeginGroup    ();
