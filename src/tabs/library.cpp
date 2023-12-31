@@ -264,9 +264,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
   // Do not check games that are being updated (aka installed)
   //   nor expose the option for shell execute based games (e.g. Link2EA, which requires the Steam client running)
-  bool SteamShortcutPossible = (pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
-                             ? launchConfig->isExecutableFullPathValid ( )
-                             : false;
+  bool SteamShortcutPossible = false;
+
+  if (launchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
+    SteamShortcutPossible = launchConfig->isExecutableFullPathValid ( );
   
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
@@ -2683,6 +2684,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   auto& io =
     ImGui::GetIO ();
+
+  SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
 
   //static volatile LONG icon_thread  = 1;
   //static volatile LONG need_sort    = 0;
