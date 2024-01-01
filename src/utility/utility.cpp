@@ -542,9 +542,10 @@ SKIF_Util_CreateProcess (
                    SKIF_Util_CreateProcess_s* proc)
 {
   struct thread_s {
-    std::wstring path          = L"";
-    std::wstring parameters    = L"";
-    std::wstring directory     = L"";
+    std::wstring path              = L"";
+    std::wstring parameters        = L""; // First token (argv[0]) is expected to be the module name
+    std::wstring parameters_actual = L"";
+    std::wstring directory         = L"";
     std::map<std::wstring, std::wstring> env;
     SKIF_Util_CreateProcess_s* proc;
   };
@@ -553,9 +554,26 @@ SKIF_Util_CreateProcess (
 
   data->path       = path;
   data->parameters = parameters;
-  data->directory  = directory;
+
+  // We use a custom combination of <"path" parameter> because many apps expects the module name as the first argument,
+  //   and as such ignores it when processing command line arguments, so not doing that could cause unexpected behaviour.
+  data->parameters_actual = (LR"(")" + std::wstring(path) + LR"(")");
+
+  if (parameters != NULL)
+    data->parameters_actual += (LR"( )" + std::wstring(parameters));
+
+  // If both lpApplicationName and lpCommandLine are non-NULL,
+  //   the null-terminated string pointed to by lpApplicationName specifies the module to execute, and
+  //   the null-terminated string pointed to by lpCommandLine specifies the command line.
+  // The new process can use GetCommandLine to retrieve the entire command line.
+  // Console processes written in C can use the argc and argv arguments to parse the command line.
+  // Because argv[0] is the module name, C programmers generally repeat the module name as the first token in the command line.
+  // 
+  // From: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
+
+  data->directory  =  directory;
   data->env        = *env;
-  data->proc       = proc;
+  data->proc       =  proc;
 
   uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -573,7 +591,7 @@ SKIF_Util_CreateProcess (
       SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
       supinfo.cb                   = sizeof (STARTUPINFO);
       
-      LPVOID lpEnvBlock            = nullptr;
+      LPVOID       lpEnvBlock      = nullptr;
       std::wstring wsEnvBlock;
       
       // Create a clear and empty environment block for the current user
@@ -589,15 +607,16 @@ SKIF_Util_CreateProcess (
       // Destroy the block once we are done with it
       DestroyEnvironmentBlock (lpEnvBlock);
       
-    //PLOG_VERBOSE                                 << "Performing a CreateProcess call...";
-      PLOG_VERBOSE_IF(! _data->path.empty())       << "File        : " << _data->path;
-      PLOG_VERBOSE_IF(! _data->parameters.empty()) << "Parameters  : " << _data->parameters;
-      PLOG_VERBOSE_IF(! _data->directory .empty()) << "Directory   : " << _data->directory;
-      PLOG_VERBOSE_IF(! _data->env       .empty()) << "Environment : " << _data->env;
+      PLOG_INFO                                          << "Creating process...";
+      PLOG_INFO_IF  (! _data->path             .empty()) << "File                : " << _data->path;
+      PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
+      PLOG_DEBUG_IF (! _data->parameters_actual.empty()) << "Parameters (actual) : " << _data->parameters_actual;
+      PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
+      PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
 
       if (CreateProcessW (
           _data->path.c_str(),
-          const_cast<wchar_t *>(_data->parameters.c_str()),
+          const_cast<wchar_t *>(_data->parameters_actual.c_str()),
           NULL,
           NULL,
           FALSE,
