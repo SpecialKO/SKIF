@@ -2421,12 +2421,17 @@ RefreshRunningApps (void)
   static DWORD lastGameRefresh = 0;
   static std::wstring exeSteam = L"steam.exe";
 
-  if (SKIF_Util_timeGetTime() > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  DWORD current_time = SKIF_Util_timeGetTime ( );
+
+  if (current_time > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
   {
     bool new_steamRunning = false;
 
     for (auto& app : g_apps)
     {
+      if (app.second._status.dwTimeDelayChecks > current_time)
+        continue;
+
       app.second._status.running_pid = 0;
 
       if (app.second.store == app_record_s::Store::Steam && (steamRunning || ! steamFallback))
@@ -2500,6 +2505,9 @@ RefreshRunningApps (void)
             if (! app.second.launch_configs.contains (0))
               continue;
 
+            if (app.second._status.dwTimeDelayChecks > current_time)
+              continue;
+
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
             // TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
             if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile, MAX_PATH) == 0)
@@ -2567,7 +2575,7 @@ RefreshRunningApps (void)
 
     steamRunning = new_steamRunning;
 
-    lastGameRefresh = SKIF_Util_timeGetTime();
+    lastGameRefresh = current_time;
   }
 
   
@@ -4067,6 +4075,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Start populating the whole list
 
+  DWORD current_time = SKIF_Util_timeGetTime ( );
+
   for (auto& app : g_apps)
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
@@ -4077,8 +4087,17 @@ SKIF_UI_Tab_DrawLibrary (void)
                      selection.store == app.second.store);
     bool change   = false;
 
-    if (pApp->store == app_record_s::Store::Steam && steamRunning)
-      app.second._status.refresh (&app.second);
+    if (app.second.store == app_record_s::Store::Steam && steamRunning)
+    {
+      if (app.second._status.dwTimeDelayChecks != 0)
+      {
+        if (app.second._status.dwTimeDelayChecks < current_time)
+          app.second._status.dwTimeDelayChecks = 0;
+      }
+
+      else
+        app.second._status.refresh (&app.second);
+    }
 
     float fOriginalY =
       ImGui::GetCursorPosY ();
@@ -4982,9 +5001,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
         //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-        SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), GOGGalaxy_Folder.c_str());
+        if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str()))
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (!localInjection && usingSK));
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+        }
       }
 
       // Launch Epic game
@@ -4993,9 +5017,27 @@ SKIF_UI_Tab_DrawLibrary (void)
         // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
 
         std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
-        SKIF_Util_OpenURI (launchOptions);
+        if (SKIF_Util_OpenURI (launchOptions) != 0)
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        }
+      }
+
+      // Launch Xbox game
+      else if (pApp->store == app_record_s::Store::Xbox)
+      {
+        if (SKIF_Util_CreateProcess (launchConfig->executable_helper))
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+        }
       }
 
       // Launch Steam game (Instant Play)
@@ -5026,37 +5068,37 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        bool bProc = SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+        if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
                            launchConfig->launch_options.c_str(),
                         (! launchConfig->working_dir.empty())
                              ? launchConfig->working_dir.c_str()
                              : launchConfig->getExecutableDir().c_str(),
                               &env,
                               proc
-        );
-
-        if (! bProc)
+          ))
         {
+          std::wstring launchOptions  = launchConfig->getLaunchOptions();
+                       launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+
+          // Trim spaces at the end
+          launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
+            launchConfig->getExecutableFullPath ( ),
+            launchOptions,
+         (! launchConfig->working_dir.empty())
+              ? launchConfig->working_dir.c_str()
+              : launchConfig->getExecutableDir().c_str(),
+            launchConfig->getExecutableFullPath ( ),
+            (! localInjection && usingSK));
+        }
+        
+        else {
           PLOG_DEBUG << "Process creation failed ?!";
 
           proc->id       =  0;
           proc->store_id = -1;
         }
-
-        std::wstring launchOptions  = launchConfig->getLaunchOptions();
-                     launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
-
-        // Trim spaces at the end
-        launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-          launchConfig->getExecutableFullPath ( ),
-          launchOptions,
-       (! launchConfig->working_dir.empty())
-            ? launchConfig->working_dir.c_str()
-            : launchConfig->getExecutableDir().c_str(),
-          launchConfig->getExecutableFullPath ( ),
-          (! localInjection && usingSK));
       }
 
       // Launch Steam game (regular)
@@ -5100,20 +5142,20 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (launchDecision)
         {
           std::wstring launchOptions = SK_FormatStringW (LR"(steam://run/%d)", pApp->id);
-          SKIF_Util_OpenURI (launchOptions);
-          pApp->_status.invalidate();
+          if (SKIF_Util_OpenURI (launchOptions) != 0)
+          {
+            // Don't check the running state for at least 7.5 seconds
+            pApp->_status.dwTimeDelayChecks = current_time + 7500;
+            pApp->_status.running           = true;
 
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+          }
         }
       }
        
-      // SKIF Custom, GOG without Galaxy, Xbox
+      // SKIF Custom / GOG without Galaxy games
       else
       {
-        std::wstring wszPath = (pApp->store == app_record_s::Store::Xbox)
-                              ? launchConfig->executable_helper
-                              : launchConfig->getExecutableFullPath ( );
-
         // We need to use a proxy variable since we might remove a substring of the launch options
         std::wstring cmdLine      = launchConfig->getLaunchOptions();
 
@@ -5150,7 +5192,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-        SKIF_Util_OpenURI (wszPath, SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), launchConfig->working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
+        SKIF_Util_OpenURI (launchConfig->getExecutableFullPath ( ).c_str(), SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), launchConfig->working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
 
         if (! steamAppId.empty ( ))
           SetEnvironmentVariable (L"SteamAppId",  NULL);
@@ -5184,24 +5226,24 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        bool bProc = SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+        if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
                            cmdLine.c_str(),
                         (! launchConfig->working_dir.empty())
                              ? launchConfig->working_dir.c_str()
                              : launchConfig->getExecutableDir().c_str(),
                               &env,
                               proc
-        );
-
-        if (! bProc)
+          ))
         {
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->getExecutableFullPath ( ), launchConfig->getLaunchOptions(), launchConfig->working_dir.c_str(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+        }
+        
+        else {
           PLOG_DEBUG << "Process creation failed ?!";
 
           proc->id       =  0;
           proc->store_id = -1;
         }
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), wszPath, launchConfig->getLaunchOptions(), launchConfig->working_dir.c_str(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
       }
           
       // Fallback for minimizing SKIF when not using SK if configured as such

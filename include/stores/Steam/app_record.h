@@ -98,7 +98,8 @@ struct app_record_s {
     // For Registry Key Watch
     static DWORD
       _TimeLastNotified;
-
+    
+    DWORD                    dwTimeDelayChecks = 0; // Used to prevent the status from changing for X number of milliseconds.
     DWORD                    dwTimeLastChecked = 0;
     void invalidate (void) { dwTimeLastChecked = 0; }
   } _status;
