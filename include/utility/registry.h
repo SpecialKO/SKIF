@@ -229,7 +229,11 @@ struct SKIF_RegistrySettings {
 //                   with the service on launch.
 //KeyValue <bool> regKVServiceMode =
 //  SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-//                       LR"(Small Mode)" );
+//                       LR"(Service Mode)" ); // Small Mode
+
+  KeyValue <bool> regKVHorizonMode =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Horizon Mode)" );
 
   KeyValue <bool> regKVFirstLaunch =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -437,6 +441,8 @@ struct SKIF_RegistrySettings {
   bool bLibraryCustom           =  true;
 
   bool bServiceMode             = false;
+  bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
+
   bool bFirstLaunch             = false;
   bool bEnableDebugMode         = false;
   bool bAllowMultipleInstances  = false;

@@ -409,7 +409,7 @@ LoadLibraryTexture (
       SUCCEEDED(
         DirectX::LoadFromWICFile (
           load_str.c_str (),
-            DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
+           DirectX::WIC_FLAGS_FILTER_POINT | DirectX::WIC_FLAGS_IGNORE_SRGB, // WIC_FLAGS_IGNORE_SRGB solves some PNGs appearing too dark
               &meta, img
         )
       )
@@ -452,11 +452,7 @@ LoadLibraryTexture (
 
   if (succeeded)
   {
-    //if (libTexToLoad == LibraryTexture::Cover)
-    //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Loading the source image succeeded...\n").c_str());
-
-    DirectX::ScratchImage* pImg   =
-                                &img;
+    DirectX::ScratchImage* pImg  =   &img;
     DirectX::ScratchImage   converted_img;
 
     // Start aspect ratio
@@ -479,8 +475,6 @@ LoadLibraryTexture (
 
       vCoverUv0.x = 0.f - diff.x;
       vCoverUv1.x = 1.f + diff.x;
-      //vCoverUv0.y = 1.f;
-      //vCoverUv1.y = 1.f;
     }
 
     // Crop thinner aspect ratios by their height
@@ -491,12 +485,9 @@ LoadLibraryTexture (
       diff.y -= 1.0f;
       diff.y /= 2;
       
-      //vCoverUv0.x = 1.f;
-      //vCoverUv1.x = 1.f;
       vCoverUv0.y = 0.f - diff.y;
       vCoverUv1.y = 1.f + diff.y;
     }
-
     // End aspect ratio
 
     // We don't want single-channel icons, so convert to RGBA
@@ -512,8 +503,33 @@ LoadLibraryTexture (
                 converted_img
           )
         )
-      ) { meta =  converted_img.GetMetadata ();
-          pImg = &converted_img; }
+      )
+      {
+        meta =  converted_img.GetMetadata ();
+        pImg = &converted_img;
+      }
+    }
+
+    // Downscale covers to 200x300, which will then be shown as 186.67 x 280 in horizon mode
+    if (_registry.bHorizonMode && libTexToLoad == LibraryTexture::Cover && appid != SKIF_STEAM_APPID)
+    {
+      size_t width  = 200; // 200
+      size_t height = 300; // 300
+
+      if (
+        SUCCEEDED (
+          DirectX::Resize (
+            pImg->GetImages   (), pImg->GetImageCount (),
+            pImg->GetMetadata (), width, height,
+            DirectX::TEX_FILTER_FANT,
+                converted_img
+          )
+        )
+      )
+      {
+        meta =  converted_img.GetMetadata ();
+        pImg = &converted_img;
+      }
     }
 
     auto pDevice =

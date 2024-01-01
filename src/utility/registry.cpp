@@ -185,6 +185,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
 //bServiceMode             =   regKVServiceMode            .getData ( );
+  bHorizonMode             =   regKVHorizonMode            .getData ( );
+
   bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData ( );
   bFirstLaunch             =   regKVFirstLaunch            .getData ( );
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );

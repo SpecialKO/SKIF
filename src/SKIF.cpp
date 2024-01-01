@@ -103,16 +103,16 @@ UINT SHELL_TASKBAR_BUTTON_CREATED = 0;
 //   occurs when switching between tabs as the size isn't dynamically calculated.
 
 // --- App Mode (regular)
-ImVec2 SKIF_vecAppMode              = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecAppModeDefault       = ImVec2 (1038.0f, 944.0f); // Does not include the status bar  // 1038x944 // 1055
-ImVec2 SKIF_vecAppModeAdjusted      = SKIF_vecAppModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
+ImVec2 SKIF_vecRegularMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1038.0f, 944.0f);   // Does not include the status bar
+ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
-ImVec2 SKIF_vecSvcMode              = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecSvcModeDefault       = ImVec2 (415.0f, 305.0f);
+ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);
 // --- Horizontal Mode (used when regular mode is not available)
-ImVec2 SKIF_vecHorMode              = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecHorModeDefault       = ImVec2 (1038.0f, 414.0f); // Does not include the status bar
-ImVec2 SKIF_vecHorModeAdjusted      = SKIF_vecHorModeDefault;   // Adjusted for status bar and tooltips (NO DPI scaling!)
+ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1038.0f, 325.0f);   // Does not include the status bar
+ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
@@ -1631,16 +1631,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
-  if (_registry.bUIStatusBar)
-  {
-    SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
-
-    if (! _registry.bUITooltips)
-      SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
-  }
-
-  else
-    SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
+  SKIF_ImGui_AdjustAppModeSize ( );
 
   // Initialize ImGui fonts
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
@@ -1922,10 +1913,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImVec2 WorkSize =
           ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
+                   (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
+        if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+          SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
       }
 
       LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
@@ -2054,15 +2045,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
       }
+      
+      SKIF_vecServiceMode    = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecHorizonMode    = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecRegularMode    = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      
+      SKIF_vecHorizonMode.y -= SKIF_vecAlteredSize.y;
+      SKIF_vecRegularMode.y -= SKIF_vecAlteredSize.y;
 
-      SKIF_vecSvcMode = SKIF_vecSvcModeDefault  * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecAppMode = SKIF_vecAppModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-
-      SKIF_vecAppMode.y -= SKIF_vecAlteredSize.y;
-
-      SKIF_vecCurrentMode  =
-                    (_registry.bServiceMode) ? SKIF_vecSvcMode
-                                             : SKIF_vecAppMode;
+      SKIF_vecCurrentMode    =
+                    (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                    (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
+                                               SKIF_vecRegularMode ;
 
       // Don't set the window size for the first few frames to prevent
       // a pseudo-window from being created and flashing by at launch
@@ -2142,8 +2136,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // This is only necessary to run once on launch, to account for the startup display DPI
           SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
-          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
+          if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
 
           // Also recreate the swapchain (applies any HDR/SDR changes between displays)
           //   but not the first time to prevent unnecessary swapchain recreation on launch
@@ -2186,11 +2180,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
           RefreshSettingsTab = true;
       }
 
+      if (! _registry.bServiceMode)
+      {
+        ImGui::SetCursorPosX (ImGui::GetCursorPosX () - 50.0f * SKIF_ImGui_GlobalDPIScale);
+
+        if (ImGui::Button ((_registry.bHorizonMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+        {
+          _registry.bHorizonMode  =         ! _registry.bHorizonMode;
+          _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
+
+          PLOG_DEBUG << "Switched to " << ((_registry.bHorizonMode) ? "horizon mode" : "regular mode");
+
+          LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+          if (lStyle & WS_MAXIMIZE)
+            repositionToCenter   = true;
+          else
+            RespectMonBoundaries = true;
+
+          // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
+          //   This prevent flashing and elements appearing too large during those frames.
+          //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+          // This destroys and recreates the ImGui windows
+        }
+
+        ImGui::SameLine ();
+      }
+
       if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
           || hotkeyCtrlT || hotkeyF11)
       {
         _registry.bServiceMode = ! _registry.bServiceMode;
-      //_registry.regKVServiceMode.putData (_registry.bServiceMode);
         _registry._ExitOnInjection = false;
 
         PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
@@ -2554,7 +2573,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         // Add a separation in Large Mode
         
-        // This counteracts math performed on SKIF_vecAppMode.y at the beginning of the frame
+        // This counteracts math performed on SKIF_vecRegularMode.y at the beginning of the frame
         if (_registry.bUIStatusBar)
         {
           /* 2023-08-01: Disabled in favor of just using current cursor pos

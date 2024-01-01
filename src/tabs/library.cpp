@@ -2799,19 +2799,32 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Preload all appinfo.vdf data
       // This is needed for SKIF's fallback process tracking
       //   of Steam games that relies on the executable name
-#if 0
-      PLOG_DEBUG << "Loading appinfo.vdf data...";
-      for (auto& app : g_apps)
-      {
-        if (app.second.id == SKIF_STEAM_APPID)
-          SKIF_STEAM_OWNER = true;
+      //
+      // 2024-01-01: Not actually needed any longer after last weeks
+      //   major I/O optimizations, _and_ a new fallback monitoring
+      //     method that loads appinfo for one game per frame.
 
-        if (appinfo != nullptr)
-          appinfo->getAppInfo ( app.second.id );
+//#define _WRITE_APPID_INI
+
+#ifdef _WRITE_APPID_INI
+
+      if (appinfo != nullptr)
+      {
+        PLOG_DEBUG << "Loading appinfo.vdf data...";
+        for (auto& app : g_apps)
+        {
+          if (app.second.id == SKIF_STEAM_APPID)
+            SKIF_STEAM_OWNER = true;
+
+          if (! app.second.processed)
+            appinfo->getAppInfo ( app.second.id );
+        }
+        PLOG_DEBUG << "Finished loading appinfo.vdf data for " << g_apps.size() << " games!";
+        steamFallback = true;
       }
-      PLOG_DEBUG << "Finished loading appinfo.vdf data for " << g_apps.size() << " games!";
-      steamFallback = true;
+
 #endif
+
     }
 
     if ( ! SKIF_STEAM_OWNER )
@@ -3184,20 +3197,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
+  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (186.67f, 280.0f) : ImVec2 (600.0f, 900.0f);
+  ImVec2 sizeList    = (_registry.bHorizonMode) ? ImVec2 (  0.00f, 280.0f) : ImVec2 (  0.0f, 620.0f);
+  ImVec2 sizeDetails = (_registry.bHorizonMode) ? ImVec2 (  0.00f, 280.0f) : ImVec2 (  0.0f, 280.0f);
+
   // From now on ImGui UI calls starts being made...
-
-  static bool horizontalMode = false;
-
-  static ImVec2 sizeCover   = ImVec2 (600.0f, 900.0f);
-  static ImVec2 sizeList    = ImVec2 (  0.0f, 620.0f);
-  static ImVec2 sizeDetails = ImVec2 (  0.0f, 280.0f);
-
-  if (horizontalMode)
-  {
-    sizeCover               = ImVec2 (186.67f, 280.0f);
-    sizeList                = ImVec2 (  0.00f, 280.0f);
-    sizeDetails             = ImVec2 (  0.00f, 280.0f);
-  }
 
 #pragma region GameCover
 
@@ -3373,274 +3377,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   float fZ =
   ImGui::GetCursorPosX (                                                  );
-
-  if (loadCover && populated)
-  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
-    // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
-    // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
-    // 2023-10-05: Disabled waiting for the icon thread as well
-    loadCover = false;
-
-    // Reset variables used to track whether we're still loading a game cover, or if we're missing one
-    gameCoverLoading.store (true);
-    tryingToLoadCover = true;
-    queuePosGameCover = textureLoadQueueLength.load() + 1;
-
-//#define _WRITE_APPID_INI
-#ifdef _WRITE_APPID_INI 
-    if ( appinfo != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->processed)
-    {
-      skValveDataFile::appinfo_s *pAppInfo =
-        appinfo->getAppInfo ( pApp->id );
-
-      DBG_UNREFERENCED_LOCAL_VARIABLE (pAppInfo);
-    }
-#endif
-
-    //PLOG_VERBOSE << "ImGui Frame Counter: " << ImGui::GetFrameCount();
-
-#pragma region SKIF_LibCoverWorker
-
-    // We're going to stream the cover in asynchronously on this thread
-    _beginthread ([](void*)->void
-    {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
-
-      CoInitializeEx (nullptr, 0x0);
-
-      PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
-      PLOG_INFO  << "Streaming game cover asynchronously...";
-
-      if (pApp == nullptr)
-      {
-        PLOG_ERROR << "Aborting due to pApp being a nullptr!";
-        return;
-      }
-
-      app_record_s* _pApp = pApp;
-
-      int queuePos = getTextureLoadQueuePos();
-      //PLOG_VERBOSE << "queuePos = " << queuePos;
-
-      static ImVec2 _vecCoverUv0(vecCoverUv0);
-      static ImVec2 _vecCoverUv1(vecCoverUv1);
-      static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
-
-      std::wstring load_str;
-
-      // SKIF
-      if (_pApp->id == SKIF_STEAM_APPID)
-      {
-        // No need to change the string in any way
-      }
-
-      // SKIF Custom
-      else if (_pApp->store == app_record_s::Store::Other)
-      {
-        load_str = L"cover";
-      }
-
-      // GOG
-      else if (_pApp->store == app_record_s::Store::GOG)
-      {
-        load_str = L"*_glx_vertical_cover.webp";
-      }
-
-      // Epic
-      else if (_pApp->store == app_record_s::Store::Epic)
-      {
-        load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
-
-        if ( ! PathFileExistsW (load_str.   c_str ()) )
-        {
-          SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
-        }
-        
-        else {
-          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! _registry.bLowBandwidthMode &&
-                SUCCEEDED (
-                DirectX::GetMetadataFromWICFile (
-                  load_str.c_str (),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      meta
-                  )
-                )
-              )
-          {
-            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
-            //   download the full-size cover and replace the existing one.
-            if (meta.width  == 600 ||
-                meta.height == 900)
-            {
-              SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
-            }
-          }
-        }
-      }
-
-      // Xbox
-      else if (_pApp->store == app_record_s::Store::Xbox)
-      {
-        load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Xbox_PackageName).c_str());
-
-        if ( ! PathFileExistsW (load_str.   c_str ()) )
-        {
-          SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
-        }
-        
-        else {
-          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! _registry.bLowBandwidthMode &&
-                SUCCEEDED (
-                DirectX::GetMetadataFromWICFile (
-                  load_str.c_str (),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      meta
-                  )
-                )
-              )
-          {
-            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
-            //   download the full-size cover and replace the existing one.
-            if (meta.width  == 600 ||
-                meta.height == 900)
-            {
-              SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
-            }
-          }
-        }
-      }
-
-      // Steam
-      else if (_pApp->store == app_record_s::Store::Steam)
-      {
-        std::wstring load_str_2x (
-          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, _pApp->id)
-        );
-
-        std::error_code ec;
-        // Create any missing directories
-        if (! std::filesystem::exists (            load_str_2x, ec))
-              std::filesystem::create_directories (load_str_2x, ec);
-
-        load_str_2x += L"cover-original.jpg";
-        load_str     = _path_cache.steam_install;
-        load_str    += LR"(/appcache/librarycache/)" +
-          std::to_wstring (_pApp->id)                +
-                                  L"_library_600x900.jpg";
-
-        std::wstring load_str_final = load_str;
-
-        // Get UNIX-style time
-        time_t ltime;
-        time (&ltime);
-
-        std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
-                     url += std::to_wstring (_pApp->id);
-                     url += L"/library_600x900_2x.jpg";
-                     url += L"?t=";
-                     url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
-
-        // If 600x900 exists but 600x900_x2 cannot be found
-        if (  PathFileExistsW (load_str.   c_str ()) &&
-            ! PathFileExistsW (load_str_2x.c_str ()) )
-        {
-          // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
-          if ( ! _registry.bLowBandwidthMode &&
-                SUCCEEDED (
-                DirectX::GetMetadataFromWICFile (
-                  load_str.c_str (),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      meta
-                  )
-                )
-              )
-          {
-            // If the image is in reality 300x450, which indicates a real cover,
-            //   download the real 600x900 cover and store it in _x2
-            if (meta.width  == 300 &&
-                meta.height == 450)
-            {
-              PLOG_DEBUG << "Downloading cover asset: " << url;
-
-              SKIF_Util_GetWebResource (url, load_str_2x);
-              load_str_final = load_str_2x;
-            }
-          }
-        }
-
-        // If 600x900_x2 exists, check the last modified time stamps
-        else {
-          WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
-
-          // ... but only if low bandwidth mode is disabled
-          if (! _registry.bLowBandwidthMode &&
-              GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
-              GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
-          {
-            // If 600x900 has been edited after 600_900_x2,
-            //   download new copy of the 600_900_x2 cover
-            if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
-            {
-              DeleteFile (load_str_2x.c_str ());
-
-              PLOG_DEBUG << "Downloading cover asset: " << url;
-              SKIF_Util_GetWebResource (url, load_str_2x);
-            }
-          }
-          
-          // If 600x900_x2 exists now, load it
-          if (PathFileExistsW (load_str_2x.c_str ()))
-            load_str_final = load_str_2x;
-        }
-
-        load_str = load_str_final;
-      }
-    
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                              _pApp->id,
-                                _pTexSRV,
-                                  load_str,
-                                    _vecCoverUv0,
-                                      _vecCoverUv1,
-                                        _pApp);
-
-      PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
-
-      int currentQueueLength = textureLoadQueueLength.load();
-
-      if (currentQueueLength == queuePos)
-      {
-        PLOG_DEBUG << "Texture is live! Swapping it in.";
-        vecCoverUv0 = _vecCoverUv0;
-        vecCoverUv1 = _vecCoverUv1;
-        pTexSRV     = _pTexSRV;
-
-        // Indicate that we have stopped loading the cover
-        gameCoverLoading.store (false);
-
-        // Force a refresh when the cover has been swapped in
-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
-      }
-
-      else if (_pTexSRV.p != nullptr)
-      {
-        PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
-        SKIF_ResourcesToFree.push(_pTexSRV.p);
-        _pTexSRV.p = nullptr;
-      }
-
-      PLOG_INFO  << "Finished streaming game cover asynchronously...";
-      PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
-
-    }, 0x0, NULL);
-
-#pragma endregion
-  }
 
   // LIST + DETAILS START
   ImGui::BeginGroup   (                  );
@@ -4105,7 +3841,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::IsItemClicked    (ImGuiMouseButton_Right))
     EmptySpaceMenu = PopupState_Open;
 
-  if (horizontalMode)
+  if (_registry.bHorizonMode)
     ImGui::SameLine ( );
 
 #pragma region GameDetails
@@ -4302,9 +4038,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special handling at the bottom of the cover for Special K
-  if (pApp        != nullptr            &&
-      pApp->id    == SKIF_STEAM_APPID   &&
-      pApp->store == app_record_s::Store::Steam)
+  if (! _registry.bHorizonMode            &&
+        pApp        != nullptr            &&
+        pApp->id    == SKIF_STEAM_APPID   &&
+        pApp->store == app_record_s::Store::Steam)
   {
     ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
                                                               fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
@@ -4374,8 +4111,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
     ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
     ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
-                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
-                           160.0f * SKIF_ImGui_GlobalDPIScale),
+                    ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                            160.0f * SKIF_ImGui_GlobalDPIScale),
                                     ImGuiInputTextFlags_ReadOnly );
     ImGui::PopStyleColor      (4);
     ImGui::PopStyleVar        ( );
@@ -5294,6 +5031,276 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
   
+#pragma region SKIF_LibCoverWorker
+
+  // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
+  static bool lastHorizonMode = _registry.bHorizonMode;
+  if (lastHorizonMode != _registry.bHorizonMode)
+  {
+    lastHorizonMode = _registry.bHorizonMode;
+    //loadCover       = true;
+
+    update    = true;
+    lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+  }
+  
+  if (loadCover && populated)
+  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
+    // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
+    // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
+    // 2023-10-05: Disabled waiting for the icon thread as well
+    loadCover = false;
+
+    // Reset variables used to track whether we're still loading a game cover, or if we're missing one
+    gameCoverLoading.store (true);
+    tryingToLoadCover = true;
+    queuePosGameCover = textureLoadQueueLength.load() + 1;
+
+    // We're going to stream the cover in asynchronously on this thread
+    _beginthread ([](void*)->void
+    {
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
+
+      CoInitializeEx (nullptr, 0x0);
+
+      PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
+      PLOG_INFO  << "Streaming game cover asynchronously...";
+
+      if (pApp == nullptr)
+      {
+        PLOG_ERROR << "Aborting due to pApp being a nullptr!";
+        return;
+      }
+
+      app_record_s* _pApp = pApp;
+
+      int queuePos = getTextureLoadQueuePos();
+      //PLOG_VERBOSE << "queuePos = " << queuePos;
+
+      static ImVec2 _vecCoverUv0(vecCoverUv0);
+      static ImVec2 _vecCoverUv1(vecCoverUv1);
+      static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
+
+      std::wstring load_str;
+
+      // SKIF
+      if (_pApp->id == SKIF_STEAM_APPID)
+      {
+        // No need to change the string in any way
+      }
+
+      // SKIF Custom
+      else if (_pApp->store == app_record_s::Store::Other)
+      {
+        load_str = L"cover";
+      }
+
+      // GOG
+      else if (_pApp->store == app_record_s::Store::GOG)
+      {
+        load_str = L"*_glx_vertical_cover.webp";
+      }
+
+      // Epic
+      else if (_pApp->store == app_record_s::Store::Epic)
+      {
+        load_str = 
+          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
+
+        if ( ! PathFileExistsW (load_str.   c_str ()) )
+        {
+          SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
+        }
+        
+        else {
+          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
+          if ( ! _registry.bLowBandwidthMode &&
+                SUCCEEDED (
+                DirectX::GetMetadataFromWICFile (
+                  load_str.c_str (),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      meta
+                  )
+                )
+              )
+          {
+            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
+            //   download the full-size cover and replace the existing one.
+            if (meta.width  == 600 ||
+                meta.height == 900)
+            {
+              SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
+            }
+          }
+        }
+      }
+
+      // Xbox
+      else if (_pApp->store == app_record_s::Store::Xbox)
+      {
+        load_str = 
+          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Xbox_PackageName).c_str());
+
+        if ( ! PathFileExistsW (load_str.   c_str ()) )
+        {
+          SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
+        }
+        
+        else {
+          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
+          if ( ! _registry.bLowBandwidthMode &&
+                SUCCEEDED (
+                DirectX::GetMetadataFromWICFile (
+                  load_str.c_str (),
+                    DirectX::WIC_FLAGS_FILTER_POINT,
+                      meta
+                  )
+                )
+              )
+          {
+            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
+            //   download the full-size cover and replace the existing one.
+            if (meta.width  == 600 ||
+                meta.height == 900)
+            {
+              SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
+            }
+          }
+        }
+      }
+
+      // Steam
+      else if (_pApp->store == app_record_s::Store::Steam)
+      {
+        std::wstring load_str_2x (
+          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, _pApp->id)
+        );
+
+        std::error_code ec;
+        // Create any missing directories
+        if (! std::filesystem::exists (            load_str_2x, ec))
+              std::filesystem::create_directories (load_str_2x, ec);
+
+        load_str_2x += L"cover-original.jpg";
+        load_str     = _path_cache.steam_install;
+        load_str    += LR"(/appcache/librarycache/)" +
+          std::to_wstring (_pApp->id)                +
+                                  L"_library_600x900.jpg";
+
+        // If horizon mode is being used, we prefer to load the 300x450 image!
+        if (! _registry.bHorizonMode)
+        {
+          std::wstring load_str_final = load_str;
+
+          // Get UNIX-style time
+          time_t ltime;
+          time (&ltime);
+
+          std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
+                       url += std::to_wstring (_pApp->id);
+                       url += L"/library_600x900_2x.jpg";
+                       url += L"?t=";
+                       url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
+
+          // If 600x900 exists but 600x900_x2 cannot be found
+          if (  PathFileExistsW (load_str.   c_str ()) &&
+              ! PathFileExistsW (load_str_2x.c_str ()) )
+          {
+            // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
+            if ( ! _registry.bLowBandwidthMode &&
+                  SUCCEEDED (
+                  DirectX::GetMetadataFromWICFile (
+                    load_str.c_str (),
+                      DirectX::WIC_FLAGS_FILTER_POINT,
+                        meta
+                    )
+                  )
+                )
+            {
+              // If the image is in reality 300x450, which indicates a real cover,
+              //   download the real 600x900 cover and store it in _x2
+              if (meta.width  == 300 &&
+                  meta.height == 450)
+              {
+                PLOG_DEBUG << "Downloading cover asset: " << url;
+
+                SKIF_Util_GetWebResource (url, load_str_2x);
+                load_str_final = load_str_2x;
+              }
+            }
+          }
+
+          // If 600x900_x2 exists, check the last modified time stamps
+          else {
+            WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
+
+            // ... but only if low bandwidth mode is disabled
+            if (! _registry.bLowBandwidthMode &&
+                GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
+                GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
+            {
+              // If 600x900 has been edited after 600_900_x2,
+              //   download new copy of the 600_900_x2 cover
+              if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+              {
+                DeleteFile (load_str_2x.c_str ());
+
+                PLOG_DEBUG << "Downloading cover asset: " << url;
+                SKIF_Util_GetWebResource (url, load_str_2x);
+              }
+            }
+          
+            // If 600x900_x2 exists now, load it
+            if (PathFileExistsW (load_str_2x.c_str ()))
+              load_str_final = load_str_2x;
+          }
+
+          load_str = load_str_final;
+        }
+      }
+    
+      LoadLibraryTexture ( LibraryTexture::Cover,
+                              _pApp->id,
+                                _pTexSRV,
+                                  load_str,
+                                    _vecCoverUv0,
+                                      _vecCoverUv1,
+                                        _pApp);
+
+      PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
+
+      int currentQueueLength = textureLoadQueueLength.load();
+
+      if (currentQueueLength == queuePos)
+      {
+        PLOG_DEBUG << "Texture is live! Swapping it in.";
+        vecCoverUv0 = _vecCoverUv0;
+        vecCoverUv1 = _vecCoverUv1;
+        pTexSRV     = _pTexSRV;
+
+        // Indicate that we have stopped loading the cover
+        gameCoverLoading.store (false);
+
+        // Force a refresh when the cover has been swapped in
+        PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+      }
+
+      else if (_pTexSRV.p != nullptr)
+      {
+        PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
+        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
+        SKIF_ResourcesToFree.push(_pTexSRV.p);
+        _pTexSRV.p = nullptr;
+      }
+
+      PLOG_INFO  << "Finished streaming game cover asynchronously...";
+      PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
+
+    }, 0x0, NULL);
+  }
+
+#pragma endregion
+
 #pragma region Popups
 
   static float fConfirmPopupWidth;

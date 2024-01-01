@@ -300,6 +300,9 @@ void SKIF_UI_DrawShellyTheGhost (void)
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
     float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2);
 
+    if (! _registry.bServiceMode)
+      fMaxPos -= (50.0f * SKIF_ImGui_GlobalDPIScale);
+
     static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
     static float fMinPos   =  0.0f;
     static float fRelPos   = 50.0f;  // Percentage based (0% -> 100%)

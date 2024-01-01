@@ -277,6 +277,65 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
 }
 
+void
+SKIF_ImGui_AdjustAppModeSize (void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  extern ImVec2 SKIF_vecRegularModeDefault;
+  extern ImVec2 SKIF_vecRegularModeAdjusted;
+  extern ImVec2 SKIF_vecHorizonModeDefault;
+  extern ImVec2 SKIF_vecHorizonModeAdjusted;
+  extern ImVec2 SKIF_vecAlteredSize;
+  extern float  SKIF_fStatusBarHeight;
+  extern float  SKIF_fStatusBarDisabled;
+  extern float  SKIF_fStatusBarHeightTips;
+
+  // Adjust the large mode size
+  SKIF_vecRegularModeAdjusted = SKIF_vecRegularModeDefault;
+  SKIF_vecHorizonModeAdjusted = SKIF_vecHorizonModeDefault;
+
+  // Add the status bar if it is not disabled
+  if (_registry.bUIStatusBar)
+  {
+    SKIF_vecRegularModeAdjusted.y += SKIF_fStatusBarHeight;
+    SKIF_vecHorizonModeAdjusted.y += SKIF_fStatusBarHeight;
+
+    if (! _registry.bUITooltips)
+    {
+      SKIF_vecRegularModeAdjusted.y += SKIF_fStatusBarHeightTips;
+      SKIF_vecHorizonModeAdjusted.y += SKIF_fStatusBarHeightTips;
+    }
+  }
+
+  else
+  {
+    SKIF_vecRegularModeAdjusted.y += SKIF_fStatusBarDisabled;
+    SKIF_vecHorizonModeAdjusted.y += SKIF_fStatusBarDisabled;
+  }
+
+  if (SKIF_ImGui_hWnd != NULL)
+  {
+    // Take the current display into account
+    HMONITOR monitor =
+      ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+
+    MONITORINFO
+      info        = {                  };
+      info.cbSize = sizeof (MONITORINFO);
+
+    if (::GetMonitorInfo (monitor, &info))
+    {
+      ImVec2 WorkSize =
+        ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                  (float)( info.rcWork.bottom - info.rcWork.top  ) );
+
+      if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+        SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
+    }
+  }
+}
+
 bool
 SKIF_ImGui_IsFocused (void)
 {
@@ -516,7 +575,7 @@ void SKIF_ImGui_BeginTabChildFrame (void)
   auto frame_content_area_id =
     ImGui::GetID ("###SKIF_CONTENT_AREA");
 
-  float maxContentHeight = 908.0f; // Default height // 910 // H: 900 // 908 is the absolute minimum height that the Library tab can fit into
+  float maxContentHeight = (_registry.bHorizonMode) ? 286.0f : 908.0f; // Default height -- 908 is the absolute minimum height that the Library tab can fit into
         maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
 
   SKIF_ImGui_BeginChildFrame (

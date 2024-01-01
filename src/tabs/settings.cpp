@@ -943,45 +943,8 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVUITooltips.putData (_registry.bUITooltips);
 
-      extern ImVec2 SKIF_vecAppModeDefault;
-      extern ImVec2 SKIF_vecAppModeAdjusted;
-      extern ImVec2 SKIF_vecAlteredSize;
-      extern float  SKIF_fStatusBarHeight;
-      extern float  SKIF_fStatusBarDisabled;
-      extern float  SKIF_fStatusBarHeightTips;
-
-      // Adjust the large mode size
-      SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
-
-      // Add the status bar if it is not disabled
-      if (_registry.bUIStatusBar)
-      {
-        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
-
-        if (! _registry.bUITooltips)
-          SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
-      }
-
-      else
-        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
-
-      // Take the current display into account
-      HMONITOR monitor =
-        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
-
-      MONITORINFO
-        info        = {                  };
-        info.cbSize = sizeof (MONITORINFO);
-
-      if (::GetMonitorInfo (monitor, &info))
-      {
-        ImVec2 WorkSize =
-          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
-
-        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
-      }
+      // Adjust the app mode size
+      SKIF_ImGui_AdjustAppModeSize ( );
     }
 
     if (ImGui::IsItemHovered ())
@@ -999,45 +962,8 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVUIStatusBar.putData (_registry.bUIStatusBar);
 
-      extern ImVec2 SKIF_vecAppModeDefault;
-      extern ImVec2 SKIF_vecAppModeAdjusted;
-      extern ImVec2 SKIF_vecAlteredSize;
-      extern float  SKIF_fStatusBarHeight;
-      extern float  SKIF_fStatusBarDisabled;
-      extern float  SKIF_fStatusBarHeightTips;
-
-      // Adjust the large mode size
-      SKIF_vecAppModeAdjusted = SKIF_vecAppModeDefault;
-
-      // Add the status bar if it is not disabled
-      if (_registry.bUIStatusBar)
-      {
-        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeight;
-
-        if (! _registry.bUITooltips)
-          SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarHeightTips;
-      }
-
-      else
-        SKIF_vecAppModeAdjusted.y += SKIF_fStatusBarDisabled;
-
-      // Take the current display into account
-      HMONITOR monitor =
-        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
-
-      MONITORINFO
-        info        = {                  };
-        info.cbSize = sizeof (MONITORINFO);
-
-      if (::GetMonitorInfo (monitor, &info))
-      {
-        ImVec2 WorkSize =
-          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                    (float)( info.rcWork.bottom - info.rcWork.top  ) );
-
-        if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
-      }
+      // Adjust the app mode size
+      SKIF_ImGui_AdjustAppModeSize ( );
     }
 
     SKIF_ImGui_SetHoverTip ("Disabling the status bar as well as tooltips will hide all additional information or tips.");
@@ -2044,7 +1970,7 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
   
 #pragma region Section: SwapChain Presentation Monitor
-  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-6", ImGuiTreeNodeFlags_DefaultOpen))
+  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-6", (_registry.bHorizonMode) ? ImGuiTreeNodeFlags_None : ImGuiTreeNodeFlags_DefaultOpen))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)

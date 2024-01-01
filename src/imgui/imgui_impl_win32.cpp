@@ -1785,10 +1785,12 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   extern HWND SKIF_ImGui_hWnd;
   extern HWND SKIF_Notify_hWnd;
   extern float SKIF_ImGui_GlobalDPIScale;
-  extern ImVec2 SKIF_vecAppModeDefault;  // Does not include the status bar
-  extern ImVec2 SKIF_vecAppModeAdjusted; // Adjusted for status bar and tooltips
+  extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
+  extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
+  extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
+  extern ImVec2 SKIF_vecHorizonModeAdjusted; // Adjusted for status bar and tooltips
+  extern ImVec2 SKIF_vecServiceModeDefault;
   extern ImVec2 SKIF_vecAlteredSize;
-  extern ImVec2 SKIF_vecSvcModeDefault;
   //extern bool KeyWinKey;
   //extern int  SnapKeys; // 2 = Left, 4 = Up, 8 = Right, 16 = Down
   
@@ -1943,17 +1945,20 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
               if (! _registry.bServiceMode)
               {
                 ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
-                tmpExpectedSize = SKIF_vecAppModeAdjusted * targetDPI;
+                tmpExpectedSize = SKIF_vecRegularModeAdjusted * targetDPI;
 
                 // Needed to account for an altered size on the target display
-                if (SKIF_vecAppModeAdjusted.y * targetDPI > targetWorkArea.Max.y)
-                  tmpAlteredSize.y = (SKIF_vecAppModeAdjusted.y * targetDPI - targetWorkArea.Max.y);
+                if (SKIF_vecRegularModeAdjusted.y * targetDPI > targetWorkArea.Max.y)
+                {
+                  // Crop the regular mode
+                  tmpAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * targetDPI - targetWorkArea.Max.y);
+                }
 
                 tmpExpectedSize.y -= tmpAlteredSize.y;
               }
 
               else
-                tmpExpectedSize = SKIF_vecSvcModeDefault * targetDPI;
+                tmpExpectedSize = SKIF_vecServiceModeDefault * targetDPI;
 
               // Change the intended position to the actual center of the display
               wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (tmpExpectedSize.x * 0.5f));
@@ -2028,8 +2033,8 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
             ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                      (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-          if (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecAppModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
+          if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+            SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
 
           if (ImGui::IsAnyMouseDown ( ))
             return 0;
@@ -2049,7 +2054,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           else if (prcNewWindow->right >= info.rcWork.right)
           {
             // Switching to a display on the right
-            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecAppModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
+            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecRegularModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
             reposition = true;
           }
 
@@ -2104,8 +2109,8 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
         sizeMax.x = static_cast<long> (viewport->Size.x);
         sizeMax.y = static_cast<long> (viewport->Size.y);
-        //sizeMin.x = SKIF_vecAppModeAdjusted.x;
-        //sizeMin.y = SKIF_vecAppModeAdjusted.y;
+        //sizeMin.x = SKIF_vecRegularModeAdjusted.x;
+        //sizeMin.y = SKIF_vecRegularModeAdjusted.y;
 
         // To ensure that a "maximized" window is centered on the display, we are
         // using a custom position to detect maximized state later down the line
