@@ -112,8 +112,8 @@ extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
 #define _WIDTH   (415.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
-#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
-#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
+//#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
+//#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
 struct terminate_process_s {
   uint32_t      pid = 0;
@@ -2662,6 +2662,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static DirectX::TexMetadata     meta = { };
   static DirectX::ScratchImage    img  = { };
 
+#pragma region Initialization
+
   // Initialize the Steam appinfo.vdf Reader
   if (_registry.bLibrarySteam)
   {
@@ -3180,6 +3182,23 @@ SKIF_UI_Tab_DrawLibrary (void)
   // At this point we're done with the update variable
   update = false;
 
+#pragma endregion
+
+  // From now on ImGui UI calls starts being made...
+
+  static bool horizontalMode = false;
+
+  static ImVec2 sizeCover   = ImVec2 (600.0f, 900.0f);
+  static ImVec2 sizeList    = ImVec2 (  0.0f, 620.0f);
+  static ImVec2 sizeDetails = ImVec2 (  0.0f, 280.0f);
+
+  if (horizontalMode)
+  {
+    sizeCover               = ImVec2 (186.67f, 280.0f);
+    sizeList                = ImVec2 (  0.00f, 280.0f);
+    sizeDetails             = ImVec2 (  0.00f, 280.0f);
+  }
+
 #pragma region GameCover
 
   ImGui::BeginGroup    (                                                  );
@@ -3201,8 +3220,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   else if (tryingToLoadCover)
   {
     ImGui::SetCursorPos (ImVec2 (
-      vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-      vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
+      vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+      vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
     ImGui::TextDisabled (  cstrLabelLoading);
   }
   
@@ -3212,14 +3231,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
     {
       ImGui::SetCursorPos (ImVec2 (
-                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
+                  vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+                  vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
       ImGui::TextDisabled (  cstrLabelGOGUser);
     }
     else {
       ImGui::SetCursorPos (ImVec2 (
-                  vecPosCoverImage.x + 300.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-                  vecPosCoverImage.y + 450.0F * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
+                  vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+                  vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
       ImGui::TextDisabled (  cstrLabelMissing);
     }
   }
@@ -3238,8 +3257,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
   {
     SKIF_ImGui_OptImage  (pTexSRV_old.p,
-                                                      ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                              900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                      ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
+                                                              sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                       vecCoverUv0_old, // Top Left coordinates
                                                       vecCoverUv1_old, // Bottom Right coordinates
                                     (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
@@ -3251,8 +3270,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Display game cover image
   SKIF_ImGui_OptImage  (pTexSRV.p,
-                                                    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                            900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                    ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
+                                                            sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
                                   (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
@@ -3267,8 +3286,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (pSKLogoTexSRV != nullptr && pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
   {
     ImGui::Image (pSKLogoTexSRV.p,
-                                                    ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
-                                                            900.0F * SKIF_ImGui_GlobalDPIScale),
+                                                    ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
+                                                            sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                     ImVec2 (0.0f, 0.0f),                // Top Left coordinates
                                                     ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
                                                     ImVec4 (1.0f, 1.0f, 1.0f, fAlpha),  // Tint for Special K's logo
@@ -3782,7 +3801,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                         _HEIGHT ), (_registry.bUIBorders),
+                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) ), (_registry.bUIBorders),
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding ); // | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
@@ -3817,7 +3836,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (isIconMenu)
     {
-      if ( IconMenu != PopupState_Opened &&
+      if ( IconMenu == PopupState_Closed &&
            ImGui::IsItemClicked (ImGuiMouseButton_Right))
            IconMenu = PopupState_Open;
     }
@@ -4081,17 +4100,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Open the Empty Space Menu
 
-  if (! ImGui::IsAnyPopupOpen   ( ) &&
-      ! ImGui::IsAnyItemHovered ( ) &&
-        ImGui::IsItemClicked    (ImGuiMouseButton_Right))
+  if (IconMenu != PopupState_Open &&
+    ! ImGui::IsAnyItemHovered ( ) &&
+      ImGui::IsItemClicked    (ImGuiMouseButton_Right))
     EmptySpaceMenu = PopupState_Open;
+
+  if (horizontalMode)
+    ImGui::SameLine ( );
 
 #pragma region GameDetails
 
   ImGui::BeginChild (
     "###AppListInset2",
       ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-               _HEIGHT2 ), (_registry.bUIBorders),
+               sizeDetails.y * SKIF_ImGui_GlobalDPIScale), (_registry.bUIBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NavFlattened      |
