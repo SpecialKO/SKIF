@@ -1801,11 +1801,17 @@ SKIF_UI_Tab_DrawSettings (void)
       (white_edited || black_edited) ?
                                 false : true;
 
+    bool hotkeyCtrlS = false;
+
     if (bDisabled)
       SKIF_ImGui_PushDisableState ( );
+    else
+      hotkeyCtrlS = ImGui::GetIO().KeyCtrl               &&
+                    ImGui::GetIO().KeysDown['S']         &&
+                    ImGui::GetIO().KeysDownDuration['S'] == 0.0f;
 
     // Hotkey: Ctrl+S
-    if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || ((! bDisabled) && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeysDown['S']))
+    if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || hotkeyCtrlS)
     {
       // Clear the active ID to prevent ImGui from holding outdated copies of the variable
       //   if saving succeeds, to allow SaveUserList to update the variable successfully

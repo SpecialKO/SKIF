@@ -1674,6 +1674,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Reset on each frame
     SKIF_MouseDragMoveAllowed     = true;
 
+    // Various hotkeys that SKIF supports (resets on every frame)
+    bool hotkeyF5    = (              io.KeysDown[VK_F5]  &&  io.KeysDownDuration[VK_F5]  == 0.0f), // Library/About: Refresh data
+         hotkeyF6    = (              io.KeysDown[VK_F6]  &&  io.KeysDownDuration[VK_F6]  == 0.0f), // Appearance: Toggle DPI scaling
+         hotkeyF7    = (              io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f), // Appearance: Cycle between color themes
+         hotkeyF8    = (              io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f), // Appearance: Toggle UI borders
+         hotkeyF9    = (              io.KeysDown[VK_F9]  &&  io.KeysDownDuration[VK_F9]  == 0.0f), // Appearance: Toggle color depth
+         hotkeyF11   = (              io.KeysDown[VK_F11] &&  io.KeysDownDuration[VK_F11] == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlQ = (io.KeyCtrl && io.KeysDown['Q']    &&  io.KeysDownDuration['Q']    == 0.0f), // Close the app
+         hotkeyCtrlW = (io.KeyCtrl && io.KeysDown['W']    &&  io.KeysDownDuration['W']    == 0.0f), // Close the app
+         hotkeyCtrlR = (io.KeyCtrl && io.KeysDown['R']    &&  io.KeysDownDuration['R']    == 0.0f), // Library/About: Refresh data
+         hotkeyCtrlT = (io.KeyCtrl && io.KeysDown['T']    &&  io.KeysDownDuration['T']    == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlA = (io.KeyCtrl && io.KeysDown['A']    &&  io.KeysDownDuration['A']    == 0.0f), // Library: Add game
+         hotkeyCtrlN = (io.KeyCtrl && io.KeysDown['N']    &&  io.KeysDownDuration['N']    == 0.0f), // Minimize app
+         hotkeyCtrl1 = (io.KeyCtrl && io.KeysDown['1']    &&  io.KeysDownDuration['1']    == 0.0f), // Switch to Library
+         hotkeyCtrl2 = (io.KeyCtrl && io.KeysDown['2']    &&  io.KeysDownDuration['2']    == 0.0f), // Switch to Monitor
+         hotkeyCtrl3 = (io.KeyCtrl && io.KeysDown['3']    &&  io.KeysDownDuration['3']    == 0.0f), // Switch to Settings
+         hotkeyCtrl4 = (io.KeyCtrl && io.KeysDown['4']    &&  io.KeysDownDuration['4']    == 0.0f); // Switch to About
+
     auto _TranslateAndDispatch = [&](void) -> bool
     {
       while (! SKIF_Shutdown && PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE))
@@ -1839,8 +1857,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Note that Win11 rounded border color won't be applied until after a restart
       
     // F7 to cycle between color themes
-    if ( (_registry.iStyleTemp != _registry.iStyle) ||
-         ( io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f))
+    if ( (_registry.iStyleTemp != _registry.iStyle) || hotkeyF7)
     {
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
@@ -1874,8 +1891,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // F6 to toggle DPI scaling
-    if (   changedHiDPIScaling ||
-          ( io.KeysDown[VK_F6]  &&  io.KeysDownDuration[VK_F6]  == 0.0f))
+    if (changedHiDPIScaling || hotkeyF6)
     {
       // We only change bDPIScaling if ImGui::Checkbox (settings tab) was not used,
       //   as otherwise it have already been changed to reflect its new value
@@ -1920,7 +1936,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // F8 to toggle UI borders
-    if (( io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f))
+    if (hotkeyF8)
     {
       _registry.bUIBorders = ! _registry.bUIBorders;
       _registry.regKVUIBorders.putData (_registry.bUIBorders);
@@ -1930,7 +1946,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // F9 to cycle between color depths
-    if (( io.KeysDown[VK_F9]  &&  io.KeysDownDuration[VK_F9]  == 0.0f))
+    if (hotkeyF9)
     {
       if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive())
         _registry.iHDRMode = 1 + (_registry.iHDRMode % 2); // Cycle between 1 (10 bpc) and 2 (16 bpc)
@@ -2161,9 +2177,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
       );
 
-      if ( (io.KeyCtrl && io.KeysDown['R']    && io.KeysDownDuration['R']    == 0.0f) ||
-           (              io.KeysDown[VK_F5]  && io.KeysDownDuration[VK_F5]  == 0.0f)
-         )
+      if (hotkeyCtrlR || hotkeyF5)
       {
         if (SKIF_Tab_Selected == UITab_Library)
           RepopulateGames   = true;
@@ -2172,13 +2186,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           RefreshSettingsTab = true;
       }
 
-      if ( (io.KeyCtrl && io.KeysDown['T']    && io.KeysDownDuration['T']    == 0.0f) ||
-           (              io.KeysDown[VK_F11] && io.KeysDownDuration[VK_F11] == 0.0f) ||
-            ImGui::Button ( (_registry.bServiceMode) ? ICON_FA_MAXIMIZE
-                                                     : ICON_FA_MINIMIZE,
-                            ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale,
-                                      0.0f ) )
-         )
+      if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
+          || hotkeyCtrlT || hotkeyF11)
       {
         _registry.bServiceMode = ! _registry.bServiceMode;
       //_registry.regKVServiceMode.putData (_registry.bServiceMode);
@@ -2253,31 +2262,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
       if (! ImGui::IsAnyPopupOpen ( ) && ! _registry.bServiceMode)
       {
-        if (io.KeyCtrl && io.KeysDown['1']    && io.KeysDownDuration['1']    == 0.0f)
+        if (hotkeyCtrl1)
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
         }
 
-        if (io.KeyCtrl && io.KeysDown['2']    && io.KeysDownDuration['2']    == 0.0f)
+        if (hotkeyCtrl2)
         {
           if (SKIF_Tab_Selected != UITab_Monitor)
               SKIF_Tab_ChangeTo  = UITab_Monitor;
         }
 
-        if (io.KeyCtrl && io.KeysDown['3']    && io.KeysDownDuration['3']    == 0.0f)
+        if (hotkeyCtrl3)
         {
           if (SKIF_Tab_Selected != UITab_Settings)
               SKIF_Tab_ChangeTo  = UITab_Settings;
         }
 
-        if (io.KeyCtrl && io.KeysDown['4']    && io.KeysDownDuration['4']    == 0.0f)
+        if (hotkeyCtrl4)
         {
           if (SKIF_Tab_Selected != UITab_About)
               SKIF_Tab_ChangeTo  = UITab_About;
         }
 
-        if (io.KeyCtrl && io.KeysDown['A']    && io.KeysDownDuration['A']    == 0.0f && allowShortcutCtrlA)
+        if (hotkeyCtrlA && allowShortcutCtrlA)
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
@@ -2308,8 +2317,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::SameLine ();
 
-      if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
-         (io.KeyCtrl && io.KeysDown['N'] && io.KeysDownDuration['N'] == 0.0f))
+      if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
+          || hotkeyCtrlN)
       {
         ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
       }
@@ -2325,8 +2334,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImVec4 (0.9F, 0.9F, 0.9F, 1.0f));
 
       if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
-         (io.KeyCtrl && io.KeysDown['Q'] && io.KeysDownDuration['Q'] == 0.0f) ||
-          bKeepWindowAlive == false)
+          hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
       {
         if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
         {

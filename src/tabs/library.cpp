@@ -3264,7 +3264,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-  if (selection.appid == SKIF_STEAM_APPID && selection.store == app_record_s::Store::Steam && pSKLogoTexSRV != nullptr)
+  if (pSKLogoTexSRV != nullptr && pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
   {
     ImGui::Image (pSKLogoTexSRV.p,
                                                     ImVec2 (600.0F * SKIF_ImGui_GlobalDPIScale,
