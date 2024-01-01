@@ -572,7 +572,10 @@ SKIF_Util_CreateProcess (
   // From: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
 
   data->directory  =  directory;
-  data->env        = *env;
+  
+  if (env != nullptr)
+    data->env        = *env;
+
   data->proc       =  proc;
 
   uintptr_t hWorkerThread =
