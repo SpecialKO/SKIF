@@ -137,19 +137,19 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
     {
       if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\GOG.com\GalaxyClient\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
       {
-        dwSize = sizeof(szData) / sizeof(WCHAR);
-        if (RegGetValueW (hKey, NULL, L"clientExecutable", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
-        {
-          extern std::wstring GOGGalaxy_Path;
-          extern std::wstring GOGGalaxy_Folder;
-          extern         bool GOGGalaxy_Installed;
+        extern std::wstring GOGGalaxy_Path;
+        extern std::wstring GOGGalaxy_Folder;
+        extern         bool GOGGalaxy_Installed;
 
+        dwSize = sizeof(szData) / sizeof(WCHAR);
+        if (RegGetValueW (hKey, L"paths", L"client", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+        {
           GOGGalaxy_Folder = szData;
 
           dwSize = sizeof(szData) / sizeof(WCHAR);
-          if (RegGetValueW (hKey, L"paths", L"client", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+          if (RegGetValueW (hKey, NULL, L"clientExecutable", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
           {
-            GOGGalaxy_Path = SK_FormatStringW(LR"(%ws\%ws)", szData, GOGGalaxy_Folder.c_str());
+            GOGGalaxy_Path = SK_FormatStringW(LR"(%ws\%ws)", GOGGalaxy_Folder.c_str(), szData);
 
             if (PathFileExistsW(GOGGalaxy_Path.c_str()))
               GOGGalaxy_Installed = true;
