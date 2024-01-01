@@ -541,6 +541,10 @@ SKIF_Util_CreateProcess (
         std::map<std::wstring, std::wstring>* env,
                    SKIF_Util_CreateProcess_s* proc)
 {
+  // We need a path at least!
+  if (path.empty())
+    return false;
+
   struct thread_s {
     std::wstring path              = L"";
     std::wstring parameters        = L""; // First token (argv[0]) is expected to be the module name
@@ -552,31 +556,31 @@ SKIF_Util_CreateProcess (
   
   thread_s* data = new thread_s;
 
-  data->path       = path;
-  data->parameters = parameters;
+  data->proc = proc;
+  data->path = path;
 
-  // We use a custom combination of <"path" parameter> because many apps expects the module name as the first argument,
+  if (parameters != NULL)
+    data->parameters = parameters;
+
+  // We use a custom combination of <"path" parameter> because many apps expects the module name as the first arg (argv[0]),
   //   and as such ignores it when processing command line arguments, so not doing that could cause unexpected behaviour.
   data->parameters_actual = (LR"(")" + std::wstring(path) + LR"(")");
 
   if (parameters != NULL)
     data->parameters_actual += (LR"( )" + std::wstring(parameters));
 
-  // If both lpApplicationName and lpCommandLine are non-NULL,
-  //   the null-terminated string pointed to by lpApplicationName specifies the module to execute, and
-  //   the null-terminated string pointed to by lpCommandLine specifies the command line.
-  // The new process can use GetCommandLine to retrieve the entire command line.
-  // Console processes written in C can use the argc and argv arguments to parse the command line.
-  // Because argv[0] is the module name, C programmers generally repeat the module name as the first token in the command line.
-  // 
-  // From: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
-
-  data->directory  =  directory;
+  // If a directory is not provided, retrieve the folder of the application we are about to launch
+  if (directory == NULL)
+  {
+    wchar_t              wszExecutableBase [MAX_PATH] = { };
+    StringCchCatW       (wszExecutableBase, MAX_PATH, path.data());
+    PathRemoveFileSpecW (wszExecutableBase);
+    data->directory    = wszExecutableBase;
+  } else
+    data->directory    = directory;
   
   if (env != nullptr)
-    data->env        = *env;
-
-  data->proc       =  proc;
+    data->env = *env;
 
   uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -611,7 +615,7 @@ SKIF_Util_CreateProcess (
       DestroyEnvironmentBlock (lpEnvBlock);
       
       PLOG_INFO                                          << "Creating process...";
-      PLOG_INFO_IF  (! _data->path             .empty()) << "File                : " << _data->path;
+      PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
       PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
       PLOG_DEBUG_IF (! _data->parameters_actual.empty()) << "Parameters (actual) : " << _data->parameters_actual;
       PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;

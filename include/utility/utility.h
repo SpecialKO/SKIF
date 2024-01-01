@@ -43,7 +43,7 @@ struct SKIF_Util_CreateProcess_s {
 };
 
 HINSTANCE       SKIF_Util_ExplorePath                 (const std::wstring_view& path);
-HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb       = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
+HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
 bool            SKIF_Util_CreateProcess               (const std::wstring_view& path, LPCWSTR parameters = NULL, LPCWSTR directory = NULL, std::map<std::wstring, std::wstring>* env = nullptr, SKIF_Util_CreateProcess_s* proc = nullptr);
 
 
