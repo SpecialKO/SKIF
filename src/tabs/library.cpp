@@ -518,7 +518,7 @@ DrawGameContextMenu (app_record_s* pApp)
     if (pApp->specialk.injection.injection.type != InjectionType::Local)
       ImGui::Separator        ( );
 
-    if (ImGui::Selectable ("Play using GOG Galax###GameContextMenu_GalaxyLaunch", false,
+    if (ImGui::Selectable ("Play using GOG Galaxy###GameContextMenu_GalaxyLaunch", false,
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
@@ -4975,14 +4975,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && (_registry.bPreferGOGGalaxyLaunch || launchGalaxyGame))
       {
         extern std::wstring GOGGalaxy_Path;
+        extern std::wstring GOGGalaxy_Folder;
 
         // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
 
         std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
-        SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+        //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+        SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), GOGGalaxy_Folder.c_str());
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), GOGGalaxy_Path, launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (!localInjection && usingSK));
       }
 
       // Launch Epic game
