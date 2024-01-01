@@ -3242,7 +3242,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                               900.0F * SKIF_ImGui_GlobalDPIScale),
                                                       vecCoverUv0_old, // Top Left coordinates
                                                       vecCoverUv1_old, // Bottom Right coordinates
-                                    (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * fAlphaPrev)  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
+                                    (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
                                     (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
     );
 
@@ -3255,7 +3255,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * fAlpha)  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency
+                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
                                   (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
   );
 
@@ -3271,7 +3271,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             900.0F * SKIF_ImGui_GlobalDPIScale),
                                                     ImVec2 (0.0f, 0.0f),                // Top Left coordinates
                                                     ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
-                                                    ImVec4 (1.0f,  1.0f,  1.0f, 1.0f),  // Tint for Special K's logo (always full strength)
+                                                    ImVec4 (1.0f, 1.0f, 1.0f, fAlpha),  // Tint for Special K's logo
                                                     ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)     // Border
     );
   }
@@ -4856,7 +4856,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                                       (_registry.bUIBorders),
                                                       ImGuiWindowFlags_NoScrollbar            |
                                                       ImGuiWindowFlags_AlwaysUseWindowPadding |
-                        ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground));
+                                                      ImGuiWindowFlags_None); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
