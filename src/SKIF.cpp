@@ -3300,7 +3300,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {   runOnce = false;
 
         SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
-        //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+        OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
       }
     }
 
@@ -3445,9 +3445,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Don't pause if there's hidden frames that needs rendering
     if (HiddenFramesContinueRendering)
       pause = false;
+    
+    bool frameRateUnlocked = false;
 
-    bool frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
-    //OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
+    // We need to ignore the first 240 frames that ImGui has rendered because of how invisible frames on launch affects it...
+    // Instead, wait until the frame count is at least 240, to ensure all initial 120 frames used for frame rate calculations are gone
+    if (SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount () > 240)
+      frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
+
+    /*
+    if (frameRateUnlocked)
+    {
+      OutputDebugString((L"ImGui::GetIO().Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
+      OutputDebugString((L"dwDwmPeriod: " + std::to_wstring(dwDwmPeriod) + L"\n").c_str());
+      OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
+    }
+    */
 
     do
     {

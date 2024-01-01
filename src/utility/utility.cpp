@@ -1470,7 +1470,7 @@ SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
       if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
         dwPeriod = (1000 / dm.dmDisplayFrequency);
 
-  if (dwPeriod < 16)
+  if (dwPeriod < 8)
     dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
 }
 

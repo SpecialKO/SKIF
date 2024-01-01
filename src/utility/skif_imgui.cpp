@@ -305,16 +305,16 @@ SKIF_ImGui_IsAnyInputDown (void)
   ImGuiContext& g = *GImGui;
 
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
-      if (g.IO.MouseDown[n])
-          return true;
+    if (g.IO.MouseDown[n])
+      return true;
     
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.KeysDown); n++)
-      if (g.IO.KeysDown[n])
-          return true;
+    if (g.IO.KeysDown[n])
+      return true;
 
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
-      if (g.IO.NavInputs[n])
-          return true;
+    if (g.IO.NavInputs[n])
+      return true;
 
   return false;
 }
