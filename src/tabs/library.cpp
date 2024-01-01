@@ -77,7 +77,6 @@ bool                   launchGame        = false;
 bool                   launchGalaxyGame  = false;
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
-bool                   openedGameContextMenu = false;
 
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
@@ -86,7 +85,10 @@ const float fTintMin   = 0.75f;
       float fTint      = 1.0f;
       float fAlpha     = 0.0f;
       float fAlphaPrev = 1.0f;
-
+      
+PopupState GameMenu        = PopupState_Closed;
+PopupState EmptySpaceMenu  = PopupState_Closed;
+PopupState CoverMenu       = PopupState_Closed;
 PopupState IconMenu        = PopupState_Closed;
 PopupState ServiceMenu     = PopupState_Closed;
 
@@ -2189,10 +2191,10 @@ Cache=false)";
   if (pApp->_status.running || pApp->_status.updating)
     ImGui::PopStyleColor ( );
 
-  if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
-      ! openedGameContextMenu)
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
+      GameMenu == PopupState_Closed)
   {
-    openedGameContextMenu = true;
+    GameMenu = PopupState_Open;
   }
 
   if (pApp->extended_config.vac.enabled == 1)
@@ -2695,9 +2697,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
 
-  //static volatile LONG icon_thread  = 1;
-  //static volatile LONG need_sort    = 0;
-  
+  DWORD       current_time = SKIF_Util_timeGetTime ( );
   bool        sort_changed = false;
   static bool update       = true;
   static bool populated    = false;
@@ -2781,8 +2781,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! populated)
   {
-    //InterlockedExchange (&icon_thread, 1);
-
     PLOG_INFO << "Populating library list...";
 
     // Clear all games
@@ -3073,7 +3071,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Finished streaming game icons asynchronously...";
       
-      //InterlockedExchange (&icon_thread, 0);
       gameWorkerRunning.store(false);
 
       // Force a refresh when the game icons have finished being streamed
@@ -3180,6 +3177,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     tmp_iDimCovers = _registry.iDimCovers;
   }
 
+  // At this point we're done with the update variable
+  update = false;
+
+#pragma region GameCover
+
   ImGui::BeginGroup    (                                                  );
 
   static int    queuePosGameCover  = 0;
@@ -3224,7 +3226,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-#if 1
   extern bool SKIF_bHDREnabled;
 
   float fGammaCorrectedTint = 
@@ -3232,7 +3233,6 @@ SKIF_UI_Tab_DrawLibrary (void)
      (  SKIF_bHDREnabled && _registry.iHDRMode == 2))
         ? AdjustAlpha (fTint)
         : fTint;
-#endif
 
   // Display previous fading out cover
   if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
@@ -3260,7 +3260,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-    ImGui::OpenPopup ("CoverMenu");
+    CoverMenu = PopupState_Open;
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
@@ -3278,17 +3278,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
   static DWORD timeLastTick;
-  DWORD timeCurr = SKIF_Util_timeGetTime();
   bool isHovered = ImGui::IsItemHovered();
   bool incTick   = false;
-
-  /*
-  if (pTexSRV.p     == nullptr)
-    fAlpha           = (_registry.bFadeCovers) ? 0.0f : 1.0f;
-
-  if (pTexSRV_old.p == nullptr && _registry.bFadeCovers)
-    fAlphaPrev       = 1.0f;
-  */
 
   // Fade in/out transition
 
@@ -3297,7 +3288,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Fade in the new cover
     if (fAlpha < 1.0f && pTexSRV.p != nullptr)
     {
-      if (timeCurr - timeLastTick > 15)
+      if (current_time - timeLastTick > 15)
       {
         fAlpha     += 0.05f;
         incTick = true;
@@ -3310,7 +3301,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
     {
-      if (timeCurr - timeLastTick > 15)
+      if (current_time - timeLastTick > 15)
       {
         fAlphaPrev -= 0.05f;
         incTick = true;
@@ -3326,7 +3317,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     if (isHovered && fTint < 1.0f)
     {
-      if (timeCurr - timeLastTick > 15)
+      if (current_time - timeLastTick > 15)
       {
         fTint = fTint + 0.01f;
         incTick = true;
@@ -3337,7 +3328,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     else if (! isHovered && fTint > fTintMin)
     {
-      if (timeCurr - timeLastTick > 15)
+      if (current_time - timeLastTick > 15)
       {
         fTint = fTint - 0.01f;
         incTick = true;
@@ -3349,225 +3340,22 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Increment the tick
   if (incTick)
-    timeLastTick = timeCurr;
-
-  if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
-  {
-    if (pApp != nullptr)
-    {
-      // Preparations
-
-      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
-                            pApp->store != app_record_s::Store::Other) ||
-                            pApp->tex_cover.isCustom                   ||
-                            pApp->tex_cover.isManaged);
-      // Column 1: Icons
-
-      ImGui::BeginGroup  ( );
-      ImVec2 iconPos = ImGui::GetCursorPos();
-
-      ImGui::ItemSize (  ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
-      if (pApp->tex_cover.isCustom)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
-      else if (pApp->tex_cover.isManaged)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::Separator  (  );
-      ImGui::PopStyleColor (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
-
-      ImGui::EndGroup   (  );
-
-      ImGui::SameLine   (  );
-
-      // Column 2: Items
-      ImGui::BeginGroup (  );
-      if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
-      {
-        LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
-        {
-          std::wstring targetPath = L"";
-          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
-
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
-
-          if (targetPath != L"")
-          {
-            std::error_code ec;
-            // Create any missing directories
-            if (! std::filesystem::exists (            targetPath, ec))
-                  std::filesystem::create_directories (targetPath, ec);
-
-            targetPath += L"cover";
-
-            DeleteFile((targetPath + L".jpg").c_str());
-            DeleteFile((targetPath + L".png").c_str());
-
-            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
-
-            update    = true;
-            lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
-          }
-        }
-      }
-      else
-      {
-        SKIF_ImGui_SetMouseCursorHand ( );
-      }
-
-      if (resetVisible)
-      {
-        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
-        {
-          std::wstring targetPath = L"";
-
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
-
-          if (PathFileExists (targetPath.c_str()))
-          {
-            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
-
-            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false,
-                 d4 = false;
-
-            // For Xbox titles we also store a fallback cover that we must reset
-            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
-            {
-              fileName = L"cover-fallback.png";
-              d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-              d4 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
-            }
-
-            // If any file was removed
-            if (d1 || d2 || d3 || d4)
-            {
-              update    = true;
-              lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
-            }
-          }
-        }
-        else
-        {
-          if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
-            SKIF_ImGui_SetMouseCursorHand ( );
-          else
-            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
-        }
-      }
-
-      ImGui::Separator  (  );
-
-      auto _GetSteamGridDBLink = [&](void) -> std::string
-      {
-        // Strip (recently added) from the game name
-        std::string name = pApp->names.normal;
-        try {
-          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-        }
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-        }
-
-        return (pApp->store == app_record_s::Store::Steam)
-                ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
-                : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
-
-      };
-
-      if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
-      {
-        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(_GetSteamGridDBLink()).c_str());
-      }
-      else
-      {
-        SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (_GetSteamGridDBLink());
-      }
-
-      ImGui::EndGroup   (  );
-
-      ImGui::SetCursorPos (iconPos);
-
-      ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                ICON_FA_FILE_IMAGE
-                            );
-
-      if (pApp->tex_cover.isCustom)
-        ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE_LEFT
-                              );
-      else if (pApp->tex_cover.isManaged)
-        ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE
-                              );
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
-                  ICON_FA_ROTATE
-                              );
-
-      ImGui::Separator  (  );
-
-      ImGui::TextColored (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                ICON_FA_UP_RIGHT_FROM_SQUARE
-                            );
-
-    }
-
-    ImGui::EndPopup   (  );
-  }
+    timeLastTick = current_time;
 
   float fY =
   ImGui::GetCursorPosY (                                                  );
 
   ImGui::EndGroup             ( );
+
+#pragma endregion
+
+  // This sets the same line for the cover as the list + details
   ImGui::SameLine             (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale); // 0.0f, 0.0f
   
   float fZ =
   ImGui::GetCursorPosX (                                                  );
 
-  if (update)
-  {
-    update      = false;
-
-    if (pApp != nullptr)
-    {
-    }
-  }
-
-  if (loadCover && populated) // && ! InterlockedExchangeAdd (&icon_thread, 0)) /* && (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems == 0) */
+  if (loadCover && populated)
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
     // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
     // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
@@ -3835,7 +3623,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
   }
 
-  ImGui::BeginGroup ();
+  // LIST + DETAILS START
+  ImGui::BeginGroup   (                  );
 
   auto _HandleKeyboardInput = [&](void)
   {
@@ -3988,7 +3777,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       ! io.KeyCtrl)
     _HandleKeyboardInput ();
 
-  // GamesList START
 #pragma region GamesList
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
@@ -4035,13 +3823,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     else {
-      if ( ! openedGameContextMenu)
+      if (GameMenu == PopupState_Closed)
       {
         if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
              _GamePadRightClick                            ||
              _NavLongActivate)
         {
-          openedGameContextMenu = true;
+          GameMenu = PopupState_Open;
         }
       }
     }
@@ -4073,10 +3861,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
                  ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
-  // Start populating the whole list
+  // Start populating the list
 
-  DWORD current_time = SKIF_Util_timeGetTime ( );
-
+  // Populate the list of games with all recognized games
   for (auto& app : g_apps)
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
@@ -4248,8 +4035,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
-#pragma region GamesList::AddGame
-
+  // 'Add Game' to the bottom of the list if the status bar is disabled
   if (! _registry.bUIStatusBar)
   {
     float fOriginalY =
@@ -4285,13 +4071,556 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::EndGroup        ();
   }
 
+  // Stop populating the list
+
+  ImGui::EndGroup        ( );
+  ImGui::EndChild        ( );
+  ImGui::PopStyleColor   ( );
+  
 #pragma endregion
 
+  // Open the Empty Space Menu
 
-  // Stop populating the whole list
+  if (! ImGui::IsAnyPopupOpen   ( ) &&
+      ! ImGui::IsAnyItemHovered ( ) &&
+        ImGui::IsItemClicked    (ImGuiMouseButton_Right))
+    EmptySpaceMenu = PopupState_Open;
+
+#pragma region GameDetails
+
+  ImGui::BeginChild (
+    "###AppListInset2",
+      ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
+               _HEIGHT2 ), (_registry.bUIBorders),
+        ImGuiWindowFlags_NoScrollbar       |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NavFlattened      |
+        ImGuiWindowFlags_AlwaysUseWindowPadding
+  );
+  ImGui::BeginGroup ();
+
+  if ( pApp        == nullptr            ||
+      (pApp->id    == SKIF_STEAM_APPID   &&
+       pApp->store == app_record_s::Store::Steam))
+  {
+    _inject._GlobalInjectionCtl ();
+  }
+
+  else if (pApp != nullptr)
+  {
+    GetInjectionSummary (pApp);
+
+    if ( pApp->specialk.injection.injection.type != InjectionType::Local )
+    {
+      ImGui::SetCursorPosY (
+        ImGui::GetWindowHeight () - fBottomDist -
+        ImGui::GetStyle        ().ItemSpacing.y
+      );
+
+      ImGui::Separator     ( );
+
+      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
+                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                  std::max (ImGui::GetContentRegionAvail ().y,
+                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                           )),
+                                    ImGuiWindowFlags_NavFlattened      |
+                                    ImGuiWindowFlags_NoScrollbar       |
+                                    ImGuiWindowFlags_NoScrollWithMouse |
+                                    ImGuiWindowFlags_NoBackground
+      );
+
+      auto _BlacklistCfg =
+      [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
+      void
+      {
+        bool blacklist =
+          launch_cfg.isBlacklisted ( );
+        bool blacklist_pattern =
+          launch_cfg.isExecutableFullPathValid () &&
+          _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
+
+        char          szButtonLabel [256] = { };
+
+        if (menu)
+          sprintf_s ( szButtonLabel, 255,
+                        " for %s###DisableSpecialK-%d",
+                          launch_cfg.getDescriptionUTF8().empty()
+                            ? launch_cfg.getExecutableFileNameUTF8().c_str ()
+                            : launch_cfg.getDescriptionUTF8().c_str (),
+                          launch_cfg.id);
+        else
+          sprintf_s ( szButtonLabel, 255,
+                        " Disable Special K###DisableSpecialK%d",
+                          launch_cfg.id );
+
+        if (blacklist_pattern)
+        {
+          blacklist = true;
+          SKIF_ImGui_PushDisableState ( );
+        }
+          
+        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+          launch_cfg.setBlacklisted (blacklist);
+
+        if (blacklist_pattern)
+        {
+          SKIF_ImGui_PopDisableState ( );
+          SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.");
+        }
+
+        SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
+      };
+
+      if ( ! _inject.bHasServlet )
+      {
+        ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
+      }
+
+      // Only show the bottom options if there's some launch configs, and the first one is valid...
+      else if ( ! pApp->launch_configs.empty()) //&&
+                  //pApp->launch_configs[0].isExecutableFileNameValid())
+      {
+        bool elevate =
+          pApp->launch_configs[0].isElevated ( );
+
+        if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
+          pApp->launch_configs[0].setElevated (elevate);
+
+        ImGui::SameLine ( );
+
+        // Set horizontal position
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX  ( ) +
+          ImGui::GetColumnWidth ( ) -
+          ImGui::CalcTextSize   ("[] Disable Special K").x -
+          ImGui::GetStyle       ( ).ItemSpacing.x * 2
+        );
+
+        static uint32_t currAppId  = 0;
+        static int      numOfItems = 0;
+
+        if (currAppId != pApp->id)
+        {   currAppId  = pApp->id;
+
+          numOfItems = 0;
+
+          for ( auto& launch : pApp->launch_configs )
+          {
+            if (! launch.second.valid ||
+                  launch.second.duplicate_exe)
+              continue;
+
+            numOfItems++;
+          }
+        }
+
+        // If there is 0-1 valid launch option
+        if (numOfItems <= 1)
+        {
+          _BlacklistCfg          (
+                pApp->launch_configs.begin ()->second, false );
+        }
+
+        // If there are more than one launch option
+        else
+        {
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX  ( ) +
+            14.0f * SKIF_ImGui_GlobalDPIScale
+          );
+
+          if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
+          {
+            ImVec2 pos =
+              ImGui::GetCursorPos ( );
+
+            ImGui::SameLine     ( );
+
+            ImGui::SetNextWindowPos (
+              ImGui::GetCursorScreenPos ( ) -
+              ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
+            );
+
+            ImGui::OpenPopup    ("###DisableSK");
+            ImGui::SetCursorPos (pos);
+          }
+
+          if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
+          {
+            //std::set <std::wstring> _used_launches;
+            for ( auto& launch : pApp->launch_configs )
+            {
+              if (! launch.second.valid || 
+                    launch.second.duplicate_exe)
+                continue;
+
+              _BlacklistCfg (launch.second, true);
+            }
+
+            ImGui::EndMenu       ();
+          }
+        }
+      }
+
+      ImGui::EndChildFrame     ();
+
+      fBottomDist = ImGui::GetItemRectSize().y;
+    }
+  }
+
+  ImGui::EndGroup     (                  );
+  ImGui::EndChild     (                  );
+
+#pragma endregion
+
+  ImGui::EndGroup     (                  );
+  // LIST + DETAILS STOP
+
+#pragma region SpecialKPatreon
+
+  // Special handling at the bottom of the cover for Special K
+  if (pApp        != nullptr            &&
+      pApp->id    == SKIF_STEAM_APPID   &&
+      pApp->store == app_record_s::Store::Steam)
+  {
+    ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
+                                                              fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
+    ImGui::BeginGroup    ();
+    static bool hoveredPatButton  = false,
+                hoveredPatCredits = false;
+
+    // Set all button styling to transparent
+    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
+    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
+
+    // Remove frame border
+    ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+    bool        clicked =
+    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
+                                                     ImVec2 (0.f,       0.f),
+                                                     ImVec2 (1.f,       1.f),     0,
+                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
+                                  hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
+                                                   : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
+
+    // Restore frame border
+    ImGui::PopStyleVar   ( );
+
+    // Restore the custom button styling
+    ImGui::PopStyleColor (3);
+
+    hoveredPatButton =
+    ImGui::IsItemHovered ( );
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
+    //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
+
+    if (clicked)
+      SKIF_Util_OpenURI (
+        L"https://www.patreon.com/Kaldaien"
+      );
+
+    ImGui::SetCursorPos  (ImVec2 (fZ - (233.0f * SKIF_ImGui_GlobalDPIScale),
+                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
+
+    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
+                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
+    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
+                                                          200.0f * SKIF_ImGui_GlobalDPIScale),
+                                                                      (_registry.bUIBorders),
+                                                      ImGuiWindowFlags_NoScrollbar            |
+                                                      ImGuiWindowFlags_AlwaysUseWindowPadding |
+                                                      ImGuiWindowFlags_None); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
+
+    ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
+
+    std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
+
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    ImGui::Spacing            ( );
+    ImGui::SameLine           ( );
+    
+    ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
+    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
+                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                           160.0f * SKIF_ImGui_GlobalDPIScale),
+                                    ImGuiInputTextFlags_ReadOnly );
+    ImGui::PopStyleColor      (4);
+    ImGui::PopStyleVar        ( );
+
+    hoveredPatCredits =
+    ImGui::IsItemActive();
+
+    ImGui::EndChild           ( );
+    ImGui::PopStyleColor      ( );
+
+    hoveredPatCredits = hoveredPatCredits ||
+    ImGui::IsItemHovered      ( );
+
+    ImGui::EndGroup           ( );
+  }
+
+#pragma endregion
+
+  // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
+  RefreshRunningApps ( );
+
+#pragma region ServiceMenu
+  
+  extern void SKIF_ImGui_ServiceMenu (void);
+
+  SKIF_ImGui_ServiceMenu ( );
+
+#pragma endregion
+  
+#pragma region CoverMenu
+
+  // Open the CoverMenu
+  if (CoverMenu == PopupState_Open)
+  {
+    ImGui::OpenPopup    ("CoverMenu");
+    CoverMenu = PopupState_Closed;
+  }
+
+  if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
+  {
+    if (pApp != nullptr)
+    {
+      // Preparations
+
+      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+                            pApp->store != app_record_s::Store::Other) ||
+                            pApp->tex_cover.isCustom                   ||
+                            pApp->tex_cover.isManaged);
+      // Column 1: Icons
+
+      ImGui::BeginGroup  ( );
+      ImVec2 iconPos = ImGui::GetCursorPos();
+
+      ImGui::ItemSize (  ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
+      if (pApp->tex_cover.isCustom)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
+      else if (pApp->tex_cover.isManaged)
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
+      else if (resetVisible) // If texture is neither custom nor managed
+        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
+      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
+      ImGui::Separator  (  );
+      ImGui::PopStyleColor (  );
+      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
+
+      ImGui::EndGroup   (  );
+
+      ImGui::SameLine   (  );
+
+      // Column 2: Items
+      ImGui::BeginGroup (  );
+      if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
+      {
+        LPWSTR pwszFilePath = NULL;
+        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        {
+          std::wstring targetPath = L"";
+          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
+
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+          else if (pApp->store == app_record_s::Store::Other)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+          else if (pApp->store == app_record_s::Store::Epic)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+          else if (pApp->store == app_record_s::Store::GOG)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+          else if (pApp->store == app_record_s::Store::Xbox)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+          else if (pApp->store == app_record_s::Store::Steam)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+
+          if (targetPath != L"")
+          {
+            std::error_code ec;
+            // Create any missing directories
+            if (! std::filesystem::exists (            targetPath, ec))
+                  std::filesystem::create_directories (targetPath, ec);
+
+            targetPath += L"cover";
+
+            DeleteFile((targetPath + L".jpg").c_str());
+            DeleteFile((targetPath + L".png").c_str());
+
+            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
+
+            update    = true;
+            lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+          }
+        }
+      }
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+      }
+
+      if (resetVisible)
+      {
+        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
+        {
+          std::wstring targetPath = L"";
+
+          if (pApp->id == SKIF_STEAM_APPID)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+          else if (pApp->store == app_record_s::Store::Other)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+          else if (pApp->store == app_record_s::Store::Epic)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+          else if (pApp->store == app_record_s::Store::GOG)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+          else if (pApp->store == app_record_s::Store::Xbox)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+          else if (pApp->store == app_record_s::Store::Steam)
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+
+          if (PathFileExists (targetPath.c_str()))
+          {
+            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
+
+            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = false,
+                 d4 = false;
+
+            // For Xbox titles we also store a fallback cover that we must reset
+            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
+            {
+              fileName = L"cover-fallback.png";
+              d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+              d4 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
+            }
+
+            // If any file was removed
+            if (d1 || d2 || d3 || d4)
+            {
+              update    = true;
+              lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+            }
+          }
+        }
+        else
+        {
+          if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
+            SKIF_ImGui_SetMouseCursorHand ( );
+          else
+            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
+        }
+      }
+
+      ImGui::Separator  (  );
+
+      auto _GetSteamGridDBLink = [&](void) -> std::string
+      {
+        // Strip (recently added) from the game name
+        std::string name = pApp->names.normal;
+        try {
+          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
+        }
+        catch (const std::exception& e)
+        {
+          UNREFERENCED_PARAMETER(e);
+        }
+
+        return (pApp->store == app_record_s::Store::Steam)
+                ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
+                : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
+
+      };
+
+      if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
+      {
+        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(_GetSteamGridDBLink()).c_str());
+      }
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (_GetSteamGridDBLink());
+      }
+
+      ImGui::EndGroup   (  );
+
+      ImGui::SetCursorPos (iconPos);
+
+      ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                ICON_FA_FILE_IMAGE
+                            );
+
+      if (pApp->tex_cover.isCustom)
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE_LEFT
+                              );
+      else if (pApp->tex_cover.isManaged)
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+                  ICON_FA_ROTATE
+                              );
+      else if (resetVisible) // If texture is neither custom nor managed
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
+                  ICON_FA_ROTATE
+                              );
+
+      ImGui::Separator  (  );
+
+      ImGui::TextColored (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                ICON_FA_UP_RIGHT_FROM_SQUARE
+                            );
+
+    }
+
+    ImGui::EndPopup   (  );
+  }
+
+#pragma endregion
+
+#pragma region GamesList::GameContextMenu
+
+  if (GameMenu == PopupState_Open)
+  {
+    ImGui::OpenPopup    ("GameContextMenu");
+    GameMenu = PopupState_Closed;
+  }
+
+  if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
+  {
+    if (pApp != nullptr)
+    {
+      if (pApp->id == SKIF_STEAM_APPID)
+        DrawSKIFContextMenu (pApp);
+      else
+        DrawGameContextMenu (pApp);
+    }
+
+    else if (! update)
+      ImGui::CloseCurrentPopup ();
+
+    ImGui::EndPopup ();
+  }
+
+#pragma endregion
 
 #pragma region GamesList::IconMenu
-
+  
+  // Open the IconMenu
   if (IconMenu == PopupState_Open)
   {
     ImGui::OpenPopup    ("IconMenu");
@@ -4505,19 +4834,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::EndPopup      ( );
   }
+
 #pragma endregion
 
-  ImGui::EndGroup        ( );
-  ImGui::EndChild        ( );
-  ImGui::PopStyleColor   ( );
-  
 #pragma region GamesList::EmptySpaceMenu
-
-  if (! ImGui::IsAnyPopupOpen   ( ) &&
-      ! ImGui::IsAnyItemHovered ( ) &&
-        ImGui::IsItemClicked    (ImGuiMouseButton_Right))
+  
+  // Open the Empty Space Menu
+  if (EmptySpaceMenu == PopupState_Open)
   {
-    ImGui::OpenPopup      ("GameListEmptySpaceMenu");
+    ImGui::OpenPopup    ("GameListEmptySpaceMenu");
+    EmptySpaceMenu = PopupState_Closed;
   }
 
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
@@ -4610,321 +4936,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
-
-#pragma endregion
-  // GamesList END
-
-  ImGui::BeginChild (
-    "###AppListInset2",
-      ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-               _HEIGHT2 ), (_registry.bUIBorders),
-        ImGuiWindowFlags_NoScrollbar       |
-        ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NavFlattened      |
-        ImGuiWindowFlags_AlwaysUseWindowPadding
-  );
-  ImGui::BeginGroup ();
-
-  if ( pApp     == nullptr       ||
-       pApp->id == SKIF_STEAM_APPID )
-  {
-    _inject._GlobalInjectionCtl ();
-  }
-
-  else if (pApp != nullptr)
-  {
-    GetInjectionSummary (pApp);
-
-    if ( pApp->specialk.injection.injection.type != InjectionType::Local )
-    {
-      ImGui::SetCursorPosY (
-        ImGui::GetWindowHeight () - fBottomDist -
-        ImGui::GetStyle        ().ItemSpacing.y
-      );
-
-      ImGui::Separator     ( );
-
-      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
-                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                  std::max (ImGui::GetContentRegionAvail ().y,
-                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
-                                           )),
-                                    ImGuiWindowFlags_NavFlattened      |
-                                    ImGuiWindowFlags_NoScrollbar       |
-                                    ImGuiWindowFlags_NoScrollWithMouse |
-                                    ImGuiWindowFlags_NoBackground
-      );
-
-      auto _BlacklistCfg =
-      [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
-      void
-      {
-        bool blacklist =
-          launch_cfg.isBlacklisted ( );
-        bool blacklist_pattern =
-          launch_cfg.isExecutableFullPathValid () &&
-          _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
-
-        char          szButtonLabel [256] = { };
-
-        if (menu)
-          sprintf_s ( szButtonLabel, 255,
-                        " for %s###DisableSpecialK-%d",
-                          launch_cfg.getDescriptionUTF8().empty()
-                            ? launch_cfg.getExecutableFileNameUTF8().c_str ()
-                            : launch_cfg.getDescriptionUTF8().c_str (),
-                          launch_cfg.id);
-        else
-          sprintf_s ( szButtonLabel, 255,
-                        " Disable Special K###DisableSpecialK%d",
-                          launch_cfg.id );
-
-        if (blacklist_pattern)
-        {
-          blacklist = true;
-          SKIF_ImGui_PushDisableState ( );
-        }
-          
-        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-          launch_cfg.setBlacklisted (blacklist);
-
-        if (blacklist_pattern)
-        {
-          SKIF_ImGui_PopDisableState ( );
-          SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.");
-        }
-
-        SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
-      };
-
-      if ( ! _inject.bHasServlet )
-      {
-        ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
-      }
-
-      // Only show the bottom options if there's some launch configs, and the first one is valid...
-      else if ( ! pApp->launch_configs.empty()) //&&
-                  //pApp->launch_configs[0].isExecutableFileNameValid())
-      {
-        bool elevate =
-          pApp->launch_configs[0].isElevated ( );
-
-        if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
-          pApp->launch_configs[0].setElevated (elevate);
-
-        ImGui::SameLine ( );
-
-        // Set horizontal position
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX  ( ) +
-          ImGui::GetColumnWidth ( ) -
-          ImGui::CalcTextSize   ("[] Disable Special K").x -
-          ImGui::GetStyle       ( ).ItemSpacing.x * 2
-        );
-
-        static uint32_t currAppId  = 0;
-        static int      numOfItems = 0;
-
-        if (currAppId != pApp->id)
-        {   currAppId  = pApp->id;
-
-          numOfItems = 0;
-
-          for ( auto& launch : pApp->launch_configs )
-          {
-            if (! launch.second.valid ||
-                  launch.second.duplicate_exe)
-              continue;
-
-            numOfItems++;
-          }
-        }
-
-        // If there is 0-1 valid launch option
-        if (numOfItems <= 1)
-        {
-          _BlacklistCfg          (
-                pApp->launch_configs.begin ()->second, false );
-        }
-
-        // If there are more than one launch option
-        else
-        {
-          ImGui::SetCursorPosX (
-            ImGui::GetCursorPosX  ( ) +
-            14.0f * SKIF_ImGui_GlobalDPIScale
-          );
-
-          if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
-          {
-            ImVec2 pos =
-              ImGui::GetCursorPos ( );
-
-            ImGui::SameLine     ( );
-
-            ImGui::SetNextWindowPos (
-              ImGui::GetCursorScreenPos ( ) -
-              ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
-            );
-
-            ImGui::OpenPopup    ("###DisableSK");
-            ImGui::SetCursorPos (pos);
-          }
-
-          if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
-          {
-            //std::set <std::wstring> _used_launches;
-            for ( auto& launch : pApp->launch_configs )
-            {
-              if (! launch.second.valid || 
-                    launch.second.duplicate_exe)
-                continue;
-
-              _BlacklistCfg (launch.second, true);
-            }
-
-            ImGui::EndMenu       ();
-          }
-        }
-      }
-
-      ImGui::EndChildFrame     ();
-
-      fBottomDist = ImGui::GetItemRectSize().y;
-    }
-  }
-
-  ImGui::EndGroup     (                  );
-  ImGui::EndChild     (                  );
-  ImGui::EndGroup     (                  );
-
   
-
-  // Special handling at the bottom for Special K
-  if (pApp        != nullptr            &&
-      pApp->id    == SKIF_STEAM_APPID   &&
-      pApp->store == app_record_s::Store::Steam)
-  {
-    ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
-                                                              fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
-    ImGui::BeginGroup    ();
-    static bool hoveredPatButton  = false,
-                hoveredPatCredits = false;
-
-    // Set all button styling to transparent
-    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
-
-    // Remove frame border
-    ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-
-    bool        clicked =
-    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
-                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
-                                                     ImVec2 (0.f,       0.f),
-                                                     ImVec2 (1.f,       1.f),     0,
-                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                  hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
-                                                   : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
-
-    // Restore frame border
-    ImGui::PopStyleVar   ( );
-
-    // Restore the custom button styling
-    ImGui::PopStyleColor (3);
-
-    hoveredPatButton =
-    ImGui::IsItemHovered ( );
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
-    //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
-
-    if (clicked)
-      SKIF_Util_OpenURI (
-        L"https://www.patreon.com/Kaldaien"
-      );
-
-    ImGui::SetCursorPos  (ImVec2 (fZ - (233.0f * SKIF_ImGui_GlobalDPIScale),
-                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
-
-    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
-                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
-    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
-                                                          200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                                      (_registry.bUIBorders),
-                                                      ImGuiWindowFlags_NoScrollbar            |
-                                                      ImGuiWindowFlags_AlwaysUseWindowPadding |
-                                                      ImGuiWindowFlags_None); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
-
-    ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
-
-    std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
-
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    
-    ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
-    ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
-    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
-    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
-                   ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
-                           160.0f * SKIF_ImGui_GlobalDPIScale),
-                                    ImGuiInputTextFlags_ReadOnly );
-    ImGui::PopStyleColor      (4);
-    ImGui::PopStyleVar        ( );
-
-    hoveredPatCredits =
-    ImGui::IsItemActive();
-
-    ImGui::EndChild           ( );
-    ImGui::PopStyleColor      ( );
-
-    hoveredPatCredits = hoveredPatCredits ||
-    ImGui::IsItemHovered      ( );
-
-    ImGui::EndGroup           ( );
-  }
-
-  // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
-  RefreshRunningApps ( );
-
-  extern void SKIF_ImGui_ServiceMenu (void);
-
-  SKIF_ImGui_ServiceMenu ( );
-
-
-#pragma region GameContextMenu
-
-  if (openedGameContextMenu)
-  {
-    ImGui::OpenPopup    ("GameContextMenu");
-    openedGameContextMenu = false;
-  }
-
-  if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
-  {
-    if (pApp != nullptr)
-    {
-      if (pApp->id == SKIF_STEAM_APPID)
-        DrawSKIFContextMenu (pApp);
-      else
-        DrawGameContextMenu (pApp);
-    }
-
-    else if (! update)
-      ImGui::CloseCurrentPopup ();
-
-    ImGui::EndPopup ();
-  }
-
-#pragma endregion
-
 #pragma region GameLaunchLogic
 
   if ((launchGame || launchInstant || launchGalaxyGame) &&
@@ -5259,8 +5271,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
-
   
+#pragma region Popups
+
   static float fConfirmPopupWidth;
   if (ConfirmPopup == PopupState_Open)
   {
@@ -5890,6 +5903,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::EndPopup ( );
     }
   }
+
+#pragma endregion
 
   extern uint32_t SelectNewSKIFGame;
 
