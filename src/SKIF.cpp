@@ -1631,7 +1631,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
-  SKIF_ImGui_AdjustAppModeSize ( );
+  SKIF_ImGui_AdjustAppModeSize (NULL);
 
   // Initialize ImGui fonts
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
@@ -1842,6 +1842,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {   runPostWindowCreation =  false;
       SKIF_Startup_SetGameAsForeground ( );
     }
+    
+    // Automatically engage Horizon mode on smaller displays
+    static bool autoHorizonFallback = ! _registry.bHorizonMode;
+    if (autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
+    {
+      autoHorizonFallback = false;
+
+      _registry.bHorizonMode = true;
+      SKIF_ImGui_AdjustAppModeSize (NULL);
+    }
 
     // Apply any changes to the ImGui style
     // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
@@ -1904,20 +1914,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGuiStyle              newStyle;
       SKIF_ImGui_SetStyle   (&newStyle);
 
-      MONITORINFO
-        info        = {                  };
-        info.cbSize = sizeof (MONITORINFO);
-
-      if (::GetMonitorInfo (monitor, &info))
-      {
-
-        ImVec2 WorkSize =
-          ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                   (float)( info.rcWork.bottom - info.rcWork.top  ) );
-
-        if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-          SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
-      }
+      SKIF_ImGui_AdjustAppModeSize (monitor);
 
       LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
       if (lStyle & WS_MAXIMIZE)
@@ -2136,8 +2133,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // This is only necessary to run once on launch, to account for the startup display DPI
           SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
-          if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
+          ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+                                   (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
+                                                              SKIF_vecRegularModeAdjusted ;
+
+          if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
+            SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
 
           // Also recreate the swapchain (applies any HDR/SDR changes between displays)
           //   but not the first time to prevent unnecessary swapchain recreation on launch
@@ -2189,7 +2190,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _registry.bHorizonMode  =         ! _registry.bHorizonMode;
           _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
 
-          PLOG_DEBUG << "Switched to " << ((_registry.bHorizonMode) ? "horizon mode" : "regular mode");
+          PLOG_DEBUG << "Switched to " << ((_registry.bHorizonMode) ? "Horizon mode" : "App mode");
+
+          SKIF_ImGui_AdjustAppModeSize (NULL);
 
           LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
           if (lStyle & WS_MAXIMIZE)
@@ -2213,6 +2216,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry._ExitOnInjection = false;
 
         PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
+
+        SKIF_ImGui_AdjustAppModeSize (NULL);
 
         if (SteamOverlayDisabled)
         {
@@ -2702,8 +2707,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
 
-      float ffailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
-      ImGui::SetNextWindowSize (ImVec2 (ffailedLoadFontsWidth, 0.0f));
+      float fFailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
+      ImGui::SetNextWindowSize (ImVec2 (fFailedLoadFontsWidth, 0.0f));
       ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
@@ -2721,7 +2726,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
 
-        ImGui::SetCursorPosX (ffailedLoadFontsWidth / 2 - vButtonSize.x / 2);
+        ImGui::SetCursorPosX (fFailedLoadFontsWidth / 2 - vButtonSize.x / 2);
 
         if (ImGui::Button  ("OK", vButtonSize))
           ImGui::CloseCurrentPopup ( );

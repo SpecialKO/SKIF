@@ -944,7 +944,7 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVUITooltips.putData (_registry.bUITooltips);
 
       // Adjust the app mode size
-      SKIF_ImGui_AdjustAppModeSize ( );
+      SKIF_ImGui_AdjustAppModeSize (NULL);
     }
 
     if (ImGui::IsItemHovered ())
@@ -963,7 +963,7 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVUIStatusBar.putData (_registry.bUIStatusBar);
 
       // Adjust the app mode size
-      SKIF_ImGui_AdjustAppModeSize ( );
+      SKIF_ImGui_AdjustAppModeSize (NULL);
     }
 
     SKIF_ImGui_SetHoverTip ("Disabling the status bar as well as tooltips will hide all additional information or tips.");

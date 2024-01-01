@@ -155,6 +155,7 @@ Trie labels;
 
 #pragma endregion
 
+
 #pragma region SKIF_Lib_SummaryCache
 
 void
@@ -2415,6 +2416,9 @@ UpdateInjectionStrategy (app_record_s* pApp)
 
 #pragma endregion
 
+
+#pragma region RefreshRunningApps
+
 void
 RefreshRunningApps (void)
 {
@@ -2639,6 +2643,8 @@ RefreshRunningApps (void)
     }
   }
 }
+
+#pragma endregion
 
 
 void

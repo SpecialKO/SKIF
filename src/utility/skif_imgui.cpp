@@ -278,7 +278,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
 }
 
 void
-SKIF_ImGui_AdjustAppModeSize (void)
+SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -286,10 +286,14 @@ SKIF_ImGui_AdjustAppModeSize (void)
   extern ImVec2 SKIF_vecRegularModeAdjusted;
   extern ImVec2 SKIF_vecHorizonModeDefault;
   extern ImVec2 SKIF_vecHorizonModeAdjusted;
+  extern ImVec2 SKIF_vecServiceModeDefault;
   extern ImVec2 SKIF_vecAlteredSize;
   extern float  SKIF_fStatusBarHeight;
   extern float  SKIF_fStatusBarDisabled;
   extern float  SKIF_fStatusBarHeightTips;
+
+  // Reset reduced height
+  SKIF_vecAlteredSize.y = 0.0f;
 
   // Adjust the large mode size
   SKIF_vecRegularModeAdjusted = SKIF_vecRegularModeDefault;
@@ -314,25 +318,26 @@ SKIF_ImGui_AdjustAppModeSize (void)
     SKIF_vecHorizonModeAdjusted.y += SKIF_fStatusBarDisabled;
   }
 
-  if (SKIF_ImGui_hWnd != NULL)
+  // Take the current display into account
+  if (monitor == NULL && SKIF_ImGui_hWnd != NULL)
+    monitor = ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+
+  MONITORINFO
+    info        = {                  };
+    info.cbSize = sizeof (MONITORINFO);
+
+  if (monitor != NULL && ::GetMonitorInfo (monitor, &info))
   {
-    // Take the current display into account
-    HMONITOR monitor =
-      ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+    ImVec2 WorkSize =
+      ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
+                (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-    MONITORINFO
-      info        = {                  };
-      info.cbSize = sizeof (MONITORINFO);
+    ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+                              (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
+                                                        SKIF_vecRegularModeAdjusted ;
 
-    if (::GetMonitorInfo (monitor, &info))
-    {
-      ImVec2 WorkSize =
-        ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                  (float)( info.rcWork.bottom - info.rcWork.top  ) );
-
-      if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-        SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
-    }
+    if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+      SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
   }
 }
 

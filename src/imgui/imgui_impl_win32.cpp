@@ -1782,9 +1782,9 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   // This is the message procedure for the main ImGui Platform window as well as
   //   any additional viewport windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
 
-  extern HWND SKIF_ImGui_hWnd;
-  extern HWND SKIF_Notify_hWnd;
-  extern float SKIF_ImGui_GlobalDPIScale;
+  extern HWND   SKIF_ImGui_hWnd;
+  extern HWND   SKIF_Notify_hWnd;
+  extern float  SKIF_ImGui_GlobalDPIScale;
   extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
   extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
   extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
@@ -1939,26 +1939,25 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
                 wp->y - targetWorkArea.Min.y == SKIF_MAXIMIZE_POS)
             {
               ImVec2 tmpExpectedSize = ImVec2 (0.0f, 0.0f);
+              ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
+              ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+                                       (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
+                                                                  SKIF_vecRegularModeAdjusted ;
 
               float targetDPI = (_registry.bDPIScaling) ? targetMonitor.DpiScale : 1.0f;
+              tmpExpectedSize = tmpCurrentSize * targetDPI;
 
               if (! _registry.bServiceMode)
               {
-                ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
-                tmpExpectedSize = SKIF_vecRegularModeAdjusted * targetDPI;
-
                 // Needed to account for an altered size on the target display
-                if (SKIF_vecRegularModeAdjusted.y * targetDPI > targetWorkArea.Max.y)
+                if (tmpCurrentSize.y * targetDPI > targetWorkArea.Max.y)
                 {
-                  // Crop the regular mode
-                  tmpAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * targetDPI - targetWorkArea.Max.y);
+                  // Crop the regular mode(s)
+                  tmpAlteredSize.y = (tmpCurrentSize.y * targetDPI - targetWorkArea.Max.y);
                 }
 
                 tmpExpectedSize.y -= tmpAlteredSize.y;
               }
-
-              else
-                tmpExpectedSize = SKIF_vecServiceModeDefault * targetDPI;
 
               // Change the intended position to the actual center of the display
               wp->x = static_cast<int> (targetWorkArea.GetCenter().x - (tmpExpectedSize.x * 0.5f));
@@ -2033,8 +2032,12 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
             ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                      (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-          if (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-            SKIF_vecAlteredSize.y = (SKIF_vecRegularModeAdjusted.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
+          ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+                                   (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
+                                                              SKIF_vecRegularModeAdjusted ;
+
+          if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+            SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
 
           if (ImGui::IsAnyMouseDown ( ))
             return 0;
@@ -2054,7 +2057,7 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
           else if (prcNewWindow->right >= info.rcWork.right)
           {
             // Switching to a display on the right
-            prcNewWindow->left = info.rcWork.right - static_cast<long> (SKIF_vecRegularModeAdjusted.x * SKIF_ImGui_GlobalDPIScale);
+            prcNewWindow->left = info.rcWork.right - static_cast<long> (tmpCurrentSize.x * SKIF_ImGui_GlobalDPIScale);
             reposition = true;
           }
 
