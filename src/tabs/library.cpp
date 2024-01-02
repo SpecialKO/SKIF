@@ -1693,7 +1693,7 @@ GetInjectionSummary (app_record_s* pApp)
           do {
             Preset newPreset = { PathFindFileName (ffd.cFileName), folder + ffd.cFileName };
             bool         add = false;
-            ULONG_PTR   size = 0;
+            LONG_PTR   size = 0;
 
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
             {
@@ -1701,9 +1701,9 @@ GetInjectionSummary (app_record_s* pApp)
               if (0 == _wstat64 (newPreset.Path.c_str(), &buffer))
                 size = buffer.st_size;
             }
-            
+
             else
-              size = static_cast<ULONG_PTR>(((ffd.nFileSizeHigh) * (MAXDWORD + 1)) + ffd.nFileSizeLow);
+              size = static_cast<LONG_PTR>(((ffd.nFileSizeHigh) * (MAXDWORD + 1)) + ffd.nFileSizeLow);
 
             // All files larger than 4 bytes should be added
             if (4 < size)

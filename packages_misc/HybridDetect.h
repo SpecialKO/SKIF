@@ -685,7 +685,7 @@ inline void UpdateProcessorInfo(PROCESSOR_INFO& procInfo)
 	DWORD size = sizeof(LOGICAL_PROCESSOR_POWER_INFORMATION) * procInfo.numLogicalCores;
 	CallNtPowerInformation(ProcessorInformation, nullptr, 0, &pwrInfo[0], size);
 
-	for (int i = 0; i < procInfo.cores.size(); i++)
+	for (size_t i = 0; i < procInfo.cores.size(); i++)
 	{
 		procInfo.cores[i].currentFrequency = pwrInfo[i].currentMhz;
 		procInfo.cores[i].powerInformation = pwrInfo[i];

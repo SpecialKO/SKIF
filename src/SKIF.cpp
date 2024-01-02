@@ -1336,14 +1336,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
-  SKIF_Util_Debug_LogUserNames ( );
-
   // Maybe not keep main thread on E-cores?
   SKIF_Util_SetThreadPreferenceToECores ( );
 
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
-  SK_LogUserNamesVerbose ( );
+  SKIF_Util_Debug_LogUserNames ( );
 #endif
 
   // This constructs the singleton object
