@@ -1703,7 +1703,7 @@ GetInjectionSummary (app_record_s* pApp)
             }
             
             else
-              size = ((ffd.nFileSizeHigh * (MAXDWORD + 1)) + ffd.nFileSizeLow);
+              size = static_cast<ULONG_PTR>(((ffd.nFileSizeHigh) * (MAXDWORD + 1)) + ffd.nFileSizeLow);
 
             // All files larger than 4 bytes should be added
             if (4 < size)
@@ -2077,6 +2077,10 @@ Cache=false)";
 
           CoInitializeEx (nullptr, 0x0);
 
+          SKIF_Util_SetThreadPreferenceToECores ( );
+
+          SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
           PLOG_DEBUG << "SKIF_LibGameModWorker thread started!";
 
           int _appid = appid;
@@ -2174,6 +2178,8 @@ Cache=false)";
           //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
           PLOG_DEBUG << "SKIF_LibGameModWorker thread stopped!";
+
+          SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
         }, 0x0, NULL);
       }
     }
@@ -3050,7 +3056,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_INFO << "SKIF_LibRefreshWorker thread started!";
+      SKIF_Util_SetThreadPreferenceToECores ( );
+
+      PLOG_DEBUG << "SKIF_LibRefreshWorker thread started!";
       
       PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
@@ -3097,7 +3105,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-      PLOG_INFO << "SKIF_LibRefreshWorker thread stopped!";
+      PLOG_DEBUG << "SKIF_LibRefreshWorker thread stopped!";
     }, 0x0, NULL);
 
     populated = true;
@@ -5069,7 +5077,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
+      SKIF_Util_SetThreadPreferenceToECores ( );
+
       PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
+
       PLOG_INFO  << "Streaming game cover asynchronously...";
 
       if (pApp == nullptr)

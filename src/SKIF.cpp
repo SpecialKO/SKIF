@@ -1336,6 +1336,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
+  // Maybe not keep main thread on E-cores?
+  SKIF_Util_SetThreadPreferenceToECores ( );
+
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
   SK_LogUserNamesVerbose ( );
@@ -3324,7 +3327,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {   runOnce = false;
 
         SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
-        OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+        //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
       }
     }
 
@@ -3364,6 +3367,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         EnterCriticalSection      (&GamepadInputPump);
         
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
+
+        SKIF_Util_SetThreadPreferenceToECores ( );
 
         DWORD packetLast = 0,
               packetNew  = 0;

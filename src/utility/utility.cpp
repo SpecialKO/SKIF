@@ -18,6 +18,7 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 #include <utility/injection.h>
+#include <HybridDetect.h>
 
 std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
 
@@ -587,7 +588,9 @@ SKIF_Util_CreateProcess (
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
 
-      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+      SKIF_Util_SetThreadPreferenceToECores ( );
+
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
 
@@ -649,6 +652,8 @@ SKIF_Util_CreateProcess (
       delete _data;
 
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
+
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
       return 0;
     }, data, 0x0, nullptr);
@@ -982,6 +987,73 @@ SKIF_Util_CompactWorkingSet (void)
     );
 }
 
+bool
+SKIF_Util_SetThreadPreferenceToECores (void)
+{
+  static HybridDetect::PROCESSOR_INFO procInfo;
+  
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+    // Use Intel's HybridDetect to retrieve processor capabilities
+    HybridDetect::GetProcessorInfo (procInfo);
+    PLOG_INFO_IF(procInfo.hybrid) << "Hybrid CPU architecture detected...";
+  }
+
+  bool succeeded = false;
+
+  // Set thread CPU core preference
+  if (procInfo.hybrid)
+  {
+    succeeded =
+#ifdef ENABLE_CPU_SETS
+      HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets  [HybridDetect::CoreTypes::ANY]);
+#else
+      HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks[HybridDetect::CoreTypes::ANY]);
+#endif
+    PLOG_VERBOSE_IF(succeeded) << "Thread is now running on E-cores!";
+  }
+
+  return succeeded;
+}
+
+
+BOOL
+WINAPI
+SKIF_Util_GetSystemCpuSetInformation (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags)
+{
+  using GetSystemCpuSetInformation_pfn =
+    BOOL (WINAPI *)(PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
+
+  static GetSystemCpuSetInformation_pfn
+    SKIF_GetSystemCpuSetInformation =
+        (GetSystemCpuSetInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetSystemCpuSetInformation");
+
+  if (SKIF_GetSystemCpuSetInformation == nullptr)
+    return false;
+  
+  return SKIF_GetSystemCpuSetInformation (Information, BufferLength, ReturnedLength, Process, Flags);
+}
+
+BOOL
+SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize)
+{
+  using SetThreadInformation_pfn =
+    BOOL (WINAPI *)(HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
+
+  static SetThreadInformation_pfn
+    SKIF_SetThreadInformation =
+        (SetThreadInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetThreadInformation");
+
+  if (SKIF_SetThreadInformation == nullptr)
+    return false;
+  
+  return SKIF_SetThreadInformation (hThread, ThreadInformationClass, ThreadInformation, ThreadInformationSize);
+}
+
 HRESULT
 SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
 {
@@ -997,6 +1069,23 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
     return false;
   
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
+}
+
+BOOL
+SKIF_Util_SetThreadSelectedCpuSets (HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
+{
+  using SetThreadSelectedCpuSets_pfn =
+    HRESULT (WINAPI *)(HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount);
+
+  static SetThreadSelectedCpuSets_pfn
+    SKIF_SetThreadSelectedCpuSets =
+        (SetThreadSelectedCpuSets_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetThreadSelectedCpuSets");
+
+  if (SKIF_SetThreadSelectedCpuSets == nullptr)
+    return false;
+  
+  return SKIF_SetThreadSelectedCpuSets (Thread, CpuSetIds, CpuSetIdCount);
 }
 
 bool
@@ -1261,8 +1350,8 @@ SKIF_Util_GetDragFromMaximized (bool refresh)
     return state;
 
   HKEY hKey;
-  DWORD dwSize = 0;
-  WCHAR szData[MAX_PATH];
+  DWORD dwSize           =  0;
+  WCHAR szData[MAX_PATH] = { };
 
   // Check if DragFromMaximize is enabled
   if (ERROR_SUCCESS   == RegOpenKeyExW (HKEY_CURRENT_USER, LR"(Control Panel\Desktop)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))

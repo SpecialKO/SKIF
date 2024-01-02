@@ -378,6 +378,7 @@
   <ItemGroup>
     <ClInclude Include="include\stores\Epic\epic_library.h" />
     <ClInclude Include="include\utility\drvreset.h" />
+    <ClInclude Include="packages_misc\HybridDetect.h" />
     <ClInclude Include="packages_misc\picosha2.h" />
     <ClInclude Include="packages_misc\TextFlow.hpp" />
     <ClInclude Include="packages_misc\vdf_parser.hpp" />
