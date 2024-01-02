@@ -175,10 +175,6 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
 
-  KeyValue <bool> regKVEnableDebugMode =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Enable Debug Mode)" );
-
   // UI elements that can be toggled
 
   KeyValue <bool> regKVUIBorders =
@@ -444,7 +440,6 @@ struct SKIF_RegistrySettings {
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
 
   bool bFirstLaunch             = false;
-  bool bEnableDebugMode         = false;
   bool bAllowMultipleInstances  = false;
   bool bAllowBackgroundService  = false;
   bool bOpenAtCursorPosition    = false;

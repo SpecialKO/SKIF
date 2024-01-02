@@ -183,7 +183,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVLibraryCustom.hasData())
     bLibraryCustom         =   regKVLibraryCustom          .getData ( );
 
-  bEnableDebugMode         =   regKVEnableDebugMode        .getData ( );
 //bServiceMode             =   regKVServiceMode            .getData ( );
   bHorizonMode             =   regKVHorizonMode            .getData ( );
 
