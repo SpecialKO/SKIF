@@ -284,6 +284,12 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData ( );
   
   bDeveloperMode           =   regKVDeveloperMode          .getData ( );
+
+  if (regKVEfficiencyMode.hasData())
+    bEfficiencyMode        =   regKVEfficiencyMode         .getData ( );
+
+  else if (! SKIF_Util_IsWindows11orGreater ( ))
+    bEfficiencyMode        =   false; // Set to false on Windows 10 and older
   
   bFadeCovers              =   regKVFadeCovers             .getData ( );
 

@@ -299,6 +299,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Developer Mode)" );
 
+  KeyValue <bool> regKVEfficiencyMode =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Efficiency Mode)" );
+
   KeyValue <bool> regKVFadeCovers =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
@@ -457,6 +461,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryIgnoreArticles   = false;
   bool bAutoUpdate              = false; // Automatically runs downloaded installers
   bool bDeveloperMode           = false;
+  bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bFadeCovers              =  true;
 
   // Warnings

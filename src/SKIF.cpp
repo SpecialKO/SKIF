@@ -3505,25 +3505,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
 
-        // SetProcessInformation (Windows 8+)
-        using SetProcessInformation_pfn =
-          BOOL (WINAPI *)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
-
-        static SetProcessInformation_pfn
-          SKIF_SetProcessInformation =
-              (SetProcessInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-              "SetProcessInformation");
-
         static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
         PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 
-        // Enable Efficiency Mode in Windows (requires idle priority + EcoQoS)
-        SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS);
-        if (SKIF_SetProcessInformation != nullptr)
+        if (_registry.bEfficiencyMode)
         {
+          // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
+          SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS);
           PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
           PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          SKIF_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+          SKIF_Util_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
@@ -3539,14 +3530,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             bWaitTimeoutMsgInputFallback = true;
           });
         }
-
-        // Wake up and disable idle priority + ECO QoS (let the system take over)
-        SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-        if (SKIF_SetProcessInformation != nullptr)
+        
+        if (_registry.bEfficiencyMode)
         {
+          // Wake up and disable idle priority + ECO QoS (let the system take over)
+          SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
           PowerThrottling.ControlMask = 0;
           PowerThrottling.StateMask   = 0;
-          SKIF_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+          SKIF_Util_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
         }
 
         // Always render 3 additional frames after we wake up

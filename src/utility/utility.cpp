@@ -1192,6 +1192,24 @@ SKIF_Util_SetThreadSelectedCpuSets (HANDLE Thread, const ULONG* CpuSetIds, ULONG
   return SKIF_SetThreadSelectedCpuSets (Thread, CpuSetIds, CpuSetIdCount);
 }
 
+BOOL
+SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize)
+{
+  // SetProcessInformation (Windows 8+)
+  using SetProcessInformation_pfn =
+    BOOL (WINAPI *)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+
+  static SetProcessInformation_pfn
+    SKIF_SetProcessInformation =
+        (SetProcessInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetProcessInformation");
+
+  if (SKIF_SetProcessInformation == nullptr)
+    return false;
+
+  return SKIF_SetProcessInformation (hProcess, ProcessInformationClass, ProcessInformation, ProcessInformationSize);
+}
+
 bool
 SKIF_Util_IsWindows8Point1OrGreater (void)
 {

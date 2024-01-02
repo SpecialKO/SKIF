@@ -70,6 +70,7 @@ BOOL WINAPI     SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATI
 BOOL            SKIF_Util_SetThreadInformation        (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
 HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);
 BOOL            SKIF_Util_SetThreadSelectedCpuSets    (HANDLE Thread, const ULONG *CpuSetIds, ULONG CpuSetIdCount);
+BOOL            SKIF_Util_SetProcessInformation       (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize);
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);
 bool            SKIF_Util_IsWindows10v1709OrGreater   (void);
