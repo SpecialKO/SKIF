@@ -1319,16 +1319,14 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
 
-    if (SKIF_Util_IsWindows11orGreater ( ))
-    {
-      ImGui::SameLine         ( );
+    ImGui::SameLine         ( );
 
-      if (ImGui::Checkbox  ("Efficiency mode",
-                                                        &_registry.bEfficiencyMode))
-        _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
+    if (ImGui::Checkbox  ("Efficiency mode",
+                                                      &_registry.bEfficiencyMode))
+      _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
 
-      SKIF_ImGui_SetHoverTip  ("Engages Windows 11's efficiency mode for the main thread of this app.");
-    }
+    SKIF_ImGui_SetHoverTip  ("Engage efficiency mode for this app when idle.\n"
+                             "Not recommended for Windows 10 and earlier.");
 
     ImGui::NextColumn       ( );
 

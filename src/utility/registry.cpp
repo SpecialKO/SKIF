@@ -288,8 +288,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVEfficiencyMode.hasData())
     bEfficiencyMode        =   regKVEfficiencyMode         .getData ( );
 
-  else if (! SKIF_Util_IsWindows11orGreater ( ))
-    bEfficiencyMode        =   false; // Set to false on Windows 10 and older
+  else
+    bEfficiencyMode        =   SKIF_Util_IsWindows11orGreater ( ); // Win10 and below: false, Win11 and above: true
   
   bFadeCovers              =   regKVFadeCovers             .getData ( );
 
