@@ -1699,7 +1699,7 @@ GetInjectionSummary (app_record_s* pApp)
             {
               struct _stat64 buffer;
               if (0 == _wstat64 (newPreset.Path.c_str(), &buffer))
-                size = buffer.st_size;
+                size = static_cast<LONG_PTR>(buffer.st_size);
             }
 
             else
