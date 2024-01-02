@@ -212,13 +212,6 @@ bool           SK_ValidatePointer           (LPCVOID addr, bool silent = false);
 bool           SK_IsAddressExecutable       (LPCVOID addr, bool silent = false);
 void           SK_LogSymbolName             (LPCVOID addr);
 
-char*          SK_StripUserNameFromPathA    (   char*  szInOut);
-wchar_t*       SK_StripUserNameFromPathW    (wchar_t* wszInOut);
-void           SK_LogUserNamesVerbose       (void); // Not actually SK stuff but my own SKIF custom stuff // Aemony
-
-#define SK_ConcealUserDir  SK_StripUserNameFromPathW
-#define SK_ConcealUserDirA SK_StripUserNameFromPathA
-
 FARPROC WINAPI SK_GetProcAddress            (      HMODULE  hMod,      const char* szFunc) noexcept;
 FARPROC WINAPI SK_GetProcAddress            (const wchar_t* wszModule, const char* szFunc);
 

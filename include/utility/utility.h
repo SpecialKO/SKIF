@@ -32,6 +32,11 @@ std::wstring    SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
 std::string     SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
 std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
 
+// Usernames
+std::wstring    SKIF_Util_StripPersonalData           (std::wstring input);
+std:: string    SKIF_Util_StripPersonalData           (std:: string input);
+void            SKIF_Util_Debug_LogUserNames          (void);
+
 
 // ShellExecute
 

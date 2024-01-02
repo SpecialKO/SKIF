@@ -5505,8 +5505,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (pathExtension == L".lnk")
         {
-          WCHAR wszTarget    [MAX_PATH + 2];
-          WCHAR wszArguments [MAX_PATH + 2];
+          WCHAR wszTarget    [MAX_PATH + 2] = { };
+          WCHAR wszArguments [MAX_PATH + 2] = { };
 
           SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
 
@@ -5718,6 +5718,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
       LPWSTR pwszFilePath = NULL;
+
       if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
       {
         error = false;

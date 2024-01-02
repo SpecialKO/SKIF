@@ -10,9 +10,19 @@
 #include <filesystem>
 #include <DbgHelp.h>
 #include <gdiplus.h>
-#include <UserEnv.h>
+#include <regex>
 
-#pragma comment (lib, "Gdiplus.lib")
+#ifndef SECURITY_WIN32 
+#define SECURITY_WIN32 
+#endif
+
+#include <Security.h>
+#include <secext.h>
+#include <userenv.h>
+
+#pragma comment(lib, "Secur32.lib")
+#pragma comment(lib, "Userenv.lib")
+#pragma comment(lib, "Gdiplus.lib")
 
 #include <SKIF.h>
 #include <utility/fsutil.h>
@@ -450,6 +460,100 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
   }
 
   return name;
+}
+
+
+// Usernames
+
+std::wstring userProfile;
+std:: string userProfileUTF8;
+std::wstring userSamName;
+std:: string userSamNameUTF8;
+std::wstring userDisName;
+std:: string userDisNameUTF8;
+std::wstring machineName;
+std:: string machineNameUTF8;
+
+void
+SKIF_UtilInt_IniUserMachineStrip (void)
+{
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+
+    DWORD   dwLen     =     MAX_PATH;
+    wchar_t wszUserProfile [MAX_PATH] = { };
+    wchar_t wszUserSamName [MAX_PATH] = { };
+    wchar_t wszUserDisName [MAX_PATH] = { };
+    wchar_t wszMachineName [MAX_PATH] = { };
+
+    if (GetUserProfileDirectoryW (SKIF_Util_GetCurrentProcessToken ( ), wszUserProfile, &dwLen))
+    {
+      PathStripPathW                   (wszUserProfile);
+      userProfile     = std::wstring   (wszUserProfile);
+      userProfileUTF8 = SK_WideCharToUTF8 (userProfile);
+    }
+    
+    dwLen             = MAX_PATH;
+
+    if (GetUserNameExW (NameSamCompatible, wszUserSamName, &dwLen))
+    {
+      wcscpy_s (wszMachineName, MAX_PATH, wszUserSamName);
+      PathStripPathW                     (wszUserSamName); // Strip machine name
+      PathRemoveFileSpecW                (wszMachineName); // Strip username
+
+      userSamName     = std::wstring     (wszUserSamName);
+      userSamNameUTF8 = SK_WideCharToUTF8   (userSamName);
+
+      machineName     = std::wstring     (wszMachineName);
+      machineNameUTF8 = SK_WideCharToUTF8   (machineName);
+    }
+    
+    dwLen             = MAX_PATH;
+
+    if (GetUserNameExW (NameDisplay,    wszUserDisName, &dwLen))
+    {
+      userDisName     = std::wstring   (wszUserDisName,  dwLen);
+      userDisNameUTF8 = SK_WideCharToUTF8 (userDisName);
+    }
+  }
+}
+
+std::wstring
+SKIF_Util_StripPersonalData (std::wstring input)
+{
+  SKIF_UtilInt_IniUserMachineStrip ( );
+  
+  input = std::regex_replace (input, std::wregex (userDisName.c_str()),    L"*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+  input = std::regex_replace (input, std::wregex (userProfile.c_str()),    L"*****");
+  input = std::regex_replace (input, std::wregex (userSamName.c_str()),    L"*****");
+  input = std::regex_replace (input, std::wregex (machineName.c_str()),    L"*****");
+
+  return input;
+}
+
+std::string
+SKIF_Util_StripPersonalData (std::string input)
+{
+  SKIF_UtilInt_IniUserMachineStrip ( );
+  
+  input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), "*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+  input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), "*****");
+  input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), "*****");
+  input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), "*****");
+
+  return input;
+}
+
+void
+SKIF_Util_Debug_LogUserNames (void)
+{
+  SKIF_UtilInt_IniUserMachineStrip ( );
+
+  std::string names = SK_FormatString ("ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfileUTF8.c_str(), userSamNameUTF8.c_str(), userDisNameUTF8.c_str(), machineNameUTF8.c_str());
+  PLOG_VERBOSE << names;
+  PLOG_VERBOSE << SKIF_Util_StripPersonalData (names);
 }
 
 
