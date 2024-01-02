@@ -1,15 +1,16 @@
 #pragma once
 
-#include <wtypes.h>
 #include <string>
+#include <map>
+#include <atomic>
+#include <Windows.h>
+#include <wtypes.h>
 #include <WinInet.h>
 #include <atlbase.h>
 #include <Tlhelp32.h>
-#include <map>
-#include <atomic>
 #include <processthreadsapi.h>
 
-#pragma comment (lib, "wininet.lib")
+#pragma comment(lib, "wininet.lib")
 
 
 // Generic Utilities
@@ -54,11 +55,6 @@ bool            SKIF_Util_CreateProcess               (const std::wstring_view& 
 
 
 // Windows
-
-// Structs
-typedef struct _MEMORY_PRIORITY_INFORMATION {
-  ULONG MemoryPriority;
-} MEMORY_PRIORITY_INFORMATION, *PMEMORY_PRIORITY_INFORMATION;
 
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);

@@ -989,7 +989,11 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 #ifdef HYBRIDDETECT_OS_WIN
 inline bool SetMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
 {
-	MEMORY_PRIORITY_INFORMATION memoryPriorityInfo;
+  typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
+    ULONG MemoryPriority;
+  } SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
+
+  SKIF_MEMORY_PRIORITY_INFORMATION memoryPriorityInfo;
 	ZeroMemory(&memoryPriorityInfo, sizeof(memoryPriorityInfo));
 
 	memoryPriorityInfo.MemoryPriority = memoryPriority;
