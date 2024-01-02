@@ -525,10 +525,17 @@ SKIF_Util_StripPersonalData (std::wstring input)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
   
-  input = std::regex_replace (input, std::wregex (userDisName.c_str()),    L"*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
-  input = std::regex_replace (input, std::wregex (userProfile.c_str()),    L"*****");
-  input = std::regex_replace (input, std::wregex (userSamName.c_str()),    L"*****");
-  input = std::regex_replace (input, std::wregex (machineName.c_str()),    L"*****");
+  if (! userDisName.empty())
+    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    L"*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+
+  if (! userProfile.empty())
+    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    L"*****");
+
+  if (! userSamName.empty())
+    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    L"*****");
+
+  if (! machineName.empty())
+    input = std::regex_replace (input, std::wregex (machineName.c_str()),    L"*****");
 
   return input;
 }
@@ -538,10 +545,17 @@ SKIF_Util_StripPersonalData (std::string input)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
   
-  input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), "*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
-  input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), "*****");
-  input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), "*****");
-  input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), "*****");
+  if (! userDisNameUTF8.empty())
+    input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), "*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+
+  if (! userProfileUTF8.empty())
+    input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), "*****");
+
+  if (! userSamNameUTF8.empty())
+    input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), "*****");
+
+  if (! machineNameUTF8.empty())
+    input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), "*****");
 
   return input;
 }
@@ -1102,9 +1116,15 @@ SKIF_Util_SetThreadPreferenceToECores (void)
   {   runOnce = false;
     // Use Intel's HybridDetect to retrieve processor capabilities
     HybridDetect::GetProcessorInfo (procInfo);
-    PLOG_INFO_IF(procInfo.hybrid) << "Hybrid CPU architecture detected...";
+    PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
+    
+#ifdef _DEBUG
+    for (auto& core : procInfo.cores)
+    {
+      PLOG_INFO << core.coreIndex << " - " << core.coreType << " - " << core.efficiencyClass << " - " << core.schedulingClass;
+    }
+#endif
   }
-
   bool succeeded = false;
 
   // Set thread CPU core preference
@@ -1112,9 +1132,9 @@ SKIF_Util_SetThreadPreferenceToECores (void)
   {
     succeeded =
 #ifdef ENABLE_CPU_SETS
-      HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets  [HybridDetect::CoreTypes::ANY]);
+      (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
 #else
-      HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks[HybridDetect::CoreTypes::ANY]);
+      (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
 #endif
     PLOG_VERBOSE_IF(succeeded) << "Thread is now running on E-cores!";
   }
@@ -1136,7 +1156,7 @@ SKIF_Util_GetSystemCpuSetInformation (PSYSTEM_CPU_SET_INFORMATION Information, U
         "GetSystemCpuSetInformation");
 
   if (SKIF_GetSystemCpuSetInformation == nullptr)
-    return false;
+    return FALSE;
   
   return SKIF_GetSystemCpuSetInformation (Information, BufferLength, ReturnedLength, Process, Flags);
 }
@@ -1153,7 +1173,7 @@ SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadI
         "SetThreadInformation");
 
   if (SKIF_SetThreadInformation == nullptr)
-    return false;
+    return FALSE;
   
   return SKIF_SetThreadInformation (hThread, ThreadInformationClass, ThreadInformation, ThreadInformationSize);
 }
@@ -1170,7 +1190,7 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
         "SetThreadDescription");
 
   if (SKIF_SetThreadDescription == nullptr)
-    return false;
+    return 0;
   
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
 }
@@ -1187,7 +1207,7 @@ SKIF_Util_SetThreadSelectedCpuSets (HANDLE Thread, const ULONG* CpuSetIds, ULONG
         "SetThreadSelectedCpuSets");
 
   if (SKIF_SetThreadSelectedCpuSets == nullptr)
-    return false;
+    return FALSE;
   
   return SKIF_SetThreadSelectedCpuSets (Thread, CpuSetIds, CpuSetIdCount);
 }
@@ -1205,7 +1225,7 @@ SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS Proc
         "SetProcessInformation");
 
   if (SKIF_SetProcessInformation == nullptr)
-    return false;
+    return FALSE;
 
   return SKIF_SetProcessInformation (hProcess, ProcessInformationClass, ProcessInformation, ProcessInformationSize);
 }
