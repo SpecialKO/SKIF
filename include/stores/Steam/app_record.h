@@ -225,17 +225,17 @@ struct app_record_s {
     std:: string getExecutableFileNameUTF8  (void);
     bool          isExecutableFileNameValid (void);
 
-    std::wstring getExecutableDir           (void);
-    bool          isExecutableDirValid      (void);
+    std::wstring getExecutableDir           (void) const;
+    bool          isExecutableDirValid      (void) const;
 
-    std::wstring getExecutableFullPath      (void);
+    std::wstring getExecutableFullPath      (void) const;
     std:: string getExecutableFullPathUTF8  (void);
     bool          isExecutableFullPathValid (void);
     
     std::wstring getDescription             (void);
     std:: string getDescriptionUTF8         (void);
     
-    std::wstring getLaunchOptions           (void);
+    std::wstring getLaunchOptions           (void) const;
     std:: string getLaunchOptionsUTF8       (void);
 
   //private:

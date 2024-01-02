@@ -56,7 +56,7 @@ app_launch_config_s::isExecutableFileNameValid (void)
 }
 
 std::wstring
-app_launch_config_s::getExecutableFullPath (void)
+app_launch_config_s::getExecutableFullPath (void) const
 {
   return executable_path;
 }
@@ -92,7 +92,7 @@ app_launch_config_s::isExecutableFullPathValid (void)
 }
 
 std::wstring
-app_launch_config_s::getExecutableDir (void)
+app_launch_config_s::getExecutableDir (void) const
 {
   std::wstring exec_path =
     getExecutableFullPath ( );
@@ -106,7 +106,7 @@ app_launch_config_s::getExecutableDir (void)
 }
 
 bool
-app_launch_config_s::isExecutableDirValid (void)
+app_launch_config_s::isExecutableDirValid (void) const
 {
   return PathFileExistsW (getExecutableDir ( ).c_str());
 }
@@ -134,7 +134,7 @@ app_launch_config_s::getDescriptionUTF8 (void)
 }
 
 std::wstring
-app_launch_config_s::getLaunchOptions (void)
+app_launch_config_s::getLaunchOptions (void) const
 {
   return launch_options;
 }
@@ -210,7 +210,7 @@ app_launch_config_s::setBlacklisted (bool blacklist)
       PathFileExistsW (blacklist_path.c_str ()) ?
                                               1 : 0;
 
-    assert (set == blacklisted);
+    assert (set == (bool)blacklisted);
 
     UNREFERENCED_PARAMETER (set);
 
@@ -325,7 +325,7 @@ app_launch_config_s::setElevated (bool elevate)
       PathFileExistsW (elevated_path.c_str ()) ?
                                               1 : 0;
 
-    assert (set == elevated);
+    assert (set == (bool)elevated);
 
     UNREFERENCED_PARAMETER (set);
 
