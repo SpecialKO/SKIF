@@ -43,6 +43,24 @@ SKIF supports detecting and launching games from the following platforms:
 | `RestartDisplDrv`         | **Requires elevation!** Restarts the display driver (useful as this can sometimes fix MPOs). |
 | `RunUpdater`              | Triggers a check for update. Used internally by the "Check for Updates" taskbar jump list action. |
 
+## Keyboard shortcuts
+
+| Shortcut&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; | What it does |
+| ------------------------: | -------------- |
+| `F5` *or* `Ctrl+R`        | Forces a refresh of data on the Library and About tabs. |
+| `F6`                      | Appearance: Toggles DPI scaling.                        |
+| `F7`                      | Appearance: Cycles between available color themes.      |
+| `F8`                      | Appearance: Toggles borders.                            |
+| `F9`                      | Appearance: Toggles color depth.                        |
+| `F11` *or* `Ctrl+T`       | Appearance: Toggles between regular (large) UI mode and service (small) UI mode. |
+| `Ctrl+Q` *or* `Ctrl+W`    | Closes the app.                                         |
+| `Ctrl+A`                  | Library: Opens the add game prompt.                     |
+| `Ctrl+N`                  | Minimizes the app.                                      |
+| `Ctrl+1`                  | Switch to the Library tab.                              |
+| `Ctrl+2`                  | Switch to the Monitor tab.                              |
+| `Ctrl+3`                  | Switch to the Settings tab.                             |
+| `Ctrl+4`                  | Switch to the About tab.                                |
+
 ## Third-party code
 
 * Uses [Dear ImGui](https://github.com/ocornut/imgui), licensed under [MIT](https://github.com/ocornut/imgui/blob/master/LICENSE.txt).
@@ -55,5 +73,6 @@ SKIF supports detecting and launching games from the following platforms:
 * Uses [ValveFileVDF](https://github.com/TinyTinni/ValveFileVDF), licensed under [MIT](https://github.com/TinyTinni/ValveFileVDF/blob/master/LICENSE).
 * Uses [GSL](https://github.com/microsoft/GSL), licensed under [MIT](https://github.com/microsoft/GSL/blob/main/LICENSE).
 * Uses [TextFlowCpp](https://github.com/catchorg/textflowcpp), licensed under [BSL-1.0](https://github.com/catchorg/textflowcpp/blob/master/LICENSE.txt).
+* Uses [HybridDetect](https://github.com/GameTechDev/HybridDetect/), licensed under [MIT](https://github.com/GameTechDev/HybridDetect/blob/main/LICENSE.md).
 * Uses code from [Custom Resolution Utility (CRU)](https://www.monitortests.com/forum/Thread-Custom-Resolution-Utility-CRU), licensed under a [custom license](https://github.com/SpecialKO/SKIF/blob/master/src/drvreset.cpp).
 * Includes various snippets of code from [Stack Overflow](https://stackoverflow.com/), licensed under [Creative Commons Attribution-ShareAlike](https://stackoverflow.com/help/licensing).
