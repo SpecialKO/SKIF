@@ -105,7 +105,7 @@ namespace HybridDetect
 //#define ENABLE_RUNON_EXECUTION_SPEED
 
 // Enables CPU-Sets and Disables ThreadAffinityMasks
-//#define ENABLE_CPU_SETS
+#define ENABLE_CPU_SETS
 
 // No current CPUs have ISA support that varies between cores
 #ifndef ENABLE_PER_LOGICAL_CPUID_ISA_DETECTION
@@ -987,7 +987,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 }
 
 #ifdef HYBRIDDETECT_OS_WIN
-inline bool SetMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
+inline bool SetThreadMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
 {
   typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
     ULONG MemoryPriority;
@@ -999,6 +999,21 @@ inline bool SetMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
 	memoryPriorityInfo.MemoryPriority = memoryPriority;
 
 	return SKIF_Util_SetThreadInformation (threadHandle, ThreadMemoryPriority,
+		&memoryPriorityInfo, sizeof(memoryPriorityInfo));
+}
+
+inline bool SetProcessMemoryPriority(HANDLE processHandle, UINT memoryPriority)
+{
+  typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
+    ULONG MemoryPriority;
+  } SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
+
+  SKIF_MEMORY_PRIORITY_INFORMATION memoryPriorityInfo;
+	ZeroMemory(&memoryPriorityInfo, sizeof(memoryPriorityInfo));
+
+	memoryPriorityInfo.MemoryPriority = memoryPriority;
+
+	return SKIF_Util_SetProcessInformation (processHandle, ProcessMemoryPriority,
 		&memoryPriorityInfo, sizeof(memoryPriorityInfo));
 }
 
@@ -1040,6 +1055,45 @@ inline bool AutoPowerThrottling(HANDLE threadHandle)
 	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
 		&throttlingState, sizeof(throttlingState));
 }
+
+inline bool EnableProcessPowerThrottling(HANDLE processHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+	throttlingState.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+
+	return SKIF_Util_SetProcessInformation (processHandle, ProcessPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
+
+inline bool DisableProcessPowerThrottling(HANDLE processHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+	throttlingState.StateMask = 0;
+
+	return SKIF_Util_SetProcessInformation (processHandle, ProcessPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
+
+inline bool AutoProcessPowerThrottling(HANDLE processHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = 0;
+	throttlingState.StateMask = 0;
+
+	return SKIF_Util_SetProcessInformation (processHandle, ProcessPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
 #endif
 
 #ifdef ENABLE_CPU_SETS
@@ -1077,6 +1131,40 @@ inline short RunOnCPUSet(PROCESSOR_INFO& procInfo, HANDLE threadHandle, std::vec
 	return -1;
 }
 
+// SKIF-CUSTOM: Run A Process On the Atom or Core Logical Processor Cluster
+inline short RunProcOnCPUSet(PROCESSOR_INFO& procInfo, HANDLE processHandle, std::vector<ULONG> cpuSet, std::vector<ULONG> fallbackSet = {})
+{
+#ifdef ENABLE_RUNON
+	if (cpuSet.size() > 0)
+	{
+		if (SKIF_Util_SetProcessDefaultCpuSets(processHandle, &cpuSet[0], (ULONG)cpuSet.size()))
+		{
+			return 1;
+		}
+	}
+
+	if (fallbackSet.size() > 0)
+	{
+		if (SKIF_Util_SetProcessDefaultCpuSets(processHandle, &fallbackSet[0], (ULONG)fallbackSet.size()))
+		{
+			return 0;
+		}
+	}
+
+	std::vector<ULONG> anySet = procInfo.cpuSets[CoreTypes::ANY];
+
+	if (anySet.size() > 0)
+	{
+		if (SKIF_Util_SetProcessDefaultCpuSets(processHandle, &anySet[0], (ULONG)anySet.size()))
+		{
+			return -1;
+		}
+	}
+
+#endif
+	return -1;
+}
+
 // Run A Thread On the Atom or Core Logical Processor Cluster
 inline short RunOn(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const CoreTypes type, const std::vector<ULONG> fallbackSet = {})
 {
@@ -1099,13 +1187,13 @@ inline short RunOn(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const CoreType
 	switch (type)
 	{
 	case INTEL_ATOM:
-		SetMemoryPriority(threadHandle, MEMORY_PRIORITY_NORMAL);
+    SetThreadMemoryPriority(threadHandle, MEMORY_PRIORITY_NORMAL);
 		break;
 	case INTEL_CORE:
-		SetMemoryPriority(threadHandle, MEMORY_PRIORITY_BELOW_NORMAL);
+    SetThreadMemoryPriority(threadHandle, MEMORY_PRIORITY_BELOW_NORMAL);
 		break;
 	default:
-		SetMemoryPriority(threadHandle, MEMORY_PRIORITY_BELOW_NORMAL);
+		SetThreadMemoryPriority(threadHandle, MEMORY_PRIORITY_BELOW_NORMAL);
 		break;
 	}
 #endif
@@ -1114,13 +1202,13 @@ inline short RunOn(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const CoreType
 	switch (type)
 	{
 	case INTEL_ATOM:
-		EnablePowerThrottling(threadHandle);
+		EnableThreadPowerThrottling(threadHandle);
 		break;
 	case INTEL_CORE:
-		DisablePowerThrottling(threadHandle);
+		DisableThreadPowerThrottling(threadHandle);
 		break;
 	default:
-		AutoPowerThrottling(threadHandle);
+		AutoThreadPowerThrottling(threadHandle);
 		break;
 	}
 #endif
@@ -1136,6 +1224,70 @@ inline short RunOn(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const CoreType
 	}
 
 	return RunOnCPUSet(procInfo, threadHandle, fallbackSet);
+#else
+	return 0;
+#endif
+}
+
+// SKIF-CUSTOM: Run A Process On the Atom or Core Logical Processor Cluster
+inline short RunProcOn(PROCESSOR_INFO& procInfo, HANDLE processHandle, const CoreTypes type, const std::vector<ULONG> fallbackSet = {})
+{
+#ifdef ENABLE_RUNON_PRIORITY
+	switch (type)
+	{
+	case INTEL_ATOM:
+    SetPriorityClass (processHandle, BELOW_NORMAL_PRIORITY_CLASS);
+		break;
+	case INTEL_CORE:
+	//SetPriorityClass (processHandle, ABOVE_NORMAL_PRIORITY_CLASS);
+		break;
+	default:
+		SetPriorityClass (processHandle, NORMAL_PRIORITY_CLASS);
+		break;
+	}
+#endif
+
+#ifdef ENABLE_RUNON_MEMORY_PRIORITY
+	switch (type)
+	{
+	case INTEL_ATOM:
+    SetProcessMemoryPriority(processHandle, MEMORY_PRIORITY_NORMAL);
+		break;
+	case INTEL_CORE:
+    SetProcessMemoryPriority(processHandle, MEMORY_PRIORITY_BELOW_NORMAL);
+		break;
+	default:
+		SetProcessMemoryPriority(processHandle, MEMORY_PRIORITY_BELOW_NORMAL);
+		break;
+	}
+#endif
+
+#ifdef ENABLE_RUNON_EXECUTION_SPEED
+	switch (type)
+	{
+	case INTEL_ATOM:
+		EnableProcessPowerThrottling(processHandle);
+		break;
+	case INTEL_CORE:
+		DisableProcessPowerThrottling(processHandle);
+		break;
+	default:
+		AutoProcessPowerThrottling(processHandle);
+		break;
+	}
+#endif
+
+#ifdef ENABLE_RUNON
+	//assert(procInfo.coreMasks.size());
+
+	if (procInfo.cpuSets.size() > 0)
+	{
+		std::vector<ULONG> cpuSet = procInfo.cpuSets[type];
+
+		return RunProcOnCPUSet(procInfo, processHandle, cpuSet, fallbackSet);
+	}
+
+	return RunProcOnCPUSet(procInfo, processHandle, fallbackSet);
 #else
 	return 0;
 #endif
@@ -1277,9 +1429,8 @@ inline short RunOnMask(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const ULON
 #endif
 }
 
-// Run The Current Process On A Custom Logical Processor Cluster
-// SKIF Custom thingy! - Aemony
-inline short RunProcOnMask(PROCESSOR_INFO& procInfo, const ULONG64 mask, const ULONG64 fallbackMask = 0xffffffff)
+// SKIF-CUSTOM: Run A Process On A Custom Logical Processor Cluster
+inline short RunProcOnMask(PROCESSOR_INFO& procInfo, HANDLE processHandle, const ULONG64 mask, const ULONG64 fallbackMask = 0xffffffff)
 {
   UNREFERENCED_PARAMETER (procInfo);
 
@@ -1288,33 +1439,33 @@ inline short RunProcOnMask(PROCESSOR_INFO& procInfo, const ULONG64 mask, const U
 	DWORD_PTR  systemAffinityMask;
 
 	// Get the system and process affinity mask
-	GetProcessAffinityMask(GetCurrentProcess(), &processAffinityMask, &systemAffinityMask);
+	GetProcessAffinityMask(processHandle, &processAffinityMask, &systemAffinityMask);
 
 	ULONG64 newProcessAffinityMask = mask;
 
 	//assert((systemAffinityMask & threadAffinityMask));
 	//assert((processAffinityMask & threadAffinityMask));
 
-	// Is the process-mask allowed in this system/process?
-	if (systemAffinityMask & newProcessAffinityMask)
+	// Is the process-mask allowed in this system?
+	if ((systemAffinityMask & newProcessAffinityMask) &&
+      (FALSE != SetProcessAffinityMask(processHandle, systemAffinityMask & newProcessAffinityMask)))
 	{
-		// Run All Threads In Process
-		return (0 != SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask & newProcessAffinityMask));
+		return 1;
 	}
 
 	//assert(systemAffinityMask & fallbackMask);
 	//assert(processAffinityMask & fallbackMask);
 
 	// Is fall-back process-mask allowed in this system?
-	if (systemAffinityMask & fallbackMask)
-	{
-    SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask & fallbackMask);
+	if ((systemAffinityMask & fallbackMask) &&
+      (FALSE != SetProcessAffinityMask (processHandle, systemAffinityMask & fallbackMask)))
+  {
 		return 0;
 	}
 	else
 	{
 		// Fallback to system affinity mask!
-    SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask);
+    SetProcessAffinityMask(processHandle, systemAffinityMask);
 		return -1;
 	}
 #else
@@ -1328,6 +1479,38 @@ inline short RunOnMask(PROCESSOR_INFO& procInfo, const ULONG64 mask, const ULONG
 #ifdef ENABLE_RUNON
 	HANDLE threadHandle = GetCurrentThread();
 	return RunOnMask(procInfo, threadHandle, mask, fallbackMask);
+#else
+	return 0;
+#endif
+}
+
+// SKIF-CUSTOM: Run A Process On the Atom or Core Logical Processor Cluster
+inline short RunProcOn(PROCESSOR_INFO& procInfo, HANDLE processHandle, const CoreTypes type, const ULONG64 fallbackMask = 0xffffffff)
+{
+#ifdef ENABLE_RUNON_PRIORITY
+	switch (type)
+	{
+	case INTEL_ATOM:
+    SetPriorityClass (processHandle, BELOW_NORMAL_PRIORITY_CLASS);
+		break;
+	case INTEL_CORE:
+	//SetPriorityClass (processHandle, ABOVE_NORMAL_PRIORITY_CLASS);
+		break;
+	default:
+		SetPriorityClass (processHandle, NORMAL_PRIORITY_CLASS);
+		break;
+	}
+#endif
+#ifdef ENABLE_RUNON
+	//assert(procInfo.coreMasks.size());
+
+	if (procInfo.coreMasks.size())
+	{
+		ULONG64 processMask = procInfo.coreMasks[type];
+		return RunProcOnMask(procInfo, processHandle, processMask, fallbackMask);
+	}
+
+	return RunProcOnMask(procInfo, processHandle, fallbackMask);
 #else
 	return 0;
 #endif
@@ -1362,6 +1545,17 @@ inline short RunOn(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const CoreType
 	return RunOnMask(procInfo, threadHandle, fallbackMask);
 #else
 	return 0;
+#endif
+}
+
+// Run The Current Process On Atom or Core Logical Processor Cluster
+inline short RunOn(PROCESSOR_INFO& procInfo, const CoreTypes type, const ULONG64 fallbackMask = 0xffffffff)
+{
+#ifdef ENABLE_RUNON
+  HANDLE processHandle = GetCurrentProcess();
+  return RunOn(procInfo, processHandle, type, fallbackMask);
+#else
+  return 0;
 #endif
 }
 
