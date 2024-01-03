@@ -824,6 +824,7 @@ SKIF_Util_TerminateProcess (DWORD dwProcessId, UINT uExitCode)
 
 // Terminates the process of the given handle
 BOOL
+WINAPI
 SKIF_Util_TerminateProcess (HANDLE hProcess, UINT uExitCode)
 {
   if (hProcess == INVALID_HANDLE_VALUE)
@@ -1270,7 +1271,7 @@ SKIF_Util_SetProcessDefaultCpuSets (HANDLE hProcess, const ULONG* CpuSetIds, ULO
         "SetProcessDefaultCpuSets");
 
   if (SKIF_SetProcessDefaultCpuSets == nullptr)
-    return 1;
+    return FALSE;
   
   return SKIF_SetProcessDefaultCpuSets (hProcess, CpuSetIds, CpuSetIdCount);
 }
@@ -1289,7 +1290,7 @@ SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS Proc
         "SetProcessInformation");
 
   if (SKIF_SetProcessInformation == nullptr)
-    return 0;
+    return FALSE;
 
   return SKIF_SetProcessInformation (hProcess, ProcessInformationClass, ProcessInformation, ProcessInformationSize);
 }
