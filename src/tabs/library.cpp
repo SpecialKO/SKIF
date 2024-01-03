@@ -305,7 +305,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
         
   // Instant Play options for Steam games
-  if (SteamShortcutPossible)
+  if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
     static uint32_t curAppId                  = 0;
     static int      numSecondaryLaunchConfigs = 0;
@@ -329,10 +329,11 @@ DrawGameContextMenu (app_record_s* pApp)
       }
     }
 
-    ImGui::Separator        ( );
+    if (numSecondaryLaunchConfigs > 0 || pApp->store == app_record_s::Store::Steam)
+      ImGui::Separator ( );
 
-    // If there is only one valid launch config
-    if (numSecondaryLaunchConfigs == 0)
+    // If there is only one valid launch config (Steam games only)
+    if (numSecondaryLaunchConfigs == 0 && pApp->store == app_record_s::Store::Steam)
     {
       if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
                             ((pApp->_status.running || pApp->_status.updating)
@@ -346,8 +347,9 @@ DrawGameContextMenu (app_record_s* pApp)
         hoverText += (" " + launchConfig->getLaunchOptionsUTF8());
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
+
       SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
-                               "including steps such as Steam Cloud synchronization.");
+                                "including steps such as Steam Cloud synchronization.");
           
       if (pApp->specialk.injection.injection.type != InjectionType::Local)
       {
@@ -368,7 +370,7 @@ DrawGameContextMenu (app_record_s* pApp)
     }
 
     // Multiple launch configs
-    else
+    else if (numSecondaryLaunchConfigs > 0)
     {
       bool disabled = (pApp->_status.running || pApp->_status.updating);
 
@@ -453,8 +455,9 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::EndMenu ();
       }
 
-      SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
-                               "including steps such as Steam Cloud synchronization.");
+      if (pApp->store == app_record_s::Store::Steam)
+        SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
+                                 "including steps such as Steam Cloud synchronization.");
       
       if (! disabled)
         ImGui::PushStyleColor      (ImGuiCol_Text,
@@ -2945,7 +2948,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           auto& append_cfg = (record.store == app_record_s::Store::Steam) ? record.launch_configs_custom
                                                                           : record.launch_configs;
 
-          std::string key = SK_FormatString(R"(%i)", record.id);
+          std::string key  = (record.store == app_record_s::Store::Epic)  ? record.Epic_AppName     :
+                             (record.store == app_record_s::Store::Xbox)  ? record.Xbox_PackageName :
+                                                            std::to_string (record.id);
+
+          if (key == "Neowiz.3616725F496B")
+            OutputDebugString(L"derp\n");
 
           for (auto& launch_config : jf[record.store_utf8][key])
           {
@@ -2964,6 +2972,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               lc.custom_skif = true;
             else
               lc.custom_user = true;
+
+            if (key == "Neowiz.3616725F496B")
+              OutputDebugString(L"herp\n");
 
             append_cfg.emplace (lc.id, lc);
           }
@@ -4938,20 +4949,23 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      // Launch Steam game (Instant Play)
-      else if (pApp->store == app_record_s::Store::Steam && launchInstant)
+      // Instant Play
+      else if (launchInstant) // pApp->store == app_record_s::Store::Steam
       {
         std::map<std::wstring, std::wstring> env;
 
-        PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
-        env.emplace (L"SteamAppId", std::to_wstring (pApp->id));
-
-        bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
-
-        if (! steamOverlay)
+        if (pApp->store == app_record_s::Store::Steam)
         {
-          PLOG_DEBUG << "Disabling the Steam Overlay...";
-          env.emplace (L"SteamNoOverlayUIDrawing", L"1");
+          PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
+          env.emplace (L"SteamAppId", std::to_wstring (pApp->id));
+
+          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
+
+          if (! steamOverlay)
+          {
+            PLOG_DEBUG << "Disabling the Steam Overlay...";
+            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
+          }
         }
 
         SKIF_Util_CreateProcess_s* proc = nullptr;
@@ -4975,8 +4989,10 @@ SKIF_UI_Tab_DrawLibrary (void)
                               proc
           ))
         {
-          std::wstring launchOptions  = launchConfig->getLaunchOptions();
-                       launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+          std::wstring launchOptions = launchConfig->getLaunchOptions();
+
+          if (pApp->store == app_record_s::Store::Steam)
+            launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
           // Trim spaces at the end
           launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
