@@ -65,12 +65,13 @@ std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
-bool            SKIF_Util_SetProcessPreferenceToECores(void); // Set process preference to E-cores (inherited by child processes as well)
-bool            SKIF_Util_SetThreadPreferenceToECores (void);
+bool            SKIF_Util_SetProcessPrefersECores     (void);
+bool            SKIF_Util_SetThreadPrefersECores      (void);
 BOOL WINAPI     SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
-BOOL            SKIF_Util_SetThreadInformation        (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
-HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread, PCWSTR lpThreadDescription);
-BOOL            SKIF_Util_SetThreadSelectedCpuSets    (HANDLE Thread, const ULONG *CpuSetIds, ULONG CpuSetIdCount);
+BOOL            SKIF_Util_SetThreadInformation        (HANDLE hThread,  THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
+HRESULT         SKIF_Util_SetThreadDescription        (HANDLE hThread,  PCWSTR lpThreadDescription);
+BOOL            SKIF_Util_SetThreadSelectedCpuSets    (HANDLE hThread,  const ULONG *CpuSetIds, ULONG CpuSetIdCount);
+BOOL            SKIF_Util_SetProcessDefaultCpuSets    (HANDLE hProcess, const ULONG *CpuSetIds, ULONG CpuSetIdCount);
 BOOL            SKIF_Util_SetProcessInformation       (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize);
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);

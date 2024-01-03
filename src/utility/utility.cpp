@@ -706,8 +706,6 @@ SKIF_Util_CreateProcess (
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
 
-      SKIF_Util_SetThreadPreferenceToECores ( );
-
       SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
@@ -1105,8 +1103,8 @@ SKIF_Util_CompactWorkingSet (void)
     );
 }
 
-bool
-SKIF_Util_SetProcessPreferenceToECores (void)
+HybridDetect::PROCESSOR_INFO*
+SKIF_Util_GetProcessInfoHybridDetect (void)
 {
   static HybridDetect::PROCESSOR_INFO procInfo;
   
@@ -1114,85 +1112,71 @@ SKIF_Util_SetProcessPreferenceToECores (void)
       runOnce = true;
   if (runOnce)
   {   runOnce = false;
+
     // Use Intel's HybridDetect to retrieve processor capabilities
     HybridDetect::GetProcessorInfo (procInfo);
     PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
-    
-#ifdef _DEBUG
-    for (auto& core : procInfo.cores)
-    {
-      PLOG_INFO << core.coreIndex << " - " << core.coreType << " - " << core.efficiencyClass << " - " << core.schedulingClass;
-    }
-#endif
   }
-  bool succeeded = false;
 
-  // Set thread CPU core preference
+  return &procInfo;
+}
+
+bool
+SKIF_Util_SetProcessPrefersECores (void)
+{
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+
+  bool succeeded = false;
+  
+  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  //
+  // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
+  //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
   if (procInfo.hybrid)
   {
-    // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-    //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-    //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
-    // 
-    // Intel VTune Profiler indicates CPU Sets (soft) are pretty useless at enforcing E-core usage, while SetThreadAffinityMask (strong) is the opposite.
-    // So let's use SetThreadAffinityMask!
-    
-	  if (procInfo.coreMasks.size())
-	  {
-		  ULONG64 processMask = procInfo.coreMasks[HybridDetect::CoreTypes::INTEL_ATOM];
-      succeeded =
-        (1 == HybridDetect::RunProcOnMask (procInfo, processMask, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
-	  }
+    succeeded =
+#ifdef ENABLE_CPU_SETS
+      (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
 
-    PLOG_VERBOSE_IF(succeeded) << "The process affinity mask was set to E-cores!";
+    PLOG_VERBOSE_IF(succeeded) << "The default CPU set of the process was set to E-cores!";
+#else
+      false; // Do not use affinity mask as this is inherited by any spawned child process!
+    //(1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
+#endif
   }
 
   return succeeded;
 }
 
 bool
-SKIF_Util_SetThreadPreferenceToECores (void)
+SKIF_Util_SetThreadPrefersECores (void)
 {
-  return false;
-
-  static HybridDetect::PROCESSOR_INFO procInfo;
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
   
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
-    // Use Intel's HybridDetect to retrieve processor capabilities
-    HybridDetect::GetProcessorInfo (procInfo);
-    PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
-    
-#ifdef _DEBUG
-    for (auto& core : procInfo.cores)
-    {
-      PLOG_INFO << core.coreIndex << " - " << core.coreType << " - " << core.efficiencyClass << " - " << core.schedulingClass;
-    }
-#endif
-  }
   bool succeeded = false;
-
-  // Set thread CPU core preference
+  
+  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  //
+  // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
+  //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
   if (procInfo.hybrid)
   {
-    // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-    //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-    //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
-    // 
-    // Intel VTune Profiler indicates CPU Sets (soft) are pretty useless at enforcing E-core usage, while SetThreadAffinityMask (strong) is the opposite.
-    // So let's use SetThreadAffinityMask!
-
-    succeeded =
 #ifdef ENABLE_CPU_SETS
+    succeeded =
       (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
 
-    PLOG_VERBOSE_IF(succeeded) << "The thread CPU set preference was set to E-cores!";
+    PLOG_VERBOSE_IF(succeeded) << "The CPU set of the thread was set to E-cores!";
 #else
-      (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+    false; // Do not use affinity mask as this is inherited by any spawned child process!
+    //(1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
 
-    PLOG_VERBOSE_IF(succeeded) << "The thread affinity mask was set to E-cores!";
+    PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the thread was set to E-cores!";
 #endif
   }
 
@@ -1219,6 +1203,7 @@ SKIF_Util_GetSystemCpuSetInformation (PSYSTEM_CPU_SET_INFORMATION Information, U
 }
 
 BOOL
+WINAPI
 SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize)
 {
   using SetThreadInformation_pfn =
@@ -1236,6 +1221,7 @@ SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadI
 }
 
 HRESULT
+WINAPI
 SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
 {
   using SetThreadDescription_pfn =
@@ -1253,10 +1239,11 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
 }
 
 BOOL
-SKIF_Util_SetThreadSelectedCpuSets (HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
+WINAPI
+SKIF_Util_SetThreadSelectedCpuSets (HANDLE hThread, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
 {
   using SetThreadSelectedCpuSets_pfn =
-    HRESULT (WINAPI *)(HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount);
+    BOOL (WINAPI *)(HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount);
 
   static SetThreadSelectedCpuSets_pfn
     SKIF_SetThreadSelectedCpuSets =
@@ -1266,10 +1253,29 @@ SKIF_Util_SetThreadSelectedCpuSets (HANDLE Thread, const ULONG* CpuSetIds, ULONG
   if (SKIF_SetThreadSelectedCpuSets == nullptr)
     return FALSE;
   
-  return SKIF_SetThreadSelectedCpuSets (Thread, CpuSetIds, CpuSetIdCount);
+  return SKIF_SetThreadSelectedCpuSets (hThread, CpuSetIds, CpuSetIdCount);
 }
 
 BOOL
+WINAPI
+SKIF_Util_SetProcessDefaultCpuSets (HANDLE hProcess, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
+{
+  using SetProcessDefaultCpuSets_pfn =
+    BOOL (WINAPI *)(HANDLE Thread, const ULONG* CpuSetIds, ULONG CpuSetIdCount);
+
+  static SetProcessDefaultCpuSets_pfn
+    SKIF_SetProcessDefaultCpuSets =
+        (SetProcessDefaultCpuSets_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetProcessDefaultCpuSets");
+
+  if (SKIF_SetProcessDefaultCpuSets == nullptr)
+    return FALSE;
+  
+  return SKIF_SetProcessDefaultCpuSets (hProcess, CpuSetIds, CpuSetIdCount);
+}
+
+BOOL
+WINAPI
 SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize)
 {
   // SetProcessInformation (Windows 8+)
