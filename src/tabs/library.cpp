@@ -1130,7 +1130,7 @@ DrawGameContextMenu (app_record_s* pApp)
       }
 
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
-      if (ImGui::Selectable ("Copy App ID"))
+      if (ImGui::Selectable ("Copy app ID"))
       {
         switch (pApp->store)
         {
@@ -1141,7 +1141,7 @@ DrawGameContextMenu (app_record_s* pApp)
           SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->Xbox_PackageName));
           break;
         default:
-          SKIF_Util_SetClipboardData (std::to_wstring (pApp->id));
+          SKIF_Util_SetClipboardData (std::to_wstring   (pApp->id));
         }
       }
 
