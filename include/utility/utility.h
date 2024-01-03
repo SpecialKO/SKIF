@@ -65,6 +65,7 @@ std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL WINAPI     SKIF_Util_CompactWorkingSet           (void);
+bool            SKIF_Util_SetProcessPreferenceToECores(void); // Set process preference to E-cores (inherited by child processes as well)
 bool            SKIF_Util_SetThreadPreferenceToECores (void);
 BOOL WINAPI     SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
 BOOL            SKIF_Util_SetThreadInformation        (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);

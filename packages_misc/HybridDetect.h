@@ -105,7 +105,7 @@ namespace HybridDetect
 //#define ENABLE_RUNON_EXECUTION_SPEED
 
 // Enables CPU-Sets and Disables ThreadAffinityMasks
-#define ENABLE_CPU_SETS
+//#define ENABLE_CPU_SETS
 
 // No current CPUs have ISA support that varies between cores
 #ifndef ENABLE_PER_LOGICAL_CPUID_ISA_DETECTION
@@ -1270,6 +1270,51 @@ inline short RunOnMask(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const ULON
 	{
 		// Fallback to process affinity mask!
 		SetThreadAffinityMask(threadHandle, processAffinityMask);
+		return -1;
+	}
+#else
+  return -1;
+#endif
+}
+
+// Run The Current Process On A Custom Logical Processor Cluster
+// SKIF Custom thingy! - Aemony
+inline short RunProcOnMask(PROCESSOR_INFO& procInfo, const ULONG64 mask, const ULONG64 fallbackMask = 0xffffffff)
+{
+  UNREFERENCED_PARAMETER (procInfo);
+
+#ifdef ENABLE_RUNON
+	DWORD_PTR  processAffinityMask;
+	DWORD_PTR  systemAffinityMask;
+
+	// Get the system and process affinity mask
+	GetProcessAffinityMask(GetCurrentProcess(), &processAffinityMask, &systemAffinityMask);
+
+	ULONG64 newProcessAffinityMask = mask;
+
+	//assert((systemAffinityMask & threadAffinityMask));
+	//assert((processAffinityMask & threadAffinityMask));
+
+	// Is the process-mask allowed in this system/process?
+	if (systemAffinityMask & newProcessAffinityMask)
+	{
+		// Run All Threads In Process
+		return (0 != SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask & newProcessAffinityMask));
+	}
+
+	//assert(systemAffinityMask & fallbackMask);
+	//assert(processAffinityMask & fallbackMask);
+
+	// Is fall-back process-mask allowed in this system?
+	if (systemAffinityMask & fallbackMask)
+	{
+    SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask & fallbackMask);
+		return 0;
+	}
+	else
+	{
+		// Fallback to system affinity mask!
+    SetProcessAffinityMask(GetCurrentProcess(), systemAffinityMask);
 		return -1;
 	}
 #else

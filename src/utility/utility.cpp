@@ -1106,7 +1106,7 @@ SKIF_Util_CompactWorkingSet (void)
 }
 
 bool
-SKIF_Util_SetThreadPreferenceToECores (void)
+SKIF_Util_SetProcessPreferenceToECores (void)
 {
   static HybridDetect::PROCESSOR_INFO procInfo;
   
@@ -1130,13 +1130,70 @@ SKIF_Util_SetThreadPreferenceToECores (void)
   // Set thread CPU core preference
   if (procInfo.hybrid)
   {
+    // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+    //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+    //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+    // 
+    // Intel VTune Profiler indicates CPU Sets (soft) are pretty useless at enforcing E-core usage, while SetThreadAffinityMask (strong) is the opposite.
+    // So let's use SetThreadAffinityMask!
+    
+	  if (procInfo.coreMasks.size())
+	  {
+		  ULONG64 processMask = procInfo.coreMasks[HybridDetect::CoreTypes::INTEL_ATOM];
+      succeeded =
+        (1 == HybridDetect::RunProcOnMask (procInfo, processMask, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+	  }
+
+    PLOG_VERBOSE_IF(succeeded) << "The process affinity mask was set to E-cores!";
+  }
+
+  return succeeded;
+}
+
+bool
+SKIF_Util_SetThreadPreferenceToECores (void)
+{
+  return false;
+
+  static HybridDetect::PROCESSOR_INFO procInfo;
+  
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+    // Use Intel's HybridDetect to retrieve processor capabilities
+    HybridDetect::GetProcessorInfo (procInfo);
+    PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
+    
+#ifdef _DEBUG
+    for (auto& core : procInfo.cores)
+    {
+      PLOG_INFO << core.coreIndex << " - " << core.coreType << " - " << core.efficiencyClass << " - " << core.schedulingClass;
+    }
+#endif
+  }
+  bool succeeded = false;
+
+  // Set thread CPU core preference
+  if (procInfo.hybrid)
+  {
+    // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+    //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+    //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+    // 
+    // Intel VTune Profiler indicates CPU Sets (soft) are pretty useless at enforcing E-core usage, while SetThreadAffinityMask (strong) is the opposite.
+    // So let's use SetThreadAffinityMask!
+
     succeeded =
 #ifdef ENABLE_CPU_SETS
       (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The thread CPU set preference was set to E-cores!";
 #else
       (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The thread affinity mask was set to E-cores!";
 #endif
-    PLOG_VERBOSE_IF(succeeded) << "Thread is now running on E-cores!";
   }
 
   return succeeded;

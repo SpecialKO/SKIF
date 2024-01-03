@@ -1337,7 +1337,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
   // Maybe not keep main thread on E-cores?
-  SKIF_Util_SetThreadPreferenceToECores ( );
+  //SKIF_Util_SetThreadPreferenceToECores ( );
+
+  // Set process preference to E-cores (inherited by child processes as well!!!!!)
+  SKIF_Util_SetProcessPreferenceToECores ( ); // TODO: Work on this some more -- child processes cannot be limited to E-cores!!!
 
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
