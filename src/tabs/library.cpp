@@ -792,7 +792,7 @@ DrawGameContextMenu (app_record_s* pApp)
 #endif
 
   // Manage [Custom] Game
-  if (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::GOG || SteamShortcutPossible)
+  if (pApp->store == app_record_s::Store::Custom || pApp->store == app_record_s::Store::GOG || SteamShortcutPossible)
   {
     if (ImGui::BeginMenu (ICON_FA_GEAR "  Manage"))
     {
@@ -802,12 +802,12 @@ DrawGameContextMenu (app_record_s* pApp)
       if (pApp->store == app_record_s::Store::Steam)
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
 
-      else if (pApp->store == app_record_s::Store::Other)
+      else if (pApp->store == app_record_s::Store::Custom)
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
       
       ImGui::ItemSize     (ImVec2 (ImGui::CalcTextSize (ICON_FA_PAPERCLIP).x, ImGui::GetTextLineHeight()));
 
-      if (pApp->store == app_record_s::Store::Other)
+      if (pApp->store == app_record_s::Store::Custom)
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TRASH).x, ImGui::GetTextLineHeight()));
 
       ImGui::EndGroup    ( );
@@ -833,7 +833,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::Separator ( );
       }
 
-      else if (pApp->store == app_record_s::Store::Other)
+      else if (pApp->store == app_record_s::Store::Custom)
       {
         if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
           ModifyGamePopup = PopupState_Open;
@@ -883,7 +883,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ConfirmPopup = PopupState_Open;
       }
 
-      if (pApp->store == app_record_s::Store::Other)
+      if (pApp->store == app_record_s::Store::Custom)
       {
         if (ImGui::Selectable ("Remove"))
           RemoveGamePopup = PopupState_Open;
@@ -902,7 +902,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::Separator ( );
       }
 
-      else if (pApp->store == app_record_s::Store::Other)
+      else if (pApp->store == app_record_s::Store::Custom)
       {
         ImGui::TextColored (
                   ImColor   (200, 200, 200, 255),
@@ -917,7 +917,7 @@ DrawGameContextMenu (app_record_s* pApp)
                     ICON_FA_PAPERCLIP
                               );
 
-      if (pApp->store == app_record_s::Store::Other)
+      if (pApp->store == app_record_s::Store::Custom)
         ImGui::TextColored (
                   ImColor   (200, 200, 200, 255),
                     ICON_FA_TRASH
@@ -936,7 +936,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {   curAppId  = pApp->id;
 
       // PCGamingWiki
-      pcgwValue =   (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
+      pcgwValue =   (pApp->store == app_record_s::Store::Custom || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
                                 ? SK_UTF8ToWideChar (pApp->names.normal)
                                 : std::to_wstring   (pApp->id);
 
@@ -1400,7 +1400,7 @@ DrawSKIFContextMenu (app_record_s* pApp)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
   );
 
-  std::wstring pcgwValue =   (pApp->store == app_record_s::Store::Other || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
+  std::wstring pcgwValue =   (pApp->store == app_record_s::Store::Custom || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
                             ? SK_UTF8ToWideChar (pApp->names.normal)
                             : std::to_wstring   (pApp->id);
 
@@ -3176,7 +3176,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         
         if (app.second.id == SKIF_STEAM_APPID) // SKIF
           load_str = L"_icon.jpg";
-        else  if (app.second.store == app_record_s::Store::Other) // SKIF Custom
+        else  if (app.second.store == app_record_s::Store::Custom) // SKIF Custom
           load_str = L"icon";
         else  if (app.second.store == app_record_s::Store::Epic)  // Epic
           load_str = L"icon";
@@ -4285,7 +4285,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Preparations
 
       bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
-                            pApp->store != app_record_s::Store::Other) ||
+                            pApp->store != app_record_s::Store::Custom) ||
                             pApp->tex_cover.isCustom                   ||
                             pApp->tex_cover.isManaged);
       // Column 1: Icons
@@ -4321,7 +4321,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
+          else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -4358,13 +4358,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (resetVisible)
       {
-        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Other) ? "Clear" : "Reset") : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
+        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Custom) ? "Clear" : "Reset") : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
         {
           std::wstring targetPath = L"";
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
+          else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -4521,7 +4521,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       bool resetVisible = (pApp->id    != SKIF_STEAM_APPID            ||
                           (pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
-                           pApp->store != app_record_s::Store::Other) ||
+                           pApp->store != app_record_s::Store::Custom) ||
                            pApp->tex_icon.isCustom                    ||
                            pApp->tex_icon.isManaged);
 
@@ -4558,7 +4558,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
+          else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -4612,7 +4612,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Other)
+          else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
@@ -5218,7 +5218,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // SKIF Custom
-      else if (_pApp->store == app_record_s::Store::Other)
+      else if (_pApp->store == app_record_s::Store::Custom)
       {
         load_str = L"cover";
       }
@@ -5724,7 +5724,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
 
         _registry.iLastSelectedGame  = newAppId;
-        _registry.iLastSelectedStore = (int)app_record_s::Store::Other;
+        _registry.iLastSelectedStore = (int)app_record_s::Store::Custom;
         _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
         _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
         RepopulateGames = true; // Rely on the RepopulateGames method instead
@@ -6070,7 +6070,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // Change selection to the new game
     selection.appid = SelectNewSKIFGame;
-    selection.store = app_record_s::Store::Other;
+    selection.store = app_record_s::Store::Custom;
 
     //for (auto& app : g_apps)
     //  if (app.second.id == selection.appid && app.second.store == selection.store)
