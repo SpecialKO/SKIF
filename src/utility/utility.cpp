@@ -1167,6 +1167,7 @@ SKIF_Util_SetThreadPrefersECores (void)
   //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
   if (procInfo.hybrid)
   {
+
 #ifdef ENABLE_CPU_SETS
     succeeded =
       (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
@@ -1269,7 +1270,7 @@ SKIF_Util_SetProcessDefaultCpuSets (HANDLE hProcess, const ULONG* CpuSetIds, ULO
         "SetProcessDefaultCpuSets");
 
   if (SKIF_SetProcessDefaultCpuSets == nullptr)
-    return FALSE;
+    return 1;
   
   return SKIF_SetProcessDefaultCpuSets (hProcess, CpuSetIds, CpuSetIdCount);
 }
@@ -1288,7 +1289,7 @@ SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS Proc
         "SetProcessInformation");
 
   if (SKIF_SetProcessInformation == nullptr)
-    return FALSE;
+    return 0;
 
   return SKIF_SetProcessInformation (hProcess, ProcessInformationClass, ProcessInformation, ProcessInformationSize);
 }

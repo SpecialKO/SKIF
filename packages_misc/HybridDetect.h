@@ -987,6 +987,9 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 }
 
 #ifdef HYBRIDDETECT_OS_WIN
+
+// THREAD
+
 inline bool SetThreadMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
 {
   typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
@@ -1002,6 +1005,47 @@ inline bool SetThreadMemoryPriority(HANDLE threadHandle, UINT memoryPriority)
 		&memoryPriorityInfo, sizeof(memoryPriorityInfo));
 }
 
+inline bool EnableThreadPowerThrottling(HANDLE threadHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+	throttlingState.StateMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+
+	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
+
+inline bool DisableThreadPowerThrottling(HANDLE threadHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+	throttlingState.StateMask = 0;
+
+	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
+
+inline bool AutoThreadPowerThrottling(HANDLE threadHandle)
+{
+	THREAD_POWER_THROTTLING_STATE throttlingState;
+	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
+
+	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+	throttlingState.ControlMask = 0;
+	throttlingState.StateMask = 0;
+
+	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
+		&throttlingState, sizeof(throttlingState));
+}
+
+// PROCESS
+
 inline bool SetProcessMemoryPriority(HANDLE processHandle, UINT memoryPriority)
 {
   typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
@@ -1015,45 +1059,6 @@ inline bool SetProcessMemoryPriority(HANDLE processHandle, UINT memoryPriority)
 
 	return SKIF_Util_SetProcessInformation (processHandle, ProcessMemoryPriority,
 		&memoryPriorityInfo, sizeof(memoryPriorityInfo));
-}
-
-inline bool EnablePowerThrottling(HANDLE threadHandle)
-{
-	THREAD_POWER_THROTTLING_STATE throttlingState;
-	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
-
-	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
-	throttlingState.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-	throttlingState.StateMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-
-	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
-		&throttlingState, sizeof(throttlingState));
-}
-
-inline bool DisablePowerThrottling(HANDLE threadHandle)
-{
-	THREAD_POWER_THROTTLING_STATE throttlingState;
-	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
-
-	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
-	throttlingState.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-	throttlingState.StateMask = 0;
-
-	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
-		&throttlingState, sizeof(throttlingState));
-}
-
-inline bool AutoPowerThrottling(HANDLE threadHandle)
-{
-	THREAD_POWER_THROTTLING_STATE throttlingState;
-	RtlZeroMemory(&throttlingState, sizeof(throttlingState));
-
-	throttlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
-	throttlingState.ControlMask = 0;
-	throttlingState.StateMask = 0;
-
-	return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling,
-		&throttlingState, sizeof(throttlingState));
 }
 
 inline bool EnableProcessPowerThrottling(HANDLE processHandle)
