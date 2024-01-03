@@ -301,6 +301,7 @@ struct app_record_s {
   std::map <std::string, branch_record_s    > branches;
   std::map <int,         cloud_save_record_s> cloud_saves;
   std::map <int,         launch_config_s    > launch_configs;
+  std::map <int,         launch_config_s    > launch_configs_custom; // Workaround for Steam games parsing original launch configs on selection
   common_config_s                             common_config;
   
   uint32_t     id;

@@ -2881,6 +2881,69 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry.bLibraryCustom)
       SKIF_GetCustomAppIDs (&g_apps);
 
+    PLOG_INFO << "Loading custom launch configs synchronously...";
+
+    static const std::wstring lc_files[] = { 
+      SK_FormatStringW (LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata),
+      SK_FormatStringW (LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata)
+    };
+
+    bool processingOnline = true;
+    for (auto& lc_file : lc_files)
+    {
+      std::ifstream file(lc_file);
+      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
+      file.close();
+
+      if (jf.is_discarded ( ))
+      {
+        PLOG_ERROR << "Error occurred while trying to parse " << lc_file;
+
+        if (processingOnline)
+        {
+          PLOG_INFO << "Deleting file so a retry occurs the next time an online check is performed...";
+          DeleteFile (lc_file.c_str()); // Something went wrong -- delete the file so a new attempt is performed later
+          processingOnline = false;
+        }
+
+        continue;
+      }
+
+      try {
+        for (auto& app : g_apps)
+        {
+          auto& record     =  app.second;
+          auto& append_cfg = (record.store == app_record_s::Store::Steam) ? record.launch_configs_custom
+                                                                          : record.launch_configs;
+
+          std::string key = SK_FormatString(R"(%i)", record.id);
+
+          for (auto& launch_config : jf[record.store_utf8][key])
+          {
+            app_record_s::launch_config_s lc;
+            lc.id                       = static_cast<int> (append_cfg.size());
+            lc.valid                    = 1;
+            lc.description              = SK_UTF8ToWideChar(launch_config.at("Desc"));
+            lc.executable               = SK_UTF8ToWideChar(launch_config.at("Exe"));
+            std::replace(lc.executable.begin(), lc.executable.end(), '/', '\\'); // Replaces all forward slashes with backslashes
+            lc.working_dir              = SK_UTF8ToWideChar(launch_config.at("Dir"));
+            lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
+            lc.executable_path          = record.install_dir + L"\\" + lc.executable;
+            lc.install_dir              = record.install_dir;
+
+            append_cfg.emplace (lc.id, lc);
+          }
+        }
+      }
+      catch (const std::exception&)
+      {
+        PLOG_ERROR << "Failed when parsing downloaded launch configs!";
+        PLOG_ERROR << "Error occurred when trying to parse " << ((processingOnline) ? "online-based" : "user-specified") << " launch configs";
+      }
+
+      processingOnline = false;
+    }
+
     PLOG_INFO << "Loading game names synchronously...";
 
     // Clear any existing trie

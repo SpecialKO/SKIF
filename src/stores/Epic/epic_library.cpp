@@ -153,7 +153,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
           app_record_s::launch_config_s lc;
           lc.id                       = 0;
-          lc.valid                    = true;
+          lc.valid                    = 1;
           lc.executable               = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
           lc.executable_path          = record.install_dir + L"\\" + lc.executable;
           lc.install_dir              = record.install_dir;

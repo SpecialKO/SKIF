@@ -513,6 +513,18 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         std::set    <std::wstring>          _used_executables_arguments;
         std::vector <app_record_s::launch_config_s> _launches;
 
+        // Workaround for custom launch configs
+        for (auto& custom_cfg : pAppRecord->launch_configs_custom)
+        {
+          custom_cfg.second.id =
+            static_cast<int> (pAppRecord->launch_configs.size());
+
+          pAppRecord->launch_configs.emplace (custom_cfg.second.id, custom_cfg.second);
+        }
+
+        // Clear out the custom launches once they've been populated
+        pAppRecord->launch_configs_custom.clear();
+
         for ( auto& launch_cfg : pAppRecord->launch_configs )
         {
           auto& launch = launch_cfg.second;
@@ -532,7 +544,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
           // If we cannot find an extension, or if it's not .exe, flag the launch config as invalid
           if (pwszExtension == NULL || (pwszExtension + 1) == NULL || _wcsicmp (pwszExtension, L".exe") != 0)
-            launch.valid = false;
+            launch.valid = 0;
 
           // Flag duplicates
           if (launch.isExecutableFileNameValid())
@@ -576,7 +588,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         for ( auto& launch : _launches )
         {
           // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
-          if (launch.valid)
+          if (launch.valid == 1)
           {
             if (! launch.executable.empty ())
               std::replace (launch.executable.begin  (), launch.executable.end  (), '/', '\\');
