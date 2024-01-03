@@ -117,7 +117,7 @@ app_launch_config_s::getDescription (void)
   if (! description.empty())
     return description;
 
-  description = L"<InvalidDescription>";
+  description = (isExecutableFileNameValid ( )) ? executable : L"<InvalidDescription>";
 
   return description;
 }
