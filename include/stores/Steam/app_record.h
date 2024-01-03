@@ -264,6 +264,8 @@ struct app_record_s {
     int          valid              = -1;    // Launch config is valid (what does this actually mean?)
     bool         duplicate_exe      = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable as another)
     bool         duplicate_exe_args = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable and arguments as another)
+    bool         custom_skif        = false; // Is the launch config an online-based custom one populated by SKIF ?
+    bool         custom_user        = false; // Is the launch config a user-specied custom one?
     int          blacklisted        = -1;
     int          elevated           = -1;
   };

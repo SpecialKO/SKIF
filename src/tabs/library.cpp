@@ -377,6 +377,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (ImGui::BeginMenu ("Instant play###GameContextMenu_InstantPlayMenu"))
       {
+        bool sepCustomSKIF = true,
+             sepCustomUser = true;
+
         for (auto& _launch_cfg : pApp->launch_configs)
         {
           if (! _launch_cfg.second.valid ||
@@ -384,6 +387,19 @@ DrawGameContextMenu (app_record_s* pApp)
             continue;
 
           auto& _launch = _launch_cfg.second;
+
+          // Separators between official / user / SKIF launch configs
+          if (_launch_cfg.second.custom_user && sepCustomUser)
+          {
+            sepCustomUser = false;
+            ImGui::Separator ( );
+          }
+
+          else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
+          {
+            sepCustomSKIF = false;
+            ImGui::Separator ( );
+          }
 
           bool blacklisted = (_launch.isBlacklisted ( ) || _inject._TestUserList (_launch.getExecutableFullPathUTF8 ( ).c_str (), false));
 
@@ -447,6 +463,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (ImGui::BeginMenu (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSKMenu"))
       {
+        bool sepCustomSKIF = true,
+             sepCustomUser = true;
+
         for (auto& _launch_cfg : pApp->launch_configs)
         {
           if (! _launch_cfg.second.valid ||
@@ -454,6 +473,19 @@ DrawGameContextMenu (app_record_s* pApp)
             continue;
 
           auto& _launch = _launch_cfg.second;
+
+          // Separators between official / user / SKIF launch configs
+          if (_launch_cfg.second.custom_user && sepCustomUser)
+          {
+            sepCustomUser = false;
+            ImGui::Separator ( );
+          }
+
+          else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
+          {
+            sepCustomSKIF = false;
+            ImGui::Separator ( );
+          }
 
           bool localDisabled = (_launch.injection.injection.type == InjectionType::Local);
 
@@ -2883,28 +2915,25 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     PLOG_INFO << "Loading custom launch configs synchronously...";
 
-    static const std::wstring lc_files[] = { 
-      SK_FormatStringW (LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata),
-      SK_FormatStringW (LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata)
+    static const std::pair <bool, std::wstring> lc_files[] = {
+      { false, SK_FormatStringW(LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata) }, // We load user-specified first
+      {  true, SK_FormatStringW(LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata) }
     };
 
-    bool processingOnline = true;
     for (auto& lc_file : lc_files)
     {
-      std::ifstream file(lc_file);
+      std::ifstream file(lc_file.second);
       nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
       file.close();
 
       if (jf.is_discarded ( ))
       {
-        PLOG_ERROR << "Error occurred while trying to parse " << lc_file;
+        PLOG_ERROR << "Error occurred while trying to parse " << lc_file.second;
 
-        if (processingOnline)
-        {
-          PLOG_INFO << "Deleting file so a retry occurs the next time an online check is performed...";
-          DeleteFile (lc_file.c_str()); // Something went wrong -- delete the file so a new attempt is performed later
-          processingOnline = false;
-        }
+        // We are dealing with lc.json and something went wrong
+        //   delete the file so a new attempt is performed later
+        if (lc_file.first)
+          PLOG_INFO_IF(DeleteFile (lc_file.second.c_str())) << "Deleting file so a retry occurs the next time an online check is performed...";
 
         continue;
       }
@@ -2931,17 +2960,19 @@ SKIF_UI_Tab_DrawLibrary (void)
             lc.executable_path          = record.install_dir + L"\\" + lc.executable;
             lc.install_dir              = record.install_dir;
 
+            if (lc_file.first)
+              lc.custom_skif = true;
+            else
+              lc.custom_user = true;
+
             append_cfg.emplace (lc.id, lc);
           }
         }
       }
       catch (const std::exception&)
       {
-        PLOG_ERROR << "Failed when parsing downloaded launch configs!";
-        PLOG_ERROR << "Error occurred when trying to parse " << ((processingOnline) ? "online-based" : "user-specified") << " launch configs";
+        PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch configs";
       }
-
-      processingOnline = false;
     }
 
     PLOG_INFO << "Loading game names synchronously...";
@@ -4086,11 +4117,28 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
           {
             //std::set <std::wstring> _used_launches;
+            bool sepCustomSKIF = true,
+                 sepCustomUser = true;
+
             for ( auto& launch : pApp->launch_configs )
             {
               if (! launch.second.valid || 
                     launch.second.duplicate_exe)
                 continue;
+
+              // Separators between official / user / SKIF launch configs
+
+              if (launch.second.custom_user && sepCustomUser)
+              {
+                sepCustomUser = false;
+                ImGui::Separator ( );
+              }
+
+              else if (launch.second.custom_skif && sepCustomSKIF)
+              {
+                sepCustomSKIF = false;
+                ImGui::Separator ( );
+              }
 
               _BlacklistCfg (launch.second, true);
             }
