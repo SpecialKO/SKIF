@@ -327,9 +327,11 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  static const std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",    _path_cache.specialk_userdata);
+  static const std::wstring root         = SK_FormatStringW (LR"(%ws\Version\)",       _path_cache.specialk_userdata);
   static const std::wstring path_repo    = root + LR"(repository.json)";
-  static const std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)", _path_cache.specialk_userdata);
+  static const std::wstring path_patreon = SK_FormatStringW (LR"(%ws\patrons.txt)",    _path_cache.specialk_userdata);
+  static const std::wstring assets       = SK_FormatStringW (LR"(%ws\Assets\)",        _path_cache.specialk_userdata);
+  static const std::wstring path_lc_cfgs = assets + LR"(lc.json)";
 
   // Add UNIX-style timestamp to ensure we don't get anything cached
   time_t ltime;
@@ -338,14 +340,18 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   // Cannot be static as that would invalidate the whole purpose of the appended timestamp
          const std::wstring url_repo    = L"https://sk-data.special-k.info/repository.json?t=" + std::to_wstring (ltime);
   static const std::wstring url_patreon = L"https://sk-data.special-k.info/patrons.txt";
+  static const std::wstring url_lc_cfgs = L"https://sk-data.special-k.info/lc.json";
 
   // Create any missing directories
   std::error_code ec;
-  if (! std::filesystem::exists (            root, ec))
-        std::filesystem::create_directories (root, ec);
+  if (! std::filesystem::exists (            root,   ec))
+        std::filesystem::create_directories (root,   ec);
+  if (! std::filesystem::exists (            assets, ec))
+        std::filesystem::create_directories (assets, ec);
 
   bool forcedUpdateCheck = forced.load ( );
   bool downloadNewFiles  = forcedUpdateCheck;
+  bool downloadLcConfigs = false;
   bool rollbackDesired   = rollback.load();
 
   if (! forcedUpdateCheck && _registry.iCheckForUpdates != 0 && ! _registry.bLowBandwidthMode)
@@ -386,6 +392,45 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
         }
       }
     }
+
+    // Check if we should download new launch configs
+    // This is not done every single launch because that
+    // would refresh the library on every single launch...
+    if (! PathFileExists (path_lc_cfgs.c_str()))
+    {
+      downloadLcConfigs = true;
+    }
+
+    else {
+      WIN32_FILE_ATTRIBUTE_DATA fileAttributes{};
+
+      if (GetFileAttributesEx (path_lc_cfgs.c_str(),    GetFileExInfoStandard, &fileAttributes))
+      {
+        FILETIME ftSystemTime{}, ftAdjustedFileTime{};
+        SYSTEMTIME systemTime{};
+        GetSystemTime (&systemTime);
+
+        if (SystemTimeToFileTime(&systemTime, &ftSystemTime))
+        {
+          ULARGE_INTEGER uintLastWriteTime{};
+
+          // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
+          uintLastWriteTime.HighPart        = fileAttributes.ftLastWriteTime.dwHighDateTime;
+          uintLastWriteTime.LowPart         = fileAttributes.ftLastWriteTime.dwLowDateTime;
+
+          // Perform 64-bit arithmetic to add 7 days to last modified timestamp
+          uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(7 * 24 * 60 * 60 * 1.0e+7);
+
+          // Copy the results to an FILETIME struct
+          ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
+          ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
+
+          // Compare with system time, and if system time is later (1), then update the local cache
+          if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
+            downloadLcConfigs = true;
+        }
+      }
+    }
   }
 
   // Update patrons.txt
@@ -393,6 +438,17 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
   {
     PLOG_INFO << "Downloading patrons.txt...";
     PLOG_ERROR_IF(! SKIF_Util_GetWebResource (url_patreon, path_patreon)) << "Failed to download patrons.txt";
+  }
+
+  // Update lc.json
+  if (downloadLcConfigs)
+  {
+    PLOG_INFO << "Downloading lc.json...";
+
+    if (SKIF_Util_GetWebResource (url_lc_cfgs, path_lc_cfgs))
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHGAMES, 0x0, 0x0); // Signal to the main thread that it needs to refresh its games
+    else
+      PLOG_ERROR << "Failed to download lc.json";
   }
 
   // Read patrons.txt, but only if the existing object is empty
