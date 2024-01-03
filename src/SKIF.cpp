@@ -1336,11 +1336,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
-  // Maybe not keep main thread on E-cores?
-  //SKIF_Util_SetThreadPreferenceToECores ( );
-
-  // Set process preference to E-cores (inherited by child processes as well!!!!!)
-  SKIF_Util_SetProcessPreferenceToECores ( ); // TODO: Work on this some more -- child processes cannot be limited to E-cores!!!
+  // Set process preference to E-cores using only CPU sets, :)
+  //  as affinity masks are inherited by child processes... :(
+  SKIF_Util_SetProcessPrefersECores ( );
 
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
@@ -3370,8 +3368,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         EnterCriticalSection      (&GamepadInputPump);
         
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
-
-        SKIF_Util_SetThreadPreferenceToECores ( );
 
         DWORD packetLast = 0,
               packetNew  = 0;

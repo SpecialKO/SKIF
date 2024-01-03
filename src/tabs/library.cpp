@@ -2077,8 +2077,6 @@ Cache=false)";
 
           CoInitializeEx (nullptr, 0x0);
 
-          SKIF_Util_SetThreadPreferenceToECores ( );
-
           SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
           PLOG_DEBUG << "SKIF_LibGameModWorker thread started!";
@@ -3055,8 +3053,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibRefreshWorker");
 
       CoInitializeEx (nullptr, 0x0);
-
-      SKIF_Util_SetThreadPreferenceToECores ( );
 
       PLOG_DEBUG << "SKIF_LibRefreshWorker thread started!";
       
@@ -5076,8 +5072,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
 
       CoInitializeEx (nullptr, 0x0);
-
-      SKIF_Util_SetThreadPreferenceToECores ( );
 
       PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
 

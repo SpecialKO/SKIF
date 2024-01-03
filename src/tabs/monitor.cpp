@@ -896,8 +896,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
 
-        SKIF_Util_SetThreadPreferenceToECores ( );
-
         SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
         extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);

@@ -50,8 +50,6 @@ SKIF_Updater::SKIF_Updater (void)
 
       CoInitializeEx       (nullptr, 0x0);
 
-      SKIF_Util_SetThreadPreferenceToECores ( );
-
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
