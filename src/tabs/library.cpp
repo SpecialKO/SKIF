@@ -1145,6 +1145,12 @@ DrawGameContextMenu (app_record_s* pApp)
         }
       }
 
+      SKIF_ImGui_SetHoverText (
+        (pApp->store == app_record_s::Store::Epic) ? pApp->Epic_AppName     :
+        (pApp->store == app_record_s::Store::Xbox) ? pApp->Xbox_PackageName :
+                                     std::to_string (pApp->id)
+      );
+
       ImGui::EndMenu ();
     }
   }
