@@ -258,7 +258,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 #pragma region DrawGameContextMenu
 
 void
-DrawGameContextMenu (app_record_s* pApp)
+DrawGameContextMenu (app_record_s* pApp, bool refreshCache)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -273,6 +273,87 @@ DrawGameContextMenu (app_record_s* pApp)
 
   if (launchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
     SteamShortcutPossible = launchConfig->isExecutableFullPathValid ( );
+
+  // Cached data
+  struct CloudPath
+  {
+    std::wstring path;
+    std:: string path_utf8;
+    std:: string label;
+
+    CloudPath (int i, std::wstring p)
+    {
+      path      = p;
+      path_utf8 = SK_WideCharToUTF8 (p);
+      label     =
+        SK_FormatString ("%s###CloudUFS.%d", path_utf8.c_str(), i);
+    };
+  };
+
+  // Secondary launch options
+  static int  numSecondaryLaunchConfigs = 0;
+
+  // Steam Auto-Cloud
+  static bool profileFolderExists     = false,
+              screenshotsFolderExists = false;
+  static std::wstring wsScreenshotDir;
+  static std::vector <CloudPath> cloud_paths_;
+
+  // PCGamingWiki
+  static std::wstring pcgwValue, pcgwLink;
+
+  if (refreshCache)
+  {
+    // Profile + Screenshots
+    profileFolderExists     = PathFileExists (pApp->specialk.injection.config.dir.c_str());
+    wsScreenshotDir         = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
+    screenshotsFolderExists = (profileFolderExists) ? PathFileExists (wsScreenshotDir.c_str()) : false;
+
+    // Check how many secondary launch configs are valid
+    numSecondaryLaunchConfigs = 0;
+    for (auto& _launch_cfg : pApp->launch_configs)
+    {
+      if (_launch_cfg.first == 0)
+        continue;
+
+      if (! _launch_cfg.second.valid ||
+            _launch_cfg.second.duplicate_exe_args)
+        continue;
+        
+      numSecondaryLaunchConfigs++;
+    }
+
+    // Steam Auto-Cloud
+    cloud_paths_.clear();
+    if (pApp->cloud_enabled && // If this is false, Steam Auto-Cloud is not enabled
+      ! pApp->cloud_saves.empty ())
+    {
+      for (auto& cloud : pApp->cloud_saves)
+      {
+        if (cloud.second.valid == -1)
+          cloud.second.valid =
+            PathFileExistsW (cloud.second.evaluated_dir.c_str());
+
+        if (cloud.second.valid == 0)
+          continue;
+
+        if ( app_record_s::Platform::Unknown == cloud.second.platforms ||
+              app_record_s::supports (           cloud.second.platforms,
+              app_record_s::Platform::Windows )
+            )
+          cloud_paths_.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
+      }
+    }
+
+    // PCGamingWiki
+    pcgwValue =   (pApp->store == app_record_s::Store::Custom || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
+                              ? SK_UTF8ToWideChar (pApp->names.normal)
+                              : std::to_wstring   (pApp->id);
+
+    pcgwLink  =   ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
+                 : (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
+                                                               : L"https://www.pcgamingwiki.com/w/index.php?search=") + pcgwValue;
+  }
   
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
@@ -309,28 +390,6 @@ DrawGameContextMenu (app_record_s* pApp)
   // Instant Play options for Steam games
   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
-    static uint32_t curAppId                  = 0;
-    static int      numSecondaryLaunchConfigs = 0;
-
-    if (curAppId != pApp->id)
-    {   curAppId  = pApp->id;
-    
-      numSecondaryLaunchConfigs  = 0;
-
-      // Check how many secondary launch configs are valid
-      for (auto& _launch_cfg : pApp->launch_configs)
-      {
-        if (_launch_cfg.first == 0)
-          continue;
-
-        if (! _launch_cfg.second.valid ||
-              _launch_cfg.second.duplicate_exe_args)
-          continue;
-        
-        numSecondaryLaunchConfigs++;
-      }
-    }
-
     if (numSecondaryLaunchConfigs > 0 || pApp->store == app_record_s::Store::Steam)
       ImGui::Separator ( );
 
@@ -624,58 +683,6 @@ DrawGameContextMenu (app_record_s* pApp)
 
   if (ImGui::BeginMenu (ICON_FA_FOLDER "  Browse"))
   {
-    struct CloudPath
-    {
-      std::wstring path;
-      std:: string path_utf8;
-      std:: string label;
-
-      CloudPath (int i, std::wstring p)
-      {
-        path      = p;
-        path_utf8 = SK_WideCharToUTF8 (p);
-        label     =
-          SK_FormatString ("%s###CloudUFS.%d", path_utf8.c_str(), i);
-      };
-    };
-
-    static bool profileFolderExists     = false,
-                screenshotsFolderExists = false;
-    static std::wstring wsScreenshotDir;
-    static std::vector <CloudPath> cloud_paths_;
-    
-    static uint32_t curAppId = 0;
-
-    if (curAppId != pApp->id)
-    {   curAppId  = pApp->id;
-      // Profile + Screenshots
-      profileFolderExists     = PathFileExists (pApp->specialk.injection.config.dir.c_str());
-      wsScreenshotDir         = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
-      screenshotsFolderExists = (profileFolderExists) ? PathFileExists (wsScreenshotDir.c_str()) : false;
-      cloud_paths_.clear();
-
-      // Cloud
-      if (pApp->cloud_enabled && // If this is false, Steam Auto-Cloud is not enabled
-        ! pApp->cloud_saves.empty ())
-      {
-        for (auto& cloud : pApp->cloud_saves)
-        {
-          if (cloud.second.valid == -1)
-            cloud.second.valid =
-              PathFileExistsW (cloud.second.evaluated_dir.c_str());
-
-          if (cloud.second.valid == 0)
-            continue;
-
-          if ( app_record_s::Platform::Unknown == cloud.second.platforms ||
-               app_record_s::supports (           cloud.second.platforms,
-               app_record_s::Platform::Windows )
-             )
-            cloud_paths_.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
-        }
-      }
-    }
-
     ImVec2 iconPos = ImGui::GetCursorPos();
 
     ImGui::BeginGroup  ( );
@@ -934,22 +941,6 @@ DrawGameContextMenu (app_record_s* pApp)
   
   if (ImGui::BeginMenu (ICON_FA_SHARE "  Open website"))
   {
-    static std::wstring pcgwValue, pcgwLink;
-    static uint32_t     curAppId = 0;
-
-    if (curAppId != pApp->id)
-    {   curAppId  = pApp->id;
-
-      // PCGamingWiki
-      pcgwValue =   (pApp->store == app_record_s::Store::Custom || pApp->store == app_record_s::Store::Epic || pApp->store == app_record_s::Store::Xbox)
-                                ? SK_UTF8ToWideChar (pApp->names.normal)
-                                : std::to_wstring   (pApp->id);
-
-      pcgwLink  =   ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
-                   : (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
-                                                                 : L"https://www.pcgamingwiki.com/w/index.php?search=") + pcgwValue;
-    }
-
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
 
@@ -2715,6 +2706,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static DirectX::TexMetadata     meta = { };
   static DirectX::ScratchImage    img  = { };
+  static bool contextMenuCacheInvalid = false;
 
 #pragma region Initialization
 
@@ -2789,7 +2781,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
         dir_watch.reset();
     }
-  } static selection, item_clicked, lastCover;
+  } static selection, item_clicked, lastCover, contextMenuCache;
 
   // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
   SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
@@ -2838,6 +2830,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! populated)
   {
     PLOG_INFO << "Populating library list...";
+    
+    // Clear any existing trie
+    labels = Trie { };
 
     // Clear all games
     g_apps.clear();
@@ -2955,9 +2950,6 @@ SKIF_UI_Tab_DrawLibrary (void)
                              (record.store == app_record_s::Store::Xbox)  ? record.Xbox_PackageName :
                                                             std::to_string (record.id);
 
-          if (key == "Neowiz.3616725F496B")
-            OutputDebugString(L"derp\n");
-
           for (auto& launch_config : jf[record.store_utf8][key])
           {
             app_record_s::launch_config_s lc;
@@ -2970,14 +2962,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
             lc.executable_path          = record.install_dir + L"\\" + lc.executable;
             lc.install_dir              = record.install_dir;
-
-            if (lc_file.first)
-              lc.custom_skif = true;
-            else
-              lc.custom_user = true;
-
-            if (key == "Neowiz.3616725F496B")
-              OutputDebugString(L"herp\n");
+            lc.custom_skif              =   lc_file.first;
+            lc.custom_user              = ! lc.custom_skif;
 
             append_cfg.emplace (lc.id, lc);
           }
@@ -2990,9 +2976,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     PLOG_INFO << "Loading game names synchronously...";
-
-    // Clear any existing trie
-    labels = Trie { };
 
     // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
     for (auto& app : g_apps)
@@ -3221,6 +3204,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }, 0x0, NULL);
 
     populated = true;
+    contextMenuCacheInvalid = true;
   }
 
   extern bool  coverFadeActive;
@@ -3497,7 +3481,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         fAlphaSK -= 0.05f;
         incTick   = true;
-        OutputDebugString(L"derp\n");
       }
 
       coverFadeActive = true;
@@ -4552,6 +4535,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     GameMenu = PopupState_Closed;
   }
 
+  if (contextMenuCache.appid != selection.appid ||
+      contextMenuCache.store != selection.store)
+  {
+    contextMenuCache.appid = selection.appid;
+    contextMenuCache.store = selection.store;
+    contextMenuCacheInvalid = true;
+  }
+
   if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
   {
     if (pApp != nullptr)
@@ -4559,7 +4550,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->id == SKIF_STEAM_APPID)
         DrawSKIFContextMenu (pApp);
       else
-        DrawGameContextMenu (pApp);
+      {
+        DrawGameContextMenu (pApp, contextMenuCacheInvalid);
+        contextMenuCacheInvalid = false;
+      }
     }
 
     else if (! update)
