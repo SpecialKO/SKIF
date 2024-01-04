@@ -2120,6 +2120,7 @@ Cache=false)";
 
           CoInitializeEx (nullptr, 0x0);
 
+          SKIF_Util_SetThreadPowerThrottling (GetCurrentThread(), 1); // Enable EcoQoS for this thread
           SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
           PLOG_DEBUG << "SKIF_LibGameModWorker thread started!";

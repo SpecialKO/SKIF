@@ -895,7 +895,9 @@ SKIF_UI_Tab_DrawMonitor (void)
         EnterCriticalSection      (&ProcessRefreshJob);
 
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
-
+        
+        // Is this combo really appropriate for this thread?
+        SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
         SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
         extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);

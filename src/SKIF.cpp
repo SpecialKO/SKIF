@@ -1339,6 +1339,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Set process preference to E-cores using only CPU sets, :)
   //  as affinity masks are inherited by child processes... :(
   SKIF_Util_SetProcessPrefersECores ( );
+  //SKIF_Util_SetThreadPrefersECores ( );
 
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
@@ -3502,16 +3503,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
 
-        static PROCESS_POWER_THROTTLING_STATE PowerThrottling = {};
-        PowerThrottling.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-
         if (_registry.bEfficiencyMode)
         {
           // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
-          SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS);
-          PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          PowerThrottling.StateMask   = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-          SKIF_Util_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling));
+          SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
+          SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
@@ -3532,9 +3528,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           // Wake up and disable idle priority + ECO QoS (let the system take over)
           SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-          PowerThrottling.ControlMask = 0;
-          PowerThrottling.StateMask   = 0;
-          SKIF_Util_SetProcessInformation (SKIF_Util_GetCurrentProcess(), ProcessPowerThrottling, &PowerThrottling, sizeof (PowerThrottling));
+          SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), -1);
         }
 
         // Always render 3 additional frames after we wake up

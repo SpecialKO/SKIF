@@ -125,7 +125,8 @@ SKIF_GamesCollection::SKIF_GamesCollection (void)
       EnterCriticalSection      (&LibraryRefreshJob);
 
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryRefreshJob");
-
+      
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       static SKIF_GamesCollection& parent = SKIF_GamesCollection::GetInstance();
