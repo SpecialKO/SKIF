@@ -1125,6 +1125,9 @@ SKIF_Util_GetProcessInfoHybridDetect (void)
 bool
 SKIF_Util_SetProcessPrefersECores (void)
 {
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
   HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
 
   bool succeeded = false;
