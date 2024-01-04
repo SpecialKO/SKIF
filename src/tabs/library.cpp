@@ -112,7 +112,9 @@ extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
-#define _WIDTH   (415.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
+#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
+// 1038px == 415px
+// 1000px == 377px (using 380px)
 //#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
 //#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
 
@@ -1678,7 +1680,7 @@ GetInjectionSummary (app_record_s* pApp)
 
 
     if ( ! ImGui::IsPopupOpen ("ConfigFileMenu") &&
-            ImGui::IsItemClicked (ImGuiMouseButton_Right))
+           ImGui::IsItemClicked (ImGuiMouseButton_Right))
       ImGui::OpenPopup      ("ConfigFileMenu");
 
     if (ImGui::BeginPopup ("ConfigFileMenu", ImGuiWindowFlags_NoMove))
@@ -1980,7 +1982,7 @@ Cache=false)";
     SKIF_ImGui_SetHoverTip        (_cache.injection.hover_text.c_str ());
 
     if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
-            ImGui::IsItemClicked (ImGuiMouseButton_Right))
+           ImGui::IsItemClicked (ImGuiMouseButton_Right))
       ServiceMenu = PopupState_Open;
   }
 
@@ -2021,7 +2023,7 @@ Cache=false)";
 
   ImGui::PushStyleVar (
     ImGuiStyleVar_FramePadding,
-      ImVec2 ( 120.0f * SKIF_ImGui_GlobalDPIScale,
+      ImVec2 (((_registry.bUIBorders) ? 104.0f : 105.0f) * SKIF_ImGui_GlobalDPIScale,
                 40.0f * SKIF_ImGui_GlobalDPIScale)
   );
 

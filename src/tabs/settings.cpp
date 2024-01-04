@@ -481,7 +481,7 @@ SKIF_UI_Tab_DrawSettings (void)
   SKIF_ImGui_Columns      (2, nullptr, true);
 
   SK_RunOnce(
-    ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+    ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
   );
 
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
@@ -734,7 +734,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_Columns      (2, nullptr, true);
 
     SK_RunOnce(
-      ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
   
     if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
@@ -843,7 +843,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_Columns      (2, nullptr, true);
 
     SK_RunOnce(
-      ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
     const char* StyleItems[] = { "SKIF Dark",
@@ -1241,7 +1241,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_Columns      (2, nullptr, true);
 
     SK_RunOnce(
-      ImGui::SetColumnWidth (0, 510.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
     if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
@@ -2221,7 +2221,7 @@ SKIF_UI_Tab_DrawSettings (void)
     );
 
     ImGui::TextWrapped    (
-      "Multi-plane overlays (MPOs) are additional dedicated hardware scanout planes"
+      "MPOs are additional dedicated hardware scanout planes"
       " enabling the GPU to partially take over composition from the DWM. This allows"
       " games to bypass the DWM in various mixed scenarios or window modes,"
       " eliminating the presentation latency that would otherwise be incurred."
@@ -2230,6 +2230,10 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_Spacing ();
     
     SKIF_ImGui_Columns (2, nullptr, true);
+
+    SK_RunOnce(
+      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
+    );
 
     ImGui::BeginGroup  ();
 

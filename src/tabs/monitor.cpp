@@ -676,7 +676,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   SKIF_ImGui_Columns      (2, nullptr, true);
 
   SK_RunOnce (
-    ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
+    ImGui::SetColumnWidth (0, 560.0f * SKIF_ImGui_GlobalDPIScale)
   );
 
   ImGui::PushStyleColor   (
@@ -686,7 +686,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::TextWrapped      ("Use the below list to identify injected processes using the " ICON_FA_CIRCLE " status indicator to the left."
                            " Note that while a lot of processes might have Special K injected in them, only those that are whitelisted"
                            " and uses a render API will see Special K active. Remaning processes have it inert and can"
-                           " be ignored unless an issue is being experienced."
+                           " be ignored."
   );
 
   SKIF_ImGui_Spacing      ( );

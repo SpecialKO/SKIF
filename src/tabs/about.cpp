@@ -21,7 +21,7 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_Columns      (2, nullptr, true);
 
   SK_RunOnce (
-    ImGui::SetColumnWidth (0, 600.0f * SKIF_ImGui_GlobalDPIScale)
+    ImGui::SetColumnWidth (0, 560.0f * SKIF_ImGui_GlobalDPIScale)
   );
 
   ImGui::PushStyleColor   (

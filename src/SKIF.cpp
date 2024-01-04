@@ -110,14 +110,14 @@ UINT SHELL_TASKBAR_BUTTON_CREATED = 0;
 
 // --- App Mode (regular)
 ImVec2 SKIF_vecRegularMode          = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1038.0f, 944.0f);   // Does not include the status bar
+ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not include the status bar
 ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
 ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1038.0f, 325.0f);   // Does not include the status bar
+ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 325.0f);   // Does not include the status bar
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
