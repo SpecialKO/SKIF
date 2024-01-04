@@ -407,12 +407,9 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
   extern DWORD       SKIF_Util_timeGetTime (void);
-  //static std::string itemHovered;           // ImGui doesn't use IDs for Text() and the like, so this is our gimmick solution to keep track of the current hovered item
 
   if (ImGui::IsItemHovered ())
   {
-   // itemHovered = szText;
-
     if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
       ImGui::PushStyleColor (ImGuiCol_PopupBg, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
@@ -430,6 +427,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
             (TIMERPROC) NULL
         );
       }
+
       else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
       {
         ImGui::SetTooltip (
@@ -466,7 +464,13 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
         (                       ! _registry.bServiceMode         )
      )
   {
-    SKIF_StatusBarHelp.assign (szText);
+    extern ImVec2 SKIF_vecCurrentMode;
+
+    // If the text is wider than the app window is, use a hover tooltip if possible
+    if (_registry.bUITooltips && ImGui::CalcTextSize (szText.data()).x > (SKIF_vecCurrentMode.x - 100.0f * SKIF_ImGui_GlobalDPIScale)) // -100px due to the Add Game option
+      SKIF_ImGui_SetHoverTip (szText);
+    else
+      SKIF_StatusBarHelp.assign (szText);
   }
 }
 
