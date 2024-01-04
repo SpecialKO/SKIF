@@ -56,6 +56,10 @@ bool            SKIF_Util_CreateProcess               (const std::wstring_view& 
 
 // Windows
 
+typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
+  ULONG MemoryPriority;
+} SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
+
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
 BOOL            SKIF_Util_TerminateProcess            (DWORD  dwProcessId, UINT uExitCode);
@@ -65,14 +69,18 @@ std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
 int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL    WINAPI  SKIF_Util_CompactWorkingSet           (void);
-bool            SKIF_Util_SetProcessPrefersECores     (void);
-bool            SKIF_Util_SetThreadPrefersECores      (void);
 BOOL    WINAPI  SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
+bool            SKIF_Util_SetThreadPrefersECores      (void);
 BOOL    WINAPI  SKIF_Util_SetThreadInformation        (HANDLE hThread,  THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
 HRESULT WINAPI  SKIF_Util_SetThreadDescription        (HANDLE hThread,  PCWSTR lpThreadDescription);
 BOOL    WINAPI  SKIF_Util_SetThreadSelectedCpuSets    (HANDLE hThread,  const ULONG *CpuSetIds, ULONG CpuSetIdCount);
+bool            SKIF_Util_SetThreadPowerThrottling    (HANDLE threadHandle, INT state);
+bool            SKIF_Util_SetThreadMemoryPriority     (HANDLE threadHandle, ULONG memoryPriority);
+bool            SKIF_Util_SetProcessPrefersECores     (void);
 BOOL    WINAPI  SKIF_Util_SetProcessDefaultCpuSets    (HANDLE hProcess, const ULONG *CpuSetIds, ULONG CpuSetIdCount);
 BOOL    WINAPI  SKIF_Util_SetProcessInformation       (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize);
+bool            SKIF_Util_SetProcessPowerThrottling   (HANDLE processHandle, INT state);
+bool            SKIF_Util_SetProcessMemoryPriority    (HANDLE processHandle, ULONG memoryPriority);
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);
 bool            SKIF_Util_IsWindows10v1709OrGreater   (void);

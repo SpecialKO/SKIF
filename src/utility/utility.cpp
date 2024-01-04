@@ -706,6 +706,8 @@ SKIF_Util_CreateProcess (
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
 
+      // Is this combo really appropriate for this thread?
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
       SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
@@ -1122,43 +1124,30 @@ SKIF_Util_GetProcessInfoHybridDetect (void)
   return &procInfo;
 }
 
-bool
-SKIF_Util_SetProcessPrefersECores (void)
+BOOL
+WINAPI
+SKIF_Util_GetSystemCpuSetInformation (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags)
 {
-  if (! SKIF_Util_IsWindows10OrGreater ( ))
-    return false;
+  using GetSystemCpuSetInformation_pfn =
+    BOOL (WINAPI *)(PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
 
-  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+  static GetSystemCpuSetInformation_pfn
+    SKIF_GetSystemCpuSetInformation =
+        (GetSystemCpuSetInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetSystemCpuSetInformation");
 
-  bool succeeded = false;
+  if (SKIF_GetSystemCpuSetInformation == nullptr)
+    return FALSE;
   
-  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
-  //
-  // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
-  //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
-  if (procInfo.hybrid)
-  {
-    succeeded =
-#ifdef ENABLE_CPU_SETS
-      (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
-
-    PLOG_VERBOSE_IF(succeeded) << "The default CPU set of the process was set to E-cores!";
-#else
-      false; // Do not use affinity mask as this is inherited by any spawned child process!
-    //(1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
-
-    PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
-#endif
-  }
-
-  return succeeded;
+  return SKIF_GetSystemCpuSetInformation (Information, BufferLength, ReturnedLength, Process, Flags);
 }
 
 bool
 SKIF_Util_SetThreadPrefersECores (void)
 {
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
   HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
   
   bool succeeded = false;
@@ -1186,25 +1175,6 @@ SKIF_Util_SetThreadPrefersECores (void)
   }
 
   return succeeded;
-}
-
-
-BOOL
-WINAPI
-SKIF_Util_GetSystemCpuSetInformation (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags)
-{
-  using GetSystemCpuSetInformation_pfn =
-    BOOL (WINAPI *)(PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
-
-  static GetSystemCpuSetInformation_pfn
-    SKIF_GetSystemCpuSetInformation =
-        (GetSystemCpuSetInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "GetSystemCpuSetInformation");
-
-  if (SKIF_GetSystemCpuSetInformation == nullptr)
-    return FALSE;
-  
-  return SKIF_GetSystemCpuSetInformation (Information, BufferLength, ReturnedLength, Process, Flags);
 }
 
 BOOL
@@ -1261,6 +1231,67 @@ SKIF_Util_SetThreadSelectedCpuSets (HANDLE hThread, const ULONG* CpuSetIds, ULON
   return SKIF_SetThreadSelectedCpuSets (hThread, CpuSetIds, CpuSetIdCount);
 }
 
+// Sets the power throttling execution speed (EcoQoS) of a thread
+//   1 = enable; 0 = disable; -1 = auto-managed
+bool
+SKIF_Util_SetThreadPowerThrottling (HANDLE threadHandle, INT state)
+{
+  THREAD_POWER_THROTTLING_STATE throttlingState;
+  ZeroMemory(&throttlingState, sizeof(throttlingState));
+
+  throttlingState.Version     =                THREAD_POWER_THROTTLING_CURRENT_VERSION;
+  throttlingState.ControlMask = (state > -1) ? THREAD_POWER_THROTTLING_EXECUTION_SPEED : 0;
+  throttlingState.StateMask   = (state == 1) ? THREAD_POWER_THROTTLING_EXECUTION_SPEED : 0;
+
+  return SKIF_Util_SetThreadInformation (threadHandle, ThreadPowerThrottling, &throttlingState, sizeof(throttlingState));
+}
+
+// Sets the memory priority of a thread
+bool
+SKIF_Util_SetThreadMemoryPriority (HANDLE threadHandle, ULONG memoryPriority)
+{
+  SKIF_MEMORY_PRIORITY_INFORMATION memoryPriorityInfo;
+  ZeroMemory(&memoryPriorityInfo, sizeof(memoryPriorityInfo));
+
+  memoryPriorityInfo.MemoryPriority = memoryPriority;
+
+  return SKIF_Util_SetThreadInformation (threadHandle, ThreadMemoryPriority, &memoryPriorityInfo, sizeof(memoryPriorityInfo));
+}
+
+bool
+SKIF_Util_SetProcessPrefersECores (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+
+  bool succeeded = false;
+  
+  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  //
+  // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
+  //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
+  if (procInfo.hybrid)
+  {
+    succeeded =
+#ifdef ENABLE_CPU_SETS
+      (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The default CPU set of the process was set to E-cores!";
+#else
+      false; // Do not use affinity mask as this is inherited by any spawned child process!
+    (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
+#endif
+  }
+
+  return succeeded;
+}
+
 BOOL
 WINAPI
 SKIF_Util_SetProcessDefaultCpuSets (HANDLE hProcess, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
@@ -1296,6 +1327,33 @@ SKIF_Util_SetProcessInformation (HANDLE hProcess, PROCESS_INFORMATION_CLASS Proc
     return FALSE;
 
   return SKIF_SetProcessInformation (hProcess, ProcessInformationClass, ProcessInformation, ProcessInformationSize);
+}
+
+// Sets the power throttling execution speed (EcoQoS) of a process
+//   1 = enable; 0 = disable; -1 = auto-managed
+bool
+SKIF_Util_SetProcessPowerThrottling (HANDLE processHandle, INT state)
+{
+  PROCESS_POWER_THROTTLING_STATE throttlingState;
+  ZeroMemory(&throttlingState, sizeof(throttlingState));
+
+  throttlingState.Version     =                PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+  throttlingState.ControlMask = (state > -1) ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+  throttlingState.StateMask   = (state == 1) ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+
+  return SKIF_Util_SetProcessInformation (processHandle, ProcessPowerThrottling, &throttlingState, sizeof(throttlingState));
+}
+
+// Sets the memory priority of a process
+bool
+SKIF_Util_SetProcessMemoryPriority (HANDLE processHandle, ULONG memoryPriority)
+{
+  SKIF_MEMORY_PRIORITY_INFORMATION memoryPriorityInfo;
+  ZeroMemory(&memoryPriorityInfo, sizeof(memoryPriorityInfo));
+
+  memoryPriorityInfo.MemoryPriority = memoryPriority;
+
+  return SKIF_Util_SetProcessInformation (processHandle, ProcessMemoryPriority, &memoryPriorityInfo, sizeof(memoryPriorityInfo));
 }
 
 bool
