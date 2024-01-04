@@ -2960,7 +2960,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                                  25 * SKIF_ImGui_GlobalDPIScale )))
           {
-            _registry.regKVIgnoreUpdate.putData(SK_UTF8ToWideChar(_updater.GetResults().description));
+            _updater.SetIgnoredUpdate (SK_UTF8ToWideChar(_updater.GetResults().version));
 
             UpdatePromptPopup = PopupState_Closed;
             ImGui::CloseCurrentPopup ();
