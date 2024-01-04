@@ -860,7 +860,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   ImGui::PushStyleVar (
     ImGuiStyleVar_FramePadding,
-      ImVec2 ( 120.0f * SKIF_ImGui_GlobalDPIScale,
+      ImVec2 (((_registry.bUIBorders) ? 104.0f : 105.0f) * SKIF_ImGui_GlobalDPIScale,
                 40.0f * SKIF_ImGui_GlobalDPIScale )
   );
 
