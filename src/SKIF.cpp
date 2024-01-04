@@ -1352,7 +1352,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Set process preference to E-cores using only CPU sets, :)
   //  as affinity masks are inherited by child processes... :(
   SKIF_Util_SetProcessPrefersECores ( );
-  //SKIF_Util_SetThreadPrefersECores ( );
 
 #ifdef _DEBUG
   // If we are debugging verbosely, output the usernames etc
@@ -1443,23 +1442,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     PLOG_INFO << SKIF_LOG_SEPARATOR;
   }
 
-  // Create application window
-  /*
-  WNDCLASSEX wc =
-  { sizeof (WNDCLASSEX),
-            CS_CLASSDC, SKIF_WndProc,
-            0L,         0L,
-    hModSKIF, nullptr,  nullptr,
-              nullptr,  nullptr,
-    SKIF_WindowClass,
-              nullptr          };
-
-  if (! ::RegisterClassEx (&wc))
-  {
-    return 0;
-  }
-  */
-
   // Create invisible notify window (for the traybar icon and notification toasts, and for doing D3D11 tests)
   WNDCLASSEX wcNotify =
   { sizeof (WNDCLASSEX),
@@ -1475,30 +1457,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
-
-  /*
-  DWORD dwStyle   = ( WS_VISIBLE | WS_POPUP | WS_MINIMIZEBOX | WS_SYSMENU ),
-        dwStyleEx = ( WS_EX_APPWINDOW | WS_EX_NOACTIVATE );
-
-  if (nCmdShow != SW_SHOWMINNOACTIVE &&
-      nCmdShow != SW_SHOWNOACTIVATE  &&
-      nCmdShow != SW_SHOWNA          &&
-      nCmdShow != SW_HIDE)
-    dwStyleEx &= ~WS_EX_NOACTIVATE;
-
-  if (SKIF_isTrayed)
-    dwStyle &= ~WS_VISIBLE;
-
-  SKIF_hWnd             =
-    CreateWindowExW (                    dwStyleEx,
-      wc.lpszClassName, _L("Special K"), dwStyle,
-                         0, 0,
-                         0, 0, //1038, 944,
-                   nullptr, nullptr,
-              wc.hInstance, nullptr
-    );
-  */
-
   SKIF_Notify_hWnd      =
     CreateWindowExW (                                            WS_EX_NOACTIVATE,
       wcNotify.lpszClassName, _T("Special K Notification Icon"), WS_ICONIC,
@@ -1509,13 +1467,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     );
 
   hIcon = LoadIcon (hModSKIF, MAKEINTRESOURCE (IDI_SKIF));
-
-  //SendMessage      (hWnd, WM_SETICON, ICON_BIG,        (LPARAM)hIcon);
-  //SendMessage      (hWnd, WM_SETICON, ICON_SMALL,      (LPARAM)hIcon);
-  //SendMessage      (hWnd, WM_SETICON, ICON_SMALL2,     (LPARAM)hIcon);
-  //SetClassLongPtrW (hWnd, GCL_HICON,         (LONG_PTR)(LPARAM)hIcon);
-
-  //SetWindowLongPtr (hWnd, GWL_EXSTYLE, dwStyleEx & ~WS_EX_NOACTIVATE);
 
   // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
@@ -1574,15 +1525,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Register to be notified if the effective power mode changes
   //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
 
-  // Show the window
-  /*
-  if (! SKIF_isTrayed)
-  {
-    ShowWindow   (hWnd, nCmdShow);
-    UpdateWindow (hWnd);
-  }
-  */
-
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
   ImGui::CreateContext ();
@@ -1606,15 +1548,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
   io.ConfigViewportsNoDecoration     = false;
-
-
-#if 0
-  if (! _registry.bDPIScaling)
-  {
-    //io.ConfigFlags &= ~ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
-    //io.ConfigFlags |=  ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
-  }
-#endif
 
   // Setup Dear ImGui style
   ImGuiStyle& style =
@@ -2594,26 +2527,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       
       if ( ! _registry.bServiceMode )
       {
-        // Add a separation in Large Mode
-        
         // This counteracts math performed on SKIF_vecRegularMode.y at the beginning of the frame
         if (_registry.bUIStatusBar)
-        {
-          /* 2023-08-01: Disabled in favor of just using current cursor pos
-          float statusBarY  = ImGui::GetWindowSize ( ).y;
-                statusBarY -= (SKIF_fStatusBarHeight) * SKIF_ImGui_GlobalDPIScale;
-                statusBarY -= (_registry.bUITooltips) ? 0.0f : SKIF_fStatusBarHeightTips * SKIF_ImGui_GlobalDPIScale;
-          ImGui::SetCursorPosY (statusBarY);
-          */
-
           ImGui::SetCursorPosY (ImGui::GetCursorPosY ( ) - 2.0f * SKIF_ImGui_GlobalDPIScale);
-        }
-
-        //ImGui::PushStyleColor (ImGuiCol_Separator,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
-        //ImGui::Separator      ( );
-        //ImGui::PopStyleColor  ( );
-
-        // End Separation
         
         // Status Bar at the bottom
         if (_registry.bUIStatusBar)
