@@ -220,7 +220,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     SKIF_Util_GetDragFromMaximized ( )         // IF the OS prerequisites are enabled
     ? regKVMaximizeOnDoubleClick.hasData ( )   // AND we have data in the registry
       ? regKVMaximizeOnDoubleClick.getData ( ) // THEN use the data,
-      : true                                   // otherwise default to true,
+      : false                                  // otherwise default to false,
     : false;                                   // and false if OS prerequisites are disabled
 
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
@@ -287,11 +287,11 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVEfficiencyMode.hasData())
     bEfficiencyMode        =   regKVEfficiencyMode         .getData ( );
-
   else
     bEfficiencyMode        =   SKIF_Util_IsWindows11orGreater ( ); // Win10 and below: false, Win11 and above: true
   
-  bFadeCovers              =   regKVFadeCovers             .getData ( );
+  if (regKVFadeCovers.hasData())
+    bFadeCovers            =   regKVFadeCovers             .getData ( );
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData ( );

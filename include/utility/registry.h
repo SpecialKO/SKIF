@@ -452,7 +452,7 @@ struct SKIF_RegistrySettings {
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;
   bool bPreferGOGGalaxyLaunch   = false;
-  bool bMaximizeOnDoubleClick   =  true;
+  bool bMaximizeOnDoubleClick   = false;
   bool bMinimizeOnGameLaunch    = false;
   bool bRestoreOnGameExit       = false;
   bool bDisableCFAWarning       = false; // Controlled Folder Access warning
