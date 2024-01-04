@@ -30,6 +30,35 @@ void SKIF_UI_Tab_DrawLibrary (void);
 // Cached struct used to hold calculated data across frames
 struct SKIF_Lib_SummaryCache
 {
+  // Cached data
+  struct CloudPath
+  {
+    std::wstring path;
+    std:: string path_utf8;
+    std:: string label;
+
+    CloudPath (int i, std::wstring p)
+    {
+      path      = p;
+      path_utf8 = SK_WideCharToUTF8 (p);
+      label     =
+        SK_FormatString ("%s###CloudUFS.%d", path_utf8.c_str(), i);
+    };
+  };
+
+  // This struct holds the cache for the right click context menu
+  struct {
+    int  numSecondaryLaunchConfigs = 0; // Secondary launch options
+    bool profileFolderExists       = false;
+    bool screenshotsFolderExists   = false;
+    std::wstring wsScreenshotDir   = L"";
+    std::vector <CloudPath> cloud_paths; // Steam Auto-Cloud
+
+    // PCGamingWiki
+    std::wstring pcgwValue;
+    std::wstring pcgwLink;
+  } menu;
+
   enum class CachedType {
     Global  = 0x1,
     Local   = 0x2,
