@@ -986,6 +986,9 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
     {
       _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
+
+      extern float fAlpha;
+      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
     }
 
     if (SKIF_Util_IsWindows11orGreater ( ))
