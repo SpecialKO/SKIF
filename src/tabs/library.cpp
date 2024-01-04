@@ -3402,7 +3402,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         : fTint;
 
   // Display previous fading out cover
-
   if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
   {
     SKIF_ImGui_OptImage  (pTexSRV_old.p,
@@ -3954,9 +3953,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (selected)
     {
+      static bool _horizon = _registry.bHorizonMode;
+
       // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
-      if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+      if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last ||
+             _registry.bHorizonMode != _horizon)
+      {
         ImGui::SetScrollHereY (0.5f);
+        _horizon = _registry.bHorizonMode;
+      }
     }
   }
 
