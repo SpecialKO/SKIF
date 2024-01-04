@@ -566,6 +566,9 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
     CComPtr <ID3D11Texture2D>       pStagingTexture = nullptr;
     CComPtr <ID3D11Texture2D>       pFontTexture    = nullptr;
 
+    // These two CreateTexture2D are extremely costly operations
+    //   on a VMware-based virtual Windows 7 machine.  VMware bug?
+
     ThrowIfFailed (
       pDev->CreateTexture2D ( &staging_desc, nullptr,
                                      &pStagingTexture.p ));
