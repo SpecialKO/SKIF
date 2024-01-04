@@ -444,10 +444,13 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                  finished_section.name.find ("appinfo.config.launch.")
                )
             {
-              int launch_idx = 0;
+              int launch_idx =
+                static_cast<int> (pAppRecord->launch_configs.size());
+              int launch_idx_steam = 0; // We do not currently actually use this for anything.
+                                        // It is also unreliable as developers can remove launch configs...
 
               std::sscanf ( finished_section.name.c_str (),
-                              "appinfo.config.launch.%d", &launch_idx );
+                              "appinfo.config.launch.%d", &launch_idx_steam);
 
               auto& launch_cfg =
                 pAppRecord->launch_configs [launch_idx];
@@ -519,7 +522,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           custom_cfg.second.id =
             static_cast<int> (pAppRecord->launch_configs.size());
 
-          pAppRecord->launch_configs.emplace (custom_cfg.second.id, custom_cfg.second);
+          if (! pAppRecord->launch_configs.emplace (custom_cfg.second.id, custom_cfg.second).second)
+            PLOG_ERROR << "Failed adding a custom launch config to the launch map. An element at that position already exists!";
         }
 
         // Clear out the custom launches once they've been populated
