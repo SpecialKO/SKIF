@@ -17,7 +17,8 @@ enum class LibraryTexture
 {
   Icon,
   Cover,
-  Patreon
+  Patreon,
+  Logo
 };
 
 void

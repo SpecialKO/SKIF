@@ -81,10 +81,11 @@ bool                   launchWithoutSK   = false;
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
-const float fTintMin   = 0.75f;
-      float fTint      = 1.0f;
-      float fAlpha     = 0.0f;
-      float fAlphaPrev = 1.0f;
+const float fTintMin     = 0.75f;
+      float fTint        = 1.0f;
+      float fAlpha       = 0.0f;
+      float fAlphaSK     = 0.0f;
+      float fAlphaPrev   = 1.0f;
       
 PopupState GameMenu        = PopupState_Closed;
 PopupState EmptySpaceMenu  = PopupState_Closed;
@@ -129,6 +130,7 @@ int getTextureLoadQueuePos (void) {
 
 CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
+CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV_small;
 
 // Forward declaration
 void UpdateInjectionStrategy (app_record_s* pApp);
@@ -3170,9 +3172,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
       if (pPatTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID,    pPatTexSRV, L"(patreon.png)",   dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare1, dontCare2);
       if (pSKLogoTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Cover,   SKIF_STEAM_APPID, pSKLogoTexSRV, L"(sk_boxart.png)", dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV,       L"sk_boxart.png",       dontCare1, dontCare2);
+      if (pSKLogoTexSRV_small.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare1, dontCare2);
 
       // Force a refresh when the Patreon and Cover textures have finished loading
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
@@ -3233,6 +3237,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Default to primary launch config
   launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
   
+  bool isSpecialK = (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam);
+
   // Update the injection strategy and cache for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
   if (pApp != nullptr)
@@ -3265,6 +3271,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (lastCover.appid != pApp->id   ||
         lastCover.store != pApp->store)
     {
+      // Special handling for the Special K logo when fading is disabled
+      if (! _registry.bFadeCovers)
+      {
+        if (isSpecialK)
+          fAlphaSK = 1.0f;
+        else if (lastCover.appid == SKIF_STEAM_APPID &&
+                 lastCover.store == app_record_s::Store::Steam)
+          fAlphaSK = 0.0f;
+      }
+
       loadCover       = true;
       lastCover.appid = pApp->id;
       lastCover.store = pApp->store;
@@ -3285,8 +3301,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         vecCoverUv1_old = vecCoverUv1;
         pTexSRV_old.p   = pTexSRV.p;
         pTexSRV.p       = nullptr;
-        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha : 0.0f;
-        fAlpha          = (_registry.bFadeCovers) ?   0.0f : 1.0f;
+        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+        fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
       }
     }
 
@@ -3352,19 +3368,26 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
   {
-    extern std::wstring GOGGalaxy_UserID;
-    if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
+    if (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
     {
-      ImGui::SetCursorPos (ImVec2 (
-                  vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-                  vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
-      ImGui::TextDisabled (  cstrLabelGOGUser);
+      // Special K selected -- do nothing
     }
+
     else {
-      ImGui::SetCursorPos (ImVec2 (
-                  vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-                  vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
-      ImGui::TextDisabled (  cstrLabelMissing);
+      extern std::wstring GOGGalaxy_UserID;
+      if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
+      {
+        ImGui::SetCursorPos (ImVec2 (
+                    vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
+                    vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
+        ImGui::TextDisabled (  cstrLabelGOGUser);
+      }
+      else {
+        ImGui::SetCursorPos (ImVec2 (
+                    vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
+                    vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
+        ImGui::TextDisabled (  cstrLabelMissing);
+      }
     }
   }
 
@@ -3379,6 +3402,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         : fTint;
 
   // Display previous fading out cover
+
   if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
   {
     SKIF_ImGui_OptImage  (pTexSRV_old.p,
@@ -3408,14 +3432,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-  if (pSKLogoTexSRV != nullptr && pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
+  if (  isSpecialK ||
+     (! isSpecialK && fAlphaSK > 0.0f))
   {
-    ImGui::Image (pSKLogoTexSRV.p,
+    ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
                                                     ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
                                                             sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                     ImVec2 (0.0f, 0.0f),                // Top Left coordinates
                                                     ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
-                                                    ImVec4 (1.0f, 1.0f, 1.0f, fAlpha),  // Tint for Special K's logo
+                                                    ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
                                                     ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)     // Border
     );
   }
@@ -3434,7 +3459,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (current_time - timeLastTick > 15)
       {
-        fAlpha     += 0.05f;
+        fAlpha += 0.05f;
         incTick = true;
       }
 
@@ -3442,13 +3467,37 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Fade out the old one
-
     if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
     {
       if (current_time - timeLastTick > 15)
       {
         fAlphaPrev -= 0.05f;
-        incTick = true;
+        incTick     = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade in the SK logo
+    if (isSpecialK && fAlphaSK < 1.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaSK += 0.05f;
+        incTick   = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade out the SK logo
+    if (! isSpecialK && fAlphaSK > 0.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaSK -= 0.05f;
+        incTick   = true;
+        OutputDebugString(L"derp\n");
       }
 
       coverFadeActive = true;
@@ -6117,6 +6166,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       SKIF_ResourcesToFree.push(pSKLogoTexSRV.p);
       pSKLogoTexSRV.p = nullptr;
+    }
+
+    if (pSKLogoTexSRV_small.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(pSKLogoTexSRV_small.p);
+      pSKLogoTexSRV_small.p = nullptr;
     }
 
     for (auto& app : g_apps)
