@@ -27,6 +27,12 @@
 #include <dxgi1_5.h>
 
 #include <SKIF.h>
+
+// Plog ini includes (must be included after SKIF.h)
+#include "plog/Initializers/RollingFileInitializer.h"
+#include "plog/Appenders/ConsoleAppender.h"
+#include "plog/Appenders/DebugOutputAppender.h"
+
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
 
@@ -1244,7 +1250,14 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   MoveFile   (logPath.c_str(), logPath_old.c_str());
 
   // Engage logging!
-  plog::init (plog::debug, logPath.c_str(), 10000000, 1);
+  // Contemplate moving over to plog::TxtFormatterUtcTime ?
+  static plog::RollingFileAppender<plog::TxtFormatter> fileAppender(logPath.c_str(), 10000000, 1);
+  static plog::DebugOutputAppender<plog::TxtFormatter> debugOutputAppender;
+  plog::init (plog::debug, &fileAppender);
+
+#ifdef DEBUG
+  plog::get()->addAppender(&debugOutputAppender);
+#endif // DEBUG
 
 #ifdef _WIN64
   PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;

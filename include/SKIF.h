@@ -34,8 +34,6 @@
 #endif
 
 #include <plog/Log.h>
-#include "plog/Initializers/RollingFileInitializer.h"
-#include "plog/Appenders/ConsoleAppender.h"
 
 // Constants - Timers / Window Messages / HotKeys / Windows
 
