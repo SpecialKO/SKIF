@@ -767,9 +767,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::NewLine         ();
 #endif
   ImGui::PopStyleColor   ();
-  ImGui::ItemSize        (
-    ImVec2 ( 110.f * SKIF_ImGui_GlobalDPIScale,
-               0.f )     ); // Column should have min-width 130px (scaled with the DPI)
+  ImGui::ItemSize        (ImVec2 (105.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 1 should have min-width 105px (scaled with the DPI)
   ImGui::EndGroup        ();
 
   ImGui::SameLine        ();

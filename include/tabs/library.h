@@ -27,12 +27,18 @@
 
 void SKIF_UI_Tab_DrawLibrary (void);
 
-
 // Cached struct used to hold calculated data across frames
 struct SKIF_Lib_SummaryCache
 {
+  enum class CachedType {
+    Global  = 0x1,
+    Local   = 0x2,
+    Unknown = 0x0
+  };
+
   struct {
-    std::string   type;
+    CachedType    type = CachedType::Unknown;
+    std::string   type_utf8;
     std::string   type_version;
     struct {
       std::string text;

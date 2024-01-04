@@ -207,15 +207,17 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   config.shorthand      = wszConfigPath;
   config.shorthand_utf8 = SK_WideCharToUTF8 (config.shorthand);
 
-  injection.type        = "None";
+  injection.type        = CachedType::Unknown;
+  injection.type_utf8   = "None";
   injection.status.text.clear ();
   injection.hover_text.clear  ();
 
   switch (sk_install.injection.type)
   {
     case InjectionType::Local:
-      injection.type = "Local";
-      injection.type_version = SK_FormatString (R"(%s v %s (%s))", injection.type.c_str(), dll.version_utf8.c_str(), dll.shorthand_utf8.c_str());
+      injection.type           = CachedType::Local;
+      injection.type_utf8      = "Local";
+      injection.type_version   = SK_FormatString (R"(v %s (%s))", dll.version_utf8.c_str(), dll.shorthand_utf8.c_str()); // injection.type_utf8.c_str()
       break;
 
     case InjectionType::Global:
@@ -223,8 +225,9 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 
       if ( _inject.bHasServlet )
       {
-        injection.type         = "Global";
-        injection.type_version = SK_FormatString (R"(%s v %s)", injection.type.c_str(), dll.version_utf8.c_str());
+        injection.type         = CachedType::Global;
+        injection.type_utf8    = "Global";
+        injection.type_version = SK_FormatString (R"(v %s)", dll.version_utf8.c_str()); // injection.type_utf8.c_str() // We don't actually have SKIF say "Global v XXX" any longer due to space constraints -- Aemony, 2024-01-04
         injection.status.text  = 
                     (service)  ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
                                : "                                "; //"Service Status";
@@ -1564,16 +1567,16 @@ GetInjectionSummary (app_record_s* pApp)
 
   // Column 1
   ImGui::BeginGroup       ();
-  ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
+  //ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   //ImGui::NewLine          ();
-  ImGui::TextUnformatted  ("Injection:");
+  //ImGui::TextUnformatted  ("Injection:");
+  ImGui::TextUnformatted  ("Special K");
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted  ("Config folder:");
   ImGui::TextUnformatted  ("Config file:");
   ImGui::TextUnformatted  ("Platform:");
   ImGui::PopStyleColor    ();
-  ImGui::ItemSize         (ImVec2 (110.f * SKIF_ImGui_GlobalDPIScale,
-                                      0.f)
-                          ); // Column should have min-width 130px (scaled with the DPI)
+  ImGui::ItemSize         (ImVec2 (105.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 1 should have min-width 105px (scaled with the DPI)
   ImGui::EndGroup         ();
 
   ImGui::SameLine         ();
@@ -1587,19 +1590,17 @@ GetInjectionSummary (app_record_s* pApp)
     //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
     ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
 
-    if (_cache.injection.type._Equal("Global"))
+    if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Global)
       flags |= ImGuiSelectableFlags_Disabled;
 
     bool openLocalMenu = false;
 
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
     if (ImGui::Selectable (_cache.injection.type_version.c_str(), false, flags))
-    {
       openLocalMenu = true;
-    }
     ImGui::PopStyleColor();
 
-    if (_cache.injection.type._Equal("Local"))
+    if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
 
@@ -1939,18 +1940,14 @@ Cache=false)";
 
   else
   {
-    ImGui::TextUnformatted        (_cache.config_repo.c_str ());
-    ImGui::TextUnformatted        ("N/A");
+    ImGui::TextUnformatted (_cache.config_repo.c_str ());
+    ImGui::TextUnformatted ("N/A");
   }
 
   // Platform
-  ImGui::TextUnformatted          (pApp->store_utf8.c_str());
+  ImGui::TextUnformatted  (pApp->store_utf8.c_str());
 
-  // Column should have min-width 100px (scaled with the DPI)
-  ImGui::ItemSize         (
-    ImVec2 ( 130.0f * SKIF_ImGui_GlobalDPIScale,
-                0.0f
-            )                );
+  ImGui::ItemSize         (ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 2 should have min-width 95px (scaled with the DPI) (a bit smaller to allow for some right-hand padding for "Waiting for game...")
   ImGui::EndGroup         ( );
   ImGui::SameLine         ( );
 
@@ -1960,7 +1957,7 @@ Cache=false)";
   static bool quickServiceHover = false;
 
   // Service quick toogle / Waiting for game...
-  if (_cache.injection.type._Equal ("Global") && ! _inject.isPending())
+  if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Global && ! _inject.isPending())
   {
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImColor(0, 0, 0, 0).Value);
@@ -1991,7 +1988,7 @@ Cache=false)";
   }
       
 
-  if (_cache.injection.type._Equal ("Local"))
+  if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local)
   {
     if (_IsLocalDLLFileOutdated ( ))
     {
@@ -2052,7 +2049,7 @@ Cache=false)";
         pApp->id == 372360       || // Tales of Symphonia
         pApp->id == 738540     //|| // Tales of Vesperia DE
       //pApp->id == 351970          // Tales of Zestiria
-      ) && ! _cache.injection.type._Equal ("Local"))
+      ) && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local)
   {
     buttonLabel   = ICON_FA_DOWNLOAD "  Install Mod";
     buttonInstall = true;
@@ -2086,7 +2083,7 @@ Cache=false)";
   }
 
   // Disable the button for the injection service types if the servlets are missing
-  if ( ! _inject.bHasServlet && ! _cache.injection.type._Equal ("Local") || buttonPending )
+  if ((! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
     SKIF_ImGui_PushDisableState ( );
 
   if (ImGui::ButtonEx (
@@ -2219,16 +2216,13 @@ Cache=false)";
       }
     }
   }
-
-  if (buttonPending)
-  {
-    SKIF_ImGui_PopDisableState ( );
-    SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
-  }
       
   // Disable the button for the injection service types if the servlets are missing
-  if ( ! _inject.bHasServlet && !_cache.injection.type._Equal ("Local") )
+  if ((! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
     SKIF_ImGui_PopDisableState  ( );
+
+  if (buttonPending)
+    SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
 
   if (pApp->_status.running || pApp->_status.updating)
     ImGui::PopStyleColor ( );
@@ -4898,7 +4892,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     else {
-      bool localInjection        = (_cache.injection.type._Equal ("Local"));
+      bool localInjection        = (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local);
       bool usingSK               = localInjection;
 
       // Check if the injection service should be used
