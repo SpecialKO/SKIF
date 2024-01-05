@@ -101,6 +101,7 @@ bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 bool SKIF_MouseDragMoveAllowed = true;
 bool SKIF_debuggerPresent  = false;
+bool SKIF_dragDropEnabled  = false;
 
 // Shell messages
 UINT SHELL_TASKBAR_RESTART        = 0;
@@ -2447,6 +2448,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (_registry.iDimCovers == 2)
               fTint = 0.75f;
           }
+            
+          // Enable drag-and-drop for the main window
+          if (! SKIF_dragDropEnabled && SKIF_ImGui_hWnd != NULL)
+          {
+            DragAcceptFiles (SKIF_ImGui_hWnd, TRUE);
+            SKIF_dragDropEnabled = true;
+          }
 
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)
@@ -2459,6 +2467,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
             
           ImGui::EndChildFrame    ( );
           ImGui::EndTabItem       ( );
+        }
+
+        // Disable dragdrop support when navigating away from the library tab
+        else if (SKIF_dragDropEnabled && SKIF_ImGui_hWnd != NULL)
+        {
+          DragAcceptFiles (SKIF_ImGui_hWnd, FALSE);
+          SKIF_dragDropEnabled = false;
         }
 
 

@@ -1874,10 +1874,6 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
     {
       ImGui_ImplWin32_SetDWMBorders (hWnd);
 
-      // Enable drag-and-drop for the main window
-      if (SKIF_ImGui_hWnd == NULL || SKIF_ImGui_hWnd == hWnd)
-        DragAcceptFiles (hWnd, TRUE);
-
 #if 0
       // Change the application window rect
       RECT rcClient;
