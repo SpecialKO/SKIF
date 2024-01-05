@@ -418,7 +418,7 @@ LoadLibraryTexture (
   else if (appid        == SKIF_STEAM_APPID     &&
            libTexToLoad != LibraryTexture::Cover ) // We have no embedded cover any longer
   {
-    PLOG_VERBOSE << "Texture to load: " << name;
+    PLOG_VERBOSE << "Texture to load (embedded): " << name;
 
     if (SUCCEEDED(
           DirectX::LoadFromWICMemory(

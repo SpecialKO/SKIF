@@ -3142,7 +3142,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         std::wstring load_str;
         
         if (app.second.id == SKIF_STEAM_APPID) // SKIF
-          load_str = L"_icon.jpg";
+          load_str = L"sk_icon.jpg";
         else  if (app.second.store == app_record_s::Store::Custom) // SKIF Custom
           load_str = L"icon";
         else  if (app.second.store == app_record_s::Store::Epic)  // Epic
