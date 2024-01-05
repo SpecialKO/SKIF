@@ -4972,12 +4972,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (! launchInstant)
       {
+        // Custom games always use instant launch
+        if (pApp->store == app_record_s::Store::Custom)
+          launchInstant = true;
+
         // Fallback for GOG games if the Galaxy client is not installed
-        if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
+        else if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
           launchInstant = true;
 
         // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
-        if (! launchGameMenu)
+        else if (! launchGameMenu)
         {
           if (pApp->store == app_record_s::Store::Steam && _registry.bInstantPlaySteam)
             launchInstant = true;
@@ -5024,12 +5028,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      // Instant Play or GOG games without Galaxy installed
+      // Instant Play
+      // - Custom games
+      // - GOG games when Galaxy is not installed
+      // - Prefer Instant Play for GOG
+      // - Prefer Instant Play for Steam
       else if (launchInstant)
       {
         PLOG_VERBOSE << "Performing an instant launch...";
 
-        bool launchDecision = true;
+        bool launchDecision       = true;
 
         // We need to use a proxy variable since we might remove a substring of the launch options
         std::wstring cmdLine      = launchConfig->getLaunchOptions();
