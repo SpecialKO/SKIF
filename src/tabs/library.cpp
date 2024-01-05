@@ -2372,14 +2372,14 @@ UpdateInjectionStrategy (app_record_s* pApp)
       InjectionPoint   entry_pt;
       std::wstring     name;
       std::wstring     path;
-    } test_dlls [] = {
-      { InjectionPoint::DDraw,   L"ddraw",    L"" },
-      { InjectionPoint::D3D8,    L"d3d8",     L"" },
-      { InjectionPoint::D3D9,    L"d3d9",     L"" },
-      { InjectionPoint::DXGI,    L"dxgi",     L"" },
-      { InjectionPoint::D3D11,   L"d3d11",    L"" },
+    } test_dlls [] = { // The small things matter -- array is sorted in the order of most expected
+      { InjectionPoint::DXGI,    L"DXGI",     L"" },
+      { InjectionPoint::D3D11,   L"D3D11",    L"" },
+      { InjectionPoint::D3D9,    L"D3D9",     L"" },
       { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-      { InjectionPoint::DInput8, L"dinput8",  L"" }
+      { InjectionPoint::DInput8, L"DInput8",  L"" },
+      { InjectionPoint::D3D8,    L"D3D8",     L"" },
+      { InjectionPoint::DDraw,   L"DDraw",    L"" }
     };
 
     std::wstring test_paths[] = { 
@@ -2418,8 +2418,8 @@ UpdateInjectionStrategy (app_record_s* pApp)
           {
             // Filename + extension
             dll.path = dll.name + L".dll";
-
-            if (ffd.cFileName != dll.path)
+            
+            if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
               continue;
           
             // Full path

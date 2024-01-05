@@ -1058,11 +1058,11 @@ SKIF_UI_Tab_DrawMonitor (void)
                   {
                     do
                     {
-                      std::wstring modName = me32.szModule;
+                      std::wstring moduleName = me32.szModule;
 
                       // Special K's global DLL files
-                      if (modName == L"SpecialK32.dll" ||
-                          modName == L"SpecialK64.dll" )
+                      if (StrStrIW (moduleName.c_str(), L"SpecialK32.dll") || 
+                          StrStrIW (moduleName.c_str(), L"SpecialK64.dll"))
                       {
                         proc.status = 254; // Stuck?
                         // We'll keep checking the modules for a potential local injection
@@ -1070,20 +1070,20 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                       // Fallback of the fallback -- detect locally injected copies of SK!
                       else {
-                        static std::wstring localDLLs[] = {
-                          L"dxgi.dll",
-                          L"d3d11.dll",
-                          L"d3d9.dll",
-                          L"d3d8.dll",
-                          L"ddraw.dll",
-                          L"dinput8.dll",
-                          L"opengl32.dll"
+                        static std::wstring localDLLs[] = { // The small things matter -- array is sorted in the order of most expected
+                          L"DXGI.dll",
+                          L"D3D11.dll",
+                          L"D3D9.dll",
+                          L"OpenGL32.dll"
+                          L"DInput8.dll",
+                          L"D3D8.dll",
+                          L"DDraw.dll",
                         };
 
-                        for (auto& dll : localDLLs)
+                        for (auto& localDLL : localDLLs)
                         {
                           // Skip if it doesn't have the name of a local wrapper DLL
-                          if (modName != dll)
+                          if (StrStrIW (moduleName.c_str(), localDLL.c_str()) == NULL)
                             continue;
 
                           // Skip system modules below \Windows\System32 and \Windows\SysWOW64
@@ -1096,7 +1096,8 @@ SKIF_UI_Tab_DrawMonitor (void)
                           // Is it known?
                           for (auto& knownDLL : knownDLLs)
                           {
-                            if (knownDLL.path == me32.szExePath) // We're dealing with a known DLL
+                            // We're dealing with a known DLL
+                            if (knownDLL.path == me32.szExePath) //if (StrStrIW (me32.szExePath, knownDLL.path.c_str()))
                             {
                               //PLOG_VERBOSE << "Known DLL detected!";
                               isKnownDLL = true;
@@ -1119,15 +1120,19 @@ SKIF_UI_Tab_DrawMonitor (void)
                           else {
                             std::wstring productName = SKIF_Util_GetProductName (me32.szExePath);
 
-                            known_dll_s be_known = known_dll_s{};
-                            be_known.path = me32.szExePath;
-                            be_known.isSpecialK = StrStrIW (productName.c_str(), L"Special K");
+                            known_dll_s be_known = known_dll_s { };
+                            be_known.path        = me32.szExePath;
+                            be_known.isSpecialK  = StrStrIW (productName.c_str(), L"Special K");
 
                             knownDLLs.emplace_back (be_known);
 
                             PLOG_VERBOSE << "Unknown DLL detected, let it be known: " << me32.szExePath;
                             PLOG_VERBOSE << "DLL " << ((be_known.isSpecialK) ? "is" : "is not") << " Special K!";
                             PLOG_VERBOSE << "Full product name: " << productName;
+
+                            // Let us not forget to flag the process as injected as well... :)
+                            if (be_known.isSpecialK)
+                              proc.status = 2;
                           }
                         }
                       }
