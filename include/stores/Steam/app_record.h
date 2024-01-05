@@ -155,12 +155,14 @@ struct app_record_s {
         Unknown   = 0x0
       }            bitness = Bitness::Unknown;
       enum class EntryPoint {
-        D3D9    = 0x1,
-        D3D11   = 0x2,
-        DXGI    = 0x4,
-        OpenGL  = 0x8,
-        DInput8 = 0x10,
-        CBTHook = 0x20,
+        DDraw   = 0x1,
+        D3D8    = 0x2,
+        D3D9    = 0x4,
+        D3D11   = 0x8,
+        DXGI    = 0x10,
+        OpenGL  = 0x20,
+        DInput8 = 0x40,
+        CBTHook = 0x80,
         Unknown = 0x0
       }            entry_pt = EntryPoint::Unknown;
       enum class Type {

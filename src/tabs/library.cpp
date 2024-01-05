@@ -2373,6 +2373,8 @@ UpdateInjectionStrategy (app_record_s* pApp)
       std::wstring     name;
       std::wstring     path;
     } test_dlls [] = {
+      { InjectionPoint::DDraw,   L"ddraw",    L"" },
+      { InjectionPoint::D3D8,    L"d3d8",     L"" },
       { InjectionPoint::D3D9,    L"d3d9",     L"" },
       { InjectionPoint::DXGI,    L"dxgi",     L"" },
       { InjectionPoint::D3D11,   L"d3d11",    L"" },

@@ -69,6 +69,9 @@ enum class SK_RenderAPI
   Glide     = 0x8000u,
 
   // Wrapped APIs (D3D12 Flavor)
+  D3D8On12  = 0x2080u,
+  DDrawOn12 = 0x4080u,
+  GlideOn12 = 0x8080u,
 //D3D11On12 = 0x00C0u,
 
   // Wrapped APIs (D3D11 Flavor)
@@ -1071,6 +1074,8 @@ SKIF_UI_Tab_DrawMonitor (void)
                           L"dxgi.dll",
                           L"d3d11.dll",
                           L"d3d9.dll",
+                          L"d3d8.dll",
+                          L"ddraw.dll",
                           L"dinput8.dll",
                           L"opengl32.dll"
                         };
