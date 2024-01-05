@@ -2685,7 +2685,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
       {
-        ImGui::TreePush    ("");
+        ImGui::TreePush    ("FailedFontsTreePush");
 
         SKIF_ImGui_Spacing ( );
 

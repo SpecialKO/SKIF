@@ -163,9 +163,13 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Low Bandwidth Mode)" );
 
-  KeyValue <bool> regKVPreferGOGGalaxyLaunch =
+  KeyValue <bool> regKVInstantPlayGOG =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Prefer GOG Galaxy Launch)" );
+                         LR"(Instant Play GOG)" );
+
+  KeyValue <bool> regKVInstantPlaySteam =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Instant Play Steam)" );
 
   KeyValue <bool> regKVRememberLastSelected =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -450,8 +454,9 @@ struct SKIF_RegistrySettings {
   bool bOpenInServiceMode       = false;
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
-  bool bLowBandwidthMode        = false;
-  bool bPreferGOGGalaxyLaunch   = false;
+  bool bLowBandwidthMode        = false; // Instant Play
+  bool bInstantPlayGOG          = false;
+  bool bInstantPlaySteam        = false;
   bool bMaximizeOnDoubleClick   = false;
   bool bMinimizeOnGameLaunch    = false;
   bool bRestoreOnGameExit       = false;

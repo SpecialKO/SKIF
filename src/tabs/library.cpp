@@ -73,8 +73,8 @@ std::atomic<uint32_t>  modAppId          = 0;
 
 app_record_s::launch_config_s*
                        launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
-bool                   launchGame        = false;
-bool                   launchGalaxyGame  = false;
+bool                   launchGame        = false; // Respects Instant Play preference
+bool                   launchGameMenu    = false; // Menu is always explicit
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
@@ -412,7 +412,7 @@ DrawGameContextMenu (app_record_s* pApp)
                           ((pApp->_status.running || pApp->_status.updating)
                             ? ImGuiSelectableFlags_Disabled
                             : ImGuiSelectableFlags_None)))
-    launchGame = true;
+    launchGameMenu = true;
 
   if (pApp->specialk.injection.injection.type != InjectionType::Local)
   {
@@ -427,7 +427,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
-      launchGame = launchWithoutSK = true;
+      launchGameMenu = launchWithoutSK = true;
 
     ImGui::PopStyleColor   ( );
 
@@ -435,14 +435,14 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
   }
         
-  // Instant Play options for Steam games
+  // Instant Play options
   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
-    if (_cache.menu.numSecondaryLaunchConfigs > 0 || pApp->store == app_record_s::Store::Steam)
+    if (_cache.menu.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
       ImGui::Separator ( );
 
-    // If there is only one valid launch config (Steam games only)
-    if (_cache.menu.numSecondaryLaunchConfigs == 0 && pApp->store == app_record_s::Store::Steam)
+    // If there is only one valid launch config (Steam and GOG games only)
+    if (_cache.menu.numSecondaryLaunchConfigs == 0 && (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
     {
       if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
                             ((pApp->_status.running || pApp->_status.updating)
@@ -455,10 +455,13 @@ DrawGameContextMenu (app_record_s* pApp)
       if (! launchConfig->getLaunchOptionsUTF8().empty())
         hoverText += (" " + launchConfig->getLaunchOptionsUTF8());
 
+      if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty())
+        hoverText += (" " + pApp->Steam_LaunchOption);
+
       SKIF_ImGui_SetHoverText (hoverText.c_str());
 
-      SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
-                                "including steps such as Steam Cloud synchronization.");
+      SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
+                                "including steps such as cloud saves synchronization.");
           
       if (pApp->specialk.injection.injection.type != InjectionType::Local)
       {
@@ -551,6 +554,11 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (! _launch.getLaunchOptionsUTF8().empty())
             hoverText += (" " + _launch.getLaunchOptionsUTF8());
+
+          // Also add Steam defined launch options, but only if not using custom launch configs
+          if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty() &&
+             ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
+            hoverText += (" " + pApp->Steam_LaunchOption);
           
           if (! disabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
@@ -564,9 +572,9 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::EndMenu ();
       }
 
-      if (pApp->store == app_record_s::Store::Steam)
-        SKIF_ImGui_SetHoverTip  ("Skips the regular Steam launch process for the game,\n"
-                                 "including steps such as Steam Cloud synchronization.");
+      if (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
+        SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
+                                  "including steps such as cloud saves synchronization.");
       
       if (! disabled)
         ImGui::PushStyleColor      (ImGuiCol_Text,
@@ -660,6 +668,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 
   // GOG launch options
+  /*
   if (GOGGalaxy_Installed && pApp->store == app_record_s::Store::GOG)
   {
     if (pApp->specialk.injection.injection.type != InjectionType::Local)
@@ -686,6 +695,7 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::PopStyleColor  ( );
     }
   }
+  */
 
   if (pApp->_status.running)
   {
@@ -2882,6 +2892,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Refresh the current Steam user
       SKIF_Steam_GetCurrentUser     (true);
+      
+      // Preload any custom launch options for all Steam games
+      SKIF_Steam_PreloadAllLaunchOptions (SKIF_Steam_GetCurrentUser());
 
       // Preload all appinfo.vdf data
       // This is needed for SKIF's fallback process tracking
@@ -4886,7 +4899,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
 #pragma region GameLaunchLogic
 
-  if ((launchGame || launchInstant || launchGalaxyGame) &&
+  if ((launchGame || launchGameMenu || launchInstant) &&
        pApp != nullptr && launchConfig != nullptr)
   {
     if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
@@ -4899,6 +4912,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     else {
       bool localInjection        = (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local);
       bool usingSK               = localInjection;
+
+
+      // SERVICE PREPARATIONS
+
 
       // Check if the injection service should be used
       if (! usingSK)
@@ -4949,9 +4966,225 @@ SKIF_UI_Tab_DrawLibrary (void)
         _inject.SetInjectExitAckEx (true);
       }
 
-      // Launch GOG Galaxy game
-      if (pApp->store == app_record_s::Store::GOG && GOGGalaxy_Installed && (_registry.bPreferGOGGalaxyLaunch || launchGalaxyGame))
+
+      // LAUNCH PREPARATIONS
+
+
+      if (! launchInstant)
       {
+        // Fallback for GOG games if the Galaxy client is not installed
+        if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
+          launchInstant = true;
+
+        // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
+        if (! launchGameMenu)
+        {
+          if (pApp->store == app_record_s::Store::Steam && _registry.bInstantPlaySteam)
+            launchInstant = true;
+
+          if (pApp->store == app_record_s::Store::GOG   && _registry.bInstantPlayGOG)
+            launchInstant = true;
+        }
+      }
+
+
+      // LAUNCH PROCEDURES
+
+
+      // Launch Epic game
+      if (pApp->store == app_record_s::Store::Epic)
+      {
+        PLOG_VERBOSE << "Performing an Epic launch...";
+
+        // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+
+        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
+        if (SKIF_Util_OpenURI (launchOptions) != 0)
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        }
+      }
+
+      // Launch Xbox game
+      else if (pApp->store == app_record_s::Store::Xbox)
+      {
+        PLOG_VERBOSE << "Performing an Xbox launch...";
+
+        if (SKIF_Util_CreateProcess (launchConfig->executable_helper))
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+        }
+      }
+
+      // Instant Play or GOG games without Galaxy installed
+      else if (launchInstant)
+      {
+        PLOG_VERBOSE << "Performing an instant launch...";
+
+        bool launchDecision = true;
+
+        // We need to use a proxy variable since we might remove a substring of the launch options
+        std::wstring cmdLine      = launchConfig->getLaunchOptions();
+
+        // Transform to lowercase
+        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
+
+        const std::wstring argSKIF_SteamAppID       = L"skif_steamappid=";
+        size_t             posSKIF_SteamAppID_start = cmdLineLower.find (argSKIF_SteamAppID);
+
+        // For Steam games, we default to using the pApp->id value
+        uint32_t     uiSteamAppID = (pApp->store == app_record_s::Store::Steam) ? pApp->id : 0;
+        std::wstring wsSteamAppID = std::to_wstring(uiSteamAppID);
+
+        // Extract the SKIF_SteamAppID cmd line argument, if it exists
+        if (posSKIF_SteamAppID_start != std::wstring::npos)
+        {
+          size_t
+            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
+
+          if (posSKIF_SteamAppID_end == std::wstring::npos)
+            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
+
+          // Length of the substring to remove
+          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
+
+          wsSteamAppID = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+
+          // Remove substring from the proxy variable
+          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+
+          // Try to convert the found string to an unsigned integer
+          try {
+            uiSteamAppID = std::stoi(wsSteamAppID);
+          }
+          catch (const std::exception& e)
+          {
+            UNREFERENCED_PARAMETER(e);
+          }
+        }
+
+        std::map<std::wstring, std::wstring> env;
+
+        if (uiSteamAppID != 0)
+        {
+          PLOG_DEBUG << "Using Steam App ID : " << uiSteamAppID;
+          env.emplace       (L"SteamAppId",        wsSteamAppID);
+          
+          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser (true));
+
+          if (! steamOverlay)
+          {
+            PLOG_DEBUG << "Disabling the Steam Overlay...";
+            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
+          }
+
+          // If both of these are false, see if there is any custom Steam launch options to append...
+          if (! launchConfig->custom_skif &&
+              ! launchConfig->custom_user)
+          {
+            std::string steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser (true), pApp);
+          
+            if (steamLaunchOptions.size() > 0)
+            {
+              PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
+
+              std::string steamLaunchOptionsLower =
+                SKIF_Util_ToLower (steamLaunchOptions);
+
+              if (steamLaunchOptionsLower.find("skif ") != std::string::npos)
+              {
+                launchDecision = false;
+
+                // Escape any percent signs (%)
+                for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
+                          pos != std::string::npos;                      // Validate we're still in the string
+                          steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
+                          pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
+                { }
+                          
+                confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
+                                    "\n"
+                                 +  steamLaunchOptions + "\n"
+                                    "\n"
+                                    "Please change the launch options in Steam before trying again.";
+                ConfirmPopup     = PopupState_Open;
+
+                PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
+              }
+
+              // Append the launch command string with the one from Steam...
+              else {
+                // If the cmdLine is not empty, add a space as well
+                if (! cmdLine.empty())
+                  cmdLine += L" ";
+                
+                cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
+              }
+            }
+          }
+        }
+
+        if (launchDecision)
+        {
+          SKIF_Util_CreateProcess_s* proc = nullptr;
+          for (auto& item : iPlayCache)
+          {
+            if (item.id == 0)
+            {
+              proc           = &item;
+              proc->id       = pApp->id;
+              proc->store_id = (int)pApp->store;
+              break;
+            }
+          }
+
+          if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+                             cmdLine.c_str(),
+                          (! launchConfig->working_dir.empty())
+                               ? launchConfig->working_dir.c_str()
+                               : launchConfig->getExecutableDir().c_str(),
+                                &env,
+                                proc
+            ))
+          {
+            if (pApp->store == app_record_s::Store::Steam)
+              cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+
+            // Trim any spaces at the end
+            cmdLine.erase (std::find_if (cmdLine.rbegin(), cmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), cmdLine.end());
+
+            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
+              launchConfig->getExecutableFullPath ( ),
+              cmdLine,
+           (! launchConfig->working_dir.empty())
+                ? launchConfig->working_dir.c_str()
+                : launchConfig->getExecutableDir().c_str(),
+              launchConfig->getExecutableFullPath ( ),
+              (! localInjection && usingSK));
+          }
+        
+          else {
+            PLOG_DEBUG << "Process creation failed ?!";
+
+            proc->id       =  0;
+            proc->store_id = -1;
+          }
+        }
+      }
+
+      // Launch GOG Galaxy game (default for GOG games since 2024-01-05)
+      else if (pApp->store == app_record_s::Store::GOG) // launchGalaxyGame
+      {
+        PLOG_VERBOSE << "Performing a GOG Galaxy launch...";
+
         extern std::wstring GOGGalaxy_Path;
         extern std::wstring GOGGalaxy_Folder;
 
@@ -4970,111 +5203,18 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      // Launch Epic game
-      else if (pApp->store == app_record_s::Store::Epic)
-      {
-        // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-
-        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
-        if (SKIF_Util_OpenURI (launchOptions) != 0)
-        {
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
-        }
-      }
-
-      // Launch Xbox game
-      else if (pApp->store == app_record_s::Store::Xbox)
-      {
-        if (SKIF_Util_CreateProcess (launchConfig->executable_helper))
-        {
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
-        }
-      }
-
-      // Instant Play
-      else if (launchInstant) // pApp->store == app_record_s::Store::Steam
-      {
-        std::map<std::wstring, std::wstring> env;
-
-        if (pApp->store == app_record_s::Store::Steam)
-        {
-          PLOG_DEBUG << "Using Steam App ID : " << pApp->id;
-          env.emplace (L"SteamAppId", std::to_wstring (pApp->id));
-
-          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (pApp->id, SKIF_Steam_GetCurrentUser (true));
-
-          if (! steamOverlay)
-          {
-            PLOG_DEBUG << "Disabling the Steam Overlay...";
-            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
-          }
-        }
-
-        SKIF_Util_CreateProcess_s* proc = nullptr;
-        for (auto& item : iPlayCache)
-        {
-          if (item.id == 0)
-          {
-            proc           = &item;
-            proc->id       = pApp->id;
-            proc->store_id = (int)pApp->store;
-            break;
-          }
-        }
-
-        if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
-                           launchConfig->launch_options.c_str(),
-                        (! launchConfig->working_dir.empty())
-                             ? launchConfig->working_dir.c_str()
-                             : launchConfig->getExecutableDir().c_str(),
-                              &env,
-                              proc
-          ))
-        {
-          std::wstring launchOptions = launchConfig->getLaunchOptions();
-
-          if (pApp->store == app_record_s::Store::Steam)
-            launchOptions += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
-
-          // Trim spaces at the end
-          launchOptions.erase (std::find_if (launchOptions.rbegin(), launchOptions.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), launchOptions.end());
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-            launchConfig->getExecutableFullPath ( ),
-            launchOptions,
-         (! launchConfig->working_dir.empty())
-              ? launchConfig->working_dir.c_str()
-              : launchConfig->getExecutableDir().c_str(),
-            launchConfig->getExecutableFullPath ( ),
-            (! localInjection && usingSK));
-        }
-        
-        else {
-          PLOG_DEBUG << "Process creation failed ?!";
-
-          proc->id       =  0;
-          proc->store_id = -1;
-        }
-      }
-
       // Launch Steam game (regular)
       else if (pApp->store == app_record_s::Store::Steam)
       {
+        PLOG_VERBOSE << "Performing a Steam launch...";
+
         bool launchDecision = true;
 
         // Check localconfig.vdf if user is attempting to launch without Special K 
         if (! usingSK && ! localInjection)
         {
           std::string
-              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true));
+              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true), pApp);
           if (launch_options.size() > 0)
           {
             std::string launch_options_lower =
@@ -5116,100 +5256,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
       }
-       
-      // SKIF Custom / GOG without Galaxy games
-      else
-      {
-        // We need to use a proxy variable since we might remove a substring of the launch options
-        std::wstring cmdLine      = launchConfig->getLaunchOptions();
 
-        // Transform to lowercase
-        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
-
-        // Extract the SKIF_SteamAppID cmd line argument
-        const std::wstring argSKIF_SteamAppID = L"skif_steamappid=";
-        size_t posSKIF_SteamAppID_start       = cmdLineLower.find (argSKIF_SteamAppID);
-        std::wstring steamAppId               = L"";
-
-        if (posSKIF_SteamAppID_start != std::wstring::npos)
-        {
-          size_t
-            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
-
-          if (posSKIF_SteamAppID_end == std::wstring::npos)
-            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
-
-          // Length of the substring to remove
-          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
-
-          steamAppId = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
-
-          // Remove substring from the proxy variable
-          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
-        }
-
-        /* Legacy:
-        if (! steamAppId.empty ( ))
-        {
-          PLOG_INFO << "Using Steam App ID : " << steamAppId;
-          SetEnvironmentVariable (L"SteamAppId",  steamAppId.c_str());
-        }
-
-        //  Synchronous - Required for the SetEnvironmentVariable() calls to be respected
-        SKIF_Util_OpenURI (launchConfig->getExecutableFullPath ( ).c_str(), SW_SHOWDEFAULT, L"OPEN", cmdLine.c_str(), launchConfig->working_dir.c_str(), SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS);
-
-        if (! steamAppId.empty ( ))
-          SetEnvironmentVariable (L"SteamAppId",  NULL);
-        */
-
-        std::map<std::wstring, std::wstring> env;
-
-        if (! steamAppId.empty ( ))
-        {
-          PLOG_DEBUG << "Using Steam App ID : " << steamAppId;
-          env.emplace       (L"SteamAppId",        steamAppId);
-          
-          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (std::stoi (steamAppId), SKIF_Steam_GetCurrentUser (true));
-
-          if (! steamOverlay)
-          {
-            PLOG_DEBUG << "Disabling the Steam Overlay...";
-            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
-          }
-        }
-
-        SKIF_Util_CreateProcess_s* proc = nullptr;
-        for (auto& item : iPlayCache)
-        {
-          if (item.id == 0)
-          {
-            proc           = &item;
-            proc->id       = pApp->id;
-            proc->store_id = (int)pApp->store;
-            break;
-          }
-        }
-
-        if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
-                           cmdLine.c_str(),
-                        (! launchConfig->working_dir.empty())
-                             ? launchConfig->working_dir.c_str()
-                             : launchConfig->getExecutableDir().c_str(),
-                              &env,
-                              proc
-          ))
-        {
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->getExecutableFullPath ( ), launchConfig->getLaunchOptions(), launchConfig->working_dir.c_str(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
-        }
-        
-        else {
-          PLOG_DEBUG << "Process creation failed ?!";
-
-          proc->id       =  0;
-          proc->store_id = -1;
-        }
+      else {
+        PLOG_ERROR << "No applicable launch option was found?!";
       }
-          
+
       // Fallback for minimizing SKIF when not using SK if configured as such
       if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
         ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
@@ -5217,7 +5268,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
     launchGame       = false;
-    launchGalaxyGame = false;
+    launchGameMenu   = false;
     launchInstant    = false;
     launchWithoutSK  = false;
   }
@@ -5516,7 +5567,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ConfirmPopup = PopupState_Opened;
     }
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("ConfirmTreePush");
 
     SKIF_ImGui_Spacing ( );
 
@@ -5559,7 +5610,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopupModal ("Remove Game###RemoveGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("RemoveGameTreePush");
 
     SKIF_ImGui_Spacing ( );
 
@@ -5661,7 +5712,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 charArgs     [     500 + 2] = { };
     static bool error = false;
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("AddGameTreePush");
 
     SKIF_ImGui_Spacing ( );
 
@@ -5886,7 +5937,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ModifyGamePopup = PopupState_Opened;
     }
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("ModifyGameTreePush");
 
     SKIF_ImGui_Spacing ( );
 

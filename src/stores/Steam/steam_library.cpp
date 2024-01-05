@@ -754,8 +754,9 @@ SK_UseManifestToGetAppName (app_record_s *app)
   return "";
 }
 
+// NOT THREAD SAFE! Updates g_apps with the new value
 std::string
-SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
+SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *app)
 {
   // Original implementation using SKIF's SK_Steam_KeyValue implementation
 #if 0
@@ -812,7 +813,13 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
               auto& attribs = lc_app->second->attribs;
 
               if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
+              {
+                // Also updates the copy
+                if (app != nullptr)
+                  app->Steam_LaunchOption = attribs.at("LaunchOptions");
+
                 return attribs.at("LaunchOptions");
+              }
             }
           }
         }
@@ -829,6 +836,77 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid)
   }
 
   return "";
+}
+
+// NOT THREAD SAFE! Updates g_apps with the new value
+bool SKIF_Steam_PreloadAllLaunchOptions (SteamId3_t userid)
+{
+  if (g_apps.empty())
+    return false;
+
+  // Implementation using the ValveFileVDF project
+  std::string localConfig_data =
+    SK_WideCharToUTF8 (
+      SK_Steam_GetLocalConfigPath (userid)
+  );
+
+  if (localConfig_data != "")
+  {
+    std::ifstream file (localConfig_data);
+
+    if (file.is_open())
+    {
+      try
+      {
+        auto user_localconfig = tyti::vdf::read(file);
+        file.close();
+
+        if (user_localconfig.childs.size() > 0)
+        {
+          // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+          auto& apps_localconfig =
+            user_localconfig.
+              childs.at("Software") ->
+                childs.at("valve")  ->
+                  childs.at("Steam")->
+                    childs.at("apps");
+
+          if (apps_localconfig != nullptr &&
+              apps_localconfig->childs.size() > 0)
+          {
+            for (auto& app : g_apps)
+            {
+              if (app.second.store != app_record_s::Store::Steam)
+                continue;
+
+              auto lc_app = apps_localconfig->childs.find(std::to_string(app.second.id));
+              if (lc_app != apps_localconfig->childs.end())
+              {
+                auto& attribs = lc_app->second->attribs;
+
+                if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
+                  app.second.Steam_LaunchOption = attribs.at("LaunchOptions");
+              }
+            }
+
+            return true;
+          }
+        }
+      }
+
+      // I don't expect this to throw any std::out_of_range exceptions any more
+      //   but one can never be too sure when it comes to data structures like these.
+      //     - Aemony
+      catch (const std::exception& e)
+      {
+        UNREFERENCED_PARAMETER(e);
+
+        PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
+      }
+    }
+  }
+
+  return false;
 }
 
 bool

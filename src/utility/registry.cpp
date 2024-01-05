@@ -151,7 +151,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bLibraryIgnoreArticles   =   regKVLibraryIgnoreArticles  .getData ( );
 
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData ( );
-  bPreferGOGGalaxyLaunch   =   regKVPreferGOGGalaxyLaunch  .getData ( );
+  bInstantPlayGOG          =   regKVInstantPlayGOG         .getData ( );
+  bInstantPlaySteam        =   regKVInstantPlaySteam       .getData ( );
   
   // UI elements that can be toggled
 

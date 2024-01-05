@@ -160,7 +160,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::TextWrapped      ("Copy and paste the below into the \"Launch Options\" field.");
     ImGui::EndGroup         ( );
 
-    ImGui::TreePush         ("");
+    ImGui::TreePush         ("SteamSKIFCommand");
     ImGui::Spacing          ( );
     ImGui::SameLine         ( );
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));

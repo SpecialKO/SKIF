@@ -541,7 +541,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Auto-stop behavior when launching a game:"
   );
-  ImGui::TreePush        ("_registry.iAutoStopBehavior");
+  ImGui::TreePush        ("AutoStopBehavior");
 
   //if (ImGui::RadioButton ("Never",           &_registry.iAutoStopBehavior, 0))
   //  regKVAutoStopBehavior.putData (           _registry.iAutoStopBehavior);
@@ -576,7 +576,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::BeginGroup    ( );
 
-  ImGui::TreePush        ("_registry.iCheckForUpdates");
+  ImGui::TreePush        ("CheckForUpdates");
   if (ImGui::RadioButton ("Never",                 &_registry.iCheckForUpdates, 0))
     _registry.regKVCheckForUpdates.putData (         _registry.iCheckForUpdates);
   ImGui::SameLine        ( );
@@ -601,7 +601,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (! disableCheckForUpdates && _updater.GetChannels ( )->empty( ))
     disableRollbackUpdates = true;
 
-  ImGui::TreePush        ("Push_UpdateChannel");
+  ImGui::TreePush        ("UpdateChannels");
 
   ImGui::BeginGroup    ( );
 
@@ -701,7 +701,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Show desktop notifications for the injection service:"
   );
-  ImGui::TreePush        ("_registry.iNotifications");
+  ImGui::TreePush        ("Notifications");
   if (ImGui::RadioButton ("Never",          &_registry.iNotifications, 0))
     _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::SameLine        ( );
@@ -750,9 +750,6 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
       _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
 
-    if ( ImGui::Checkbox ( "Prefer launching GOG games through Galaxy", &_registry.bPreferGOGGalaxyLaunch) )
-      _registry.regKVPreferGOGGalaxyLaunch.putData (_registry.bPreferGOGGalaxyLaunch);
-
     ImGui::NextColumn       ( );
 
     ImGui::TreePush         ( );
@@ -761,7 +758,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Include games from these platforms:"
     );
-    ImGui::TreePush      ("");
+    ImGui::TreePush      ("Libraries");
 
     if (ImGui::Checkbox        ("Epic",   &_registry.bLibraryEpic))
     {
@@ -810,7 +807,26 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     ImGui::TreePop          ( );
+            
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Prefer Instant Play for these platforms:"
+    );
+    ImGui::TreePush      ("InstantPlay");
 
+    if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
+      _registry.regKVInstantPlayGOG.putData   (_registry.bInstantPlayGOG);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox       ("Steam",       &_registry.bInstantPlaySteam))
+      _registry.regKVInstantPlaySteam.putData (_registry.bInstantPlaySteam);
+
+    ImGui::TreePop          ( );
+
+    // Column end
     ImGui::TreePop          ( );
 
     ImGui::Columns          (1);
@@ -859,7 +875,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Color theme:"
     );
-    ImGui::TreePush      ("");
+    ImGui::TreePush      ("ColorThemes");
 
     if (ImGui::BeginCombo ("###_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
     {
@@ -885,7 +901,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Dim game covers by 25%%:"
     );
-    ImGui::TreePush        ("iDimCovers");
+    ImGui::TreePush        ("DimCovers");
     if (ImGui::RadioButton ("Never",                 &_registry.iDimCovers, 0))
       _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
     ImGui::SameLine        ( );
@@ -905,7 +921,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Show Shelly the Ghost:"
     );
-    ImGui::TreePush        ("_registry.iGhostVisibility");
+    ImGui::TreePush        ("Shelly");
     if (ImGui::RadioButton ("Never",                    &_registry.iGhostVisibility, 0))
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::SameLine        ( );
@@ -925,7 +941,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "UI elements:"
     );
-    ImGui::TreePush        ("");
+    ImGui::TreePush        ("UIElements");
 
     if (ImGui::Checkbox ("Borders",    &_registry.bUIBorders))
     {

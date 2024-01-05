@@ -322,7 +322,8 @@ struct app_record_s {
   std::string  Epic_DisplayName      =  "";
   std::string  Xbox_PackageName      =  "";
   std::string  Xbox_StoreId          =  "";
-  std::wstring Xbox_AppDirectory; // Holds the :\WindowsApps\<package-name>\ path for the game
+  std::string  Steam_LaunchOption    =  ""; // Holds the custom launch option set in the Steam client
+  std::wstring Xbox_AppDirectory     = L""; // Holds the :\WindowsApps\<package-name>\ path for the game
 
   template <class _Tp> static
     constexpr bool

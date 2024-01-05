@@ -1046,7 +1046,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   if (! bAutoStartSKIF)
     SKIF_ImGui_PushDisableState ( );
 
-  ImGui::TreePush ("");
+  ImGui::TreePush ("StartupBehaviour");
 
   if (ImGui::Checkbox((_registry.bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
                                                  " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
