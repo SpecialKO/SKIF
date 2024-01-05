@@ -22,6 +22,7 @@ std::wstring    SKIF_Util_ToUpperW                    (std::wstring_view input);
 std::wstring    SKIF_Util_GetErrorAsWStr              (DWORD error = GetLastError ( ), HMODULE module = NULL);
 void            SKIF_Util_GetErrorAsMsgBox            (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError ( ), HMODULE module = NULL);
 DWORD           SKIF_Util_timeGetTime                 (void);
+DWORD           SKIF_Util_timeGetTime1                (void); // Original non-cached data
 std::wstring    SKIF_Util_timeGetTimeAsWStr           (const std::wstring& format = L"H:M:s.m");
 int             SKIF_Util_CompareVersionStrings       (std:: string string1, std:: string string2);
 int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std::wstring string2);

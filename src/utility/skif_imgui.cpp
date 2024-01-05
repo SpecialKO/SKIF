@@ -406,7 +406,6 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   extern bool        HoverTipActive;        // Used to track if an item is being hovered
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
-  extern DWORD       SKIF_Util_timeGetTime (void);
 
   if (ImGui::IsItemHovered ())
   {

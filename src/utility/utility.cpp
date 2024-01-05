@@ -108,8 +108,19 @@ SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD er
                     winTitle.c_str(), MB_OK | MB_ICONERROR);
 }
 
+// Get the time that the current frame started processing, updated by ImGui_ImplWin32_NewFrame()
+// Original non-cached function was moved over to SKIF_Util_timeGetTime1
 DWORD
 SKIF_Util_timeGetTime (void)
+{
+  extern INT64 current_time_ms;
+
+  return static_cast<DWORD>
+          ( current_time_ms & 0xFFFFFFFFLL );
+}
+
+DWORD
+SKIF_Util_timeGetTime1 (void)
 {
   static LARGE_INTEGER qpcFreq = { };
          LARGE_INTEGER li      = { };
@@ -160,6 +171,7 @@ SKIF_Util_timeGetTime (void)
 
 
 // A function that returns the current time as a string in a custom format
+// Not really necessary since PLOG can output to Visual Studio's debug output stream
 std::wstring
 SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
 {
