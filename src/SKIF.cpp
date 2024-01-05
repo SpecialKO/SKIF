@@ -100,6 +100,7 @@ DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
 bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 bool SKIF_MouseDragMoveAllowed = true;
+bool SKIF_debuggerPresent  = false;
 
 // Shell messages
 UINT SHELL_TASKBAR_RESTART        = 0;
@@ -1247,12 +1248,20 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   // Engage logging!
   // Contemplate moving over to plog::TxtFormatterUtcTime ?
   static plog::RollingFileAppender<plog::TxtFormatter> fileAppender(logPath.c_str(), 10000000, 1);
-  static plog::DebugOutputAppender<plog::TxtFormatter> debugOutputAppender;
   plog::init (plog::debug, &fileAppender);
 
-#ifdef DEBUG
-  plog::get()->addAppender(&debugOutputAppender);
-#endif // DEBUG
+  // Let us do a one-time check if a debugger is attached,
+  //   and if so set up PLOG to push logs there as well
+  BOOL isRemoteDebuggerPresent = FALSE;
+  CheckRemoteDebuggerPresent (SKIF_Util_GetCurrentProcess(), &isRemoteDebuggerPresent);
+
+  if (isRemoteDebuggerPresent || IsDebuggerPresent())
+  {
+    static plog::DebugOutputAppender<plog::TxtFormatter> debugOutputAppender;
+    plog::get()->addAppender (&debugOutputAppender);
+
+    SKIF_debuggerPresent = true;
+  }
 
 #ifdef _WIN64
   PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
@@ -1610,6 +1619,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Reset on each frame
     SKIF_MouseDragMoveAllowed     = true;
+
+#ifdef DEBUG
+
+    // When built in debug mode, we should check if a debugger has been attached
+    //   on every frame to identify and output to debuggers attached later
+    if (! SKIF_debuggerPresent)
+    {
+      BOOL isRemoteDebuggerPresent = FALSE;
+      CheckRemoteDebuggerPresent (SKIF_Util_GetCurrentProcess(), &isRemoteDebuggerPresent);
+
+      if (isRemoteDebuggerPresent || IsDebuggerPresent())
+      {
+        static plog::DebugOutputAppender<plog::TxtFormatter> debugOutputAppender;
+        plog::get()->addAppender (&debugOutputAppender);
+        SKIF_debuggerPresent = true;
+      }
+    }
+
+#endif // DEBUG
 
     // Various hotkeys that SKIF supports (resets on every frame)
     bool hotkeyF5    = (              io.KeysDown[VK_F5]  &&  io.KeysDownDuration[VK_F5]  == 0.0f), // Library/About: Refresh data
