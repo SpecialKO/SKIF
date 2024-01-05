@@ -1103,9 +1103,9 @@ ImGui_ImplWin32_GetDpiScaleForHwnd (void *hwnd)
 }
 
 void
-ImGui_ImplWin32_SetDWMBorders (void* hwnd)
+ImGui_ImplWin32_SetDWMBorders (void* hWnd)
 {
-  if (! hwnd)
+  if (! hWnd)
     return;
   
   if (! SKIF_Util_IsWindows11orGreater ( ))
@@ -1129,14 +1129,14 @@ ImGui_ImplWin32_SetDWMBorders (void* hwnd)
   extern HWND
       SKIF_ImGui_hWnd;
   if (SKIF_ImGui_hWnd ==       NULL ||
-      SKIF_ImGui_hWnd == (HWND)hwnd)
+      SKIF_ImGui_hWnd == (HWND)hWnd)
     dwmCornerPreference = DWMWCP_ROUND;      // Main window
   else
     dwmCornerPreference = DWMWCP_ROUNDSMALL; // Popups (spanning outside of the main window)
 
-  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &dwmCornerPreference, sizeof (dwmCornerPreference));
-  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,  &dwmUseDarkMode,      sizeof (dwmUseDarkMode));
-  ::DwmSetWindowAttribute ((HWND)hwnd, DWMWA_BORDER_COLOR,             &dwmBorderColor,      sizeof (dwmBorderColor));
+  ::DwmSetWindowAttribute ((HWND)hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &dwmCornerPreference, sizeof (dwmCornerPreference));
+  ::DwmSetWindowAttribute ((HWND)hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE,  &dwmUseDarkMode,      sizeof (dwmUseDarkMode));
+  ::DwmSetWindowAttribute ((HWND)hWnd, DWMWA_BORDER_COLOR,             &dwmBorderColor,      sizeof (dwmBorderColor));
 }
 
 void
@@ -1831,6 +1831,27 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
   switch (msg)
   {
+    case WM_DROPFILES: {
+      // Handle the dropped files
+      HDROP hDrop    = (HDROP)wParam;
+      UINT  numFiles = DragQueryFile (hDrop, 0xFFFFFFFF, NULL, 0);
+
+      if (numFiles > 0) {
+        // Get the first dropped file
+        TCHAR filePath[MAX_PATH];
+        DragQueryFile (hDrop, 0, filePath, MAX_PATH);
+        
+        extern std::wstring dragDroppedFilePath;
+        dragDroppedFilePath = std::wstring(filePath);
+      }
+
+      // Release the dropped files information
+      DragFinish (hDrop);
+
+      return 0;
+      break;
+    }
+
     case WM_SYSCOMMAND:
     {
       //OutputDebugString(L"WM_SYSCOMMAND\n");
@@ -1852,6 +1873,10 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
     case WM_CREATE:
     {
       ImGui_ImplWin32_SetDWMBorders (hWnd);
+
+      // Enable drag-and-drop for the main window
+      if (SKIF_ImGui_hWnd == NULL || SKIF_ImGui_hWnd == hWnd)
+        DragAcceptFiles (hWnd, TRUE);
 
 #if 0
       // Change the application window rect

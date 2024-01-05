@@ -3276,6 +3276,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
       }
 
+      // This runs only once, after the ImGui window has been created
       static bool runOnce = true;
       if (runOnce && SKIF_ImGui_hWnd != NULL)
       {   runOnce = false;

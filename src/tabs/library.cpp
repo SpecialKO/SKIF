@@ -101,6 +101,8 @@ PopupState ConfirmPopup    = PopupState_Closed;
 std::string confirmPopupTitle;
 std::string confirmPopupText;
 
+std::wstring dragDroppedFilePath = L"";
+
 extern ImVec2          SKIF_vecAlteredSize;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -311,6 +313,74 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 }
 
 #pragma endregion
+
+
+#pragma region UpdateGameCover
+
+bool
+UpdateGameCover (app_record_s* pApp, std::wstring_view path)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::wstring targetPath = L"";
+  std::wstring ext        = std::filesystem::path (path.data()).extension().wstring();
+
+  if (ext == L".jpeg")
+    ext = L".jpg";
+
+  if (ext == L".webp")
+    ext = L".png";
+
+  // Unsupported file format
+  if (ext != L".jpg" &&
+      ext != L".png")
+  {
+    confirmPopupTitle = "Unsupported file format";
+    confirmPopupText  = "Please use a supported image format:\n"
+                        "\n"
+                        "*.png\n"
+                        "*.jpg\n"
+                        "*.jpeg\n"
+                        "*.webp (no animation)";
+    ConfirmPopup = PopupState_Open;
+
+    return false;
+  }
+
+  if (pApp->id == SKIF_STEAM_APPID)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+  else if (pApp->store == app_record_s::Store::Custom)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+  else if (pApp->store == app_record_s::Store::Epic)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+  else if (pApp->store == app_record_s::Store::GOG)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+  else if (pApp->store == app_record_s::Store::Xbox)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+  else if (pApp->store == app_record_s::Store::Steam)
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+
+  if (targetPath != L"")
+  {
+    std::error_code ec;
+    // Create any missing directories
+    if (! std::filesystem::exists (            targetPath, ec))
+          std::filesystem::create_directories (targetPath, ec);
+
+    targetPath += L"cover";
+
+    DeleteFile((targetPath + L".jpg").c_str());
+    DeleteFile((targetPath + L".png").c_str());
+
+    if (CopyFile (path.data(), (targetPath + ext).c_str(), false))
+      return true;
+  }
+
+  return false;
+}
+
+#pragma endregion
+
 
 
 #pragma region DrawGameContextMenu
@@ -4330,38 +4400,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
-          std::wstring targetPath = L"";
-          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
-
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Custom)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
-
-          if (targetPath != L"")
+          std::wstring filePath = std::wstring(pwszFilePath);
+          if (UpdateGameCover (pApp, filePath))
           {
-            std::error_code ec;
-            // Create any missing directories
-            if (! std::filesystem::exists (            targetPath, ec))
-                  std::filesystem::create_directories (targetPath, ec);
-
-            targetPath += L"cover";
-
-            DeleteFile((targetPath + L".jpg").c_str());
-            DeleteFile((targetPath + L".png").c_str());
-
-            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
-
             update    = true;
             lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
           }
@@ -6086,6 +6129,17 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
+
+  if (! dragDroppedFilePath.empty())
+  {
+    if (UpdateGameCover (pApp, dragDroppedFilePath))
+    {
+      update    = true;
+      lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+    }
+
+    dragDroppedFilePath.clear();
+  }
 
   extern uint32_t SelectNewSKIFGame;
 
