@@ -1238,12 +1238,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
           _path_cache.specialk_userdata
     );
 
-  std::wstring logPath_old =
-    SK_FormatStringW ((_Signal.Launcher || _Signal.LauncherURI)
-                ? LR"(%ws\SKIF_launcher.log.bak)" 
-                : LR"(%ws\SKIF.log.bak)",
-          _path_cache.specialk_userdata
-    );
+  std::wstring logPath_old = logPath + L".bak";
 
   // Delete the .old log file and rename any previous log to .old
   DeleteFile (logPath_old.c_str());
