@@ -1856,10 +1856,15 @@ SKIF_Util_SetClipboardData (const std::wstring_view& data)
     {
       EmptyClipboard ( );
 
-      memcpy (GlobalLock (hGlobal), data.data(), (data.size() + 1)  * sizeof (wchar_t));
-      GlobalUnlock (hGlobal);
+      wchar_t *pszDestination = static_cast<wchar_t*> (GlobalLock (hGlobal));
 
-      result = SetClipboardData (CF_UNICODETEXT, hGlobal);
+      if (pszDestination != nullptr)
+      {
+        memcpy (pszDestination, data.data(), (data.length() + 1) * sizeof (wchar_t));
+        GlobalUnlock (hGlobal);
+       
+        result = SetClipboardData (CF_UNICODETEXT, hGlobal);
+      }
 
       if (! result)
         GlobalFree (hGlobal);
