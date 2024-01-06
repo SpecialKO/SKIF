@@ -65,7 +65,8 @@ constexpr UINT           WM_SKIF_RUN_UPDATER    = WM_USER + 0x1029; // Triggers 
 constexpr UINT           WM_SKIF_GAMEPAD        = WM_USER + 0x2049; // Gamepad input worker detected new input
 constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover worker completed
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
-constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Cover worker completed
+constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Patreon/Cover/Icon textures workers completed...
+constexpr UINT           WM_SKIF_REFRESHCOVER   = WM_USER + 0x2053; // Refresh Cover -- Update Cover worker completed
 
 // Callbacks / Event Signals
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2101; // Used to signal that a new effective power mode has been applied

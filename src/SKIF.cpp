@@ -49,6 +49,8 @@
 
 #include <filesystem>
 #include <concurrent_queue.h>
+#include <oleidl.h>
+#include <utility/droptarget.hpp>
 
 #include "imgui/d3d11/imgui_impl_dx11.h"
 #include <d3d11.h>
@@ -101,7 +103,6 @@ bool SteamOverlayDisabled  = false;
 bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
 bool SKIF_MouseDragMoveAllowed = true;
 bool SKIF_debuggerPresent  = false;
-bool SKIF_dragDropEnabled  = false;
 
 // Shell messages
 UINT SHELL_TASKBAR_RESTART        = 0;
@@ -1315,8 +1316,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
-  CoInitializeEx (nullptr, 0x0);
-  
+  //CoInitializeEx (nullptr, 0x0);
+  OleInitialize (NULL); // Needed for IDropTarget
+
   // All DbgHelp functions, such as ImageNtHeader, are single threaded.
   extern   CRITICAL_SECTION   CriticalSectionDbgHelp;
   InitializeCriticalSection (&CriticalSectionDbgHelp);
@@ -1529,6 +1531,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Register to be notified if the effective power mode changes
   //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
+
+  // The DropTarget object used for drag-and-drop support for new covers
+  static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -2448,18 +2453,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (_registry.iDimCovers == 2)
               fTint = 0.75f;
           }
-            
-          // Enable drag-and-drop for the main window
-          if (! SKIF_dragDropEnabled && SKIF_ImGui_hWnd != NULL)
-          {
-            DragAcceptFiles (SKIF_ImGui_hWnd, TRUE);
-            SKIF_dragDropEnabled = true;
-          }
+
+          // Ensure we have set up the drop target on the Library tab
+          if (SKIF_ImGui_hWnd != NULL)
+            _drag_drop.Register (SKIF_ImGui_hWnd);
 
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)
             SKIF_Tab_ChangeTo = UITab_None;
-            
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
@@ -2469,12 +2470,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        // Disable dragdrop support when navigating away from the library tab
-        else if (SKIF_dragDropEnabled && SKIF_ImGui_hWnd != NULL)
-        {
-          DragAcceptFiles (SKIF_ImGui_hWnd, FALSE);
-          SKIF_dragDropEnabled = false;
-        }
+        // Disable the drop target when navigating away from the library tab
+        else
+          _drag_drop.Revoke (SKIF_ImGui_hWnd);
 
 
         if (ImGui::BeginTabItem (" " ICON_FA_LIST_CHECK " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
@@ -4069,6 +4067,20 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       // Empty working set after the cover has finished loading
       if (! tryingToLoadCover)
         SKIF_Util_CompactWorkingSet ( );
+      break;
+
+    case WM_SKIF_REFRESHCOVER:
+      addAdditionalFrames += 3;
+
+      // Update refreshCover
+      extern bool     coverRefresh; // This just triggers a refresh of the cover
+      extern uint32_t coverRefreshAppId;
+      extern int      coverRefreshStore;
+
+      coverRefresh      = true;
+      coverRefreshAppId = (uint32_t)wParam;
+      coverRefreshStore = ( int    )lParam;
+
       break;
 
     case WM_SKIF_ICON:

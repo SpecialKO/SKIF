@@ -78,6 +78,10 @@ bool                   launchGameMenu    = false; // Menu is always explicit
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
+bool                   coverRefresh      = false; // This just triggers a refresh of the cover
+uint32_t               coverRefreshAppId = 0;
+int                    coverRefreshStore = 0;
+
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
@@ -322,20 +326,41 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  std::wstring targetPath = L"";
-  std::wstring ext        = std::filesystem::path (path.data()).extension().wstring();
+  if (path.empty())
+    return false;
 
-  if (ext == L".jpeg")
-    ext = L".jpg";
+  PLOG_VERBOSE << path;
 
-  if (ext == L".webp")
-    ext = L".png";
+  std::wstring targetPath    = L"";
+  std::wstring fileExtension = std::filesystem::path (path.data()).extension().wstring();
+  bool         isURL         = PathIsURL (path.data());
+
+  if (fileExtension == L".jpeg")
+    fileExtension = L".jpg";
+
+  if (fileExtension == L".webp")
+    fileExtension = L".png";
 
   // Unsupported file format
-  if (ext != L".jpg" &&
-      ext != L".png")
+  if (fileExtension != L".jpg" &&
+      fileExtension != L".png")
   {
-    confirmPopupTitle = "Unsupported file format";
+    confirmPopupTitle = "Unsupported image format";
+    confirmPopupText  = "Please use a supported image format:\n"
+                        "\n"
+                        "*.png\n"
+                        "*.jpg\n"
+                        "*.jpeg\n"
+                        "*.webp (no animation)";
+    ConfirmPopup = PopupState_Open;
+
+    return false;
+  }
+
+  // For local files, check if they do. in fact, exist
+  if (! isURL && ! PathFileExists (path.data()))
+  {
+    confirmPopupTitle = "Unsupported image format";
     confirmPopupText  = "Please use a supported image format:\n"
                         "\n"
                         "*.png\n"
@@ -360,21 +385,83 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
   else if (pApp->store == app_record_s::Store::Steam)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
-  if (targetPath != L"")
-  {
-    std::error_code ec;
-    // Create any missing directories
-    if (! std::filesystem::exists (            targetPath, ec))
-          std::filesystem::create_directories (targetPath, ec);
+  if (targetPath == L"")
+    return false;
 
-    targetPath += L"cover";
+  struct thread_s {
+    std::wstring source            = L"";
+    std::wstring destination       = L"";
+    std::wstring extension         = L"";
+    bool         is_url            = false;
+    uint32_t     appid             = 0;
+    int          store             = 0;
+  };
+  
+  thread_s* data = new thread_s;
 
-    DeleteFile((targetPath + L".jpg").c_str());
-    DeleteFile((targetPath + L".png").c_str());
+  data->source      = path;
+  data->destination = targetPath;
+  data->extension   = fileExtension;
+  data->is_url      = isURL;
+  data->appid       = pApp->id;
+  data->store       = (int)pApp->store;
 
-    if (CopyFile (path.data(), (targetPath + ext).c_str(), false))
-      return true;
-  }
+  uintptr_t hWorkerThread =
+    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+    {
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCoverWorker");
+
+      // Is this combo really appropriate for this thread?
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+      PLOG_DEBUG << "SKIF_UpdateCoverWorker thread started!";
+
+      thread_s* _data = static_cast<thread_s*>(var);
+
+      CoInitializeEx (nullptr, 0x0);
+
+      PLOG_INFO  << "Updating game cover asynchronously...";
+
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists (            _data->destination, ec))
+            std::filesystem::create_directories (_data->destination, ec);
+
+      _data->destination += L"cover";
+
+      DeleteFile((_data->destination + L".jpg").c_str());
+      DeleteFile((_data->destination + L".png").c_str());
+
+      _data->destination += _data->extension;
+
+      // This both downloads a new image from the internet as well as copies a local file to the destination
+      bool success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         _data->destination)
+                                     :                 CopyFile (_data->source.c_str(), _data->destination.c_str(), false);
+
+      if (! success)
+        PLOG_ERROR << "Failed to process the new cover image!";
+      else 
+        PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
+
+      PLOG_INFO  << "Finished updating game cover asynchronously...";
+    
+      // Free up the memory we allocated
+      delete _data;
+
+      PLOG_DEBUG << "SKIF_UpdateCoverWorker thread stopped!";
+
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+      return 0;
+    }, data, 0x0, nullptr);
+
+  bool threadCreated = (hWorkerThread != 0);
+
+  if (threadCreated) // We don't care about how it goes so the handle is unneeded
+    CloseHandle (reinterpret_cast<HANDLE>(hWorkerThread));
+  else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+    delete data;
 
   return false;
 }
@@ -5300,7 +5387,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (lastHorizonMode != _registry.bHorizonMode)
   {
     lastHorizonMode = _registry.bHorizonMode;
-    //loadCover       = true;
 
     update    = true;
     lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
@@ -6201,13 +6287,24 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! dragDroppedFilePath.empty())
   {
-    if (UpdateGameCover (pApp, dragDroppedFilePath))
+    UpdateGameCover (pApp, dragDroppedFilePath); // A child thread will set refreshCover once done
+
+    dragDroppedFilePath.clear();
+  }
+
+  if (coverRefresh)
+  {
+    coverRefresh      = false;
+
+    if (lastCover.appid == coverRefreshAppId &&
+        lastCover.store == (app_record_s::Store) coverRefreshStore)
     {
-      update    = true;
+      update       = true;
       lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
     }
 
-    dragDroppedFilePath.clear();
+    coverRefreshAppId = 0;
+    coverRefreshStore = 0;
   }
 
   extern uint32_t SelectNewSKIFGame;

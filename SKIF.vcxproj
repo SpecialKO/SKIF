@@ -377,6 +377,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\stores\Epic\epic_library.h" />
+    <ClInclude Include="include\utility\droptarget.hpp" />
     <ClInclude Include="include\utility\drvreset.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
     <ClInclude Include="packages_misc\picosha2.h" />

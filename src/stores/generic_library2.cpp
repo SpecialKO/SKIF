@@ -162,8 +162,10 @@ LoadLibraryTexture (
         ImVec2&                             vCoverUv1,
         app_record_s*                       pApp)
 {
+  // NOT REALLY THREAD-SAFE WHILE IT RELIES ON THESE STATIC GLOBAL OBJECTS!
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   static const int SKIF_STEAM_APPID = 1157970;
 
   CComPtr <ID3D11Texture2D> pTex2D;

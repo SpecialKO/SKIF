@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <format>
 #include <utility/injection.h>
+#include <utility/droptarget.hpp>
 
 // PLOG
 #ifndef PLOG_ENABLE_WCHAR_INPUT
@@ -1447,6 +1448,10 @@ ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
                           viewport
         );
       viewportP->LastFrameActive = 0;
+      
+      // RecreateWin32Windows cannot be used here for some reason?
+      //extern bool RecreateWin32Windows;
+      //RecreateWin32Windows = true;
     }
 
     RECT rect =
@@ -1813,8 +1818,9 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
   if (ImGui_ImplWin32_WndProcHandler (hWnd, msg, wParam, lParam))
     return true;
   
-  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_RegistrySettings& _registry  = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject    = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_DropTargetObject& _drag_drop = SKIF_DropTargetObject::GetInstance ( );
 
   // WM_NCCALCSIZE allows us to remove the Standard Frame of the window that DWM creates.
   // This is necessary as our main window requires WS_CAPTION | WS_SYSMENU and
@@ -1831,27 +1837,6 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 
   switch (msg)
   {
-    case WM_DROPFILES: {
-      // Handle the dropped files
-      HDROP hDrop    = (HDROP)wParam;
-      UINT  numFiles = DragQueryFile (hDrop, 0xFFFFFFFF, NULL, 0);
-
-      if (numFiles > 0) {
-        // Get the first dropped file
-        TCHAR filePath[MAX_PATH];
-        DragQueryFile (hDrop, 0, filePath, MAX_PATH);
-        
-        extern std::wstring dragDroppedFilePath;
-        dragDroppedFilePath = std::wstring(filePath);
-      }
-
-      // Release the dropped files information
-      DragFinish (hDrop);
-
-      return 0;
-      break;
-    }
-
     case WM_SYSCOMMAND:
     {
       //OutputDebugString(L"WM_SYSCOMMAND\n");
@@ -1899,6 +1884,12 @@ ImGui_ImplWin32_WndProcHandler_PlatformWindow (HWND hWnd, UINT msg, WPARAM wPara
 #endif
 
       break;
+    }
+
+    case WM_DESTROY:
+    {
+      // Unregister any existing drop targets when the window is destroyed
+      _drag_drop.Revoke (hWnd);
     }
   }
 

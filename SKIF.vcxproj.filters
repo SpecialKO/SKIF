@@ -246,6 +246,9 @@
     <ClInclude Include="packages_misc\HybridDetect.h">
       <Filter>Header Files\Packages_Misc</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\droptarget.hpp">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
