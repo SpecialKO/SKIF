@@ -331,19 +331,28 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
 
   PLOG_VERBOSE << path;
 
-  std::wstring targetPath    = L"";
-  std::wstring fileExtension = std::filesystem::path (path.data()).extension().wstring();
-  bool         isURL         = PathIsURL (path.data());
+  std::wstring targetPath  = L"";
+  std::wstring extOriginal = std::filesystem::path (path.data()).extension().wstring();
+  bool         isURL       = PathIsURL (path.data());
 
-  if (fileExtension == L".jpeg")
-    fileExtension = L".jpg";
+  extOriginal = SKIF_Util_ToLowerW  (extOriginal);
+  std::wstring extTarget = extOriginal;
 
-  if (fileExtension == L".webp")
-    fileExtension = L".png";
+  if (extOriginal == L".jpeg")
+    extTarget = L".jpg";
+
+  if (extOriginal == L".bmp")
+    extTarget = L".jpg";
+
+  if (extOriginal == L".webp")
+    extTarget = L".png";
+
+  if (extOriginal == L".bmp")
+    extTarget = L".png";
 
   // Unsupported file format
-  if (fileExtension != L".jpg" &&
-      fileExtension != L".png")
+  if (extTarget != L".jpg" &&
+      extTarget != L".png")
   {
     confirmPopupTitle = "Unsupported image format";
     confirmPopupText  = "Please use a supported image format:\n"
@@ -389,22 +398,24 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
     return false;
 
   struct thread_s {
-    std::wstring source            = L"";
-    std::wstring destination       = L"";
-    std::wstring extension         = L"";
-    bool         is_url            = false;
-    uint32_t     appid             = 0;
-    int          store             = 0;
+    std::wstring source        = L"";
+    std::wstring destination   = L"";
+    std::wstring ext_target    = L"";
+    std::wstring ext_original  = L"";
+    bool         is_url        = false;
+    uint32_t     appid         = 0;
+    int          store         = 0;
   };
   
   thread_s* data = new thread_s;
 
-  data->source      = path;
-  data->destination = targetPath;
-  data->extension   = fileExtension;
-  data->is_url      = isURL;
-  data->appid       = pApp->id;
-  data->store       = (int)pApp->store;
+  data->source        = path;
+  data->destination   = targetPath;
+  data->ext_target    = extTarget;
+  data->ext_original  = extOriginal;
+  data->is_url        = isURL;
+  data->appid         = pApp->id;
+  data->store         = (int)pApp->store;
 
   uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -430,14 +441,66 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
 
       _data->destination += L"cover";
 
-      DeleteFile((_data->destination + L".jpg").c_str());
-      DeleteFile((_data->destination + L".png").c_str());
+      std::wstring tmpPath = _data->destination + ((_data->ext_original == L".bmp")
+                                                ? L".tmp"
+                                                : _data->ext_target);
 
-      _data->destination += _data->extension;
+      bool success = false;
 
-      // This both downloads a new image from the internet as well as copies a local file to the destination
-      bool success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         _data->destination)
-                                     :                 CopyFile (_data->source.c_str(), _data->destination.c_str(), false);
+      if (_data->source == (_data->destination + _data->ext_original))
+      {
+        PLOG_WARNING << "Source image and destination image is the same, aborting as there is nothing to do.";
+        success = false;
+      }
+
+      else
+      {
+        DeleteFile((_data->destination + L".jpg").c_str());
+        DeleteFile((_data->destination + L".png").c_str());
+
+        // This both downloads a new image from the internet as well as copies a local file to the destination
+        // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
+        success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,          tmpPath)
+                                  :                 CopyFile (_data->source.c_str(),  tmpPath.c_str(), false);
+      }
+
+      // BMP images needs to be converted
+      if (success && _data->ext_original == L".bmp")
+      {
+        DirectX::TexMetadata  meta = { };
+        DirectX::ScratchImage  img = { };
+
+        PLOG_VERBOSE << "Converting BMP image to PNG...";
+        success = false;
+          
+        if (SUCCEEDED (
+              DirectX::LoadFromWICFile (
+                tmpPath.c_str (),
+                DirectX::WIC_FLAGS_NONE,
+                &meta, img
+              )
+            )
+          )
+        {
+          if (SUCCEEDED (
+                DirectX::SaveToWICFile (
+                  img.GetImages(),
+                  img.GetImageCount(),
+                  DirectX::WIC_FLAGS_NONE,
+                  GetWICCodec (DirectX::WIC_CODEC_PNG),
+                  (_data->destination + _data->ext_target).c_str()
+                )
+              )
+            )
+          {
+            success = true;
+          }
+        }
+
+        // Delete the temporary file after we are done with it
+        DeleteFile(tmpPath.c_str());
+      }
+
 
       if (! success)
         PLOG_ERROR << "Failed to process the new cover image!";

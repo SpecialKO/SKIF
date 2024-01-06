@@ -137,6 +137,7 @@ public:
 
     extern std::wstring dragDroppedFilePath;
 
+    // Files from e.g. File Explorer
     if (m_fmtDropping->cfFormat == CF_HDROP && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
     {
       HDROP hDrop = static_cast<HDROP> (GlobalLock(medium.hGlobal));
@@ -158,6 +159,7 @@ public:
       ReleaseStgMedium (&medium);
     }
 
+    // ANSI text
     else if (m_fmtDropping->cfFormat == CF_TEXT && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
     {
       char *pszData = static_cast<char *> (GlobalLock (medium.hGlobal));
