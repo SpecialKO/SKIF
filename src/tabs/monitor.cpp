@@ -507,10 +507,10 @@ USHORT GetTypeIndexByName (std::wstring TypeName)
       USHORT       _TypeIndex = TypeInfo->TypeIndex; // OBJECT_TYPE_INFORMATION_V2 includes it in the struct
       std::wstring _TypeName  = std::wstring(TypeInfo->TypeName.Buffer, TypeInfo->TypeName.Length / sizeof(WCHAR));
 
-      PLOG_VERBOSE << std::to_wstring(TypeInfo->TypeIndex) << " - " << _TypeName;
-
       if (TypeName == _TypeName)
       {
+        PLOG_VERBOSE << std::to_wstring(TypeInfo->TypeIndex) << " - " << _TypeName;
+
         ret = _TypeIndex;
         break;
       }
