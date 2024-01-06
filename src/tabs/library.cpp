@@ -486,7 +486,7 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
                 DirectX::SaveToWICFile (
                   img.GetImages(),
                   img.GetImageCount(),
-                  DirectX::WIC_FLAGS_NONE,
+                  DirectX::WIC_FLAGS_FORCE_SRGB,
                   GetWICCodec (DirectX::WIC_CODEC_PNG),
                   (_data->destination + _data->ext_target).c_str()
                 )
