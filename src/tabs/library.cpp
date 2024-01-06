@@ -65,6 +65,7 @@ bool                   steamRunning      = false;
 bool                   steamFallback     = false;
 bool                   loadCover         = false;
 bool                   tryingToLoadCover = false;
+bool                   tryingToSaveCover = false;
 std::atomic<bool>      gameCoverLoading  = false;
 std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
@@ -328,7 +329,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
 #pragma region UpdateGameCover
 
 bool
-UpdateGameCover (app_record_s* pApp, std::wstring_view path)
+SaveGameCover (app_record_s* pApp, std::wstring_view path)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -401,7 +402,10 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
   if (targetPath == L"")
+  {
+    PLOG_ERROR << "Could not resolve target path?!";
     return false;
+  }
 
   struct thread_s {
     std::wstring source        = L"";
@@ -447,48 +451,65 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
 
       _data->destination += L"cover";
 
-      std::wstring tmpPath = _data->destination + ((_data->ext_original == L".bmp")
-                                                ? L".tmp"
-                                                : _data->ext_target);
+      // We store the new file in .tmp first
+      std::wstring tmpPath = _data->destination + L".tmp";
 
       bool success = false;
+      bool backup  = false;
 
       if (_data->source == (_data->destination + _data->ext_original))
       {
-        PLOG_WARNING << "Source image and destination image is the same, aborting as there is nothing to do.";
-        success = false;
+        PLOG_WARNING << "Source image and destination image is the same!";
       }
 
       else
       {
-        DeleteFile((_data->destination + L".jpg").c_str());
-        DeleteFile((_data->destination + L".png").c_str());
+        // Backup any existing copies
+        backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
+               || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
 
         // This both downloads a new image from the internet as well as copies a local file to the destination
         // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
-        success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,          tmpPath)
-                                  :                 CopyFile (_data->source.c_str(),  tmpPath.c_str(), false);
+        success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         tmpPath)
+                                  :                 CopyFile (_data->source.c_str(), tmpPath.c_str(), false);
+
+        if (! success)
+        {
+          PLOG_ERROR << "Could not save the source image to the destination path!";
+          PLOG_ERROR << "Source:      " << _data->source;
+          PLOG_ERROR << "Destination: " << tmpPath;
+        }
       }
 
-      // BMP images needs to be converted
-      if (success && _data->ext_original == L".bmp")
-      {
-        DirectX::TexMetadata  meta = { };
-        DirectX::ScratchImage  img = { };
+      DirectX::TexMetadata  meta = { };
+      DirectX::ScratchImage  img = { };
 
-        PLOG_VERBOSE << "Converting BMP image to PNG...";
-        success = false;
-          
-        if (SUCCEEDED (
-              DirectX::LoadFromWICFile (
-                tmpPath.c_str (),
-                DirectX::WIC_FLAGS_NONE,
-                &meta, img
-              )
+      // Try and load the image
+      if (success && FAILED (
+            DirectX::LoadFromWICFile (
+              tmpPath.c_str (),
+              DirectX::WIC_FLAGS_NONE,
+              &meta, img
             )
           )
+        )
+      {
+        success = false;
+
+        PLOG_ERROR << "The saved image could not be loaded! It is either corrupt or in an unsupported format.";
+        PLOG_ERROR << "Source: " << _data->source;
+      }
+
+      // Swap it in
+      if (success)
+      {
+        // BMP images needs to be converted to PNG
+        // Extremely basic and rudimentary check -- should really preferably read the metadata instead
+        if (_data->ext_original == L".bmp")
         {
-          if (SUCCEEDED (
+          PLOG_DEBUG << "Converting BMP image to PNG...";
+          success =
+            SUCCEEDED (
                 DirectX::SaveToWICFile (
                   img.GetImages(),
                   img.GetImageCount(),
@@ -496,22 +517,39 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
                   GetWICCodec (DirectX::WIC_CODEC_PNG),
                   (_data->destination + _data->ext_target).c_str()
                 )
-              )
-            )
-          {
-            success = true;
-          }
+            );
         }
 
-        // Delete the temporary file after we are done with it
-        DeleteFile(tmpPath.c_str());
+        // Rename remaining types
+        else
+        {
+          PLOG_DEBUG << "Swapping in the new file...";
+          success =
+            MoveFileEx((_data->destination + L".tmp").c_str(), (_data->destination + _data->ext_target).c_str(), MOVEFILE_REPLACE_EXISTING);
+        }
       }
 
+      // If everything checks out, remove any backups made
+      if (success)
+      {
+        DeleteFile((_data->destination + L".jpg.old").c_str());
+        DeleteFile((_data->destination + L".png.old").c_str());
+      }
 
-      if (! success)
-        PLOG_ERROR << "Failed to process the new cover image!";
-      else 
-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
+      // If something failed, restore the backups
+      else if (backup)
+      {
+        PLOG_INFO << "Restoring the original cover...";
+        MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
+        MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
+      }
+
+      // Delete the temporary file after we are done with it
+      DeleteFile(tmpPath.c_str());
+
+      PLOG_ERROR_IF(! success) << "Failed to process the new cover image!";
+      
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
 
       PLOG_INFO  << "Finished updating game cover asynchronously...";
     
@@ -532,7 +570,7 @@ UpdateGameCover (app_record_s* pApp, std::wstring_view path)
   else // Someting went wrong during thread creation, so free up the memory we allocated earlier
     delete data;
 
-  return false;
+  return threadCreated;
 }
 
 #pragma endregion
@@ -3546,7 +3584,17 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImVec2 vecPosCoverImage    = ImGui::GetCursorPos ( );
          vecPosCoverImage.x -= 1.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (loadCover)
+
+  // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
+  if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
+  {
+    ImGui::SetCursorPos (ImVec2 (
+      vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
+      vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
+    ImGui::TextDisabled (  cstrLabelLoading);
+  }
+
+  else if (loadCover)
   {
     // A new cover is meant to be loaded, so don't do anything for now...
   }
@@ -4582,10 +4630,20 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
           std::wstring filePath = std::wstring(pwszFilePath);
-          if (UpdateGameCover (pApp, filePath))
+          if (SaveGameCover (pApp, filePath))
           {
-            update    = true;
-            lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+            // This allows the "..." loading dots to be visible
+            tryingToSaveCover = true;
+            coverRefreshAppId = pApp->id;
+            coverRefreshStore = (int)pApp->store;
+      
+            // This sets up the current one to be released
+            vecCoverUv0_old = vecCoverUv0;
+            vecCoverUv1_old = vecCoverUv1;
+            pTexSRV_old.p   = pTexSRV.p;
+            pTexSRV.p       = nullptr;
+            fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+            fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
           }
         }
       }
@@ -5461,7 +5519,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
   }
   
-  if (loadCover && populated)
+  if (loadCover && populated && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
     // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
     // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
@@ -6356,7 +6414,23 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! dragDroppedFilePath.empty())
   {
-    UpdateGameCover (pApp, dragDroppedFilePath); // A child thread will set refreshCover once done
+    // A child thread will set refreshCover once done
+    if (SaveGameCover (pApp, dragDroppedFilePath))
+    {
+      // This allows the "..." loading dots to be visible
+      tryingToSaveCover = true;
+      coverRefreshAppId = pApp->id;
+      coverRefreshStore = (int)pApp->store;
+      
+      // This sets up the current one to be released
+      vecCoverUv0_old = vecCoverUv0;
+      vecCoverUv1_old = vecCoverUv1;
+      pTexSRV_old.p   = pTexSRV.p;
+      pTexSRV.p       = nullptr;
+      fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+      fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+    }
+
 
     dragDroppedFilePath.clear();
   }
@@ -6401,6 +6475,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       SKIF_ResourcesToFree.push(pTexSRV.p);
       pTexSRV.p = nullptr;
+    }
+
+    if (pTexSRV_old.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(pTexSRV_old.p);
+      pTexSRV_old.p = nullptr;
     }
 
     if (pPatTexSRV.p != nullptr)
