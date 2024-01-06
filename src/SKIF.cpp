@@ -2539,11 +2539,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         
         // 2024-01-06 - Disable the window title as modern apps tend to omit it entirely in the window title bar
 #define HideTitle
-#ifndef HideTitle
+#ifdef HideTitle
         ImGui::Text("                            "); // Empty space to restrict Shelly a bit
 #else
         ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
-#endif // !HideTitle
+#endif // HideTitle
 
         // Shelly the Ghost
         SKIF_UI_DrawShellyTheGhost ( );
