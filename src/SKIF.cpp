@@ -2536,21 +2536,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //  ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
 
         //else
-          ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
-
-#if 0
-
-        ImGui::SameLine ( );
-
-        if (_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( ))
-          ImGui::Text ("HDR: %s", (_registry.iHDRMode == 1) ? "10 bpc" :                             "16 bpc"          );
-        else 
-          ImGui::Text ("SDR: %s", (_registry.iSDRMode == 1) ? "10 bpc" : (_registry.iSDRMode == 2) ? "16 bpc" : "8 bpc");
-
-#endif
         
-        // Shell the Ghost
+        // 2024-01-06 - Disable the window title as modern apps tend to omit it entirely in the window title bar
+#define HideTitle
+#ifndef HideTitle
+        ImGui::Text("                            "); // Empty space to restrict Shelly a bit
+#else
+        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
+#endif // !HideTitle
 
+        // Shelly the Ghost
         SKIF_UI_DrawShellyTheGhost ( );
 
         ImGui::EndTabBar          ( );
