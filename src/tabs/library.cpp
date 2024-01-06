@@ -4266,13 +4266,18 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special handling at the bottom of the cover for Special K
-  if (! _registry.bHorizonMode            &&
-        pApp        != nullptr            &&
+  if (! _registry.bHorizonMode            && // Only when not using Horizon mode, and
+    ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
+       (pApp        != nullptr            && // or its selected in the list
         pApp->id    == SKIF_STEAM_APPID   &&
-        pApp->store == app_record_s::Store::Steam)
+        pApp->store == app_record_s::Store::Steam)))
   {
     ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
                                                               fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
+
+    if (_registry.bFadeCovers)
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
+
     ImGui::BeginGroup    ();
     static bool hoveredPatButton  = false,
                 hoveredPatCredits = false;
@@ -4355,6 +4360,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::IsItemHovered      ( );
 
     ImGui::EndGroup           ( );
+
+    if (_registry.bFadeCovers)
+      ImGui::PopStyleVar ( );
   }
 
 #pragma endregion
