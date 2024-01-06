@@ -47,9 +47,9 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_Spacing      ( );
 
   ImGui::TextWrapped      ("Among its main features are a latency-free borderless window mode, HDR retrofit for "
-                            "SDR games, Nvidia Reflex addition in unsupported games, as well as texture modding "
+                            "SDR games, Nvidia Reflex in unsupported games, as well as texture modding "
                             "for players and modders alike. While not all features are supported in all games, most "
-                            "DirectX 11 and 12 titles can make use of one if not more of these features."
+                            "DirectX 11 and 12 titles can make use of one or more of its features."
   );
   ImGui::NewLine          ( );
   ImGui::Text             ("Just hop on over to the");
