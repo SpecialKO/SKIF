@@ -288,20 +288,26 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   if (pApp->cloud_enabled && // If this is false, Steam Auto-Cloud is not enabled
     ! pApp->cloud_saves.empty ())
   {
+    std::set <std::wstring> _used_paths;
+
     for (auto& cloud : pApp->cloud_saves)
     {
-      if (cloud.second.valid == -1)
-        cloud.second.valid =
-          PathFileExistsW (cloud.second.evaluated_dir.c_str());
-
       if (cloud.second.valid == 0)
         continue;
 
-      if ( app_record_s::Platform::Unknown == cloud.second.platforms ||
-            app_record_s::supports (          cloud.second.platforms,
-            app_record_s::Platform::Windows )
-          )
-        menu.cloud_paths.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
+      if (app_record_s::supports (cloud.second.platforms, app_record_s::Platform::Windows) && 
+          app_record_s::Platform::Unknown != cloud.second.platforms)
+        cloud.second.valid = 0;
+
+      if (cloud.second.valid == -1)
+        cloud.second.valid = PathFileExistsW (cloud.second.evaluated_dir.c_str());
+
+      if (cloud.second.valid)
+      {
+        // Filter out duplicate paths
+        if (_used_paths.emplace (cloud.second.evaluated_dir).second)
+          menu.cloud_paths.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
+      }
     }
   }
 
