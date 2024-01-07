@@ -665,8 +665,8 @@ SKIF_Util_OpenURI (
 bool
 SKIF_Util_CreateProcess (
                      const std::wstring_view& path,
-                                     LPCWSTR  parameters,
-                                     LPCWSTR  directory,
+                     const std::wstring_view& parameters,
+                     const std::wstring_view& directory,
         std::map<std::wstring, std::wstring>* env,
                    SKIF_Util_CreateProcess_s* proc)
 {
@@ -688,18 +688,18 @@ SKIF_Util_CreateProcess (
   data->proc = proc;
   data->path = path;
 
-  if (parameters != NULL)
+  if (! parameters.empty())
     data->parameters = parameters;
 
   // We use a custom combination of <"path" parameter> because many apps expects the module name as the first arg (argv[0]),
   //   and as such ignores it when processing command line arguments, so not doing that could cause unexpected behaviour.
   data->parameters_actual = (LR"(")" + std::wstring(path) + LR"(")");
 
-  if (parameters != NULL)
+  if (! parameters.empty())
     data->parameters_actual += (LR"( )" + std::wstring(parameters));
 
   // If a directory is not provided, retrieve the folder of the application we are about to launch
-  if (directory == NULL)
+  if (! directory.empty())
   {
     wchar_t              wszExecutableBase [MAX_PATH] = { };
     StringCchCatW       (wszExecutableBase, MAX_PATH, path.data());
@@ -753,14 +753,14 @@ SKIF_Util_CreateProcess (
       PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
 
       if (CreateProcessW (
-          _data->path.c_str(),
-          const_cast<wchar_t *>(_data->parameters_actual.c_str()),
+          (_data->path     .empty()) ? NULL : _data->path.c_str(),
+          (_data->path     .empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
           NULL,
           NULL,
           FALSE,
           NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
           const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
-          _data->directory.c_str(),
+          (_data->directory.empty()) ? NULL : _data->directory.c_str(),
           &supinfo,
           &procinfo))
       {
