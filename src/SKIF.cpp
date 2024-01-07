@@ -505,16 +505,15 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
   std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
 
-  // If it's just an empty space, clear it
-  if (proxiedCmdLine == L" ")
-    proxiedCmdLine.clear();
+  // Trim any leading spaces
+  proxiedCmdLine.erase(proxiedCmdLine.begin(), std::find_if (proxiedCmdLine.begin(), proxiedCmdLine.end(), [](wchar_t ch) { return !std::iswspace(ch); }));
+
+  // Trim any trailing spaces
+  proxiedCmdLine.erase(std::find_if (proxiedCmdLine.rbegin(), proxiedCmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), proxiedCmdLine.end());
 
   // Path does not seem to be absolute -- add the current working directory in front of the path
   if (path.find(L"\\") == std::wstring::npos)
     path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
-
-  // Trim any spaces at the end (not needed atm)
-  //path.erase (std::find_if (path.rbegin(), path.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), path.end());
 
   // Assume the original working directory is the right one
   // This is required for e.g. Shadow Warrior Classic Redux
