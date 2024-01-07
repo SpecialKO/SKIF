@@ -5207,7 +5207,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
         else if (! launchGameMenu)
         {
-          if (pApp->store == app_record_s::Store::Steam && _registry.bInstantPlaySteam)
+          // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
+          if (pApp->store == app_record_s::Store::Steam && _registry.bInstantPlaySteam && launchConfig->isExecutableFullPathValid ( ))
             launchInstant = true;
 
           if (pApp->store == app_record_s::Store::GOG   && _registry.bInstantPlayGOG)
@@ -5242,7 +5243,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         PLOG_VERBOSE << "Performing an Xbox launch...";
 
-        if (SKIF_Util_CreateProcess (launchConfig->executable_helper))
+        if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L""))
         {
           // Don't check the running state for at least 7.5 seconds
           pApp->_status.dwTimeDelayChecks = current_time + 7500;
@@ -5529,7 +5530,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
 
         //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-        if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str()))
+        if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
         {
           // Don't check the running state for at least 7.5 seconds
           pApp->_status.dwTimeDelayChecks = current_time + 7500;
