@@ -5263,8 +5263,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         bool launchDecision       = true;
 
-        // We need to use a proxy variable since we might remove a substring of the launch options
-        std::wstring cmdLine      = launchConfig->getLaunchOptions();
+        // We need to use proxy variables since we might remove a substring of the launch options
+        std::wstring cmdLine = launchConfig->getLaunchOptions();
+        bool useShellExecute = false; // This is in case a %COMMAND% Steam call is made
 
         // Transform to lowercase
         std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
@@ -5304,13 +5305,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         std::map<std::wstring, std::wstring> env;
+        bool steamOverlay = true;
 
         if (uiSteamAppID != 0)
         {
           PLOG_DEBUG << "Using Steam App ID : " << uiSteamAppID;
           env.emplace       (L"SteamAppId",        wsSteamAppID);
           
-          bool steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser (true));
+          steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser (true));
 
           if (! steamOverlay)
           {
@@ -5331,11 +5333,15 @@ SKIF_UI_Tab_DrawLibrary (void)
               std::string steamLaunchOptionsLower =
                 SKIF_Util_ToLower (steamLaunchOptions);
 
-              if (steamLaunchOptionsLower.find("skif ") != std::string::npos)
+              std::string sSteam_Command = "%command%"; // Only for Steam games
+              size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
+
+              // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
+              if (! usingSK && steamLaunchOptionsLower.find("skif ") == 0)
               {
                 launchDecision = false;
 
-                // Escape any percent signs (%)
+                // Escape any percent signs (%) as otherwise ImGui won't be able to show the string properly
                 for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
                           pos != std::string::npos;                      // Validate we're still in the string
                           steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
@@ -5352,12 +5358,33 @@ SKIF_UI_Tab_DrawLibrary (void)
                 PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
               }
 
+              // Check if a %COMMAND% is a part of the launch options
+              // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
+              //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
+              else if (posSteam_Command_start != std::string::npos)
+              {
+                // Base is dev-specified executable
+                std::wstring newCmdLine = launchConfig->getExecutableFullPath ( );
+                std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
+
+                // Appended is dev-specified cmd line arguments
+                if (! cmdLine.empty())
+                  newCmdLine += L" " + cmdLine;
+
+                // Replace %command% with the dev-specified exe and args
+                wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
+
+                // Swap in the result and flag to use shell execute
+                cmdLine = wsSteamLO;
+                useShellExecute = true;
+              }
+
               // Append the launch command string with the one from Steam...
               else {
                 // If the cmdLine is not empty, add a space as well
                 if (! cmdLine.empty())
                   cmdLine += L" ";
-                
+
                 cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
               }
             }
@@ -5378,11 +5405,90 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
 
-          if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+          std::wstring dirPath =
+            (! launchConfig->working_dir.empty())
+                ? launchConfig->working_dir.c_str()
+                : launchConfig->getExecutableDir().c_str();
+
+          // This is a fallback for handling Steam's %COMMAND% scenarios
+          if (useShellExecute)
+          {
+            // Note that any new process will inherit SKIF's environment variables
+            if (_registry._LoadedSteamOverlay)
+              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+
+            // Set any custom environment variables
+            for (auto& var : env)
+              SetEnvironmentVariable (var.first.c_str(), var.second.c_str());
+
+            // We need to split cmdLine between executable and parameters
+            // Example that we may get: (replace %COMMAND% with game executable and launch options)
+            // SKIF %COMMAND%
+            // "C:\Windows\System32\Notepad.exe" %COMMAND%
+            // and so on and so forth...
+
+            std::wstring exePath;
+            
+            // First position is a quotation mark, assume executable is surrounded in them...
+            if (cmdLine.find(L"\"") == 0)
+            {
+              exePath = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1);                  // Executable
+              cmdLine = cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos); // Parameters
+            }
+
+            // Go by spaces instead
+            else if (cmdLine.find(L" ") != std::wstring::npos) {
+              exePath = cmdLine.substr(0, cmdLine.find(L" "));                      // Executable
+              cmdLine = cmdLine.substr(cmdLine.find(L" ") + 1, std::wstring::npos); // Parameters
+            }
+
+            // Fallback: cmdLine only has a single non-spaces unquoted path to an executable
+            else {
+              exePath = cmdLine;
+              cmdLine = L"";
+            }
+
+            SHELLEXECUTEINFOW
+              sexi              = { };
+              sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+              sexi.lpVerb       = L"OPEN";
+              sexi.lpFile       = exePath.c_str();
+              sexi.lpParameters = cmdLine.c_str();
+              sexi.lpDirectory  = dirPath.c_str();
+              sexi.nShow        = SW_SHOWNORMAL;
+              sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                                  SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
+                                  SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+              
+            PLOG_VERBOSE                       << "Performing a ShellExecute call...";
+            PLOG_VERBOSE_IF(! exePath.empty()) << "File      : " << exePath;
+            PLOG_VERBOSE_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
+            PLOG_VERBOSE_IF(! dirPath.empty()) << "Directory : " << dirPath;
+
+            // Attempt to execute the call
+            if (ShellExecuteExW (&sexi))
+              proc->hProcess = sexi.hProcess;
+
+            else {
+              PLOG_ERROR << "Shell execute failed ?!";
+              PLOG_ERROR << SKIF_Util_GetErrorAsWStr ( );
+
+              proc->id       =  0;
+              proc->store_id = -1;
+            }
+
+            // Remove any custom environment variables
+            for (auto& var : env)
+              SetEnvironmentVariable (var.first.c_str(), NULL);
+
+            if (_registry._LoadedSteamOverlay)
+              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+          }
+
+          // Main launcher
+          else if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
                              cmdLine.c_str(),
-                          (! launchConfig->working_dir.empty())
-                               ? launchConfig->working_dir.c_str()
-                               : launchConfig->getExecutableDir().c_str(),
+                             dirPath.c_str(),
                                 &env,
                                 proc
             ))
@@ -5396,9 +5502,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
               launchConfig->getExecutableFullPath ( ),
               cmdLine,
-           (! launchConfig->working_dir.empty())
-                ? launchConfig->working_dir.c_str()
-                : launchConfig->getExecutableDir().c_str(),
+              dirPath,
               launchConfig->getExecutableFullPath ( ),
               (! localInjection && usingSK));
           }
