@@ -24,6 +24,7 @@
 #include "../version.h"
 
 #include <strsafe.h>
+#include <cwctype>
 #include <dxgi1_5.h>
 
 #include <SKIF.h>
@@ -504,13 +505,16 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
   std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
 
-  // If it's just an empty space, strip it
+  // If it's just an empty space, clear it
   if (proxiedCmdLine == L" ")
-    proxiedCmdLine = L"";
+    proxiedCmdLine.clear();
 
   // Path does not seem to be absolute -- add the current working directory in front of the path
   if (path.find(L"\\") == std::wstring::npos)
     path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
+
+  // Trim any spaces at the end (not needed atm)
+  //path.erase (std::find_if (path.rbegin(), path.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), path.end());
 
   // Assume the original working directory is the right one
   // This is required for e.g. Shadow Warrior Classic Redux
@@ -520,9 +524,9 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   if (workingDirectory.empty() || workingDirectory.find(L"system32") != std::wstring::npos)
     workingDirectory = std::filesystem::path(path).parent_path().wstring();
 
-  PLOG_VERBOSE << "Executable:        " << path;
-  PLOG_VERBOSE << "Command Line Args: " << proxiedCmdLine;
-  PLOG_VERBOSE << "Working Directory: " << workingDirectory;
+  PLOG_VERBOSE                               << "Executable:        " << path;
+  PLOG_VERBOSE_IF (! proxiedCmdLine.empty()) << "Command Line Args: " << proxiedCmdLine;
+  PLOG_VERBOSE                               << "Working Directory: " << workingDirectory;
 
   bool isLocalBlacklisted  = false,
        isGlobalBlacklisted = false;
@@ -666,13 +670,9 @@ SKIF_Startup_LaunchGame (void)
   if (_Signal._GamePath.empty())
     return;
       
-  PLOG_INFO   << "Launching executable : " << _Signal._GamePath;
-  
-  if (! _Signal._GameWorkDir.empty())
-    PLOG_INFO << "   Working directory : " << _Signal._GameWorkDir;
-  
-  if (! _Signal._GameArgs.empty())
-    PLOG_INFO << "           Arguments : " << _Signal._GameArgs;
+  PLOG_INFO                                    << "Launching executable : " << _Signal._GamePath;
+  PLOG_INFO_IF(! _Signal._GameWorkDir.empty()) << "   Working directory : " << _Signal._GameWorkDir;
+  PLOG_INFO_IF(! _Signal._GameArgs   .empty()) << "           Arguments : " << _Signal._GameArgs;
 
   if (! _Signal._SteamAppID.empty ( ))
   {
@@ -685,7 +685,7 @@ SKIF_Startup_LaunchGame (void)
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = L"OPEN";
     sexi.lpFile       = _Signal._GamePath.c_str();
-    sexi.lpParameters = _Signal._GameArgs.c_str();
+    sexi.lpParameters = (! _Signal._GameArgs.empty()) ? _Signal._GameArgs.c_str() : NULL;
     sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
     sexi.nShow        = SW_SHOWNORMAL;
     sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
