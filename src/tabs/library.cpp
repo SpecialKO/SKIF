@@ -74,8 +74,8 @@ std::atomic<uint32_t>  modAppId          = 0;
 
 app_record_s::launch_config_s*
                        launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
-bool                   launchGame        = false; // Respects Instant Play preference
-bool                   launchGameMenu    = false; // Menu is always explicit
+bool                   launchGame        = false;   // Respects Instant Play preference
+bool                   launchGameMenu    = false;   // Menu is always explicit
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
@@ -274,6 +274,14 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   menu.numSecondaryLaunchConfigs = 0;
   for (auto& _launch_cfg : pApp->launch_configs)
   {
+    if (_launch_cfg.second.owns_dlc == -1)
+        _launch_cfg.second.owns_dlc  = (_launch_cfg.second.requires_dlc.empty())
+                                     ? 1 // If the launch cfg does not have a DLC requirement, then we "own" it (purely an optimization thing)
+                                     : (! g_apptickets.empty() && g_apptickets.find (_launch_cfg.second.requires_dlc) != g_apptickets.end()); // Check if an app ticket for the DLC is owned
+
+    if (! _launch_cfg.second.owns_dlc)
+      continue;
+
     if (_launch_cfg.first == 0)
       continue;
 
@@ -694,6 +702,10 @@ DrawGameContextMenu (app_record_s* pApp)
                 _launch_cfg.second.duplicate_exe_args)
             continue;
 
+          // Filter out launch configs requiring not owned DLCs
+          if (! _launch_cfg.second.owns_dlc)
+            continue;
+
           auto& _launch = _launch_cfg.second;
 
           // Separators between official / user / SKIF launch configs
@@ -784,6 +796,10 @@ DrawGameContextMenu (app_record_s* pApp)
         {
           if (! _launch_cfg.second.valid ||
                 _launch_cfg.second.duplicate_exe_args)
+            continue;
+
+          // Filter out launch configs requiring not owned DLCs
+          if (! _launch_cfg.second.owns_dlc)
             continue;
 
           auto& _launch = _launch_cfg.second;
@@ -1312,9 +1328,6 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       if (! pApp->branches.empty ())
       {
-        bool bMenuOpen =
-          ImGui::BeginMenu (ICON_FA_CODE_BRANCH "  Branches");
-
         static
           std::set  < std::string >
                       used_branches_;
@@ -1329,36 +1342,39 @@ DrawGameContextMenu (app_record_s* pApp)
           > branches;
 
         // Clear the cache when changing selection
-        if ( (! branches.empty ()) &&
-                branches.begin ()->second.second->parent != pApp )
+        if (branches.empty () ||                              // If we have no cache, or
+            branches.begin ()->second.second->parent != pApp) //   the cache is outdated
         {
           branches.clear       ();
           used_branches_.clear ();
+
+          for ( auto& it : pApp->branches )
+          {
+            if (used_branches_.emplace (it.first).second)
+            {
+              auto& branch =
+                it.second;
+
+              // Sort in descending order
+              branches.emplace (
+                std::make_pair   (-(int64_t)branch.build_id,
+                  std::make_pair (
+                    const_cast <std::string                   *> (&it.first),
+                    const_cast <app_record_s::branch_record_s *> (&it.second)
+                  )
+                )
+              );
+            }
+          }
         }
+
+        bool bMenuOpen =
+          ImGui::BeginMenu  (
+            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", branches.size()).c_str()
+          );
 
         if (bMenuOpen)
         {
-          if (branches.empty ())
-          {
-            for ( auto& it : pApp->branches )
-            {
-              if (used_branches_.emplace (it.first).second)
-              {
-                auto& branch =
-                  it.second;
-
-                // Sort in descending order
-                branches.emplace (
-                  std::make_pair   (-(int64_t)branch.build_id,
-                    std::make_pair (
-                      const_cast <std::string                   *> (&it.first),
-                      const_cast <app_record_s::branch_record_s *> (&it.second)
-                    )
-                  )
-                );
-              }
-            }
-          }
 
           for ( auto& it : branches )
           {
@@ -1411,7 +1427,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (! pApp->launch_configs.empty ())
       {
-        if (ImGui::BeginMenu(ICON_FA_FLASK_VIAL "  Launch Configs"))
+        if (ImGui::BeginMenu  (
+              SK_FormatString ("%s (%i)", ICON_FA_FLASK "  Launch Configs", pApp->launch_configs.size()).c_str()
+            ))
         {
           bool sepCustomSKIF = true,
                sepCustomUser = true;
@@ -1443,7 +1461,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             launch.id);
 
             ImGui::PushStyleColor (
-              ImGuiCol_Text, ! launch.beta_key.empty() ? ! launch.owns_dlc.empty()
+              ImGuiCol_Text, ! launch.beta_key.empty() ? ! launch.requires_dlc.empty()
                                    ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) // DLC required
                                    : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.5f) // Beta key required
                                 : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // Public
@@ -1456,10 +1474,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
             if (bExpand)
             {
-              ImGui::MenuItem ("Launch ID (SKIF)", std::to_string(launch.id).c_str());
+              ImGui::MenuItem ("ID", std::to_string(launch.id).c_str());
 
               if (pApp->store == app_record_s::Store::Steam)
-                ImGui::MenuItem ("Launch ID (Steam)", std::to_string(launch.id_steam).c_str());
+                ImGui::MenuItem ("ID (Steam)", std::to_string(launch.id_steam).c_str());
 
               if (! launch.getExecutableFileNameUTF8().empty())
                 ImGui::MenuItem ("Executable", launch.getExecutableFileNameUTF8().c_str());
@@ -1468,7 +1486,7 @@ DrawGameContextMenu (app_record_s* pApp)
                 ImGui::MenuItem ("Arguments", launch.getLaunchOptionsUTF8().c_str());
 
               if (! launch.working_dir.empty())
-                ImGui::MenuItem ("Working Directory", SK_WideCharToUTF8(launch.working_dir).c_str());
+                ImGui::MenuItem ("Working Directory", launch.getWorkingDirectoryUTF8().c_str());
 
               ImGui::MenuItem ("Type", std::to_string((int)launch.type).c_str());
 
@@ -1476,11 +1494,11 @@ DrawGameContextMenu (app_record_s* pApp)
 
               ImGui::MenuItem ("CPU Architecture", std::to_string((int)launch.cpu_type).c_str());
 
-              if (! launch.owns_dlc.empty())
-                ImGui::MenuItem ("Owns DLC", SK_WideCharToUTF8(launch.owns_dlc).c_str());
+              if (! launch.requires_dlc.empty())
+                ImGui::MenuItem ("Requires DLC", launch.requires_dlc.c_str());
 
               if (! launch.beta_key.empty())
-                ImGui::MenuItem ("Beta key", SK_WideCharToUTF8(launch.beta_key).c_str());
+                ImGui::MenuItem ("Requires Beta", launch.beta_key.c_str());
 
               ImGui::EndMenu ();
             }
@@ -3172,8 +3190,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Refresh the current Steam user
       SKIF_Steam_GetCurrentUser     (true);
       
-      // Preload any custom launch options for all Steam games
-      SKIF_Steam_PreloadAllLaunchOptions (SKIF_Steam_GetCurrentUser());
+      // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
+      SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser());
 
       // Preload all appinfo.vdf data
       // This is needed for SKIF's fallback process tracking
@@ -5382,9 +5400,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           try {
             uiSteamAppID = std::stoi(wsSteamAppID);
           }
+
           catch (const std::exception& e)
           {
             UNREFERENCED_PARAMETER(e);
+            PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
+            uiSteamAppID = 0;
           }
         }
 
