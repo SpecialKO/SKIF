@@ -266,9 +266,9 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
   // Refresh the context menu cached data
   
   // Profile + Screenshots
-  menu.profileFolderExists = PathFileExists (pApp->specialk.injection.config.dir.c_str());
-  menu.wsScreenshotDir          = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
-  menu.screenshotsFolderExists  = (menu.profileFolderExists) ? PathFileExists (menu.wsScreenshotDir.c_str()) : false;
+  menu.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.dir.c_str());
+  menu.wsScreenshotDir         = pApp->specialk.injection.config.dir + LR"(\Screenshots)";
+  menu.screenshotsFolderExists = (menu.profileFolderExists) ? PathFileExists (menu.wsScreenshotDir.c_str()) : false;
 
   // Check how many secondary launch configs are valid
   menu.numSecondaryLaunchConfigs = 0;
@@ -289,7 +289,7 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
     if (! _launch_cfg.second.valid ||
           _launch_cfg.second.duplicate_exe_args)
       continue;
-        
+    
     menu.numSecondaryLaunchConfigs++;
   }
 
@@ -330,6 +330,28 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
                  :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
                                                                 : L"https://www.pcgamingwiki.com/w/index.php?search=")
                                                                   + menu.pcgwValue;
+
+  // Steam Branches
+  menu.branches.clear ();
+  std::set <std::string> used_branches;
+  for ( auto& it : pApp->branches )
+  {
+    if (used_branches.emplace (it.first).second)
+    {
+      auto& branch =
+        it.second;
+
+      // Sort in descending order
+      menu.branches.emplace (
+        std::make_pair   (-(int64_t)branch.build_id,
+          std::make_pair (
+            const_cast <std::string                   *> (&it.first),
+            const_cast <app_record_s::branch_record_s *> (&it.second)
+          )
+        )
+      );
+    }
+  }
 }
 
 #pragma endregion
@@ -1329,55 +1351,15 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       if (! pApp->branches.empty ())
       {
-        static
-          std::set  < std::string >
-                      used_branches_;
-
-        using branch_ptr_t =
-          std::pair <          std::string*,
-              app_record_s::branch_record_s* >;
-
-        static
-          std::multimap <
-            int64_t, branch_ptr_t
-          > branches;
-
-        // Clear the cache when changing selection
-        if (branches.empty () ||                              // If we have no cache, or
-            branches.begin ()->second.second->parent != pApp) //   the cache is outdated
-        {
-          branches.clear       ();
-          used_branches_.clear ();
-
-          for ( auto& it : pApp->branches )
-          {
-            if (used_branches_.emplace (it.first).second)
-            {
-              auto& branch =
-                it.second;
-
-              // Sort in descending order
-              branches.emplace (
-                std::make_pair   (-(int64_t)branch.build_id,
-                  std::make_pair (
-                    const_cast <std::string                   *> (&it.first),
-                    const_cast <app_record_s::branch_record_s *> (&it.second)
-                  )
-                )
-              );
-            }
-          }
-        }
-
         bool bMenuOpen =
           ImGui::BeginMenu  (
-            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", branches.size()).c_str()
+            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", _cache.menu.branches.size()).c_str()
           );
 
         if (bMenuOpen)
         {
 
-          for ( auto& it : branches )
+          for ( auto& it : _cache.menu.branches)
           {
             auto& branch_name =
                   *(it.second.first);
@@ -1477,7 +1459,7 @@ DrawGameContextMenu (app_record_s* pApp)
             {
               ImGui::MenuItem ("ID", std::to_string(launch.id).c_str());
 
-              if (pApp->store == app_record_s::Store::Steam)
+              if (pApp->store == app_record_s::Store::Steam && launch.id_steam != -1)
                 ImGui::MenuItem ("ID (Steam)", std::to_string(launch.id_steam).c_str());
 
               if (! launch.getExecutableFileNameUTF8().empty())

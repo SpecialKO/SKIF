@@ -46,13 +46,18 @@ struct SKIF_Lib_SummaryCache
     };
   };
 
+  using branch_ptr_t =
+    std::pair <          std::string*,
+        app_record_s::branch_record_s* >;
+
   // This struct holds the cache for the right click context menu
   struct {
     int  numSecondaryLaunchConfigs = 0; // Secondary launch options
     bool profileFolderExists       = false;
     bool screenshotsFolderExists   = false;
     std::wstring wsScreenshotDir   = L"";
-    std::vector <CloudPath> cloud_paths; // Steam Auto-Cloud
+    std::vector   <CloudPath> cloud_paths; // Steam Auto-Cloud
+    std::multimap <int64_t, branch_ptr_t> branches; // Steam Branches
 
     // PCGamingWiki
     std::wstring pcgwValue;
