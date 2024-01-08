@@ -16,7 +16,7 @@ New versions are distributed through the packaged Special K installer available 
 - Reset game profile or apply the compatibility profile
 - Disable/blacklist Special K for games or processes
 - Detect injected games or processes as well as common conflicts that may cause issues
-- Shows active hardware MPO support of the system
+- Shows active multiplane overlay (MPO) support of the system
 - *and various other features..*
 
 ## Platforms
