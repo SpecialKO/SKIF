@@ -634,7 +634,6 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
           // Filter launch configurations requiring a beta branch
           if (! launch.beta_key.empty())
-            //continue;
             launch.valid = 0;
 
           // File extension, so we can flag out non-executable ones (e.g. link2ea)
@@ -645,8 +644,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           if (pwszExtension == NULL || (pwszExtension + 1) == NULL || _wcsicmp (pwszExtension, L".exe") != 0)
             launch.valid = 0;
 
-          // Flag duplicates
-          if (launch.isExecutableFileNameValid())
+          // Flag duplicates...
+          //   but not if we found them as not valid above (as that would filter out custom launch configs that matches beta launch configs...)
+          if (launch.isExecutableFileNameValid() && launch.valid)
           {
             // Use the executable to identify duplicates (affects Disable Special K menu)
             if (! _used_executables.emplace (launch.getExecutableFileName()).second)
