@@ -151,6 +151,23 @@ app_launch_config_s::getLaunchOptionsUTF8 (void)
 }
 
 std::wstring
+app_launch_config_s::getWorkingDirectory (void) const
+{
+  return working_dir;
+}
+
+std::string
+app_launch_config_s::getWorkingDirectoryUTF8 (void)
+{
+  if (! working_dir_utf8.empty())
+    return working_dir_utf8;
+
+  working_dir_utf8 = SK_WideCharToUTF8 (getWorkingDirectory ( ));
+
+  return working_dir_utf8;
+}
+
+std::wstring
 app_launch_config_s::getBlacklistFilename (void)
 {
   if (! blacklist_file.empty () && executable_valid != -1)

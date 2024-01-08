@@ -255,6 +255,9 @@ struct app_record_s {
     
     std::wstring getLaunchOptions           (void) const;
     std:: string getLaunchOptionsUTF8       (void);
+    
+    std::wstring getWorkingDirectory        (void) const;
+    std:: string getWorkingDirectoryUTF8    (void);
 
   //private:
   //app_record_s* parent = nullptr;
@@ -274,17 +277,19 @@ struct app_record_s {
     std::wstring launch_options;
     std:: string launch_options_utf8;
     std::wstring working_dir;
+    std:: string working_dir_utf8;
     std::wstring blacklist_file;
     std::wstring elevated_file;
     std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
-    std::wstring beta_key; // Steam: Only show launch option if this beta branch is active
-    std::wstring owns_dlc; // Steam: Only show launch option if this DLC is owned
+    std:: string beta_key;          // Steam: Only show launch option if this beta branch is active
+    std:: string requires_dlc;      // Steam: Only show launch option if this DLC is owned
 
     int          valid              = -1;    // Launch config is valid (what does this actually mean?)
     bool         duplicate_exe      = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable as another)
     bool         duplicate_exe_args = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable and arguments as another)
     bool         custom_skif        = false; // Is the launch config an online-based custom one populated by SKIF ?
     bool         custom_user        = false; // Is the launch config a user-specied custom one?
+    int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
     int          elevated           = -1;
   };

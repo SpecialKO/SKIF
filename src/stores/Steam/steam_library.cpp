@@ -36,6 +36,9 @@ std::vector <
   std::pair < std::string, app_record_s >
             > g_apps;
 
+std::set    < std::string >
+              g_apptickets;
+
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
 #define MAX_STEAM_LIBRARIES 16
@@ -839,10 +842,14 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
 }
 
 // NOT THREAD SAFE! Updates g_apps with the new value
-bool SKIF_Steam_PreloadAllLaunchOptions (SteamId3_t userid)
+bool
+SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
 {
   if (g_apps.empty())
     return false;
+
+  // Clear any cached app tickets to prevent stale data from sticking around
+  g_apptickets.clear ( );
 
   // Implementation using the ValveFileVDF project
   std::string localConfig_data =
@@ -863,7 +870,7 @@ bool SKIF_Steam_PreloadAllLaunchOptions (SteamId3_t userid)
 
         if (user_localconfig.childs.size() > 0)
         {
-          // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+          // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
           auto& apps_localconfig =
             user_localconfig.
               childs.at("Software") ->
@@ -888,9 +895,26 @@ bool SKIF_Steam_PreloadAllLaunchOptions (SteamId3_t userid)
                   app.second.Steam_LaunchOption = attribs.at("LaunchOptions");
               }
             }
-
-            return true;
           }
+
+          // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
+          // This is used to determine if a DLC related launch option should be visible
+          auto& apptickets_localconfig =
+            user_localconfig.
+              childs.at("apptickets");
+
+          if (apptickets_localconfig != nullptr &&
+              apptickets_localconfig->attribs.size() > 0)
+          {
+            // Naively assume an app ticket indicates ownership
+            for (auto& child : apptickets_localconfig->attribs)
+            {
+              if (! child.first.empty())
+                g_apptickets.emplace (child.first);
+            }
+          }
+
+          return true;
         }
       }
 

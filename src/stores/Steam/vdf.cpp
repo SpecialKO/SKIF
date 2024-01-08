@@ -464,14 +464,20 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               launch_cfg.id       = launch_idx_skif;
               launch_cfg.id_steam = launch_idx_steam;
 
+              // Holds Widechar strings (external)
               std::unordered_map <std::string, std::wstring*>
-                string_map = {
+                wstring_map = {
                   { "executable",  &launch_cfg.executable     },
                   { "arguments",   &launch_cfg.launch_options },
                   { "description", &launch_cfg.description    },
-                  { "workingdir",  &launch_cfg.working_dir    },
+                  { "workingdir",  &launch_cfg.working_dir    }
+                };
+
+              // Holds UTF8 strings (internal only)
+              std::unordered_map <std::string, std::string*>
+                 string_map = {
                   { "betakey",     &launch_cfg.beta_key       }, // TODO: Fix this shit -- it's landing on the duplicate launch configs
-                  { "ownsdlc",     &launch_cfg.owns_dlc       }
+                  { "ownsdlc",     &launch_cfg.requires_dlc   }
                 };
 
               for (auto& key : finished_section.keys)
@@ -520,13 +526,22 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                       app_record_s::launch_config_s::Type::Unspecified;
                 }
 
+                else if (wstring_map.count (key.first) != 0)
+                {
+                  auto& string_dest =
+                    wstring_map [key.first];
+
+                  *string_dest =
+                    SK_UTF8ToWideChar ((const char *)key.second.second);
+                }
+
                 else if (string_map.count (key.first) != 0)
                 {
                   auto& string_dest =
                     string_map [key.first];
 
                   *string_dest =
-                    SK_UTF8ToWideChar ((const char *)key.second.second);
+                    std::string ((const char *)key.second.second);
                 }
               }
               
