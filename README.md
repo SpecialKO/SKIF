@@ -11,6 +11,8 @@ New versions are distributed through the packaged Special K installer available 
 - Update local injections of Special K
 - Manage the global injection service (autostart/autostop, stop behaviour, start with Windows)
 - List installed games on supported platforms and quickly inject Special K into them
+- Allow for quicker "Instant Play" launch options that bypasses the default launch process of store platforms (PSA: also stuff like cloud saves sync)
+- Adds custom launch configurations (managed through https://github.com/SpecialKO/SKIF_launch_configs)
 - Reset game profile or apply the compatibility profile
 - Disable/blacklist Special K for games or processes
 - Detect injected games or processes as well as common conflicts that may cause issues
