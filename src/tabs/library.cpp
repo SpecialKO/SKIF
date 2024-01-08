@@ -277,7 +277,8 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
     if (_launch_cfg.second.owns_dlc == -1)
         _launch_cfg.second.owns_dlc  = (_launch_cfg.second.requires_dlc.empty())
                                      ? 1 // If the launch cfg does not have a DLC requirement, then we "own" it (purely an optimization thing)
-                                     : (! g_apptickets.empty() && g_apptickets.find (_launch_cfg.second.requires_dlc) != g_apptickets.end()); // Check if an app ticket for the DLC is owned
+                                     : (! g_apptickets.empty() && g_apptickets.find (_launch_cfg.second.requires_dlc) != g_apptickets.end()); // Only show DLC options if the user has an app ticket for it
+    // Note that this design hides all DLC launch options until the user has signed into Steam
 
     if (! _launch_cfg.second.owns_dlc)
       continue;
