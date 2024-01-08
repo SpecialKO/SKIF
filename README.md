@@ -3,7 +3,7 @@
 
 The modern frontend used for managing Special K and its global injection service as well as quickly and easily inject Special K into games launched through the frontend.
 
-New versions are distributed through the packaged Special K installer available at https://special-k.info/
+New versions are distributed through the packaged Special K installer available at https://www.special-k.info/
 
 ## Features
 
