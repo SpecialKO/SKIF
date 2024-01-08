@@ -1409,6 +1409,89 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::Separator ( );
       }
 
+      if (! pApp->launch_configs.empty ())
+      {
+        if (ImGui::BeginMenu(ICON_FA_FLASK_VIAL "  Launch Configs"))
+        {
+          bool sepCustomSKIF = true,
+               sepCustomUser = true;
+
+          for ( auto& it : pApp->launch_configs )
+          {
+            auto& launch = it.second;
+
+            // Separators between official / user / SKIF launch configs
+            if (launch.custom_user && sepCustomUser)
+            {
+              sepCustomUser = false;
+              ImGui::Separator ( );
+            }
+
+            else if (launch.custom_skif && sepCustomSKIF)
+            {
+              sepCustomSKIF = false;
+              ImGui::Separator ( );
+            }
+
+            char        szButtonLabel [256] = { };
+
+            sprintf_s ( szButtonLabel, 255,
+                          "%s###LaunchConfig-%d",
+                            launch.getDescriptionUTF8().empty()
+                              ? launch.getExecutableFileNameUTF8().c_str ()
+                              : launch.getDescriptionUTF8().c_str (),
+                            launch.id);
+
+            ImGui::PushStyleColor (
+              ImGuiCol_Text, ! launch.beta_key.empty() ? ! launch.owns_dlc.empty()
+                                   ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) // DLC required
+                                   : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.5f) // Beta key required
+                                : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // Public
+            );
+
+            bool bExpand =
+              ImGui::BeginMenu (szButtonLabel);
+
+            ImGui::PopStyleColor ();
+
+            if (bExpand)
+            {
+              ImGui::MenuItem ("Launch ID (SKIF)", std::to_string(launch.id).c_str());
+
+              if (pApp->store == app_record_s::Store::Steam)
+                ImGui::MenuItem ("Launch ID (Steam)", std::to_string(launch.id_steam).c_str());
+
+              if (! launch.getExecutableFileNameUTF8().empty())
+                ImGui::MenuItem ("Executable", launch.getExecutableFileNameUTF8().c_str());
+
+              if (! launch.getLaunchOptionsUTF8().empty())
+                ImGui::MenuItem ("Arguments", launch.getLaunchOptionsUTF8().c_str());
+
+              if (! launch.working_dir.empty())
+                ImGui::MenuItem ("Working Directory", SK_WideCharToUTF8(launch.working_dir).c_str());
+
+              ImGui::MenuItem ("Type", std::to_string((int)launch.type).c_str());
+
+              ImGui::MenuItem ("Operating System", std::to_string((int)launch.platforms).c_str());
+
+              ImGui::MenuItem ("CPU Architecture", std::to_string((int)launch.cpu_type).c_str());
+
+              if (! launch.owns_dlc.empty())
+                ImGui::MenuItem ("Owns DLC", SK_WideCharToUTF8(launch.owns_dlc).c_str());
+
+              if (! launch.beta_key.empty())
+                ImGui::MenuItem ("Beta key", SK_WideCharToUTF8(launch.beta_key).c_str());
+
+              ImGui::EndMenu ();
+            }
+          }
+
+          ImGui::EndMenu ();
+        }
+
+        ImGui::Separator ( );
+      }
+
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
       if (ImGui::Selectable ("Copy app ID"))
       {
