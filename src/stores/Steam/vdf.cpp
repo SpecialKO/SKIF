@@ -458,8 +458,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               // The index used solely for parsing
               int idx = launch_idx_steam;
 
+              // Use the Steam launch key to workaround some parsing issue or another...
+              // TODO: Fix this shit -- it's a shitty workaround for stupid duplicate parsing!
+              //       AND it breaks Instant Play custom options... :(
               auto& launch_cfg =
-                pAppRecord->launch_configs [launch_idx_steam]; // Use the Steam launch key to workaround some parsing issue or another... TODO: Fix this shit -- it's a shitty workaround for stupid duplicate parsing!
+                pAppRecord->launch_configs [launch_idx_steam]; 
 
               launch_cfg.id       = launch_idx_skif;
               launch_cfg.id_steam = launch_idx_steam;
@@ -568,15 +571,45 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           }
         }
 
+        // At this point, since we used Steam's index as the position to stuff data into, the vector has
+        //   has objects all over -- some at 0, some at 1, others at 0-4, not 5, 6-9. Basically we cannot
+        //     be certain of anything, at all, what so bloody ever! So let's just recreate the std::map!
+
+        std::vector <app_record_s::launch_config_s> _cleaner;
+
+        // Put away put away put away put away
+        for ( auto& keep : pAppRecord->launch_configs )
+          _cleaner.push_back (keep.second);
+        
+        // Clean clean clean clean!
+        pAppRecord->launch_configs.clear ();
+
+        // Restore restore restore restore!
+        for ( auto& launch : _cleaner )
+        {
+          // Reset SKIF's internal identifer for the launch configs
+          launch.id = 
+            static_cast<int> (pAppRecord->launch_configs.size());
+
+          // Add it back
+          pAppRecord->launch_configs.emplace (
+            static_cast<int> (pAppRecord->launch_configs.size()),
+            launch);
+        }
+        // std::map is now reliable again!
+
         std::set    <std::wstring>          _used_executables;
         std::set    <std::wstring>          _used_executables_arguments;
         std::vector <app_record_s::launch_config_s> _launches;
 
-        // Workaround for custom launch configs
+        // Now add in our custom launch configs!
         for (auto& custom_cfg : pAppRecord->launch_configs_custom)
         {
           custom_cfg.second.id =
             static_cast<int> (pAppRecord->launch_configs.size());
+
+          // Custom launch config, so Steam launch ID is nothing we use
+          custom_cfg.second.id_steam = -1;
 
           if (! pAppRecord->launch_configs.emplace (custom_cfg.second.id, custom_cfg.second).second)
             PLOG_ERROR << "Failed adding a custom launch config to the launch map. An element at that position already exists!";
