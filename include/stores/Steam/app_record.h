@@ -134,12 +134,6 @@ struct app_record_s {
     All     = 0xffff
   };
 
-  enum class AppType {
-    Default     = 0x1,
-    Config      = 0x2,
-    Unspecified = 0xffff
-  };
-
   enum class CPUType {
     Common = 0x0, // Check the common config if encountered
     x86    = 0x1,
@@ -188,8 +182,20 @@ struct app_record_s {
   };
 
   struct common_config_s {
+
+    enum class AppType {   // Used by Steam to indicate the type of "app" we're dealing with
+      Unknown     = 0x0,   // Default in SKIF
+      Game        = 0x1,   // game
+      Application = 0x2,   // application
+      Tool        = 0x3,   // tool
+      Music       = 0x4,   // music
+      Demo        = 0x5,   // demo
+      Unspecified = 0xffff // not expected to be seen
+    };
+
     uint32_t     appid     = 0;
     CPUType      cpu_type  = CPUType::x86;
+    AppType      type      = AppType::Unknown; // Steam
   };
 
   struct extended_config_s {
@@ -208,10 +214,20 @@ struct app_record_s {
   } extended_config;
 
   struct launch_config_s {
-    int          id        = 0; // Used only by Steam client, mostly, I guess?
+
+    enum class Type {
+      Default     = 0x0,   // default - Launch (Default)
+      Option1     = 0x1,   // option1 - Play %%description%% (previously Config)
+      Option2     = 0x2,   // option2 - Play %%description%%
+      Option3     = 0x3,   // option3 - Play %%description%%
+      Unspecified = 0xffff // none    - Unspecified
+    };
+
+    int          id        = 0; // SKIF's internal launch identifier
+    int          id_steam  = 0; // Steam's internal launch identifer
     sk_install_state_s     injection;
 
-    AppType      app_type  = AppType::Default;
+    Type         type      = Type::Unspecified;
     CPUType      cpu_type  = CPUType::Common;
     Platform     platforms = Platform::All;
 
@@ -260,8 +276,9 @@ struct app_record_s {
     std::wstring working_dir;
     std::wstring blacklist_file;
     std::wstring elevated_file;
-    std::wstring type;
     std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
+    std::wstring beta_key; // Steam: Only show launch option if this beta branch is active
+    std::wstring owns_dlc; // Steam: Only show launch option if this DLC is owned
 
     int          valid              = -1;    // Launch config is valid (what does this actually mean?)
     bool         duplicate_exe      = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable as another)

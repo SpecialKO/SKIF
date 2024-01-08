@@ -418,24 +418,25 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                   pAppRecord->common_config.cpu_type =
                     _ParseOSArch (key);
                 }
-
-#if 0
+                
                 if (! _stricmp (key.first, "type"))
                 {
                   if      (! _stricmp ((char *)key.second.second, "game"))
-                    pAppRecord->type = "Game";
+                    pAppRecord->common_config.type =
+                      app_record_s::common_config_s::AppType::Game;
                   else if (! _stricmp ((char *)key.second.second, "application"))
-                    pAppRecord->type = "Application";
+                    pAppRecord->common_config.type =
+                      app_record_s::common_config_s::AppType::Application;
                   else if (! _stricmp ((char *)key.second.second, "tool"))
-                    pAppRecord->type = "Tool";
+                    pAppRecord->common_config.type =
+                      app_record_s::common_config_s::AppType::Tool;
                   else if (! _stricmp ((char *)key.second.second, "music"))
-                    pAppRecord->type = "Music";
+                    pAppRecord->common_config.type =
+                      app_record_s::common_config_s::AppType::Music;
                   else if (! _stricmp ((char *)key.second.second, "demo"))
-                    pAppRecord->type = "Demo";
-                  else
-                    pAppRecord->type = SK_FormatString ("(?) %s", (char *)key.second.second);
+                    pAppRecord->common_config.type =
+                      app_record_s::common_config_s::AppType::Demo;
                 }
-#endif
               }
             }
 
@@ -444,7 +445,9 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                  finished_section.name.find ("appinfo.config.launch.")
                )
             {
-              int launch_idx =
+              //PLOG_VERBOSE << "---------------------------";
+
+              int launch_idx_skif =
                 static_cast<int> (pAppRecord->launch_configs.size());
               int launch_idx_steam = 0; // We do not currently actually use this for anything.
                                         // It is also unreliable as developers can remove launch configs...
@@ -452,10 +455,14 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               std::sscanf ( finished_section.name.c_str (),
                               "appinfo.config.launch.%d", &launch_idx_steam);
 
-              auto& launch_cfg =
-                pAppRecord->launch_configs [launch_idx];
+              // The index used solely for parsing
+              int idx = launch_idx_steam;
 
-              launch_cfg.id = launch_idx;
+              auto& launch_cfg =
+                pAppRecord->launch_configs [launch_idx_steam]; // Use the Steam launch key to workaround some parsing issue or another... TODO: Fix this shit -- it's a shitty workaround for stupid duplicate parsing!
+
+              launch_cfg.id       = launch_idx_skif;
+              launch_cfg.id_steam = launch_idx_steam;
 
               std::unordered_map <std::string, std::wstring*>
                 string_map = {
@@ -463,7 +470,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                   { "arguments",   &launch_cfg.launch_options },
                   { "description", &launch_cfg.description    },
                   { "workingdir",  &launch_cfg.working_dir    },
-                  { "type",        &launch_cfg.type           }
+                  { "betakey",     &launch_cfg.beta_key       }, // TODO: Fix this shit -- it's landing on the duplicate launch configs
+                  { "ownsdlc",     &launch_cfg.owns_dlc       }
                 };
 
               for (auto& key : finished_section.keys)
@@ -473,30 +481,43 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                   if (StrStrIA ((const char *)key.second.second, "windows"))
                   {
                     app_record_s::addSupportFor (
-                      pAppRecord->launch_configs [launch_idx].platforms,
+                      pAppRecord->launch_configs [idx].platforms,
                                                 app_record_s::Platform::Windows
                       );
                   }
 
                   else
-                    pAppRecord->launch_configs [launch_idx].platforms =
+                    pAppRecord->launch_configs [idx].platforms =
                       app_record_s::Platform::Unknown;
                 }
 
                 else if (! _stricmp (key.first, "osarch"))
                 {
-                  pAppRecord->launch_configs [launch_idx].cpu_type =
+                  pAppRecord->launch_configs [idx].cpu_type =
                     _ParseOSArch (key);
                 }
 
                 else if (! _stricmp (key.first, "type"))
                 {
-                  if (_stricmp ((char *)key.second.second, "default") &&
-                      _stricmp ((char *)key.second.second, "none"))
-                  {
-                    pAppRecord->launch_configs [launch_idx].app_type =
-                      app_record_s::AppType::Unspecified;
-                  }
+                  if (! _stricmp ((char *)key.second.second,      "default"))
+                    pAppRecord->launch_configs [idx].type =
+                      app_record_s::launch_config_s::Type::Default;
+
+                  else if (! _stricmp ((char *)key.second.second, "option1"))
+                    pAppRecord->launch_configs [idx].type =
+                      app_record_s::launch_config_s::Type::Option1;
+
+                  else if (! _stricmp ((char *)key.second.second, "option2"))
+                    pAppRecord->launch_configs [idx].type =
+                      app_record_s::launch_config_s::Type::Option2;
+
+                  else if (! _stricmp ((char *)key.second.second, "option3"))
+                    pAppRecord->launch_configs [idx].type =
+                      app_record_s::launch_config_s::Type::Option3;
+
+                  else if (! _stricmp ((char *)key.second.second, "none"))
+                    pAppRecord->launch_configs [idx].type =
+                      app_record_s::launch_config_s::Type::Unspecified;
                 }
 
                 else if (string_map.count (key.first) != 0)
@@ -508,6 +529,26 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                     SK_UTF8ToWideChar ((const char *)key.second.second);
                 }
               }
+              
+              // There is a really annoying bug in SKIF where parsing the launch configs results in semi-duplicate empty entries,
+              //   though I have no idea why... Maybe has to do with some "padding" between the sections in the appinfo.vdf file?
+
+#if 0
+
+              PLOG_VERBOSE << "Steam Launch ID   : " <<       launch_idx_steam;
+              PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch_idx_skif;
+              PLOG_VERBOSE << "Executable        : " <<       launch_cfg.executable;
+              PLOG_VERBOSE << "Arguments         : " <<       launch_cfg.launch_options;
+              PLOG_VERBOSE << "Working Directory : " <<       launch_cfg.working_dir;
+              PLOG_VERBOSE << "Launch Type       : " << (int) launch_cfg.type;
+              PLOG_VERBOSE << "Description       : " <<       launch_cfg.description;
+              PLOG_VERBOSE << "Operating System  : " << (int) launch_cfg.platforms;
+              PLOG_VERBOSE << "CPU Architecture  : " << (int) launch_cfg.cpu_type;
+              PLOG_VERBOSE << "Beta key          : " <<       launch_cfg.beta_key;
+              PLOG_VERBOSE << "Owns DLC          : " <<       launch_cfg.owns_dlc;
+
+#endif
+
             }
           }
         }
@@ -533,14 +574,20 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           auto& launch = launch_cfg.second;
 
-          // Skip launch configurations for other OSes
+          // Filter launch configurations for other OSes
           if ( (! app_record_s::supports (launch.platforms,
                                    app_record_s::Platform::Windows) ))
             continue;
 
-          // Skip launch configurations lacking an executable
+          // Filter launch configurations lacking an executable
+          // This also skips all the semi-weird duplicate launch configs SKIF randomly creates
           if (launch.executable.empty())
             continue;
+
+          // Filter launch configurations requiring a beta branch
+          if (! launch.beta_key.empty())
+            //continue;
+            launch.valid = 0;
 
           // File extension, so we can flag out non-executable ones (e.g. link2ea)
           const wchar_t* pwszExtension =
@@ -591,6 +638,10 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
 
         for ( auto& launch : _launches )
         {
+          // Reset SKIF's internal identifer for the launch configs
+          launch.id = 
+            static_cast<int> (pAppRecord->launch_configs.size());
+
           // Convert all forward slashes (/) into backwards slashes (\) to comply with Windows norms
           if (launch.valid == 1)
           {
@@ -599,12 +650,75 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
             if (! launch.working_dir.empty ())
               std::replace (launch.working_dir.begin (), launch.working_dir.end (), '/', '\\');
           }
+          
+#if 0
+
+          PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.id;
+          PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.id_steam;
+          PLOG_VERBOSE << "Executable        : " <<       launch.executable;
+          PLOG_VERBOSE << "Arguments         : " <<       launch.launch_options;
+          PLOG_VERBOSE << "Working Directory : " <<       launch.working_dir;
+          PLOG_VERBOSE << "Launch Type       : " << (int) launch.type;
+          PLOG_VERBOSE << "Description       : " <<       launch.description;
+          PLOG_VERBOSE << "Operating System  : " << (int) launch.platforms;
+          PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.cpu_type;
+          PLOG_VERBOSE << "Beta key          : " <<       launch.beta_key;
+          PLOG_VERBOSE << "Owns DLC          : " <<       launch.owns_dlc;
+
+#endif
 
           // Add it back
           pAppRecord->launch_configs.emplace (
             static_cast<int> (pAppRecord->launch_configs.size()),
             launch);
         }
+
+        // Naively move the first Default launch config type to the front
+        int firstValidFound = -1;
+
+        for (auto& launch : pAppRecord->launch_configs)
+        {
+          // Ignore launch options requiring a beta key
+          if (! launch.second.beta_key.empty())
+            continue;
+
+          if (launch.second.type == app_record_s::launch_config_s::Type::Default)
+          {
+            firstValidFound = launch.first;
+            break;
+          }
+        }
+
+        if (firstValidFound != -1)
+        {
+          app_record_s::launch_config_s copy             = pAppRecord->launch_configs[0];
+          pAppRecord->launch_configs[0]                  = pAppRecord->launch_configs[firstValidFound];
+          pAppRecord->launch_configs[firstValidFound]    = copy;
+
+          // Swap the internal identifers that SKIF uses (default becomes 0, not-default becomes not)
+          int copy_id                                    = pAppRecord->launch_configs[0].id;
+          pAppRecord->launch_configs[0].id               = 0;
+          pAppRecord->launch_configs[firstValidFound].id = copy_id;
+        }
+          
+#if 0
+
+        for (auto& launch : pAppRecord->launch_configs)
+        {
+          PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.second.id;
+          PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.second.id_steam;
+          PLOG_VERBOSE << "Executable        : " <<       launch.second.executable;
+          PLOG_VERBOSE << "Arguments         : " <<       launch.second.launch_options;
+          PLOG_VERBOSE << "Working Directory : " <<       launch.second.working_dir;
+          PLOG_VERBOSE << "Launch Type       : " << (int) launch.second.type;
+          PLOG_VERBOSE << "Description       : " <<       launch.second.description;
+          PLOG_VERBOSE << "Operating System  : " << (int) launch.second.platforms;
+          PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.second.cpu_type;
+          PLOG_VERBOSE << "Beta key          : " <<       launch.second.beta_key;
+          PLOG_VERBOSE << "Owns DLC          : " <<       launch.second.owns_dlc;
+        }
+
+#endif
 
         std::map <std::string, std::wstring> roots = {
           { "WinMyDocuments",        _path_cache.my_documents.path          },
