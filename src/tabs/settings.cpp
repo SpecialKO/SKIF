@@ -812,6 +812,12 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Prefer Instant Play for these platforms:"
     );
+
+    ImGui::SameLine ( );
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
+    SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
+                            "including steps like the cloud saves synchronization that usually occurs.");
+
     ImGui::TreePush      ("InstantPlay");
 
     if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
