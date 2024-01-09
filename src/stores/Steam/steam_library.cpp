@@ -893,6 +893,8 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
 
         if (user_localconfig.childs.size() > 0)
         {
+          // Preload LaunchOptions...
+          // 
           // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
           auto& apps_localconfig =
             user_localconfig.
@@ -920,6 +922,8 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
             }
           }
 
+          // Preload DLC ownership...
+          // 
           // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
           // This is used to determine if a DLC related launch option should be visible
           auto& apptickets_localconfig =

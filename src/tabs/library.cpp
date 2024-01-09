@@ -166,6 +166,38 @@ Trie labels;
 
 #pragma endregion
 
+std::string
+GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s* pLaunchCfg)
+{
+  // Check if there is a custom launch option set up
+  if (pApp->Steam_LaunchOption.size() > 0)
+  {
+    std::string strSteam_Command  = "%command%"; // Only for Steam games
+    size_t start_pos = SKIF_Util_ToLower (pApp->Steam_LaunchOption).find (strSteam_Command);
+
+    // Check if a %COMMAND% is a part of the launch options
+    // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
+    //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
+    if (start_pos != std::string::npos)
+    {
+      // Base is dev-specified executable
+      std::string newCmdLine = pLaunchCfg->getExecutableFullPathUTF8 ( );
+      std::string strSteamLO = pApp->Steam_LaunchOption;
+
+      // Appended is dev-specified cmd line arguments
+      if (! pLaunchCfg->getLaunchOptionsUTF8().empty())
+        newCmdLine += " " + pLaunchCfg->getLaunchOptionsUTF8();
+
+      // Replace %command% with the dev-specified exe and args
+      strSteamLO.replace (start_pos, strSteam_Command.length(), newCmdLine);
+
+      // Swap in the result and flag to use shell execute
+      return strSteamLO;
+    }
+  }
+
+  return "";
+}
 
 #pragma region SKIF_Lib_SummaryCache
 
@@ -677,11 +709,18 @@ DrawGameContextMenu (app_record_s* pApp)
 
       std::string hoverText = launchConfig->getExecutableFullPathUTF8();
 
-      if (! launchConfig->getLaunchOptionsUTF8().empty())
-        hoverText += (" " + launchConfig->getLaunchOptionsUTF8());
+      if (! pApp->Steam_LaunchOption.empty())
+      {
+        hoverText = GetSteamCommandLaunchOptions (pApp, launchConfig);
+      }
 
-      if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty())
-        hoverText += (" " + pApp->Steam_LaunchOption);
+      else {
+        if (! launchConfig->getLaunchOptionsUTF8().empty())
+          hoverText += (" " + launchConfig->getLaunchOptionsUTF8());
+
+        if (pApp->store == app_record_s::Store::Steam)
+          hoverText += (" " + pApp->Steam_LaunchOption);
+      }
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
 
@@ -781,13 +820,23 @@ DrawGameContextMenu (app_record_s* pApp)
 
           std::string hoverText = _launch.getExecutableFullPathUTF8();
 
-          if (! _launch.getLaunchOptionsUTF8().empty())
-            hoverText += (" " + _launch.getLaunchOptionsUTF8());
+          if (! _launch_cfg.second.custom_skif &&
+              ! _launch_cfg.second.custom_user &&
+              ! pApp->Steam_LaunchOption.empty())
+          {
+            hoverText = GetSteamCommandLaunchOptions (pApp, &_launch_cfg.second);
+          }
 
-          // Also add Steam defined launch options, but only if not using custom launch configs
-          if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty() &&
-             ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
-            hoverText += (" " + pApp->Steam_LaunchOption);
+          else
+          {
+            if (! _launch.getLaunchOptionsUTF8().empty())
+              hoverText += (" " + _launch.getLaunchOptionsUTF8());
+
+            // Also add Steam defined launch options, but only if not using custom launch configs
+            if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty() &&
+               ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
+              hoverText += (" " + pApp->Steam_LaunchOption);
+          }
           
           if (! disabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
@@ -5466,6 +5515,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               ! launchConfig->custom_user)
           {
             std::string steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser (true), pApp);
+
+            if (pApp->store == app_record_s::Store::Steam)
+              pApp->Steam_LaunchOption = steamLaunchOptions;
           
             if (steamLaunchOptions.size() > 0)
             {
@@ -5690,16 +5742,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Check localconfig.vdf if user is attempting to launch without Special K 
         if (! usingSK && ! localInjection)
         {
-          std::string
-              launch_options = SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true), pApp);
-          if (launch_options.size() > 0)
-          {
-            std::string launch_options_lower =
-              SKIF_Util_ToLower (launch_options);
+          pApp->Steam_LaunchOption =
+            SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true), pApp);
 
-            if (launch_options_lower.find("skif ") != std::string::npos)
+          if (pApp->Steam_LaunchOption.size() > 0)
+          {
+            if (SKIF_Util_ToLower (pApp->Steam_LaunchOption).find("skif ") == 0)
             {
               launchDecision = false;
+
+              std::string launch_options = pApp->Steam_LaunchOption;
 
               // Escape any percent signs (%)
               for (auto pos  = launch_options.find ('%');          // Find the first occurence
