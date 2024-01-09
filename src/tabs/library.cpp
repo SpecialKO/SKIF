@@ -169,6 +169,9 @@ Trie labels;
 std::string
 GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s* pLaunchCfg)
 {
+  if (! pApp->Steam_LaunchOption1.empty())
+    return pApp->Steam_LaunchOption1;
+
   // Check if there is a custom launch option set up
   if (pApp->Steam_LaunchOption.size() > 0)
   {
@@ -192,11 +195,11 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
       strSteamLO.replace (start_pos, strSteam_Command.length(), newCmdLine);
 
       // Swap in the result and flag to use shell execute
-      return strSteamLO;
+      pApp->Steam_LaunchOption1 = strSteamLO;
     }
   }
 
-  return "";
+  return pApp->Steam_LaunchOption1;
 }
 
 #pragma region SKIF_Lib_SummaryCache
@@ -5514,10 +5517,14 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (! launchConfig->custom_skif &&
               ! launchConfig->custom_user)
           {
-            std::string steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser (true), pApp);
+            std::string steamLaunchOptions =
+              SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser (true), pApp);
 
             if (pApp->store == app_record_s::Store::Steam)
-              pApp->Steam_LaunchOption = steamLaunchOptions;
+            {
+              pApp->Steam_LaunchOption  = steamLaunchOptions;
+              pApp->Steam_LaunchOption1 = ""; // Reset
+            }
           
             if (steamLaunchOptions.size() > 0)
             {
@@ -5742,8 +5749,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Check localconfig.vdf if user is attempting to launch without Special K 
         if (! usingSK && ! localInjection)
         {
-          pApp->Steam_LaunchOption =
+          pApp->Steam_LaunchOption  =
             SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser (true), pApp);
+          pApp->Steam_LaunchOption1 = ""; // Reset
 
           if (pApp->Steam_LaunchOption.size() > 0)
           {
@@ -5751,23 +5759,23 @@ SKIF_UI_Tab_DrawLibrary (void)
             {
               launchDecision = false;
 
-              std::string launch_options = pApp->Steam_LaunchOption;
+              std::string confirmCopy = pApp->Steam_LaunchOption;
 
               // Escape any percent signs (%)
-              for (auto pos  = launch_options.find ('%');          // Find the first occurence
+              for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
                         pos != std::string::npos;                  // Validate we're still in the string
-                        launch_options.insert      (pos, R"(%)"),  // Escape the character
-                        pos  = launch_options.find ('%', pos + 2)) // Find the next occurence
+                        confirmCopy.insert      (pos, R"(%)"),  // Escape the character
+                        pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
               { }
                           
               confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
                                   "\n"
-                               +  launch_options + "\n"
+                               +  confirmCopy + "\n"
                                   "\n"
                                   "Please change the launch options in Steam before trying again.";
               ConfirmPopup     = PopupState_Open;
 
-              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << launch_options;
+              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
             }
           }
         }
