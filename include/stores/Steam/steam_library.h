@@ -321,6 +321,7 @@ public:
 const wchar_t *              SK_GetSteamDir                     (void);
 std::wstring                 SK_UseManifestToGetInstallDir      (app_record_s *app);
 std::string                  SK_UseManifestToGetAppName         (app_record_s *app);
+std::string                  SK_UseManifestToGetCurrentBranch   (app_record_s *app);
 std::string                  SK_UseManifestToGetAppOwner        (app_record_s *app);
 std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots          (app_record_s *app);
 ManifestId_t                 SK_UseManifestToGetDepotManifest   (app_record_s *app, DepotId_t depot);

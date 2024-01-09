@@ -479,7 +479,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
               // Holds UTF8 strings (internal only)
               std::unordered_map <std::string, std::string*>
                  string_map = {
-                  { "betakey",     &launch_cfg.beta_key       }, // TODO: Fix this shit -- it's landing on the duplicate launch configs
+              //  { "betakey",     &launch_cfg.beta_key       }, // TODO: Fix this shit -- it's landing on the duplicate launch configs
                   { "ownsdlc",     &launch_cfg.requires_dlc   }
                 };
 
@@ -504,6 +504,15 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
                 {
                   pAppRecord->launch_configs [idx].cpu_type =
                     _ParseOSArch (key);
+                }
+
+                else if (! _stricmp (key.first, "betakey"))
+                {
+                  // Populate required betas for this launch option
+                  std::istringstream betas((const char *)key.second.second);
+                  std::string beta;
+                  while (std::getline (betas, beta, ' '))
+                    pAppRecord->launch_configs [idx].branches.emplace (beta);
                 }
 
                 else if (! _stricmp (key.first, "type"))
@@ -622,6 +631,17 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         {
           auto& launch = launch_cfg.second;
 
+          // Summarize the branches in a comma-delimited string as well
+          if (! launch.branches.empty())
+          {
+            for (auto const& branch : launch.branches)
+              launch.branches_utf8 += branch + ", ";
+
+            // Remove trailing comma and space
+            launch.branches_utf8.pop_back();
+            launch.branches_utf8.pop_back();
+          }
+
           // Filter launch configurations for other OSes
           if ( (! app_record_s::supports (launch.platforms,
                                    app_record_s::Platform::Windows) ))
@@ -632,8 +652,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           if (launch.executable.empty())
             continue;
 
-          // Filter launch configurations requiring a beta branch
-          if (! launch.beta_key.empty())
+          // Filter launch configurations requiring a beta branch that the user do not have
+          if (! launch.branches.empty() && launch.branches.count (pAppRecord->branch) == 0)
             launch.valid = 0;
 
           // File extension, so we can flag out non-executable ones (e.g. link2ea)
@@ -727,7 +747,8 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
         for (auto& launch : pAppRecord->launch_configs)
         {
           // Ignore launch options requiring a beta key
-          if (! launch.second.beta_key.empty())
+          // TODO: Contemplate this choice now that SKIF can read current beta!
+          if (! launch.second.branches.empty())
             continue;
 
           if (launch.second.type == app_record_s::launch_config_s::Type::Default)

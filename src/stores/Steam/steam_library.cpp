@@ -757,6 +757,29 @@ SK_UseManifestToGetAppName (app_record_s *app)
   return "";
 }
 
+std::string
+SK_UseManifestToGetCurrentBranch (app_record_s *app)
+{
+  if (app->Steam_ManifestData.empty())
+      app->Steam_ManifestData =
+        SK_GetManifestContentsForAppID (app);
+
+  if (! app->Steam_ManifestData.empty ())
+  {
+    std::string branch =
+      SK_Steam_KeyValues::getValue (
+        app->Steam_ManifestData, { "AppState", "UserConfig" }, "BetaKey"
+      );
+
+    if (! branch.empty ())
+    {
+      return branch;
+    }
+  }
+
+  return "";
+}
+
 // NOT THREAD SAFE! Updates g_apps with the new value
 std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *app)
@@ -1070,8 +1093,6 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
 std::vector <SK_Steam_Depot>
 SK_UseManifestToGetDepots (app_record_s *app)
 {
-  //PLOG_VERBOSE << "Steam AppID: " << appid;
-
   std::vector <SK_Steam_Depot> depots;
 
   std::string manifest_data =
@@ -1079,8 +1100,6 @@ SK_UseManifestToGetDepots (app_record_s *app)
 
   if (! manifest_data.empty ())
   {
-    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
-
     std::vector <std::string> values;
     auto                      mounted_depots =
       SK_Steam_KeyValues::getKeys (
@@ -1106,15 +1125,11 @@ SK_UseManifestToGetDepots (app_record_s *app)
 ManifestId_t
 SK_UseManifestToGetDepotManifest (app_record_s *app, DepotId_t depot)
 {
-  //PLOG_VERBOSE << "Steam AppID: " << appid;
-
   std::string manifest_data =
     SK_GetManifestContentsForAppID (app);
 
   if (! manifest_data.empty ())
   {
-    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
-
     return
       atoll (
         SK_Steam_KeyValues::getValue (

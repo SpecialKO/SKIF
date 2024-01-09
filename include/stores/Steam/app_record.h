@@ -280,9 +280,10 @@ struct app_record_s {
     std:: string working_dir_utf8;
     std::wstring blacklist_file;
     std::wstring elevated_file;
-    std::wstring executable_helper; // Used by Xbox to hold gamelaunchhelper.exe
-    std:: string beta_key;          // Steam: Only show launch option if this beta branch is active
-    std:: string requires_dlc;      // Steam: Only show launch option if this DLC is owned
+    std::wstring executable_helper;  // Used by Xbox to hold gamelaunchhelper.exe
+    std::set <std::string> branches; // Steam: Only show launch option if one of these beta branches are active
+    std::string  branches_utf8;
+    std:: string requires_dlc;       // Steam: Only show launch option if this DLC is owned
 
     int          valid              = -1;    // Launch config is valid (what does this actually mean?)
     bool         duplicate_exe      = false; // Used for Steam games indicating that a launch option is a duplicate (shares the same executable as another)
@@ -323,7 +324,7 @@ struct app_record_s {
     std::set <std::string> screenshots; // utf8 path
     sk_install_state_s     injection;
   } specialk;
-
+  
   std::map <std::string, branch_record_s    > branches;
   std::map <int,         cloud_save_record_s> cloud_saves;
   std::map <int,         launch_config_s    > launch_configs;
@@ -334,19 +335,24 @@ struct app_record_s {
   bool         processed             =  false; // indicates if we have processed appinfo
   bool         cloud_enabled         =   true; // hidecloudui=false
   std::wstring install_dir;
-  Store store                        =  Store::Unspecified;
+  Store        store                 =  Store::Unspecified;
   std::string  store_utf8            =  "";  // maybe enum?
+
   std::string  ImGuiPushID           =  "";
   std::string  ImGuiLabelAndID       =  "";
+
   std::string  Steam_ManifestData    =  "";
   std::wstring Steam_ManifestPath    = L"";
+  std::string  Steam_LaunchOption    =  "";       // Holds the custom launch option set in the Steam client
+  std::string  branch                =  "public"; // Holds the current "beta" branch set in the Steam client (default: public)
+
   std::string  Epic_CatalogNamespace =  "";
   std::string  Epic_CatalogItemId    =  "";
   std::string  Epic_AppName          =  "";
   std::string  Epic_DisplayName      =  "";
+
   std::string  Xbox_PackageName      =  "";
   std::string  Xbox_StoreId          =  "";
-  std::string  Steam_LaunchOption    =  ""; // Holds the custom launch option set in the Steam client
   std::wstring Xbox_AppDirectory     = L""; // Holds the :\WindowsApps\<package-name>\ path for the game
 
   template <class _Tp> static
