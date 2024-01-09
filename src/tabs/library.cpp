@@ -3213,7 +3213,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Check if any monitored platforms have been signaled
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
-    if (_registry.bLibrarySteam && SKIF_Steam_isLibrariesSignaled ())
+    if (_registry.bLibrarySteam && (SKIF_Steam_isLibrariesSignaled ()))
       RepopulateGames = true;
 
     if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
@@ -3674,6 +3674,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (update                                       ||
         selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged ( )) || // If Steam user signed in / out
        _cache.service     != _inject.bCurrentState   ||
        _cache.running     !=  pApp->_status.running  ||
        _cache.updating    !=  pApp->_status.updating ||

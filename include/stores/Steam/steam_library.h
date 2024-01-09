@@ -330,5 +330,6 @@ bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t user
 bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_isLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
+bool                         SKIF_Steam_isCurrentUserChanged    (void);
 SteamId3_t                   SKIF_Steam_GetCurrentUser          (bool refresh = false);
 void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);

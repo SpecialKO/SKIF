@@ -41,6 +41,8 @@ std::set    < std::string >
 
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
+SteamId3_t    g_SteamUserID = 0;
+
 #define MAX_STEAM_LIBRARIES 16
 
 extern int SKIF_FrameCount;
@@ -874,6 +876,21 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
   // Clear any cached app tickets to prevent stale data from sticking around
   g_apptickets.clear ( );
 
+  // Clear out any cached launch option data
+  for (auto& app : g_apps)
+  {
+    if (app.second.store != app_record_s::Store::Steam)
+      continue;
+
+    // Reset any current data
+    app.second.Steam_LaunchOption  = "";
+    app.second.Steam_LaunchOption1 = "";
+  }
+
+  // Abort if the user signed out
+  if (userid == 0)
+    return false;
+
   // Implementation using the ValveFileVDF project
   std::string localConfig_data =
     SK_WideCharToUTF8 (
@@ -1262,10 +1279,57 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 };
 
 
+// NOT THREAD-SAFE!!!
+bool
+SKIF_Steam_isCurrentUserChanged (void)
+{
+  static SKIF_RegistryWatch SteamActiveProcess (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess)", L"SteamActiveUser", FALSE);
+  static bool               firstRun = true;
+
+  if (SteamActiveProcess.isSignaled () || firstRun)
+  {
+    WCHAR                    szData [255] = { };
+    DWORD   dwSize = sizeof (szData);
+    PVOID   pvData =         szData;
+    CRegKey hKey ((HKEY)0);
+
+    SteamId3_t oldID = g_SteamUserID;
+    firstRun         = false;
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
+    {
+      if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+        g_SteamUserID = *(DWORD*)pvData;
+
+      hKey.Close ( );
+    }
+
+    // Refresh stuff if the current user has changed
+    if (g_SteamUserID != oldID)
+    {
+      // Preload user's local config
+      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID);
+
+      // Reset DLC ownership
+      for (auto& app : g_apps)
+        for (auto& launch_cfg : app.second.launch_configs)
+          launch_cfg.second.owns_dlc = -1;
+    }
+
+    return (g_SteamUserID != oldID);
+  }
+
+  return false;
+};
+
+
 // Get SteamID3 of the signed in user.
 SteamId3_t
 SKIF_Steam_GetCurrentUser (bool refresh)
 {
+  return g_SteamUserID;
+
+  /* LEGACY METHOD:
   static SteamId3_t SteamUserID = 0;
 
   if (refresh)
@@ -1285,6 +1349,7 @@ SKIF_Steam_GetCurrentUser (bool refresh)
   }
 
   return SteamUserID;
+  */
 }
 
 
