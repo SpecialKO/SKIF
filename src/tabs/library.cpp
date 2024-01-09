@@ -1349,6 +1349,50 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
     {
+      if (ImGui::BeginMenu (ICON_FA_FILE_LINES "   App Config"))
+      {
+        ImGui::TextDisabled   ("General:");
+        ImGui::MenuItem       ("Platform ID",       std::to_string(pApp->id).c_str());
+        ImGui::MenuItem       ("Store",             pApp->store_utf8.c_str());
+        ImGui::MenuItem       ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str());
+
+        if (pApp->store == app_record_s::Store::Steam)
+        {
+          ImGui::Separator ( );
+
+          ImGui::TextDisabled ("Steam Data:");
+          ImGui::MenuItem     ("Branch",        pApp->branch.c_str());
+          ImGui::MenuItem     ("Launch Option", pApp->Steam_LaunchOption.c_str());
+          ImGui::MenuItem     ("Manifest Path", SK_WideCharToUTF8(pApp->Steam_ManifestPath).c_str());
+        }
+
+        else if (pApp->store == app_record_s::Store::Xbox)
+        {
+          ImGui::Separator ( );
+          
+          ImGui::TextDisabled ("Xbox Data:");
+          ImGui::MenuItem     ("Package Name", pApp->Xbox_PackageName.c_str());
+          ImGui::MenuItem     ("Store ID",     pApp->Xbox_StoreId.c_str());
+          ImGui::MenuItem     ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str());
+        }
+
+        else if (pApp->store == app_record_s::Store::Epic)
+        {
+          ImGui::Separator ( );
+          
+          ImGui::TextDisabled ("Epic Data:");
+          ImGui::MenuItem     ("App Name",          pApp->Epic_AppName.c_str());
+          ImGui::MenuItem     ("Display Name",      pApp->Epic_DisplayName.c_str());
+          ImGui::MenuItem     ("Catalog Namespace", pApp->Epic_CatalogNamespace.c_str());
+          ImGui::MenuItem     ("Catalog Item ID",   pApp->Epic_CatalogItemId.c_str());
+        }
+
+        ImGui::EndMenu ();
+      }
+
+      ImGui::Separator ( );
+
+
       if (! pApp->branches.empty ())
       {
         bool bMenuOpen =
@@ -1444,7 +1488,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             launch.id);
 
             ImGui::PushStyleColor (
-              ImGuiCol_Text, ! launch.beta_key.empty() ? ! launch.requires_dlc.empty()
+              ImGuiCol_Text, ! launch.branches.empty() ? ! launch.requires_dlc.empty()
                                    ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) // DLC required
                                    : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.5f) // Beta key required
                                 : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // Public
@@ -1480,8 +1524,8 @@ DrawGameContextMenu (app_record_s* pApp)
               if (! launch.requires_dlc.empty())
                 ImGui::MenuItem ("Requires DLC", launch.requires_dlc.c_str());
 
-              if (! launch.beta_key.empty())
-                ImGui::MenuItem ("Requires Beta", launch.beta_key.c_str());
+              if (! launch.branches.empty())
+                ImGui::MenuItem ("Requires Branch", launch.branches_utf8.c_str());
 
               ImGui::EndMenu ();
             }
@@ -3428,6 +3472,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           app.second.id = 0;
           continue;
+        }
+
+        // Preload active branch for Steam games
+        if (app.second.store == app_record_s::Store::Steam)
+        {
+          app.second.branch = SK_UseManifestToGetCurrentBranch (&app.second);
+
+          if (! app.second.branch.empty())
+            PLOG_VERBOSE << "App ID " << app.second.id << " has active branch : " << app.second.branch;
         }
       }
 
