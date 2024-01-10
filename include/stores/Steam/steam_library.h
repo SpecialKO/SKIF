@@ -326,10 +326,10 @@ std::string                  SK_UseManifestToGetAppOwner        (app_record_s *a
 std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots          (app_record_s *app);
 ManifestId_t                 SK_UseManifestToGetDepotManifest   (app_record_s *app, DepotId_t depot);
 std::string                  SKIF_Steam_GetLaunchOptions        (AppId_t appid, SteamId3_t userid, app_record_s *app = nullptr);
-bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t userid);
+bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps);
 bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_isLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
-bool                         SKIF_Steam_isCurrentUserChanged    (void);
+bool                         SKIF_Steam_isCurrentUserChanged    (std::vector <std::pair < std::string, app_record_s > > *apps);
 SteamId3_t                   SKIF_Steam_GetCurrentUser          (bool refresh = false);
 void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);

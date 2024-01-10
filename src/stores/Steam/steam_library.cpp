@@ -782,7 +782,6 @@ SK_UseManifestToGetCurrentBranch (app_record_s *app)
   return "";
 }
 
-// NOT THREAD SAFE! Updates g_apps with the new value
 std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *app)
 {
@@ -866,18 +865,17 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
   return "";
 }
 
-// NOT THREAD SAFE! Updates g_apps with the new value
 bool
-SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
+SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps)
 {
-  if (g_apps.empty())
+  if (apps->empty())
     return false;
 
   // Clear any cached app tickets to prevent stale data from sticking around
   g_apptickets.clear ( );
 
   // Clear out any cached launch option data
-  for (auto& app : g_apps)
+  for (auto& app : *apps)
   {
     if (app.second.store != app_record_s::Store::Steam)
       continue;
@@ -923,7 +921,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid)
           if (apps_localconfig != nullptr &&
               apps_localconfig->childs.size() > 0)
           {
-            for (auto& app : g_apps)
+            for (auto& app : *apps)
             {
               if (app.second.store != app_record_s::Store::Steam)
                 continue;
@@ -1281,7 +1279,7 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 
 // NOT THREAD-SAFE!!!
 bool
-SKIF_Steam_isCurrentUserChanged (void)
+SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
   static SKIF_RegistryWatch SteamActiveProcess (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess)", L"SteamActiveUser", FALSE);
   static bool               firstRun = true;
@@ -1308,10 +1306,10 @@ SKIF_Steam_isCurrentUserChanged (void)
     if (g_SteamUserID != oldID)
     {
       // Preload user's local config
-      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID);
+      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps);
 
       // Reset DLC ownership
-      for (auto& app : g_apps)
+      for (auto& app : *apps)
         for (auto& launch_cfg : app.second.launch_configs)
           launch_cfg.second.owns_dlc = -1;
     }
