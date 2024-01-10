@@ -3132,6 +3132,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   static DirectX::TexMetadata     meta = { };
   static DirectX::ScratchImage    img  = { };
 
+  // This keeps track of the amount of workers streaming icons that we have active in the background
+  static int activeIconWorkers = 0; // max: 8
+
 #pragma region Initialization
 
   // Initialize the Steam appinfo.vdf Reader
@@ -3232,11 +3235,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       RepopulateGames = true;
   }
 
-  // We cannot manipulate the apps array while the game worker thread is running
-  if (RepopulateGames && ! gameWorkerRunning.load())
+  // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
+  if (RepopulateGames && activeIconWorkers == 0) // ! gameWorkerRunning.load()
   {
     RepopulateGames = false;
-    gameWorkerRunning.store(true);
+    //gameWorkerRunning.store(true);
 
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
@@ -3251,6 +3254,22 @@ SKIF_UI_Tab_DrawLibrary (void)
     populated = false;
   }
 
+#ifdef ThreadedLibraryWorker
+
+
+  struct lib_worker_thread_s {
+    std::vector <
+      std::pair <std::string, app_record_s >
+                > apps;
+    Trie          labels;
+    HANDLE        hThread = NULL;
+    int           status  = 0;
+  };
+
+  static lib_worker_thread_s* library_worker = nullptr;
+
+#endif // ThreadedLibraryWorker
+
   if (! populated)
   {
     PLOG_INFO << "Populating library list...";
@@ -3260,6 +3279,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // Clear all games
     g_apps.clear();
+
+    //library_worker = new lib_worker_thread_s;
     
     // Load Steam titles from disk
     if (_registry.bLibrarySteam)
@@ -3270,7 +3291,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_Steam_GetCurrentUser     (true);
       
       // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-      SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser());
+      SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser(), &g_apps);
 
       // Preload all appinfo.vdf data
       // This is needed for SKIF's fallback process tracking
@@ -3580,6 +3601,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     PLOG_INFO << "Finished populating the library list.";
 
+    PLOG_INFO << "Loading the embedded Patreon texture...";
+    ImVec2 dontCare1, dontCare2;
+    if (pPatTexSRV.p == nullptr)
+      LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare1, dontCare2);
+    if (pSKLogoTexSRV.p == nullptr)
+      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV,       L"sk_boxart.png",       dontCare1, dontCare2);
+    if (pSKLogoTexSRV_small.p == nullptr)
+      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare1, dontCare2);
+
+#if 0
     // We're going to stream game icons asynchronously on this thread
     _beginthread ([](void*)->void
     {
@@ -3604,6 +3635,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Load icons last
       for (auto& app : g_apps)
       {
+        break;
+
         if (app.second.id == 0)
           continue;
 
@@ -3638,6 +3671,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_DEBUG << "SKIF_LibRefreshWorker thread stopped!";
     }, 0x0, NULL);
+
+#endif
 
     populated = true;
   }
@@ -3674,7 +3709,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (update                                       ||
         selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged ( )) || // If Steam user signed in / out
+      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged (&g_apps)) || // If Steam user signed in / out
        _cache.service     != _inject.bCurrentState   ||
        _cache.running     !=  pApp->_status.running  ||
        _cache.updating    !=  pApp->_status.updating ||
@@ -4249,7 +4284,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::BeginGroup      ();
     ImGui::PushID          (app.second.ImGuiPushID.c_str());
 
-    SKIF_ImGui_OptImage    (app.second.tex_icon.texture.p,
+    SKIF_ImGui_OptImage    (app.second.tex_icon.iWorker == 2 ? app.second.tex_icon.texture.p : nullptr,
                               ImVec2 ( _ICON_HEIGHT,
                                        _ICON_HEIGHT )
                             );
@@ -4333,6 +4368,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // End Icon + Selectable row
 
+
     if ( app.second.id    == selection.appid &&
          app.second.store == selection.store &&
                    sort_changed &&
@@ -4393,6 +4429,99 @@ SKIF_UI_Tab_DrawLibrary (void)
         _horizon = _registry.bHorizonMode;
       }
     }
+
+    // TEMP: On-demand icon streaming test
+
+#if 1
+
+    if (ImGui::IsItemVisible ( ) && app.second.tex_icon.iWorker == 0 && activeIconWorkers < 8)
+    {
+      activeIconWorkers++;
+
+      std::wstring load_str;
+        
+      if (app.second.id == SKIF_STEAM_APPID) // SKIF
+        load_str = L"sk_icon.jpg";
+      else  if (app.second.store == app_record_s::Store::Custom) // SKIF Custom
+        load_str = L"icon";
+      else  if (app.second.store == app_record_s::Store::Epic)  // Epic
+        load_str = L"icon";
+      else  if (app.second.store == app_record_s::Store::GOG)   // GOG
+        load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
+      else if (app.second.store  == app_record_s::Store::Steam)  // Steam
+        load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, app.second.id); //L"_icon.jpg"
+      else if (app.second.store  == app_record_s::Store::Xbox)  // Xbox
+        load_str = L"icon";
+
+      struct thread_s {
+        uint32_t                      appid;
+        app_record_s::tex_registry_s* texture;
+        app_record_s*                 app;
+        std::wstring                  path;
+      };
+  
+      thread_s* data = new thread_s;
+
+      data->path    =  load_str;
+      data->appid   =  app.second.id;
+      data->texture = &app.second.tex_icon;
+      data->app     = &app.second;
+
+      // We're going to stream game icons asynchronously on this thread
+
+      uintptr_t hWorkerThread =
+        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+        {
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
+
+          CoInitializeEx (nullptr, 0x0);
+
+          thread_s* _data = static_cast<thread_s*>(var);
+
+          ImVec2 dontCare1, dontCare2;
+
+          LoadLibraryTexture ( LibraryTexture::Icon,
+                                  _data->appid,
+                                    _data->texture->texture,
+                                      _data->path,
+                                        dontCare1,
+                                          dontCare2,
+                                            _data->app );
+          
+          delete _data;
+
+          // Force a refresh when the game icons have finished being streamed
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+          return 0;
+        }, data, 0x0, nullptr);
+        
+      bool threadCreated = (hWorkerThread != 0);
+
+      if (threadCreated)
+      {
+        app.second.tex_icon.hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+        app.second.tex_icon.iWorker = 1;
+      }
+
+      else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+      {
+        delete data;
+        app.second.tex_icon.iWorker = 2;
+        activeIconWorkers--;
+      }
+    }
+
+    else if (app.second.tex_icon.iWorker == 1 && WaitForSingleObject (app.second.tex_icon.hWorker, 0) == WAIT_OBJECT_0)
+    {
+      CloseHandle (app.second.tex_icon.hWorker);
+      app.second.tex_icon.hWorker = NULL;
+      app.second.tex_icon.iWorker = 2;
+      activeIconWorkers--;
+    }
+#endif
+
+    // END TEMP
   }
 
   // 'Add Game' to the bottom of the list if the status bar is disabled
@@ -6847,7 +6976,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (app.second.processed)
           continue;
         
-        PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
+        //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
         appinfo->getAppInfo ( app.second.id );
 
         fallbackAvailable = false;

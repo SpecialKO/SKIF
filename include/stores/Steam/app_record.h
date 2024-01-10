@@ -115,6 +115,8 @@ struct app_record_s {
     d3d11_tex_ref_s texture;
     bool            isCustom  = false;
     bool            isManaged = false; // Indicates whether the texture is managed by SKIF or not
+    int             iWorker   = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
+    HANDLE          hWorker   = NULL;
   } tex_icon, tex_cover;
   
   enum class Store {
