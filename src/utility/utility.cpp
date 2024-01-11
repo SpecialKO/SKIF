@@ -2904,50 +2904,56 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
   _init.filter_mask   = dwNotifyFilter;
   _init.wow64_32key   = bWOW6432Key;
   _init.wow64_64key   = bWOW6464Key;
+  _bGlobalWait        = bGlobalWait;
 
-  _hEvent.m_h =
+  _hEvent             =
       CreateEvent ( nullptr, TRUE,
                             FALSE, wszEventName );
 
   reset ();
 
-  _bGlobalWait = bGlobalWait;
-
-  if (_bGlobalWait)
-    vWatchHandles[SKIF_Tab_Selected].second.push_back(_hEvent.m_h);
+  if (_bGlobalWait && _hEvent != NULL)
+    vWatchHandles[SKIF_Tab_Selected].second.push_back(_hEvent);
 }
 
 SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
-  if (_bGlobalWait && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
-    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hEvent.m_h), vWatchHandles[SKIF_Tab_Selected].second.end());
+  if (_bGlobalWait && _hEvent != NULL && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hEvent), vWatchHandles[SKIF_Tab_Selected].second.end());
+
+  RegCloseKey (_hKeyBase);
+  CloseHandle (_hEvent);
+  _hEvent = NULL;
 }
 
-void
+LSTATUS
 SKIF_RegistryWatch::registerNotify (void)
 {
-  _hKeyBase.NotifyChangeKeyValue (
-    _init.watch_subtree,
-      _init.filter_mask,
-        _hEvent.m_h
-  );
+  return RegNotifyChangeKeyValue (_hKeyBase, _init.watch_subtree, _init.filter_mask, _hEvent, TRUE);
 }
 
 void
 SKIF_RegistryWatch::reset (void)
 {
-  _hKeyBase.Close ();
+  RegCloseKey (_hKeyBase);
 
-  if ((intptr_t)_hEvent.m_h > 0)
-    ResetEvent (_hEvent.m_h);
+  if ((intptr_t)_hEvent > 0)
+    ResetEvent (_hEvent);
 
   LSTATUS lStat =
-    _hKeyBase.Open (_init.root,
-                    _init.sub_key.c_str (), KEY_NOTIFY | ((_init.wow64_32key) ? KEY_WOW64_32KEY : 0x0) | ((_init.wow64_64key) ? KEY_WOW64_64KEY : 0x0) );
+    RegOpenKeyEx (_init.root, _init.sub_key.c_str (), 0, KEY_NOTIFY
+                              | ((_init.wow64_32key)  ?  KEY_WOW64_32KEY : 0x0)
+                              | ((_init.wow64_64key)  ?  KEY_WOW64_64KEY : 0x0), &_hKeyBase);
 
   if (lStat == ERROR_SUCCESS)
+    lStat = registerNotify ( );
+
+  if (lStat != ERROR_SUCCESS)
   {
-    registerNotify ( );
+    PLOG_ERROR << "Failed to register for registry notifications: " << _init.sub_key << ", " << _init.watch_subtree;
+    RegCloseKey (_hKeyBase);
+    CloseHandle (_hEvent);
+    _hEvent = NULL;
   }
 }
 
@@ -2956,7 +2962,7 @@ SKIF_RegistryWatch::isSignaled (void)
 {
   bool signaled =
     WaitForSingleObjectEx (
-      _hEvent.m_h, 0UL, FALSE
+      _hEvent, 0UL, FALSE
     ) == WAIT_OBJECT_0;
 
   if (signaled)

@@ -197,7 +197,7 @@ struct SKIF_RegistryWatch {
 
   ~SKIF_RegistryWatch (void);
 
-  void registerNotify (void);
+  LSTATUS registerNotify (void);
   void reset          (void);
   bool isSignaled     (void);
 
@@ -210,7 +210,7 @@ struct SKIF_RegistryWatch {
     BOOL         wow64_64key; // Access a 64-bit key from either a 32-bit or 64-bit application.
   } _init;
 
-  CRegKey _hKeyBase;
-  CHandle _hEvent;
+  HKEY    _hKeyBase    = { };
+  HANDLE  _hEvent      = INVALID_HANDLE_VALUE;
   bool    _bGlobalWait = false;
 };
