@@ -1028,6 +1028,15 @@ SKIF_UI_Tab_DrawSettings (void)
       }
     }
 
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if ( ImGui::Checkbox ( "Auto-Horizon Mode", &_registry.bHorizonModeAuto) )
+      _registry.regKVHorizonModeAuto.putData (   _registry.bHorizonModeAuto);
+
+    SKIF_ImGui_SetHoverTip ("Switch to the horizontal mode on smaller displays automatically.");
+
     if (! _registry.bUITooltips &&
         ! _registry.bUIStatusBar)
     {

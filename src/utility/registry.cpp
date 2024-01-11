@@ -187,7 +187,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 //bServiceMode             =   regKVServiceMode            .getData ( );
   bHorizonMode             =   regKVHorizonMode            .getData ( );
 
-  bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData ( );
+  if (regKVHorizonModeAuto.hasData ())
+    bHorizonModeAuto       =   regKVHorizonModeAuto        .getData ( );
+
+  bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData( );
   bFirstLaunch             =   regKVFirstLaunch            .getData ( );
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );
   bAllowBackgroundService  =   regKVAllowBackgroundService .getData ( );

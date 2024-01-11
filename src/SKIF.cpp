@@ -1824,7 +1824,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
     
     // Automatically engage Horizon mode on smaller displays
-    static bool autoHorizonFallback = ! _registry.bHorizonMode;
+    static bool autoHorizonFallback = (! _registry.bHorizonMode && _registry.bHorizonModeAuto);
     if (autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
     {
       autoHorizonFallback = false;
