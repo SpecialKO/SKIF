@@ -448,98 +448,6 @@ app_branch_record_s::getDescAsUTF8 (void)
   return desc_utf8;
 }
 
-
-std::wstring
-SKIF_Steam_GetAppStateString (       AppId_t  appid,
-                               const wchar_t *wszStateKey )
-{
-  std::wstring str ( MAX_PATH, L'\0' );
-  DWORD        len = MAX_PATH;
-  LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
-                           appid ).c_str (),
-                     wszStateKey,
-                       RRF_RT_REG_SZ,
-                         nullptr,
-                           str.data (),
-                             &len );
-
-  if (status == ERROR_SUCCESS)
-    return str;
-  else
-    return L"";
-}
-
-wchar_t
-SKIF_Steam_GetAppStateDWORD (       AppId_t  appid,
-                              const wchar_t *wszStateKey,
-                                    DWORD   *pdwStateVal )
-{
-  DWORD     len    = sizeof (DWORD);
-  LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
-                           appid ).c_str (),
-                     wszStateKey,
-                       RRF_RT_DWORD,
-                         nullptr,
-                           pdwStateVal,
-                             &len );
-
-  if (status == ERROR_SUCCESS)
-    return TRUE;
-  else
-    return FALSE;
-}
-
-bool
-SKIF_Steam_UpdateAppState (app_record_s *pApp)
-{
-  if (! pApp)
-    return false;
-
-  SKIF_Steam_GetAppStateDWORD (
-     pApp->id,   L"Installed",
-    &pApp->_status.installed );
-
-  if (pApp->_status.installed != 0x0)
-  {   pApp->_status.running    = 0x0;
-
-    SKIF_Steam_GetAppStateDWORD (
-       pApp->id,   L"Running",
-      &pApp->_status.running );
-
-    if (! pApp->_status.running)
-    {
-      SKIF_Steam_GetAppStateDWORD (
-         pApp->id,   L"Updating",
-        &pApp->_status.updating );
-    }
-
-    else
-    {
-      pApp->_status.updating = 0x0;
-    }
-
-    if (pApp->names.normal.empty ())
-    {
-      std::wstring wide_name =
-        SKIF_Steam_GetAppStateString (
-          pApp->id,   L"Name"
-        );
-
-      if (! wide_name.empty ())
-      {
-        pApp->names.normal =
-          SK_WideCharToUTF8 (wide_name);
-      }
-    }
-  }
-
-  return true;
-}
-
 DWORD app_record_s::client_state_s::_TimeLastNotified = 0UL;
 
 
@@ -549,6 +457,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
   static constexpr
     DWORD _RefreshInterval = 333UL;
 
+  // This cannot be called from a child thread, as the registry watch is not thread agnostic and will break
   static SKIF_RegistryWatch
     _appWatch ( HKEY_CURRENT_USER,
                   LR"(SOFTWARE\Valve\Steam\Apps)",

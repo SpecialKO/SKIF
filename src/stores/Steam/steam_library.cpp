@@ -1669,3 +1669,94 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
     (pApp->specialk.injection.config.dir + LR"(\)" ) +
      pApp->specialk.injection.config.file;
 }
+
+std::wstring
+SKIF_Steam_GetAppStateString (       AppId_t  appid,
+                               const wchar_t *wszStateKey )
+{
+  std::wstring str ( MAX_PATH, L'\0' );
+  DWORD        len = MAX_PATH;
+  LSTATUS   status =
+    RegGetValueW ( HKEY_CURRENT_USER,
+      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
+                           appid ).c_str (),
+                     wszStateKey,
+                       RRF_RT_REG_SZ,
+                         nullptr,
+                           str.data (),
+                             &len );
+
+  if (status == ERROR_SUCCESS)
+    return str;
+  else
+    return L"";
+}
+
+wchar_t
+SKIF_Steam_GetAppStateDWORD (       AppId_t  appid,
+                              const wchar_t *wszStateKey,
+                                    DWORD   *pdwStateVal )
+{
+  DWORD     len    = sizeof (DWORD);
+  LSTATUS   status =
+    RegGetValueW ( HKEY_CURRENT_USER,
+      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
+                           appid ).c_str (),
+                     wszStateKey,
+                       RRF_RT_DWORD,
+                         nullptr,
+                           pdwStateVal,
+                             &len );
+
+  if (status == ERROR_SUCCESS)
+    return TRUE;
+  else
+    return FALSE;
+}
+
+bool
+SKIF_Steam_UpdateAppState (app_record_s *pApp)
+{
+  if (! pApp)
+    return false;
+
+  SKIF_Steam_GetAppStateDWORD (
+     pApp->id,   L"Installed",
+    &pApp->_status.installed );
+
+  if (pApp->_status.installed != 0x0)
+  {   pApp->_status.running    = 0x0;
+
+    SKIF_Steam_GetAppStateDWORD (
+       pApp->id,   L"Running",
+      &pApp->_status.running );
+
+    if (! pApp->_status.running)
+    {
+      SKIF_Steam_GetAppStateDWORD (
+         pApp->id,   L"Updating",
+        &pApp->_status.updating );
+    }
+
+    else
+    {
+      pApp->_status.updating = 0x0;
+    }
+
+    if (pApp->names.normal.empty ())
+    {
+      std::wstring wide_name =
+        SKIF_Steam_GetAppStateString (
+          pApp->id,   L"Name"
+        );
+
+      if (! wide_name.empty ())
+      {
+        pApp->names.normal =
+          SK_WideCharToUTF8 (wide_name);
+      }
+    }
+  }
+
+  return true;
+}
