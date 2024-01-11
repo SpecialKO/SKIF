@@ -1618,12 +1618,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Main loop
   while (! SKIF_Shutdown ) // && IsWindow (hWnd) )
-  {                         msg          = { };
-    static UINT uiLastMsg = 0x0;
-    coverFadeActive = false; // Assume there's no cover fade effect active
+  {
 
     // Reset on each frame
-    SKIF_MouseDragMoveAllowed     = true;
+    SKIF_MouseDragMoveAllowed = true;
+    coverFadeActive           = false; // Assume there's no cover fade effect active
+    msg                       = { };
+    static UINT uiLastMsg     = 0x0;
 
 #ifdef DEBUG
 
@@ -3148,7 +3149,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       /* 2023-08-04: Disabled due to having been replaced by a new 
       // Special handling to allow the main window to be moved when some popups are opened
-      if (false && ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
+      if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
                  SKIF_ImGui_GetWindowModeState ( ) &&
           (      AddGamePopup == PopupState_Opened ||
                  ConfirmPopup == PopupState_Opened ||

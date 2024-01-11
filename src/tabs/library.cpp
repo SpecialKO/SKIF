@@ -3254,7 +3254,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     populated = false;
   }
 
-//#define ThreadedLibraryWorker
+#define ThreadedLibraryWorker
+
+
 #ifdef ThreadedLibraryWorker
 
   struct lib_worker_thread_s {
@@ -3271,15 +3273,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! populated && library_worker == nullptr)
   {
     PLOG_INFO << "Populating library list...";
-    
-    // Clear any existing trie
-    labels = Trie { };
-
-    // Clear all games
-    g_apps.clear();
 
     library_worker = new lib_worker_thread_s;
-    
 
     uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -3423,7 +3418,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           else {
             app.first.clear ();
 
-            app.second._status.refresh (&app.second);
+            if (SKIF_Steam_UpdateAppState (&app.second))
+              app.second._status.dwTimeLastChecked = SKIF_Util_timeGetTime1 ( ) + 333UL; // _RefreshInterval
           }
         }
 
@@ -3561,25 +3557,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Apps were sorted!";
 
-      // Set to last selected if it can be found
-      // Only do this AFTER we have cleared the list of apps from uninstalled games
-      if (selection.appid == SKIF_STEAM_APPID)
-      {
-        for (auto& app : _data->apps)
-        {
-          if (app.second.id    ==      _registry.iLastSelectedGame &&
-              app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
-          {
-            PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
-            selection.appid        = app.second.id;
-            selection.store        = app.second.store;
-            manual_selection.id    = selection.appid;
-            manual_selection.store = selection.store;
-            update = true;
-          }
-        }
-      }
-
       PLOG_INFO << "Finished populating the library list.";
 
       PLOG_INFO << "Loading the embedded Patreon texture...";
@@ -3617,8 +3594,32 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   else if (! populated && library_worker != nullptr && library_worker->iWorker == 1 && WaitForSingleObject (library_worker->hWorker, 0) == WAIT_OBJECT_0)
   {
+    // Clear current data
+    g_apps.clear();
+    labels = Trie { };
+
+    // Insert new data
     g_apps = library_worker->apps;
     labels = library_worker->labels;
+
+    // Set to last selected if it can be found
+    // Only do this AFTER we have cleared the list of apps from uninstalled games
+    if (selection.appid == SKIF_STEAM_APPID)
+    {
+      for (auto& app : g_apps)
+      {
+        if (app.second.id    ==      _registry.iLastSelectedGame &&
+            app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
+        {
+          PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
+          selection.appid        = app.second.id;
+          selection.store        = app.second.store;
+          manual_selection.id    = selection.appid;
+          manual_selection.store = selection.store;
+          update = true;
+        }
+      }
+    }
 
     CloseHandle (library_worker->hWorker);
     library_worker->hWorker = NULL;
