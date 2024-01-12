@@ -91,6 +91,7 @@ const float fTintMin     = 0.75f;
       float fAlpha       = 0.0f;
       float fAlphaSK     = 0.0f;
       float fAlphaPrev   = 1.0f;
+      float fAlphaList   = 0.0f;
       
 PopupState GameMenu        = PopupState_Closed;
 PopupState EmptySpaceMenu  = PopupState_Closed;
@@ -3133,7 +3134,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static DirectX::ScratchImage    img  = { };
 
   // This keeps track of the amount of workers streaming icons that we have active in the background
-  static int activeIconWorkers = 0; // max: 8
+  static int   activeIconWorkers     = 0; // max: 8
+  static int   frameLibraryRefreshed = 0;
 
 #pragma region Initialization
 
@@ -3235,11 +3237,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       RepopulateGames = true;
   }
 
+#define ThreadedLibraryWorker
+
   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
   if (RepopulateGames && activeIconWorkers == 0) // ! gameWorkerRunning.load()
   {
     RepopulateGames = false;
     //gameWorkerRunning.store(true);
+
+#ifndef ThreadedLibraryWorker
+    // This cannot be used when using the threaded library refresh
 
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
@@ -3251,10 +3258,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     update    = true;
 
+#endif
+
     populated = false;
   }
-
-#define ThreadedLibraryWorker
 
 
 #ifdef ThreadedLibraryWorker
@@ -3602,22 +3609,26 @@ SKIF_UI_Tab_DrawLibrary (void)
     g_apps = library_worker->apps;
     labels = library_worker->labels;
 
+    fAlphaList = (_registry.bFadeCovers) ? 0.0f : 1.0f;
+
+    frameLibraryRefreshed = ImGui::GetFrameCount ( );
+
+    // Reset selection to Special K, but only if set to something else than -1
+    if (selection.appid != 0)
+      selection.reset();
+
     // Set to last selected if it can be found
-    // Only do this AFTER we have cleared the list of apps from uninstalled games
-    if (selection.appid == SKIF_STEAM_APPID)
+    for (auto& app : g_apps)
     {
-      for (auto& app : g_apps)
+      if (app.second.id    ==      _registry.iLastSelectedGame &&
+          app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
       {
-        if (app.second.id    ==      _registry.iLastSelectedGame &&
-            app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
-        {
-          PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
-          selection.appid        = app.second.id;
-          selection.store        = app.second.store;
-          manual_selection.id    = selection.appid;
-          manual_selection.store = selection.store;
-          update = true;
-        }
+        PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
+        selection.appid        = app.second.id;
+        selection.store        = app.second.store;
+        manual_selection.id    = selection.appid;
+        manual_selection.store = selection.store;
+        update = true;
       }
     }
 
@@ -4263,6 +4274,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
   );
 
+  bool isCoverHovered = ImGui::IsItemHovered();
+
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     CoverMenu = PopupState_Open;
 
@@ -4281,94 +4294,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     );
   }
 
-  // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
-  static DWORD timeLastTick;
-  bool isHovered = ImGui::IsItemHovered();
-  bool incTick   = false;
-
-  // Fade in/out transition
-
-  if (_registry.bFadeCovers)
-  {
-    // Fade in the new cover
-    if (fAlpha < 1.0f && pTexSRV.p != nullptr)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlpha += 0.05f;
-        incTick = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    // Fade out the old one
-    if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaPrev -= 0.05f;
-        incTick     = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    // Fade in the SK logo
-    if (isSpecialK && fAlphaSK < 1.0f)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaSK += 0.05f;
-        incTick   = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    // Fade out the SK logo
-    if (! isSpecialK && fAlphaSK > 0.0f)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaSK -= 0.05f;
-        incTick   = true;
-      }
-
-      coverFadeActive = true;
-    }
-  }
-
-  // Dim covers
-
-  if (_registry.iDimCovers == 2)
-  {
-    if (isHovered && fTint < 1.0f)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fTint = fTint + 0.01f;
-        incTick = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    else if (! isHovered && fTint > fTintMin)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fTint = fTint - 0.01f;
-        incTick = true;
-      }
-
-      coverFadeActive = true;
-    }
-  }
-
-  // Increment the tick
-  if (incTick)
-    timeLastTick = current_time;
+  //bool isCoverHovered = ImGui::IsItemHovered();
 
   float fY =
   ImGui::GetCursorPosY (                                                  );
@@ -4655,6 +4581,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::BeginGroup      ();
     ImGui::PushID          (app.second.ImGuiPushID.c_str());
 
+    if (_registry.bFadeCovers)
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
+
     SKIF_ImGui_OptImage    (app.second.tex_icon.iWorker == 2 ? app.second.tex_icon.texture.p : nullptr,
                               ImVec2 ( _ICON_HEIGHT,
                                        _ICON_HEIGHT )
@@ -4678,6 +4607,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
     ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (2                    );
+
+    if (_registry.bFadeCovers)
+      ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
 
     static DWORD    timeClicked = 0;
 
@@ -4962,6 +4894,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   );
   ImGui::BeginGroup ();
 
+  if (_registry.bFadeCovers)
+    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
+
   if ( pApp        == nullptr            ||
       (pApp->id    == SKIF_STEAM_APPID   &&
        pApp->store == app_record_s::Store::Steam))
@@ -5148,6 +5083,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       fBottomDist = ImGui::GetItemRectSize().y;
     }
   }
+
+  if (_registry.bFadeCovers)
+    ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
 
   ImGui::EndGroup     (                  );
   ImGui::EndChild     (                  );
@@ -7240,6 +7178,111 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     dragDroppedFilePath.clear();
   }
+
+
+  // START FADE/DIM LOGIC
+
+  // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
+  static DWORD timeLastTick;
+  bool incTick = false;
+
+  // Fade in/out transition
+
+  if (_registry.bFadeCovers)
+  {
+    // Fade in the new cover
+    if (fAlpha < 1.0f && pTexSRV.p != nullptr)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlpha += 0.05f;
+        incTick = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade out the old one
+    if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaPrev -= 0.05f;
+        incTick     = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade in the SK logo
+    if (isSpecialK && fAlphaSK < 1.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaSK += 0.05f;
+        incTick   = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade out the SK logo
+    if (! isSpecialK && fAlphaSK > 0.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaSK -= 0.05f;
+        incTick   = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    // Fade in the games list (but only on the next frame
+    if (fAlphaList < 1.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fAlphaList += 0.05f;
+        incTick     = true;
+      }
+
+      coverFadeActive = true;
+    }
+  }
+
+  // Dim covers
+
+  if (_registry.iDimCovers == 2)
+  {
+    if (isCoverHovered && fTint < 1.0f)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fTint = fTint + 0.01f;
+        incTick = true;
+      }
+
+      coverFadeActive = true;
+    }
+
+    else if (! isCoverHovered && fTint > fTintMin)
+    {
+      if (current_time - timeLastTick > 15)
+      {
+        fTint = fTint - 0.01f;
+        incTick = true;
+      }
+
+      coverFadeActive = true;
+    }
+  }
+
+  // Increment the tick
+  if (incTick)
+    timeLastTick = current_time;
+
+  // END FADE/DIM LOGIC
 
   if (coverRefresh)
   {
