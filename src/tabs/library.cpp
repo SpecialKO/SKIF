@@ -3248,6 +3248,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 #ifndef ThreadedLibraryWorker
     // This cannot be used when using the threaded library refresh
 
+  // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
+  if (RepopulateGames && ! gameWorkerRunning.load())
+  {
+
     // Reset selection to Special K, but only if set to something else than -1
     if (selection.appid != 0)
       selection.reset();
@@ -3407,7 +3411,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      PLOG_INFO << "Loading game names synchronously...";
+      PLOG_INFO << "Loading game names...";
 
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
@@ -3495,11 +3499,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
 
           if (original_name != app.first)
-          {
-            PLOG_DEBUG << "Game title was changed:";
-            PLOG_DEBUG << "Old: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ")";
-            PLOG_DEBUG << "New: " << SK_UTF8ToWideChar(app.first.c_str())     << " (" << app.first     << ")";
-          }
+            PLOG_DEBUG << "Game title was changed: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ") --> " << SK_UTF8ToWideChar(app.first.c_str()) << " (" << app.first << ")";
 
           // Strip any remaining null terminators
           app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
@@ -3549,7 +3549,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      PLOG_INFO << "Finished loading game names synchronously...";
+      PLOG_INFO << "Finished loading game names...";
     
       std::sort ( _data->apps.begin (),
                   _data->apps.end   (),
@@ -3562,11 +3562,11 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       );
 
-      PLOG_INFO << "Apps were sorted!";
+      //PLOG_INFO << "Apps were sorted!";
 
       PLOG_INFO << "Finished populating the library list.";
 
-      PLOG_INFO << "Loading the embedded Patreon texture...";
+      PLOG_INFO_IF(pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
       ImVec2 dontCare1, dontCare2;
       if (pPatTexSRV.p == nullptr)
         LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare1, dontCare2);
@@ -3601,6 +3601,43 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   else if (! populated && library_worker != nullptr && library_worker->iWorker == 1 && WaitForSingleObject (library_worker->hWorker, 0) == WAIT_OBJECT_0)
   {
+
+    struct IconCache {
+      app_record_s::tex_registry_s tex_icon;
+      app_record_s::Store store;
+      AppId_t id;
+    };
+
+    std::vector<IconCache> icon_cache;
+
+    // Clear up any unacknowledged icon workers
+    for (auto& app : g_apps)
+    {
+      if (app.second.tex_icon.iWorker == 1)
+      {
+        if (WaitForSingleObject (app.second.tex_icon.hWorker, 200) == WAIT_OBJECT_0) // 200 second timeout (maybe change it?)
+        {
+          CloseHandle (app.second.tex_icon.hWorker);
+          app.second.tex_icon.hWorker = NULL;
+          app.second.tex_icon.iWorker = 2;
+          activeIconWorkers--;
+        }
+      }
+      
+      // Cache any existing icon textures...
+      if (app.second.tex_icon.texture.p != nullptr)
+      {
+        icon_cache.push_back ({
+          app.second.tex_icon,
+          app.second.store,
+          app.second.id
+        });
+
+        //SKIF_ResourcesToFree.push(app.second.tex_icon.texture.p);
+        //app.second.tex_icon.texture.p = nullptr;
+      }
+    }
+
     // Clear current data
     g_apps.clear();
     labels = Trie { };
@@ -3608,6 +3645,31 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Insert new data
     g_apps = library_worker->apps;
     labels = library_worker->labels;
+
+    // Move cached icons over
+    for (auto& app : g_apps)
+    {
+      for (auto& icon : icon_cache)
+      {
+        if (icon.id    == app.second.id
+         && icon.store == app.second.store)
+        {
+          app.second.tex_icon = icon.tex_icon; // Move it over
+          icon.id = 0; // Mark it _not_ for release
+          break;
+        }
+      }
+    }
+
+    // Push unused icons for release
+    for (auto& icon : icon_cache)
+    {
+      if (icon.id == 0)
+        continue; // Skip icons marked as 0
+      
+      SKIF_ResourcesToFree.push(icon.tex_icon.texture.p);
+      icon.tex_icon.texture.p = nullptr;
+    }
 
     fAlphaList = (_registry.bFadeCovers) ? 0.0f : 1.0f;
 
@@ -7184,7 +7246,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Every >15 ms, increase/decrease the cover fade effect (makes it frame rate independent)
   static DWORD timeLastTick;
-  bool incTick = false;
+  bool         incTick = false;
 
   // Fade in/out transition
 
