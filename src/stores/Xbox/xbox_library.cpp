@@ -81,7 +81,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                   dwSize = sizeof(szData) / sizeof(WCHAR);
                   if (RegGetValueW (hSubKey, szSubKey, L"Package", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   {
-                    PLOG_VERBOSE << "Package: " << szData;
+                    //PLOG_VERBOSE << "Package: " << szData;
 
                     dwSize = sizeof(szData) / sizeof(WCHAR);
                     if (RegGetValueW (hSubKey, szSubKey, L"Root", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
@@ -89,7 +89,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       pugi::xml_document manifest, config;
                       app_record_s record (0); // Dummy value that will be changed further down
 
-                      PLOG_VERBOSE << "Root: " << szData;
+                      //PLOG_VERBOSE << "Root: " << szData;
 
                       record.store      = app_record_s::Store::Xbox;
                       record.store_utf8 = "Xbox";
@@ -100,19 +100,19 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
                         record.install_dir += LR"(\)";
 
-                      PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
+                      //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
                       record.Xbox_AppDirectory = record.install_dir;
 
                       // Try to load the AppX XML Manifest in the install folder
                       if (! manifest.load_file((record.install_dir + LR"(appxmanifest.xml)").c_str()))
                       {
-                        PLOG_VERBOSE << "Failed to load AppX manifest at: " << record.install_dir << "appxmanifest.xml";
+                        PLOG_ERROR << "Failed to load AppX manifest at: " << record.install_dir << "appxmanifest.xml";
                         continue; // Skip to the next enumeration
                       }
 
                       // Load succeeded! Let's proceed.
-                      PLOG_VERBOSE << "Successfully loaded appxmanifest.xml";
+                      //PLOG_VERBOSE << "Successfully loaded appxmanifest.xml";
 
                       pugi::xml_node xmlRoot  = manifest.document_element();
                       std::wstring virtualFolder;
@@ -158,7 +158,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         }
                       }
 
-                      PLOG_VERBOSE << "virtualFolder: " << virtualFolder;
+                      //PLOG_VERBOSE << "virtualFolder: " << virtualFolder;
 
                       record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
@@ -182,7 +182,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       if (PathFileExists(virtualFolder.c_str()))
                         record.install_dir = virtualFolder;
 
-                      PLOG_VERBOSE << "install_dir: " << record.install_dir;
+                      //PLOG_VERBOSE << "install_dir: " << record.install_dir;
 
                       std::string bitness = xmlRoot.child("Identity").attribute("ProcessorArchitecture").value();
 
@@ -209,7 +209,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                         if (config.load_file((record.install_dir + LR"(MicrosoftGame.config)").c_str()))
                         {
-                          PLOG_VERBOSE << "Successfully loaded MicrosoftGame.config";
+                          //PLOG_VERBOSE << "Successfully loaded MicrosoftGame.config";
 
                           pugi::xml_node xmlConfigRoot  = config.document_element();
 
@@ -242,7 +242,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         }
 
                         else {
-                          PLOG_VERBOSE << "Failed to load MicrosoftGame config at: " << record.install_dir << "MicrosoftGame.config";
+                          PLOG_ERROR << "Failed to load MicrosoftGame config at: " << record.install_dir << "MicrosoftGame.config";
                         }
 
                         // Some games (e.g. Quake 2) needs to be launched through the gamelaunchhelper.exe, so retain that value
@@ -330,7 +330,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       std::pair <std::string, app_record_s>
                         Xbox (record.names.normal, record);
 
-                      PLOG_VERBOSE << "Added to the list of detected games!";
+                      //PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (Xbox);
                     }
                   }
