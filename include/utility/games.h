@@ -44,8 +44,8 @@ struct SKIF_GamesCollection {
                     snapshot_idx_written = 1;
   std::atomic<bool> awake                = false; // Used to protect against sporadic wake-ups
 
-  void                         RefreshGames (void);
-  std::vector <std::unique_ptr<app_generic_s>>* GetGames (void);
+  bool                                          RefreshGames (bool refresh);
+  std::vector <std::unique_ptr<app_generic_s>>* GetGames     (void);
 
   static SKIF_GamesCollection& GetInstance (void)
   {
@@ -57,8 +57,15 @@ struct SKIF_GamesCollection {
   SKIF_GamesCollection (SKIF_GamesCollection&&)      = delete; // Delete move constructor
 
 private:
-  void LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>>* apps); // Load custom SKIF gmaes
   SKIF_GamesCollection (void);
+  void LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>>* apps); // Load custom SKIF gmaes
+  int  m_iIconWorkers = 0;
+
+  Trie m_tLabels;
+
+  ID3D11ShaderResourceView* m_pPatTexSRV;
+  ID3D11ShaderResourceView* m_pSKLogoTexSRV;
+  ID3D11ShaderResourceView* m_pSKLogoTexSRV_small;
 };
 
 // Helper functions
