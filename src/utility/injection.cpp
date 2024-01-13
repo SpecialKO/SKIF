@@ -121,9 +121,9 @@ SKIF_InjectionContext::SKIF_InjectionContext (void)
 #endif
     };
 
-  PLOG_VERBOSE << "Watching 32-bit PID file: " << records[0].wsPidFilename;
+  PLOG_VERBOSE << "Watching 32-bit PID file: " << SKIF_Util_StripPersonalData (records[0].wsPidFilename);
 #ifdef _WIN64
-  PLOG_VERBOSE << "Watching 64-bit PID file: " << records[1].wsPidFilename;
+  PLOG_VERBOSE << "Watching 64-bit PID file: " << SKIF_Util_StripPersonalData (records[1].wsPidFilename);
 #endif
 
   // Perform the dance of the DLL files
@@ -689,11 +689,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
     SK_WideCharToUTF8 (SKSvc64);
 
   if (SKVer32_old != SKVer32)
-  {
-    PLOG_INFO << "SpecialK32.dll : " << SKVer32;
-    PLOG_INFO << "SKIFsvc32.exe  : " << SKSvc32;
     libCacheRefresh = true;
-  }
 
   SKVer32_old = SKVer32;
   SKSvc32_old = SKSvc32;
@@ -718,15 +714,22 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
     SK_WideCharToUTF8 (SKSvc64);
 
   if (SKVer64_old != SKVer64)
-  {
-    PLOG_INFO << "SpecialK64.dll : " << SKVer64;
-    PLOG_INFO << "SKIFsvc64.exe  : " << SKSvc64;
     libCacheRefresh = true;
-  }
 
   SKVer64_old = SKVer64;
   SKSvc64_old = SKSvc64;
 #endif
+  
+  if (libCacheRefresh)
+  {
+    PLOG_INFO << "Special K DLL files and service hsots have been refreshed..."
+              << "\n+------------------+-------------------------------------+"
+              << "\n| SpecialK32.dll   | " << SKVer32
+              << "\n|  SKIFsvc32.exe   | " << SKSvc32
+              << "\n| SpecialK64.dll   | " << SKVer64
+              << "\n|  SKIFsvc64.exe   | " << SKSvc64
+              << "\n+------------------+-------------------------------------+";
+  }
 }
 
 void

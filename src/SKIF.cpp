@@ -78,32 +78,33 @@
 #include <shlobj.h>
 #include <netlistmgr.h>
 
-const int SKIF_STEAM_APPID = 1157970;
-bool RecreateSwapChains    = false;
-bool RecreateSwapChainsPending = false;
-bool RecreateWin32Windows  = false;
-bool RepositionSKIF        = false;
-bool RespectMonBoundaries  = false;
-bool changedHiDPIScaling   = false;
-bool invalidateFonts       = false;
-bool failedLoadFonts       = false;
-bool failedLoadFontsPrompt = false;
-DWORD invalidatedFonts     = 0;
-DWORD invalidatedDevice    = 0;
-bool startedMinimized      = false;
-bool msgDontRedraw         = false;
-bool coverFadeActive       = false;
-bool SKIF_Shutdown         = false;
-bool SKIF_NoInternet       = false;
-int  SKIF_ExitCode         = 0;
-int  SKIF_nCmdShow         = -1;
-int  SKIF_FrameCount       = 0;
-int addAdditionalFrames    = 0;
-DWORD dwDwmPeriod          = 16; // Assume 60 Hz by default
-bool SteamOverlayDisabled  = false;
-bool allowShortcutCtrlA    = true; // Used to disable the Ctrl+A when interacting with text input
-bool SKIF_MouseDragMoveAllowed = true;
-bool SKIF_debuggerPresent  = false;
+const int SKIF_STEAM_APPID      = 1157970;
+bool  RecreateSwapChains        = false;
+bool  RecreateSwapChainsPending = false;
+bool  RecreateWin32Windows      = false;
+bool  RepositionSKIF            = false;
+bool  RespectMonBoundaries      = false;
+bool  changedHiDPIScaling       = false;
+bool  invalidateFonts           = false;
+bool  failedLoadFonts           = false;
+bool  failedLoadFontsPrompt     = false;
+DWORD invalidatedFonts          = 0;
+DWORD invalidatedDevice         = 0;
+bool  startedMinimized          = false;
+bool  msgDontRedraw             = false;
+bool  coverFadeActive           = false;
+bool  SKIF_Shutdown             = false;
+bool  SKIF_NoInternet           = false;
+int   SKIF_ExitCode             = 0;
+int   SKIF_nCmdShow             = -1;
+int   SKIF_FrameCount           = 0;
+int   addAdditionalFrames       = 0;
+DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
+bool  SteamOverlayDisabled      = false;
+bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when interacting with text input
+bool  SKIF_MouseDragMoveAllowed = true;
+bool  SKIF_debuggerPresent      = false;
+DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 
 // Shell messages
 UINT SHELL_TASKBAR_RESTART        = 0;
@@ -1263,29 +1264,28 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
 
     SKIF_debuggerPresent = true;
   }
-
-#ifdef _WIN64
-  PLOG_INFO << "Special K Injection Frontend (SKIF) 64-bit v " << SKIF_VERSION_STR_A;
-#else
-  PLOG_INFO << "Special K Injection Frontend (SKIF) 32-bit v " << SKIF_VERSION_STR_A;
-#endif
   
   wchar_t current_workdir [MAX_PATH + 2] = { };
   GetCurrentDirectoryW    (MAX_PATH, current_workdir);
 
-  PLOG_INFO << "Built " __TIME__ ", " __DATE__;
-  PLOG_INFO << SKIF_LOG_SEPARATOR;
-  PLOG_INFO << "Working directory:  ";
-  PLOG_INFO << "Old:                " << SKIF_Util_StripPersonalData (_path_cache.skif_workdir_org);
-  PLOG_INFO << "New:                " << SKIF_Util_StripPersonalData (current_workdir);
-  PLOG_INFO << "SKIF executable:    " << SKIF_Util_StripPersonalData (_path_cache.skif_executable);
-  PLOG_INFO << "Launch arguments:   " << lpCmdLine;
-  PLOG_INFO << "Special K install:  " << SKIF_Util_StripPersonalData (_path_cache.specialk_install);
-  PLOG_INFO << "Special K userdata: " << SKIF_Util_StripPersonalData (_path_cache.specialk_userdata);
-  PLOG_INFO << SKIF_LOG_SEPARATOR;
 
-  if (_Signal.Launcher || _Signal.LauncherURI)
-    PLOG_INFO << "SKIF is being used as a launcher.";
+#ifdef _WIN64
+  PLOG_INFO << "Initializing Special K Injection Frontend (SKIF) 64-bit..."
+#else
+  PLOG_INFO << "Initializing Special K Injection Frontend (SKIF) 32-bit..."
+#endif
+            << "\n+------------------+-------------------------------------+"
+            << "\n| SKIF Executable  | " << SKIF_Util_StripPersonalData (_path_cache.skif_executable)
+            << "\n|    > version     | " << SKIF_VERSION_STR_A
+            << "\n|    > build       | " << __DATE__ ", " __TIME__
+            << "\n|    > mode        | " << ((_Signal.Launcher || _Signal.LauncherURI) ? "Launcher" : "Regular")
+            << "\n|    > arguments   | " << lpCmdLine
+            << "\n|    > directory   | "
+            << "\n|      > original  | " << SKIF_Util_StripPersonalData (_path_cache.skif_workdir_org)
+            << "\n|      > adjusted  | " << SKIF_Util_StripPersonalData (current_workdir)
+            << "\n| SK Install       | " << SKIF_Util_StripPersonalData (_path_cache.specialk_install)
+            << "\n| SK User Data     | " << SKIF_Util_StripPersonalData (_path_cache.specialk_userdata)
+            << "\n+------------------+-------------------------------------+";
 }
 
 bool bKeepWindowAlive  = true,
@@ -1340,6 +1340,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Don't stick around if the RestartDisplDrv command is being used.
     ExitProcess (0x0);
   }
+
+  // Get the current time to use as a basis of how long the initialization took
+  SKIF_startupTime = SKIF_Util_timeGetTime1();
   
   // Process cmd line arguments (1/4) -- this sets up the necessary variables
   SKIF_Startup_ProcessCmdLineArgs (lpCmdLine);
@@ -1440,13 +1443,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Register SKIF in Windows to enable quick launching.
-    PLOG_INFO << SKIF_LOG_SEPARATOR;
-    PLOG_INFO << "Current Registry State:";
-    PLOG_INFO << "Special K user data:   " << _registry.wsPath;
-    PLOG_INFO << "SKIF app registration: " << _registry.wsAppRegistration;
+
+    PLOG_INFO << "Checking global registry values..."
+              << "\n+------------------+-------------------------------------+"
+              << "\n| Central path     | " << SKIF_Util_StripPersonalData (_registry.wsPath)
+              << "\n| App registration | " << SKIF_Util_StripPersonalData (_registry.wsAppRegistration)
+              << "\n+------------------+-------------------------------------+";
+
     SKIF_Util_RegisterApp ( );
-    PLOG_INFO << SKIF_LOG_SEPARATOR;
   }
+
+  PLOG_INFO << "Creating notification icon...";
 
   // Create invisible notify window (for the traybar icon and notification toasts, and for doing D3D11 tests)
   WNDCLASSEX wcNotify =
@@ -1520,6 +1527,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.bServiceMode = true;
     }
   }
+  
+  PLOG_INFO << "Initializing Direct3D...";
+
+  DWORD temp_time = SKIF_Util_timeGetTime1();
 
   // Initialize Direct3D
   if (! CreateDeviceD3D (SKIF_Notify_hWnd))
@@ -1528,11 +1539,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 1;
   }
 
+  PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+
   // Register to be notified if the effective power mode changes
   //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
 
   // The DropTarget object used for drag-and-drop support for new covers
   static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
+  
+  PLOG_INFO << "Initializing ImGui...";
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION   ();
@@ -1575,7 +1590,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif
 
   // Setup Platform/Renderer bindings
+  PLOG_INFO << "Initializing ImGui Win32 platform...";
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
+  PLOG_INFO << "Initializing ImGui D3D11 platform...";
   ImGui_ImplDX11_Init  (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
 
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
@@ -1594,10 +1611,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_ImGui_AdjustAppModeSize (NULL);
 
   // Initialize ImGui fonts
+  PLOG_INFO << "Initializing ImGui fonts...";
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
 
   // Variable related to continue/pause rendering behaviour
   bool HiddenFramesContinueRendering = true;  // We always have hidden frames that require to continue rendering on init
+  int  HiddenFramesRemaining         = 0;
   bool svcTransitionFromPendingState = false; // This is used to continue rendering if we transitioned over from a pending state (which kills the refresh timer)
 
   bool repositionToCenter = false;
@@ -1612,14 +1631,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterHotKeySVCTemp   ( );
   }
 
+  PLOG_INFO << "Initializing updater...";
   // Initialize the updater
   static SKIF_Updater& _updater = 
          SKIF_Updater::GetInstance ( );
 
   // Main loop
+  PLOG_INFO << "Entering main loop...";
   while (! SKIF_Shutdown ) // && IsWindow (hWnd) )
   {
-
     // Reset on each frame
     SKIF_MouseDragMoveAllowed = true;
     coverFadeActive           = false; // Assume there's no cover fade effect active
@@ -1943,21 +1963,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
     else if (failedLoadFonts)
     {
-      //OutputDebugString(L"failedLoadFonts\n");
+      // This scenario should basically never happen nowadays that SKIF only loads the specific characters needed from each character set
 
-      SKIF_bFontChineseSimplified = false;
-      SKIF_bFontChineseAll        = false;
-      SKIF_bFontCyrillic          = false;
-      SKIF_bFontJapanese          = false;
-      SKIF_bFontKorean            = false;
-      SKIF_bFontThai              = false;
-      SKIF_bFontVietnamese        = false;
-      
       SKIF_ImGui_InvalidateFonts ( );
 
-      failedLoadFonts = false;
+      failedLoadFonts       = false;
       failedLoadFontsPrompt = true;
     }
+
+    //temp_time = SKIF_Util_timeGetTime1();
+    //PLOG_INFO << "Operation took " << (temp_time - SKIF_Util_timeGetTime1()) << " ms.";
 
 #pragma region New UI Frame
 
@@ -2091,7 +2106,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
 
-      HiddenFramesContinueRendering = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
+      HiddenFramesRemaining         = ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems;
+      HiddenFramesContinueRendering = (HiddenFramesRemaining > 0);
       HoverTipActive = false;
 
       extern ImGuiPlatformMonitor*
@@ -3557,6 +3573,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
+
+  PLOG_INFO << "Exited main loop...";
   
   // Handle the service before we exit
   if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
@@ -3602,7 +3620,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   DeleteCriticalSection (&CriticalSectionDbgHelp);
 
-  PLOG_INFO << "Terminating process with exit code " << SKIF_ExitCode;
+  PLOG_INFO << "Exiting process with code " << SKIF_ExitCode;
   return SKIF_ExitCode;
 }
 
@@ -3722,12 +3740,12 @@ bool CreateDeviceD3D (HWND hWnd)
     return false;
   }
 
+  //return true; // No idea why this was left in https://github.com/SpecialKO/SKIF/commit/1c03d60642fcc62d4aa27bd440dc24115f6cf907 ... A typo probably?
+
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the
   //   get go, as e.g. using WS_EX_NOREDIRECTIONBITMAP on a BitBlt window will
   //   cause it to be hidden entirely.
-
-  return true;
 
   if (pFactory2 != nullptr)
   {

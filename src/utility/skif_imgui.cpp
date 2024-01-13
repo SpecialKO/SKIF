@@ -23,11 +23,21 @@ bool SKIF_bFontChineseSimplified   = false,
      SKIF_bFontJapanese            = false,
      SKIF_bFontKorean              = false,
      SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false;
+     SKIF_bFontVietnamese          = false,
+     SKIF_bFontAwesomeSolid        = false,
+     SKIF_bFontAwesomeBrands       = false;
 
 ImFont* fontConsolas = nullptr;
-ImFont* fontFAS      = nullptr;
-ImFont* fontFAR      = nullptr;
+
+std::vector<ImWchar> vFontChineseSimplified;
+std::vector<ImWchar> vFontChineseAll;
+std::vector<ImWchar> vFontCyrillic;
+std::vector<ImWchar> vFontJapanese;
+std::vector<ImWchar> vFontKorean;
+std::vector<ImWchar> vFontThai;
+std::vector<ImWchar> vFontVietnamese;
+std::vector<ImWchar> vFontAwesome;
+std::vector<ImWchar> vFontAwesomeBrands;
 
 float
 SKIF_ImGui_sRGBtoLinear (float col_srgb)
@@ -652,64 +662,6 @@ void SKIF_ImGui_ServiceMenu (void)
 
 // Fonts
 
-void
-SKIF_ImGui_MissingGlyphCallback (wchar_t c)
-{
-  static UINT acp = GetACP();
-
-  static std::unordered_set <wchar_t>
-      unprintable_chars;
-  if (unprintable_chars.emplace (c).second)
-  {
-    using range_def_s =
-      std::pair <const ImWchar*, bool *>;
-
-    static       auto pFonts = ImGui::GetIO ().Fonts;
-
-    static const auto ranges =
-      { // Sorted from least numer of unique characters to the most
-        range_def_s { pFonts->GetGlyphRangesVietnamese              (), &SKIF_bFontVietnamese        },
-        range_def_s { pFonts->GetGlyphRangesCyrillic                (), &SKIF_bFontCyrillic          },
-        range_def_s { pFonts->GetGlyphRangesThai                    (), &SKIF_bFontThai              },
-      ((acp == 932) // Prioritize Japanese for ACP 932
-      ? range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }
-      : range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }),
-      ((acp == 932)
-      ? range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &SKIF_bFontChineseSimplified }
-      : range_def_s { pFonts->GetGlyphRangesJapanese                (), &SKIF_bFontJapanese          }),
-        range_def_s { pFonts->GetGlyphRangesKorean                  (), &SKIF_bFontKorean            }
-#ifdef _WIN64
-      // 32-bit SKIF breaks if too many character sets are
-      //   loaded so omit Chinese Full on those versions.
-      , range_def_s { pFonts->GetGlyphRangesChineseFull             (), &SKIF_bFontChineseAll        }
-#endif
-      };
-
-    for ( const auto &[span, enable] : ranges)
-    {
-      ImWchar const *sp =
-        &span [2];
-
-      while (*sp != 0x0)
-      {
-        if ( c <= (wchar_t)(*sp++) &&
-             c >= (wchar_t)(*sp++) )
-        {
-           sp             = nullptr;
-          *enable         = true;
-
-          extern bool invalidateFonts;
-          invalidateFonts = true;
-
-          break;
-        }
-      }
-
-      if (sp == nullptr)
-        break;
-    }
-  }
-}
 
 const ImWchar*
 SK_ImGui_GetGlyphRangesDefaultEx (void)
@@ -749,6 +701,7 @@ SK_ImGui_GetGlyphRangesFontAwesome (void)
 {
   static const ImWchar ranges [] =
   {
+    0x0020, 0x00FF,             // Basic Latin + Latin Supplement  (this is needed to get the missing glyph fallback to work)
     ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
     0
   };
@@ -760,10 +713,85 @@ SK_ImGui_GetGlyphRangesFontAwesomeBrands (void)
 {
   static const ImWchar ranges [] =
   {
+    0x0020, 0x00FF,             // Basic Latin + Latin Supplement  (this is needed to get the missing glyph fallback to work)
     ICON_MIN_FAB, ICON_MAX_FAB, // Font Awesome (Brands)
     0
   };
   return &ranges [0];
+}
+
+void
+SKIF_ImGui_MissingGlyphCallback (wchar_t c)
+{
+  static UINT acp = GetACP();
+
+  static std::unordered_set <wchar_t>
+      unprintable_chars;
+
+  if (unprintable_chars.emplace (c).second)
+  {
+    using range_def_s =
+      std::pair <const ImWchar*, std::vector<ImWchar> * >; // bool *, 
+
+    static       auto pFonts = ImGui::GetIO ().Fonts;
+
+    // Sorted from least number of unique characters to the most
+    static const auto ranges =
+      {
+      // Font Awesome doesn't work as intended as regular and brand has overlapping ranges...
+        range_def_s { SK_ImGui_GetGlyphRangesFontAwesome            (), &vFontAwesome           },
+      //range_def_s { SK_ImGui_GetGlyphRangesFontAwesomeBrands      (), &vFontAwesomeBrands     },
+        range_def_s { pFonts->GetGlyphRangesVietnamese              (), &vFontVietnamese        },
+        range_def_s { pFonts->GetGlyphRangesCyrillic                (), &vFontCyrillic          },
+        range_def_s { pFonts->GetGlyphRangesThai                    (), &vFontThai              },
+      ((acp == 932) // Prioritize Japanese for ACP 932
+      ? range_def_s { pFonts->GetGlyphRangesJapanese                (), &vFontJapanese          }
+      : range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &vFontChineseSimplified }),
+      ((acp == 932)
+      ? range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &vFontChineseSimplified }
+      : range_def_s { pFonts->GetGlyphRangesJapanese                (), &vFontJapanese          }),
+        range_def_s { pFonts->GetGlyphRangesKorean                  (), &vFontKorean            }
+#ifdef _WIN64
+      // 32-bit SKIF breaks if too many character sets are
+      //   loaded so omit Chinese Full on those versions.
+      , range_def_s { pFonts->GetGlyphRangesChineseFull             (), &vFontChineseAll        }
+#endif
+      };
+
+    for ( const auto &[span, vector] : ranges)
+    {
+      ImWchar const *sp =
+        &span [2]; // This here ends up excluding fonts that only define a single range, as [2] == 0 in those cases
+
+      while (*sp != 0x0)
+      {
+        if ( c <= (wchar_t)(*sp++) &&
+             c >= (wchar_t)(*sp++) )
+        {
+          sp             = nullptr;
+          //*enable         = true;
+
+          if (vector->empty())
+            vector->push_back(c);
+          else
+            vector->back() = c;
+
+          vector->push_back(c);
+
+          // List is null terminated
+          vector->push_back(0);
+
+          extern bool invalidateFonts;
+          invalidateFonts = true;
+
+          break;
+        }
+      }
+
+      if (sp == nullptr)
+        break;
+    }
+  }
 }
 
 ImFont*
@@ -815,6 +843,7 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   extern ImGuiContext *GImGui;
 
+  // Reset any existing fonts
   if (io.Fonts != nullptr)
   {
     if (GImGui->FontAtlasOwnedByContext)
@@ -870,104 +899,109 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   if (extendedCharsets)
   {
     // Cyrillic character set
-    if (SKIF_bFontCyrillic)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesCyrillic                 (), &font_cfg);
+    if (! vFontCyrillic.empty())
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontCyrillic.data(), &font_cfg);
       //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesCyrillic        (), &font_cfg);
   
     // Japanese character set
     // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (SKIF_bFontJapanese && acp == 932)
+    if (! vFontJapanese.empty() && acp == 932)
     {
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
       ///*
       if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, vFontJapanese.data(), &font_cfg);
       else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, vFontJapanese.data(), &font_cfg);
       //*/
     }
 
     // Simplified Chinese character set
     // Also includes almost all of the Japanese characters except for some Kanjis
-    if (SKIF_bFontChineseSimplified)
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon (), &font_cfg);
+    if (! vFontChineseSimplified.empty())
+      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, vFontChineseSimplified.data(), &font_cfg);
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon        (), &font_cfg);
 
     // Japanese character set
     // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (SKIF_bFontJapanese && acp != 932)
+    if (! vFontJapanese.empty() && acp != 932)
     {
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
       ///*
       if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, vFontJapanese.data(), &font_cfg);
       else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, io.Fonts->GetGlyphRangesJapanese                (), &font_cfg);
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, vFontJapanese.data(), &font_cfg);
       //*/
     }
     
     // All Chinese character sets
-    if (SKIF_bFontChineseAll)
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, io.Fonts->GetGlyphRangesChineseFull             (), &font_cfg);
+    if (! vFontChineseAll.empty())
+      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, vFontChineseAll.data(), &font_cfg);
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseFull        (), &font_cfg);
 
     // Korean character set
     // On 32-bit builds this does not include Hangul syllables due to system limitaitons
-    if (SKIF_bFontKorean)
-      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, SK_ImGui_GetGlyphRangesKorean                   (), &font_cfg);
+    if (! vFontKorean.empty())
+      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, vFontKorean.data(), &font_cfg);
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, io.Fonts->SK_ImGui_GetGlyphRangesKorean        (), &font_cfg);
 
     // Thai character set
-    if (SKIF_bFontThai)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesThai                    (), &font_cfg);
+    if (! vFontThai.empty())
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontThai.data(), &font_cfg);
       //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSansThai-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesThai      (), &font_cfg);
 
     // Vietnamese character set
-    if (SKIF_bFontVietnamese)
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, io.Fonts->GetGlyphRangesVietnamese              (), &font_cfg);
+    if (! vFontVietnamese.empty())
+      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontVietnamese.data(), &font_cfg);
       //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesVietnamese    (), &font_cfg);
   }
 
-  static auto
-    skif_fs_wb = ( std::ios_base::binary
-                 | std::ios_base::out  );
+    static auto
+      skif_fs_wb = ( std::ios_base::binary
+                    | std::ios_base::out  );
 
-  auto _UnpackFontIfNeeded =
-  [&]( const char*   szFont,
-       const uint8_t akData [],
-       const size_t  cbSize )
-  {
-    if (! std::filesystem::is_regular_file ( fontDir / szFont, ec)        )
-                     std::ofstream ( fontDir / szFont, skif_fs_wb ).
-      write ( reinterpret_cast <const char *> (akData),
-                                               cbSize);
-  };
+    auto _UnpackFontIfNeeded =
+    [&]( const char*   szFont,
+          const uint8_t akData [],
+          const size_t  cbSize )
+    {
+      if (! std::filesystem::is_regular_file ( fontDir / szFont, ec)        )
+                        std::ofstream ( fontDir / szFont, skif_fs_wb ).
+        write ( reinterpret_cast <const char *> (akData),
+                                                  cbSize);
+    };
 
-  auto      awesome_fonts = {
-    std::make_tuple (
-      FONT_ICON_FILE_NAME_FAS, fa_solid_900_ttf,
-                   _ARRAYSIZE (fa_solid_900_ttf) ),
-    std::make_tuple (
-      FONT_ICON_FILE_NAME_FAB, fa_brands_400_ttf,
-                   _ARRAYSIZE (fa_brands_400_ttf) )
-                            };
+    auto      awesome_fonts = {
+      std::make_tuple (
+        FONT_ICON_FILE_NAME_FAS, fa_solid_900_ttf,
+                      _ARRAYSIZE (fa_solid_900_ttf) ),
+      std::make_tuple (
+        FONT_ICON_FILE_NAME_FAB, fa_brands_400_ttf,
+                      _ARRAYSIZE (fa_brands_400_ttf) )
+                              };
 
-  float fontSizeFA       = fontSize - 2.0f;
-  float fontSizeConsolas = fontSize - 4.0f;
+    float fontSizeFA       = fontSize - 2.0f;
+    float fontSizeConsolas = fontSize - 4.0f;
 
-  for (auto& font : awesome_fonts)
-    _UnpackFontIfNeeded ( std::get <0> (font), std::get <1> (font), std::get <2> (font) );
+    for (auto& font : awesome_fonts)
+      _UnpackFontIfNeeded ( std::get <0> (font), std::get <1> (font), std::get <2> (font) );
 
-  // FA Regular is basically useless as it only has 163 icons, so we don't bother using it
-  // FA Solid has 1390 icons in comparison
-  SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesome       (), &font_cfg);
-  // FA Brands
-  SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeBrands (), &font_cfg);
+    // In January, 2024 various optimization attempts were made to on-demand load Font Awesome characters
+    //   as they appeared, but while this shaved down a bit on the initial launch time, it also resulted
+    //     in unnecessary ~20ms delays every time a new Font Awesome character appeared on-screen...
+    //        ... Meanwhile it only shaved of like 10-15ms on the launch time, lol ! // Aemony
 
-  //io.Fonts->AddFontDefault ();
+    // FA Regular is basically useless as it only has 163 icons, so we don't bother using it
+    // FA Solid has 1390 icons in comparison
+        SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesome(), &font_cfg);
+    // FA Brands
+    SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeBrands(), &font_cfg);
 
-  fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas, SK_ImGui_GetGlyphRangesDefaultEx ( ));
-  //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
+    //io.Fonts->AddFontDefault ();
+
+    fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas, SK_ImGui_GetGlyphRangesDefaultEx ( ));
+    //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
 
 void
@@ -1087,6 +1121,13 @@ SKIF_ImGui_InvalidateFonts (void)
   float fontScale = SKIF_ImGui_FontSizeDefault * SKIF_ImGui_GlobalDPIScale;
 
   SKIF_ImGui_InitFonts (fontScale); // SKIF_FONTSIZE_DEFAULT);
-  ImGui::GetIO ().Fonts->Build ();
+
+  if (ImGui::GetIO().Fonts->TexPixelsAlpha8 == NULL)
+  {
+    DWORD temp_time = SKIF_Util_timeGetTime1();
+    ImGui::GetIO ().Fonts->Build ( );
+    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+  }
+
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }

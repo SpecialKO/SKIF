@@ -50,8 +50,8 @@ extern bool SKIF_bFontChineseSimplified,
             SKIF_bFontJapanese,
             SKIF_bFontKorean,
             SKIF_bFontThai,
-            SKIF_bFontVietnamese;
+            SKIF_bFontVietnamese,
+            SKIF_bFontAwesomeSolid,
+            SKIF_bFontAwesomeBrands;
 
 extern ImFont* fontConsolas;
-extern ImFont* fontFAS;
-extern ImFont* fontFAR;

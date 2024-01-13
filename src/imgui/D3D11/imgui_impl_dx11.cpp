@@ -59,15 +59,17 @@
 #include <format>
 
 // External Variables
-extern bool SKIF_bCanAllowTearing;
-extern bool SKIF_bCanWaitSwapchain;
-extern bool SKIF_bCanHDR;
-extern bool RecreateSwapChains;
-extern bool RecreateSwapChainsPending;
+extern DWORD SKIF_startupTime;
+extern bool  SKIF_bCanAllowTearing;
+extern bool  SKIF_bCanWaitSwapchain;
+extern bool  SKIF_bCanHDR;
+extern bool  RecreateSwapChains;
+extern bool  RecreateSwapChainsPending;
 
 extern std::vector<HANDLE> vSwapchainWaitHandles;
 
 // External functions
+extern DWORD SKIF_Util_timeGetTime1                (void);
 extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
 extern bool  SKIF_Util_IsWindows10OrGreater        (void);
 extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
@@ -514,6 +516,13 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
     int            width  = 0,
                    height = 0;
 
+    if (io.Fonts->TexPixelsAlpha8 == NULL)
+    {
+      DWORD temp_time = SKIF_Util_timeGetTime1();
+      io.Fonts->Build ( );
+      PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+    }
+
     io.Fonts->GetTexDataAsAlpha8 ( &pixels,
                                    &width, &height );
 
@@ -566,13 +575,17 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
 
     // These two CreateTexture2D are extremely costly operations
     //   on a VMware-based virtual Windows 7 machine.  VMware bug?
+    DWORD temp_time = SKIF_Util_timeGetTime1();
 
     ThrowIfFailed (
       pDev->CreateTexture2D ( &staging_desc, nullptr,
                                      &pStagingTexture.p ));
+
     ThrowIfFailed (
       pDev->CreateTexture2D ( &tex_desc,     nullptr,
                                      &pFontTexture.p ));
+
+    PLOG_DEBUG << "Operation [CreateTexture2D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
 
     CComPtr   <ID3D11DeviceContext> pDevCtx;
     pDev->GetImmediateContext     (&pDevCtx);
@@ -816,31 +829,30 @@ ImGui_ImplDX11_LogSwapChainFormat (ImGuiViewport *viewport)
   {
     swap_prev = swap_desc;
 
-    PLOG_INFO   << "+-----------------+-------------------------------------+";
-    PLOG_INFO   << "| Resolution      | " << swap_desc.Width << "x" << swap_desc.Height;
-    PLOG_INFO   << "| Dynamic Range   | " << ((data->HDR) ? "HDR" : "SDR");
-    PLOG_INFO   << "| SDR White Level | " << data->SDRWhiteLevel;
-    if (     swap_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-      PLOG_INFO << "| Format          | DXGI_FORMAT_R16G16B16A16_FLOAT";
-    else if (swap_desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-      PLOG_INFO << "| Format          | DXGI_FORMAT_R10G10B10A2_UNORM";
-    else if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-      PLOG_INFO << "| Format          | DXGI_FORMAT_R8G8B8A8_UNORM";
-    else
-      PLOG_INFO << "| Format          | Unexpected format";
-    PLOG_INFO   << "| Buffers         | " << swap_desc.BufferCount;
-    PLOG_INFO   << "| Flags           | " << std::format("{:#x}", swap_desc.Flags);
-    if (     swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
-      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_DISCARD";
-    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
-      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL";
-    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
-      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_DISCARD";
-    else if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
-      PLOG_INFO << "| Swap Effect     | DXGI_SWAP_EFFECT_SEQUENTIAL";
-    else 
-      PLOG_INFO << "| Swap Effect     | Unexpected swap effect";
-    PLOG_INFO   << "+-----------------+-------------------------------------+";
+    PLOG_INFO   << "The swapchain format has been changed..."
+                << "\n+------------------+-------------------------------------+"
+                << "\n| Resolution       | " <<   swap_desc.Width << "x" << swap_desc.Height
+                << "\n| Dynamic Range    | " << ((data->HDR) ? "HDR" : "SDR")
+                << "\n| SDR White Level  | " <<   data->SDRWhiteLevel
+                << "\n| Format           | " << ((swap_desc.Format     == DXGI_FORMAT_R16G16B16A16_FLOAT)
+                                            ?                           "DXGI_FORMAT_R16G16B16A16_FLOAT"
+                                            :   (swap_desc.Format     == DXGI_FORMAT_R10G10B10A2_UNORM)
+                                            ?                           "DXGI_FORMAT_R10G10B10A2_UNORM"
+                                            :   (swap_desc.Format     == DXGI_FORMAT_R8G8B8A8_UNORM)
+                                            ?                           "DXGI_FORMAT_R8G8B8A8_UNORM"
+                                            :                           "Unexpected format")
+                << "\n| Buffers          | " <<   swap_desc.BufferCount
+                << "\n| Flags            | " << std::format("{:#x}", swap_desc.Flags)
+                << "\n| Swap Effect      | " << ((swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
+                                            ?                           "DXGI_SWAP_EFFECT_FLIP_DISCARD"
+                                            :   (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
+                                            ?                           "DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL"
+                                            :   (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
+                                            ?                           "DXGI_SWAP_EFFECT_DISCARD"
+                                            :   (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
+                                            ?                           "DXGI_SWAP_EFFECT_SEQUENTIAL"
+                                            :                           "Unexpected swap effect")
+                << "\n+------------------+-------------------------------------+";
   }
 }
 
@@ -903,7 +915,7 @@ void ImGui_ImplDX11_NewFrame (void)
   extern ID3D11Device*           SKIF_g_pd3dDevice;
   extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
   extern DWORD                   invalidatedDevice;
-  
+
   // Check if the device have been removed for any reason
   bool  RecreateDevice  =
     FAILED (g_pd3dDevice->GetDeviceRemovedReason ( ));
@@ -1463,11 +1475,16 @@ ImGui_ImplDX11_SwapBuffers ( ImGuiViewport *viewport,
     {
       data->PresentCount++;
 
-      static bool
-          runOnce = true;
+      static bool runOnce = true;
       if (runOnce)
-      {   runOnce = false;
-        PLOG_INFO << "Presented first frame!";
+      {
+        runOnce = false;
+        extern DWORD SKIF_startupTime;
+        extern DWORD SKIF_Util_timeGetTime1 (void);
+
+        DWORD current_time = SKIF_Util_timeGetTime1();
+
+        PLOG_INFO << "Presented first frame! Init -> Present took " << (current_time - SKIF_startupTime) << " ms.";
       }
     }
   }

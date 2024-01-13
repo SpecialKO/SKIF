@@ -75,7 +75,7 @@ constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Window me
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Shift + Insert
 
-constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
+//constexpr const  char*   SKIF_LOG_SEPARATOR     = "----------------------------";
 constexpr const wchar_t* SKIF_NotifyIcoClass    = L"SKIF_NotificationIcon";
 constexpr const wchar_t* SKIF_AppUserModelID    = L"SpecialK.Injection.Frontend";
 

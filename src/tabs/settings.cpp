@@ -174,16 +174,17 @@ GetMPOSupport (void)
 
       if (SKIF_D3DKMTGetMultiPlaneOverlayCaps (&caps) == (NTSTATUS)0x00000000L) // STATUS_SUCCESS
       {
-        PLOG_INFO << "+------------------+-------------------------------------+";
-        PLOG_INFO << "| Monitor Name     | " << monitorName;
-        PLOG_INFO << "| Adapter Path     | " << adapterName.adapterDevicePath;
-        PLOG_INFO << "| Source Name      | " <<  sourceName.viewGdiDeviceName;
-        PLOG_INFO << "+------------------+-------------------------------------+";
-        PLOG_INFO << "| MPO MaxPlanes    | " << caps.MaxPlanes;
-        PLOG_INFO << "| MPO MaxRGBPlanes | " << caps.MaxRGBPlanes; // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?
-        PLOG_INFO << "| MPO MaxYUVPlanes:| " << caps.MaxYUVPlanes;
-        PLOG_INFO << "| MPO Stretch:     | " << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x";
-        PLOG_INFO << "+------------------+-------------------------------------+";
+        PLOG_DEBUG << "MPO support detected for this display:"
+                   << "\n+------------------+-------------------------------------+"
+                   << "\n| Monitor Name     | " << monitorName
+                   << "\n| Adapter Path     | " << adapterName.adapterDevicePath
+                   << "\n| Source Name      | " <<  sourceName.viewGdiDeviceName
+                   << "\n+------------------+-------------------------------------+"
+                   << "\n| MPO MaxPlanes    | " << caps.MaxPlanes
+                   << "\n| MPO MaxRGBPlanes | " << caps.MaxRGBPlanes // MaxRGBPlanes seems to be the number that best corresponds to dxdiag's reporting? Or is it?
+                   << "\n| MPO MaxYUVPlanes:| " << caps.MaxYUVPlanes
+                   << "\n| MPO Stretch:     | " << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x"
+                   << "\n+------------------+-------------------------------------+";
           
         Monitor_MPO_Support monitor;
         monitor.Name                = SK_WideCharToUTF8 (monitorName);
