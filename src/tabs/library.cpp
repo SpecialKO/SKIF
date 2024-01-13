@@ -4611,6 +4611,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Start populating the list
 
+  if (g_apps.empty())
+    ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
+
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
   {
