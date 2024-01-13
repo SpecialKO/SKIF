@@ -3544,9 +3544,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Prepare for the keyboard hint / search/filter functionality
         if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
-        {
-          InsertTrieKey (&app, &labels);
-        }
+          InsertTrieKey (&app, &_data->labels);
       }
 
       PLOG_INFO << "Finished loading game names...";
