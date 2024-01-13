@@ -1424,7 +1424,9 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::Separator ( );
           
           ImGui::TextDisabled ("Xbox Data:");
-          ImGui::MenuItem     ("Package Name", pApp->Xbox_PackageName.c_str());
+          ImGui::MenuItem     ("Name",         pApp->Xbox_PackageName.c_str());
+          ImGui::MenuItem     ("Full Name",    pApp->Xbox_PackageFullName.c_str());
+          ImGui::MenuItem     ("Family Name",  pApp->Xbox_PackageFamilyName.c_str());
           ImGui::MenuItem     ("Store ID",     pApp->Xbox_StoreId.c_str());
           ImGui::MenuItem     ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str());
         }

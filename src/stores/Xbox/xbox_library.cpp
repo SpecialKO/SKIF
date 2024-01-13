@@ -9,6 +9,7 @@
 #include <utility/utility.h>
 
 #include <utility/registry.h>
+#include <comdef.h>
 
 /*
 Xbox / MS Store games shared registry struture
@@ -22,6 +23,24 @@ root installation folder.
 To get more information about the game, parsing the AppXManifest.xml in the root folder seems to be necessary.
 
 */
+
+LONG
+WINAPI
+SKIF_Xbox_PackageFamilyNameFromFullName (IN PCWSTR packageFullName, IN OUT UINT32 *packageFamilyNameLength, OUT OPTIONAL PWSTR packageFamilyName)
+{
+  using PackageFamilyNameFromFullName_pfn =
+    LONG (WINAPI *)(IN PCWSTR packageFullName, IN OUT UINT32* packageFamilyNameLength, OUT OPTIONAL PWSTR packageFamilyName);
+
+  static PackageFamilyNameFromFullName_pfn
+    SKIF_PackageFamilyNameFromFullName =
+        (PackageFamilyNameFromFullName_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "PackageFamilyNameFromFullName");
+
+  if (SKIF_PackageFamilyNameFromFullName == nullptr)
+    return FALSE;
+  
+  return SKIF_PackageFamilyNameFromFullName (packageFullName, packageFamilyNameLength, packageFamilyName);
+}
 
 void
 SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
@@ -81,6 +100,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                   dwSize = sizeof(szData) / sizeof(WCHAR);
                   if (RegGetValueW (hSubKey, szSubKey, L"Package", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                   {
+                    std::wstring packageFullName = szData;
                     //PLOG_VERBOSE << "Package: " << szData;
 
                     dwSize = sizeof(szData) / sizeof(WCHAR);
@@ -102,7 +122,15 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
-                      record.Xbox_AppDirectory = record.install_dir;
+                      record.Xbox_AppDirectory    = record.install_dir;
+                      record.Xbox_PackageFullName = SK_WideCharToUTF8(packageFullName);
+
+                      UINT32 length = 0;
+                      SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, NULL);
+                      PWSTR packageFamilyName = (PWSTR)malloc(length * sizeof(WCHAR));
+                      if (ERROR_SUCCESS == SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, packageFamilyName))
+                        record.Xbox_PackageFamilyName = SK_WideCharToUTF8 (packageFamilyName);
+                      // packageFamilyName is used later as well, so do not free it up just yet
 
                       // Try to load the AppX XML Manifest in the install folder
                       if (! manifest.load_file((record.install_dir + LR"(appxmanifest.xml)").c_str()))
@@ -169,10 +197,61 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       record.id = static_cast<uint32_t>(int_hash);
 
-                      // Hardcoded override for Forza Motorsport's weirdly configured manifest
-                      if (record.Xbox_PackageName == "Microsoft.ForzaMotorsport" &&
-                          record.names.normal     == "ms-resource:IDS_Title2")
-                        record.names.normal = "Forza Motorsport";
+                      // Some games, such as Forza Motorsport, stores their display name in a .pri resource file in the install folder
+                      // We need to retrieve them using a special "ms-resource" URI path along with SHLoadIndirectString()...
+                      // 
+                      // Format seems to be:
+                      // @{<PackageFullName>?ms-resource://<PackageFamilyName>/resources/<ResourceName>}
+                      // 
+                      // Example URI paths that are known to work to load the display title for Forza Motorsport:
+                      // 
+                      //   Via absolute .pri resource file path:
+                      //     @{H:\WindowsApps\Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe\resources.pri?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
+                      //   Via package full name:
+                      //     @{Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
+                      // 
+
+                      std::string lowercaseName = SKIF_Util_ToLower (record.names.normal);
+                      std::string pattern = "ms-resource://";
+
+                      size_t pos_msResourceString = lowercaseName.find(pattern);
+
+                      if (pos_msResourceString == std::string::npos)
+                      {
+                        pattern = "ms-resource:";
+                        pos_msResourceString = lowercaseName.find(pattern);
+                      }
+
+                      if (pos_msResourceString != std::string::npos)
+                      {
+                        const UINT cuiBufferSize = 1024;
+                        WCHAR      wszDisplayName[cuiBufferSize]{ };
+                        
+                        std::string  substr           = record.names.normal.substr (pos_msResourceString + pattern.length());
+                        std::wstring
+                          msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/%ws})",           packageFullName.c_str(), packageFamilyName, SK_UTF8ToWideChar(substr).c_str());
+                        PLOG_DEBUG << "Attempting to load indirect string: " << msResourceURI;
+                        HRESULT hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+
+                        if (FAILED(hr))
+                        {
+                          // Add "resource" to the URI path as well
+                          msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/resources/%ws})", packageFullName.c_str(), packageFamilyName, SK_UTF8ToWideChar(substr).c_str());
+                          PLOG_DEBUG << "Attempting to load indirect string: " << msResourceURI;
+                          hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+                        }
+
+                        if (SUCCEEDED(hr))
+                        {
+                          PLOG_INFO << L"Loaded ms-resource title: " << wszDisplayName;
+                          record.names.normal = SK_WideCharToUTF8 (wszDisplayName);
+                        }
+                        else
+                        {
+                          PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
+                          record.names.normal = record.Xbox_PackageName;
+                        }
+                      }
 
                       // If we have found a partial path, construct the assumed full path
                       if (! virtualFolder.empty())
@@ -332,6 +411,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       //PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (Xbox);
+
+                      // Free the family name once we're done with it
+                      free(packageFamilyName);
                     }
                   }
                 }
