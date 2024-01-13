@@ -673,19 +673,19 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSelf32);
   PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
-  SKVer64      = SKVer32      =
+  SKVer32      =
     SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf32);
-  SKVer64_utf8 = SKVer32_utf8 =
+  SKVer32_utf8 =
     SK_WideCharToUTF8 (SKVer64);
 
   wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSvc32);
   PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
-  SKSvc64      = SKSvc32      =
+  SKSvc32      =
     SKIF_Util_GetFileVersion (wszPathToSvc32);
 
-  SKSvc64_utf8 = SKSvc32_utf8 =
+  SKSvc32_utf8 =
     SK_WideCharToUTF8 (SKSvc64);
 
   if (SKVer32_old != SKVer32)
@@ -837,8 +837,15 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #ifdef _WIN64
   if (SKVer32 != SKVer64)
   {
-    ImGui::Text ("( v %s )", SKVer32_utf8.c_str ());
-    ImGui::Text ("( v %s )", SKVer64_utf8.c_str ());
+    if (! SKVer32.empty())
+      ImGui::Text ("( v %s )", SKVer32_utf8.c_str ());
+    else
+      ImGui::Text ("( Missing )");
+
+    if (! SKVer64.empty())
+      ImGui::Text ("( v %s )", SKVer64_utf8.c_str ());
+    else
+      ImGui::Text ("( Missing )");
   }
   else
     ImGui::NewLine ();
@@ -955,7 +962,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     }
 
     else {
-      ImGui::TextColored  (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Auto-stop is not available due to Special K being outdated.");
+      ImGui::TextColored  (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Auto-stop is currently unavailable.");
       SKIF_ImGui_SetHoverTip ("The feature requires Special K v21.08.12 or newer.");
     }
   }

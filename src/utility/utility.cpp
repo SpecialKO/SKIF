@@ -863,7 +863,7 @@ SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
         "VerQueryValueW"                                     );
 
   static GetFileVersionInfoExW_pfn
-    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
+    SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "GetFileVersionInfoExW"                                            );
   */
