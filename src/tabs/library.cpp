@@ -7223,6 +7223,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 charPath     [MAX_PATH + 2] = { },
                 charArgs     [     500 + 2] = { };
     static bool error = false;
+    static int  cached_elevated = -1;
 
     if (ModifyGamePopup == PopupState_Open)
     {
@@ -7439,6 +7440,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     bool elevate =
       pApp->launch_configs[0].isElevated ( );
 
+    if (cached_elevated == -1)
+      cached_elevated = (int)elevate;
+
     if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
     {
       pApp->launch_configs[0].setElevated (elevate);
@@ -7503,6 +7507,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Clear variables
           error = false;
           strncpy (charName, "\0", MAX_PATH);
+          cached_elevated = -1;
 
           if (repopulate)
           {
@@ -7532,11 +7537,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (ImGui::Button  ("Cancel", vButtonSize))
     {
+      // Undo the elevation change that was done
+      if (cached_elevated != -1 && cached_elevated != (int)elevate)
+        pApp->launch_configs[0].setElevated (! elevate);
+
       // Clear variables
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
+      cached_elevated = -1;
 
       ModifyGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
