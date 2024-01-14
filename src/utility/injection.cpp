@@ -676,17 +676,17 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKVer32      =
     SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf32);
   SKVer32_utf8 =
-    SK_WideCharToUTF8 (SKVer64);
+    SK_WideCharToUTF8 (SKVer32);
 
   wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
   GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
   PathRemoveFileSpecW (         wszPathToSvc32);
   PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
   SKSvc32      =
-    SKIF_Util_GetFileVersion (wszPathToSvc32);
+    SKIF_Util_GetFileVersion (  wszPathToSvc32);
 
   SKSvc32_utf8 =
-    SK_WideCharToUTF8 (SKSvc64);
+    SK_WideCharToUTF8 (SKSvc32);
 
   if (SKVer32_old != SKVer32)
     libCacheRefresh = true;
@@ -709,7 +709,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   PathRemoveFileSpecW (         wszPathToSvc64);
   PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
   SKSvc64      =
-    SKIF_Util_GetFileVersion (wszPathToSvc64);
+    SKIF_Util_GetFileVersion (  wszPathToSvc64);
   SKSvc64_utf8 =
     SK_WideCharToUTF8 (SKSvc64);
 
