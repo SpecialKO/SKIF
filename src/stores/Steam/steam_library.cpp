@@ -1303,7 +1303,7 @@ SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_recor
     }
 
     // Refresh stuff if the current user has changed
-    if (g_SteamUserID != oldID)
+    if (g_SteamUserID != oldID && apps != nullptr)
     {
       // Preload user's local config
       SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps);
@@ -1323,7 +1323,7 @@ SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_recor
 
 // Get SteamID3 of the signed in user.
 SteamId3_t
-SKIF_Steam_GetCurrentUser (bool refresh)
+SKIF_Steam_GetCurrentUser (void)
 {
   return g_SteamUserID;
 

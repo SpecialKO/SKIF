@@ -331,7 +331,7 @@ bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, 
 bool                         SKIF_Steam_isLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
 bool                         SKIF_Steam_isCurrentUserChanged    (std::vector <std::pair < std::string, app_record_s > > *apps);
-SteamId3_t                   SKIF_Steam_GetCurrentUser          (bool refresh = false);
+SteamId3_t                   SKIF_Steam_GetCurrentUser          (void);
 void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);
 std::wstring                 SKIF_Steam_GetAppStateString       (AppId_t  appid, const wchar_t *wszStateKey);
 wchar_t                      SKIF_Steam_GetAppStateDWORD        (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);

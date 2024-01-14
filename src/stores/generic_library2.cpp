@@ -367,7 +367,7 @@ LoadLibraryTexture (
     {
 
       SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",           _path_cache.specialk_userdata,                          appid);
-      SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", _path_cache.steam_install, SKIF_Steam_GetCurrentUser(), appid);
+      SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", _path_cache.steam_install, SKIF_Steam_GetCurrentUser ( ), appid);
 
       if (libTexToLoad == LibraryTexture::Cover)
         SKIFCustomPath += L"cover";

@@ -182,10 +182,10 @@ SKIF_GamesCollection::RefreshGames (bool refresh)
         SKIF_Steam_GetInstalledAppIDs (&_data->apps);
 
         // Refresh the current Steam user
-        SKIF_Steam_GetCurrentUser     (true);
+        SKIF_Steam_GetCurrentUser ( );
       
         // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-        SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser(), &_data->apps);
+        SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser ( ), &_data->apps);
       }
 
       const int              SKIF_STEAM_APPID  = 1157970;
