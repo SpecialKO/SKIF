@@ -1763,7 +1763,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (                     hInjectAckEx.m_h != 0 &&
         WaitForSingleObject (hInjectAckEx.m_h,   0) == WAIT_OBJECT_0)
     {
-      //OutputDebugString(L"InjAckEx was signalled!\n");
       PLOG_DEBUG << "Injection was acknowledged!";
       hInjectAckEx.Close ();
 
@@ -1786,7 +1785,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (                     hInjectExitAckEx.m_h != 0 &&
         WaitForSingleObject (hInjectExitAckEx.m_h,   0) == WAIT_OBJECT_0)
     {
-      //OutputDebugString(L"hInjectExitAckEx was signalled!\n");
       PLOG_DEBUG << "Game exit was acknowledged!";
       hInjectExitAckEx.Close ();
 
@@ -1804,7 +1802,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (                     hInjectAck.m_h != 0 &&
         WaitForSingleObject (hInjectAck.m_h,   0) == WAIT_OBJECT_0)
     {
-      //OutputDebugString(L"InjAck was signalled!\n");
       PLOG_DEBUG << "Injection was acknowledged, service is being stopped!";
       hInjectAck.Close ();
       

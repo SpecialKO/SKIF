@@ -87,7 +87,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   ImVec4* colors = style->Colors;
 
   // Text
-  colors[ImGuiCol_Text]                   = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+  colors[ImGuiCol_Text]                   = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
   colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
   colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.26f, 0.59f, 0.98f, 0.30f); //ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
 
@@ -175,7 +175,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // Custom
   colors[ImGuiCol_SKIF_TextBase]          = ImVec4(0.68f, 0.68f, 0.68f, 1.00f);
-  colors[ImGuiCol_SKIF_TextCaption]       = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+  colors[ImGuiCol_SKIF_TextCaption]       = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   colors[ImGuiCol_SKIF_TextGameTitle]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   colors[ImGuiCol_SKIF_Success]           = ImColor(121, 214, 28);  // 42,  203, 2);  //53,  255, 3);  //ImColor(144, 238, 144);
   colors[ImGuiCol_SKIF_Warning]           = ImColor(255, 124, 3); // ImColor::HSV(0.11F, 1.F, 1.F)
@@ -421,8 +421,8 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   {
     if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
-      ImGui::PushStyleColor (ImGuiCol_PopupBg, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-      ImGui::PushStyleColor (ImGuiCol_Text,    ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+      ImGui::PushStyleColor (ImGuiCol_PopupBg,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+      ImGui::PushStyleColor (ImGuiCol_Text,     ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
       HoverTipActive = true;
 
       if ( HoverTipDuration == 0)
