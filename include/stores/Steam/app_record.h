@@ -202,8 +202,10 @@ struct app_record_s {
 
   // Struct used to hold custom SKIF metadata about the game
   struct custom_metadata_s {
-    std::string      name;
-    int              cpu_type = 0;
+    std::string        name;
+    int            cpu_type = 0; // 0 = Common,             1 = x86,                 2 = x64,                0xFFFF = Any
+    int        instant_play = 0; // 0 = use global default, 1 = always instant play, 2 = never instant play
+    int           auto_stop = 0; // 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
   } skif;
 
   struct extended_config_s {
