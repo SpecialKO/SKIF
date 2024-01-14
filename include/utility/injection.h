@@ -87,7 +87,7 @@ struct SKIF_InjectionContext {
   bool         libCacheRefresh = false; // Signals to the library that it should refresh the injection cache for a game
   
   bool    isPending               (void);
-  bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false);
+  bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false, int autoStopBehavior = 0); // autoStopBehaviour: 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
   bool    _TestServletRunlevel    (bool forcedCheck); // Returns true ONLY if we transitioned over from a pending state
   void    _DanceOfTheDLLFiles     (void);
   void    _RefreshSKDLLVersions   (void);
@@ -106,7 +106,7 @@ struct SKIF_InjectionContext {
   bool    LoadBlacklist           (void);
   void    SetInjectAckEx          (bool newState);
   void    SetInjectExitAckEx      (bool newState);
-  void    SetStopOnInjectionEx    (bool newState);  // Main toggle function
+  void    SetStopOnInjectionEx    (bool newState, int autoStopBehavior = 0);  // Main toggle function. autoStopBehaviour: 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
   void    ToggleStopOnInjection   (void);           // Used primarily to switch the registry value
 
   static SKIF_InjectionContext& GetInstance (void)

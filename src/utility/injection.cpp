@@ -324,11 +324,15 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 };
 
 void
-SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
+SKIF_InjectionContext::SetStopOnInjectionEx (bool newState, int autoStopBehavior)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   extern CHandle hInjectAck;
+
+  // If autoStopBehaviour is set to 3 (never stop), we should stop the injection acknowledgement
+  if (autoStopBehavior == 3)
+    newState = false;
 
   // Set to its current new state
   bAckInj = newState;
@@ -345,8 +349,11 @@ SKIF_InjectionContext::SetStopOnInjectionEx (bool newState)
   if (newState && hInjectAck.m_h <= 0)
   {
     hInjectAck.Attach (
-      CreateEvent ( nullptr, FALSE, FALSE, (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"
-                                                                              : LR"(Local\SKIF_InjectAck)")
+      CreateEvent ( nullptr, FALSE, FALSE,  (autoStopBehavior == 0) // 0 == Use global default (_registry.iAutoStopBehavior)
+                               ? (_registry.iAutoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"  // _registry.iAutoStopBehavior == 2
+                                                                    : LR"(Local\SKIF_InjectAck)"      // _registry.iAutoStopBehavior == 1
+                               : (           autoStopBehavior == 2) ? LR"(Local\SKIF_InjectExitAck)"  //            autoStopBehavior == 2
+                                                                    : LR"(Local\SKIF_InjectAck)")     //            autoStopBehavior == 1
     );
 
 #if 1
@@ -386,7 +393,7 @@ SKIF_InjectionContext::isPending(void)
 }
 
 bool
-SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated)
+SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop, bool elevated, int autoStopBehavior)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -406,7 +413,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
-  SetStopOnInjectionEx ( (! currentRunningState && autoStop) );
+  SetStopOnInjectionEx ( (! currentRunningState && autoStop), autoStopBehavior);
 
 #if 0
   const wchar_t *wszStartStopCommand =
