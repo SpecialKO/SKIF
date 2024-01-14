@@ -200,6 +200,12 @@ struct app_record_s {
     AppType      type      = AppType::Unknown; // Steam
   };
 
+  // Struct used to hold custom SKIF metadata about the game
+  struct custom_metadata_s {
+    std::string      name;
+    int              cpu_type = 0;
+  } skif;
+
   struct extended_config_s {
     struct vac_config_s    {
       uint32_t    vacmacmodulecache =     0;

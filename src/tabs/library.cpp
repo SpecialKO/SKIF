@@ -1409,6 +1409,15 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::MenuItem       ("Store",             pApp->store_utf8.c_str());
         ImGui::MenuItem       ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str());
 
+        if (! pApp->skif.name.empty () || pApp->skif.cpu_type != 0)
+        {
+          ImGui::Separator ( );
+          
+          ImGui::TextDisabled ("SKIF Override Data:");
+          ImGui::MenuItem     ("Name",             pApp->skif.name.c_str());
+          ImGui::MenuItem     ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str());
+        }
+
         if (pApp->store == app_record_s::Store::Steam)
         {
           ImGui::Separator ( );
@@ -2732,6 +2741,13 @@ UpdateInjectionStrategy (app_record_s* pApp)
     launch.injection.config.file =
       L"SpecialK.ini";
 
+    // Apply any custom stuff
+    if (pApp->skif.cpu_type != 0)
+    {
+      launch.injection.injection.bitness = (InjectionBitness)     pApp->skif.cpu_type;
+      launch.cpu_type                    = (app_record_s::CPUType)pApp->skif.cpu_type;
+    }
+
     if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
       DWORD dwBinaryType = MAXDWORD;
@@ -2839,7 +2855,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
     }
 
     // Main UI stuff should follow the primary launch config
-    pApp->specialk.injection = pApp->launch_configs[0].injection;
+    pApp->specialk.injection = launch.injection;
 
     if ( InjectionType::Global ==
         pApp->specialk.injection.injection.type )
@@ -2847,7 +2863,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
       // Assume Global 32-bit if we don't know otherwise
       bool bIs64Bit =
         (launch.injection.injection.bitness ==
-                          InjectionBitness::SixtyFour );
+                          InjectionBitness::SixtyFour);
 
       pApp->specialk.injection.config.type =
         ConfigType::Centralized;
@@ -3413,6 +3429,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
+      PLOG_INFO << "Loading persistent metadata...";
+
+      std::wstring file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
+      std::ifstream file(file_metadata);
+      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
+      file.close();
+
+      if (jf.is_discarded ( ))
+        PLOG_ERROR << "Error occurred while trying to parse " << file_metadata;
+
       PLOG_INFO << "Loading game names...";
 
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
@@ -3441,6 +3467,29 @@ SKIF_UI_Tab_DrawLibrary (void)
         //     the app is installed.
         if (app.second._status.installed)
         {
+          // Load any custom data
+          if (! jf.is_discarded())
+          {
+            std::string item = (app.second.store == app_record_s::Store::Epic)  ? app.second.Epic_AppName     :
+                               (app.second.store == app_record_s::Store::Xbox)  ? app.second.Xbox_PackageName :
+                                                                  std::to_string (app.second.id);
+
+            try {
+              auto& key = jf[app.second.store_utf8][item];
+              if (key != nullptr && ! key.empty())
+              {
+                app.second.skif.name     = key.at("Name");
+                app.second.names.normal  = app.second.skif.name;
+                app.second.skif.cpu_type = key.at("CPU"); // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+              }
+
+            }
+            catch (const std::exception&)
+            {
+              PLOG_ERROR << "Error occurred when trying to parse " << item << " from " << file_metadata;
+            }
+          }
+
           if (! app.second.names.normal.empty ())
           {
             app.first = app.second.names.normal;
@@ -3463,16 +3512,6 @@ SKIF_UI_Tab_DrawLibrary (void)
             continue;
           }
 
-          /*
-          if (app.second.launch_configs.size() == 0)
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has no launch config; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-          */
-
           std::string original_name = app.first;
 
           // Some games use weird Unicode character combos that ImGui can't handle,
@@ -3485,11 +3524,6 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
           //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
           app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
-
-          // Strip game names from special symbols (disabled due to breaking some Chinese characters)
-          //const char* chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)
-          //for (unsigned int i = 0; i < strlen(chars); ++i)
-            //app.first.erase(std::remove(app.first.begin(), app.first.end(), chars[i]), app.first.end());
 
           // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
           app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
