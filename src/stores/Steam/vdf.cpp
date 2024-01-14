@@ -635,11 +635,11 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
           if (! launch.branches.empty())
           {
             for (auto const& branch : launch.branches)
-              launch.branches_utf8 += branch + ", ";
+              launch.branches_joined += branch + ", ";
 
             // Remove trailing comma and space
-            launch.branches_utf8.pop_back();
-            launch.branches_utf8.pop_back();
+            launch.branches_joined.pop_back();
+            launch.branches_joined.pop_back();
           }
 
           // Filter launch configurations for other OSes

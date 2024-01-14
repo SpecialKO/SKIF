@@ -291,8 +291,9 @@ struct app_record_s {
     std::wstring blacklist_file;
     std::wstring elevated_file;
     std::wstring executable_helper;  // Used by Xbox to hold gamelaunchhelper.exe
-    std::set <std::string> branches; // Steam: Only show launch option if one of these beta branches are active
-    std::string  branches_utf8;
+    std::set <std::string>
+                 branches;           // Steam: Only show launch option if one of these beta branches are active
+    std:: string branches_joined;
     std:: string requires_dlc;       // Steam: Only show launch option if this DLC is owned
 
     int          valid              = -1;    // Launch config is valid (what does this actually mean?)
@@ -318,15 +319,18 @@ struct app_record_s {
 
   struct branch_record_s {
     app_record_s *parent;
-    std::wstring  description;
     uint32_t      build_id;
     uint32_t      pwd_required;
     time_t        time_updated;
-    std::string   time_string; // Cached text representation
-    std::string   desc_utf8;   // For non-Latin characters to print in ImGui
+    std::wstring  description;
+    std:: string  description_utf8; // For non-Latin characters to print in ImGui
+    std::wstring  time_string;      // Cached text representation
+    std:: string  time_string_utf8; // Cached text representation
 
-    std::string  getTimeAsCStr (void) const;
-    std::string& getDescAsUTF8 (void);
+    std::wstring getDescription     (void);
+    std:: string getDescriptionUTF8 (void);
+    std::wstring getTimeAsCStr      (void) const;
+    std:: string getTimeAsCStrUTF8  (void);
   };
 
   struct specialk_config_s {
@@ -346,7 +350,7 @@ struct app_record_s {
   bool         cloud_enabled         =   true; // hidecloudui=false
   std::wstring install_dir;
   Store        store                 =  Store::Unspecified;
-  std::string  store_utf8            =  "";  // maybe enum?
+  std::string  store_utf8            =  "";
 
   std::string  ImGuiPushID           =  "";
   std::string  ImGuiLabelAndID       =  "";
@@ -354,7 +358,7 @@ struct app_record_s {
   std::string  Steam_ManifestData    =  "";
   std::wstring Steam_ManifestPath    = L"";
   std::string  Steam_LaunchOption    =  "";       // Holds the custom launch option set in the Steam client
-  std::string  Steam_LaunchOption1   =  "";        // Holds a cached parsed value of the launch option set in the Steam client
+  std::string  Steam_LaunchOption1   =  "";       // Holds a cached parsed value of the launch option set in the Steam client
   std::string  branch                =  "public"; // Holds the current "beta" branch set in the Steam client (default: public)
 
   std::string  Epic_CatalogNamespace =  "";

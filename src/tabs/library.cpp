@@ -438,6 +438,8 @@ SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp)
       auto& branch =
         it.second;
 
+      // TODO: Maybe split sort in public v. private?
+      
       // Sort in descending order
       menu.branches.emplace (
         std::make_pair   (-(int64_t)branch.build_id,
@@ -1381,7 +1383,7 @@ DrawGameContextMenu (app_record_s* pApp)
     }
   }
   
-  if (ImGui::BeginMenu (ICON_FA_SHARE "  Open website"))
+  if (ImGui::BeginMenu (ICON_FA_SHARE "  Websites"))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -1503,28 +1505,40 @@ DrawGameContextMenu (app_record_s* pApp)
       if (ImGui::BeginMenu (ICON_FA_FILE_LINES "   App Config"))
       {
         ImGui::TextDisabled   ("General:");
-        ImGui::MenuItem       ("Platform ID",       std::to_string(pApp->id).c_str());
-        ImGui::MenuItem       ("Store",             pApp->store_utf8.c_str());
-        ImGui::MenuItem       ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str());
+        if (ImGui::MenuItem   ("Platform ID", std::to_string (pApp->id).c_str()))
+            SKIF_Util_SetClipboardData (      std::to_wstring(pApp->id));
+        if (ImGui::MenuItem   ("Store",                       pApp->store_utf8.c_str()))
+            SKIF_Util_SetClipboardData (    SK_UTF8ToWideChar(pApp->store_utf8));
+        if (ImGui::MenuItem   ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str()))
+            SKIF_Util_SetClipboardData (                              pApp->install_dir);
 
         ImGui::Separator ( );
           
-        ImGui::TextDisabled ("SKIF Override Data:");
+        ImGui::TextDisabled   ("SKIF Override Data:");
 
         if (! pApp->skif.name.empty ())
-          ImGui::MenuItem     ("Name",             pApp->skif.name.c_str());
+        {
+          if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
+        }
 
         if (pApp->skif.cpu_type != 0)
-          ImGui::MenuItem     ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str());
+        {
+          if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
+            SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
+        }
 
         if (pApp->store == app_record_s::Store::Steam)
         {
           ImGui::Separator ( );
 
           ImGui::TextDisabled ("Steam Data:");
-          ImGui::MenuItem     ("Branch",        pApp->branch.c_str());
-          ImGui::MenuItem     ("Launch Option", pApp->Steam_LaunchOption.c_str());
-          ImGui::MenuItem     ("Manifest Path", SK_WideCharToUTF8(pApp->Steam_ManifestPath).c_str());
+          if (ImGui::MenuItem ("Branch",                  pApp->branch.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->branch));
+          if (ImGui::MenuItem ("Launch Option",           pApp->Steam_LaunchOption.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Steam_LaunchOption));
+          if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->Steam_ManifestPath).c_str()))
+            SKIF_Util_SetClipboardData (                          pApp->Steam_ManifestPath);
         }
 
         else if (pApp->store == app_record_s::Store::Xbox)
@@ -1532,11 +1546,16 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::Separator ( );
           
           ImGui::TextDisabled ("Xbox Data:");
-          ImGui::MenuItem     ("Name",         pApp->Xbox_PackageName.c_str());
-          ImGui::MenuItem     ("Full Name",    pApp->Xbox_PackageFullName.c_str());
-          ImGui::MenuItem     ("Family Name",  pApp->Xbox_PackageFamilyName.c_str());
-          ImGui::MenuItem     ("Store ID",     pApp->Xbox_StoreId.c_str());
-          ImGui::MenuItem     ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str());
+          if (ImGui::MenuItem ("Name",                    pApp->Xbox_PackageName.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageName));
+          if (ImGui::MenuItem ("Full Name",               pApp->Xbox_PackageFullName.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFullName));
+          if (ImGui::MenuItem ("Family Name",             pApp->Xbox_PackageFamilyName.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFamilyName));
+          if (ImGui::MenuItem ("Store ID",                pApp->Xbox_StoreId.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_StoreId));
+          if (ImGui::MenuItem ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str()))
+            SKIF_Util_SetClipboardData (                          pApp->Xbox_AppDirectory);
         }
 
         else if (pApp->store == app_record_s::Store::Epic)
@@ -1544,10 +1563,14 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::Separator ( );
           
           ImGui::TextDisabled ("Epic Data:");
-          ImGui::MenuItem     ("App Name",          pApp->Epic_AppName.c_str());
-          ImGui::MenuItem     ("Display Name",      pApp->Epic_DisplayName.c_str());
-          ImGui::MenuItem     ("Catalog Namespace", pApp->Epic_CatalogNamespace.c_str());
-          ImGui::MenuItem     ("Catalog Item ID",   pApp->Epic_CatalogItemId.c_str());
+          if (ImGui::MenuItem ("App Name",                pApp->Epic_AppName.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_AppName));
+          if (ImGui::MenuItem ("Display Name",            pApp->Epic_DisplayName.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_DisplayName));
+          if (ImGui::MenuItem ("Catalog Namespace",       pApp->Epic_CatalogNamespace.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogNamespace));
+          if (ImGui::MenuItem ("Catalog Item ID",         pApp->Epic_CatalogItemId.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogItemId));
         }
 
         ImGui::EndMenu ();
@@ -1588,22 +1611,26 @@ DrawGameContextMenu (app_record_s* pApp)
 
             if (bExpand)
             {
-              if (! branch.description.empty ())
-                ImGui::MenuItem ( "Description",
-                            branch.getDescAsUTF8 ().c_str () );
+              if (ImGui::MenuItem ("Name", branch_name.c_str()))
+                SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(branch_name));
 
-              ImGui::MenuItem ( "App Build #",
-                                  std::to_string (
-                                                  branch.build_id
-                                                  ).c_str ()
-              );
+              if (! branch.description.empty ())
+              {
+                if (ImGui::MenuItem ("Description", branch.getDescriptionUTF8().c_str ()))
+                  SKIF_Util_SetClipboardData (branch.getDescription());
+              }
+
+              if (ImGui::MenuItem ("App Build #", std::to_string(branch.build_id).c_str ()))
+                SKIF_Util_SetClipboardData (std::to_wstring(branch.build_id));
 
               if (branch.time_updated > 0)
-                ImGui::MenuItem ( "Last Update", branch.getTimeAsCStr ().c_str () );
+              {
+                if (ImGui::MenuItem ("Last Update", branch.getTimeAsCStrUTF8().c_str()))
+                  SKIF_Util_SetClipboardData (branch.getTimeAsCStr());
+              }
 
-              ImGui::MenuItem ( "Accessibility", branch.pwd_required ?
-                                        "Private (password required)" :
-                                              "Public" );
+              if (ImGui::MenuItem ("Accessibility", branch.pwd_required ? "Private (password required)" : "Public"))
+                SKIF_Util_SetClipboardData (branch.pwd_required ? L"Private (password required)" : L"Public");
 
               ImGui::EndMenu ();
             }
@@ -1664,31 +1691,53 @@ DrawGameContextMenu (app_record_s* pApp)
 
             if (bExpand)
             {
-              ImGui::MenuItem ("ID", std::to_string(launch.id).c_str());
+              if (ImGui::MenuItem ("ID", std::to_string(launch.id).c_str()))
+                  SKIF_Util_SetClipboardData (std::to_wstring(launch.id));
 
               if (pApp->store == app_record_s::Store::Steam && launch.id_steam != -1)
-                ImGui::MenuItem ("ID (Steam)", std::to_string(launch.id_steam).c_str());
+              {
+                if (ImGui::MenuItem ("ID (Steam)", std::to_string(launch.id_steam).c_str()))
+                  SKIF_Util_SetClipboardData (std::to_wstring(launch.id_steam));
+              }
 
               if (! launch.getExecutableFileNameUTF8().empty())
-                ImGui::MenuItem ("Executable", launch.getExecutableFileNameUTF8().c_str());
+              {
+                if (ImGui::MenuItem ("Executable", launch.getExecutableFileNameUTF8().c_str()))
+                  SKIF_Util_SetClipboardData (launch.getExecutableFileName());
+              }
 
               if (! launch.getLaunchOptionsUTF8().empty())
-                ImGui::MenuItem ("Arguments", launch.getLaunchOptionsUTF8().c_str());
+              {
+                if (ImGui::MenuItem ("Arguments", launch.getLaunchOptionsUTF8().c_str()))
+                  SKIF_Util_SetClipboardData (launch.getLaunchOptions());
+              }
 
               if (! launch.working_dir.empty())
-                ImGui::MenuItem ("Working Directory", launch.getWorkingDirectoryUTF8().c_str());
+              {
+                if (ImGui::MenuItem ("Working Directory", launch.getWorkingDirectoryUTF8().c_str()))
+                  SKIF_Util_SetClipboardData (launch.getWorkingDirectory());
+              }
 
-              ImGui::MenuItem ("Type", std::to_string((int)launch.type).c_str());
+              if (ImGui::MenuItem ("Type", std::to_string((int)launch.type).c_str()))
+                SKIF_Util_SetClipboardData (std::to_wstring((int)launch.type));
 
-              ImGui::MenuItem ("Operating System", std::to_string((int)launch.platforms).c_str());
+              if (ImGui::MenuItem ("Operating System", std::to_string((int)launch.platforms).c_str()))
+                SKIF_Util_SetClipboardData (std::to_wstring((int)launch.platforms));
 
-              ImGui::MenuItem ("CPU Architecture", std::to_string((int)launch.cpu_type).c_str());
+              if (ImGui::MenuItem ("CPU Architecture", std::to_string((int)launch.cpu_type).c_str()))
+                SKIF_Util_SetClipboardData (std::to_wstring((int)launch.cpu_type));
 
               if (! launch.requires_dlc.empty())
-                ImGui::MenuItem ("Requires DLC", launch.requires_dlc.c_str());
+              {
+                if (ImGui::MenuItem ("Requires DLC", launch.requires_dlc.c_str()))
+                  SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.requires_dlc));
+              }
 
               if (! launch.branches.empty())
-                ImGui::MenuItem ("Requires Branch", launch.branches_utf8.c_str());
+              {
+                if (ImGui::MenuItem ("Requires Branch", launch.branches_joined.c_str()))
+                  SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.branches_joined));
+              }
 
               ImGui::EndMenu ();
             }
@@ -5248,6 +5297,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if ( ! pApp->launch_configs.empty()) //&&
                   //pApp->launch_configs[0].isExecutableFileNameValid())
       {
+        /*
         bool elevate =
           pApp->launch_configs[0].isElevated ( );
 
@@ -5255,6 +5305,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           pApp->launch_configs[0].setElevated (elevate);
 
         ImGui::SameLine ( );
+        */
 
         // Set horizontal position
         ImGui::SetCursorPosX (
@@ -5295,6 +5346,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX  ( ) +
             14.0f * SKIF_ImGui_GlobalDPIScale
+          );
+
+          // Selectable is not as tall as Checkbox, so since we disabled 'Elevated Service', we need to push this one down a bit
+          ImGui::SetCursorPosY(
+            ImGui::GetCursorPosY  ( ) +
+             ImGui::GetStyle().FramePadding.y
           );
 
           if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
@@ -7197,7 +7254,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_ImGui_Spacing ( );
     
     ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-    bool disabled = false;
+    bool disabled      = false;
 
     // Custom games has their own manage fields
     if (pApp->store == app_record_s::Store::Custom)
@@ -7370,6 +7427,22 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::EndGroup        ( );
     SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
     ImGui::TreePop         ( );
+    
+    SKIF_ImGui_Spacing ( );
+    SKIF_ImGui_Spacing ( );
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Miscellaneous settings:"
+    );
+    
+    bool elevate =
+      pApp->launch_configs[0].isElevated ( );
+
+    if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
+    {
+      pApp->launch_configs[0].setElevated (elevate);
+    }
 
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
@@ -7383,8 +7456,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (ImGui::Button  ("Update", vButtonSize))
     {
+      bool repopulate = false;
+
       if (pApp->store == app_record_s::Store::Custom)
       {
+        // If the name has been changed, we need to repopulate the list
+        if (charName != pApp->names.normal)
+          repopulate      = true;
+
         if (SKIF_ModifyCustomAppID (pApp, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs)))
         {
           // Attempt to extract the icon from the given executable straight away
@@ -7392,15 +7471,17 @@ SKIF_UI_Tab_DrawLibrary (void)
           DeleteFile (SKIFCustomPath.c_str());
           SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
         
-          RepopulateGames = true; // Rely on the RepopulateGames method instead
-
           // Clear variables
           error = false;
           strncpy (charName, "\0", MAX_PATH);
           strncpy (charPath, "\0", MAX_PATH);
           strncpy (charArgs, "\0", 500);
 
-          update = true;
+          if (repopulate)
+          {
+            RepopulateGames = true;
+            update = true;
+          }
 
           ModifyGamePopup = PopupState_Closed;
           ImGui::CloseCurrentPopup();
@@ -7410,8 +7491,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Other types of games are limited to db.json
       else
       {
-        bool repopulate = false;
-
         // If the name has been changed, we need to repopulate the list
         if (charName != pApp->names.normal)
         {

@@ -397,7 +397,7 @@ app_launch_config_s::isElevated (bool refresh)
   return elevated;
 }
 
-std::string
+std::wstring
 app_branch_record_s::getTimeAsCStr (void) const
 {
   if (! time_string.empty ())
@@ -430,22 +430,37 @@ app_branch_record_s::getTimeAsCStr (void) const
   StringCchCatW (wszBranchTime, 127, L" ");
   StringCchCatW (wszBranchTime, 127, wszSystemTime);
 
-  const_cast <std::string&> (time_string) =
-    SK_WideCharToUTF8 (wszBranchTime);
+  const_cast <std::wstring&> (time_string) = wszBranchTime;
 
   return time_string;
 }
 
-std::string&
-app_branch_record_s::getDescAsUTF8 (void)
+std::string
+app_branch_record_s::getTimeAsCStrUTF8 (void)
 {
-  if (desc_utf8.empty ())
-  {
-    desc_utf8 =
-      SK_WideCharToUTF8 (description);
-  }
+  if (! time_string_utf8.empty ())
+    return time_string_utf8;
 
-  return desc_utf8;
+  time_string_utf8 = SK_WideCharToUTF8 (getTimeAsCStr());
+
+  return time_string_utf8;
+}
+
+std::wstring
+app_branch_record_s::getDescription (void)
+{
+  return description;
+}
+
+std::string
+app_branch_record_s::getDescriptionUTF8 (void)
+{
+  if (! description_utf8.empty ())
+    return description_utf8;
+
+  description_utf8 = SK_WideCharToUTF8 (description);
+
+  return description_utf8;
 }
 
 DWORD app_record_s::client_state_s::_TimeLastNotified = 0UL;
