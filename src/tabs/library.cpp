@@ -86,6 +86,8 @@ int                    coverRefreshStore = 0;
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
+nlohmann::json jsonMetaDB;
+
 const float fTintMin     = 0.75f;
       float fTint        = 1.0f;
       float fAlpha       = 0.0f;
@@ -1156,8 +1158,12 @@ DrawGameContextMenu (app_record_s* pApp)
       ImVec2 iconPos = ImGui::GetCursorPos ( );
 
       if (pApp->store == app_record_s::Store::Steam)
+      {
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
-
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GAMEPAD).x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
+      }
+      
       else if (pApp->store == app_record_s::Store::Custom)
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
       
@@ -1176,12 +1182,44 @@ DrawGameContextMenu (app_record_s* pApp)
         {
           SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
         }
+
         else
         {
           SKIF_ImGui_SetMouseCursorHand ( );
           SKIF_ImGui_SetHoverText       (
             SK_FormatString (
               "steam://nav/games/details/%lu", pApp->id
+                            )
+                                          );
+        }
+
+        if (ImGui::Selectable  ("Steam Input", false, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (pApp->id)).c_str());
+        }
+
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "steam://controllerconfig/%lu", pApp->id
+                            )
+                                          );
+          SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
+        }
+
+        if (ImGui::Selectable  ("Steam Properties", false, ImGuiSelectableFlags_SpanAllColumns))
+        {
+          SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
+        }
+
+        else
+        {
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (
+            SK_FormatString (
+              "steam://gameproperties/%lu", pApp->id
                             )
                                           );
         }
@@ -1254,6 +1292,14 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::TextColored (
           (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
             ICON_FA_STEAM_SYMBOL );
+
+        ImGui::TextColored (
+          (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+            ICON_FA_GAMEPAD );
+
+        ImGui::TextColored (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+            ICON_FA_GEAR );
 
         ImGui::Separator ( );
       }
@@ -1409,14 +1455,15 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::MenuItem       ("Store",             pApp->store_utf8.c_str());
         ImGui::MenuItem       ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str());
 
-        if (! pApp->skif.name.empty () || pApp->skif.cpu_type != 0)
-        {
-          ImGui::Separator ( );
+        ImGui::Separator ( );
           
-          ImGui::TextDisabled ("SKIF Override Data:");
+        ImGui::TextDisabled ("SKIF Override Data:");
+
+        if (! pApp->skif.name.empty ())
           ImGui::MenuItem     ("Name",             pApp->skif.name.c_str());
+
+        if (pApp->skif.cpu_type != 0)
           ImGui::MenuItem     ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str());
-        }
 
         if (pApp->store == app_record_s::Store::Steam)
         {
@@ -3155,6 +3202,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int   activeIconWorkers     = 0; // max: 8
   static int   frameLibraryRefreshed = 0;
 
+  static const std::wstring file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
+
 #pragma region Initialization
 
   // Initialize the Steam appinfo.vdf Reader
@@ -3431,15 +3480,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Loading persistent metadata...";
 
-      std::wstring file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
       std::ifstream file(file_metadata);
-      nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
-      file.close();
+      if (file.is_open())
+      {
+        jsonMetaDB = nlohmann::json::parse(file, nullptr, false);
+        file.close();
 
-      if (jf.is_discarded ( ))
-        PLOG_ERROR << "Error occurred while trying to parse " << file_metadata;
+        if (jsonMetaDB.is_discarded ( ))
+        {
+          PLOG_ERROR << "Error occurred while trying to parse " << file_metadata;
+          MoveFileEx (file_metadata.c_str(), (file_metadata + L".bak").c_str(), MOVEFILE_REPLACE_EXISTING);
+          jsonMetaDB = nlohmann::json();
+        }
+      }
 
-      PLOG_INFO << "Loading game names...";
+      PLOG_INFO << "Processing detected games...";
 
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
@@ -3468,21 +3523,36 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (app.second._status.installed)
         {
           // Load any custom data
-          if (! jf.is_discarded())
+          if (! jsonMetaDB.is_discarded())
           {
             std::string item = (app.second.store == app_record_s::Store::Epic)  ? app.second.Epic_AppName     :
                                (app.second.store == app_record_s::Store::Xbox)  ? app.second.Xbox_PackageName :
                                                                   std::to_string (app.second.id);
 
             try {
-              auto& key = jf[app.second.store_utf8][item];
+              auto& key = jsonMetaDB[app.second.store_utf8][item];
+
+              std::string keyName = "";
+              int         keyCPU  =  0;
+
               if (key != nullptr && ! key.empty())
               {
-                app.second.skif.name     = key.at("Name");
-                app.second.names.normal  = app.second.skif.name;
-                app.second.skif.cpu_type = key.at("CPU"); // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+                keyName = key.at("Name");
+                keyCPU  = key.at("CPU");
+
+                app.second.skif.name     = keyName;
+
+                if (! app.second.skif.name.empty())
+                  app.second.names.normal  = app.second.skif.name;
+
+                app.second.skif.cpu_type = keyCPU; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
               }
 
+              // This also populates the JSON object with empty entries for new games
+              key = {
+                { "Name",  keyName },
+                { "CPU",   keyCPU  }
+              };
             }
             catch (const std::exception&)
             {
@@ -3583,7 +3653,15 @@ SKIF_UI_Tab_DrawLibrary (void)
           InsertTrieKey (&app, &_data->labels);
       }
 
-      PLOG_INFO << "Finished loading game names...";
+      // Update the db.json file with any additions and whatnot
+      if (! jsonMetaDB.is_discarded())
+      {
+        std::ofstream out_file(file_metadata);
+        out_file << std::setw(2) << jsonMetaDB << std::endl;
+        out_file.close();
+      }
+
+      PLOG_INFO << "Finished processing detected games...";
     
       std::sort ( _data->apps.begin (),
                   _data->apps.end   (),
@@ -4196,8 +4274,45 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       _inject.libCacheRefresh = false;
 
+      int cpu_pre  = (int)pApp->specialk.injection.injection.bitness;
+
       UpdateInjectionStrategy (pApp);
       _cache.Refresh          (pApp);
+      
+      int cpu_post = (int)pApp->specialk.injection.injection.bitness;
+
+      // Update the db.json file with any new values
+      if (cpu_pre != cpu_post && ! jsonMetaDB.is_discarded())
+      {
+        pApp->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+
+        std::string item = (pApp->store == app_record_s::Store::Epic)  ? pApp->Epic_AppName     :
+                           (pApp->store == app_record_s::Store::Xbox)  ? pApp->Xbox_PackageName :
+                                                         std::to_string (pApp->id);
+
+        try {
+          auto& key = jsonMetaDB[pApp->store_utf8][item];
+
+          std::string keyName = pApp->skif.name;
+
+          // Update the CPU value
+          key = {
+            { "Name",  keyName  },
+            { "CPU",   cpu_post }
+          };
+        }
+        catch (const std::exception&)
+        {
+          PLOG_ERROR << "Error occurred when trying to parse " << item << " from " << file_metadata;
+        }
+
+        if (! jsonMetaDB.is_discarded())
+        {
+          std::ofstream out_file(file_metadata);
+          out_file << std::setw(2) << jsonMetaDB << std::endl;
+          out_file.close();
+        }
+      }
     }
 
     // Load a new cover
@@ -6320,7 +6435,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (launchDecision)
         {
-          std::wstring launchOptions = SK_FormatStringW (LR"(steam://run/%d)", pApp->id);
+          // steam://run/1289310/          <- Always launches using the developer-specified primary launch configuration
+          // steam://launch/1289310/dialog <- For games with multiple launch configurations, opens the launch config dialog or uses the user-specified default launch configuration
+          std::wstring launchOptions = SK_FormatStringW (LR"(steam://launch/%d/dialog)", pApp->id);
           if (SKIF_Util_OpenURI (launchOptions) != 0)
           {
             // Don't check the running state for at least 7.5 seconds
