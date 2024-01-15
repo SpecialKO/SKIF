@@ -7223,7 +7223,22 @@ SKIF_UI_Tab_DrawLibrary (void)
                 charPath     [MAX_PATH + 2] = { },
                 charArgs     [     500 + 2] = { };
     static bool error = false;
-    static int  cached_elevated = -1;
+    static int  cached_elevate_load = true;
+    static bool cached_elevate      = false;
+    static int  cached_auto_stop    = -1;
+    static int  cached_instant_play = -1;
+    
+    if (cached_elevate_load)
+    {
+      cached_elevate      = pApp->launch_configs[0].isElevated ( );
+      cached_elevate_load = false;
+    }
+
+    if (cached_auto_stop    == -1)
+      cached_auto_stop    = pApp->skif.auto_stop;
+
+    if (cached_instant_play == -1)
+      cached_instant_play = pApp->skif.instant_play;
 
     if (ModifyGamePopup == PopupState_Open)
     {
@@ -7387,13 +7402,13 @@ SKIF_UI_Tab_DrawLibrary (void)
         );
 
         ImGui::TreePush        ("ManageGame_InstantPlay");
-        ImGui::RadioButton     ("Default",           &pApp->skif.instant_play, 0);
+        ImGui::RadioButton     ("Default",           &cached_instant_play, 0);
         SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
         ImGui::SameLine        ( );
-        ImGui::RadioButton     ("Never",             &pApp->skif.instant_play, 2);
+        ImGui::RadioButton     ("Never",             &cached_instant_play, 2);
         SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
         ImGui::SameLine        ( );
-        ImGui::RadioButton     ("Always",            &pApp->skif.instant_play, 1);
+        ImGui::RadioButton     ("Always",            &cached_instant_play, 1);
         SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
         ImGui::TreePop         ( );
         
@@ -7412,17 +7427,17 @@ SKIF_UI_Tab_DrawLibrary (void)
     );
 
     ImGui::TreePush        ("ManageGame_AutoStopBehavior");
-    ImGui::RadioButton     ("Default",           &pApp->skif.auto_stop, 0);
+    ImGui::RadioButton     ("Default",           &cached_auto_stop, 0);
     SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
     ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On injection",      &pApp->skif.auto_stop, 1);
+    ImGui::RadioButton     ("On injection",      &cached_auto_stop, 1);
     SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
     ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On game exit",      &pApp->skif.auto_stop, 2);
+    ImGui::RadioButton     ("On game exit",      &cached_auto_stop, 2);
     SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
     ImGui::SameLine        ( );
     ImGui::BeginGroup      ( );
-    ImGui::RadioButton     ("Never",             &pApp->skif.auto_stop, 3);
+    ImGui::RadioButton     ("Never",             &cached_auto_stop, 3);
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
     ImGui::EndGroup        ( );
@@ -7436,17 +7451,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Miscellaneous settings:"
     );
-    
-    bool elevate =
-      pApp->launch_configs[0].isElevated ( );
 
-    if (cached_elevated == -1)
-      cached_elevated = (int)elevate;
-
-    if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
-    {
-      pApp->launch_configs[0].setElevated (elevate);
-    }
+    ImGui::Checkbox ("Elevated service###ElevatedLaunch", &cached_elevate);
 
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
@@ -7461,6 +7467,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (ImGui::Button  ("Update", vButtonSize))
     {
       bool repopulate = false;
+
+      // If the elevate state has been changed, apply the new one
+      if (cached_elevate != pApp->launch_configs[0].isElevated ( ))
+        pApp->launch_configs[0].setElevated (cached_elevate);
+
+      pApp->skif.auto_stop    = cached_auto_stop;
+      pApp->skif.instant_play = cached_instant_play;
 
       if (pApp->store == app_record_s::Store::Custom)
       {
@@ -7507,7 +7520,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Clear variables
           error = false;
           strncpy (charName, "\0", MAX_PATH);
-          cached_elevated = -1;
+          cached_elevate_load = true;
+          cached_auto_stop    = -1;
+          cached_instant_play = -1;
 
           if (repopulate)
           {
@@ -7537,16 +7552,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (ImGui::Button  ("Cancel", vButtonSize))
     {
-      // Undo the elevation change that was done
-      if (cached_elevated != -1 && cached_elevated != (int)elevate)
-        pApp->launch_configs[0].setElevated (! elevate);
-
       // Clear variables
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
-      cached_elevated = -1;
+      cached_elevate_load = true;
+      cached_auto_stop    = -1;
+      cached_instant_play = -1;
 
       ModifyGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
