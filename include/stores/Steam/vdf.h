@@ -5,6 +5,7 @@
 #include <vector>
 #include <wtypes.h>
 //#include <steam/isteamuser.h>
+#include "app_record.h"
 
 // Steamworks API definitions
 typedef unsigned __int32 uint32;
@@ -80,7 +81,7 @@ public:
     appinfo_s* getNextApp     (void);
   };
 
-  appinfo_s* getAppInfo ( uint32_t     appid );
+  appinfo_s* getAppInfo ( uint32_t     appid, std::vector <std::pair < std::string, app_record_s > > *apps );
 
   struct header_s
   {

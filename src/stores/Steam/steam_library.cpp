@@ -32,13 +32,6 @@
 #include <filesystem>
 #include <regex>
 
-std::vector <
-  std::pair < std::string, app_record_s >
-            > g_apps;
-
-std::set    < std::string >
-              g_apptickets;
-
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
 SteamId3_t    g_SteamUserID = 0;
@@ -866,13 +859,13 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
 }
 
 bool
-SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
 {
   if (apps->empty())
     return false;
 
   // Clear any cached app tickets to prevent stale data from sticking around
-  g_apptickets.clear ( );
+  apptickets->clear ( );
 
   // Clear out any cached launch option data
   for (auto& app : *apps)
@@ -952,7 +945,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
             for (auto& child : apptickets_localconfig->attribs)
             {
               if (! child.first.empty())
-                g_apptickets.emplace (child.first);
+                apptickets->emplace (child.first);
             }
           }
 
@@ -1279,7 +1272,7 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 
 // NOT THREAD-SAFE!!!
 bool
-SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
 {
   static SKIF_RegistryWatch SteamActiveProcess (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess)", L"SteamActiveUser", FALSE);
   static bool               firstRun = true;
@@ -1303,10 +1296,10 @@ SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_recor
     }
 
     // Refresh stuff if the current user has changed
-    if (g_SteamUserID != oldID && apps != nullptr)
+    if (g_SteamUserID != oldID && apps != nullptr && apptickets != nullptr)
     {
       // Preload user's local config
-      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps);
+      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps, apptickets);
 
       // Reset DLC ownership
       for (auto& app : *apps)
@@ -1353,7 +1346,7 @@ SKIF_Steam_GetCurrentUser (void)
 
 // Only used for Steam games!
 void
-SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
+SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < std::string, app_record_s > > *apps)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -1362,7 +1355,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
   //                *pAppInfo =
 
   if (! pApp->processed)
-    appinfo->getAppInfo ( pApp->id );
+    appinfo->getAppInfo ( pApp->id, apps );
 
   //UNREFERENCED_PARAMETER (pAppInfo);
 

@@ -86,6 +86,13 @@ int                    coverRefreshStore = 0;
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
+std::vector <
+  std::pair < std::string, app_record_s >
+            > g_apps;
+
+std::set    < std::string >
+              g_apptickets;
+
 nlohmann::json jsonMetaDB;
 
 const float fTintMin     = 0.75f;
@@ -164,7 +171,7 @@ AdjustAlpha (float a)
 struct {
   uint32_t            id = 0;
   app_record_s::Store store;
-} static manual_selection;
+} static search_selection;
 
 Trie labels;
 
@@ -2849,7 +2856,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   // Handle Steam games
   if (pApp->store == app_record_s::Store::Steam)
   {
-    SKIF_Steam_GetInjectionStrategy (pApp);
+    SKIF_Steam_GetInjectionStrategy (pApp, &g_apps);
 
     // Not actually used atm, so no need to scan the profile folder either
 #if 0
@@ -3317,7 +3324,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // Set up the registry watch on the Steam ActiveProcess key and ActiveUser value
     SK_RunOnce (
-      SKIF_Steam_isCurrentUserChanged (nullptr);
+      SKIF_Steam_isCurrentUserChanged (nullptr, nullptr);
     )
   }
 
@@ -3448,6 +3455,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::vector <
       std::pair <std::string, app_record_s >
                 > apps;
+    std::set    < std::string >
+                  apptickets;
+    SteamId3_t    steam_user;
     Trie          labels  = Trie { };
     HANDLE        hWorker = NULL;
     int           iWorker = 0;
@@ -3460,6 +3470,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     PLOG_INFO << "Populating library list...";
 
     library_worker = new lib_worker_thread_s;
+    library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
 
     uintptr_t hWorkerThread =
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -3478,12 +3489,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (_registry.bLibrarySteam)
       {
         SKIF_Steam_GetInstalledAppIDs (&_data->apps);
-
-        // Refresh the current Steam user
-        SKIF_Steam_GetCurrentUser ( );
       
         // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-        SKIF_Steam_PreloadUserLocalConfig (SKIF_Steam_GetCurrentUser ( ), &_data->apps);
+        SKIF_Steam_PreloadUserLocalConfig (_data->steam_user, &_data->apps, &_data->apptickets);
       }
 
       if ( ! SKIF_STEAM_OWNER )
@@ -3879,12 +3887,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Clear current data
-    g_apps.clear();
-    labels = Trie { };
+    g_apps      .clear( );
+    g_apptickets.clear( );
+    labels      = Trie{ };
 
     // Insert new data
-    g_apps = library_worker->apps;
-    labels = library_worker->labels;
+    g_apps       = library_worker->apps;
+    g_apptickets = library_worker->apptickets;
+    labels       = library_worker->labels;
 
     // Move cached icons over
     for (auto& app : g_apps)
@@ -3922,14 +3932,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Set to last selected if it can be found
     for (auto& app : g_apps)
     {
-      if (app.second.id    ==      _registry.iLastSelectedGame &&
+      if (app.second.id    ==                      _registry.iLastSelectedGame &&
           app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        = app.second.id;
         selection.store        = app.second.store;
-        manual_selection.id    = selection.appid;
-        manual_selection.store = selection.store;
+        search_selection.id    = selection.appid;
+        search_selection.store = selection.store;
         update = true;
       }
     }
@@ -4259,8 +4269,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
           selection.appid        = app.second.id;
           selection.store        = app.second.store;
-          manual_selection.id    = selection.appid;
-          manual_selection.store = selection.store;
+          search_selection.id    = selection.appid;
+          search_selection.store = selection.store;
           update = true;
         }
       }
@@ -4393,7 +4403,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (update                                       ||
         selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged (&g_apps)) || // If Steam user signed in / out
+      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
        _cache.service     != _inject.bCurrentState   ||
        _cache.running     !=  pApp->_status.running  ||
        _cache.updating    !=  pApp->_status.updating ||
@@ -4761,12 +4771,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         *test_           = '\0';
         dwLastUpdate     = MAXDWORD;
-        if (result.app_id != pApp->id || 
-            result.store  != pApp->store)
-        {
-          manual_selection.id    = result.app_id;
-          manual_selection.store = result.store;
-        }
+
+        // 2024-01-15: I am unsure why I added the IF statement in commit 9bf8427 on Sep 27, 2021
+        //   "- Fixed focus issues when using keyboard/gamepad combined with search"
+        // Maybe this had to do with the trie search and its limitations back then? // Aemony
+        //if (result.app_id != pApp->id || 
+        //    result.store  != pApp->store)
+        //{
+          search_selection.id    = result.app_id;
+          search_selection.store = result.store;
+        //}
         result = { };
       }
     }
@@ -4964,8 +4978,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_ImGui_SetHoverTip (app.first);
 
     // Handle search input
-    if (manual_selection.id    == app.second.id &&
-        manual_selection.store == app.second.store)
+    if (search_selection.id    == app.second.id &&
+        search_selection.store == app.second.store)
     {
       // Set focus on current row
       ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
@@ -4974,8 +4988,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Clear stuff
       selection.appid        = 0;
       selection.store        = app_record_s::Store::Unspecified;
-      manual_selection.id    = 0;
-      manual_selection.store = app_record_s::Store::Unspecified;
+      search_selection.id    = 0;
+      search_selection.store = app_record_s::Store::Unspecified;
       change                 = true;
     }
 
@@ -6949,10 +6963,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Reset selection to Special K
         selection.reset ( );
 
-        //for (auto& app : g_apps)
-        //  if (app.second.id == selection.appid && app.second.store == selection.store)
-        //    pApp = &app.second;
-
         update = true;
       }
 
@@ -7804,10 +7814,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     selection.appid = SelectNewSKIFGame;
     selection.store = app_record_s::Store::Custom;
 
-    //for (auto& app : g_apps)
-    //  if (app.second.id == selection.appid && app.second.store == selection.store)
-    //    pApp = &app.second;
-
     update = true;
 
     SelectNewSKIFGame = 0;
@@ -7888,7 +7894,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           continue;
         
         //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
-        appinfo->getAppInfo ( app.second.id );
+        appinfo->getAppInfo ( app.second.id, &g_apps );
 
         fallbackAvailable = false;
         break;

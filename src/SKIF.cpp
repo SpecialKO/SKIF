@@ -423,10 +423,6 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     extern std::wstring SKIF_Util_GetProductName    (const wchar_t* wszName);
     extern int          SKIF_AddCustomAppID    (std::vector<std::pair<std::string, app_record_s>>* apps,
                                                 std::wstring name, std::wstring path, std::wstring args);
-    extern
-      std::vector <
-        std::pair < std::string, app_record_s >
-                  > g_apps;
 
     if (PathFileExists (cmdLine.c_str()))
     {
@@ -435,7 +431,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
       if (productName == L"")
         productName = std::filesystem::path (cmdLine).replace_extension().filename().wstring();
 
-      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (&g_apps, productName, cmdLine, cmdLineArgs);
+      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (nullptr, productName, cmdLine, cmdLineArgs);
     
       // If a running instance of SKIF already exists, terminate this one as it has served its purpose
       if (SelectNewSKIFGame > 0 && _Signal._RunningInstance != 0)

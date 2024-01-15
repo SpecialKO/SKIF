@@ -26,7 +26,7 @@ bool SKIF_RemoveCustomAppID (uint32_t appid)
 
 int SKIF_AddCustomAppID (
   std::vector<std::pair<std::string, app_record_s>>* apps,
-    std::wstring name, std::wstring path, std::wstring args)
+  std::wstring name, std::wstring path, std::wstring args)
 {
   /*
     name          - String -- Title/Name
@@ -140,7 +140,8 @@ int SKIF_AddCustomAppID (
     std::pair <std::string, app_record_s>
       SKIF(record.names.normal, record);
 
-    apps->emplace_back(SKIF);
+    if (apps != nullptr)
+      apps->emplace_back(SKIF);
 
     return appId;
   }

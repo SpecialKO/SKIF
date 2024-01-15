@@ -219,7 +219,7 @@ appinfo_s::getNextApp (void)
 }
 
 appinfo_s*
-skValveDataFile::getAppInfo ( uint32_t     appid )
+skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::string, app_record_s > > *apps )
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -240,7 +240,7 @@ skValveDataFile::getAppInfo ( uint32_t     appid )
       {
         app_record_s* pAppRecord = nullptr;
 
-        for (auto& app : g_apps)
+        for (auto& app : *apps)
         {
           if (app.second.id == appid && app.second.store == app_record_s::Store::Steam)
           {

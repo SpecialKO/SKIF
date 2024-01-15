@@ -34,15 +34,6 @@
 #include <vector>
 
 extern
-  std::vector <
-    std::pair < std::string, app_record_s >
-              > g_apps;
-
-extern
-  std::set    < std::string >
-                g_apptickets;
-
-extern
   std::unique_ptr <skValveDataFile> appinfo;
 
 using steam_library_t = wchar_t [MAX_PATH + 2];
@@ -326,13 +317,13 @@ std::string                  SK_UseManifestToGetAppOwner        (app_record_s *a
 std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots          (app_record_s *app);
 ManifestId_t                 SK_UseManifestToGetDepotManifest   (app_record_s *app, DepotId_t depot);
 std::string                  SKIF_Steam_GetLaunchOptions        (AppId_t appid, SteamId3_t userid, app_record_s *app = nullptr);
-bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps);
+bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t userid, std::vector <std::pair <std::string, app_record_s> > *apps, std::set <std::string> *apptickets);
 bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_isLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
-bool                         SKIF_Steam_isCurrentUserChanged    (std::vector <std::pair < std::string, app_record_s > > *apps);
+bool                         SKIF_Steam_isCurrentUserChanged    (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
 SteamId3_t                   SKIF_Steam_GetCurrentUser          (void);
-void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);
+void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp, std::vector <std::pair <std::string, app_record_s> > *apps);
 std::wstring                 SKIF_Steam_GetAppStateString       (AppId_t  appid, const wchar_t *wszStateKey);
 wchar_t                      SKIF_Steam_GetAppStateDWORD        (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState          (app_record_s *pApp);
