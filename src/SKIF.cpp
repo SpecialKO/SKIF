@@ -33,6 +33,7 @@
 #include "plog/Initializers/RollingFileInitializer.h"
 #include "plog/Appenders/ConsoleAppender.h"
 #include "plog/Appenders/DebugOutputAppender.h"
+#include <utility/plog_formatter.h>
 
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
@@ -1245,7 +1246,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
 
   // Engage logging!
   // Contemplate moving over to plog::TxtFormatterUtcTime ?
-  static plog::RollingFileAppender<plog::TxtFormatter> fileAppender(logPath.c_str(), 10000000, 1);
+  static plog::RollingFileAppender<plog::LogFormatterUtcTime> fileAppender(logPath.c_str(), 10000000, 1);
   plog::init (plog::debug, &fileAppender);
 
   // Let us do a one-time check if a debugger is attached,
@@ -1271,16 +1272,16 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   PLOG_INFO << "Initializing Special K Injection Frontend (SKIF) 32-bit..."
 #endif
             << "\n+------------------+-------------------------------------+"
-            << "\n| SKIF Executable  | " << SKIF_Util_StripPersonalData (_path_cache.skif_executable)
+            << "\n| SKIF Executable  | " << _path_cache.skif_executable
             << "\n|    > version     | " << SKIF_VERSION_STR_A
             << "\n|    > build       | " << __DATE__ ", " __TIME__
             << "\n|    > mode        | " << ((_Signal.Launcher || _Signal.LauncherURI) ? "Launcher" : "Regular")
             << "\n|    > arguments   | " << lpCmdLine
             << "\n|    > directory   | "
-            << "\n|      > original  | " << SKIF_Util_StripPersonalData (_path_cache.skif_workdir_org)
-            << "\n|      > adjusted  | " << SKIF_Util_StripPersonalData (current_workdir)
-            << "\n| SK Install       | " << SKIF_Util_StripPersonalData (_path_cache.specialk_install)
-            << "\n| SK User Data     | " << SKIF_Util_StripPersonalData (_path_cache.specialk_userdata)
+            << "\n|      > original  | " << _path_cache.skif_workdir_org
+            << "\n|      > adjusted  | " << current_workdir
+            << "\n| SK Install       | " << _path_cache.specialk_install
+            << "\n| SK User Data     | " << _path_cache.specialk_userdata
             << "\n+------------------+-------------------------------------+";
 }
 
@@ -1357,11 +1358,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Set process preference to E-cores using only CPU sets, :)
   //  as affinity masks are inherited by child processes... :(
   SKIF_Util_SetProcessPrefersECores ( );
-
-#ifdef _DEBUG
-  // If we are debugging verbosely, output the usernames etc
-  SKIF_Util_Debug_LogUserNames ( );
-#endif
 
   // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
@@ -1442,8 +1438,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     PLOG_INFO << "Checking global registry values..."
               << "\n+------------------+-------------------------------------+"
-              << "\n| Central path     | " << SKIF_Util_StripPersonalData (_registry.wsPath)
-              << "\n| App registration | " << SKIF_Util_StripPersonalData (_registry.wsAppRegistration)
+              << "\n| Central path     | " << _registry.wsPath
+              << "\n| App registration | " << _registry.wsAppRegistration
               << "\n+------------------+-------------------------------------+";
 
     SKIF_Util_RegisterApp ( );

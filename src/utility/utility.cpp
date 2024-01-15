@@ -475,7 +475,7 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
 }
 
 
-// Usernames
+// Usernames / Machine Name
 
 std::wstring userProfile;
 std:: string userProfileUTF8;
@@ -485,6 +485,16 @@ std::wstring userDisName;
 std:: string userDisNameUTF8;
 std::wstring machineName;
 std:: string machineNameUTF8;
+
+// Just a bunch of wildcards (*)
+std::wstring replProfile;
+std:: string replProfileUTF8;
+std::wstring replSamName;
+std:: string replSamNameUTF8;
+std::wstring replDisName;
+std:: string replDisNameUTF8;
+std::wstring replMacName;
+std:: string replMacNameUTF8;
 
 void
 SKIF_UtilInt_IniUserMachineStrip (void)
@@ -505,6 +515,9 @@ SKIF_UtilInt_IniUserMachineStrip (void)
       PathStripPathW                   (wszUserProfile);
       userProfile     = std::wstring   (wszUserProfile);
       userProfileUTF8 = SK_WideCharToUTF8 (userProfile);
+
+      replProfile     = std::wstring      (userProfile.length(), L'*');
+      replProfileUTF8 = SK_WideCharToUTF8 (replProfile);
     }
     
     dwLen             = MAX_PATH;
@@ -518,8 +531,14 @@ SKIF_UtilInt_IniUserMachineStrip (void)
       userSamName     = std::wstring     (wszUserSamName);
       userSamNameUTF8 = SK_WideCharToUTF8   (userSamName);
 
+      replSamName     = std::wstring        (userSamName.length(), L'*');
+      replSamNameUTF8 = SK_WideCharToUTF8   (replSamName);
+
       machineName     = std::wstring     (wszMachineName);
       machineNameUTF8 = SK_WideCharToUTF8   (machineName);
+
+      replMacName     = std::wstring        (machineName.length(), L'*');
+      replMacNameUTF8 = SK_WideCharToUTF8   (replMacName);
     }
     
     dwLen             = MAX_PATH;
@@ -528,6 +547,9 @@ SKIF_UtilInt_IniUserMachineStrip (void)
     {
       userDisName     = std::wstring   (wszUserDisName,  dwLen);
       userDisNameUTF8 = SK_WideCharToUTF8 (userDisName);
+
+      replDisName     = std::wstring      (userDisName.length(), L'*');
+      replDisNameUTF8 = SK_WideCharToUTF8 (replDisName);
     }
   }
 }
@@ -538,16 +560,16 @@ SKIF_Util_StripPersonalData (std::wstring input)
   SKIF_UtilInt_IniUserMachineStrip ( );
   
   if (! userDisName.empty())
-    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    L"*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    replDisName.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
 
   if (! userProfile.empty())
-    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    L"*****");
+    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    replProfile.c_str());
 
   if (! userSamName.empty())
-    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    L"*****");
+    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    replSamName.c_str());
 
   if (! machineName.empty())
-    input = std::regex_replace (input, std::wregex (machineName.c_str()),    L"*****");
+    input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
 
   return input;
 }
@@ -558,16 +580,16 @@ SKIF_Util_StripPersonalData (std::string input)
   SKIF_UtilInt_IniUserMachineStrip ( );
   
   if (! userDisNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), "*****"); // Strip Display Name first as it is most likely to include the profile/SAM account name
+    input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), replDisNameUTF8.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
 
   if (! userProfileUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), "*****");
+    input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), replProfileUTF8.c_str());
 
   if (! userSamNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), "*****");
+    input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), replSamNameUTF8.c_str());
 
   if (! machineNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), "*****");
+    input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), replMacNameUTF8.c_str());
 
   return input;
 }
@@ -577,9 +599,11 @@ SKIF_Util_Debug_LogUserNames (void)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
 
-  std::string names = SK_FormatString ("ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfileUTF8.c_str(), userSamNameUTF8.c_str(), userDisNameUTF8.c_str(), machineNameUTF8.c_str());
+  std::wstring names      = SK_FormatStringW (L"ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfile    .c_str(), userSamName    .c_str(), userDisName    .c_str(), machineName    .c_str());
+  std:: string names_utf8 = SK_FormatString  ( "ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfileUTF8.c_str(), userSamNameUTF8.c_str(), userDisNameUTF8.c_str(), machineNameUTF8.c_str());
+
   PLOG_VERBOSE << names;
-  PLOG_VERBOSE << SKIF_Util_StripPersonalData (names);
+  PLOG_VERBOSE << names_utf8;
 }
 
 
