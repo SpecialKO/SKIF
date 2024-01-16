@@ -3061,6 +3061,7 @@ void
 RefreshRunningApps (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   
   static DWORD lastGameRefresh = 0;
   static std::wstring exeSteam = L"steam.exe";
@@ -3274,6 +3275,21 @@ RefreshRunningApps (void)
               CloseHandle (hWorkerThread);
               hWorkerThread = INVALID_HANDLE_VALUE;
               monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+
+#if 0
+              // Kickstart Steam -> GameOverlayUI.exe (TROUBLESHOOTING PURPOSES ONLY!!!!)
+              if (monitored_app.store_id == (int)app_record_s::Store::Steam && SKIF_Steam_GetActiveProcess() != 0)
+              {
+                DWORD procId = monitored_app.dwProcessId.load();
+                PLOG_VERBOSE << "Mer merp merp: " << procId;
+
+                // Kickstart GameOverlayUI.exe
+                SKIF_Util_CreateProcess (
+                  SK_FormatStringW (LR"(%ws\%ws)", _path_cache.steam_install, L"GameOverlayUI.exe"),
+                  (L"-pid " + std::to_wstring(procId) + L" -steampid " + std::to_wstring(SKIF_Steam_GetActiveProcess()) + L" -manuallyclearframes 1 -gameid " + std::to_wstring(monitored_app.id)),
+                  _path_cache.steam_install);
+              }
+#endif
             }
           }
         }
@@ -3324,7 +3340,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // Set up the registry watch on the Steam ActiveProcess key and ActiveUser value
     SK_RunOnce (
-      SKIF_Steam_isCurrentUserChanged (nullptr, nullptr);
+      SKIF_Steam_HasActiveProcessChanged (nullptr, nullptr);
     )
   }
 
@@ -4403,7 +4419,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (update                                       ||
         selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-      (_registry.bLibrarySteam && SKIF_Steam_isCurrentUserChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
+      (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
        _cache.service     != _inject.bCurrentState   ||
        _cache.running     !=  pApp->_status.running  ||
        _cache.updating    !=  pApp->_status.updating ||
