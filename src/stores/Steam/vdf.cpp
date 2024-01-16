@@ -413,6 +413,18 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 
               for (auto& key : finished_section.keys)
               {
+                // OS Arch? More like CPU Arch...
+                // 
+                // This key, under common_config, either:
+                //  - do not exist at all, see  23310: The Last Remnant           (what does this mean?)
+                //  -            is empty, see    480: Spacewar (or most games)   (what does this mean? x86?)
+                //  -      is set to "64", see 546560: Half-Life: Alyx
+                //
+                // This makes it utterly useless for anything reliable, lol
+                // 
+                // See SteamDB's unique values search:
+                // - https://steamdb.info/search/?a=app_keynames&type=-1&keyname=369&operator=9&keyvalue=&display_value=on
+
                 if (! _stricmp (key.first, "osarch"))
                 {
                   pAppRecord->common_config.cpu_type =
@@ -502,6 +514,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 
                 else if (! _stricmp (key.first, "osarch"))
                 {
+                  // OS Arch? More like CPU Arch...
                   pAppRecord->launch_configs [idx].cpu_type =
                     _ParseOSArch (key);
                 }

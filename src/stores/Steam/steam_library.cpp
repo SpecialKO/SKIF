@@ -31,6 +31,7 @@
 #include <fstream>
 #include <filesystem>
 #include <regex>
+#include <utility/injection.h>
 
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
@@ -1361,15 +1362,11 @@ void
 SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < std::string, app_record_s > > *apps)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   // Parse appinfo data for the current game
-  //skValveDataFile::appinfo_s
-  //                *pAppInfo =
-
   if (! pApp->processed)
     appinfo->getAppInfo ( pApp->id, apps );
-
-  //UNREFERENCED_PARAMETER (pAppInfo);
 
   int firstValidFound = -1;
 
@@ -1404,13 +1401,13 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
 #define TRUST_LAUNCH_CONFIG
 #ifdef TRUST_LAUNCH_CONFIG
       app_record_s::CPUType
-                    cputype = pApp->common_config.cpu_type;
+                    cpu_type = pApp->common_config.cpu_type; // We start by using the common config
 
-      if (cputype != app_record_s::CPUType::Any)
+      if (cpu_type != app_record_s::CPUType::Any)
       {
         if (launch.cpu_type != app_record_s::CPUType::Common)
         {
-          cputype =
+          cpu_type =
             launch.cpu_type;
         }
       }
@@ -1425,35 +1422,45 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
         if (launch.cpu_type == app_record_s::CPUType::x64)
 #endif
         {
-          //OutputDebugStringW (launch.description.c_str ());
           continue;
         }
 
         else {
-          cputype =
+          cpu_type =
             launch.cpu_type;
         }
       }
-
-      if (cputype == app_record_s::CPUType::x86)
+      
+      if (cpu_type == app_record_s::CPUType::x64)
         launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-      else if (cputype == app_record_s::CPUType::x64)
-        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
-      else if (cputype == app_record_s::CPUType::Any)
-      {
-        std::wstring exec_path =
-          launch.getExecutableFullPath ( );
 
-        DWORD dwBinaryType = MAXDWORD;
-        if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+      else if (cpu_type == app_record_s::CPUType::x86)
+        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+
+      // If we still haven't resolved it, use SKIF's cached property
+      else if (pApp->skif.cpu_type != 0)
+        launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
+
+      // In case we still haven't resolved the CPU architecture,
+      //   we need to check the actual arch of the game executable
+      else if (cpu_type == app_record_s::CPUType::Any ||
+               cpu_type == app_record_s::CPUType::Common)
+      {
+        if (launch.isExecutableFullPathValid ())
         {
-          if (dwBinaryType == SCS_32BIT_BINARY)
-            launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-          else if (dwBinaryType == SCS_64BIT_BINARY)
-            launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+          std::wstring exec_path =
+            launch.getExecutableFullPath ( );
+
+          DWORD dwBinaryType = MAXDWORD;
+          if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+          {
+            if (dwBinaryType == SCS_32BIT_BINARY)
+              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+            else if (dwBinaryType == SCS_64BIT_BINARY)
+              launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+          }
         }
       }
-
 #else
 
       std::wstring exec_path =
@@ -1554,10 +1561,6 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
     // Check if the launch config is elevated or blacklisted
     launch.isElevated    (true);
     launch.isBlacklisted (true);
-
-    // Naively assume the first valid launch config that we are pointed to is the primary one
-    // If we're not at the first launch config, move it to the first position
-    //break;
   }
 
   // Swap out the first element for the first valid one we found
@@ -1571,30 +1574,35 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
   // TODO: Make the specialk.injection bitness/state/etc stuff bound
   //         to launch_config so it is not universal any longer
 
+  auto& launch = pApp->launch_configs.begin()->second;
+
   // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
-  if (pApp->launch_configs[0].injection.injection.type == InjectionType::Unknown)
+  if (launch.injection.injection.type == InjectionType::Unknown)
   {
     // Assume global
-    pApp->launch_configs[0].injection.injection.type =
+    launch.injection.injection.type =
       InjectionType::Global;
-    pApp->launch_configs[0].injection.injection.entry_pt =
+    launch.injection.injection.entry_pt =
       InjectionPoint::CBTHook;
-    pApp->launch_configs[0].injection.config.type =
+    launch.injection.config.type =
       ConfigType::Centralized;
-    pApp->launch_configs[0].injection.config.file =
+    launch.injection.config.file =
       L"SpecialK.ini";
   }
 
   // Main UI stuff should follow the primary launch config
-  pApp->specialk.injection = pApp->launch_configs[0].injection;
+  pApp->specialk.injection = launch.injection;
 
   if ( InjectionType::Global ==
          pApp->specialk.injection.injection.type )
   {
-    // Assume 32-bit if we don't know otherwise
+    // Assume Global 32-bit if we don't know otherwise
     bool bIs64Bit =
-      (pApp->specialk.injection.injection.bitness ==
-                       InjectionBitness::SixtyFour );
+      (launch.injection.injection.bitness ==
+                        InjectionBitness::SixtyFour);
+
+    pApp->specialk.injection.config.type =
+      ConfigType::Centralized;
 
     wchar_t                 wszPathToSelf [MAX_PATH + 2] = { };
     GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
@@ -1602,19 +1610,15 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
     PathAppendW         (   wszPathToSelf,
                               bIs64Bit ? L"SpecialK64.dll"
                                        : L"SpecialK32.dll" );
+
     pApp->specialk.injection.injection.dll_path = wszPathToSelf;
-    pApp->specialk.injection.injection.dll_ver  =
-    SKIF_Util_GetSpecialKDLLVersion (       wszPathToSelf);
+    pApp->specialk.injection.injection.dll_ver  = 
+                              bIs64Bit ? _inject.SKVer64
+                                       : _inject.SKVer32;
   }
 
-  if (pApp != nullptr)
-  {
-    pApp->specialk.injection.localized_name =
-      SK_UseManifestToGetAppName (pApp);
-  }
-
-  else
-    pApp->specialk.injection.localized_name = "<executable_name_here>";
+  pApp->specialk.injection.localized_name =
+    SK_UseManifestToGetAppName (pApp);
 
   if ( ConfigType::Centralized ==
          pApp->specialk.injection.config.type )

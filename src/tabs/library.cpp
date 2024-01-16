@@ -473,8 +473,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (path.empty())
     return false;
 
-  PLOG_VERBOSE << path;
-
   std::wstring targetPath  = L"";
   std::wstring extOriginal = std::filesystem::path (path.data()).extension().wstring();
   bool         isURL       = PathIsURL (path.data());
@@ -1546,6 +1544,8 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Steam_LaunchOption));
           if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->Steam_ManifestPath).c_str()))
             SKIF_Util_SetClipboardData (                          pApp->Steam_ManifestPath);
+          if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
+            SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
         }
 
         else if (pApp->store == app_record_s::Store::Xbox)
@@ -2903,6 +2903,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
       launch.cpu_type                    = (app_record_s::CPUType)pApp->skif.cpu_type;
     }
 
+    // Check bitness
     if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
       DWORD dwBinaryType = MAXDWORD;
@@ -4435,8 +4436,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       
       int cpu_post = (int)pApp->specialk.injection.injection.bitness;
 
-      // If the CPU has changed, we need to update the metadata as well
-      if (cpu_pre != cpu_post)
+      // If the CPU has changed, we need to update the metadata as well,
+      //   but only if it differs from our cached value...
+      if (cpu_post != cpu_pre &&
+          cpu_post != pApp->skif.cpu_type)
       {
         pApp->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
 

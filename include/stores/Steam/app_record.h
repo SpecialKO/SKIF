@@ -180,7 +180,7 @@ struct app_record_s {
       std::wstring file = L"";
     } config;
 
-      std::string    localized_name; // UTF-8
+    std::string    localized_name; // UTF-8
   };
 
   struct common_config_s {
@@ -196,7 +196,7 @@ struct app_record_s {
     };
 
     uint32_t     appid     = 0;
-    CPUType      cpu_type  = CPUType::x86;
+    CPUType      cpu_type  = CPUType::Any;     // This is an utterly useless key on Steam -- do not expect it to contain anything important! It's either not set, empty, or set to 64 -- nothing else!
     AppType      type      = AppType::Unknown; // Steam
   };
 
