@@ -1521,9 +1521,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
     {
-      if (ImGui::BeginMenu (ICON_FA_FILE_LINES "   App Config"))
+      if (ImGui::BeginMenu (ICON_FA_FILE_LINES "  App Config"))
       {
-        ImGui::TextDisabled   ("General:");
+        ImGui::PushID         ("#General");
+        ImGui::TextDisabled   ("General");
         if (ImGui::MenuItem   ("Name",                    pApp->names.original.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->names.original));
         if (ImGui::MenuItem   ("Platform ID", std::to_string (pApp->id).c_str()))
@@ -1532,28 +1533,36 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (    SK_UTF8ToWideChar(pApp->store_utf8));
         if (ImGui::MenuItem   ("Install Directory", SK_WideCharToUTF8(pApp->install_dir).c_str()))
             SKIF_Util_SetClipboardData (                              pApp->install_dir);
+        ImGui::PopID          ( );
 
-        ImGui::Separator ( );
-          
-        ImGui::TextDisabled   ("SKIF Override Data:");
-
-        if (! pApp->skif.name.empty ())
+        if (! pApp->skif.name.empty () || pApp->skif.cpu_type != 0)
         {
-          if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
-        }
+          ImGui::Separator    ( );
 
-        if (pApp->skif.cpu_type != 0)
-        {
-          if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
-            SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
+          ImGui::PushID       ("#SKIF");
+          ImGui::TextDisabled ("SKIF Override Data");
+
+          if (! pApp->skif.name.empty ())
+          {
+            if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
+              SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
+          }
+
+          if (pApp->skif.cpu_type != 0)
+          {
+            if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
+              SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
+          }
+
+          ImGui::PopID        ( );
         }
 
         if (pApp->store == app_record_s::Store::Steam)
         {
           ImGui::Separator ( );
-
-          ImGui::TextDisabled ("Steam Data:");
+          
+          ImGui::PushID       ("#Steam");
+          ImGui::TextDisabled ("Steam Data");
           if (ImGui::MenuItem ("Branch",                  pApp->branch.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->branch));
           if (ImGui::MenuItem ("Launch Option",           pApp->Steam_LaunchOption.c_str()))
@@ -1562,14 +1571,16 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (                          pApp->Steam_ManifestPath);
           if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
             SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
+          ImGui::PopID        ( );
         }
 
         else if (pApp->store == app_record_s::Store::Xbox)
         {
           ImGui::Separator ( );
           
-          ImGui::TextDisabled ("Xbox Data:");
-          if (ImGui::MenuItem ("Name",                    pApp->Xbox_PackageName.c_str()))
+          ImGui::PushID       ("#Xbox");
+          ImGui::TextDisabled ("Xbox Data");
+          if (ImGui::MenuItem ("Package",                 pApp->Xbox_PackageName.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageName));
           if (ImGui::MenuItem ("Full Name",               pApp->Xbox_PackageFullName.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFullName));
@@ -1579,13 +1590,15 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_StoreId));
           if (ImGui::MenuItem ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str()))
             SKIF_Util_SetClipboardData (                          pApp->Xbox_AppDirectory);
+          ImGui::PopID        ( );
         }
 
         else if (pApp->store == app_record_s::Store::Epic)
         {
           ImGui::Separator ( );
           
-          ImGui::TextDisabled ("Epic Data:");
+          ImGui::PushID       ("#Epic");
+          ImGui::TextDisabled ("Epic Data");
           if (ImGui::MenuItem ("App Name",                pApp->Epic_AppName.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_AppName));
           if (ImGui::MenuItem ("Display Name",            pApp->Epic_DisplayName.c_str()))
@@ -1594,6 +1607,7 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogNamespace));
           if (ImGui::MenuItem ("Catalog Item ID",         pApp->Epic_CatalogItemId.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogItemId));
+          ImGui::PopID        ( );
         }
 
         ImGui::EndMenu ();
@@ -1773,7 +1787,7 @@ DrawGameContextMenu (app_record_s* pApp)
       }
 
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
-      if (ImGui::Selectable ("Copy app ID"))
+      if (ImGui::Selectable (ICON_FA_FINGERPRINT "  Copy ID"))
       {
         switch (pApp->store)
         {
