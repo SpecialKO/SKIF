@@ -103,10 +103,10 @@ int SKIF_AddCustomAppID (
   {
     app_record_s record(appId);
     
-    record.store      = app_record_s::Store::Custom;
-    record.store_utf8 = "Custom";
+    record.store             = app_record_s::Store::Custom;
+    record.store_utf8        = "Custom";
     record._status.installed = true;
-    record.names.normal = SK_WideCharToUTF8(name);
+    record.names.normal      = SK_WideCharToUTF8(name);
     
     // Strip game names from special symbols
     const char *chars = (const char *)u8"\u00A9\u00AE\u2122"; // Copyright (c), Registered (R), Trademark (TM)

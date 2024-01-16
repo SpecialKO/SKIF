@@ -85,7 +85,10 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
               if (RegGetValueW (hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                record.names.normal = SK_WideCharToUTF8(szData);
+              {
+                record.names.normal   = SK_WideCharToUTF8(szData);
+                record.names.original = record.names.normal;
+              }
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
               if (RegGetValueW (hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)

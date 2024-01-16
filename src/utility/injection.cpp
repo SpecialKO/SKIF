@@ -729,7 +729,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   
   if (libCacheRefresh)
   {
-    PLOG_INFO << "Special K DLL files and service hsots have been refreshed..."
+    PLOG_INFO << "Special K DLL files and service hosts have been refreshed..."
               << "\n+------------------+-------------------------------------+"
               << "\n| SpecialK32.dll   | " << SKVer32
               << "\n|  SKIFsvc32.exe   | " << SKSvc32

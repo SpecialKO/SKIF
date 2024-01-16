@@ -149,6 +149,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
 
           record.names.normal         = jf.at ("DisplayName");
+          record.names.original       = record.names.normal;
 
 
           app_record_s::launch_config_s lc;

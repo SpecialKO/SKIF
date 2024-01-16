@@ -190,6 +190,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
+                      record.names.original   = record.names.normal;
 
                       // Hash the PackageName into a unique integer we use for internal tracking purposes
                       std::hash <std::string> stoi_hasher;
@@ -233,7 +234,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         PLOG_DEBUG << "Attempting to load indirect string: " << msResourceURI;
                         HRESULT hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
 
-                        if (FAILED(hr))
+                        if (FAILED (hr))
                         {
                           // Add "resource" to the URI path as well
                           msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/resources/%ws})", packageFullName.c_str(), packageFamilyName, SK_UTF8ToWideChar(substr).c_str());
@@ -241,15 +242,16 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                           hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
                         }
 
-                        if (SUCCEEDED(hr))
+                        if (SUCCEEDED (hr))
                         {
-                          PLOG_INFO << L"Loaded ms-resource title: " << wszDisplayName;
-                          record.names.normal = SK_WideCharToUTF8 (wszDisplayName);
+                          PLOG_DEBUG << L"Loaded ms-resource title: " << wszDisplayName;
+                          record.names.normal   = SK_WideCharToUTF8 (wszDisplayName);
+                          record.names.original = record.names.normal;
                         }
                         else
                         {
                           PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
-                          record.names.normal = record.Xbox_PackageName;
+                          record.names.normal   = record.Xbox_PackageName;
                         }
                       }
 
@@ -343,7 +345,10 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                           std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
 
                           if (! appDisplayName.empty() && appDisplayName.find("ms-resource") == std::string::npos)
-                            record.names.normal = appDisplayName;
+                          {
+                            record.names.normal   = appDisplayName;
+                            record.names.original = record.names.normal;
+                          }
                         }
                       
                         lc.install_dir = record.install_dir;

@@ -107,7 +107,8 @@ struct app_record_s {
   struct names_s {
     std::string all_upper;
     std::string all_upper_alnum;
-    std::string normal;
+    std::string normal;   // Name used in SKIF (custom names are applied on this)
+    std::string original; // Holds the original name before any custom name was applied
     size_t      pre_stripped = 0;
   } names;
 
@@ -364,7 +365,7 @@ struct app_record_s {
   std::string  Epic_CatalogNamespace =  "";
   std::string  Epic_CatalogItemId    =  "";
   std::string  Epic_AppName          =  "";
-  std::string  Epic_DisplayName      =  "";
+  std::string  Epic_DisplayName      =  ""; // Might be removable, replaced with normal.original ??
 
   std::string  Xbox_PackageName      =  "";
   std::string  Xbox_PackageFullName  =  "";
