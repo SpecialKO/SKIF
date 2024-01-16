@@ -34,7 +34,8 @@
 
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
-SteamId3_t    g_SteamUserID = 0;
+SteamId3_t    g_SteamUserID   = 0;
+DWORD         g_dwSteamProcessID = 0;
 
 #define MAX_STEAM_LIBRARIES 16
 
@@ -1272,7 +1273,7 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 
 // NOT THREAD-SAFE!!!
 bool
-SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
+SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
 {
   static SKIF_RegistryWatch SteamActiveProcess (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess)", L"SteamActiveUser", FALSE);
   static bool               firstRun = true;
@@ -1284,19 +1285,24 @@ SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_recor
     PVOID   pvData =         szData;
     CRegKey hKey ((HKEY)0);
 
-    SteamId3_t oldID = g_SteamUserID;
+    SteamId3_t oldUserID = g_SteamUserID;
+    DWORD      oldProcID = g_dwSteamProcessID;
     firstRun         = false;
 
     if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
     {
       if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-        g_SteamUserID = *(DWORD*)pvData;
+        g_SteamUserID      = *(DWORD*)pvData;
+
+      if (RegGetValueW (hKey, NULL, L"pid", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+        g_dwSteamProcessID = *(DWORD*)pvData;
 
       hKey.Close ( );
     }
 
     // Refresh stuff if the current user has changed
-    if (g_SteamUserID != oldID && apps != nullptr && apptickets != nullptr)
+    if ((g_SteamUserID != oldUserID || g_dwSteamProcessID != oldProcID)
+               && apps != nullptr    &&          apptickets != nullptr)
     {
       // Preload user's local config
       SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps, apptickets);
@@ -1307,7 +1313,7 @@ SKIF_Steam_isCurrentUserChanged (std::vector <std::pair < std::string, app_recor
           launch_cfg.second.owns_dlc = -1;
     }
 
-    return (g_SteamUserID != oldID);
+    return (g_SteamUserID != oldUserID || g_dwSteamProcessID != oldProcID);
   }
 
   return false;
@@ -1341,6 +1347,12 @@ SKIF_Steam_GetCurrentUser (void)
 
   return SteamUserID;
   */
+}
+
+DWORD
+SKIF_Steam_GetActiveProcess (void)
+{
+  return g_dwSteamProcessID;
 }
 
 

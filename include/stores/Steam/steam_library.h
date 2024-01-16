@@ -321,8 +321,9 @@ bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t user
 bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_isLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
-bool                         SKIF_Steam_isCurrentUserChanged    (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
+bool                         SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
 SteamId3_t                   SKIF_Steam_GetCurrentUser          (void);
+DWORD                        SKIF_Steam_GetActiveProcess        (void);
 void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp, std::vector <std::pair <std::string, app_record_s> > *apps);
 std::wstring                 SKIF_Steam_GetAppStateString       (AppId_t  appid, const wchar_t *wszStateKey);
 wchar_t                      SKIF_Steam_GetAppStateDWORD        (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);
