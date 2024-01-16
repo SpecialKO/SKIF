@@ -3758,8 +3758,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
           app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
 
+          // Output the name change (use widechar to have them appear correct in the logs)
           if (original_name != app.first)
-            PLOG_DEBUG << "Game title was changed: " << SK_UTF8ToWideChar(original_name.c_str()) << " (" << original_name << ") --> " << SK_UTF8ToWideChar(app.first.c_str()) << " (" << app.first << ")";
+            PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(original_name.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
 
           // Strip any remaining null terminators
           app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
@@ -6033,6 +6034,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
   {
+    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
     ImGui::BeginGroup     ( );
 
     ImVec2 iconPos = ImGui::GetCursorPos();
@@ -6117,6 +6120,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::Text           (ICON_FA_GEARS);
     ImGui::Separator      ( );
     ImGui::Text           (ICON_FA_ROTATE_RIGHT);
+
+    ImGui::PopStyleColor  ( );
     ImGui::EndPopup       ( );
   }
 
