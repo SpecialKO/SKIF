@@ -789,8 +789,10 @@ SKIF_Util_CreateProcess (
           &procinfo))
       {
         if (_data->proc != nullptr)
-          _data->proc->hProcess.store (procinfo.hProcess);
-        else // We don't have a proc structure, so the handle is unneeded
+        {
+          _data->proc->hProcess.store    (procinfo.hProcess);
+          _data->proc->dwProcessId.store (procinfo.dwProcessId);
+        } else // We don't have a proc structure, so the handle is unneeded
           CloseHandle (procinfo.hProcess);
 
         // Close the external thread handle as we do not use it for anything

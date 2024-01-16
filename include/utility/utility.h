@@ -48,6 +48,7 @@ struct SKIF_Util_CreateProcess_s {
   int                 store_id      = -1;
   std::atomic<HANDLE> hWorkerThread = INVALID_HANDLE_VALUE; // Holds a handle to SKIF's worker thread servicing the request
   std::atomic<HANDLE> hProcess      = INVALID_HANDLE_VALUE; // Holds a handle to the spawned process
+  std::atomic<DWORD>  dwProcessId   = 0;
 };
 
 HINSTANCE       SKIF_Util_ExplorePath                 (const std::wstring_view& path);
