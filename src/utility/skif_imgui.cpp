@@ -642,6 +642,7 @@ void SKIF_ImGui_ServiceMenu (void)
 
   if (ImGui::BeginPopup ("ServiceMenu", ImGuiWindowFlags_NoMove))
   {
+    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::TextColored (
       ImColor::HSV (0.11F, 1.F, 1.F),
         "Troubleshooting:"
@@ -655,6 +656,7 @@ void SKIF_ImGui_ServiceMenu (void)
     if (ImGui::Selectable("Force stop service"))
       _inject._StartStopInject (true);
 
+    ImGui::PopStyleColor ( );
     ImGui::EndPopup ( );
   }
 }

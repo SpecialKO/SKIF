@@ -5606,6 +5606,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
   {
+    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
     if (pApp != nullptr)
     {
       // Preparations
@@ -5782,6 +5784,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     }
 
+    ImGui::PopStyleColor   ( );
     ImGui::EndPopup   (  );
   }
 
@@ -5829,6 +5832,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopup ("IconMenu", ImGuiWindowFlags_NoMove))
   {
+    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
     if (pApp != nullptr)
     {
       // Preparations
@@ -6032,6 +6037,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                             );
     }
 
+    ImGui::PopStyleColor   ( );
     ImGui::EndPopup      ( );
   }
 
