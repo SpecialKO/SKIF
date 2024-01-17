@@ -2848,6 +2848,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           else {
             ImGui::Text           ("Changes:");
           }
+
+          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
@@ -2862,6 +2864,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_DisallowMouseDragMove ( );
 
           ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
           ImGui::PopStyleColor  ( );
 
           SKIF_ImGui_Spacing ();
@@ -3014,6 +3017,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (! _updater.GetResults().history_formatted.notes.empty())
         {
+          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
@@ -3028,6 +3032,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_DisallowMouseDragMove ( );
 
           ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
           ImGui::PopStyleColor  ( );
 
           SKIF_ImGui_Spacing ();
