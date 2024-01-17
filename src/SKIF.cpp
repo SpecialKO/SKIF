@@ -3055,7 +3055,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::string AutoUpdatePopupTitle;
       static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && _registry.wsAutoUpdateVersion == _inject.SKVer32);
 
-      if (AutoUpdateChanges)
+      // SKIF launches too quickly so delay opening the popup a few frames as otherwise it'll just instantly close
+      if (AutoUpdateChanges && ImGui::GetFrameCount ( ) > 5)
       {
         AutoUpdateChanges = false;
         AutoUpdatePopup = PopupState_Open;
@@ -3114,6 +3115,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (! _updater.GetAutoUpdateNotes().notes.empty())
         {
+          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
           ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
           ImGui::PushFont       (fontConsolas);
           ImGui::InputTextEx    ( "###AutoUpdaterChanges", "No changes detected...",
@@ -3128,6 +3130,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_DisallowMouseDragMove ( );
 
           ImGui::PopFont        ( );
+          ImGui::PopStyleColor  ( );
           ImGui::PopStyleColor  ( );
 
           SKIF_ImGui_Spacing ();

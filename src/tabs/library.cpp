@@ -7593,7 +7593,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           ModifyGamePopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup();
+          ImGui::CloseCurrentPopup ( );
         }
       }
 
@@ -7629,7 +7629,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           ModifyGamePopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup();
+          ImGui::CloseCurrentPopup ( );
         }
         
         else
