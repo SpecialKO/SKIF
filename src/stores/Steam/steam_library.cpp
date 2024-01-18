@@ -1401,7 +1401,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
 #define TRUST_LAUNCH_CONFIG
 #ifdef TRUST_LAUNCH_CONFIG
       app_record_s::CPUType
-                    cpu_type = pApp->common_config.cpu_type; // We start by using the common config
+          cpu_type  = pApp->common_config.cpu_type; // We start by using the common config
 
       if (cpu_type != app_record_s::CPUType::Any)
       {
@@ -1431,11 +1431,11 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
         }
       }
       
-      if (cpu_type == app_record_s::CPUType::x64)
-        launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+      if (     cpu_type == app_record_s::CPUType::x64)
+        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
 
       else if (cpu_type == app_record_s::CPUType::x86)
-        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+        launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
       // If we still haven't resolved it, use SKIF's cached property
       else if (pApp->skif.cpu_type != 0)
@@ -1443,8 +1443,7 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
 
       // In case we still haven't resolved the CPU architecture,
       //   we need to check the actual arch of the game executable
-      else if (cpu_type == app_record_s::CPUType::Any ||
-               cpu_type == app_record_s::CPUType::Common)
+      else // Common || Any
       {
         if (launch.isExecutableFullPathValid ())
         {
@@ -1452,12 +1451,12 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
             launch.getExecutableFullPath ( );
 
           DWORD dwBinaryType = MAXDWORD;
-          if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
+          if (GetBinaryTypeW (exec_path.c_str (), &dwBinaryType))
           {
-            if (dwBinaryType == SCS_32BIT_BINARY)
-              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-            else if (dwBinaryType == SCS_64BIT_BINARY)
+            if (dwBinaryType == SCS_64BIT_BINARY)
               launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+            else if (dwBinaryType == SCS_32BIT_BINARY)
+              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
           }
         }
       }

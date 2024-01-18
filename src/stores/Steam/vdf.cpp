@@ -395,10 +395,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                   default:
                     cpu_type =
                       app_record_s::CPUType::Any;
-                    OutputDebugStringA (
-                      SK_FormatString ( "Got unexpected (int32) CPU osarch=%lu",
-                                          bits ).c_str ()
-                    ); break;
+                    PLOG_ERROR << SK_FormatString ("Got unexpected (int32) CPU osarch=%lu", bits);
+                    break;
                 }
               }
 
