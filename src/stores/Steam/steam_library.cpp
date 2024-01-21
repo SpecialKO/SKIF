@@ -947,7 +947,15 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
             for (auto& child : apptickets_localconfig->attribs)
             {
               if (! child.first.empty())
-                apptickets->emplace (child.first);
+              {
+                try {
+                  apptickets->emplace (child.first);
+                } 
+                catch (const std::exception& e)
+                {
+                  UNREFERENCED_PARAMETER(e);
+                }
+              }
             }
           }
 
@@ -1381,14 +1389,16 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
       firstValidFound = launch_cfg.first;
 
     // Assume global
-    launch.injection.injection.type =
+    launch.injection.injection.type        =
       InjectionType::Global;
-    launch.injection.injection.entry_pt =
+    launch.injection.injection.entry_pt    =
       InjectionPoint::CBTHook;
-    launch.injection.config.type =
+    launch.injection.config.type           =
       ConfigType::Centralized;
-    launch.injection.config.file =
+    launch.injection.config.shorthand      =
       L"SpecialK.ini";
+    launch.injection.config.shorthand_utf8 =
+      SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
     // Check bitness
     
@@ -1532,17 +1542,21 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
           launch.injection.injection = {
             launch.injection.injection.bitness,
-            dll.entry_pt, InjectionType::Local,
-            dll.path,     dll_ver
+            dll.entry_pt, InjectionType::Local
           };
+
+          launch.injection.dll.full_path     = dll.path;
+          launch.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (launch.injection.dll.full_path);
+          launch.injection.dll.version        = dll_ver;
+          launch.injection.dll.version_utf8   = SK_WideCharToUTF8 (launch.injection.dll.version);
 
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
             launch.injection.config.type =   ConfigType::Centralized;
           else
             launch.injection.config      = { ConfigType::Localized, test_path };
 
-          launch.injection.config.file =
-            dll.name + L".ini";
+          launch.injection.config.shorthand      = dll.name + L".ini";
+          launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
           breakOuterLoop = true;
           break;
@@ -1578,14 +1592,16 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
   if (launch.injection.injection.type == InjectionType::Unknown)
   {
     // Assume global
-    launch.injection.injection.type =
+    launch.injection.injection.type        =
       InjectionType::Global;
-    launch.injection.injection.entry_pt =
+    launch.injection.injection.entry_pt    =
       InjectionPoint::CBTHook;
-    launch.injection.config.type =
+    launch.injection.config.type           =
       ConfigType::Centralized;
-    launch.injection.config.file =
+    launch.injection.config.shorthand      =
       L"SpecialK.ini";
+    launch.injection.config.shorthand_utf8 =
+      SK_WideCharToUTF8 (launch.injection.config.shorthand);
   }
 
   // Main UI stuff should follow the primary launch config
@@ -1609,10 +1625,12 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
                               bIs64Bit ? L"SpecialK64.dll"
                                        : L"SpecialK32.dll" );
 
-    pApp->specialk.injection.injection.dll_path = wszPathToSelf;
-    pApp->specialk.injection.injection.dll_ver  = 
-                              bIs64Bit ? _inject.SKVer64
-                                       : _inject.SKVer32;
+    pApp->specialk.injection.dll.full_path      = wszPathToSelf;
+    pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
+    pApp->specialk.injection.dll.version        = 
+                                       bIs64Bit ? _inject.SKVer64
+                                                : _inject.SKVer32;
+    pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
   }
 
   pApp->specialk.injection.localized_name =
@@ -1666,15 +1684,17 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
       else                   break;
     }
 
-    pApp->specialk.injection.config.dir =
+    pApp->specialk.injection.config.root_dir =
       SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
                            _path_cache.specialk_userdata,
                              name.c_str () );
+    pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
   }
 
-  pApp->specialk.injection.config.file =
-    (pApp->specialk.injection.config.dir + LR"(\)" ) +
-     pApp->specialk.injection.config.file;
+  pApp->specialk.injection.config.full_path =
+    (pApp->specialk.injection.config.root_dir + LR"(\)" ) +
+     pApp->specialk.injection.config.shorthand;
+  pApp->specialk.injection.config.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.full_path);
 }
 
 std::wstring

@@ -46,9 +46,9 @@ struct SKIF_Lib_SummaryCache
     };
   };
 
-  using branch_ptr_t =
-    std::pair <          std::string*,
-        app_record_s::branch_record_s* >;
+  using branch_t =
+    std::pair <          std::string,
+        app_record_s::branch_record_s >;
 
   // This struct holds the cache for the right click context menu
   struct {
@@ -57,7 +57,7 @@ struct SKIF_Lib_SummaryCache
     bool                                  screenshotsFolderExists   = false;
     std::wstring                          wsScreenshotDir           = L"";
     std::vector   <CloudPath>             cloud_paths;   // Steam Auto-Cloud
-    std::multimap <int64_t, branch_ptr_t> branches;      // Steam Branches
+    std::multimap <int64_t, branch_t>     branches;      // Steam Branches
 
     // PCGamingWiki
     std::wstring pcgwValue;
@@ -84,6 +84,7 @@ struct SKIF_Lib_SummaryCache
 
   std::string config_repo;
 
+  /*
   struct {
     std::wstring shorthand;
     std::string  shorthand_utf8; // Converted to utf-8 from utf-16
@@ -101,6 +102,7 @@ struct SKIF_Lib_SummaryCache
     std::wstring full_path;
     std::string  full_path_utf8; // Converted to utf-8 from utf-16
   } dll;
+  */
 
   AppId_t     app_id   = 0;
   DWORD       running  = 0;
@@ -108,7 +110,7 @@ struct SKIF_Lib_SummaryCache
   bool        service  = false;
   bool        autostop = false;
 
-  void Refresh (app_record_s* pApp);
+  void Refresh (app_record_s* pApp, std::set <std::string> apptickets);
   
   // Functions
   static SKIF_Lib_SummaryCache& GetInstance (void)

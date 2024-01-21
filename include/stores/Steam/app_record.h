@@ -167,8 +167,6 @@ struct app_record_s {
         Local   = 0x2,
         Unknown = 0x0
       }            type     = Type::Unknown;
-      std::wstring dll_path = L"";
-      std::wstring dll_ver  = L"";
     } injection;
 
     struct Config {
@@ -177,9 +175,23 @@ struct app_record_s {
         Localized   = 0x2,
         Unknown     = 0x0
       }            type = Type::Unknown;
-      std::wstring dir  = L"";
-      std::wstring file = L"";
+
+      std::wstring shorthand;
+      std:: string shorthand_utf8; // Converted to utf-8 from utf-16
+      std::wstring root_dir;
+      std:: string root_dir_utf8;  // Converted to utf-8 from utf-16
+      std::wstring full_path;
+      std:: string full_path_utf8; // Converted to utf-8 from utf-16
     } config;
+
+    struct {
+      std::wstring shorthand;
+      std:: string shorthand_utf8; // Converted to utf-8 from utf-16
+      std::wstring version;
+      std:: string version_utf8;   // Converted to utf-8 from utf-16
+      std::wstring full_path;
+      std:: string full_path_utf8; // Converted to utf-8 from utf-16
+    } dll;
 
     std::string    localized_name; // UTF-8
   };
