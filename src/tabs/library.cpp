@@ -175,6 +175,149 @@ struct {
 
 Trie labels;
 
+void
+SearchAppsList (void)
+{
+
+  static auto
+    constexpr _text_chars =
+      { 'A','B','C','D','E','F','G','H',
+        'I','J','K','L','M','N','O','P',
+        'Q','R','S','T','U','V','W','X',
+        'Y','Z','0','1','2','3','4','5',
+        '6','7','8','9',' ','-',':','.' };
+
+  static char test_ [1024] = {      };
+  char        out   [2]    = { 0, 0 };
+  bool        bText        = false;
+
+  for ( auto c : _text_chars )
+  {
+    if (ImGui::GetIO().KeysDownDuration[c] == 0.0f &&
+        (c != ' ' || strlen (test_) > 0))
+    {
+      out [0] = c;
+      StrCatA (test_, out);
+      bText   = true;
+    }
+  }
+
+  const  DWORD dwTimeout    = 850UL; // 425UL
+  static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
+
+  struct {
+    std::string text          = "";
+    app_record_s::Store store = app_record_s::Store::Unspecified;
+    uint32_t    app_id        = 0;
+    size_t      pos           = 0;
+    size_t      len           = 0;
+  } static result;
+
+  if (bText)
+  {
+    dwLastUpdate = SKIF_Util_timeGetTime ();
+      
+    // Prioritize trie search first
+    if (labels.search (test_))
+    {
+      for (auto& app : g_apps)
+      {
+        if (app.second.names.all_upper_alnum.find (test_) == 0)
+        {
+          result.text   = app.second.names.normal;
+          result.store  = app.second.store;
+          result.app_id = app.second.id;
+          result.pos    = app.second.names.pre_stripped;
+          result.len    = strlen (test_);
+
+          // Handle cases where articles are ignored
+
+          // Add one to the length if the regular all_upper cannot find a match
+          // as this indicates a stripped character in the found pattern
+          if (app.second.names.all_upper.find (test_) != 0)
+            result.len++;
+
+          break;
+        }
+      }
+    }
+
+    // Fall back to using free text search when the trie fails us
+    else
+    {
+      for (auto& app : g_apps)
+      {
+        size_t 
+            pos  = app.second.names.all_upper.find (test_);
+        if (pos != std::string::npos ) // == 0 
+        {
+          result.text   = app.second.names.normal;
+          result.store  = app.second.store;
+          result.app_id = app.second.id;
+          result.pos    = pos;
+          result.len    = strlen (test_);
+
+          break;
+        }
+      }
+    }
+  }
+
+  if (! result.text.empty ())
+  {
+    size_t len = 
+        (result.len < result.text.length ( ))
+      ? result.len : result.text.length ( );
+
+    std::string preSearch  =  result.text.substr (         0,  result.pos),
+                curSearch  =  result.text.substr (result.pos,  len),
+                postSearch = (result.pos + len  < result.text.length ( ))
+                            ?  result.text.substr (result.pos + len, std::string::npos)
+                            :  "";
+
+    ImGui::OpenPopup         ("###KeyboardHint");
+
+    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
+    {
+      if (! preSearch.empty ())
+      {
+        ImGui::TextDisabled ("%s", preSearch.c_str ());
+        ImGui::SameLine     (0.0f, 0.0f);
+      }
+
+      ImGui::TextColored ( ImColor::HSV(0.0f, 0.0f, 0.75f), // ImColor(53, 255, 3)
+                              "%s", curSearch.c_str ()
+      );
+
+      if (! postSearch.empty ())
+      {
+        ImGui::SameLine     (0.0f, 0.0f);
+        ImGui::TextDisabled ("%s", postSearch.c_str ());
+      }
+
+      ImGui::EndPopup ( );
+    }
+  }
+
+  if (                            dwLastUpdate != MAXDWORD &&
+        SKIF_Util_timeGetTime () - dwLastUpdate >
+                                  dwTimeout )
+  {
+    if (result.app_id != 0)
+    {
+      *test_           = '\0';
+      dwLastUpdate     = MAXDWORD;
+
+      search_selection.id    = result.app_id;
+      search_selection.store = result.store;
+
+      result = { };
+    }
+  }
+}
+
 #pragma endregion
 
 // This writes the Json object to the disk
@@ -3428,23 +3571,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   static bool update       = true;
   static bool populated    = false;
 
-  auto _SortApps = [&](void) -> void
-  {
-    std::sort ( g_apps.begin (),
-                g_apps.end   (),
-      []( const std::pair <std::string, app_record_s>& a,
-          const std::pair <std::string, app_record_s>& b ) -> int
-      {
-        return a.second.names.all_upper_alnum.compare(
-               b.second.names.all_upper_alnum
-        ) < 0;
-      }
-    );
-
-    sort_changed = true;
-    PLOG_INFO << "Apps were sorted!";
-  };
-
   struct {
     uint32_t            appid = SKIF_STEAM_APPID;
     app_record_s::Store store = app_record_s::Store::Steam;
@@ -4280,161 +4406,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // LIST + DETAILS START
   ImGui::BeginGroup   (                  );
-
-  auto _HandleKeyboardInput = [&](void)
-  {
-    static auto
-      constexpr _text_chars =
-        { 'A','B','C','D','E','F','G','H',
-          'I','J','K','L','M','N','O','P',
-          'Q','R','S','T','U','V','W','X',
-          'Y','Z','0','1','2','3','4','5',
-          '6','7','8','9',' ','-',':','.' };
-
-    static char test_ [1024] = {      };
-    char        out   [2]    = { 0, 0 };
-    bool        bText        = false;
-
-    for ( auto c : _text_chars )
-    {
-      if (io.KeysDownDuration [c] == 0.0f &&
-         (c != ' ' || strlen (test_) > 0))
-      {
-        out [0] = c;
-        StrCatA (test_, out);
-        bText   = true;
-      }
-    }
-
-    const  DWORD dwTimeout    = 850UL; // 425UL
-    static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
-
-    struct {
-      std::string text          = "";
-      app_record_s::Store store = app_record_s::Store::Unspecified;
-      uint32_t    app_id        = 0;
-      size_t      pos           = 0;
-      size_t      len           = 0;
-    } static result;
-
-    if (bText)
-    {
-      dwLastUpdate = SKIF_Util_timeGetTime ();
-      
-      // Prioritize trie search first
-      if (labels.search (test_))
-      {
-        for (auto& app : g_apps)
-        {
-          if (app.second.names.all_upper_alnum.find (test_) == 0)
-          {
-            result.text   = app.second.names.normal;
-            result.store  = app.second.store;
-            result.app_id = app.second.id;
-            result.pos    = app.second.names.pre_stripped;
-            result.len    = strlen (test_);
-
-            // Handle cases where articles are ignored
-
-            // Add one to the length if the regular all_upper cannot find a match
-            // as this indicates a stripped character in the found pattern
-            if (app.second.names.all_upper.find (test_) != 0)
-              result.len++;
-
-            break;
-          }
-        }
-      }
-
-      // Fall back to using free text search when the trie fails us
-      else
-      {
-        //strncpy (test_, result.text.c_str (), 1023);
-
-        for (auto& app : g_apps)
-        {
-          size_t 
-              pos  = app.second.names.all_upper.find (test_);
-          if (pos != std::string::npos ) // == 0 
-          {
-            result.text   = app.second.names.normal;
-            result.store  = app.second.store;
-            result.app_id = app.second.id;
-            result.pos    = pos;
-            result.len    = strlen (test_);
-
-            break;
-          }
-        }
-      }
-    }
-
-    if (! result.text.empty ())
-    {
-      size_t len = 
-         (result.len < result.text.length ( ))
-        ? result.len : result.text.length ( );
-
-      std::string preSearch  =  result.text.substr (         0,  result.pos),
-                  curSearch  =  result.text.substr (result.pos,  len),
-                  postSearch = (result.pos + len  < result.text.length ( ))
-                             ?  result.text.substr (result.pos + len, std::string::npos)
-                             :  "";
-
-      ImGui::OpenPopup         ("###KeyboardHint");
-
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-
-      if (ImGui::BeginPopupModal("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
-      {
-        if (! preSearch.empty ())
-        {
-          ImGui::TextDisabled ("%s", preSearch.c_str ());
-          ImGui::SameLine     (0.0f, 0.0f);
-        }
-
-        ImGui::TextColored ( ImColor::HSV(0.0f, 0.0f, 0.75f), // ImColor(53, 255, 3)
-                                "%s", curSearch.c_str ()
-        );
-
-        if (! postSearch.empty ())
-        {
-          ImGui::SameLine     (0.0f, 0.0f);
-          ImGui::TextDisabled ("%s", postSearch.c_str ());
-        }
-
-        ImGui::EndPopup ( );
-      }
-    }
-
-    if (                            dwLastUpdate != MAXDWORD &&
-         SKIF_Util_timeGetTime () - dwLastUpdate >
-                                    dwTimeout )
-    {
-      if (result.app_id != 0)
-      {
-        *test_           = '\0';
-        dwLastUpdate     = MAXDWORD;
-
-        // 2024-01-15: I am unsure why I added the IF statement in commit 9bf8427 on Sep 27, 2021
-        //   "- Fixed focus issues when using keyboard/gamepad combined with search"
-        // Maybe this had to do with the trie search and its limitations back then? // Aemony
-        //if (result.app_id != pApp->id || 
-        //    result.store  != pApp->store)
-        //{
-          search_selection.id    = result.app_id;
-          search_selection.store = result.store;
-        //}
-        result = { };
-      }
-    }
-  };
-
-  if (AddGamePopup    == PopupState_Closed &&
-      ModifyGamePopup == PopupState_Closed &&
-      RemoveGamePopup == PopupState_Closed &&
-      ! io.KeyCtrl)
-    _HandleKeyboardInput ();
 
 #pragma region GamesList
 
@@ -6529,6 +6500,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
 
     }, 0x0, NULL);
+  }
+
+#pragma endregion
+
+#pragma region Popups::KeyboardSearch
+
+  if (AddGamePopup    == PopupState_Closed &&
+      ModifyGamePopup == PopupState_Closed &&
+      RemoveGamePopup == PopupState_Closed &&
+      ! io.KeyCtrl)
+  {
+    SearchAppsList ( );
   }
 
 #pragma endregion
