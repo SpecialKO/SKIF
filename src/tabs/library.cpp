@@ -3050,7 +3050,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
   // Handle Steam games
   if (pApp->store == app_record_s::Store::Steam)
   {
-    SKIF_Steam_GetInjectionStrategy (pApp, &g_apps);
+    SKIF_Steam_GetInjectionStrategy (pApp);
 
     // Not actually used atm, so no need to scan the profile folder either
 #if 0
@@ -4149,10 +4149,22 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   bool isSpecialK = (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam);
 
+  struct game_worker_thread_s {
+    app_record_s  app;
+    HANDLE        hWorker = NULL;
+    int           iWorker = 0;
+    game_worker_thread_s (app_record_s app_) : app (app_) { };
+  };
+
+  static game_worker_thread_s* game_worker = nullptr;
+
   // Update the injection strategy and cache for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
   if (pApp != nullptr)
   {
+    static int cpu_pre  = -1;
+    static int cpu_post = -1;
+
     if (update)
     {
       if (  pApp->install_dir != selection.dir_watch._path)
@@ -4162,7 +4174,42 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.dir_watch.isSignaled (pApp->install_dir, true);
     }
 
-    if (update                                       ||
+    // This eats references to _cache when it is being updated through a background thread
+    if (game_worker != nullptr && game_worker->iWorker == 1)
+    {
+      if (WaitForSingleObject (game_worker->hWorker, 0) == WAIT_OBJECT_0)
+      {
+        // Copy the results over
+        *pApp = game_worker->app;
+
+        pApp->loading = false;
+        cpu_post = (int)pApp->specialk.injection.injection.bitness;
+
+        //PLOG_VERBOSE << "CPU PRE : " << cpu_post;
+
+        // If the CPU has changed, we need to update the metadata as well,
+        //   but only if it differs from our cached value...
+        if (cpu_post != cpu_pre &&
+            cpu_post != pApp->skif.cpu_type)
+        {
+          pApp->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+
+          // Update the db.json file with any new values
+          UpdateJsonMetaData (pApp, true);
+        }
+
+        CloseHandle (game_worker->hWorker);
+        game_worker->hWorker = NULL;
+        game_worker->iWorker = 2;
+        cpu_pre  = -1;
+        cpu_post = -1;
+
+        delete game_worker;
+        game_worker = nullptr;
+      }
+    }
+
+    else if (update                                  ||
         selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
       (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
        _cache.service     != _inject.bCurrentState   ||
@@ -4173,26 +4220,60 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       _inject.libCacheRefresh = false;
 
-      int cpu_pre  = (int)pApp->specialk.injection.injection.bitness;
+      cpu_pre  = (int)pApp->specialk.injection.injection.bitness;
 
       //PLOG_VERBOSE << "CPU PRE : " << cpu_pre;
 
-      UpdateInjectionStrategy (pApp);
-      _cache.Refresh          (pApp);
-      
-      int cpu_post = (int)pApp->specialk.injection.injection.bitness;
-
-      //PLOG_VERBOSE << "CPU PRE : " << cpu_post;
-
-      // If the CPU has changed, we need to update the metadata as well,
-      //   but only if it differs from our cached value...
-      if (cpu_post != cpu_pre &&
-          cpu_post != pApp->skif.cpu_type)
+      if (pApp->store == app_record_s::Store::Steam)
       {
-        pApp->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+        // Parse appinfo data for the current game
+        // This must be done from the main thread since it also manipulates the g_apps array
+        if (! pApp->processed)
+          appinfo->getAppInfo ( pApp->id, &g_apps );
+      }
 
-        // Update the db.json file with any new values
-        UpdateJsonMetaData (pApp, true);
+      pApp->loading = true;
+
+      // Make a copy of pApp that we will use to update all data
+      game_worker = new game_worker_thread_s (*pApp);
+
+      uintptr_t hWorkerThread =
+        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+        {
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
+
+          // Is this combo really appropriate for this thread?
+          //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+          PLOG_DEBUG << "SKIF_GameWorker thread started!";
+
+          game_worker_thread_s* _data = static_cast<game_worker_thread_s*>(var);
+
+          UpdateInjectionStrategy (&_data->app);
+          _cache.Refresh          (&_data->app);
+      
+          // Force a refresh when the game icons have finished being streamed
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+          PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
+
+          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+          return 0;
+        }, game_worker, 0x0, nullptr);
+
+      bool threadCreated = (hWorkerThread != 0);
+
+      if (threadCreated)
+      {
+        game_worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+        game_worker->iWorker = 1;
+      }
+      else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+      {
+        delete game_worker;
+        game_worker = nullptr;
       }
     }
 
@@ -4855,8 +4936,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     _inject._GlobalInjectionCtl ();
   }
 
-  else if (pApp != nullptr)
+  else if (pApp != nullptr && ! pApp->loading)
   {
+    // References _cache
     GetInjectionSummary (pApp);
 
     if ( pApp->specialk.injection.injection.type != InjectionType::Local )
@@ -5378,7 +5460,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
   {
-    if (pApp != nullptr)
+    if (pApp != nullptr && ! pApp->loading)
     {
       // Context menu should not have any navigation highlight (white border around items)
       ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
