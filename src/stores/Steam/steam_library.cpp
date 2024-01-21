@@ -1359,14 +1359,10 @@ SKIF_Steam_GetActiveProcess (void)
 
 // Only used for Steam games!
 void
-SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-  // Parse appinfo data for the current game
-  if (! pApp->processed)
-    appinfo->getAppInfo ( pApp->id, apps );
 
   int firstValidFound = -1;
 

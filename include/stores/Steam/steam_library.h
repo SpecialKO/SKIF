@@ -324,7 +324,7 @@ void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <st
 bool                         SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
 SteamId3_t                   SKIF_Steam_GetCurrentUser          (void);
 DWORD                        SKIF_Steam_GetActiveProcess        (void);
-void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp, std::vector <std::pair <std::string, app_record_s> > *apps);
+void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);
 std::wstring                 SKIF_Steam_GetAppStateString       (AppId_t  appid, const wchar_t *wszStateKey);
 wchar_t                      SKIF_Steam_GetAppStateDWORD        (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState          (app_record_s *pApp);
