@@ -873,27 +873,49 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   auto frame_id2 =
     ImGui::GetID ("###Global_Injection_Toggle_Frame");
 
+  /*
   ImGui::PushStyleVar (
     ImGuiStyleVar_FramePadding,
       ImVec2 (((_registry.bUIBorders) ? 104.0f : 105.0f) * SKIF_ImGui_GlobalDPIScale,
                 40.0f * SKIF_ImGui_GlobalDPIScale )
   );
+  */
 
   SKIF_ImGui_BeginChildFrame (
     frame_id2,
       ImVec2 (  0.0f,
-               110.f *SKIF_ImGui_GlobalDPIScale ),
+                0.0f), //110.f *SKIF_ImGui_GlobalDPIScale ),
         ImGuiWindowFlags_NavFlattened      |
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NoBackground
   );
 
-  ImGui::PopStyleVar ();
-
+  //ImGui::PopStyleVar ();
 
   if ( ! bHasServlet )
     SKIF_ImGui_PushDisableState ( );
+
+  ImVec2 posButton =
+     ImGui::GetCursorPos ( );
+
+  // Horizontal center-align
+  ImGui::SetCursorPosX (
+     ImGui::GetCursorPosX ( ) +
+    (ImGui::GetContentRegionAvail ( ).x - (150.0f * SKIF_ImGui_GlobalDPIScale) +
+     ImGui::GetStyle ( ).FramePadding.x) / 2
+  );
+
+  // Vertical center-align
+  ImGui::SetCursorPosY (
+     ImGui::GetCursorPosY ( )           +
+    (ImGui::GetContentRegionAvail ( ).y -
+     ImGui::GetFrameHeightWithSpacing() -
+     ImGui::GetStyle().FramePadding.y   -
+     (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize : 0.0f) -
+     (50.0f * SKIF_ImGui_GlobalDPIScale)
+    ) / 2
+  );
     
   if (runState == Started || runState == Stopped)
   {
@@ -912,6 +934,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ),
                         ImGuiButtonFlags_Disabled );
+
+  ImGui::SetCursorPos (posButton);
 
   if ( ! bCurrentState && _registry.bAllowBackgroundService)
       SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");

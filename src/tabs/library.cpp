@@ -2635,15 +2635,17 @@ Cache=false)";
   auto frame_id2 =
     ImGui::GetID ("###Injection_Play_Button_Frame");
 
+  /*
   ImGui::PushStyleVar (
     ImGuiStyleVar_FramePadding,
       ImVec2 (((_registry.bUIBorders) ? 104.0f : 105.0f) * SKIF_ImGui_GlobalDPIScale,
                 40.0f * SKIF_ImGui_GlobalDPIScale)
   );
+  */
 
   SKIF_ImGui_BeginChildFrame (
     frame_id2, ImVec2 (  0.0f,
-                        110.f * SKIF_ImGui_GlobalDPIScale ),
+                         0.0f), //110.f * SKIF_ImGui_GlobalDPIScale ),
       ImGuiWindowFlags_NavFlattened      |
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
@@ -2651,7 +2653,7 @@ Cache=false)";
       ImGuiWindowFlags_NoBackground
   );
 
-  ImGui::PopStyleVar ();
+  //ImGui::PopStyleVar ();
 
   std::string      buttonLabel   = ICON_FA_GAMEPAD "  Play";
   ImGuiButtonFlags buttonFlags   = ImGuiButtonFlags_None;
@@ -2702,6 +2704,27 @@ Cache=false)";
   // Disable the button for the injection service types if the servlets are missing
   if ((! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
     SKIF_ImGui_PushDisableState ( );
+
+  ImVec2 posButton =
+     ImGui::GetCursorPos ( );
+
+  // Horizontal center-align
+  ImGui::SetCursorPosX (
+     ImGui::GetCursorPosX ( ) +
+    (ImGui::GetContentRegionAvail ( ).x - (150.0f * SKIF_ImGui_GlobalDPIScale) +
+     ImGui::GetStyle ( ).FramePadding.x) / 2
+  );
+
+  // Vertical center-align
+  ImGui::SetCursorPosY (
+     ImGui::GetCursorPosY ( )           +
+    (ImGui::GetContentRegionAvail ( ).y -
+     ImGui::GetFrameHeightWithSpacing() -
+     ImGui::GetStyle().FramePadding.y   -
+     (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize : 0.0f) -
+     (50.0f * SKIF_ImGui_GlobalDPIScale)
+    ) / 2
+  );
 
   if (ImGui::ButtonEx (
               buttonLabel.c_str (),
@@ -2833,7 +2856,9 @@ Cache=false)";
       }
     }
   }
-      
+
+  ImGui::SetCursorPos (posButton);
+
   // Disable the button for the injection service types if the servlets are missing
   if ((! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
     SKIF_ImGui_PopDisableState  ( );
@@ -4457,10 +4482,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       int cpu_pre  = (int)pApp->specialk.injection.injection.bitness;
 
+      //PLOG_VERBOSE << "CPU PRE : " << cpu_pre;
+
       UpdateInjectionStrategy (pApp);
       _cache.Refresh          (pApp);
       
       int cpu_post = (int)pApp->specialk.injection.injection.bitness;
+
+      //PLOG_VERBOSE << "CPU PRE : " << cpu_post;
 
       // If the CPU has changed, we need to update the metadata as well,
       //   but only if it differs from our cached value...
@@ -4542,9 +4571,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
-  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (186.67f, 280.0f) : ImVec2 (600.0f, 900.0f);
-  ImVec2 sizeList    = (_registry.bHorizonMode) ? ImVec2 (  0.00f, 280.0f) : ImVec2 (  0.0f, 620.0f);
-  ImVec2 sizeDetails = (_registry.bHorizonMode) ? ImVec2 (  0.00f, 280.0f) : ImVec2 (  0.0f, 280.0f);
+  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)  // (_registry.bUIBorders)   ? ImVec2 (218.0f, 328.0f) : ImVec2 (220.0f, 330.0f)
+                                                : ImVec2 (600.0f, 900.0f); // 2024-01-20: 186.67fx280 -> 220x330
+  ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)  ? ImVec2 (  0.0f, 334.0f) : ImVec2 (  0.0f, 332.0f)
+                                                : ImVec2 (  0.0f, 620.0f); // 2024-01-20: 280 -> 330
+  ImVec2 sizeDetails = (_registry.bHorizonMode) ? (_registry.bUIBorders)  ? ImVec2 (  0.0f, 332.0f) : ImVec2 (  0.0f, 330.0f)
+                                                : ImVec2 (  0.0f, 280.0f); // 2024-01-20: 280 -> 330
 
   // From now on ImGui UI calls starts being made...
 
@@ -5256,7 +5288,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     EmptySpaceMenu = PopupState_Open;
 
   if (_registry.bHorizonMode)
+  {
     ImGui::SameLine ( );
+
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
+  }
 
 #pragma region GameDetails
 
@@ -5289,7 +5325,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       ImGui::SetCursorPosY (
         ImGui::GetWindowHeight () - fBottomDist -
-        ImGui::GetStyle        ().ItemSpacing.y
+        ImGui::GetStyle        ().ItemSpacing.y -
+        (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize * 2.0f : 0.0f)
       );
 
       ImGui::Separator     ( );

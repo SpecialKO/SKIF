@@ -505,12 +505,12 @@ LoadLibraryTexture (
       }
     }
 
-    // Downscale covers to 200x300, which will then be shown as 186.67 x 280 in horizon mode
+    // Downscale covers to 220x330, which will then be shown in horizon mode
     if ((_registry.bHorizonMode && libTexToLoad == LibraryTexture::Cover) ||
         (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
     {
-      size_t width  = 200; // 200
-      size_t height = 300; // 300
+      size_t width  = 220;
+      size_t height = 330;
 
       if (
         SUCCEEDED (

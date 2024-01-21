@@ -1395,6 +1395,9 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp, std::vector <std::pair < st
       L"SpecialK.ini";
 
     // Check bitness
+    
+    // TODO: This needs to be gone through and reworked entirely as the logic still gets thrown off by edge cases
+    //  - e.g. EA games with "invalid" launch options where the 'osarch' of the common_config ends up never being used
     if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
 

@@ -2013,7 +2013,7 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
   
 #pragma region Section: SwapChain Presentation Monitor
-  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-6", (_registry.bHorizonMode) ? ImGuiTreeNodeFlags_None : ImGuiTreeNodeFlags_DefaultOpen))
+  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_SettingsHeader-6", ImGuiTreeNodeFlags_DefaultOpen))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)

@@ -123,7 +123,7 @@ ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 325.0f);   // Does not include the status bar
+ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
