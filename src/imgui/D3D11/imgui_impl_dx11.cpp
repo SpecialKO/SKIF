@@ -86,6 +86,8 @@ static CComPtr <ID3D11Buffer>             g_pIB;
 static CComPtr <ID3D11VertexShader>       g_pVertexShader;
 static CComPtr <ID3D11InputLayout>        g_pInputLayout;
 static CComPtr <ID3D11Buffer>             g_pVertexConstantBuffer;
+static CComPtr <ID3D11Buffer>             g_pPixelConstantBuffer;
+static CComPtr <ID3D11Buffer>             g_pFontConstantBuffer;
 static CComPtr <ID3D11PixelShader>        g_pPixelShader;
 static CComPtr <ID3D11SamplerState>       g_pFontSampler;
 static CComPtr <ID3D11ShaderResourceView> g_pFontTextureView;
@@ -209,6 +211,10 @@ struct VERTEX_CONSTANT_BUFFER {
   // z = is10bpc
   // w = is16bpc
   float luminance_scale [4];
+};
+
+struct PIXEL_CONSTANT_BUFFER {
+  float font_dims [4];
 };
 
 // Forward Declarations
@@ -435,6 +441,44 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     }
 
     ctx->Unmap ( g_pVertexConstantBuffer, 0 );
+
+    if ( FAILED (ctx->Map (
+           g_pFontConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
+                                   0, &mapped_resource
+                )         )
+       ) return;
+
+    PIXEL_CONSTANT_BUFFER *pix_constant_buffer =
+        static_cast <PIXEL_CONSTANT_BUFFER *> (
+                              mapped_resource.pData
+        );
+
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(PIXEL_CONSTANT_BUFFER) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
+    pix_constant_buffer->font_dims [0] = (float)ImGui::GetIO ().Fonts->TexWidth;
+    pix_constant_buffer->font_dims [1] = (float)ImGui::GetIO ().Fonts->TexHeight;
+
+    ctx->Unmap ( g_pFontConstantBuffer, 0 );
+
+    if ( FAILED (ctx->Map (
+           g_pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
+                                   0, &mapped_resource
+                )         )
+       ) return;
+
+    pix_constant_buffer =
+      static_cast <PIXEL_CONSTANT_BUFFER *> (
+        mapped_resource.pData
+      );
+
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(PIXEL_CONSTANT_BUFFER) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
+    pix_constant_buffer->font_dims [0] = 0.0f;
+    pix_constant_buffer->font_dims [1] = 0.0f;
+
+    ctx->Unmap ( g_pPixelConstantBuffer, 0 );
   }
 
   // Setup desired DX state
@@ -455,6 +499,8 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
     {
+      ctx->PSSetConstantBuffers ( 0, 1, &g_pPixelConstantBuffer.p );
+
       const ImDrawCmd *pcmd =
         &cmd_list->CmdBuffer [cmd_i];
 
@@ -485,6 +531,8 @@ ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
                                     pcmd->TextureId
           );
 
+        if (pcmd->TextureId == ImGui::GetIO ().Fonts->TexID)
+        ctx->PSSetConstantBuffers ( 0, 1, &g_pFontConstantBuffer.p );
         ctx->PSSetShaderResources ( 0, 1, &texture_srv);
         ctx->DrawIndexed          ( pcmd->ElemCount,
                                     pcmd->IdxOffset + global_idx_offset,
@@ -558,7 +606,7 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
       staging_desc.Height           = height;
       staging_desc.MipLevels        = 1;
       staging_desc.ArraySize        = 1;
-      staging_desc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM;
+      staging_desc.Format           = DXGI_FORMAT_A8_UNORM;
       staging_desc.SampleDesc.Count = 1;
       staging_desc.Usage            = D3D11_USAGE_STAGING;
       staging_desc.BindFlags        = 0;
@@ -599,15 +647,15 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
 
     for (int y = 0; y < height; y++)
     {
-      ImU32  *pDst =
-        (ImU32 *)((uintptr_t)mapped_tex.pData +
-                             mapped_tex.RowPitch * y);
-      ImU8   *pSrc =              pixels + width * y;
+      ImU8  *pDst =
+        (ImU8 *)((uintptr_t)mapped_tex.pData +
+                            mapped_tex.RowPitch * y);
+      ImU8  *pSrc =              pixels + width * y;
 
       for (int x = 0; x < width; x++)
       {
         *pDst++ =
-          IM_COL32 (255, 255, 255, (ImU32)(*pSrc++));
+          *pSrc++;
       }
     }
 
@@ -618,7 +666,7 @@ static void ImGui_ImplDX11_CreateFontsTexture (void)
     // Create texture view
     D3D11_SHADER_RESOURCE_VIEW_DESC
       srvDesc = { };
-      srvDesc.Format                    = DXGI_FORMAT_R8G8B8A8_UNORM;
+      srvDesc.Format                    = DXGI_FORMAT_A8_UNORM;
       srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
       srvDesc.Texture2D.MipLevels       = tex_desc.MipLevels;
       srvDesc.Texture2D.MostDetailedMip = 0;
@@ -718,6 +766,18 @@ ImGui_ImplDX11_CreateDeviceObjects (void)
     &g_pVertexConstantBuffer );
 
   buffer_desc                = { };
+  buffer_desc.ByteWidth      = sizeof (PIXEL_CONSTANT_BUFFER);
+  buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+  buffer_desc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+  buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+  buffer_desc.MiscFlags      = 0;
+
+  g_pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
+     &g_pPixelConstantBuffer );
+  g_pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
+      &g_pFontConstantBuffer );
+
+  buffer_desc                = { };
   buffer_desc.ByteWidth      = sizeof (float) * 4;
   buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
   buffer_desc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
@@ -805,6 +865,8 @@ ImGui_ImplDX11_InvalidateDeviceObjects (void)
   g_pRasterizerState      = nullptr;
   g_pPixelShader          = nullptr;
   g_pVertexConstantBuffer = nullptr;
+  g_pPixelConstantBuffer  = nullptr;
+  g_pFontConstantBuffer   = nullptr;
   g_pInputLayout          = nullptr;
   g_pVertexShader         = nullptr;
 }
