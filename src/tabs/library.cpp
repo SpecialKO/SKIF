@@ -4955,7 +4955,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (_registry.bFadeCovers)
     ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
-  if ( pApp        == nullptr            ||
+  if ( pApp        != nullptr            &&
       (pApp->id    == SKIF_STEAM_APPID   &&
        pApp->store == app_record_s::Store::Steam))
   {
