@@ -1319,7 +1319,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
   extern   CRITICAL_SECTION   CriticalSectionDbgHelp;
   InitializeCriticalSection (&CriticalSectionDbgHelp);
 
-  if (StrStrIW (lpCmdLine, L"RestartDisplDrv") != NULL)
+  if (StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL)
+  {
+    if (::IsUserAnAdmin ( ))
+    {
+      // HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers -> DisableOverlays
+      // HKLM\SOFTWARE\Microsoft\Windows\Dwm                   -> OverlayTestMode
+
+      HKEY hKey;
+
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SYSTEM\CurrentControlSet\Control\GraphicsDrivers\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
+      {
+        RegDeleteValueW (hKey, L"DisableOverlays");
+        RegCloseKey     (hKey);
+      }
+
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(HKLM\SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
+      {
+        RegDeleteValueW (hKey, L"OverlayTestMode");
+        RegCloseKey     (hKey);
+      }
+    }
+
+    else {
+      MessageBox(NULL, L"The 'ResetOverlayMode' command line argument requires"
+                       L" elevated permissions to work properly.",
+                       L"Admin privileges required",
+               MB_ICONERROR | MB_OK);
+
+      // Don't stick around if we do not have elevated privileges.
+      ExitProcess (0x0);
+    }
+  }
+
+  if (StrStrIW (lpCmdLine, L"RestartDisplDrv" ) != NULL ||
+      StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL)
   {
     if (::IsUserAnAdmin ( ))
     {

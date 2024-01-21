@@ -1790,7 +1790,7 @@ SKIF_Util_RegisterApp (bool force)
 }
 
 
-typedef unsigned long UpdateFlags;  // -> enum DWMOverlayTestModeFlags_
+typedef unsigned long DWMOverlayTestModeFlags;  // -> enum DWMOverlayTestModeFlags_
 
 enum DWMOverlayTestModeFlags_
 {
@@ -1808,38 +1808,50 @@ SKIF_Util_IsMPOsDisabledInRegistry (bool refresh)
   if (! SKIF_Util_IsWindows10OrGreater ( ))
     return false;
 
-  static UpdateFlags flag = DWMOverlayTestModeFlags_INITIAL;
-  static bool  isDisabled = false;
+  static DWMOverlayTestModeFlags flagOverlayTestMode = DWMOverlayTestModeFlags_INITIAL;
+  static int iDisableOverlay = 0;
+  static bool  isDisabled    = false;
 
-  if (flag != DWMOverlayTestModeFlags_INITIAL && ! refresh)
+  if (flagOverlayTestMode != DWMOverlayTestModeFlags_INITIAL && ! refresh)
     return isDisabled;
 
   isDisabled = false;
 
   HKEY hKey;
-  //DWORD buffer = 0;
   unsigned long size = 1024;
+
+  // Check if GraphicsDrivers's DisableOverlays has MPOs disabled
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SYSTEM\CurrentControlSet\Control\GraphicsDrivers\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+  {
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"DisableOverlays", NULL, NULL, (LPBYTE)&iDisableOverlay, &size))
+      PLOG_VERBOSE << "DisableOverlays registry value is set to: " << iDisableOverlay;
+    else
+      iDisableOverlay = 0;
+
+    RegCloseKey (hKey);
+  }
+
+  else
+    iDisableOverlay = 0;
 
   // Check if DWM's OverlayTestMode has MPOs disabled
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"OverlayTestMode", NULL, NULL, (LPBYTE)&flag, &size))
-    {
-      if ((flag & DWMOverlayTestModeFlags_MPORelated1) == DWMOverlayTestModeFlags_MPORelated1 &&
-          (flag & DWMOverlayTestModeFlags_MPORelated2) == DWMOverlayTestModeFlags_MPORelated2)
-        isDisabled = true;
-
-      PLOG_VERBOSE << "OverlayTestMode registry value is set to: " << flag;
-    }
-    else {
-      flag = DWMOverlayTestModeFlags_None;
-    }
+    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"OverlayTestMode", NULL, NULL, (LPBYTE)&flagOverlayTestMode, &size))
+      PLOG_VERBOSE << "OverlayTestMode registry value is set to: " << flagOverlayTestMode;
+    else
+      flagOverlayTestMode = DWMOverlayTestModeFlags_None;
 
     RegCloseKey (hKey);
   }
-  else {
-    flag = DWMOverlayTestModeFlags_None;
-  }
+
+  else
+    flagOverlayTestMode = DWMOverlayTestModeFlags_None;
+
+  
+  if (iDisableOverlay || ((flagOverlayTestMode & DWMOverlayTestModeFlags_MPORelated1) == DWMOverlayTestModeFlags_MPORelated1 &&
+                          (flagOverlayTestMode & DWMOverlayTestModeFlags_MPORelated2) == DWMOverlayTestModeFlags_MPORelated2))
+    isDisabled = true;
 
   return isDisabled;
 }

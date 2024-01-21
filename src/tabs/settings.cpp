@@ -2365,11 +2365,12 @@ SKIF_UI_Tab_DrawSettings (void)
         // Move up the line 2 pixels as otherwise a scroll would appear...
         //ImGui::SetCursorPosY    (ImGui::GetCursorPosY ( ) - (2.0f * SKIF_ImGui_GlobalDPIScale));
         ImGui::PushStyleColor     (ImGuiCol_Text, ImColor::HSV (0.11F,   1.F, 1.F).Value);
-        if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset (restart required)"))
+        if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset."))
         {
-          if (ShellExecuteW (nullptr, L"runas", L"REG", LR"(DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
+          //  ShellExecuteW (nullptr, L"runas", L"cmd", LR"(/c REG DELETE HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers /v DisableOverlays /f && REG DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOWNORMAL)
+          if (ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"ResetOverlayMode", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           {
-            dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 500; // Trigger a refresh in 500ms
+            dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 5000; // Trigger a refresh in 500ms
           }
         }
         ImGui::PopStyleColor          ( );
