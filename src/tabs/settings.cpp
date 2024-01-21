@@ -2367,14 +2367,40 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::PushStyleColor     (ImGuiCol_Text, ImColor::HSV (0.11F,   1.F, 1.F).Value);
         if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset."))
         {
+          std::wstring cmd = L"";
+
+          switch (MessageBox (NULL,
+            L"Restart the display drivers to apply the changes.\n"
+            L"\n"
+            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers are restarted.\n"
+            L"\n"
+            L"Do you want to restart the display drivers now?",
+            L"Restart the display drivers?", MB_ICONQUESTION | MB_YESNOCANCEL))
+          {
+
+          // When YES is used, we reset the registry keys and restart the display drivers
+          case IDYES:
+            cmd = L"ResetOverlayMode RestartDisplDrv";
+            break;
+
+          // When NO is used, we only reset the registry keys.
+          case IDNO:
+            cmd = L"ResetOverlayMode";
+            break;
+
+          // When CANCEL is used, we do nothing.
+          case IDCANCEL:
+            break;
+          }
+
           //  ShellExecuteW (nullptr, L"runas", L"cmd", LR"(/c REG DELETE HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers /v DisableOverlays /f && REG DELETE HKLM\SOFTWARE\Microsoft\Windows\Dwm /v OverlayTestMode /f)", nullptr, SW_SHOWNORMAL)
-          if (ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"ResetOverlayMode", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
+          if (! cmd.empty() && ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, cmd.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
           {
             dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 5000; // Trigger a refresh in 500ms
           }
         }
         ImGui::PopStyleColor          ( );
-        SKIF_ImGui_SetHoverTip        ("A restart of the computer is required for the changes to be applied.");
+        SKIF_ImGui_SetHoverTip        ("A restart of the display drivers is required for the changes to be applied.");
         SKIF_ImGui_SetMouseCursorHand ( );
       }
     }

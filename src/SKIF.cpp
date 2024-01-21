@@ -1346,14 +1346,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
                        L" elevated permissions to work properly.",
                        L"Admin privileges required",
                MB_ICONERROR | MB_OK);
-
-      // Don't stick around if we do not have elevated privileges.
-      ExitProcess (0x0);
     }
   }
 
-  if (StrStrIW (lpCmdLine, L"RestartDisplDrv" ) != NULL ||
-      StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL)
+  if (StrStrIW (lpCmdLine, L"RestartDisplDrv" ) != NULL)
   {
     if (::IsUserAnAdmin ( ))
     {
@@ -1367,10 +1363,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
                        L"Admin privileges required",
                MB_ICONERROR | MB_OK);
     }
-
-    // Don't stick around if the RestartDisplDrv command is being used.
-    ExitProcess (0x0);
   }
+
+  // Don't stick around if any of these commands are being used.
+  if (StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL ||
+      StrStrIW (lpCmdLine, L"RestartDisplDrv" ) != NULL)
+    ExitProcess (0x0);
 
   // Get the current time to use as a basis of how long the initialization took
   SKIF_startupTime = SKIF_Util_timeGetTime1();
