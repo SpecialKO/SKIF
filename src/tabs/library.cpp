@@ -2720,11 +2720,14 @@ Cache=false)";
      ImGui::GetCursorPosY ( )           +
     (ImGui::GetContentRegionAvail ( ).y -
      ImGui::GetFrameHeightWithSpacing() -
-     ImGui::GetStyle().FramePadding.y   -
-     (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize : 0.0f) -
      (50.0f * SKIF_ImGui_GlobalDPIScale)
     ) / 2
   );
+
+  if (_registry.bUIBorders)
+    ImGui::SetCursorPosY (
+      ImGui::GetCursorPosY () -
+      ImGui::GetStyle      ().FramePadding.y);
 
   if (ImGui::ButtonEx (
               buttonLabel.c_str (),
@@ -5324,10 +5327,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     if ( pApp->specialk.injection.injection.type != InjectionType::Local )
     {
       ImGui::SetCursorPosY (
-        ImGui::GetWindowHeight () - fBottomDist -
-        ImGui::GetStyle        ().ItemSpacing.y -
-        (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize * 2.0f : 0.0f)
-      );
+        ImGui::GetWindowHeight () - fBottomDist);
+
+      if (_registry.bUIBorders)
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY () -
+          ImGui::GetStyle      ().ItemSpacing.y -
+          ImGui::GetStyle      ().WindowBorderSize * 2.0f);
 
       ImGui::Separator     ( );
 

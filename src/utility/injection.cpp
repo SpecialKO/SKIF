@@ -911,11 +911,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
      ImGui::GetCursorPosY ( )           +
     (ImGui::GetContentRegionAvail ( ).y -
      ImGui::GetFrameHeightWithSpacing() -
-     ImGui::GetStyle().FramePadding.y   -
-     (_registry.bUIBorders ? ImGui::GetStyle().WindowBorderSize : 0.0f) -
      (50.0f * SKIF_ImGui_GlobalDPIScale)
     ) / 2
   );
+
+  if (_registry.bUIBorders)
+    ImGui::SetCursorPosY (
+      ImGui::GetCursorPosY () -
+      ImGui::GetStyle      ().FramePadding.y);
     
   if (runState == Started || runState == Stopped)
   {
@@ -955,9 +958,13 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::GetID ("###Global_Injection_TipsNTricks");
   
   ImGui::SetCursorPosY (
-    ImGui::GetWindowHeight () - fBottomDist -
-    ImGui::GetStyle        ().ItemSpacing.y
-  );
+    ImGui::GetWindowHeight () - fBottomDist);
+
+  if (_registry.bUIBorders)
+    ImGui::SetCursorPosY (
+      ImGui::GetCursorPosY () -
+      ImGui::GetStyle      ().ItemSpacing.y -
+      ImGui::GetStyle().WindowBorderSize * 2.0f);
 
   ImGui::Separator     ( );
 
