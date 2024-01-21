@@ -8,6 +8,11 @@ struct PS_INPUT
   float4 uv3 : TEXCOORD2; // constant_buffer->luminance_scale
 };
 
+cbuffer fontDims : register(b0)
+{
+  float4 font_dims;
+};
+
 sampler   sampler0    : register (s0);
 Texture2D texture0    : register (t0);
 
@@ -249,6 +254,14 @@ float4 main (PS_INPUT input) : SV_Target
 {
   float4 out_col  =
     texture0.Sample (sampler0, input.uv);
+
+  // Input is an alpha-only font texture if these are non-zero
+  if (font_dims.x + font_dims.y > 0.0f)
+  {
+    // Supply constant 1.0 for the color components, we only want alpha
+    out_col.rgb = 1.0f;
+  }
+
   float4 orig_col = out_col;
   
               // input.uv3.x        // Luminance (white point)
