@@ -2373,8 +2373,6 @@ GetInjectionSummary (app_record_s* pApp)
     //ImGui::NewLine ( );
   }
 
-  PLOG_VERBOSE << pApp->specialk.injection.dll.version_utf8;
-
   // Config Root
   // Config File
   if (! pApp->loading && ! pApp->specialk.injection.config.shorthand.empty ())
