@@ -53,8 +53,6 @@ SKIF_UI_Tab_DrawAbout (void)
   );
   ImGui::NewLine          ( );
 
-  float fY1 = ImGui::GetCursorPosY();
-
   ImGui::Text             ("Just hop on over to the");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
@@ -69,6 +67,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
+
+  float fY1 = ImGui::GetCursorPosY();
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -121,8 +122,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
 
-  //float fY2 = ImGui::GetCursorPosY();
+  float fY2 = ImGui::GetCursorPosY();
           
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
@@ -211,8 +213,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
 
-//float fY3 = ImGui::GetCursorPosY();
+  float fY3 = ImGui::GetCursorPosY();
           
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
@@ -251,42 +254,6 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                  "Multiplayer games:");
-
-  SKIF_ImGui_Spacing      ( );
-
-  ImGui::BeginGroup       ( );
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImColor::HSV (0.11F,   1.F, 1.F),
-      ICON_FA_TRIANGLE_EXCLAMATION " ");
-  ImGui::SameLine         (0.0f, 6.0f);
-  ImGui::Text             ("Do not use Special K in multiplayer games!");
-  ImGui::EndGroup         ( );
-
-  SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
-
-  ImGui::BeginGroup       ( );
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-      ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
-  ImGui::SameLine         ( );
-  if (ImGui::Selectable   ("More on the wiki"))
-    SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
-  SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
-  ImGui::EndGroup         ( );
-
-  //ImGui::SetCursorPosY    (fY2);
-
-  ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
-
-  ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "More on how to inject Special K:"
   );
 
@@ -319,10 +286,26 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Local");
   ImGui::EndGroup         ( );
 
-  //ImGui::SetCursorPosY    (fY3);
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+      ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
+  ImGui::SameLine         ( );
+  if (ImGui::Selectable   ("Do not use Special K in multiplayer games!"))
+    SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
+  ImGui::SameLine         ( );
+  ImGui::TextColored      (
+    ImColor::HSV (0.11F,   1.F, 1.F),
+      ICON_FA_TRIANGLE_EXCLAMATION " ");
+  ImGui::EndGroup         ( );
 
-  ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
+  SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
+
+  ImGui::SetCursorPosY    (fY2);
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -418,21 +401,8 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/Privacy");
   ImGui::EndGroup         ( );
-
-  /*
-  // Move up a line to allow the "view release notes..." link to appear without pushing down the Update button
-  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-  if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
-    ImGui::SetCursorPosY (fY4 - ImGui::GetFontSize());
-  else
-    ImGui::SetCursorPosY (fY4);
-  */
   
-  //static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-  //if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
-  ImGui::NewLine          ( );
-
-  ImGui::NewLine          ( );
+  ImGui::SetCursorPosY    (fY3);
   
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
