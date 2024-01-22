@@ -870,7 +870,7 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if ( ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_LaunchWoSK", false,
+    if ( ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK", false,
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
@@ -923,7 +923,7 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
         );
 
-        if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSK", false,
+        if (ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSK", false,
                               ((pApp->_status.running || pApp->_status.updating)
                                 ? ImGuiSelectableFlags_Disabled
                                 : ImGuiSelectableFlags_None)))
@@ -1645,7 +1645,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::TextDisabled   ("General");
         if (ImGui::MenuItem   ("Name",                    pApp->names.original.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->names.original));
-        if (ImGui::MenuItem   ("Platform ID", std::to_string (pApp->id).c_str()))
+        if (ImGui::MenuItem   ("ID",          std::to_string (pApp->id).c_str()))
             SKIF_Util_SetClipboardData (      std::to_wstring(pApp->id));
         if (ImGui::MenuItem   ("Store",                       pApp->store_utf8.c_str()))
             SKIF_Util_SetClipboardData (    SK_UTF8ToWideChar(pApp->store_utf8));

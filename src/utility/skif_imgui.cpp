@@ -673,10 +673,11 @@ SK_ImGui_GetGlyphRangesDefaultEx (void)
     0x0020,  0x00FF, // Basic Latin + Latin Supplement
     0x0100,  0x03FF, // Latin, IPA, Greek
     0x2000,  0x206F, // General Punctuation
+    0x207f,  0x2090, // N/A (literally, the symbols for N/A :P)
     0x2100,  0x21FF, // Letterlike Symbols
+    0x2500,  0x257F, // Box Drawing (needed for U+2514)
     0x2600,  0x26FF, // Misc. Characters
     0x2700,  0x27BF, // Dingbats
-    0x207f,  0x2090, // N/A (literally, the symbols for N/A :P)
     0xc2b1,  0xc2b3, // ²
     0
   };
