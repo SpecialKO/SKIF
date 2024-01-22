@@ -870,7 +870,7 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if ( ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK", false,
+    if ( ImGui::Selectable ("\xe2\x94\x94> without Special K###GameContextMenu_LaunchWoSK", false,
                             ((pApp->_status.running || pApp->_status.updating)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
@@ -923,7 +923,7 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
         );
 
-        if (ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSK", false,
+        if (ImGui::Selectable ("\xe2\x94\x94> without Special K###GameContextMenu_InstantPlayWoSK", false,
                               ((pApp->_status.running || pApp->_status.updating)
                                 ? ImGuiSelectableFlags_Disabled
                                 : ImGuiSelectableFlags_None)))
@@ -1049,7 +1049,7 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
         );
 
-      if (ImGui::BeginMenu (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_InstantPlayWoSKMenu"))
+      if (ImGui::BeginMenu ("\xe2\x94\x94> without Special K###GameContextMenu_InstantPlayWoSKMenu"))
       {
         bool sepCustomSKIF = true,
              sepCustomUser = true;
