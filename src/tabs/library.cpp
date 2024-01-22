@@ -2811,32 +2811,47 @@ Cache=false)";
         buttonLabel = "Installing...";
         buttonPending = true;
       }
+
       else if (modDownloading.load())
       {
         buttonLabel = "Downloading...";
         buttonPending = true;
       }
     }
-    else if (_modAppId > 0) {
+
+    else if (_modAppId > 0)
+    {
       buttonLabel   = "Pending...";
       buttonPending = true;
     }
   }
 
-  if (pApp->_status.running || pApp->_status.updating)
-  {
-    buttonLabel = (pApp->_status.running) ? "Running..." :
-                                            "Updating...";
-    buttonFlags = ImGuiButtonFlags_Disabled;
-    ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
-  }
+  bool         loading      = false;
+  static DWORD loadingTimer = 0;
 
   if (pApp->loading)
   {
-    // buttonLabel is kept as "Play"
-    buttonLabel = "";
+    if (loadingTimer == 0)
+      loadingTimer    = SKIF_Util_timeGetTime ( ) + 32;
+
+    // 32 ms delay before we indicate the game is loading in the background
+    if (loadingTimer  < SKIF_Util_timeGetTime ( ))
+      loading = true;
+  }
+
+  // Reset once we are no longer loading
+  else {
+    loading      = false;
+    loadingTimer = 0;
+  }
+
+  if (loading || pApp->_status.running || pApp->_status.updating)
+  {
+    buttonLabel =               (loading) ? "Loading..." :
+                  (pApp->_status.running) ? "Running..." :
+                                            "Updating...";
     buttonFlags = ImGuiButtonFlags_Disabled;
-    //ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
+    ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
   }
 
   // Disable the button for the injection service types if the servlets are missing
@@ -3007,7 +3022,7 @@ Cache=false)";
   if (buttonPending)
     SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
 
-  if (pApp->_status.running || pApp->_status.updating)
+  if (loading || pApp->_status.running || pApp->_status.updating)
     ImGui::PopStyleColor ( );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
