@@ -2826,7 +2826,7 @@ Cache=false)";
     }
   }
 
-  bool         loading      = false;
+  static bool  loading      = false;
   static DWORD loadingTimer = 0;
 
   if (pApp->loading)
@@ -2836,7 +2836,7 @@ Cache=false)";
 
     // 32 ms delay before we indicate the game is loading in the background
     if (loadingTimer  < SKIF_Util_timeGetTime ( ))
-      loading = true;
+      loading         = true;
   }
 
   // Reset once we are no longer loading
@@ -2887,7 +2887,13 @@ Cache=false)";
                   ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
                             50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
   {
-    if (! buttonInstall)
+    if (pApp->loading)
+    {
+      // Do nothing if we're loading
+      loading    = true;
+    }
+
+    else if (! buttonInstall)
       launchGame = true;
 
     else
