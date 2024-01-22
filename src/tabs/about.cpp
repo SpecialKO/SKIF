@@ -52,6 +52,9 @@ SKIF_UI_Tab_DrawAbout (void)
                             "DirectX 11 and 12 titles can make use of one or more of its features."
   );
   ImGui::NewLine          ( );
+
+  float fY1 = ImGui::GetCursorPosY();
+
   ImGui::Text             ("Just hop on over to the");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
@@ -66,8 +69,6 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-
-  float fY1 = ImGui::GetCursorPosY();
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -121,7 +122,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
 
-  float fY2 = ImGui::GetCursorPosY();
+  //float fY2 = ImGui::GetCursorPosY();
           
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
@@ -279,7 +280,10 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   ImGui::EndGroup         ( );
 
-  ImGui::SetCursorPosY    (fY2);
+  //ImGui::SetCursorPosY    (fY2);
+
+  ImGui::NewLine          ( );
+  ImGui::NewLine          ( );
 
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -424,9 +428,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::SetCursorPosY (fY4);
   */
   
-  static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
-  if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
-    ImGui::NewLine        ( );
+  //static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
+  //if ((_updater.GetState ( ) & UpdateFlags_Available) != UpdateFlags_Available)
+  ImGui::NewLine          ( );
 
   ImGui::NewLine          ( );
   
