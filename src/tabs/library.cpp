@@ -2835,7 +2835,7 @@ Cache=false)";
       loadingTimer    = SKIF_Util_timeGetTime ( ) + 32;
 
     // 32 ms delay before we indicate the game is loading in the background
-    if (loadingTimer  < SKIF_Util_timeGetTime ( ))
+    if (! loading && loadingTimer < SKIF_Util_timeGetTime ( ))
       loading         = true;
   }
 
