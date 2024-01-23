@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <array>
 #include <string>
+#include <imgui/imgui.h>
 
 // Singleton struct
 struct SKIF_InjectionContext {
@@ -55,6 +56,14 @@ struct SKIF_InjectionContext {
 
   int     pid32             = 0,
           pid64             = 0;
+
+  // Used for the quick toggle / status summary when a game is selected
+  struct {
+    ImColor       color;
+    ImColor       color_hover;
+    std::string   text;
+    std::string   hover_tip;
+  } ui_game_summary;
 
   enum RunningState
   {
@@ -94,6 +103,7 @@ struct SKIF_InjectionContext {
   void    _GlobalInjectionCtl     (void);
   void    _StartAtLogonCtrl       (void);
   void    _SetTaskbarOverlay      (bool show);
+  void    _RefreshUIQuickToggle   (bool active);
   bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
 
   bool    WhitelistPath           (std::string fullPath);

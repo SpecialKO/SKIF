@@ -1553,7 +1553,11 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
           if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
             launch.injection.config.type =   ConfigType::Centralized;
           else
-            launch.injection.config      = { ConfigType::Localized, test_path };
+          {
+            launch.injection.config.type          = ConfigType::Localized;
+            launch.injection.config.root_dir      = test_path;
+            launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
+          }
 
           launch.injection.config.shorthand      = dll.name + L".ini";
           launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.shorthand);
@@ -1617,15 +1621,8 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
 
     pApp->specialk.injection.config.type =
       ConfigType::Centralized;
-
-    wchar_t                 wszPathToSelf [MAX_PATH + 2] = { };
-    GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
-    PathRemoveFileSpecW (   wszPathToSelf);
-    PathAppendW         (   wszPathToSelf,
-                              bIs64Bit ? L"SpecialK64.dll"
-                                       : L"SpecialK32.dll" );
-
-    pApp->specialk.injection.dll.full_path      = wszPathToSelf;
+    
+    pApp->specialk.injection.dll.full_path      = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (bIs64Bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
     pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
     pApp->specialk.injection.dll.version        = 
                                        bIs64Bit ? _inject.SKVer64

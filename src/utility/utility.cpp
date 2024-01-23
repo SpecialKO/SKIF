@@ -1687,6 +1687,8 @@ SKIF_Util_GetDragFromMaximized (bool refresh)
 bool
 SKIF_Util_GetControlledFolderAccess (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   if (! SKIF_Util_IsWindows10OrGreater ( ))
     return false;
 
@@ -1715,10 +1717,7 @@ SKIF_Util_GetControlledFolderAccess (void)
       //   but apparently not on Windows 11 so this check will fail on that OS.
       if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\AllowedApplications\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
       {
-        static TCHAR               szExePath[MAX_PATH + 2];
-        GetModuleFileName   (NULL, szExePath, _countof(szExePath));
-
-        if (ERROR_SUCCESS == RegQueryValueEx (hKey, szExePath, NULL, NULL, NULL, NULL))
+        if (ERROR_SUCCESS == RegQueryValueEx (hKey, _path_cache.skif_executable, NULL, NULL, NULL, NULL))
           state = 0;
 
         if (state)

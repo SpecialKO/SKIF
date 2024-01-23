@@ -175,6 +175,7 @@ struct app_record_s {
         Localized   = 0x2,
         Unknown     = 0x0
       }            type = Type::Unknown;
+      std:: string type_utf8 = "Unknown";
 
       std::wstring shorthand;
       std:: string shorthand_utf8; // Converted to utf-8 from utf-16
@@ -345,6 +346,42 @@ struct app_record_s {
     std::wstring getTimeAsCStr      (void) const;
     std:: string getTimeAsCStrUTF8  (void);
   };
+
+  
+  // Cached data
+  struct CloudPath
+  {
+    std::wstring path;
+    std:: string path_utf8;
+    std:: string label;
+
+    CloudPath (int i, std::wstring p)
+    {
+      path      = p;
+      path_utf8 = SK_WideCharToUTF8 (p);
+      label     =
+        SK_FormatString ("%s###CloudUFS.%d", path_utf8.c_str(), i);
+    };
+  };
+
+  using branch_t =
+    std::pair <std::string, branch_record_s>;
+
+  // This struct holds the cache for the right click context menu
+  struct {
+    int                                   numSecondaryLaunchConfigs = 0; // Secondary launch options
+    bool                                  profileFolderExists       = false;
+    bool                                  screenshotsFolderExists   = false;
+    std::wstring                          wsScreenshotDir           = L"";
+    std::vector   <CloudPath>             cloud_paths;   // Steam Auto-Cloud
+    std::multimap <int64_t, branch_t>     branches;      // Steam Branches
+
+    // PCGamingWiki
+    std::wstring pcgwValue;
+    std::wstring pcgwLink;
+
+    std::string   label_version; // type_version
+  } ui;
 
   struct specialk_config_s {
     std::wstring           profile_dir;

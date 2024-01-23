@@ -673,25 +673,22 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
 void
 SKIF_InjectionContext::_RefreshSKDLLVersions (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   static std::wstring SKVer32_old, SKSvc32_old,
                       SKVer64_old, SKSvc64_old;
+  static std::wstring wsPathToDll32 = SK_FormatStringW (LR"(%ws\SpecialK32.dll)",        _path_cache.specialk_install),
+                      wsPathToDll64 = SK_FormatStringW (LR"(%ws\SpecialK64.dll)",        _path_cache.specialk_install),
+                      wsPathToSvc32 = SK_FormatStringW (LR"(%ws\Servlet\SKIFsvc32.exe)", _path_cache.specialk_install),
+                      wsPathToSvc64 = SK_FormatStringW (LR"(%ws\Servlet\SKIFsvc64.exe)", _path_cache.specialk_install);
 
-  wchar_t                       wszPathToSelf32 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSelf32, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSelf32);
-  PathAppendW         (         wszPathToSelf32,       L"SpecialK32.dll");
   SKVer32      =
-    SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf32);
+    SKIF_Util_GetSpecialKDLLVersion (wsPathToDll32.c_str());
   SKVer32_utf8 =
     SK_WideCharToUTF8 (SKVer32);
 
-  wchar_t                       wszPathToSvc32 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSvc32, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSvc32);
-  PathAppendW         (         wszPathToSvc32,       LR"(Servlet\SKIFsvc32.exe)");
   SKSvc32      =
-    SKIF_Util_GetFileVersion (  wszPathToSvc32);
-
+    SKIF_Util_GetFileVersion        (wsPathToSvc32.c_str());
   SKSvc32_utf8 =
     SK_WideCharToUTF8 (SKSvc32);
 
@@ -702,21 +699,13 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKSvc32_old = SKSvc32;
 
 #ifdef _WIN64
-  wchar_t                       wszPathToSelf64 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSelf64, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSelf64);
-  PathAppendW         (         wszPathToSelf64,       L"SpecialK64.dll");
   SKVer64      =
-    SKIF_Util_GetSpecialKDLLVersion (wszPathToSelf64);
+    SKIF_Util_GetSpecialKDLLVersion (wsPathToDll64.c_str());
   SKVer64_utf8 =
     SK_WideCharToUTF8 (SKVer64);
 
-  wchar_t                       wszPathToSvc64 [MAX_PATH + 2] = { };
-  GetModuleFileNameW  (nullptr, wszPathToSvc64, MAX_PATH);
-  PathRemoveFileSpecW (         wszPathToSvc64);
-  PathAppendW         (         wszPathToSvc64,       LR"(Servlet\SKIFsvc64.exe)");
   SKSvc64      =
-    SKIF_Util_GetFileVersion (  wszPathToSvc64);
+    SKIF_Util_GetFileVersion        (wsPathToSvc64.c_str());
   SKSvc64_utf8 =
     SK_WideCharToUTF8 (SKSvc64);
 
@@ -1046,8 +1035,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
                                _path_cache.user_startup.path );
 
-  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", _path_cache.specialk_userdata),
-                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", _path_cache.specialk_userdata);
+  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", _path_cache.specialk_install),
+                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", _path_cache.specialk_install);
 
   static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", _path_cache.user_startup.path),
                       Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", _path_cache.user_startup.path);
@@ -1121,13 +1110,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     {
       if (bAutoStartSKIF)
       {
-          static TCHAR               szExePath[MAX_PATH + 2];
-          GetModuleFileName   (NULL, szExePath, _countof(szExePath));
+        std::wstring wsPath = LR"(")" + std::wstring(_path_cache.skif_executable) + LR"(" )" + args;
 
-          std::wstring wsPath = LR"(")" + std::wstring(szExePath) + LR"(" )" + args;
-
-          RegSetValueExW (hKey, L"Special K", 0, REG_SZ, (LPBYTE)wsPath.data(),
-                                                          (DWORD)wsPath.size() * sizeof(wchar_t));
+        RegSetValueExW (hKey, L"Special K", 0, REG_SZ, (LPBYTE)wsPath.data(),
+                                                        (DWORD)wsPath.size() * sizeof(wchar_t));
       }
       else
       {
@@ -1209,11 +1195,6 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
         {
           if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
           {
-            TCHAR               szExePath[MAX_PATH + 2];
-            GetModuleFileName   (NULL, szExePath, _countof(szExePath));
-
-            std::wstring wsPath = std::wstring(szExePath);
-
             RegSetValueExW (hKey, L"Special K 32-bit Global Injection Service Host", 0, REG_SZ, (LPBYTE)Svc32Target.data(),
                                                                                                  (DWORD)Svc32Target.size() * sizeof(wchar_t));
 #ifdef _WIN64
@@ -1273,6 +1254,10 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
   extern void SKIF_Shell_CreateUpdateNotifyMenu (void);
   extern void SKIF_Shell_UpdateNotifyIcon       (void);
   extern UINT SHELL_TASKBAR_BUTTON_CREATED;
+
+  // Piggy back on this one to always ensure the UI is up-to-date
+  _RefreshUIQuickToggle (show);
+
   SKIF_Shell_CreateUpdateNotifyMenu             (    );
   SKIF_Shell_UpdateNotifyIcon                   (    );
 
@@ -1307,6 +1292,26 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
   bTaskbarOverlayIcon = false;
   return;
+}
+
+void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
+{
+  if (bHasServlet)
+  {
+    ui_game_summary.text        =
+                      (active)  ? (bAckInj) ? "Waiting for game..." : "Running"
+                                : "                                ";
+
+    ui_game_summary.color       =
+                      (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)
+                                : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info);    // HSV (0.08F, 0.99F, 1.F);
+    ui_game_summary.color_hover =
+                      (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                                : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)    * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+    ui_game_summary.hover_tip   =
+                      (active)  ? "Click to stop the service"
+                                : "Click to start the service";
+  }
 }
 
 bool SKIF_InjectionContext::SaveUserList (bool whitelist_)

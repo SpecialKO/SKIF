@@ -86,6 +86,18 @@ int                    coverRefreshStore = 0;
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
+struct SKIF_Lib_GameWorkerThread_s {
+  app_record_s          app        = app_record_s (0);
+  std::set<std::string> apptickets = std::set<std::string>( );
+  HANDLE                hWorker    = NULL;
+  bool                  free       = true;
+  int                   cpu_pre    = -1;
+};
+
+#define MAX_GAMEWORKER 3
+SKIF_Lib_GameWorkerThread_s aGameWorkers[MAX_GAMEWORKER] = { };
+
+
 std::vector <
   std::pair < std::string, app_record_s >
             > g_apps;
@@ -414,169 +426,6 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
   return pApp->Steam_LaunchOption1;
 }
 
-#pragma region SKIF_Lib_SummaryCache
-
-void
-SKIF_Lib_SummaryCache::Refresh (app_record_s* pApp, std::set <std::string> apptickets)
-{
-  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-  app_record_s::sk_install_state_s& sk_install =
-    pApp->specialk.injection;
-
-  app_id   = pApp->id;
-  running  = pApp->_status.running;
-  updating = pApp->_status.updating;
-  autostop = _inject.bAckInj;
-
-  service  = (sk_install.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
-             (sk_install.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
-             (sk_install.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
-                                                                              _inject.pid64));
-
-  injection.type        = CachedType::Unknown;
-  injection.type_utf8   = "None";
-  injection.status.text.clear ();
-  injection.hover_text.clear  ();
-
-  switch (sk_install.injection.type)
-  {
-    case InjectionType::Local:
-      injection.type           = CachedType::Local;
-      injection.type_utf8      = "Local";
-      injection.type_version   = SK_FormatString (R"(v %s (%s))", pApp->specialk.injection.dll.version_utf8.c_str(), pApp->specialk.injection.dll.shorthand_utf8.c_str()); // injection.type_utf8.c_str()
-      break;
-
-    case InjectionType::Global:
-    default: // Unknown injection strategy, but let's assume global would work
-
-      if ( _inject.bHasServlet )
-      {
-        injection.type         = CachedType::Global;
-        injection.type_utf8    = "Global";
-        injection.type_version = SK_FormatString (R"(v %s)", pApp->specialk.injection.dll.version_utf8.c_str()); // injection.type_utf8.c_str() // We don't actually have SKIF say "Global v XXX" any longer due to space constraints -- Aemony, 2024-01-04
-        injection.status.text  = 
-                    (service)  ? (_inject.bAckInj) ? "Waiting for game..." : "Running"
-                               : "                                "; //"Service Status";
-
-        injection.status.color =
-                    (service)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)
-                               : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info); // HSV (0.08F, 0.99F, 1.F);
-        injection.status.color_hover =
-                    (service)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                               : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-        injection.hover_text   =
-                    (service)  ? "Click to stop the service"
-                               : "Click to start the service";
-      }
-      break;
-  }
-
-  switch (sk_install.config.type)
-  {
-    case ConfigType::Centralized:
-      config_repo = "Centralized"; break;
-    case ConfigType::Localized:
-      config_repo = "Localized";   break;
-    default:
-      config_repo = "Unknown";     break;
-  }
-
-  // Refresh the context menu cached data
-  
-  // Profile + Screenshots
-  menu.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.root_dir.c_str());
-  menu.wsScreenshotDir         = pApp->specialk.injection.config.root_dir + LR"(\Screenshots)";
-  menu.screenshotsFolderExists = (menu.profileFolderExists) ? PathFileExists (menu.wsScreenshotDir.c_str()) : false;
-
-  // Check how many secondary launch configs are valid
-  menu.numSecondaryLaunchConfigs = 0;
-  for (auto& _launch_cfg : pApp->launch_configs)
-  {
-    if (_launch_cfg.second.owns_dlc == -1)
-        _launch_cfg.second.owns_dlc  = (_launch_cfg.second.requires_dlc.empty())
-                                     ? 1 // If the launch cfg does not have a DLC requirement, then we "own" it (purely an optimization thing)
-                                     : (! apptickets.empty() && apptickets.find (_launch_cfg.second.requires_dlc) != apptickets.end()); // Only show DLC options if the user has an app ticket for it
-    // Note that this design hides all DLC launch options until the user has signed into Steam
-
-    if (! _launch_cfg.second.owns_dlc)
-      continue;
-
-    if (_launch_cfg.first == 0)
-      continue;
-
-    if (! _launch_cfg.second.valid ||
-          _launch_cfg.second.duplicate_exe_args)
-      continue;
-    
-    menu.numSecondaryLaunchConfigs++;
-  }
-
-  // Steam Auto-Cloud
-  menu.cloud_paths.clear();
-  if (pApp->cloud_enabled && // If this is false, Steam Auto-Cloud is not enabled
-    ! pApp->cloud_saves.empty ())
-  {
-    std::set <std::wstring> _used_paths;
-
-    for (auto& cloud : pApp->cloud_saves)
-    {
-      if (cloud.second.valid == 0)
-        continue;
-
-      if (app_record_s::supports (cloud.second.platforms, app_record_s::Platform::Windows) && 
-          app_record_s::Platform::Unknown != cloud.second.platforms)
-        cloud.second.valid = 0;
-
-      if (cloud.second.valid == -1)
-        cloud.second.valid = PathFileExistsW (cloud.second.evaluated_dir.c_str());
-
-      if (cloud.second.valid)
-      {
-        // Filter out duplicate paths
-        if (_used_paths.emplace (cloud.second.evaluated_dir).second)
-          menu.cloud_paths.emplace_back (CloudPath (cloud.first, cloud.second.evaluated_dir));
-      }
-    }
-  }
-
-  // PCGamingWiki
-  menu.pcgwValue = (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
-                                            ?   std::to_wstring (pApp->id)
-                                            : SK_UTF8ToWideChar (pApp->names.original);
-
-  menu.pcgwLink  = ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
-                 :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
-                                                                : L"https://www.pcgamingwiki.com/w/index.php?search=")
-                                                                  + menu.pcgwValue;
-
-  // Steam Branches
-  menu.branches.clear ();
-  std::set <std::string> used_branches;
-  for ( auto& it : pApp->branches )
-  {
-    if (used_branches.emplace (it.first).second)
-    {
-      auto& branch =
-        it.second;
-
-      // TODO: Maybe split sort in public v. private?
-      
-      // Sort in descending order
-      menu.branches.emplace (
-        std::make_pair   (-(int64_t)branch.build_id,
-          std::make_pair (
-            it.first,
-            it.second
-          )
-        )
-      );
-    }
-  }
-}
-
-#pragma endregion
-
 
 #pragma region UpdateGameCover
 
@@ -835,7 +684,6 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_Lib_SummaryCache& _cache      = SKIF_Lib_SummaryCache::GetInstance ( );
 
   // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
   //         is even available (or if "without Special K" is the only option available)
@@ -885,11 +733,11 @@ DrawGameContextMenu (app_record_s* pApp)
   // Instant Play options
   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
-    if (_cache.menu.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
+    if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
       ImGui::Separator ( );
 
     // If there is only one valid launch config (Steam and GOG games only)
-    if (_cache.menu.numSecondaryLaunchConfigs == 0 && (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
+    if (pApp->ui.numSecondaryLaunchConfigs == 0 && (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
     {
       if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
                             ((pApp->_status.running || pApp->_status.updating)
@@ -936,7 +784,7 @@ DrawGameContextMenu (app_record_s* pApp)
     }
 
     // Multiple launch configs
-    else if (_cache.menu.numSecondaryLaunchConfigs > 0)
+    else if (pApp->ui.numSecondaryLaunchConfigs > 0)
     {
       bool disabled = (pApp->_status.running || pApp->_status.updating);
 
@@ -1234,13 +1082,13 @@ DrawGameContextMenu (app_record_s* pApp)
                           );
 
     // If Profile Folder Exists
-    if (_cache.menu.profileFolderExists)
+    if (pApp->ui.profileFolderExists)
     {
       ImGui::BeginGroup  ( );
       ImVec2 iconPosDummy = ImGui::GetCursorPos();
 
       ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
-      if (_cache.menu.screenshotsFolderExists)
+      if (pApp->ui.screenshotsFolderExists)
         ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_IMAGES)       .x, ImGui::GetTextLineHeight()));
         
       ImGui::EndGroup    ( );
@@ -1253,13 +1101,13 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetMouseCursorHand ();
       SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir.c_str()).c_str());
         
-      if (_cache.menu.screenshotsFolderExists)
+      if (pApp->ui.screenshotsFolderExists)
       {
         // Screenshot Folder
         if (ImGui::Selectable         ("Screenshots", false, ImGuiSelectableFlags_SpanAllColumns))
-          SKIF_Util_ExplorePath       (_cache.menu.wsScreenshotDir);
+          SKIF_Util_ExplorePath       (pApp->ui.wsScreenshotDir);
         SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (_cache.menu.wsScreenshotDir.data()).c_str());
+        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
       }
 
       ImGui::EndGroup  ( );
@@ -1270,20 +1118,20 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), // ImColor (255, 207, 72),
                   ICON_FA_FOLDER_OPEN
                             );
-      if (_cache.menu.screenshotsFolderExists)
+      if (pApp->ui.screenshotsFolderExists)
         ImGui::TextColored (
                   ImColor   (200, 200, 200, 255),
                     ICON_FA_IMAGES
                               );
     }
 
-    if (! _cache.menu.cloud_paths.empty())
+    if (! pApp->ui.cloud_paths.empty())
     {
       ImGui::Separator  ( );
 
       if (ImGui::BeginMenu (ICON_FA_SD_CARD "   Save/config folders"))
       {
-        for (auto& folder : _cache.menu.cloud_paths)
+        for (auto& folder : pApp->ui.cloud_paths)
         {
       
           ImGui::PushStyleColor ( ImGuiCol_Text,
@@ -1592,13 +1440,13 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (ImGui::Selectable  ("PCGamingWiki", false, ImGuiSelectableFlags_SpanAllColumns))
     {
-      SKIF_Util_OpenURI (_cache.menu.pcgwLink.c_str());
+      SKIF_Util_OpenURI (pApp->ui.pcgwLink.c_str());
     }
     else
     {
       SKIF_ImGui_SetMouseCursorHand ( );
       SKIF_ImGui_SetHoverText       (
-        SK_WideCharToUTF8 (_cache.menu.pcgwLink).c_str()
+        SK_WideCharToUTF8 (pApp->ui.pcgwLink).c_str()
       );
     }
 
@@ -1738,13 +1586,13 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         bool bMenuOpen =
           ImGui::BeginMenu  (
-            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", _cache.menu.branches.size()).c_str()
+            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", pApp->ui.branches.size()).c_str()
           );
 
         if (bMenuOpen)
         {
 
-          for ( auto& it : _cache.menu.branches)
+          for ( auto& it : pApp->ui.branches)
           {
             auto& branch_name = it.second.first;
             auto& branch      = it.second.second;
@@ -1934,7 +1782,6 @@ DrawSKIFContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_Lib_SummaryCache& _cache      = SKIF_Lib_SummaryCache::GetInstance ( );
   ImVec2 iconPos;
 
   ImGui::BeginGroup  ( );
@@ -2157,13 +2004,13 @@ DrawSKIFContextMenu (app_record_s* pApp)
   ImGui::BeginGroup  ( );
   if (ImGui::Selectable  ("PCGamingWiki", false, ImGuiSelectableFlags_SpanAllColumns))
   {
-    SKIF_Util_OpenURI (_cache.menu.pcgwLink.c_str());
+    SKIF_Util_OpenURI (pApp->ui.pcgwLink.c_str());
   }
   else
   {
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (
-      SK_WideCharToUTF8 (_cache.menu.pcgwLink).c_str()
+      SK_WideCharToUTF8 (pApp->ui.pcgwLink).c_str()
     );
   }
 
@@ -2215,7 +2062,6 @@ GetInjectionSummary (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_Lib_SummaryCache& _cache      = SKIF_Lib_SummaryCache::GetInstance ( );
   // All _cache calls in this must be prefaced with ! pApp->loading to prevent
   //   reads from the _cache while a worker thread is writing to it.
 
@@ -2227,13 +2073,13 @@ GetInjectionSummary (app_record_s* pApp)
 
     if ((pApp->store != app_record_s::Store::Steam) ||
         (pApp->store == app_record_s::Store::Steam  && // Exclude the check for games with known older versions
-          _cache.app_id != 405900       && // Disgaea PC
-          _cache.app_id != 359870       && // FFX/X-2 HD Remaster
-        //_cache.app_id != 578330       && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
-          _cache.app_id != 429660       && // Tales of Berseria
-          _cache.app_id != 372360       && // Tales of Symphonia
-        //_cache.app_id != 738540       && // Tales of Vesperia DE // Do not exclude from the updater as mainline SK further improves the game
-          _cache.app_id != 351970          // Tales of Zestiria
+         pApp->id    != 405900                      && // Disgaea PC
+         pApp->id    != 359870                      && // FFX/X-2 HD Remaster
+       //pApp->id    != 578330                      && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
+         pApp->id    != 429660                      && // Tales of Berseria
+         pApp->id    != 372360                      && // Tales of Symphonia
+       //pApp->id    != 738540                      && // Tales of Vesperia DE // Do not exclude from the updater as mainline SK further improves the game
+         pApp->id    != 351970                         // Tales of Zestiria
         ))
     {
       if (SKIF_Util_CompareVersionStrings (_inject.SKVer32, pApp->specialk.injection.dll.version) > 0)
@@ -2254,18 +2100,14 @@ GetInjectionSummary (app_record_s* pApp)
     int iBinaryType = SKIF_Util_GetBinaryType (pApp->specialk.injection.dll.full_path.c_str());
     if (iBinaryType > 0)
     {
-      wchar_t                       wszPathToGlobalDLL [MAX_PATH + 2] = { };
-      GetModuleFileNameW  (nullptr, wszPathToGlobalDLL, MAX_PATH);
-      PathRemoveFileSpecW (         wszPathToGlobalDLL);
-      PathAppendW         (         wszPathToGlobalDLL, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
-
-      if (CopyFile (wszPathToGlobalDLL, pApp->specialk.injection.dll.full_path.c_str(), FALSE))
+      std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
+      if (CopyFile (wsPathToGlobalDLL.c_str(), pApp->specialk.injection.dll.full_path.c_str(), FALSE))
       {
         PLOG_INFO << "Successfully updated " << pApp->specialk.injection.dll.full_path << " from v " << pApp->specialk.injection.dll.version << " to v " << _inject.SKVer32;
       }
 
       else {
-        PLOG_ERROR << "Failed to copy " << wszPathToGlobalDLL << " to " << pApp->specialk.injection.dll.full_path;
+        PLOG_ERROR << "Failed to copy " << wsPathToGlobalDLL << " to " << pApp->specialk.injection.dll.full_path;
         PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
       }
     }
@@ -2323,17 +2165,17 @@ GetInjectionSummary (app_record_s* pApp)
     //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
     ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
 
-    if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Global)
+    if (pApp->specialk.injection.injection.type == InjectionType::Global)
       flags |= ImGuiSelectableFlags_Disabled;
 
     bool openLocalMenu = false;
 
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-    if (ImGui::Selectable (_cache.injection.type_version.c_str(), false, flags))
+    if (ImGui::Selectable (pApp->ui.label_version.c_str(), false, flags))
       openLocalMenu = true;
     ImGui::PopStyleColor();
 
-    if (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local)
+    if (pApp->specialk.injection.injection.type == InjectionType::Local)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
 
@@ -2378,7 +2220,7 @@ GetInjectionSummary (app_record_s* pApp)
   if (! pApp->loading && ! pApp->specialk.injection.config.shorthand.empty ())
   {
     // Config Root
-    if (ImGui::Selectable         (_cache.config_repo.c_str ()))
+    if (ImGui::Selectable         (pApp->specialk.injection.config.type_utf8.c_str ()))
     {
       std::error_code ec;
       // Create any missing directories
@@ -2677,7 +2519,7 @@ Cache=false)";
 
   else if (! pApp->loading)
   {
-    ImGui::TextUnformatted (_cache.config_repo.c_str ());
+    ImGui::TextUnformatted (pApp->specialk.injection.config.type_utf8.c_str ());
     ImGui::TextUnformatted ("N/A");
   }
 
@@ -2702,26 +2544,22 @@ Cache=false)";
   static bool quickServiceHover = false;
 
   // Service quick toogle / Waiting for game...
-  if (! pApp->loading && _cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Global && ! _inject.isPending())
+  if (! pApp->loading && pApp->specialk.injection.injection.type == InjectionType::Global && ! _inject.isPending())
   {
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImColor(0, 0, 0, 0).Value);
-    ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? _cache.injection.status.color_hover.Value
-                                                             : _cache.injection.status.color.Value);
+    ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? _inject.ui_game_summary.color_hover.Value
+                                                             : _inject.ui_game_summary.color.Value);
 
-    if (ImGui::Selectable (_cache.injection.status.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
-    {
-      _inject._StartStopInject (_cache.service, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), pApp->skif.auto_stop);
-
-      _cache.app_id = 0;
-    }
+    if (ImGui::Selectable (_inject.ui_game_summary.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
+      _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), pApp->skif.auto_stop);
 
     ImGui::PopStyleColor (3);
 
     quickServiceHover = ImGui::IsItemHovered ();
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverTip        (_cache.injection.hover_text.c_str ());
+    SKIF_ImGui_SetHoverTip        (_inject.ui_game_summary.hover_tip.c_str ());
 
     if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
            ImGui::IsItemClicked (ImGuiMouseButton_Right))
@@ -2731,7 +2569,7 @@ Cache=false)";
   else
     ImGui::NewLine ( );
 
-  if (! pApp->loading && _cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local)
+  if (! pApp->loading && pApp->specialk.injection.injection.type == InjectionType::Local)
   {
     if (_IsLocalDLLFileOutdated ( ))
     {
@@ -2795,7 +2633,7 @@ Cache=false)";
         pApp->id == 372360       || // Tales of Symphonia
         pApp->id == 738540     //|| // Tales of Vesperia DE
       //pApp->id == 351970          // Tales of Zestiria
-      ) && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local)
+      ) && pApp->specialk.injection.injection.type != InjectionType::Local)
   {
     buttonLabel   = ICON_FA_DOWNLOAD "  Install Mod";
     buttonInstall = true;
@@ -2853,7 +2691,7 @@ Cache=false)";
   }
 
   // Disable the button for the injection service types if the servlets are missing
-  if ((! pApp->loading && ! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
+  if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
     SKIF_ImGui_PushDisableState ( );
 
   ImVec2 posButton =
@@ -3020,7 +2858,7 @@ Cache=false)";
   ImGui::SetCursorPos (posButton);
 
   // Disable the button for the injection service types if the servlets are missing
-  if ((! pApp->loading && ! _inject.bHasServlet && _cache.injection.type != SKIF_Lib_SummaryCache::CachedType::Local) || buttonPending)
+  if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
     SKIF_ImGui_PopDisableState  ( );
 
   if (buttonPending)
@@ -3052,7 +2890,7 @@ Cache=false)";
 #pragma region UpdateInjectionStrategy
 
 void
-UpdateInjectionStrategy (app_record_s* pApp)
+UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 {
   if (pApp == nullptr || pApp->id == SKIF_STEAM_APPID)
     return;
@@ -3061,38 +2899,23 @@ UpdateInjectionStrategy (app_record_s* pApp)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   
-  // Handle Steam games
-  if (pApp->store == app_record_s::Store::Steam)
+  //SKIF_Steam_GetInjectionStrategy (pApp);
+
+  int firstValidFound = -1;
+
+  // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
+  for ( auto& launch_cfg : pApp->launch_configs )
   {
-    SKIF_Steam_GetInjectionStrategy (pApp);
+    auto& launch = launch_cfg.second;
 
-    // Not actually used atm, so no need to scan the profile folder either
-#if 0
+    if (! launch.valid)
+      continue;
 
-    // Scan Special K configuration, etc.
-    if (pApp->specialk.profile_dir.empty ())
-    {
-      pApp->specialk.profile_dir = pApp->specialk.injection.config.dir;
+    if (! launch.isExecutableFullPathValid ( ))
+      continue;
 
-      if (! pApp->specialk.profile_dir.empty ())
-      {
-        SK_VirtualFS profile_vfs;
-
-        int files =
-          SK_VFS_ScanTree ( profile_vfs,
-                              pApp->specialk.profile_dir.data (), 2 );
-
-        UNREFERENCED_PARAMETER (files);
-      }
-    }
-#endif
-
-  }
-  
-  // Handle GOG, Epic, SKIF Custom, and Xbox games
-  else {
-    
-    auto& launch = pApp->launch_configs.begin()->second;
+    if (firstValidFound == -1)
+      firstValidFound = launch_cfg.first;
 
     // Assume global
     launch.injection.injection.type        =
@@ -3109,20 +2932,75 @@ UpdateInjectionStrategy (app_record_s* pApp)
     // Apply any custom stuff
     if (pApp->skif.cpu_type != 0)
     {
-      launch.injection.injection.bitness = (InjectionBitness)     pApp->skif.cpu_type;
-      launch.cpu_type                    = (app_record_s::CPUType)pApp->skif.cpu_type;
+      //launch.injection.injection.bitness = (InjectionBitness)     pApp->skif.cpu_type;
+      //launch.cpu_type                    = (app_record_s::CPUType)pApp->skif.cpu_type;
     }
+
+    // TODO: This needs to be gone through and reworked entirely as the logic still gets thrown off by edge cases
+    //  - e.g. EA games with "invalid" launch options where the 'osarch' of the common_config ends up never being used
 
     // Check bitness
     if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
-      DWORD dwBinaryType = MAXDWORD;
-      if (GetBinaryTypeW (launch.getExecutableFullPath ( ).c_str (), &dwBinaryType))
+      app_record_s::CPUType
+          cpu_type  = pApp->common_config.cpu_type; // We start by using the common config
+
+      if (cpu_type != app_record_s::CPUType::Any)
       {
-        if (dwBinaryType == SCS_32BIT_BINARY)
-          launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-        else if (dwBinaryType == SCS_64BIT_BINARY)
-          launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+        if (launch.cpu_type != app_record_s::CPUType::Common)
+        {
+          cpu_type =
+            launch.cpu_type;
+        }
+      }
+
+      else
+      {
+        // The any case will just be 64-bit for us, since SK only runs on
+        //   64-bit systems. Thus, ignore 32-bit launch configs.
+#ifdef _WIN64
+        if (launch.cpu_type == app_record_s::CPUType::x86)
+#else
+        if (launch.cpu_type == app_record_s::CPUType::x64)
+#endif
+        {
+          continue;
+        }
+
+        else {
+          cpu_type =
+            launch.cpu_type;
+        }
+      }
+      
+      if (     cpu_type == app_record_s::CPUType::x64)
+        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+
+      else if (cpu_type == app_record_s::CPUType::x86)
+        launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+
+      // If we still haven't resolved it, use SKIF's cached property
+      else if (pApp->skif.cpu_type != 0)
+        launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
+
+      // In case we still haven't resolved the CPU architecture,
+      //   we need to check the actual arch of the game executable
+      else // Common || Any
+      {
+        if (launch.isExecutableFullPathValid ())
+        {
+          std::wstring exec_path =
+            launch.getExecutableFullPath ( );
+
+          DWORD dwBinaryType = MAXDWORD;
+          if (GetBinaryTypeW (exec_path.c_str (), &dwBinaryType))
+          {
+            if (dwBinaryType == SCS_64BIT_BINARY)
+              launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+            else if (dwBinaryType == SCS_32BIT_BINARY)
+              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+          }
+        }
       }
     }
     // End checking bitness
@@ -3166,7 +3044,7 @@ UpdateInjectionStrategy (app_record_s* pApp)
       {
         do
         {
-          if ( wcscmp (ffd.cFileName, L".")  == 0 ||
+          if ( wcscmp (ffd.cFileName, L"." ) == 0 ||
                wcscmp (ffd.cFileName, L"..") == 0 )
             continue;
 
@@ -3194,7 +3072,9 @@ UpdateInjectionStrategy (app_record_s* pApp)
               launch.injection.injection.bitness,
               dll.entry_pt, InjectionType::Local
             };
-
+            
+            launch.injection.dll.shorthand      = dll.name + L".dll";
+            launch.injection.dll.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
             launch.injection.dll.full_path      = dll.path;
             launch.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (launch.injection.dll.full_path);
             launch.injection.dll.version        = dll_ver;
@@ -3203,10 +3083,14 @@ UpdateInjectionStrategy (app_record_s* pApp)
             if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
               launch.injection.config.type =   ConfigType::Centralized;
             else
-              launch.injection.config      = { ConfigType::Localized, test_path };
+            {
+              launch.injection.config.type          = ConfigType::Localized;
+              launch.injection.config.root_dir      = test_path;
+              launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
+            }
 
             launch.injection.config.shorthand      = dll.name + L".ini";
-            launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.full_path);
+            launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
             breakOuterLoop = true;
             break;
@@ -3224,51 +3108,258 @@ UpdateInjectionStrategy (app_record_s* pApp)
         break;
     }
 
-    // Main UI stuff should follow the primary launch config
-    pApp->specialk.injection = launch.injection;
+    // Check if the launch config is elevated or blacklisted
+    launch.isElevated    (true);
+    launch.isBlacklisted (true);
+  }
 
-    if ( InjectionType::Global ==
-        pApp->specialk.injection.injection.type )
+  // Swap out the first element for the first valid one we found
+  if (firstValidFound != -1)
+  {
+    app_record_s::launch_config_s copy    = pApp->launch_configs[0];
+    pApp->launch_configs[0]               = pApp->launch_configs[firstValidFound];
+    pApp->launch_configs[firstValidFound] = copy;
+  }
+
+  // TODO: Make the specialk.injection bitness/state/etc stuff bound
+  //         to launch_config so it is not universal any longer
+
+  auto& launch = pApp->launch_configs.begin()->second;
+
+  // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
+  if (launch.injection.injection.type == InjectionType::Unknown)
+  {
+    // Assume global
+    launch.injection.injection.type        =
+      InjectionType::Global;
+    launch.injection.injection.entry_pt    =
+      InjectionPoint::CBTHook;
+    launch.injection.config.type           =
+      ConfigType::Centralized;
+    launch.injection.config.shorthand      =
+      L"SpecialK.ini";
+    launch.injection.config.shorthand_utf8 =
+      SK_WideCharToUTF8 (launch.injection.config.shorthand);
+  }
+
+  // Main UI stuff should follow the primary launch config
+  pApp->specialk.injection = launch.injection;
+
+  if ( InjectionType::Global ==
+      pApp->specialk.injection.injection.type )
+  {
+    // Assume Global 32-bit if we don't know otherwise
+    bool bIs64Bit =
+      (launch.injection.injection.bitness ==
+                        InjectionBitness::SixtyFour);
+
+    pApp->specialk.injection.config.type =
+      ConfigType::Centralized;
+
+    pApp->specialk.injection.dll.shorthand      = 
+                                       bIs64Bit ? L"SpecialK64.dll"
+                                                : L"SpecialK32.dll";
+    pApp->specialk.injection.dll.shorthand_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
+    pApp->specialk.injection.dll.full_path      = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, pApp->specialk.injection.dll.shorthand.c_str());
+    pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
+    pApp->specialk.injection.dll.version        = 
+                                       bIs64Bit ? _inject.SKVer64
+                                                : _inject.SKVer32;
+    pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
+  }
+
+  // Steam profile folders uses localized name
+  if (pApp->store == app_record_s::Store::Steam &&
+      pApp->specialk.injection.localized_name.empty())
+  {
+    pApp->specialk.injection.localized_name =
+      SK_UseManifestToGetAppName (pApp);
+
+    std::wstring name =
+      SK_UTF8ToWideChar (pApp->specialk.injection.localized_name);
+
+    name.erase ( std::remove_if ( name.begin (),
+                                  name.end   (),
+
+                              [](wchar_t tval)
+                              {
+                                static
+                                const std::set <wchar_t>
+                                  invalid_file_char =
+                                  {
+                                    L'\\', L'/', L':',
+                                    L'*',  L'?', L'\"',
+                                    L'<',  L'>', L'|',
+                                  //L'&',
+
+                                    //
+                                    // Obviously a period is not an invalid character,
+                                    //   but three of them in a row messes with
+                                    //     Windows Explorer and some Steam games use
+                                    //       ellipsis in their titles.
+                                    //
+                                    L'.'
+                                  };
+
+                                return
+                                  ( invalid_file_char.find (tval) !=
+                                    invalid_file_char.end  (    ) );
+                              }
+                          ),
+
+               name.end ()
+         );
+
+    // Strip trailing spaces from name, these are usually the result of
+    //   deleting one of the non-useable characters above.
+    for (auto it = name.rbegin (); it != name.rend (); ++it)
     {
-      // Assume Global 32-bit if we don't know otherwise
-      bool bIs64Bit =
-        (launch.injection.injection.bitness ==
-                          InjectionBitness::SixtyFour);
-
-      pApp->specialk.injection.config.type =
-        ConfigType::Centralized;
-
-      wchar_t                 wszPathToSelf [MAX_PATH + 2] = { };
-      GetModuleFileNameW  (0, wszPathToSelf, MAX_PATH);
-      PathRemoveFileSpecW (   wszPathToSelf);
-      PathAppendW         (   wszPathToSelf,
-                                bIs64Bit ? L"SpecialK64.dll"
-                                         : L"SpecialK32.dll" );
-
-      pApp->specialk.injection.dll.full_path      = wszPathToSelf;
-      pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
-      pApp->specialk.injection.dll.version        = 
-                                         bIs64Bit ? _inject.SKVer64
-                                                  : _inject.SKVer32;
-      pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
-
-
+      if (*it == L' ') *it = L'\0';
+      else                   break;
     }
 
-    if ( ConfigType::Centralized ==
-           pApp->specialk.injection.config.type )
-    {
-      pApp->specialk.injection.config.root_dir      =
-        SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
-                             _path_cache.specialk_userdata,
-                              pApp->specialk.profile_dir.c_str());
-      pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
-    }
+    pApp->specialk.profile_dir = name;
+  }
 
-    pApp->specialk.injection.config.full_path      =
-      ( pApp->specialk.injection.config.root_dir + LR"(\)" ) +
-        pApp->specialk.injection.config.shorthand;
-    pApp->specialk.injection.config.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.full_path);
+  if ( ConfigType::Centralized ==
+         pApp->specialk.injection.config.type )
+  {
+    pApp->specialk.injection.config.root_dir      =
+      SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
+                            _path_cache.specialk_userdata,
+                            pApp->specialk.profile_dir.c_str());
+    pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
+  }
+
+  pApp->specialk.injection.config.full_path      =
+    ( pApp->specialk.injection.config.root_dir + LR"(\)" ) +
+      pApp->specialk.injection.config.shorthand;
+  pApp->specialk.injection.config.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.full_path);
+
+
+  // v-<-<- Shared between games of all platforms ->->-v
+
+  switch (pApp->specialk.injection.config.type)
+  {
+    case ConfigType::Centralized:
+      pApp->specialk.injection.config.type_utf8 = "Centralized"; break;
+    case ConfigType::Localized:
+      pApp->specialk.injection.config.type_utf8 = "Localized";   break;
+    default:
+      pApp->specialk.injection.config.type_utf8 = "Unknown";     break;
+  }
+
+  // Contemplate this -- should we bother? Why not just use _inject.bCurrentState ?
+  /*
+  bool service  = (pApp->specialk.injection.injection.bitness == InjectionBitness::ThirtyTwo &&  _inject.pid32) ||
+                  (pApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour &&  _inject.pid64) ||
+                  (pApp->specialk.injection.injection.bitness == InjectionBitness::Unknown   && (_inject.pid32  &&
+                                                                                                 _inject.pid64));
+  */
+
+  switch (pApp->specialk.injection.injection.type)
+  {
+    case InjectionType::Local:
+      pApp->ui.label_version = SK_FormatString (R"(v %s (%s))", pApp->specialk.injection.dll.version_utf8.c_str(), pApp->specialk.injection.dll.shorthand_utf8.c_str()); // injection.type_utf8.c_str()
+      break;
+
+    case InjectionType::Global:
+    default: // Unknown injection strategy, but let's assume global would work
+      if ( _inject.bHasServlet )
+        pApp->ui.label_version = SK_FormatString (R"(v %s)", pApp->specialk.injection.dll.version_utf8.c_str()); // injection.type_utf8.c_str() // We don't actually have SKIF say "Global v XXX" any longer due to space constraints -- Aemony, 2024-01-04
+      break;
+  }
+
+  // Refresh the context menu cached data
+  
+  // Profile + Screenshots
+  pApp->ui.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.root_dir.c_str());
+  pApp->ui.wsScreenshotDir         = pApp->specialk.injection.config.root_dir + LR"(\Screenshots)";
+  pApp->ui.screenshotsFolderExists = (pApp->ui.profileFolderExists) ? PathFileExists (pApp->ui.wsScreenshotDir.c_str()) : false;
+
+  // Check how many secondary launch configs are valid
+  pApp->ui.numSecondaryLaunchConfigs = 0;
+  for (auto& _launch_cfg : pApp->launch_configs)
+  {
+    if (_launch_cfg.second.owns_dlc == -1)
+        _launch_cfg.second.owns_dlc  = (_launch_cfg.second.requires_dlc.empty())
+                                     ? 1 // If the launch cfg does not have a DLC requirement, then we "own" it (purely an optimization thing)
+                                     : (! apptickets.empty() && apptickets.find (_launch_cfg.second.requires_dlc) != apptickets.end()); // Only show DLC options if the user has an app ticket for it
+    // Note that this design hides all DLC launch options until the user has signed into Steam
+
+    if (! _launch_cfg.second.owns_dlc)
+      continue;
+
+    if (_launch_cfg.first == 0)
+      continue;
+
+    if (! _launch_cfg.second.valid ||
+          _launch_cfg.second.duplicate_exe_args)
+      continue;
+    
+    pApp->ui.numSecondaryLaunchConfigs++;
+  }
+
+  // Steam Auto-Cloud
+  pApp->ui.cloud_paths.clear();
+  if (pApp->cloud_enabled && // If this is false, Steam Auto-Cloud is not enabled
+    ! pApp->cloud_saves.empty ())
+  {
+    std::set <std::wstring> _used_paths;
+
+    for (auto& cloud : pApp->cloud_saves)
+    {
+      if (cloud.second.valid == 0)
+        continue;
+
+      if (app_record_s::supports (cloud.second.platforms, app_record_s::Platform::Windows) && 
+          app_record_s::Platform::Unknown != cloud.second.platforms)
+        cloud.second.valid = 0;
+
+      if (cloud.second.valid == -1)
+        cloud.second.valid = PathFileExistsW (cloud.second.evaluated_dir.c_str());
+
+      if (cloud.second.valid)
+      {
+        // Filter out duplicate paths
+        if (_used_paths.emplace (cloud.second.evaluated_dir).second)
+          pApp->ui.cloud_paths.emplace_back (app_record_s::CloudPath (cloud.first, cloud.second.evaluated_dir));
+      }
+    }
+  }
+
+  // PCGamingWiki
+  pApp->ui.pcgwValue = (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
+                                            ?   std::to_wstring (pApp->id)
+                                            : SK_UTF8ToWideChar (pApp->names.original);
+
+  pApp->ui.pcgwLink  = ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
+                 :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
+                                                                : L"https://www.pcgamingwiki.com/w/index.php?search=")
+                                                                  + pApp->ui.pcgwValue;
+
+  // Steam Branches
+  pApp->ui.branches.clear ();
+  std::set <std::string> used_branches;
+  for ( auto& it : pApp->branches )
+  {
+    if (used_branches.emplace (it.first).second)
+    {
+      auto& branch =
+        it.second;
+
+      // TODO: Maybe split sort in public v. private?
+      
+      // Sort in descending order
+      pApp->ui.branches.emplace (
+        std::make_pair   (-(int64_t)branch.build_id,
+          std::make_pair (
+            it.first,
+            it.second
+          )
+        )
+      );
+    }
   }
 }
 
@@ -3527,7 +3618,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_Lib_SummaryCache& _cache      = SKIF_Lib_SummaryCache::GetInstance ( );
   
   static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
@@ -4188,19 +4278,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   bool isSpecialK = (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam);
 
-  struct game_worker_thread_s {
-    app_record_s  app;
-    std::set    < std::string >
-                  apptickets;
-    HANDLE        hWorker = NULL;
-    int           iWorker = 0;
-    int           cpu_pre = -1;
-    game_worker_thread_s (app_record_s app_) : app (app_) { };
-  };
-
-  static game_worker_thread_s* game_worker = nullptr;
-
-  // Update the injection strategy and cache for the selected game
+  // Update the injection strategy for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
   if (pApp != nullptr)
   {
@@ -4214,20 +4292,31 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // This eats references to _cache when it is being updated through a background thread
-    if (game_worker != nullptr && game_worker->iWorker == 1)
+    int availableWorker = -1;
+    int idx             = -1;
+
+    for (auto& worker : aGameWorkers)
     {
-      if (WaitForSingleObject (game_worker->hWorker, 0) == WAIT_OBJECT_0)
+      idx++;
+
+      if (worker.free)
+      {
+        availableWorker = idx;
+        continue;
+      }
+
+      if (WaitForSingleObject (worker.hWorker, 0) == WAIT_OBJECT_0)
       {
         for (auto& app : g_apps)
         {
-          if (app.second.id    == game_worker->app.id &&
-              app.second.store == game_worker->app.store)
+          if (app.second.id    == worker.app.id &&
+              app.second.store == worker.app.store)
           {
             // Backup the icon data (in particular any active worker data)
             app_record_s::tex_registry_s tex_icon = app.second.tex_icon;
 
             // Copy the results over
-            app.second = game_worker->app;
+            app.second = worker.app;
 
             // Restore the icon data (and worker data)
             app.second.tex_icon = tex_icon;
@@ -4238,7 +4327,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // If the CPU has changed, we need to update the metadata as well,
             //   but only if it differs from our cached value...
-            if (cpu_post != game_worker->cpu_pre &&
+            if (cpu_post != worker.cpu_pre &&
                 cpu_post != app.second.skif.cpu_type)
             {
               app.second.skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
@@ -4249,24 +4338,19 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        CloseHandle (game_worker->hWorker);
-        game_worker->hWorker = NULL;
-        game_worker->iWorker = 2;
-        game_worker->cpu_pre = -1;
+        CloseHandle (worker.hWorker);
 
-        delete game_worker;
-        game_worker = nullptr;
+        // Reset all values
+        worker = SKIF_Lib_GameWorkerThread_s();
       }
     }
 
-    else if (update                                  ||
-        selection.dir_watch.isSignaled ( )           || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-      (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
-       _cache.service     != _inject.bCurrentState   ||
-       _cache.running     !=  pApp->_status.running  ||
-       _cache.updating    !=  pApp->_status.updating ||
-       _cache.autostop    != _inject.bAckInj         ||
-       _inject.libCacheRefresh                       ) // If the global DLL files have been changed
+    // Only run this block of code if 
+    if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
+        (update                                        ||
+         selection.dir_watch.isSignaled ( )            || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+        (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
+        _inject.libCacheRefresh                       )) // If the global DLL files have been changed
     {
       _inject.libCacheRefresh = false;
 
@@ -4283,9 +4367,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       pApp->loading = true;
 
       // Make a copy of pApp that we will use to update all data
-      game_worker = new game_worker_thread_s (*pApp);
-      game_worker->apptickets = g_apptickets;
-      game_worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
+
+      SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
+      worker->app        = *pApp;
+      worker->apptickets = g_apptickets;
+      worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
 
       uintptr_t hWorkerThread =
         _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
@@ -4296,34 +4382,34 @@ SKIF_UI_Tab_DrawLibrary (void)
           //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
           //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-          PLOG_DEBUG << "SKIF_GameWorker thread started!";
+          //PLOG_DEBUG << "SKIF_GameWorker thread started!";
 
-          game_worker_thread_s* _data = static_cast<game_worker_thread_s*>(var);
+          SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
-          UpdateInjectionStrategy (&_data->app);
-          _cache.Refresh          (&_data->app, _data->apptickets);
+          UpdateInjectionStrategy (&_data->app, _data->apptickets);
       
           // Force a refresh when the game icons have finished being streamed
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-          PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
+          //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
 
           //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
           return 0;
-        }, game_worker, 0x0, nullptr);
+        }, worker, 0x0, nullptr);
 
       bool threadCreated = (hWorkerThread != 0);
 
       if (threadCreated)
       {
-        game_worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
-        game_worker->iWorker = 1;
+        worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+        worker->free = false;
       }
-      else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+
+      else // Someting went wrong during thread creation
       {
-        delete game_worker;
-        game_worker = nullptr;
+        // Reset all values
+        *worker = SKIF_Lib_GameWorkerThread_s();
       }
     }
 
@@ -5873,7 +5959,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     else {
-      bool localInjection        = (_cache.injection.type == SKIF_Lib_SummaryCache::CachedType::Local);
+      bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
       bool usingSK               = localInjection;
 
 
@@ -6057,8 +6143,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (uiSteamAppID != 0)
         {
-          PLOG_DEBUG << "Using Steam App ID : " << uiSteamAppID;
-          env.emplace       (L"SteamAppId",        wsSteamAppID);
+          PLOG_DEBUG << "Using Steam App ID : "  << uiSteamAppID;
+          env.emplace       (L"SteamAppId",         wsSteamAppID);
+          env.emplace       (L"SteamGameId",        wsSteamAppID);
+          env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
+          env.emplace       (L"EnableConfiguratorSupport", L"0");
           
           steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
 

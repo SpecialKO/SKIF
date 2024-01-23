@@ -936,15 +936,14 @@ void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring
 
 void SKIF_Shell_CreateJumpList (void)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
   CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
   CComPtr <IObjectArray>             pRemovedItems;                             // Not actually used since we don't carry custom destinations
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
   UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
-
-  TCHAR                                    szExePath[MAX_PATH + 2];
-  GetModuleFileName                 (NULL, szExePath, _countof(szExePath));     // Set the executable path
        
   // Create a jump list COM object.
   if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
@@ -962,9 +961,9 @@ void SKIF_Shell_CreateJumpList (void)
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-        pLink     ->SetPath         (szExePath);
+        pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments
-        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.
+        pLink     ->SetIconLocation (_path_cache.skif_executable, 1);           // Set the icon location.
         pLink     ->SetDescription  (L"Starts the injection service and\n"
                                      L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Service", &pv);
@@ -981,9 +980,9 @@ void SKIF_Shell_CreateJumpList (void)
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-        pLink     ->SetPath         (szExePath);
+        pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Start");                                 // Set the arguments
-        pLink     ->SetIconLocation (szExePath, 1);                             // Set the icon location.
+        pLink     ->SetIconLocation (_path_cache.skif_executable, 1);           // Set the icon location.
         pLink     ->SetDescription  (L"Starts the injection service but\n"
                                      L"does not stop it after injection.");     // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Start Service (manual stop)", &pv);
@@ -1000,9 +999,9 @@ void SKIF_Shell_CreateJumpList (void)
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-        pLink     ->SetPath         (szExePath);
+        pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Stop");                                  // Set the arguments
-        pLink     ->SetIconLocation (szExePath, 2);                             // Set the icon location.
+        pLink     ->SetIconLocation (_path_cache.skif_executable, 2);           // Set the icon location.
         pLink     ->SetDescription  (L"Stops the injection service");           // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Stop Service", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
@@ -1032,9 +1031,9 @@ void SKIF_Shell_CreateJumpList (void)
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-        pLink     ->SetPath         (szExePath);
+        pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"RunUpdater");                            // Set the arguments
-        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
+        pLink     ->SetIconLocation (_path_cache.skif_executable, 0);           // Set the icon location.
         pLink     ->SetDescription  (L"Checks for any available updates");      // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Check for Updates", &pv);
         pPropStore->SetValue                   (PKEY_Title, pv);                // Set the title property.
@@ -1066,9 +1065,9 @@ void SKIF_Shell_CreateJumpList (void)
       {
         CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-        pLink     ->SetPath         (szExePath);
+        pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Quit");                                  // Set the arguments
-        pLink     ->SetIconLocation (szExePath, 0);                             // Set the icon location.
+        pLink     ->SetIconLocation (_path_cache.skif_executable, 0);           // Set the icon location.
       //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
         InitPropVariantFromString   (L"Exit", &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
@@ -1097,10 +1096,10 @@ void SKIF_Shell_CreateJumpList (void)
 
 void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService)
 {
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
-  TCHAR                              szExePath[MAX_PATH + 2];
-  GetModuleFileName           (NULL, szExePath, _countof(szExePath));           // Set the executable path
 
   if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
   {
@@ -1122,7 +1121,7 @@ void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring 
       parameters = SK_FormatStringW (LR"("%ws" %ws)", path.c_str(), parameters.c_str());
     }
 
-    pLink     ->SetPath             (szExePath);                           // Point to SKIF.exe
+    pLink     ->SetPath             (_path_cache.skif_executable);         // Point to SKIF.exe
     pLink     ->SetArguments        (parameters.c_str());                  // Set the arguments
 
     if (! directory.empty())
