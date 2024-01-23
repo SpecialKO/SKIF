@@ -3813,7 +3813,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Load GOG titles from registry
       if (_registry.bLibraryGOG)
-        SKIF_GOG_GetInstalledAppIDs (&_data->apps);
+        SKIF_GOG_GetInstalledAppIDs  (&_data->apps);
 
       // Load Epic titles from disk
       if (_registry.bLibraryEpic)
@@ -4056,14 +4056,11 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (app.second.id    != SKIF_STEAM_APPID          &&
             app.second.store != app_record_s::Store::Xbox )
         {
-          std::wstring install_dir;
-
+          // This populates install_dir for Steam games
           if (app.second.store == app_record_s::Store::Steam)
-            install_dir = SK_UseManifestToGetInstallDir (&app.second);
-          else
-            install_dir = app.second.install_dir;
+            SK_UseManifestToGetInstallDir (&app.second);
           
-          if (! PathFileExists(install_dir.c_str()))
+          if (! PathFileExists (app.second.install_dir.c_str()))
           {
             PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has non-existent install folder; ignoring!";
 
@@ -6144,10 +6141,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (uiSteamAppID != 0)
         {
           PLOG_DEBUG << "Using Steam App ID : "  << uiSteamAppID;
-          env.emplace       (L"SteamAppId",         wsSteamAppID);
-          env.emplace       (L"SteamGameId",        wsSteamAppID);
-          env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
-          env.emplace       (L"EnableConfiguratorSupport", L"0");
+          env.emplace       (L"SteamAppId",         wsSteamAppID); // Dunno if one is the primary one...
+          env.emplace       (L"SteamGameId",        wsSteamAppID); //   ... so let's use both of them...
+        //env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
+        //env.emplace       (L"EnableConfiguratorSupport", L"0");
           
           steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
 

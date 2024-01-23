@@ -138,7 +138,6 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   WIN32_FIND_DATA ffd         = { };
   HANDLE          hFind       =
     FindFirstFileExW (wszPath, FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-  //FindFirstFileW   (wszPath, &fd);
 
   if (hFind == INVALID_HANDLE_VALUE) { return 0; }
 
@@ -178,8 +177,7 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
         pVFSRoot->addFile (ffd.cFileName);
 
 #ifdef _DEBUG
-      //OutputDebugStringW (pFile->getFullPath ().c_str ());
-      //OutputDebugStringW (L"\n");
+      PLOG_VERBOSE << pFile->getFullPath ();
 #endif
 
       ++found;
@@ -230,6 +228,9 @@ SK_Steam_GetInstalledAppIDs (void)
       // Scan the folder if we haven't already done so during this frame
       if (library.frame_last_scanned != SKIF_FrameCount)
       {   library.frame_last_scanned  = SKIF_FrameCount;
+
+        // Clear out any existing paths
+        library.manifest_vfs.clear();
 
         SK_VFS_ScanTree ( library.manifest_vfs,
                           library.path, L"appmanifest_*.acf", 0);
@@ -1166,15 +1167,9 @@ SK_UseManifestToGetDepotManifest (app_record_s *app, DepotId_t depot)
   return 0;
 }
 
-// Temporarily disabled since this gets triggered on game launch/shutdown as well...
 bool
 SKIF_Steam_isLibrariesSignaled (void)
 {
-  //static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
-  //if (! _registry.bLibrarySteam)
-  //  return false;
-
   bool isSignaled = false;
 
   steam_library_t* steam_lib_paths = nullptr;
@@ -1230,6 +1225,9 @@ SKIF_Steam_isLibrariesSignaled (void)
     {   library.frame_last_scanned  = SKIF_FrameCount;
 
       int prevCount = library.count;
+      
+      // Clear out any existing paths
+      library.manifest_vfs.clear();
 
       library.count =
         SK_VFS_ScanTree ( library.manifest_vfs,
@@ -1365,6 +1363,7 @@ SKIF_Steam_GetActiveProcess (void)
 }
 
 
+#if 0
 // Only used for Steam games!
 void
 SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
@@ -1693,6 +1692,8 @@ SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
      pApp->specialk.injection.config.shorthand;
   pApp->specialk.injection.config.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.full_path);
 }
+
+#endif
 
 std::wstring
 SKIF_Steam_GetAppStateString (       AppId_t  appid,

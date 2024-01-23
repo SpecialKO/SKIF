@@ -266,6 +266,15 @@ public:
            root = nullptr;
   }
 
+  // Resets the virtual filesystem
+  virtual void clear (void)
+  {
+    delete root;
+           root =
+    new Directory (L"( VFS Root )");
+           name =  L"Uninitialized VFS";
+  }
+
   operator vfsNode* (void) { return root; };
 
 protected:
