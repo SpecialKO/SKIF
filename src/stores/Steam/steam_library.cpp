@@ -42,66 +42,6 @@ DWORD         g_dwSteamProcessID = 0;
 
 extern std::atomic<int> SKIF_FrameCount;
 
-// {95FF906C-3D28-4463-B558-A4D1E5786767}
-const GUID IID_VFS_SteamUGC =
-{ 0x95ff906c, 0x3d28, 0x4463, { 0xb5, 0x58, 0xa4, 0xd1, 0xe5, 0x78, 0x67, 0x67 } };
-
-void*
-SK_VFS_Steam::WorkshopFile::getSubclass (REFIID iid)
-{
-  if (iid == IID_VFS_SteamUGC)
-    return this;
-
-  return
-    SK_VirtualFS::vfsNode::getSubclass (iid);
-}
-
-std::shared_ptr <SK_VFS_Steam::WorkshopFile>
-SK_VFS_Steam::UGC_RootFS::getPublishedFile (PublishedFileId_t id)
-{
-  auto find =
-    pub_id_to_file.find (id);
-
-  if (find != pub_id_to_file.end ( ))
-    return find->second;
-
-  return nullptr;
-}
-
-std::shared_ptr <SK_VFS_Steam::UGCFile>
-SK_VFS_Steam::UGC_RootFS::getUGCFile (UGCHandle_t handle)
-{
-  auto find =
-    ugc_handle_to_file.find (handle);
-
-  if (find != ugc_handle_to_file.end ( ))
-    return find->second;
-
-  return nullptr;
-
-}
-
-std::vector <std::shared_ptr <SK_VFS_Steam::WorkshopFile>>
-SK_VFS_Steam::WorkshopFile::getRequiredFiles (void)
-{
-  std::vector <std::shared_ptr <SK_VFS_Steam::WorkshopFile>>
-    list;
-
-  for (auto &id : depends.files)
-  {
-    auto file =
-      ugc_root.getPublishedFile (id);
-
-    if (file != nullptr)
-      list.push_back (file);
-  }
-
-  return
-    list;
-}
-
-SK_VFS_Steam::UGC_RootFS SK_VFS_Steam::ugc_root;
-
 // TODO: This whole thing really needs to be thread-safe, but it ain't...
 struct {
   std::atomic<int>    frame_last_scanned = 0; // 0 == not initialized nor scanned

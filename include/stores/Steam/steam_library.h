@@ -23,6 +23,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <vector>
+#include <stack>
 
 #include <stores/Steam/app_record.h>
 #include "utility/sk_utility.h"
@@ -31,7 +33,6 @@
 #include <utility/vfs.h>
 #include <stores/Steam/vdf.h>
 
-#include <vector>
 
 extern
   std::unique_ptr <skValveDataFile> appinfo;
@@ -44,86 +45,6 @@ struct SK_Steam_Depot {
   ManifestId_t manifest;
 };
 
-extern const GUID IID_VFS_SteamUGC;
-
-namespace SK_VFS_Steam
-{
-  class UGCFile : public SK_VirtualFS::File
-  {
-  public:
-    AppId_t  target_app;
-    uint64_t owner_id;
-  };
-
-  class WorkshopFile : public UGCFile
-  {
-  public:
-    void *getSubclass (REFIID iid) override;
-
-    std::vector <std::shared_ptr <WorkshopFile>>
-      getRequiredFiles (void);
-
-  protected:
-    PublishedFileId_t              published_id;
-
-    struct {
-      std::set <PublishedFileId_t> files;
-      std::set <AppId_t>           apps;
-    } depends;
-
-  private:
-  };
-
-  class UGC_RootFS : public SK_VirtualFS
-  {
-  public:
-    std::shared_ptr <WorkshopFile> getPublishedFile (PublishedFileId_t id);
-
-    std::shared_ptr <UGCFile> getUGCFile (UGCHandle_t handle);
-
-  protected:
-    std::unordered_map <PublishedFileId_t, std::shared_ptr <WorkshopFile>> pub_id_to_file;
-    std::unordered_map <UGCHandle_t,       std::shared_ptr <UGCFile>>      ugc_handle_to_file;
-
-  private:
-  };
-
-  //std::vector <std::shared_ptr <WorkshopFile>>
-  //  WorkshopFile::getRequiredFiles (void);
-
-  extern UGC_RootFS ugc_root;
-};
-
-//extern SK_VirtualFS manifest_vfs;
-
-int
-SK_VFS_ScanTree (SK_VirtualFS::vfsNode *pVFSRoot,
-                 wchar_t               *wszDir,
-                 wchar_t               *wszPattern        = L"*",
-                 int                     max_depth        = 1,
-                 int                         depth        = 0,
-                 SK_VirtualFS::vfsNode *pVFSImmutableRoot = nullptr
-);
-
-int
-SK_Steam_GetLibraries (steam_library_t **ppLibraries);
-
-std::vector <AppId_t>
-SK_Steam_GetInstalledAppIDs (void);
-
-std::wstring
-SK_Steam_GetApplicationManifestPath (app_record_s *app);
-
-std::wstring
-SK_Steam_GetLocalConfigPath (SteamId3_t userid);
-
-std::string
-SK_GetManifestContentsForAppID (app_record_s *app);
-
-std::string
-SK_GetLocalConfigForSteamUser (SteamId3_t userid);
-
-#include <stack>
 
 // Barely functional Steam Key/Value Parser
 //   -> Does not handle unquoted kv pairs.
@@ -309,22 +230,35 @@ public:
   }
 };
 
-const wchar_t *              SK_GetSteamDir                     (void);
-std::wstring                 SK_UseManifestToGetInstallDir      (app_record_s *app);
-std::string                  SK_UseManifestToGetAppName         (app_record_s *app);
-std::string                  SK_UseManifestToGetCurrentBranch   (app_record_s *app);
-std::string                  SK_UseManifestToGetAppOwner        (app_record_s *app);
-std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots          (app_record_s *app);
-ManifestId_t                 SK_UseManifestToGetDepotManifest   (app_record_s *app, DepotId_t depot);
-std::string                  SKIF_Steam_GetLaunchOptions        (AppId_t appid, SteamId3_t userid, app_record_s *app = nullptr);
-bool                         SKIF_Steam_PreloadUserLocalConfig  (SteamId3_t userid, std::vector <std::pair <std::string, app_record_s> > *apps, std::set <std::string> *apptickets);
-bool                         SKIF_Steam_isSteamOverlayEnabled   (AppId_t appid, SteamId3_t userid);
-bool                         SKIF_Steam_areLibrariesSignaled    (void);
-void                         SKIF_Steam_GetInstalledAppIDs      (std::vector <std::pair < std::string, app_record_s > > *apps);
-bool                         SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
-SteamId3_t                   SKIF_Steam_GetCurrentUser          (void);
-DWORD                        SKIF_Steam_GetActiveProcess        (void);
-void                         SKIF_Steam_GetInjectionStrategy    (app_record_s* pApp);
-std::wstring                 SKIF_Steam_GetAppStateString       (AppId_t  appid, const wchar_t *wszStateKey);
-wchar_t                      SKIF_Steam_GetAppStateDWORD        (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);
-bool                         SKIF_Steam_UpdateAppState          (app_record_s *pApp);
+int                          SK_VFS_ScanTree (SK_VirtualFS::vfsNode* pVFSRoot,
+                                                            wchar_t* wszDir,
+                                                            wchar_t* wszPattern        = L"*",
+                                                                int  max_depth         = 1,
+                                                                int      depth         = 0,
+                                              SK_VirtualFS::vfsNode* pVFSImmutableRoot = nullptr
+);
+int                          SK_Steam_GetLibraries               (steam_library_t **ppLibraries);
+std::vector <AppId_t>        SK_Steam_GetInstalledAppIDs         (void);
+std::wstring                 SK_Steam_GetApplicationManifestPath (app_record_s *app);
+std::wstring                 SK_Steam_GetLocalConfigPath         (SteamId3_t userid);
+std::string                  SK_GetManifestContentsForAppID      (app_record_s *app);
+std::string                  SK_GetLocalConfigForSteamUser       (SteamId3_t userid);
+const wchar_t *              SK_GetSteamDir                      (void);
+std::wstring                 SK_UseManifestToGetInstallDir       (app_record_s *app);
+std::string                  SK_UseManifestToGetAppName          (app_record_s *app);
+std::string                  SK_UseManifestToGetCurrentBranch    (app_record_s *app);
+std::string                  SK_UseManifestToGetAppOwner         (app_record_s *app);
+std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots           (app_record_s *app);
+ManifestId_t                 SK_UseManifestToGetDepotManifest    (app_record_s *app, DepotId_t depot);
+std::string                  SKIF_Steam_GetLaunchOptions         (AppId_t appid, SteamId3_t userid, app_record_s *app = nullptr);
+bool                         SKIF_Steam_PreloadUserLocalConfig   (SteamId3_t userid, std::vector <std::pair <std::string, app_record_s> > *apps, std::set <std::string> *apptickets);
+bool                         SKIF_Steam_isSteamOverlayEnabled    (AppId_t appid, SteamId3_t userid);
+bool                         SKIF_Steam_areLibrariesSignaled     (void);
+void                         SKIF_Steam_GetInstalledAppIDs       (std::vector <std::pair < std::string, app_record_s > > *apps);
+bool                         SKIF_Steam_HasActiveProcessChanged  (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
+SteamId3_t                   SKIF_Steam_GetCurrentUser           (void);
+DWORD                        SKIF_Steam_GetActiveProcess         (void);
+void                         SKIF_Steam_GetInjectionStrategy     (app_record_s* pApp);
+std::wstring                 SKIF_Steam_GetAppStateString        (AppId_t  appid, const wchar_t *wszStateKey);
+wchar_t                      SKIF_Steam_GetAppStateDWORD         (AppId_t  appid, const wchar_t *wszStateKey, DWORD *pdwStateVal);
+bool                         SKIF_Steam_UpdateAppState           (app_record_s *pApp);
