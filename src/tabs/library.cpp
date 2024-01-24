@@ -3709,7 +3709,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Check if any monitored platforms have been signaled
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
-    if (_registry.bLibrarySteam && (SKIF_Steam_isLibrariesSignaled ()))
+    if (_registry.bLibrarySteam && (SKIF_Steam_areLibrariesSignaled ()))
       RepopulateGames = true;
 
     if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))

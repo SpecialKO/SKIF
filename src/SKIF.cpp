@@ -98,7 +98,7 @@ bool  SKIF_Shutdown             = false;
 bool  SKIF_NoInternet           = false;
 int   SKIF_ExitCode             = 0;
 int   SKIF_nCmdShow             = -1;
-int   SKIF_FrameCount           = 0;
+std::atomic<int> SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
 DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
 bool  SteamOverlayDisabled      = false;
@@ -2031,7 +2031,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
     {
-      SKIF_FrameCount = ImGui::GetFrameCount ( );
+      SKIF_FrameCount.store(ImGui::GetFrameCount());
 
       ImRect rectCursorMonitor; // RepositionSKIF
 
