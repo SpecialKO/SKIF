@@ -1749,6 +1749,26 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::Separator ( );
       }
 
+      
+      if (pApp->store == app_record_s::Store::Xbox)
+      {
+        if (ImGui::Selectable (ICON_FA_TERMINAL "  Open Terminal"))
+        {
+          SKIF_Util_CreateProcess (
+            L"",
+            SK_FormatStringW (
+              LR"(powershell.exe -Command "$AppIndex = 0; $XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[$AppIndex].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
+              //SK_UTF8ToWideChar (pApp->Xbox_PackageName).c_str(),
+              SK_UTF8ToWideChar (pApp->Xbox_PackageFamilyName).c_str(),
+              L"cmd.exe"
+            ),
+            pApp->install_dir
+          );
+        }
+      }
+
+      SKIF_ImGui_SetHoverTip ("This invokes a terminal in the context of the desktop package.");
+
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
       if (ImGui::Selectable (ICON_FA_FINGERPRINT "  Copy ID"))
       {
