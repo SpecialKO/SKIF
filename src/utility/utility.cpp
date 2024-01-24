@@ -724,13 +724,14 @@ SKIF_Util_CreateProcess (
 
   // If a directory is not provided, retrieve the folder of the application we are about to launch
   if (! directory.empty())
+    data->directory    = directory;
+  else
   {
     wchar_t              wszExecutableBase [MAX_PATH] = { };
     StringCchCatW       (wszExecutableBase, MAX_PATH, path.data());
     PathRemoveFileSpecW (wszExecutableBase);
     data->directory    = wszExecutableBase;
-  } else
-    data->directory    = directory;
+  }
   
   if (env != nullptr)
     data->env = *env;
