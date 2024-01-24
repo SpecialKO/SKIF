@@ -695,8 +695,8 @@ SKIF_Util_CreateProcess (
                    SKIF_Util_CreateProcess_s* proc)
 {
   // We need a path at least!
-  if (path.empty())
-    return false;
+  //if (path.empty())
+  //  return false;
 
   struct thread_s {
     std::wstring path              = L"";
@@ -710,17 +710,25 @@ SKIF_Util_CreateProcess (
   thread_s* data = new thread_s;
 
   data->proc = proc;
-  data->path = path;
+
+  if (! path.empty ())
+    data->path = path;
 
   if (! parameters.empty())
     data->parameters = parameters;
 
   // We use a custom combination of <"path" parameter> because many apps expects the module name as the first arg (argv[0]),
   //   and as such ignores it when processing command line arguments, so not doing that could cause unexpected behaviour.
-  data->parameters_actual = (LR"(")" + std::wstring(path) + LR"(")");
+  if (! path.empty ())
+  {
+    data->parameters_actual = (LR"(")" + std::wstring(path) + LR"(")");
 
-  if (! parameters.empty())
-    data->parameters_actual += (LR"( )" + std::wstring(parameters));
+    if (! parameters.empty())
+      data->parameters_actual += (LR"( )" + std::wstring(parameters));
+  }
+  // If we have no path, forward the given parameters straight away
+  else if (! parameters.empty())
+    data->parameters_actual = data->parameters;
 
   // If a directory is not provided, retrieve the folder of the application we are about to launch
   if (! directory.empty())
@@ -773,13 +781,13 @@ SKIF_Util_CreateProcess (
       PLOG_INFO                                          << "Creating process...";
       PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
       PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
-      PLOG_DEBUG_IF (! _data->parameters_actual.empty()) << "Parameters (actual) : " << _data->parameters_actual;
+      PLOG_DEBUG_IF (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
       PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
       PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
 
       if (CreateProcessW (
-          (_data->path     .empty()) ? NULL : _data->path.c_str(),
-          (_data->path     .empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
+          (_data->path             .empty()) ? NULL : _data->path.c_str(),
+          (_data->parameters_actual.empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
           NULL,
           NULL,
           FALSE,
