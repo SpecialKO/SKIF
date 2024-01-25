@@ -2701,6 +2701,9 @@ Cache=false)";
     loadingTimer = 0;
   }
 
+  ImVec2 posButton =
+     ImGui::GetCursorPos ( );
+
   if (loading || pApp->_status.running || pApp->_status.updating)
   {
     buttonLabel =               (loading) ? "Loading..." :
@@ -2713,9 +2716,6 @@ Cache=false)";
   // Disable the button for the injection service types if the servlets are missing
   if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
     SKIF_ImGui_PushDisableState ( );
-
-  ImVec2 posButton =
-     ImGui::GetCursorPos ( );
 
   // Horizontal center-align
   ImGui::SetCursorPosX (
@@ -2878,8 +2878,6 @@ Cache=false)";
     }
   }
 
-  ImGui::SetCursorPos (posButton);
-
   // Disable the button for the injection service types if the servlets are missing
   if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
     SKIF_ImGui_PopDisableState  ( );
@@ -2899,10 +2897,19 @@ Cache=false)";
   if (pApp->extended_config.vac.enabled == 1)
   {
     ImGui::SameLine ( );
-    ImGui::SetCursorPosY (50.0f + ImGui::GetStyle().FramePadding.y * SKIF_ImGui_GlobalDPIScale);
+    // Vertical center-align
+    ImGui::SetCursorPosY (
+       ImGui::GetCursorPosY ( ) +
+      ((50.0f * SKIF_ImGui_GlobalDPIScale) -
+       ImGui::GetFrameHeightWithSpacing()
+      ) / 2
+    );
+    //ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 50.0f + ImGui::GetStyle().FramePadding.y * SKIF_ImGui_GlobalDPIScale);
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
     SKIF_ImGui_SetHoverTip ("Warning: VAC protected game; injection is not recommended!");
   }
+
+  ImGui::SetCursorPos (posButton);
 
   ImGui::EndChildFrame ();
 }
