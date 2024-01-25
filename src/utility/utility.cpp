@@ -3016,6 +3016,9 @@ SKIF_RegistryWatch::reset (void)
 bool
 SKIF_RegistryWatch::isSignaled (void)
 {
+  if (_hEvent == NULL)
+    return false;
+
   bool signaled =
     WaitForSingleObjectEx (
       _hEvent, 0UL, FALSE

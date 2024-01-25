@@ -185,7 +185,7 @@ struct SKIF_DirectoryWatch
   
   void reset           (void);
 
-  HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE;
+  HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE; // If the FindFirstChangeNotification function fails, the return value is INVALID_HANDLE_VALUE.
   UITab        _waitTab             = UITab_None;
   std::wstring _path                = L"";
 
@@ -225,6 +225,6 @@ struct SKIF_RegistryWatch {
   } _init;
 
   HKEY    _hKeyBase    = { };
-  HANDLE  _hEvent      = INVALID_HANDLE_VALUE;
+  HANDLE  _hEvent      = NULL; // If the CreateEvent function fails, the return value is NULL.
   UITab   _waitTab     = UITab_None;
 };
