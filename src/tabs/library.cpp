@@ -1757,7 +1757,7 @@ DrawGameContextMenu (app_record_s* pApp)
           SKIF_Util_CreateProcess (
             L"",
             SK_FormatStringW (
-              LR"(powershell.exe -Command "$AppIndex = 0; $XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[$AppIndex].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
+              LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[0].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
               //SK_UTF8ToWideChar (pApp->Xbox_PackageName).c_str(),
               SK_UTF8ToWideChar (pApp->Xbox_PackageFamilyName).c_str(),
               L"cmd.exe"
