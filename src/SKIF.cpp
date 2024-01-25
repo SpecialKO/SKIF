@@ -1318,6 +1318,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   extern   CRITICAL_SECTION   CriticalSectionDbgHelp;
   InitializeCriticalSection (&CriticalSectionDbgHelp);
 
+  // Initialize
+  extern   CRITICAL_SECTION   VFSManifestSection;
+  InitializeCriticalSection (&VFSManifestSection);
+
   if (StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL)
   {
     if (::IsUserAnAdmin ( ))

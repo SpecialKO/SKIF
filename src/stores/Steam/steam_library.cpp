@@ -42,13 +42,15 @@ DWORD         g_dwSteamProcessID = 0;
 
 extern std::atomic<int> SKIF_FrameCount;
 
-// TODO: This whole thing really needs to be thread-safe, but it ain't...
-struct {
-  std::atomic<int>    frame_last_scanned = 0; // 0 == not initialized nor scanned
+CRITICAL_SECTION VFSManifestSection;
+
+// Thread safety is backed by the VFSManifestSection critical section
+struct derp {
+  int                 frame_last_scanned = 0; // 0 == not initialized nor scanned
   SKIF_DirectoryWatch watch;
-  SK_VirtualFS        manifest_vfs; // thread safety on this one ????
+  SK_VirtualFS        manifest_vfs;
   DWORD               signaled = 0;
-  std::atomic<int>    count    = 0;
+  int                 count    = 0;
   wchar_t             path [MAX_PATH + 2] = { };
   UINT_PTR            timer;
 } static steam_libraries[MAX_STEAM_LIBRARIES];
@@ -150,16 +152,16 @@ SK_Steam_GetInstalledAppIDs (void)
 
   if (steam_libs != 0)
   {
+    EnterCriticalSection (&VFSManifestSection);
+
     // Scan through the libraries first for all appmanifest files they contain
     for (int i = 0; i < steam_libs; i++)
     {
       auto& library =
         steam_libraries[i];
 
-      int frame_last_scanned_ = library.frame_last_scanned.load();
-
       // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
-      if (frame_last_scanned_ == 0)
+      if (library.frame_last_scanned == 0)
       {
         swprintf (library.path, MAX_PATH + 2,
                       LR"(%s\steamapps)",
@@ -169,18 +171,16 @@ SK_Steam_GetInstalledAppIDs (void)
       }
 
       // Scan the folder if we haven't already done so during this frame
-      if (frame_last_scanned_ != frame_count_)
+      if (library.frame_last_scanned != frame_count_)
       {
-        library.frame_last_scanned.store(frame_count_);
+        library.frame_last_scanned    = frame_count_;
 
         // Clear out any existing paths
         library.manifest_vfs.clear();
 
-        int count =
+        library.count =
           SK_VFS_ScanTree ( library.manifest_vfs,
                             library.path, L"appmanifest_*.acf", 0);
-
-        library.count.store (count);
       }
       
       SK_VirtualFS::vfsNode* pFolder =
@@ -209,6 +209,8 @@ SK_Steam_GetInstalledAppIDs (void)
         }
       }
     }
+
+    LeaveCriticalSection (&VFSManifestSection);
   }
   
   if (bHasSpecialK)
@@ -368,6 +370,8 @@ SK_GetManifestContentsForAppID (app_record_s *app)
     bool found = false;
     wchar_t    wszManifestFullPath [MAX_PATH + 2] = { };
 
+    EnterCriticalSection (&VFSManifestSection);
+
     for (int i = 0; i < steam_libs; i++)
     {
       auto& library =
@@ -401,6 +405,8 @@ SK_GetManifestContentsForAppID (app_record_s *app)
       if (found)
         break;
     }
+
+    LeaveCriticalSection (&VFSManifestSection);
 
     CHandle hManifest (
       CreateFileW ( wszManifestFullPath,
@@ -1137,15 +1143,16 @@ SKIF_Steam_areLibrariesSignaled (void)
   if (steam_libs == 0)
     return false;
 
+  if (! TryEnterCriticalSection (&VFSManifestSection))
+    return false;
+
   for (int i = 0; i < steam_libs; i++)
   {
     auto& library =
       steam_libraries[i];
 
-    int frame_last_scanned_ = library.frame_last_scanned.load();
-
     // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
-    if (frame_last_scanned_ == 0)
+    if (library.frame_last_scanned == 0)
     {
       swprintf (library.path, MAX_PATH,
                     LR"(%s\steamapps)",
@@ -1154,7 +1161,7 @@ SKIF_Steam_areLibrariesSignaled (void)
       library.timer = static_cast <UINT_PTR>(1983 + i); // 1983-1999
     }
 
-    bool countFiles = (frame_last_scanned_ == 0);
+    bool countFiles = (library.frame_last_scanned == 0);
 
     // If we detect any changes, delay checking the details for a couple of seconds 
     if (library.watch.isSignaled (library.path, true))
@@ -1175,24 +1182,23 @@ SKIF_Steam_areLibrariesSignaled (void)
 
     if (countFiles)
     {
-      library.frame_last_scanned.store(SKIF_FrameCount.load());
+      library.frame_last_scanned = SKIF_FrameCount.load();
 
-      int prevCount = library.count.load();
+      int prevCount = library.count;
       
       // Clear out any existing paths
       library.manifest_vfs.clear();
 
-      int count =
+      library.count =
         SK_VFS_ScanTree ( library.manifest_vfs,
                           library.path, L"appmanifest_*.acf", 0);
 
-      if (count != prevCount)
-      {
+      if (library.count != prevCount)
         isSignaled = true;
-        library.count.store(count);
-      }
     }
   }
+
+  LeaveCriticalSection (&VFSManifestSection);
 
   isInitialized = true;
 
