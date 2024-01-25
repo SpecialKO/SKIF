@@ -30,7 +30,7 @@
 #include <utility/injection.h>
 #include <HybridDetect.h>
 
-std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
+std::vector<HANDLE> vWatchHandles[UITab_COUNT];
 
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
@@ -2874,13 +2874,13 @@ SKIF_DirectoryWatch::reset (void)
     {
       for (auto& vWatchHandle : vWatchHandles)
       {
-        if (! vWatchHandle.second.empty())
-          vWatchHandle.second.erase(std::remove(vWatchHandle.second.begin(), vWatchHandle.second.end(), _hChangeNotification), vWatchHandle.second.end());
+        if (! vWatchHandle.empty())
+          vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hChangeNotification), vWatchHandle.end());
       }
     }
-    else if (! vWatchHandles[SKIF_Tab_Selected].second.empty())
+    else if (! vWatchHandles[SKIF_Tab_Selected].empty())
     {
-      vWatchHandles[SKIF_Tab_Selected].second.erase(std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].second.end());
+      vWatchHandles[SKIF_Tab_Selected].erase(std::remove(vWatchHandles[SKIF_Tab_Selected].begin(), vWatchHandles[SKIF_Tab_Selected].end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].end());
     }
   }
 
@@ -2919,11 +2919,11 @@ SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, bool bGlobalWai
         {
           for (auto& vWatchHandle : vWatchHandles)
           {
-            vWatchHandle.second.push_back (_hChangeNotification);
+            vWatchHandle.push_back (_hChangeNotification);
           }
         }
         else {
-          vWatchHandles[SKIF_Tab_Selected].second.push_back (_hChangeNotification);
+          vWatchHandles[SKIF_Tab_Selected].push_back (_hChangeNotification);
         }
       }
     }
@@ -2959,13 +2959,13 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
   reset ();
 
   if (_bGlobalWait && _hEvent != NULL)
-    vWatchHandles[SKIF_Tab_Selected].second.push_back(_hEvent);
+    vWatchHandles[SKIF_Tab_Selected].push_back(_hEvent);
 }
 
 SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
-  if (_bGlobalWait && _hEvent != NULL && ! vWatchHandles[SKIF_Tab_Selected].second.empty())
-    vWatchHandles[SKIF_Tab_Selected].second.erase (std::remove(vWatchHandles[SKIF_Tab_Selected].second.begin(), vWatchHandles[SKIF_Tab_Selected].second.end(), _hEvent), vWatchHandles[SKIF_Tab_Selected].second.end());
+  if (_bGlobalWait && _hEvent != NULL && ! vWatchHandles[SKIF_Tab_Selected].empty())
+    vWatchHandles[SKIF_Tab_Selected].erase (std::remove(vWatchHandles[SKIF_Tab_Selected].begin(), vWatchHandles[SKIF_Tab_Selected].end(), _hEvent), vWatchHandles[SKIF_Tab_Selected].end());
 
   RegCloseKey (_hKeyBase);
   CloseHandle (_hEvent);

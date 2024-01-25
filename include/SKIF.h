@@ -143,7 +143,7 @@ extern PopupState  AutoUpdatePopup;   // Show changelog from the latest auto-ins
 extern UITab       SKIF_Tab_Selected; // Current selected tab
 extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to
 
-extern std::pair<UITab, std::vector<HANDLE>> vWatchHandles[UITab_COUNT];
+extern std::vector<HANDLE> vWatchHandles[UITab_COUNT];
 
 extern HMODULE     hModSpecialK;     // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
 extern HWND        SKIF_ImGui_hWnd;  // Main ImGui platform window (aka the main window of SKIF)
