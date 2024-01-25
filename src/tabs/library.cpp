@@ -3737,24 +3737,28 @@ SKIF_UI_Tab_DrawLibrary (void)
   SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
 
   // Check if any monitored platforms have been signaled
+  // !!! The signal checks must be before the platform checks,
+  //       otherwise SKIF can end up with signaled objects that's never cleared !!!
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
-    if (_registry.bLibrarySteam && (SKIF_Steam_areLibrariesSignaled ()))
+    // Sets up a wait object on UITab_Library
+    if (SKIF_Steam_areLibrariesSignaled () && _registry.bLibrarySteam)
       RepopulateGames = true;
 
-    if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, UITab_Library))
+    // Sets up a wait object on UITab_Library
+    if (SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, UITab_Library) && _registry.bLibraryEpic)
       RepopulateGames = true;
     
-    if (_registry.bLibraryGOG)
-    {
-      if (SKIF_GOG_hasInstalledGamesChanged ( ))
-        RepopulateGames = true;
+    // Sets up a wait object on UITab_Library
+    if (SKIF_GOG_hasInstalledGamesChanged ( ) && _registry.bLibraryGOG)
+      RepopulateGames = true;
 
-      if (SKIF_GOG_hasGalaxySettingsChanged ( ))
-        SKIF_GOG_UpdateGalaxyUserID ( );
-    }
+    // Does not set up a wait object
+    if (_registry.bLibraryGOG && SKIF_GOG_hasGalaxySettingsChanged ( ))
+      SKIF_GOG_UpdateGalaxyUserID ( );
 
-    if (_registry.bLibraryXbox && SKIF_Xbox_hasInstalledGamesChanged ( ))
+    // Sets up a wait object on UITab_Library
+    if (SKIF_Xbox_hasInstalledGamesChanged ( ) && _registry.bLibraryXbox)
       RepopulateGames = true;
   }
 
