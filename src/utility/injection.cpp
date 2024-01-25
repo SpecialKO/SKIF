@@ -1296,7 +1296,8 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
 
 void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
 {
-  if (bHasServlet)
+  // Only run if we have a window and ImGui has been initialized
+  if (bHasServlet && SKIF_ImGui_hWnd != NULL && ImGui::GetCurrentContext() != NULL)
   {
     ui_game_summary.text        =
                       (active)  ? (bAckInj) ? "Waiting for game..." : "Running"
