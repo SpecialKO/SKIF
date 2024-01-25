@@ -454,9 +454,9 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   // Refresh things when visiting from another tab or when forced
-  if (SKIF_Tab_Selected != UITab_Settings               ||
-      RefreshSettingsTab                                ||
-      SKIF_DriverWatch.isSignaled (SKIFdrvFolder, true) ||
+  if (SKIF_Tab_Selected != UITab_Settings                         ||
+      RefreshSettingsTab                                          ||
+      SKIF_DriverWatch.isSignaled (SKIFdrvFolder, UITab_Settings) ||
       dwTriggerNewRefresh != 0 && dwTriggerNewRefresh < SKIF_Util_timeGetTime ( )    )
   {
     GetMPOSupport         (    );

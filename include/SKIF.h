@@ -87,16 +87,6 @@ enum PopupState {
   PopupState_Opened
 };
 
-enum UITab {
-  UITab_None,
-  UITab_Library,
-  UITab_Monitor,
-  UITab_Settings,
-  UITab_About,
-  UITab_SmallMode,
-  UITab_COUNT      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
-};
-
 enum UIMode {
   UIMode_Normal,
   UIMode_VRR_Compatibility,
@@ -139,11 +129,6 @@ extern PopupState  ConfirmPopup;      // Library: show a confirm prompt with tex
 extern PopupState  UpdatePromptPopup; // App Mode: show an update prompt
 extern PopupState  HistoryPopup;      // Monitor / About: show a changelog popup
 extern PopupState  AutoUpdatePopup;   // Show changelog from the latest auto-installed update
-
-extern UITab       SKIF_Tab_Selected; // Current selected tab
-extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to
-
-extern std::vector<HANDLE> vWatchHandles[UITab_COUNT];
 
 extern HMODULE     hModSpecialK;     // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
 extern HWND        SKIF_ImGui_hWnd;  // Main ImGui platform window (aka the main window of SKIF)

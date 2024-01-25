@@ -1902,7 +1902,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     static SKIF_RegistryWatch
       dwmWatch ( HKEY_CURRENT_USER,
                    LR"(Control Panel\Desktop)",
-                     L"WinDesktopNotify", FALSE, REG_NOTIFY_CHANGE_LAST_SET, false, false, true);
+                     L"WinDesktopNotify", FALSE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, false, true);
 
     // When the registry is changed, update our internal state accordingly
     if (dwmWatch.isSignaled ( ))
@@ -2500,7 +2500,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)
-            SKIF_Tab_ChangeTo = UITab_None;
+              SKIF_Tab_ChangeTo  = UITab_None;
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
@@ -2550,7 +2550,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_Tab_Selected = UITab_About;
           if (SKIF_Tab_ChangeTo == UITab_About)
-            SKIF_Tab_ChangeTo = UITab_None;
+              SKIF_Tab_ChangeTo  = UITab_None;
 
           // About Tab
           SKIF_UI_Tab_DrawAbout   ( );
@@ -2750,7 +2750,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static SKIF_DirectoryWatch root_folder;
       static DWORD               root_folder_signaled = 0;
       const  DWORD               root_folder_auto_refresh = 1000;
-      if (root_folder.isSignaled (_path_cache.specialk_install, true, true))
+      if (root_folder.isSignaled (_path_cache.specialk_install, UITab_ALL))
       {
         root_folder_signaled = SKIF_Util_timeGetTime ( );
 

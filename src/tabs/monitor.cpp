@@ -650,7 +650,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_Tab_Selected = UITab_Monitor;
   if (SKIF_Tab_ChangeTo == UITab_Monitor)
-    SKIF_Tab_ChangeTo = UITab_None;
+      SKIF_Tab_ChangeTo  = UITab_None;
 
   // Triple-buffer updates so we can go lock-free
   //

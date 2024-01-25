@@ -154,7 +154,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
   static std::wstring servletDir = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
   static SKIF_DirectoryWatch servlet_folder;
 
-  if (servlet_folder.isSignaled (servletDir, false) || forcedCheck)
+  if (servlet_folder.isSignaled (servletDir) || forcedCheck)
   {
     dwLastSignaled = SKIF_Util_timeGetTime();
 

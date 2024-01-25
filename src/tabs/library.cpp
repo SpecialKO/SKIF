@@ -2404,13 +2404,13 @@ GetInjectionSummary (app_record_s* pApp)
       };
 
       // Directory watches -- updates the vectors automatically
-      if (SKIF_GlobalWatch.isSignaled (LR"(Global)", false) || runOnceDefaultPresets)
+      if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
       {
         runOnceDefaultPresets = false;
         DefaultPresets        = _FindPresets (DefaultPresetsFolder, L"default_*.ini");
       }
 
-      if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)", false) || runOnceCustomPresets)
+      if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
       {
         runOnceCustomPresets = false;
         CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
@@ -3742,7 +3742,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry.bLibrarySteam && (SKIF_Steam_areLibrariesSignaled ()))
       RepopulateGames = true;
 
-    if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, true))
+    if (_registry.bLibraryEpic && SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, UITab_Library))
       RepopulateGames = true;
     
     if (_registry.bLibraryGOG)
@@ -4315,7 +4315,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.dir_watch.reset ( );
 
       if (! pApp->install_dir.empty())
-        selection.dir_watch.isSignaled (pApp->install_dir, true);
+        selection.dir_watch.isSignaled (pApp->install_dir, UITab_Library);
     }
 
     // This eats references to _cache when it is being updated through a background thread

@@ -9,9 +9,26 @@
 #include <atlbase.h>
 #include <Tlhelp32.h>
 #include <processthreadsapi.h>
+#include <vector>
 
 #pragma comment(lib, "wininet.lib")
 
+// Stuff
+
+enum UITab {
+  UITab_None,
+  UITab_Library,
+  UITab_Monitor,
+  UITab_Settings,
+  UITab_About,
+  UITab_SmallMode,
+  UITab_ALL      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
+};
+
+extern UITab       SKIF_Tab_Selected; // Current selected tab
+extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to
+
+extern std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
 // Generic Utilities
 
@@ -154,8 +171,7 @@ struct SKIF_DirectoryWatch
 {
   SKIF_DirectoryWatch  (void) { };
   SKIF_DirectoryWatch  (std::wstring_view wstrPath,
-                                     bool bGlobalWait    = false,
-                                     bool bWaitAllTabs   = false,
+                                    UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   ~SKIF_DirectoryWatch (void);
@@ -163,22 +179,19 @@ struct SKIF_DirectoryWatch
   bool isSignaled      (void);
 
   bool isSignaled      (std::wstring_view wstrPath,
-                                     bool bGlobalWait    = false,
-                                     bool bWaitAllTabs   = false,
+                                    UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   
   void reset           (void);
 
-  HANDLE _hChangeNotification = INVALID_HANDLE_VALUE;
-  bool   _bGlobalWait         = false;
-  bool   _bWaitAllTabs        = false;
-  std::wstring _path          = L"";
+  HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE;
+  UITab        _waitTab             = UITab_None;
+  std::wstring _path                = L"";
 
 private:
   void registerNotify  (std::wstring_view wstrPath,
-                                     bool bGlobalWait    = false,
-                                     bool bWaitAllTabs   = false,
+                                    UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
 };
@@ -192,15 +205,15 @@ struct SKIF_RegistryWatch {
              const wchar_t* wszEventName,
                        BOOL bWatchSubtree  = TRUE,
                       DWORD dwNotifyFilter = REG_NOTIFY_CHANGE_LAST_SET,
-                       bool bGlobalWait    = false,
+                      UITab waitTab        = UITab_None,
                        bool bWOW6432Key    = false,  // Access a 32-bit key from either a 32-bit or 64-bit application.
                        bool bWOW6464Key    = false); // Access a 64-bit key from either a 32-bit or 64-bit application.
 
-  ~SKIF_RegistryWatch (void);
+  ~SKIF_RegistryWatch    (void);
 
   LSTATUS registerNotify (void);
-  void reset          (void);
-  bool isSignaled     (void);
+  void reset             (void);
+  bool isSignaled        (void);
 
   struct {
     HKEY         root        = { };
@@ -213,5 +226,5 @@ struct SKIF_RegistryWatch {
 
   HKEY    _hKeyBase    = { };
   HANDLE  _hEvent      = INVALID_HANDLE_VALUE;
-  bool    _bGlobalWait = false;
+  UITab   _waitTab     = UITab_None;
 };

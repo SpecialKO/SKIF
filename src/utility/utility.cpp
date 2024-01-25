@@ -30,7 +30,7 @@
 #include <utility/injection.h>
 #include <HybridDetect.h>
 
-std::vector<HANDLE> vWatchHandles[UITab_COUNT];
+std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
@@ -2821,9 +2821,9 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
 
 // Directory Watch
 
-SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, UITab waitTab, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
-  registerNotify (wstrPath, bGlobalWait, bWaitAllTabs, bWatchSubtree, dwNotifyFilter);
+  registerNotify (wstrPath, waitTab, bWatchSubtree, dwNotifyFilter);
 }
 
 bool
@@ -2849,7 +2849,7 @@ SKIF_DirectoryWatch::isSignaled (void)
 }
 
 bool
-SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, UITab waitTab, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
   bool bRet = false;
 
@@ -2857,7 +2857,7 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, bool bGlobalWait, b
     bRet = isSignaled ( );
 
   else if (! wstrPath.empty())
-    registerNotify (wstrPath, bGlobalWait, bWaitAllTabs, bWatchSubtree, dwNotifyFilter);
+    registerNotify (wstrPath, waitTab, bWatchSubtree, dwNotifyFilter);
 
   return bRet;
 }
@@ -2868,31 +2868,26 @@ SKIF_DirectoryWatch::reset (void)
   if (      _hChangeNotification != INVALID_HANDLE_VALUE)
     FindCloseChangeNotification (_hChangeNotification);
 
-  if (_bGlobalWait)
+
+  if (_waitTab == UITab_ALL)
   {
-    if (_bWaitAllTabs)
+    for (auto& vWatchHandle : vWatchHandles)
     {
-      for (auto& vWatchHandle : vWatchHandles)
-      {
-        if (! vWatchHandle.empty())
-          vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hChangeNotification), vWatchHandle.end());
-      }
-    }
-    else if (! vWatchHandles[SKIF_Tab_Selected].empty())
-    {
-      vWatchHandles[SKIF_Tab_Selected].erase(std::remove(vWatchHandles[SKIF_Tab_Selected].begin(), vWatchHandles[SKIF_Tab_Selected].end(), _hChangeNotification), vWatchHandles[SKIF_Tab_Selected].end());
+      if (! vWatchHandle.empty())
+        vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hChangeNotification), vWatchHandle.end());
     }
   }
+  else if (_waitTab != UITab_None && ! vWatchHandles[_waitTab].empty())
+    vWatchHandles[_waitTab].erase(std::remove(vWatchHandles[_waitTab].begin(), vWatchHandles[_waitTab].end(), _hChangeNotification), vWatchHandles[_waitTab].end());
 
   // Reset variables
   _hChangeNotification = INVALID_HANDLE_VALUE;
-  _bGlobalWait         = false;
-  _bWaitAllTabs        = false;
+  _waitTab             = UITab_None; // ?
   _path                = L"";
 }
 
 void
-SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, bool bGlobalWait, bool bWaitAllTabs, BOOL bWatchSubtree, DWORD dwNotifyFilter)
+SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, UITab waitTab, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
   if (! wstrPath.empty())
   {
@@ -2910,22 +2905,15 @@ SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, bool bGlobalWai
         _hChangeNotification
       );
 
-      _bGlobalWait  = bGlobalWait;
-      _bWaitAllTabs = bWaitAllTabs;
+      _waitTab  = waitTab;
 
-      if (_bGlobalWait)
+      if (_waitTab == UITab_ALL)
       {
-        if (_bWaitAllTabs)
-        {
-          for (auto& vWatchHandle : vWatchHandles)
-          {
-            vWatchHandle.push_back (_hChangeNotification);
-          }
-        }
-        else {
-          vWatchHandles[SKIF_Tab_Selected].push_back (_hChangeNotification);
-        }
+        for (auto& vWatchHandle : vWatchHandles)
+          vWatchHandle.push_back (_hChangeNotification);
       }
+      else if (_waitTab != UITab_None)
+        vWatchHandles[_waitTab].push_back (_hChangeNotification);
     }
   }
 
@@ -2942,7 +2930,7 @@ SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
 
 // Registry Watch
 
-SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, bool bGlobalWait, bool bWOW6432Key, bool bWOW6464Key )
+SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, UITab waitTab, bool bWOW6432Key, bool bWOW6464Key )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
@@ -2950,7 +2938,7 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
   _init.filter_mask   = dwNotifyFilter;
   _init.wow64_32key   = bWOW6432Key;
   _init.wow64_64key   = bWOW6464Key;
-  _bGlobalWait        = bGlobalWait;
+  _waitTab            = waitTab;
 
   _hEvent             =
       CreateEvent ( nullptr, TRUE,
@@ -2958,14 +2946,36 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
 
   reset ();
 
-  if (_bGlobalWait && _hEvent != NULL)
-    vWatchHandles[SKIF_Tab_Selected].push_back(_hEvent);
+  if (_waitTab != UITab_None && _hEvent != NULL)
+    vWatchHandles[_waitTab].push_back(_hEvent);
+
+  if (_hEvent != NULL)
+  {
+    if (_waitTab == UITab_ALL)
+    {
+      for (auto& vWatchHandle : vWatchHandles)
+        vWatchHandle.push_back (_hEvent);
+    }
+    else if (_waitTab != UITab_None)
+      vWatchHandles[_waitTab].push_back (_hEvent);
+  }
 }
 
 SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
-  if (_bGlobalWait && _hEvent != NULL && ! vWatchHandles[SKIF_Tab_Selected].empty())
-    vWatchHandles[SKIF_Tab_Selected].erase (std::remove(vWatchHandles[SKIF_Tab_Selected].begin(), vWatchHandles[SKIF_Tab_Selected].end(), _hEvent), vWatchHandles[SKIF_Tab_Selected].end());
+  if (_hEvent != NULL)
+  {
+    if (_waitTab == UITab_ALL)
+    {
+      for (auto& vWatchHandle : vWatchHandles)
+      {
+        if (! vWatchHandle.empty())
+          vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hEvent), vWatchHandle.end());
+      }
+    }
+    else if (_waitTab != UITab_None && ! vWatchHandles[_waitTab].empty())
+      vWatchHandles[_waitTab].erase(std::remove(vWatchHandles[_waitTab].begin(), vWatchHandles[_waitTab].end(), _hEvent), vWatchHandles[_waitTab].end());
+  }
 
   RegCloseKey (_hKeyBase);
   CloseHandle (_hEvent);

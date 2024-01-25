@@ -201,7 +201,7 @@ SKIF_GOG_hasInstalledGamesChanged (void)
     static SKIF_RegistryWatch
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\GOG.com\Games)",
-                     L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, true, true);
+                     L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, UITab_Library, true);
   
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
@@ -221,7 +221,7 @@ SKIF_GOG_hasGalaxySettingsChanged (void)
     static SKIF_RegistryWatch
       appWatch ( HKEY_CURRENT_USER,
                    LR"(SOFTWARE\GOG.com\Galaxy\settings)",
-                     L"GOGGalaxyNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET, false);
+                     L"GOGGalaxyNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None);
   
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );

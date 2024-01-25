@@ -1164,7 +1164,7 @@ SKIF_Steam_areLibrariesSignaled (void)
     bool countFiles = (library.frame_last_scanned == 0);
 
     // If we detect any changes, delay checking the details for a couple of seconds 
-    if (library.watch.isSignaled (library.path, true))
+    if (library.watch.isSignaled (library.path, UITab_Library))
     {
       library.signaled = SKIF_Util_timeGetTime ( );
 
