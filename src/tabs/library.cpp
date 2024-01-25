@@ -2836,6 +2836,9 @@ Cache=false)";
               sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
                                   SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
                                   SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+              
+            PLOG_INFO                    << "Performing a ShellExecute call...";
+            PLOG_INFO_IF(! path.empty()) << "File      : " << path;
 
             // Attempt to run the downloaded installer,
             //   and delete it on failure
@@ -6321,10 +6324,10 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
                                   SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
               
-            PLOG_VERBOSE                       << "Performing a ShellExecute call...";
-            PLOG_VERBOSE_IF(! exePath.empty()) << "File      : " << exePath;
-            PLOG_VERBOSE_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
-            PLOG_VERBOSE_IF(! dirPath.empty()) << "Directory : " << dirPath;
+            PLOG_INFO                       << "Performing a ShellExecute call...";
+            PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
+            PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
+            PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
 
             // Attempt to execute the call
             if (ShellExecuteExW (&sexi))

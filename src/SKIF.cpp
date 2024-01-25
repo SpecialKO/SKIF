@@ -521,9 +521,9 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   if (workingDirectory.empty() || workingDirectory.find(L"system32") != std::wstring::npos)
     workingDirectory = std::filesystem::path(path).parent_path().wstring();
 
-  PLOG_VERBOSE                               << "Executable:        " << path;
-  PLOG_VERBOSE_IF (! proxiedCmdLine.empty()) << "Command Line Args: " << proxiedCmdLine;
-  PLOG_VERBOSE                               << "Working Directory: " << workingDirectory;
+  PLOG_INFO                               << "Executable:        " << path;
+  PLOG_INFO_IF (! proxiedCmdLine.empty()) << "Command Line Args: " << proxiedCmdLine;
+  PLOG_INFO                               << "Working Directory: " << workingDirectory;
 
   bool isLocalBlacklisted  = false,
        isGlobalBlacklisted = false;
@@ -608,7 +608,7 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
     cmdLineLower.erase (posArgumentStart, posArgumentEnd);
   }
 
-  PLOG_VERBOSE_IF(! argSKIF_URI_found.empty()) << "URI: " << argSKIF_URI_found;
+  PLOG_INFO_IF(! argSKIF_URI_found.empty()) << "URI: " << argSKIF_URI_found;
 
   if (! argSKIF_URI_found.empty())
   {

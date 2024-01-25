@@ -649,12 +649,12 @@ SKIF_Util_OpenURI (
 
   //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS
 
-  PLOG_VERBOSE                           << "Performing a ShellExecute call...";
-  PLOG_VERBOSE_IF(! path.empty())        << "File      : " << path;
-  PLOG_VERBOSE_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
-  PLOG_VERBOSE_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
-  PLOG_VERBOSE_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
-//PLOG_VERBOSE                           << "Flags     : " << flags;
+  PLOG_INFO                           << "Performing a ShellExecute call...";
+  PLOG_INFO_IF(! path.empty())        << "File      : " << path;
+  PLOG_INFO_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
+  PLOG_INFO_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
+  PLOG_INFO_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
+//PLOG_INFO                           << "Flags     : " << flags;
 
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
@@ -672,12 +672,12 @@ SKIF_Util_OpenURI (
 
   if (ShellExecuteExW (&sexi))
   {
-    PLOG_VERBOSE << "The operation was successful.";
+    PLOG_INFO << "The operation was successful.";
     ret = sexi.hInstApp;
   }
 
   else {
-    PLOG_VERBOSE << "The operation failed!";
+    PLOG_ERROR << "The operation failed!";
   }
 
   if (_registry._LoadedSteamOverlay)
