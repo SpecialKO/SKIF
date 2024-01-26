@@ -168,6 +168,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bWin11Corners          =   regKVWin11Corners           .getData ( );
 
   // Store libraries
+
+  iLibrarySort             =   regKVLibrarySort            .getData ( );
   
   if (regKVLibrarySteam.hasData())
     bLibrarySteam          =   regKVLibrarySteam           .getData ( );

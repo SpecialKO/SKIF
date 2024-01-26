@@ -336,7 +336,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
   // Add UNIX-style timestamp to ensure we don't get anything cached
   time_t ltime;
-  time (&ltime); 
+  time (&ltime);
 
   // Cannot be static as that would invalidate the whole purpose of the appended timestamp
          const std::wstring url_repo    = L"https://sk-data.special-k.info/repository.json?t=" + std::to_wstring (ltime);

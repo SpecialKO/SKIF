@@ -317,6 +317,10 @@ struct SKIF_RegistrySettings {
 
   // Integers
 
+  KeyValue <int> regKVLibrarySort =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Sort)" );
+
   KeyValue <int> regKVProcessRefreshInterval =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Process Refresh Interval)" );
@@ -425,6 +429,7 @@ struct SKIF_RegistrySettings {
   int iCheckForUpdates         = 1;   // 0 = Never,                       1 = Weekly,                 2 = On each launch
   int iAutoStopBehavior        = 1;   // 0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
   int iLogging                 = 4;   // 0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
+  int iLibrarySort             = 0;   // 0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
   int iProcessSort             = 0;   // 0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  = 2;   // 0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
   int iSDRMode                 = 0;   // 0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc

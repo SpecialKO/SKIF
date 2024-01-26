@@ -332,6 +332,59 @@ SearchAppsList (void)
 
 #pragma endregion
 
+
+// This sorts the app vector
+static void
+SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  // Sort first by name
+  std::sort ( apps->begin (),
+              apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+      return a.second.names.all_upper_alnum.compare(
+              b.second.names.all_upper_alnum
+      ) < 0;
+    }
+  );
+
+  // Apply any custom sort
+  switch (_registry.iLibrarySort)
+  {
+
+  case 1: // Sorting by used count
+    PLOG_VERBOSE << "Sorting by used count...";
+    std::sort ( apps->begin (),
+                apps->end   (),
+      []( const std::pair <std::string, app_record_s>& a,
+          const std::pair <std::string, app_record_s>& b ) -> int
+      {
+        return a.second.skif.uses >
+                b.second.skif.uses;
+      }
+    );
+    break;
+
+  case 2: // Sorting by last used
+    PLOG_VERBOSE << "Sorting by last used...";
+    std::sort ( apps->begin (),
+                apps->end   (),
+      []( const std::pair <std::string, app_record_s>& a,
+          const std::pair <std::string, app_record_s>& b ) -> int
+      {
+        return a.second.skif.used.compare(
+                b.second.skif.used
+        ) > 0;
+      }
+    );
+    break;
+  }
+}
+
+
 // This writes the Json object to the disk
 bool
 WriteJsonMetaDataFile (void)
@@ -371,7 +424,8 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
         { "CPU",      pApp->skif.cpu_type  },
         { "AutoStop", pApp->skif.auto_stop },
         { "Hidden",   pApp->skif.hidden    },
-        { "Uses",     pApp->skif.uses      }
+        { "Uses",     pApp->skif.uses      },
+        { "Used",     pApp->skif.used      }
       };
 
       if (pApp->store == app_record_s::Store::Steam ||
@@ -1548,6 +1602,11 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
 
           SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
+          
+          if (ImGui::MenuItem ("Last Used",                          pApp->skif.used.c_str()))
+            SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
+
+          SKIF_ImGui_SetHoverTip ("UNIX timestamp of when this game was last launched.");
 
           ImGui::PopID        ( );
         }
@@ -3749,7 +3808,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
 
   DWORD       current_time = SKIF_Util_timeGetTime ( );
-  bool        sort_changed = false;
+  static bool sort_changed = false;
   static bool update       = true;
   static bool populated    = false;
 
@@ -4017,6 +4076,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               int         keyAutoStop     =  0;
               int         keyHidden       =  0;
               int         keyUses         =  0;
+              std::string keyUsed         = "";
 
               if (key != nullptr && ! key.empty())
               {
@@ -4035,11 +4095,15 @@ SKIF_UI_Tab_DrawLibrary (void)
                 if (key.contains("Uses"))
                   keyUses        = key.at("Uses");
 
+                if (key.contains("Used"))
+                  keyUsed        = key.at("Used");
+
                 app.second.skif.name           = keyName;
                 app.second.skif.cpu_type       = keyCPU;
                 app.second.skif.auto_stop      = keyAutoStop;
                 app.second.skif.hidden         = keyHidden;
                 app.second.skif.uses           = keyUses;
+                app.second.skif.used           = keyUsed;
                 
                 if ((app.second.store == app_record_s::Store::Steam ||
                      app.second.store == app_record_s::Store::GOG) && key.contains("InstantPlay"))
@@ -4055,7 +4119,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                 { "CPU",      keyCPU      },
                 { "AutoStop", keyAutoStop },
                 { "Hidden",   keyHidden   },
-                { "Uses",     keyUses     }
+                { "Uses",     keyUses     },
+                { "Used",     keyUsed     }
               };
 
               if (app.second.store == app_record_s::Store::Steam ||
@@ -4190,17 +4255,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       PLOG_INFO << "Finished processing detected games...";
-    
-      std::sort ( _data->apps.begin (),
-                  _data->apps.end   (),
-        []( const std::pair <std::string, app_record_s>& a,
-            const std::pair <std::string, app_record_s>& b ) -> int
-        {
-          return a.second.names.all_upper_alnum.compare(
-                 b.second.names.all_upper_alnum
-          ) < 0;
-        }
-      );
+
+      SortApps (&_data->apps);
 
       //PLOG_INFO << "Apps were sorted!";
 
@@ -4936,6 +4992,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                    sort_changed &&
         (! ImGui::IsItemVisible ()) )
     {
+      sort_changed = false;
       selection.reset ( );
       change = true;
     }
@@ -5960,6 +6017,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
 
+    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_SORT).x,  ImGui::GetTextLineHeight()));
     ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
 
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
@@ -5980,6 +6038,59 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
     ImGui::PopStyleColor  ( );
+
+    ImGui::PushID ("#LibrarySort");
+
+    if (ImGui::BeginMenu("Sort by"))
+    {
+      constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
+
+      static bool bName       = (_registry.iLibrarySort == 0) ? true : false;
+      static bool bFrequently = (_registry.iLibrarySort == 1) ? true : false;
+      static bool bRecently   = (_registry.iLibrarySort == 2) ? true : false;
+
+      if (ImGui::MenuItem ("Alphabetical", spaces,  &bName     ))
+      {
+        _registry.iLibrarySort = 0;
+        
+        bFrequently = false;
+        bRecently   = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SortApps (&g_apps);
+        sort_changed = true;
+      }
+
+      if (ImGui::MenuItem ("Most played",  spaces, &bFrequently))
+      {
+        _registry.iLibrarySort = 1;
+
+        bName       = false;
+        bRecently   = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SortApps (&g_apps);
+        sort_changed = true;
+      }
+
+      SKIF_ImGui_SetHoverTip ("Sort by the number of launches of the game through this app.");
+
+      if (ImGui::MenuItem ("Last played",  spaces, &bRecently  ))
+      {
+        _registry.iLibrarySort = 2;
+        
+        bName       = false;
+        bFrequently = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SortApps (&g_apps);
+        sort_changed = true;
+      }
+
+      ImGui::EndMenu ( );
+    }
+
+    ImGui::PopID ( );
 
     ImGui::PushID ("#Platforms");
 
@@ -6053,6 +6164,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::SetCursorPos   (iconPos);
     ImGui::Text           (ICON_FA_SQUARE_PLUS);
     ImGui::Separator      ( );
+    ImGui::Text           (ICON_FA_SORT);
     ImGui::Text           (ICON_FA_GEARS);
     ImGui::Separator      ( );
     ImGui::Text           (ICON_FA_ROTATE_RIGHT);
@@ -6079,7 +6191,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
       bool usingSK               = localInjection;
 
-      // Increment the uses count
+      // Increment the uses count and used timestamp
+      time_t ltime;
+      time (&ltime);
+      pApp->skif.used = std::to_string(ltime);
       pApp->skif.uses++;
 
 
@@ -6568,8 +6683,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
         ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
 
-      // Update the db.json file with the new Uses count value
+      // Update the db.json file with the new Uses/Used values
       UpdateJsonMetaData (pApp, true);
+
+      // Ensure the sort order is updated as well
+      SortApps (&g_apps);
     }
 
     launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
