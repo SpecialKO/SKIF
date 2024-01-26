@@ -369,7 +369,9 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
       key = {
         { "Name",     pApp->skif.name      },
         { "CPU",      pApp->skif.cpu_type  },
-        { "AutoStop", pApp->skif.auto_stop }
+        { "AutoStop", pApp->skif.auto_stop },
+        { "Hidden",   pApp->skif.hidden    },
+        { "Uses",     pApp->skif.uses      }
       };
 
       if (pApp->store == app_record_s::Store::Steam ||
@@ -1194,8 +1196,8 @@ DrawGameContextMenu (app_record_s* pApp)
       
     ImGui::ItemSize    (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
 
-    if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
-      ImGui::Separator ( );
+    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
+    ImGui::Separator ( );
 
     if (pApp->store == app_record_s::Store::Steam)
     {
@@ -1208,6 +1210,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (desktopShortcutPossible)
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_PAPERCLIP).x, ImGui::GetTextLineHeight()));
+    
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.hidden == 1) ? ICON_FA_EYE : ICON_FA_EYE_SLASH).x, ImGui::GetTextLineHeight()));
 
     if (pApp->store == app_record_s::Store::Custom)
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_TRASH).x, ImGui::GetTextLineHeight()));
@@ -1219,8 +1223,8 @@ DrawGameContextMenu (app_record_s* pApp)
     if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
       ModifyGamePopup = PopupState_Open;
 
-    if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
-      ImGui::Separator ( );
+    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
+    ImGui::Separator ( );
 
     if (pApp->store == app_record_s::Store::Steam)
     {
@@ -1317,10 +1321,22 @@ DrawGameContextMenu (app_record_s* pApp)
         ConfirmPopup = PopupState_Open;
       }
     }
+    
+    constexpr char* labelHide   =   "Hide this game";
+    constexpr char* labelUnhide = "Unhide this game";
+    
+    if (ImGui::Selectable ((pApp->skif.hidden == 1) ? labelUnhide : labelHide, false, ImGuiSelectableFlags_SpanAllColumns))
+    {
+      pApp->skif.hidden =  (pApp->skif.hidden == 1) ? 0 : 1;
+
+      UpdateJsonMetaData  ( pApp, true);
+
+      RepopulateGames = true;
+    }
 
     if (pApp->store == app_record_s::Store::Custom)
     {
-      if (ImGui::Selectable ("Remove"))
+      if (ImGui::Selectable ("Remove", false, ImGuiSelectableFlags_SpanAllColumns))
         RemoveGamePopup = PopupState_Open;
     }
       
@@ -1333,8 +1349,8 @@ DrawGameContextMenu (app_record_s* pApp)
                 ICON_FA_GEARS
                           );
 
-    if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
-      ImGui::Separator ( );
+    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
+    ImGui::Separator ( );
 
     if (pApp->store == app_record_s::Store::Steam)
     {
@@ -1358,6 +1374,11 @@ DrawGameContextMenu (app_record_s* pApp)
                   ImColor   (200, 200, 200, 255),
                     ICON_FA_PAPERCLIP
                               );
+    
+    ImGui::TextColored (
+                ImColor   (200, 200, 200, 255),
+                  (pApp->skif.hidden == 1) ? ICON_FA_EYE : ICON_FA_EYE_SLASH
+                            );
 
     if (pApp->store == app_record_s::Store::Custom)
       ImGui::TextColored (
@@ -1519,6 +1540,14 @@ DrawGameContextMenu (app_record_s* pApp)
             if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
               SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
           }
+          
+          if (ImGui::MenuItem ("Visibility",  (pApp->skif.hidden) ?  "Hidden" :  "Visible"))
+            SKIF_Util_SetClipboardData   (    (pApp->skif.hidden) ? L"Hidden" : L"Visible");
+          
+          if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
+            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
+
+          SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
 
           ImGui::PopID        ( );
         }
@@ -2912,6 +2941,13 @@ Cache=false)";
   ImGui::SetCursorPos (posButton);
 
   ImGui::EndChildFrame ();
+
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
+      GameMenu       == PopupState_Closed &&
+      EmptySpaceMenu == PopupState_Closed)
+  {
+    EmptySpaceMenu = PopupState_Open;
+  }
 }
 
 #pragma endregion
@@ -3814,7 +3850,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       lib_worker_thread_s* _data = static_cast<lib_worker_thread_s*>(var);
 
       // Load Steam titles from disk
-      if (_registry.bLibrarySteam)
+      if (_registry.bLibrarySteam || _registry._LibraryHidden)
       {
         SKIF_Steam_GetInstalledAppIDs (&_data->apps);
       
@@ -3846,18 +3882,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Load GOG titles from registry
-      if (_registry.bLibraryGOG)
+      if (_registry.bLibraryGOG || _registry._LibraryHidden)
         SKIF_GOG_GetInstalledAppIDs  (&_data->apps);
 
       // Load Epic titles from disk
-      if (_registry.bLibraryEpic)
+      if (_registry.bLibraryEpic || _registry._LibraryHidden)
         SKIF_Epic_GetInstalledAppIDs (&_data->apps);
     
-      if (_registry.bLibraryXbox)
+      if (_registry.bLibraryXbox || _registry._LibraryHidden)
         SKIF_Xbox_GetInstalledAppIDs (&_data->apps);
 
       // Load custom SKIF titles from registry
-      if (_registry.bLibraryCustom)
+      if (_registry.bLibraryCustom || _registry._LibraryHidden)
         SKIF_GetCustomAppIDs (&_data->apps);
 
       PLOG_INFO << "Loading custom launch configs synchronously...";
@@ -3979,6 +4015,8 @@ SKIF_UI_Tab_DrawLibrary (void)
               int         keyCPU          =  0;
               int         keyInstantPlay  =  0;
               int         keyAutoStop     =  0;
+              int         keyHidden       =  0;
+              int         keyUses         =  0;
 
               if (key != nullptr && ! key.empty())
               {
@@ -3991,9 +4029,17 @@ SKIF_UI_Tab_DrawLibrary (void)
                 if (key.contains("AutoStop"))
                   keyAutoStop    = key.at("AutoStop");
 
+                if (key.contains("Hidden"))
+                  keyHidden      = key.at("Hidden");
+
+                if (key.contains("Uses"))
+                  keyUses        = key.at("Uses");
+
                 app.second.skif.name           = keyName;
                 app.second.skif.cpu_type       = keyCPU;
                 app.second.skif.auto_stop      = keyAutoStop;
+                app.second.skif.hidden         = keyHidden;
+                app.second.skif.uses           = keyUses;
                 
                 if ((app.second.store == app_record_s::Store::Steam ||
                      app.second.store == app_record_s::Store::GOG) && key.contains("InstantPlay"))
@@ -4007,7 +4053,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               key = {
                 { "Name",     keyName     },
                 { "CPU",      keyCPU      },
-                { "AutoStop", keyAutoStop }
+                { "AutoStop", keyAutoStop },
+                { "Hidden",   keyHidden   },
+                { "Uses",     keyUses     }
               };
 
               if (app.second.store == app_record_s::Store::Steam ||
@@ -4034,6 +4082,22 @@ SKIF_UI_Tab_DrawLibrary (void)
           {
             PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has no name; ignoring!";
 
+            app.second.id = 0;
+            continue;
+          }
+
+          // Hide any... uhm... hidden... games...
+          if (app.second.skif.hidden == 1 && ! _registry._LibraryHidden)
+          {
+            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has been hidden; ignoring!";
+
+            app.second.id = 0;
+            continue;
+          }
+
+          // Hide all non-hidden games if we are in "hidden mode", lol?
+          else if (app.second.skif.hidden == 0 && _registry._LibraryHidden)
+          {
             app.second.id = 0;
             continue;
           }
@@ -4884,8 +4948,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       selection.appid              = app.second.id;
       selection.store              = app.second.store;
       selected                     = true;
-      _registry.iLastSelectedGame  =      selection.appid;
-      _registry.iLastSelectedStore = (int)selection.store;
+
+      // Only update the last selected value if we're not in hidden view
+      if (! _registry._LibraryHidden)
+      {
+        _registry.iLastSelectedGame  =      selection.appid;
+        _registry.iLastSelectedStore = (int)selection.store;
+      }
 
       if (update)
       {
@@ -5918,25 +5987,31 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
 
-      if (ImGui::MenuItem ("Epic",  spaces, &_registry.bLibraryEpic))
+      static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
+      static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+      static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+      static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
+      static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
+
+      if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("GOG",   spaces, &_registry.bLibraryGOG))
+      if (ImGui::MenuItem ("GOG",   spaces, pbLibraryGOG,    (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Steam", spaces, &_registry.bLibrarySteam))
+      if (ImGui::MenuItem ("Steam", spaces, pbLibrarySteam,  (! _registry._LibraryHidden)))
       {
         _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Xbox",  spaces, &_registry.bLibraryXbox))
+      if (ImGui::MenuItem ("Xbox",  spaces, pbLibraryXbox,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
         RepopulateGames = true;
@@ -5944,9 +6019,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::Separator ( );
 
-      if (ImGui::MenuItem ("Custom",spaces, &_registry.bLibraryCustom))
+      if (ImGui::MenuItem ("Custom",spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Hidden games",spaces, &_registry._LibraryHidden))
+      {
+        pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
+        pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+        pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+        pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
+        pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
+
         RepopulateGames = true;
       }
 
@@ -5992,6 +6078,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     else {
       bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
       bool usingSK               = localInjection;
+
+      // Increment the uses count
+      pApp->skif.uses++;
 
 
       // SERVICE PREPARATIONS
@@ -6478,6 +6567,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Fallback for minimizing SKIF when not using SK if configured as such
       if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
         ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
+
+      // Update the db.json file with the new Uses count value
+      UpdateJsonMetaData (pApp, true);
     }
 
     launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
@@ -7141,6 +7233,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     static bool error = false;
     static int  cached_elevate_load = true;
     static bool cached_elevate      = false;
+    static int  cached_hidden_load  = true;
+    static bool cached_hidden       = false;
     static int  cached_auto_stop    = -1;
     static int  cached_instant_play = -1;
 
@@ -7148,15 +7242,21 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (cached_elevate_load)
       {
-        cached_elevate      = pApp->launch_configs[0].isElevated ( );
-        cached_elevate_load = false;
+        cached_elevate         = pApp->launch_configs[0].isElevated ( );
+        cached_elevate_load    = false;
+      }
+
+      if (cached_hidden_load)
+      {
+        cached_hidden          = (bool)pApp->skif.hidden;
+        cached_hidden_load     = false;
       }
 
       if (cached_auto_stop    == -1)
-        cached_auto_stop    = pApp->skif.auto_stop;
+        cached_auto_stop       = pApp->skif.auto_stop;
 
       if (cached_instant_play == -1)
-        cached_instant_play = pApp->skif.instant_play;
+        cached_instant_play    = pApp->skif.instant_play;
 
       if (pApp->store == app_record_s::Store::Custom)
       {
@@ -7388,7 +7488,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     );
     
     ImGui::TreePush        ("ManageGame_Miscellaneous");
+
     ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
+    ImGui::SameLine        ( );
+    ImGui::Spacing         ( );
+    ImGui::SameLine        ( );
+    ImGui::Checkbox        ("Hide this game###HideInLibrary", &cached_hidden);
+
     ImGui::TreePop         ( );
 
     SKIF_ImGui_Spacing ( );
@@ -7401,7 +7507,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::SetCursorPosX (fModifyGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
 
-    if (ImGui::Button  ("Update", vButtonSize))
+    if (ImGui::Button  ("Save", vButtonSize)) // Update
     {
       bool repopulate = false;
 
@@ -7411,6 +7517,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       pApp->skif.auto_stop    = cached_auto_stop;
       pApp->skif.instant_play = cached_instant_play;
+
+      if ((int)cached_hidden != pApp->skif.hidden)
+      {
+        repopulate            = true;
+        pApp->skif.hidden     = (int)cached_hidden;
+      }
 
       if (pApp->store == app_record_s::Store::Custom)
       {
@@ -7424,21 +7536,6 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, pApp->id);
           DeleteFile (SKIFCustomPath.c_str());
           SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
-        
-          // Clear variables
-          error = false;
-          strncpy (charName, "\0", MAX_PATH);
-          strncpy (charPath, "\0", MAX_PATH);
-          strncpy (charArgs, "\0", 500);
-
-          if (repopulate)
-          {
-            RepopulateGames = true;
-            update = true;
-          }
-
-          ModifyGamePopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ( );
         }
       }
 
@@ -7458,30 +7555,30 @@ SKIF_UI_Tab_DrawLibrary (void)
             repopulate      = true;
         }
 
-        if (UpdateJsonMetaData (pApp, true))
-        {
-          // Clear variables
-          error = false;
-          strncpy (charName, "\0", MAX_PATH);
-          cached_elevate_load = true;
-          cached_auto_stop    = -1;
-          cached_instant_play = -1;
-
-          if (repopulate)
-          {
-            RepopulateGames = true;
-            update = true;
-          }
-
-          ModifyGamePopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ( );
-        }
-        
-        else
-          error = true;
-
         changed_name = false;
       }
+
+      // Update any locally stored metadata
+      UpdateJsonMetaData (pApp, true);
+        
+      // Clear variables
+      error = false;
+      strncpy (charName, "\0", MAX_PATH);
+      strncpy (charPath, "\0", MAX_PATH);
+      strncpy (charArgs, "\0", 500);
+      cached_elevate_load = true;
+      cached_hidden_load  = true;
+      cached_auto_stop    = -1;
+      cached_instant_play = -1;
+
+      if (repopulate)
+      {
+        RepopulateGames = true;
+        update = true;
+      }
+
+      ModifyGamePopup = PopupState_Closed;
+      ImGui::CloseCurrentPopup ( );
     }
 
     SKIF_ImGui_DisallowMouseDragMove ( );
@@ -7503,6 +7600,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       strncpy (charPath, "\0", MAX_PATH);
       strncpy (charArgs, "\0", 500);
       cached_elevate_load = true;
+      cached_hidden_load  = true;
       cached_auto_stop    = -1;
       cached_instant_play = -1;
 

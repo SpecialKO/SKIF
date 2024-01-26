@@ -498,6 +498,7 @@ struct SKIF_RegistrySettings {
   bool _SuppressServiceNotification = false; // This is used in conjunction with _registry.bMinimizeOnGameLaunch to suppress the "Please start game" notification
   bool _ExitOnInjection             = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
   bool _sRGBColors                  = false;
+  bool _LibraryHidden               = false; // Do not show hidden games by default
 
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)
