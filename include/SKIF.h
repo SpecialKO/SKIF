@@ -122,6 +122,7 @@ struct SKIF_Signals { // Used for command line arguments
 // External declarations
 
 extern PopupState  ServiceMenu;       // Library / Service Mode: used to show an options menu for the service when right clicking
+extern PopupState  EmptySpaceMenu;    // Library: used to show an options menu for the library when right clicking around the play/service buttons
 extern PopupState  AddGamePopup;      // Library: show an  add  custom game prompt
 extern PopupState  RemoveGamePopup;   // Library: show a remove custom game prompt
 extern PopupState  ModifyGamePopup;   // Library: show a modify custom game prompt
