@@ -2605,10 +2605,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Status Bar at the bottom
         if (_registry.bUIStatusBar)
         {
+          ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+
           // Begin Add Game
           ImVec2 tmpPos = ImGui::GetCursorPos ( );
 
-          static bool btnHovered = false;
+          // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
+          ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
+
+          static bool btnHovered  = false;
+          static bool btnHovered2 = false;
           ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
           ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
           ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
@@ -2618,20 +2624,37 @@ wWinMain ( _In_     HINSTANCE hInstance,
           else
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
 
-          ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-
-          ImGui::PushItemFlag (ImGuiItemFlags_NoNav, true); // Prevents selecting the Add Game button with a keyboard or gamepad (fixes weird nav selection)
           if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
           {
             AddGamePopup = PopupState_Open;
             if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo = UITab_Library;
           }
-          ImGui::PopItemFlag  ( );
+
+          ImGui::PopStyleColor ( );
 
           btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
-          ImGui::PopStyleColor (4);
+          ImGui::SameLine      ( );
+
+          if (btnHovered2)
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
+          else
+            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+
+          if (SKIF_Tab_Selected == UITab_Library)
+          {
+            if (ImGui::Button   (ICON_FA_FILTER))
+              EmptySpaceMenu = PopupState_Open;
+          }
+
+          btnHovered2 = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+          ImGui::PopStyleColor ( );
+
+          ImGui::PopStyleColor (3);
+
+          ImGui::PopItemFlag   ( );
 
           ImGui::SetCursorPos(tmpPos);
           // End Add Game
@@ -2700,6 +2723,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_StatusBarHelp.clear ();
 
           // End Status Bar Text
+
+          ImGui::PopStyleVar ();
         }
       }
 
