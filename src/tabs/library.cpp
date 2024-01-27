@@ -482,6 +482,534 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
   return pApp->Steam_LaunchOption1;
 }
 
+#pragma region LaunchGame
+
+void
+LaunchGame (app_record_s* pApp)
+{
+//static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Not currently used
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  if (launchConfig == nullptr)
+    return;
+
+  DWORD current_time = SKIF_Util_timeGetTime ( );
+
+  if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
+      ! launchConfig->isExecutableFullPathValid ( ))
+  {
+    confirmPopupText = "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( );
+    ConfirmPopup     = PopupState_Open;
+  }
+
+  else {
+    bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
+    bool usingSK               = localInjection;
+
+    // Increment the uses count and used timestamp
+    time_t ltime;
+    time (&ltime);
+    pApp->skif.used = std::to_string(ltime);
+    pApp->skif.uses++;
+
+
+    // SERVICE PREPARATIONS
+
+
+    // Check if the injection service should be used
+    if (! usingSK)
+    {
+      bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
+            isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
+
+      usingSK = ! launchWithoutSK       &&
+                ! isLocalBlacklisted    &&
+                ! isGlobalBlacklisted;
+
+      if (usingSK)
+      {
+        // Whitelist the path if it haven't been already
+        if (pApp->store == app_record_s::Store::Xbox)
+        {
+          if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
+          {
+            if (_inject.WhitelistPattern (pApp->Xbox_PackageName))
+              _inject.SaveWhitelist ( );
+          }
+        }
+
+        else
+        {
+          if (launchConfig->isExecutableFullPathValid ( ) &&
+              _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
+            _inject.SaveWhitelist ( );
+        }
+
+        // Disable the first service notification
+        if (_registry.bMinimizeOnGameLaunch)
+          _registry._SuppressServiceNotification = true;
+      }
+
+      // Kickstart service if it is currently not running
+      if (usingSK && ! _inject.bCurrentState)
+        _inject._StartStopInject (false, true, launchConfig->isElevated( ), pApp->skif.auto_stop);
+
+      // Stop the service if the user attempts to launch without SK
+      else if (! usingSK && _inject.bCurrentState)
+        _inject._StartStopInject (true);
+    }
+
+    // Create the injection acknowledge events in case of a local injection
+    else {
+      _inject.SetInjectAckEx     (true);
+      _inject.SetInjectExitAckEx (true);
+    }
+
+
+    // LAUNCH PREPARATIONS
+
+
+    if (! launchInstant)
+    {
+      // Custom games always use instant launch
+      if (pApp->store == app_record_s::Store::Custom)
+        launchInstant = true;
+
+      // Fallback for GOG games if the Galaxy client is not installed
+      else if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
+        launchInstant = true;
+
+      // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
+      else if (! launchGameMenu)
+      {
+        // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
+        if (pApp->store == app_record_s::Store::Steam &&
+            (pApp->skif.instant_play == 1 || // Always use Instant Play
+            (pApp->skif.instant_play == 0 && _registry.bInstantPlaySteam)) // Use global default (and globally enabled)
+        && launchConfig->isExecutableFullPathValid ( ))
+          launchInstant = true;
+
+        if (pApp->store == app_record_s::Store::GOG   &&
+            (pApp->skif.instant_play == 1 || // Always use Instant Play
+            (pApp->skif.instant_play == 0 && _registry.bInstantPlayGOG))) // Use global default (and globally enabled)
+          launchInstant = true;
+      }
+    }
+
+
+    // LAUNCH PROCEDURES
+
+
+    // Launch Epic game
+    if (pApp->store == app_record_s::Store::Epic)
+    {
+      PLOG_VERBOSE << "Performing an Epic launch...";
+
+      // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+
+      std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
+      if (SKIF_Util_OpenURI (launchOptions) != 0)
+      {
+        // Don't check the running state for at least 7.5 seconds
+        pApp->_status.dwTimeDelayChecks = current_time + 7500;
+        pApp->_status.running           = true;
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+      }
+    }
+
+    // Launch Xbox game
+    else if (pApp->store == app_record_s::Store::Xbox)
+    {
+      PLOG_VERBOSE << "Performing an Xbox launch...";
+
+      if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L""))
+      {
+        // Don't check the running state for at least 7.5 seconds
+        pApp->_status.dwTimeDelayChecks = current_time + 7500;
+        pApp->_status.running           = true;
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+      }
+    }
+
+    // Instant Play
+    // - Custom games
+    // - GOG games when Galaxy is not installed
+    // - Prefer Instant Play for GOG
+    // - Prefer Instant Play for Steam
+    else if (launchInstant)
+    {
+      PLOG_VERBOSE << "Performing an instant launch...";
+
+      bool launchDecision       = true;
+
+      // We need to use proxy variables since we might remove a substring of the launch options
+      std::wstring cmdLine = launchConfig->getLaunchOptions();
+      bool useShellExecute = false; // This is in case a %COMMAND% Steam call is made
+
+      // Transform to lowercase
+      std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
+
+      const std::wstring argSKIF_SteamAppID       = L"skif_steamappid=";
+      size_t             posSKIF_SteamAppID_start = cmdLineLower.find (argSKIF_SteamAppID);
+
+      // For Steam games, we default to using the pApp->id value
+      uint32_t     uiSteamAppID = (pApp->store == app_record_s::Store::Steam) ? pApp->id : 0;
+      std::wstring wsSteamAppID = std::to_wstring(uiSteamAppID);
+
+      // Extract the SKIF_SteamAppID cmd line argument, if it exists
+      if (posSKIF_SteamAppID_start != std::wstring::npos)
+      {
+        size_t
+          posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
+
+        if (posSKIF_SteamAppID_end == std::wstring::npos)
+          posSKIF_SteamAppID_end    = cmdLineLower.length ( );
+
+        // Length of the substring to remove
+        posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
+
+        wsSteamAppID = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+
+        // Remove substring from the proxy variable
+        cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
+
+        // Try to convert the found string to an unsigned integer
+        try {
+          uiSteamAppID = std::stoi(wsSteamAppID);
+        }
+
+        catch (const std::exception& e)
+        {
+          UNREFERENCED_PARAMETER(e);
+          PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
+          uiSteamAppID = 0;
+        }
+      }
+
+      std::map<std::wstring, std::wstring> env;
+      bool steamOverlay = true;
+
+      if (uiSteamAppID != 0)
+      {
+        PLOG_DEBUG << "Using Steam App ID : "  << uiSteamAppID;
+        env.emplace       (L"SteamAppId",         wsSteamAppID); // Dunno if one is the primary one...
+        env.emplace       (L"SteamGameId",        wsSteamAppID); //   ... so let's use both of them...
+      //env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
+      //env.emplace       (L"EnableConfiguratorSupport", L"0");
+          
+        steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
+
+        if (! steamOverlay)
+        {
+          PLOG_DEBUG << "Disabling the Steam Overlay...";
+          env.emplace (L"SteamNoOverlayUIDrawing", L"1");
+        }
+
+        // If both of these are false, see if there is any custom Steam launch options to append...
+        if (! launchConfig->custom_skif &&
+            ! launchConfig->custom_user)
+        {
+          std::string steamLaunchOptions =
+            SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ), pApp);
+
+          if (pApp->store == app_record_s::Store::Steam)
+          {
+            pApp->Steam_LaunchOption  = steamLaunchOptions;
+            pApp->Steam_LaunchOption1 = ""; // Reset
+          }
+          
+          if (steamLaunchOptions.size() > 0)
+          {
+            PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
+
+            std::string steamLaunchOptionsLower =
+              SKIF_Util_ToLower (steamLaunchOptions);
+
+            std::string sSteam_Command = "%command%"; // Only for Steam games
+            size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
+
+            // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
+            if (! usingSK && steamLaunchOptionsLower.find("skif ") == 0)
+            {
+              launchDecision = false;
+
+              // Escape any percent signs (%) as otherwise ImGui won't be able to show the string properly
+              for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
+                        pos != std::string::npos;                      // Validate we're still in the string
+                        steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
+                        pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
+              { }
+                          
+              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
+                                  "\n"
+                                +  steamLaunchOptions + "\n"
+                                  "\n"
+                                  "Please change the launch options in Steam before trying again.";
+              ConfirmPopup     = PopupState_Open;
+
+              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
+            }
+
+            // Check if a %COMMAND% is a part of the launch options
+            // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
+            //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
+            else if (posSteam_Command_start != std::string::npos)
+            {
+              // Base is dev-specified executable
+              std::wstring newCmdLine = launchConfig->getExecutableFullPath ( );
+              std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
+
+              // Appended is dev-specified cmd line arguments
+              if (! cmdLine.empty())
+                newCmdLine += L" " + cmdLine;
+
+              // Replace %command% with the dev-specified exe and args
+              wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
+
+              // Swap in the result and flag to use shell execute
+              cmdLine = wsSteamLO;
+              useShellExecute = true;
+            }
+
+            // Append the launch command string with the one from Steam...
+            else {
+              // If the cmdLine is not empty, add a space as well
+              if (! cmdLine.empty())
+                cmdLine += L" ";
+
+              cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
+            }
+          }
+        }
+      }
+
+      if (launchDecision)
+      {
+        SKIF_Util_CreateProcess_s* proc = nullptr;
+        for (auto& item : iPlayCache)
+        {
+          if (item.id == 0)
+          {
+            proc           = &item;
+            proc->id       = pApp->id;
+            proc->store_id = (int)pApp->store;
+            break;
+          }
+        }
+
+        std::wstring dirPath =
+          (! launchConfig->working_dir.empty())
+              ? launchConfig->working_dir.c_str()
+              : launchConfig->getExecutableDir().c_str();
+
+        // This is a fallback for handling Steam's %COMMAND% scenarios
+        if (useShellExecute)
+        {
+          // Note that any new process will inherit SKIF's environment variables
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+
+          // Set any custom environment variables
+          for (auto& var : env)
+            SetEnvironmentVariable (var.first.c_str(), var.second.c_str());
+
+          // We need to split cmdLine between executable and parameters
+          // Example that we may get: (replace %COMMAND% with game executable and launch options)
+          // SKIF %COMMAND%
+          // "C:\Windows\System32\Notepad.exe" %COMMAND%
+          // and so on and so forth...
+
+          std::wstring exePath;
+            
+          // First position is a quotation mark, assume executable is surrounded in them...
+          if (cmdLine.find(L"\"") == 0)
+          {
+            exePath = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1);                  // Executable
+            cmdLine = cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos); // Parameters
+          }
+
+          // Go by spaces instead
+          else if (cmdLine.find(L" ") != std::wstring::npos) {
+            exePath = cmdLine.substr(0, cmdLine.find(L" "));                      // Executable
+            cmdLine = cmdLine.substr(cmdLine.find(L" ") + 1, std::wstring::npos); // Parameters
+          }
+
+          // Fallback: cmdLine only has a single non-spaces unquoted path to an executable
+          else {
+            exePath = cmdLine;
+            cmdLine = L"";
+          }
+
+          SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = exePath.c_str();
+            sexi.lpParameters = cmdLine.c_str();
+            sexi.lpDirectory  = dirPath.c_str();
+            sexi.nShow        = SW_SHOWNORMAL;
+            sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                                SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
+                                SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+              
+          PLOG_INFO                       << "Performing a ShellExecute call...";
+          PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
+          PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
+          PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
+
+          // Attempt to execute the call
+          if (ShellExecuteExW (&sexi))
+            proc->hProcess = sexi.hProcess;
+
+          else {
+            PLOG_ERROR << "Shell execute failed ?!";
+            PLOG_ERROR << SKIF_Util_GetErrorAsWStr ( );
+
+            proc->id       =  0;
+            proc->store_id = -1;
+          }
+
+          // Remove any custom environment variables
+          for (auto& var : env)
+            SetEnvironmentVariable (var.first.c_str(), NULL);
+
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+        }
+
+        // Main launcher
+        else if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
+                            cmdLine.c_str(),
+                            dirPath.c_str(),
+                              &env,
+                              proc
+          ))
+        {
+          if (pApp->store == app_record_s::Store::Steam)
+            cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+
+          // Trim any spaces at the end
+          cmdLine.erase (std::find_if (cmdLine.rbegin(), cmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), cmdLine.end());
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
+            launchConfig->getExecutableFullPath ( ),
+            cmdLine,
+            dirPath,
+            launchConfig->getExecutableFullPath ( ),
+            (! localInjection && usingSK));
+        }
+        
+        else {
+          PLOG_DEBUG << "Process creation failed ?!";
+
+          proc->id       =  0;
+          proc->store_id = -1;
+        }
+      }
+    }
+
+    // Launch GOG Galaxy game (default for GOG games since 2024-01-05)
+    else if (pApp->store == app_record_s::Store::GOG) // launchGalaxyGame
+    {
+      PLOG_VERBOSE << "Performing a GOG Galaxy launch...";
+
+      extern std::wstring GOGGalaxy_Path;
+      extern std::wstring GOGGalaxy_Folder;
+
+      // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+      std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
+
+      //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+      if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
+      {
+        // Don't check the running state for at least 7.5 seconds
+        pApp->_status.dwTimeDelayChecks = current_time + 7500;
+        pApp->_status.running           = true;
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+      }
+    }
+
+    // Launch Steam game (regular)
+    else if (pApp->store == app_record_s::Store::Steam)
+    {
+      PLOG_VERBOSE << "Performing a Steam launch...";
+
+      bool launchDecision = true;
+
+      // Check localconfig.vdf if user is attempting to launch without Special K 
+      if (! usingSK && ! localInjection)
+      {
+        pApp->Steam_LaunchOption  =
+          SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser ( ), pApp);
+        pApp->Steam_LaunchOption1 = ""; // Reset
+
+        if (pApp->Steam_LaunchOption.size() > 0)
+        {
+          if (SKIF_Util_ToLower (pApp->Steam_LaunchOption).find("skif ") == 0)
+          {
+            launchDecision = false;
+
+            std::string confirmCopy = pApp->Steam_LaunchOption;
+
+            // Escape any percent signs (%)
+            for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
+                      pos != std::string::npos;                  // Validate we're still in the string
+                      confirmCopy.insert      (pos, R"(%)"),  // Escape the character
+                      pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
+            { }
+                          
+            confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
+                                "\n"
+                              +  confirmCopy + "\n"
+                                "\n"
+                                "Please change the launch options in Steam before trying again.";
+            ConfirmPopup     = PopupState_Open;
+
+            PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
+          }
+        }
+      }
+
+      if (launchDecision)
+      {
+        // steam://run/1289310/          <- Always launches using the developer-specified primary launch configuration
+        // steam://launch/1289310/dialog <- For games with multiple launch configurations, opens the launch config dialog or uses the user-specified default launch configuration
+        std::wstring launchOptions = SK_FormatStringW (LR"(steam://launch/%d/dialog)", pApp->id);
+        if (SKIF_Util_OpenURI (launchOptions) != 0)
+        {
+          // Don't check the running state for at least 7.5 seconds
+          pApp->_status.dwTimeDelayChecks = current_time + 7500;
+          pApp->_status.running           = true;
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        }
+      }
+    }
+
+    else {
+      PLOG_ERROR << "No applicable launch option was found?!";
+    }
+
+    // Fallback for minimizing SKIF when not using SK if configured as such
+    if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
+      ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
+
+    // Update the db.json file with the new Uses/Used values
+    UpdateJsonMetaData (pApp, true);
+
+    // Ensure the sort order is updated as well
+    SortApps (&g_apps);
+  }
+}
+
+
+#pragma endregion
+
 
 #pragma region UpdateGameCover
 
@@ -729,7 +1257,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 }
 
 #pragma endregion
-
 
 
 #pragma region DrawGameContextMenu
@@ -6180,515 +6707,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if ((launchGame || launchGameMenu || launchInstant) &&
        pApp != nullptr && launchConfig != nullptr)
   {
-    if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
-       ! launchConfig->isExecutableFullPathValid ( ))
-    {
-      confirmPopupText = "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( );
-      ConfirmPopup     = PopupState_Open;
-    }
-
-    else {
-      bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
-      bool usingSK               = localInjection;
-
-      // Increment the uses count and used timestamp
-      time_t ltime;
-      time (&ltime);
-      pApp->skif.used = std::to_string(ltime);
-      pApp->skif.uses++;
-
-
-      // SERVICE PREPARATIONS
-
-
-      // Check if the injection service should be used
-      if (! usingSK)
-      {
-        bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
-             isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
-
-        usingSK = ! launchWithoutSK       &&
-                  ! isLocalBlacklisted    &&
-                  ! isGlobalBlacklisted;
-
-        if (usingSK)
-        {
-          // Whitelist the path if it haven't been already
-          if (pApp->store == app_record_s::Store::Xbox)
-          {
-            if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
-            {
-              if (_inject.WhitelistPattern (pApp->Xbox_PackageName))
-                _inject.SaveWhitelist ( );
-            }
-          }
-
-          else
-          {
-            if (launchConfig->isExecutableFullPathValid ( ) &&
-                _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
-              _inject.SaveWhitelist ( );
-          }
-
-          // Disable the first service notification
-          if (_registry.bMinimizeOnGameLaunch)
-            _registry._SuppressServiceNotification = true;
-        }
-
-        // Kickstart service if it is currently not running
-        if (usingSK && ! _inject.bCurrentState)
-          _inject._StartStopInject (false, true, launchConfig->isElevated( ), pApp->skif.auto_stop);
-
-        // Stop the service if the user attempts to launch without SK
-        else if (! usingSK && _inject.bCurrentState)
-          _inject._StartStopInject (true);
-      }
-
-      // Create the injection acknowledge events in case of a local injection
-      else {
-        _inject.SetInjectAckEx     (true);
-        _inject.SetInjectExitAckEx (true);
-      }
-
-
-      // LAUNCH PREPARATIONS
-
-
-      if (! launchInstant)
-      {
-        // Custom games always use instant launch
-        if (pApp->store == app_record_s::Store::Custom)
-          launchInstant = true;
-
-        // Fallback for GOG games if the Galaxy client is not installed
-        else if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
-          launchInstant = true;
-
-        // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
-        else if (! launchGameMenu)
-        {
-          // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
-          if (pApp->store == app_record_s::Store::Steam &&
-             (pApp->skif.instant_play == 1 || // Always use Instant Play
-             (pApp->skif.instant_play == 0 && _registry.bInstantPlaySteam)) // Use global default (and globally enabled)
-          && launchConfig->isExecutableFullPathValid ( ))
-            launchInstant = true;
-
-          if (pApp->store == app_record_s::Store::GOG   &&
-             (pApp->skif.instant_play == 1 || // Always use Instant Play
-             (pApp->skif.instant_play == 0 && _registry.bInstantPlayGOG))) // Use global default (and globally enabled)
-            launchInstant = true;
-        }
-      }
-
-
-      // LAUNCH PROCEDURES
-
-
-      // Launch Epic game
-      if (pApp->store == app_record_s::Store::Epic)
-      {
-        PLOG_VERBOSE << "Performing an Epic launch...";
-
-        // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-
-        std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
-        if (SKIF_Util_OpenURI (launchOptions) != 0)
-        {
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
-        }
-      }
-
-      // Launch Xbox game
-      else if (pApp->store == app_record_s::Store::Xbox)
-      {
-        PLOG_VERBOSE << "Performing an Xbox launch...";
-
-        if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L""))
-        {
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
-        }
-      }
-
-      // Instant Play
-      // - Custom games
-      // - GOG games when Galaxy is not installed
-      // - Prefer Instant Play for GOG
-      // - Prefer Instant Play for Steam
-      else if (launchInstant)
-      {
-        PLOG_VERBOSE << "Performing an instant launch...";
-
-        bool launchDecision       = true;
-
-        // We need to use proxy variables since we might remove a substring of the launch options
-        std::wstring cmdLine = launchConfig->getLaunchOptions();
-        bool useShellExecute = false; // This is in case a %COMMAND% Steam call is made
-
-        // Transform to lowercase
-        std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
-
-        const std::wstring argSKIF_SteamAppID       = L"skif_steamappid=";
-        size_t             posSKIF_SteamAppID_start = cmdLineLower.find (argSKIF_SteamAppID);
-
-        // For Steam games, we default to using the pApp->id value
-        uint32_t     uiSteamAppID = (pApp->store == app_record_s::Store::Steam) ? pApp->id : 0;
-        std::wstring wsSteamAppID = std::to_wstring(uiSteamAppID);
-
-        // Extract the SKIF_SteamAppID cmd line argument, if it exists
-        if (posSKIF_SteamAppID_start != std::wstring::npos)
-        {
-          size_t
-            posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
-
-          if (posSKIF_SteamAppID_end == std::wstring::npos)
-            posSKIF_SteamAppID_end    = cmdLineLower.length ( );
-
-          // Length of the substring to remove
-          posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
-
-          wsSteamAppID = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
-
-          // Remove substring from the proxy variable
-          cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
-
-          // Try to convert the found string to an unsigned integer
-          try {
-            uiSteamAppID = std::stoi(wsSteamAppID);
-          }
-
-          catch (const std::exception& e)
-          {
-            UNREFERENCED_PARAMETER(e);
-            PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
-            uiSteamAppID = 0;
-          }
-        }
-
-        std::map<std::wstring, std::wstring> env;
-        bool steamOverlay = true;
-
-        if (uiSteamAppID != 0)
-        {
-          PLOG_DEBUG << "Using Steam App ID : "  << uiSteamAppID;
-          env.emplace       (L"SteamAppId",         wsSteamAppID); // Dunno if one is the primary one...
-          env.emplace       (L"SteamGameId",        wsSteamAppID); //   ... so let's use both of them...
-        //env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
-        //env.emplace       (L"EnableConfiguratorSupport", L"0");
-          
-          steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
-
-          if (! steamOverlay)
-          {
-            PLOG_DEBUG << "Disabling the Steam Overlay...";
-            env.emplace (L"SteamNoOverlayUIDrawing", L"1");
-          }
-
-          // If both of these are false, see if there is any custom Steam launch options to append...
-          if (! launchConfig->custom_skif &&
-              ! launchConfig->custom_user)
-          {
-            std::string steamLaunchOptions =
-              SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ), pApp);
-
-            if (pApp->store == app_record_s::Store::Steam)
-            {
-              pApp->Steam_LaunchOption  = steamLaunchOptions;
-              pApp->Steam_LaunchOption1 = ""; // Reset
-            }
-          
-            if (steamLaunchOptions.size() > 0)
-            {
-              PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
-
-              std::string steamLaunchOptionsLower =
-                SKIF_Util_ToLower (steamLaunchOptions);
-
-              std::string sSteam_Command = "%command%"; // Only for Steam games
-              size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
-
-              // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
-              if (! usingSK && steamLaunchOptionsLower.find("skif ") == 0)
-              {
-                launchDecision = false;
-
-                // Escape any percent signs (%) as otherwise ImGui won't be able to show the string properly
-                for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
-                          pos != std::string::npos;                      // Validate we're still in the string
-                          steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
-                          pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
-                { }
-                          
-                confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
-                                    "\n"
-                                 +  steamLaunchOptions + "\n"
-                                    "\n"
-                                    "Please change the launch options in Steam before trying again.";
-                ConfirmPopup     = PopupState_Open;
-
-                PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
-              }
-
-              // Check if a %COMMAND% is a part of the launch options
-              // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
-              //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
-              else if (posSteam_Command_start != std::string::npos)
-              {
-                // Base is dev-specified executable
-                std::wstring newCmdLine = launchConfig->getExecutableFullPath ( );
-                std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
-
-                // Appended is dev-specified cmd line arguments
-                if (! cmdLine.empty())
-                  newCmdLine += L" " + cmdLine;
-
-                // Replace %command% with the dev-specified exe and args
-                wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
-
-                // Swap in the result and flag to use shell execute
-                cmdLine = wsSteamLO;
-                useShellExecute = true;
-              }
-
-              // Append the launch command string with the one from Steam...
-              else {
-                // If the cmdLine is not empty, add a space as well
-                if (! cmdLine.empty())
-                  cmdLine += L" ";
-
-                cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
-              }
-            }
-          }
-        }
-
-        if (launchDecision)
-        {
-          SKIF_Util_CreateProcess_s* proc = nullptr;
-          for (auto& item : iPlayCache)
-          {
-            if (item.id == 0)
-            {
-              proc           = &item;
-              proc->id       = pApp->id;
-              proc->store_id = (int)pApp->store;
-              break;
-            }
-          }
-
-          std::wstring dirPath =
-            (! launchConfig->working_dir.empty())
-                ? launchConfig->working_dir.c_str()
-                : launchConfig->getExecutableDir().c_str();
-
-          // This is a fallback for handling Steam's %COMMAND% scenarios
-          if (useShellExecute)
-          {
-            // Note that any new process will inherit SKIF's environment variables
-            if (_registry._LoadedSteamOverlay)
-              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-
-            // Set any custom environment variables
-            for (auto& var : env)
-              SetEnvironmentVariable (var.first.c_str(), var.second.c_str());
-
-            // We need to split cmdLine between executable and parameters
-            // Example that we may get: (replace %COMMAND% with game executable and launch options)
-            // SKIF %COMMAND%
-            // "C:\Windows\System32\Notepad.exe" %COMMAND%
-            // and so on and so forth...
-
-            std::wstring exePath;
-            
-            // First position is a quotation mark, assume executable is surrounded in them...
-            if (cmdLine.find(L"\"") == 0)
-            {
-              exePath = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1);                  // Executable
-              cmdLine = cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos); // Parameters
-            }
-
-            // Go by spaces instead
-            else if (cmdLine.find(L" ") != std::wstring::npos) {
-              exePath = cmdLine.substr(0, cmdLine.find(L" "));                      // Executable
-              cmdLine = cmdLine.substr(cmdLine.find(L" ") + 1, std::wstring::npos); // Parameters
-            }
-
-            // Fallback: cmdLine only has a single non-spaces unquoted path to an executable
-            else {
-              exePath = cmdLine;
-              cmdLine = L"";
-            }
-
-            SHELLEXECUTEINFOW
-              sexi              = { };
-              sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-              sexi.lpVerb       = L"OPEN";
-              sexi.lpFile       = exePath.c_str();
-              sexi.lpParameters = cmdLine.c_str();
-              sexi.lpDirectory  = dirPath.c_str();
-              sexi.nShow        = SW_SHOWNORMAL;
-              sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
-                                  SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
-                                  SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
-              
-            PLOG_INFO                       << "Performing a ShellExecute call...";
-            PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
-            PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
-            PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
-
-            // Attempt to execute the call
-            if (ShellExecuteExW (&sexi))
-              proc->hProcess = sexi.hProcess;
-
-            else {
-              PLOG_ERROR << "Shell execute failed ?!";
-              PLOG_ERROR << SKIF_Util_GetErrorAsWStr ( );
-
-              proc->id       =  0;
-              proc->store_id = -1;
-            }
-
-            // Remove any custom environment variables
-            for (auto& var : env)
-              SetEnvironmentVariable (var.first.c_str(), NULL);
-
-            if (_registry._LoadedSteamOverlay)
-              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-          }
-
-          // Main launcher
-          else if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
-                             cmdLine.c_str(),
-                             dirPath.c_str(),
-                                &env,
-                                proc
-            ))
-          {
-            if (pApp->store == app_record_s::Store::Steam)
-              cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
-
-            // Trim any spaces at the end
-            cmdLine.erase (std::find_if (cmdLine.rbegin(), cmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), cmdLine.end());
-
-            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-              launchConfig->getExecutableFullPath ( ),
-              cmdLine,
-              dirPath,
-              launchConfig->getExecutableFullPath ( ),
-              (! localInjection && usingSK));
-          }
-        
-          else {
-            PLOG_DEBUG << "Process creation failed ?!";
-
-            proc->id       =  0;
-            proc->store_id = -1;
-          }
-        }
-      }
-
-      // Launch GOG Galaxy game (default for GOG games since 2024-01-05)
-      else if (pApp->store == app_record_s::Store::GOG) // launchGalaxyGame
-      {
-        PLOG_VERBOSE << "Performing a GOG Galaxy launch...";
-
-        extern std::wstring GOGGalaxy_Path;
-        extern std::wstring GOGGalaxy_Folder;
-
-        // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
-
-        std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
-
-        //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-        if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
-        {
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
-        }
-      }
-
-      // Launch Steam game (regular)
-      else if (pApp->store == app_record_s::Store::Steam)
-      {
-        PLOG_VERBOSE << "Performing a Steam launch...";
-
-        bool launchDecision = true;
-
-        // Check localconfig.vdf if user is attempting to launch without Special K 
-        if (! usingSK && ! localInjection)
-        {
-          pApp->Steam_LaunchOption  =
-            SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser ( ), pApp);
-          pApp->Steam_LaunchOption1 = ""; // Reset
-
-          if (pApp->Steam_LaunchOption.size() > 0)
-          {
-            if (SKIF_Util_ToLower (pApp->Steam_LaunchOption).find("skif ") == 0)
-            {
-              launchDecision = false;
-
-              std::string confirmCopy = pApp->Steam_LaunchOption;
-
-              // Escape any percent signs (%)
-              for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
-                        pos != std::string::npos;                  // Validate we're still in the string
-                        confirmCopy.insert      (pos, R"(%)"),  // Escape the character
-                        pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
-              { }
-                          
-              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
-                                  "\n"
-                               +  confirmCopy + "\n"
-                                  "\n"
-                                  "Please change the launch options in Steam before trying again.";
-              ConfirmPopup     = PopupState_Open;
-
-              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
-            }
-          }
-        }
-
-        if (launchDecision)
-        {
-          // steam://run/1289310/          <- Always launches using the developer-specified primary launch configuration
-          // steam://launch/1289310/dialog <- For games with multiple launch configurations, opens the launch config dialog or uses the user-specified default launch configuration
-          std::wstring launchOptions = SK_FormatStringW (LR"(steam://launch/%d/dialog)", pApp->id);
-          if (SKIF_Util_OpenURI (launchOptions) != 0)
-          {
-            // Don't check the running state for at least 7.5 seconds
-            pApp->_status.dwTimeDelayChecks = current_time + 7500;
-            pApp->_status.running           = true;
-
-            SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
-          }
-        }
-      }
-
-      else {
-        PLOG_ERROR << "No applicable launch option was found?!";
-      }
-
-      // Fallback for minimizing SKIF when not using SK if configured as such
-      if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
-        ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
-
-      // Update the db.json file with the new Uses/Used values
-      UpdateJsonMetaData (pApp, true);
-
-      // Ensure the sort order is updated as well
-      SortApps (&g_apps);
-    }
+    LaunchGame         (pApp);
 
     launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
     launchGame       = false;
