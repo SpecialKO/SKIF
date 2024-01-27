@@ -522,7 +522,7 @@ LaunchGame (app_record_s* pApp)
     if (! usingSK)
     {
       bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
-            isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
+           isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
 
       usingSK = ! launchWithoutSK       &&
                 ! isLocalBlacklisted    &&
@@ -531,7 +531,8 @@ LaunchGame (app_record_s* pApp)
       if (usingSK)
       {
         // Whitelist the path if it haven't been already
-        if (pApp->store == app_record_s::Store::Xbox)
+        // Instant launches needs to fall back to the regular approach
+        if (pApp->store == app_record_s::Store::Xbox && ! launchInstant)
         {
           if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
           {
@@ -625,7 +626,54 @@ LaunchGame (app_record_s* pApp)
     {
       PLOG_VERBOSE << "Performing an Xbox launch...";
 
-      if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L""))
+      SKIF_Util_CreateProcess_s* proc = nullptr;
+      for (auto& item : iPlayCache)
+      {
+        if (item.id == 0)
+        {
+          proc           = &item;
+          proc->id       = pApp->id;
+          proc->store_id = (int)pApp->store;
+          break;
+        }
+      }
+      
+      HKEY hKey;
+      LSTATUS lsEnvKey = RegOpenKeyExW (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, &hKey); // Open the user environment variable block
+
+      if (ERROR_SUCCESS == lsEnvKey)
+      {
+        std::wstring wsName = SK_UTF8ToWideChar (pApp->names.original);
+
+        if (proc          != nullptr &&
+            ERROR_SUCCESS == RegSetValueExW (hKey, L"SKFriendlyName", 0, REG_SZ, (LPBYTE)wsName.data(),
+                                                                                  (DWORD)wsName.size() * sizeof(wchar_t)))
+        {
+          PLOG_VERBOSE << "Temporary added user env variable SKFriendlyName: " << wsName;
+          proc->envFriendlyName = true;
+
+          // No need to broadcast our user env variable change since it is only temporary
+          //SendMessageTimeout (HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM)"Environment", SMTO_BLOCK, 100, NULL);
+        }
+      }
+
+      if (launchInstant)
+      {
+        SKIF_Util_CreateProcess (
+          L"",
+          SK_FormatStringW (
+            LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
+            launchConfig->id,
+            SK_UTF8ToWideChar (pApp->Xbox_PackageFamilyName).c_str(),
+            launchConfig->getExecutableFullPath().c_str()
+          ),
+          pApp->install_dir,
+          nullptr,
+          proc
+        );
+      }
+
+      else if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L"", nullptr, proc))
       {
         // Don't check the running state for at least 7.5 seconds
         pApp->_status.dwTimeDelayChecks = current_time + 7500;
@@ -633,6 +681,21 @@ LaunchGame (app_record_s* pApp)
 
         SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
       }
+
+      if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
+      {
+        PLOG_DEBUG << "Process creation failed ?!";
+
+        proc->id              =  0;
+        proc->store_id        = -1;
+        proc->envFriendlyName = false;
+
+        if (ERROR_SUCCESS == lsEnvKey)
+          RegDeleteValueW (hKey, L"SKFriendlyName"); // Delete the temporary variable
+      }
+
+      if (ERROR_SUCCESS == lsEnvKey)
+        RegCloseKey     (hKey);
     }
 
     // Instant Play
@@ -1320,8 +1383,11 @@ DrawGameContextMenu (app_record_s* pApp)
     if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
       ImGui::Separator ( );
 
-    // If there is only one valid launch config (Steam and GOG games only)
-    if (pApp->ui.numSecondaryLaunchConfigs == 0 && (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
+    // If there is only one valid launch config (Steam, GOG, Xbox games only)
+    if (pApp->ui.numSecondaryLaunchConfigs == 0   &&
+       (pApp->store == app_record_s::Store::Steam ||
+        pApp->store == app_record_s::Store::GOG   ||
+        pApp->store == app_record_s::Store::Xbox))
     {
       if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
                             ((pApp->_status.running || pApp->_status.updating)
@@ -2353,6 +2419,17 @@ DrawGameContextMenu (app_record_s* pApp)
                   SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.branches_joined));
               }
 
+              if (pApp->store == app_record_s::Store::Xbox)
+              {
+                ImGui::Separator ( );
+          
+                ImGui::PushID       ("#Xbox");
+                ImGui::TextDisabled ("Xbox Data");
+                if (ImGui::MenuItem ("Application ID",          launch.Xbox_ApplicationId.c_str()))
+                  SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.Xbox_ApplicationId));
+                ImGui::PopID        ( );
+              }
+
               ImGui::EndMenu ();
             }
           }
@@ -2366,18 +2443,71 @@ DrawGameContextMenu (app_record_s* pApp)
       
       if (pApp->store == app_record_s::Store::Xbox)
       {
-        if (ImGui::Selectable (ICON_FA_TERMINAL "  Open Terminal"))
+        if (pApp->ui.numSecondaryLaunchConfigs == 0)
         {
-          SKIF_Util_CreateProcess (
-            L"",
-            SK_FormatStringW (
-              LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[0].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
-              //SK_UTF8ToWideChar (pApp->Xbox_PackageName).c_str(),
-              SK_UTF8ToWideChar (pApp->Xbox_PackageFamilyName).c_str(),
-              L"cmd.exe"
-            ),
-            pApp->install_dir
-          );
+          if (ImGui::Selectable (ICON_FA_TERMINAL "  Open Terminal###GameContextMenu_TerminalMenu"))
+          {
+            SKIF_Util_CreateProcess (
+              L"",
+              SKIF_Xbox_GetCustomLaunchCommandW (
+                pApp->launch_configs.begin()->second.id,
+                pApp->Xbox_PackageFamilyName,
+                "cmd.exe"
+              ),
+              pApp->install_dir
+            );
+          }
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+        }
+
+        else if (pApp->ui.numSecondaryLaunchConfigs > 0)
+        {
+          if (ImGui::BeginMenu (ICON_FA_TERMINAL "  Open Terminal###GameContextMenu_TerminalMenu"))
+          {
+            for (auto& _launch_cfg : pApp->launch_configs)
+            {
+              if (! _launch_cfg.second.valid ||
+                    _launch_cfg.second.duplicate_exe_args)
+                continue;
+
+              // Filter out launch configs requiring not owned DLCs
+              if (! _launch_cfg.second.owns_dlc)
+                continue;
+
+              auto& _launch = _launch_cfg.second;
+
+              char        szButtonLabel [256] = { };
+
+              sprintf_s ( szButtonLabel, 255,
+                            "%s###GameContextMenu_TerminalMenu-%d",
+                              _launch.getDescriptionUTF8().empty ()
+                                ? _launch.getExecutableFileNameUTF8().c_str ()
+                                : _launch.getDescriptionUTF8().c_str (),
+                              _launch.id);
+
+              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+
+              if (ImGui::Selectable (szButtonLabel))
+              {
+                SKIF_Util_CreateProcess (
+                  L"",
+                  SKIF_Xbox_GetCustomLaunchCommandW (
+                    _launch.id,
+                    pApp->Xbox_PackageFamilyName,
+                    "cmd.exe"
+                  ),
+                  pApp->install_dir
+                );
+              }
+
+              ImGui::PopStyleColor  ( );
+
+              SKIF_ImGui_SetMouseCursorHand ( );
+            }
+
+            ImGui::EndMenu ();
+          }
         }
       }
 
@@ -4210,8 +4340,23 @@ RefreshRunningApps (void)
               PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
               app.second._status.running = 0;
 
-              monitored_app.id       =  0;
-              monitored_app.store_id = -1;
+              // If an environment friendly name has been set, we also need to remove that one
+              if (monitored_app.envFriendlyName)
+              {
+                HKEY hKey;
+                // Open the user environment variable block
+                if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, &hKey))
+                {
+                  RegDeleteValueW (hKey, L"SKFriendlyName"); // Delete the temporary variable
+                  RegCloseKey     (hKey);
+                }
+
+                PLOG_VERBOSE << "Deleted temp user env variable SKFriendlyName";
+              }
+
+              monitored_app.id              =  0;
+              monitored_app.store_id        = -1;
+              monitored_app.envFriendlyName = false;
 
               CloseHandle (hProcess);
               hProcess = INVALID_HANDLE_VALUE;

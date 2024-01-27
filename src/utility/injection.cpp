@@ -1524,8 +1524,15 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
     if (StrStrIA (szExecutable, R"(SteamApps)")        != NULL ||
         StrStrIA (szExecutable, R"(Epic Games\)")      != NULL ||
         StrStrIA (szExecutable, R"(GOG Galaxy\Games)") != NULL ||
-        StrStrIA (szExecutable, R"(Origin Games\)")    != NULL  )
+        StrStrIA (szExecutable, R"(Origin Games\)")    != NULL )
       return true;
+
+    // Auto-detection of Xbox games added in Special K v 24.1.27.1
+    /* TODO: Some more testing is required here
+    if (SKIF_Util_CompareVersionStrings (SKVer32, L"24.1.27.1") >= 0 &&
+        StrStrIA (szExecutable, R"(\Content\)")        != NULL)
+      return true;
+    */
   }
 
   // Simplified variant of the internal blacklisting that SK performs

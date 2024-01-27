@@ -286,7 +286,11 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         lc.id = lid;
                         lc.valid = 1;
 
-                        std::string strAppID = app.attribute("Id").value();
+                        lc.Xbox_ApplicationId      = app.attribute("Id").value();
+                        std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
+
+                        if (! appDisplayName.empty())
+                          lc.description = SK_UTF8ToWideChar (appDisplayName);
 
                         if (config.load_file((record.install_dir + LR"(MicrosoftGame.config)").c_str()))
                         {
@@ -308,7 +312,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                           for (pugi::xml_node exe = xmlConfigRoot.child("ExecutableList").child("Executable"); exe; exe = exe.next_sibling("Executable"))
                           {
-                            if (exeCount == 1 || strAppID == exe.attribute("Id").value())
+                            if (exeCount == 1 || lc.Xbox_ApplicationId == exe.attribute("Id").value())
                             {
                               lc.executable = SK_UTF8ToWideChar (exe.attribute("Name").value());
 
@@ -317,6 +321,13 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                               {
                                 lc.executable_path = record.install_dir + lc.executable;
                                 lc.executable = lc.executable.substr(pos + 1);
+                              }
+
+                              std::string exeOverrideDisplayName = exe.attribute("OverrideDisplayName").value();
+                              if (! exeOverrideDisplayName.empty())
+                              {
+                                PLOG_VERBOSE << "Found override display name: " << exeOverrideDisplayName;
+                                lc.description = SK_UTF8ToWideChar (exeOverrideDisplayName);
                               }
                             }
                           }
@@ -342,8 +353,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         // Naively assume the first launch config has the more appropriate name
                         if (lid == 0)
                         {
-                          std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
-
                           if (! appDisplayName.empty() && appDisplayName.find("ms-resource") == std::string::npos)
                           {
                             record.names.normal   = appDisplayName;
@@ -521,4 +530,12 @@ SKIF_Xbox_hasInstalledGamesChanged (void)
   }
 
   return signal;
+}
+
+std::wstring
+SKIF_Xbox_GetCustomLaunchCommandW (int appId, std::string_view packageFamilyName, std::string_view customCommand)
+{
+  return SK_UTF8ToWideChar (SK_FormatString (
+          R"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%s' -Command '%s' -PreventBreakaway:$true")",
+          appId, packageFamilyName.data(), customCommand.data()));
 }

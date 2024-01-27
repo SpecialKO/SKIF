@@ -3,6 +3,7 @@
 #include <utility/fsutil.h>
 #include <vector>
 
-void        SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps);
-void        SKIF_Xbox_IdentifyAssetNew   (std::string PackageName, std::string StoreID);
-bool        SKIF_Xbox_hasInstalledGamesChanged (void);
+void         SKIF_Xbox_GetInstalledAppIDs       (std::vector <std::pair < std::string, app_record_s > > *apps);
+void         SKIF_Xbox_IdentifyAssetNew         (std::string PackageName, std::string StoreID);
+bool         SKIF_Xbox_hasInstalledGamesChanged (void);
+std::wstring SKIF_Xbox_GetCustomLaunchCommandW  (int appId, std::string_view packageFamilyName, std::string_view customCommand);

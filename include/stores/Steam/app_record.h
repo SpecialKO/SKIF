@@ -299,6 +299,7 @@ struct app_record_s {
     int          executable_path_valid = -1;
 
     std::wstring install_dir;
+    std:: string Xbox_ApplicationId; // e.g. HaloMCCShipping or HaloMCCShippingNoEAC
 
     std::wstring description;
     std:: string description_utf8;
@@ -384,7 +385,7 @@ struct app_record_s {
     std::wstring pcgwValue;
     std::wstring pcgwLink;
 
-    std::string   label_version; // type_version
+    std:: string label_version; // type_version
   } ui;
 
   struct specialk_config_s {
