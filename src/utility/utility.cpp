@@ -169,6 +169,32 @@ SKIF_Util_timeGetTime1 (void)
   return static_cast <DWORD> (-1);
 }
 
+// Converts Unix timestamp to a given human-friendly format (UTC)
+std::wstring
+SKIF_Util_timeGetTimeAsWStr (time_t time)
+{
+  wchar_t    wszSystemTime [64]  = { };
+  wchar_t    wszSystemDate [64]  = { };
+  wchar_t    wszFormatTime [128] = { };
+  SYSTEMTIME  stFormatTime       = { };
+  FILETIME    ftFormatTime       =
+    SK_Win32_time_t_to_FILETIME (time);
+
+  FileTimeToSystemTime ( &ftFormatTime, &stFormatTime );
+
+  // Uses Ex functions since Microsoft recommends this
+  // DATE_SHORTDATE solves | character in the date format caused by LTR / RTL markers that ImGui cannot handle properly
+  GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
+    &stFormatTime, NULL, wszSystemDate, 63, NULL);
+  GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
+    &stFormatTime, NULL, wszSystemTime, 63);
+
+  StringCchCatW (wszFormatTime, 127, wszSystemDate);
+  StringCchCatW (wszFormatTime, 127, L" ");
+  StringCchCatW (wszFormatTime, 127, wszSystemTime);
+
+  return std::wstring (wszFormatTime);
+}
 
 // A function that returns the current time as a string in a custom format
 // Not really necessary since PLOG can output to Visual Studio's debug output stream
@@ -187,7 +213,8 @@ SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
   std::time_t t       = std::chrono::system_clock::to_time_t(now_tp);
   std::tm* local_now  = std::localtime(&t);
 
-  for (wchar_t c : format) {
+  for (wchar_t c : format)
+  {
     switch (c) {
       case L'H':
         woss << std::setfill(L'0') << std::setw(2) << local_now->tm_hour;

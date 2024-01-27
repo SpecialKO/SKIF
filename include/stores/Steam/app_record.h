@@ -221,7 +221,8 @@ struct app_record_s {
     int        instant_play =  0; // 0 = use global default, 1 = always instant play, 2 = never instant play
     int           auto_stop =  0; // 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
     int                uses =  0; // Number of times game has been launched
-    std::string        used = ""; // Timestamp (in string) of when the game was last used
+    std::string        used = ""; // Unix timestamp (in string) of when the game was last used
+    std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
     int              hidden =  0; // Visibility
   } skif;
 
@@ -346,8 +347,8 @@ struct app_record_s {
 
     std::wstring getDescription     (void);
     std:: string getDescriptionUTF8 (void);
-    std::wstring getTimeAsCStr      (void) const;
-    std:: string getTimeAsCStrUTF8  (void);
+    std::wstring getTime            (void);
+    std:: string getTimeUTF8        (void);
   };
 
   

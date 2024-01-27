@@ -398,50 +398,23 @@ app_launch_config_s::isElevated (bool refresh)
 }
 
 std::wstring
-app_branch_record_s::getTimeAsCStr (void) const
+app_branch_record_s::getTime (void)
 {
   if (! time_string.empty ())
     return time_string;
 
-  wchar_t    wszSystemTime [64]  = { };
-  wchar_t    wszSystemDate [64]  = { };
-  wchar_t    wszBranchTime [128] = { };
-  SYSTEMTIME stBranchTime        = { };
-  FILETIME   ftBranchTime        =
-    SK_Win32_time_t_to_FILETIME (time_updated);
-
-  FileTimeToSystemTime ( &ftBranchTime, &stBranchTime );
-
-  /* Old method
-  GetDateFormat (LOCALE_USER_DEFAULT, DATE_AUTOLAYOUT,
-    &stBranchTime, nullptr, wszSystemTime, 63);
-  GetTimeFormat (LOCALE_USER_DEFAULT, TIME_NOSECONDS,
-    &stBranchTime, nullptr, wszSystemDate, 63);
-  */
-
-  // New method -- Uses Ex functions since Microsoft recommends this
-  // DATE_SHORTDATE solves | character in the date format caused by LTR / RTL markers that ImGui cannot handle properly
-  GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
-    &stBranchTime, NULL, wszSystemDate, 63, NULL);
-  GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
-    &stBranchTime, NULL, wszSystemTime, 63);
-
-  StringCchCatW (wszBranchTime, 127, wszSystemDate);
-  StringCchCatW (wszBranchTime, 127, L" ");
-  StringCchCatW (wszBranchTime, 127, wszSystemTime);
-
-  const_cast <std::wstring&> (time_string) = wszBranchTime;
+  time_string = SKIF_Util_timeGetTimeAsWStr (time_updated);
 
   return time_string;
 }
 
 std::string
-app_branch_record_s::getTimeAsCStrUTF8 (void)
+app_branch_record_s::getTimeUTF8 (void)
 {
   if (! time_string_utf8.empty ())
     return time_string_utf8;
 
-  time_string_utf8 = SK_WideCharToUTF8 (getTimeAsCStr());
+  time_string_utf8 = SK_WideCharToUTF8 (getTime());
 
   return time_string_utf8;
 }

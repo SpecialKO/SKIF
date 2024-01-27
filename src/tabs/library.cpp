@@ -346,7 +346,7 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
         const std::pair <std::string, app_record_s>& b ) -> int
     {
       return a.second.names.all_upper_alnum.compare(
-              b.second.names.all_upper_alnum
+             b.second.names.all_upper_alnum
       ) < 0;
     }
   );
@@ -363,7 +363,7 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
           const std::pair <std::string, app_record_s>& b ) -> int
       {
         return a.second.skif.uses >
-                b.second.skif.uses;
+               b.second.skif.uses;
       }
     );
     break;
@@ -376,7 +376,7 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
           const std::pair <std::string, app_record_s>& b ) -> int
       {
         return a.second.skif.used.compare(
-                b.second.skif.used
+               b.second.skif.used
         ) > 0;
       }
     );
@@ -510,7 +510,8 @@ LaunchGame (app_record_s* pApp)
     // Increment the uses count and used timestamp
     time_t ltime;
     time (&ltime);
-    pApp->skif.used = std::to_string(ltime);
+    pApp->skif.used           = std::to_string(ltime);
+    pApp->skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
     pApp->skif.uses++;
 
 
@@ -2130,10 +2131,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
           
-          if (ImGui::MenuItem ("Last Used",                          pApp->skif.used.c_str()))
+          if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
             SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
-
-          SKIF_ImGui_SetHoverTip ("UNIX timestamp of when this game was last launched.");
 
           ImGui::PopID        ( );
         }
@@ -2240,8 +2239,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
               if (branch.time_updated > 0)
               {
-                if (ImGui::MenuItem ("Last Update", branch.getTimeAsCStrUTF8().c_str()))
-                  SKIF_Util_SetClipboardData (branch.getTimeAsCStr());
+                if (ImGui::MenuItem ("Last Update", branch.getTimeUTF8().c_str()))
+                  SKIF_Util_SetClipboardData (branch.getTime());
               }
 
               if (ImGui::MenuItem ("Accessibility", branch.pwd_required ? "Private (password required)" : "Public"))
@@ -4631,6 +4630,10 @@ SKIF_UI_Tab_DrawLibrary (void)
                 app.second.skif.hidden         = keyHidden;
                 app.second.skif.uses           = keyUses;
                 app.second.skif.used           = keyUsed;
+
+                // Human-readable time format (local time)
+                time_t            ltime        = (time_t)strtol(keyUsed.c_str(), NULL, 10);
+                app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
                 
                 if ((app.second.store == app_record_s::Store::Steam ||
                      app.second.store == app_record_s::Store::GOG) && key.contains("InstantPlay"))
