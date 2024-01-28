@@ -5518,6 +5518,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   float fTopClearX = ImGui::CalcTextSize (ICON_FA_XMARK ).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x;
 
   bool showClearBtn = (charFilter[0] != '\0');
+  //static bool bFilterHovered = false;
 
   ImGui::BeginChild          ( "###AppListTopRow",
                                 ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight), (_registry.bUIBorders),
@@ -5533,18 +5534,31 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::Button         (ICON_FA_MAGNIFYING_GLASS);
   ImGui::PopItemFlag    ( );
   ImGui::SameLine ( );
-  ImGui::InputTextEx ("###SearchInput", "", charFilterTmp, MAX_PATH,
+  
+  ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+  ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
                       ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f), 0.0f),
-                      ImGuiInputTextFlags_None, 0, nullptr);
+                      ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
+  ImGui::PopStyleColor  ( ); // ImGuiCol_NavHighlight
 
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
-  bFilterActive = ImGui::IsItemActive();
+  // Ctrl+F should focus filter field
+  if (io.KeyCtrl && io.KeysDown['F'] && io.KeysDownDuration['F'] == 0.0f)
+  {
+    ImGui::ActivateItem (ImGui::GetID("###AppListFilterField"));
+    ImGui::SetFocusID   (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
+  }
 
-  ImGui::SameLine ( );
+  // This is required to prevent the InputTextEx from not being deselected when clicking empty space
+  SKIF_ImGui_DisallowMouseDragMove      ( );
+
+  bFilterActive  = ImGui::IsItemActive  ( );
 
   if (bFilterActive)
     allowShortcutCtrlA = false;
+
+  ImGui::SameLine ( );
 
   // Update filtered status if query has changed
   if (strncmp (charFilter, charFilterTmp, MAX_PATH) != 0)
@@ -5569,9 +5583,14 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // Needed to stop flickering on the same frame as the field is emptied
     bool justCleared = (charFilter[0] == '\0');
+    static bool btnClearHover = false;
 
     if (justCleared)
       ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0, 0, 0, 0));
+    else if (btnClearHover)
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
+    else
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
 
     if (ImGui::Button (ICON_FA_XMARK))
     {
@@ -5582,8 +5601,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         app.second.filtered = false;
     }
 
-    if (justCleared)
-      ImGui::PopStyleColor ( );
+    ImGui::PopStyleColor ( );
+
+    btnClearHover = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
     ImGui::SameLine ( );
   }
