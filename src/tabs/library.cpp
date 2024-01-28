@@ -5349,12 +5349,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
-  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)  // (_registry.bUIBorders)   ? ImVec2 (218.0f, 328.0f) : ImVec2 (220.0f, 330.0f)
-                                                : ImVec2 (600.0f, 900.0f); // 2024-01-20: 186.67fx280 -> 220x330
-  ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)  ? ImVec2 (  0.0f, 334.0f) : ImVec2 (  0.0f, 332.0f)
-                                                : ImVec2 (  0.0f, 620.0f); // 2024-01-20: 280 -> 330
-  ImVec2 sizeDetails = (_registry.bHorizonMode) ? (_registry.bUIBorders)  ? ImVec2 (  0.0f, 332.0f) : ImVec2 (  0.0f, 330.0f)
-                                                : ImVec2 (  0.0f, 280.0f); // 2024-01-20: 280 -> 330
+  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)
+                                                : ImVec2 (600.0f, 900.0f);
+  ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)
+                                                ? ImVec2 (_WIDTH, 334.0f)  // Horizon + Borders
+                                                : ImVec2 (_WIDTH, 332.0f)  // Horizon
+                                                : ImVec2 (_WIDTH, 620.0f); // Regular
+  ImVec2 sizeDetails = (_registry.bHorizonMode) ? (_registry.bUIBorders)
+                                                ? ImVec2 (_WIDTH + 2.0f * SKIF_ImGui_GlobalDPIScale, 332.0f)  // Horizon + Borders
+                                                : ImVec2 (_WIDTH, 330.0f)  // Horizon
+                                                : ImVec2 (_WIDTH, 280.0f); // Regular
 
   // From now on ImGui UI calls starts being made...
 
@@ -5494,12 +5498,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Top option: Filter icon + search field
 
-  float fTop1 = ImGui::GetCursorPosY ( );
+  ImVec2 fTop1 = ImGui::GetCursorPos ( );
+
+  ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
+  ImGui::PushStyleVar       (ImGuiStyleVar_ChildBorderSize, 0.0f);
 
   ImGui::SetCursorPosX   (
     ImGui::GetCursorPosX ( )          +
-    ImGui::GetStyle().WindowPadding.x + 
-    3.0f * SKIF_ImGui_GlobalDPIScale
+    7.0f * SKIF_ImGui_GlobalDPIScale
   );
 
   ImGui::SetCursorPosY   (
@@ -5514,7 +5520,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool showClearBtn = (charFilter[0] != '\0');
 
   ImGui::BeginChild          ( "###AppListTopRow",
-                                ImVec2 (_WIDTH, fTopHeight), (_registry.bUIBorders),
+                                ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight), (_registry.bUIBorders),
                                     ImGuiWindowFlags_NavFlattened );
   
   ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
@@ -5602,7 +5608,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::EndChild ( );
 
-  float fTop2 = ImGui::GetCursorPosY ( );
+  ImGui::PopStyleVar ( ); // ImGuiStyleVar_ChildBorderSize
+  ImGui::PopStyleVar ( ); // ImGuiStyleVar_FrameBorderSize
+
+  ImVec2 fTop2 = ImGui::GetCursorPos ( );
 
   // End top options
 
@@ -5610,8 +5619,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
-                                ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop2 - fTop1) ), (_registry.bUIBorders),
+                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop2.y - fTop1.y) ), (_registry.bUIBorders),
                                     ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
@@ -6032,17 +6041,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (_registry.bHorizonMode)
   {
-    ImGui::SameLine ( );
+    //ImGui::SameLine ( );
+    //ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
 
-    ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
+    ImGui::SetCursorPos (ImVec2 (fTop1.x + sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f +
+                                           3.0f * SKIF_ImGui_GlobalDPIScale,
+                                 fTop1.y));
   }
 
 #pragma region GameDetails
 
   ImGui::BeginChild (
     "###AppListInset2",
-      ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-               sizeDetails.y * SKIF_ImGui_GlobalDPIScale), (_registry.bUIBorders),
+      ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                sizeDetails.y * SKIF_ImGui_GlobalDPIScale), (_registry.bUIBorders),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NavFlattened      |
