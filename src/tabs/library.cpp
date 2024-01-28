@@ -366,8 +366,8 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   // Sort first by name
-  std::sort ( apps->begin (),
-              apps->end   (),
+  std::stable_sort ( apps->begin (),
+                     apps->end   (),
     []( const std::pair <std::string, app_record_s>& a,
         const std::pair <std::string, app_record_s>& b ) -> int
     {
@@ -383,8 +383,8 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
 
   case 1: // Sorting by used count
     PLOG_VERBOSE << "Sorting by used count...";
-    std::sort ( apps->begin (),
-                apps->end   (),
+    std::stable_sort ( apps->begin (),
+                       apps->end   (),
       []( const std::pair <std::string, app_record_s>& a,
           const std::pair <std::string, app_record_s>& b ) -> int
       {
@@ -396,8 +396,8 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
 
   case 2: // Sorting by last used
     PLOG_VERBOSE << "Sorting by last used...";
-    std::sort ( apps->begin (),
-                apps->end   (),
+    std::stable_sort ( apps->begin (),
+                       apps->end   (),
       []( const std::pair <std::string, app_record_s>& a,
           const std::pair <std::string, app_record_s>& b ) -> int
       {
@@ -410,8 +410,8 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
   }
 
   // Then apply any pins
-  std::sort ( apps->begin (),
-              apps->end   (),
+  std::stable_sort ( apps->begin (),
+                     apps->end   (),
     []( const std::pair <std::string, app_record_s>& a,
         const std::pair <std::string, app_record_s>& b ) -> int
     {
@@ -4794,20 +4794,23 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
 
+        bool isSpecialK = (app.second.store == app_record_s::Store::Steam && app.second.id == SKIF_STEAM_APPID);
+
         // Steam handling...
-        if (app.second.store == app_record_s::Store::Steam)
+        // Special handling for non-Steam owners of Special K / SKIF
+        if (isSpecialK)
+        {
+          app.first              = "Special K";
+          app.second.skif.pinned = 2; // Default to pinned
+        }
+
+        // Regular handling for the remaining Steam games
+        else if (app.second.store == app_record_s::Store::Steam)
         { 
-          // Special handling for non-Steam owners of Special K / SKIF
-          if (app.second.id == SKIF_STEAM_APPID)
-            app.first = "Special K";
+          app.first.clear ();
 
-          // Regular handling for the remaining Steam games
-          else {
-            app.first.clear ();
-
-            if (SKIF_Steam_UpdateAppState (&app.second))
-              app.second._status.dwTimeLastChecked = SKIF_Util_timeGetTime1 ( ) + 333UL; // _RefreshInterval
-          }
+          if (SKIF_Steam_UpdateAppState (&app.second))
+            app.second._status.dwTimeLastChecked = SKIF_Util_timeGetTime1 ( ) + 333UL; // _RefreshInterval
         }
 
         // Only bother opening the application manifest
@@ -4815,9 +4818,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         //     the app is installed.
         if (app.second._status.installed)
         {
-          if (app.second.id == SKIF_STEAM_APPID)
-            app.second.skif.pinned = 2; // Special K defaults to pinned
-
           // Load any custom data
           if (! jsonMetaDB.is_discarded())
           {
@@ -4836,6 +4836,10 @@ SKIF_UI_Tab_DrawLibrary (void)
               int         keyUses         =  0;
               std::string keyUsed         = "";
               int         keyPinned       =  0;
+
+                // Special K defaults to pinned
+              if (isSpecialK)
+                keyPinned      = 2; // Needed as otherwise we'd overwrite it below
 
               if (key != nullptr && ! key.empty())
               {
@@ -4901,16 +4905,12 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
 
-          // Don't continue processing the below for Special K
-          if (app.second.id == SKIF_STEAM_APPID)
-            continue;
-
           if (! app.second.names.normal.empty ())
             app.first = app.second.names.normal;
 
           // Some games have an install state but no name,
           //   for those we have to consult the app manifest
-          else if (app.second.store == app_record_s::Store::Steam)
+          else if (app.second.store == app_record_s::Store::Steam && ! isSpecialK)
             app.first =
               SK_UseManifestToGetAppName (&app.second);
 
@@ -4933,7 +4933,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           // Hide all non-hidden games if we are in "hidden mode", lol?
-          else if (app.second.skif.hidden == 0 && _registry._LibraryHidden)
+          // Except for Special K, obviously
+          else if (app.second.skif.hidden == 0 && _registry._LibraryHidden && ! isSpecialK)
           {
             app.second.id = 0;
             continue;
@@ -4987,9 +4988,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.second.ImGuiPushID     = SK_FormatString("###%i-%i", (int)app.second.store, app.second.id);
         }
 
-        // Check if install folder exists (but not for SKIF)
-        if (app.second.id    != SKIF_STEAM_APPID          &&
-            app.second.store != app_record_s::Store::Xbox )
+        // Check if install folder exists (but not for Xbox games or Special K)
+        if (app.second.store != app_record_s::Store::Xbox && ! isSpecialK)
         {
           // This populates install_dir for Steam games
           if (app.second.store == app_record_s::Store::Steam)
@@ -5014,7 +5014,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Prepare for the keyboard hint / search/filter functionality
-        if ( app.second._status.installed || app.second.id == SKIF_STEAM_APPID)
+        if ( app.second._status.installed)
           InsertTrieKey (&app, &_data->labels);
       }
 
