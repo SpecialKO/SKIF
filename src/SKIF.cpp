@@ -675,6 +675,7 @@ SKIF_Startup_LaunchGame (void)
   {
     PLOG_INFO << "        Steam App ID : " << _Signal._SteamAppID;
     SetEnvironmentVariable (L"SteamAppId",    _Signal._SteamAppID.c_str());
+    SetEnvironmentVariable (L"SteamGameId",   _Signal._SteamAppID.c_str());
   }
 
   SHELLEXECUTEINFOW
@@ -693,7 +694,10 @@ SKIF_Startup_LaunchGame (void)
   ShellExecuteExW (&sexi);
 
   if (! _Signal._SteamAppID.empty ( ))
+  {
     SetEnvironmentVariable (L"SteamAppId",  NULL);
+    SetEnvironmentVariable (L"SteamGameId", NULL);
+  }
 
   // Set the new process as foreground window
   if (sexi.hInstApp  > (HINSTANCE)32 &&
