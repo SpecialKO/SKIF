@@ -76,6 +76,7 @@ std::atomic<uint32_t>  modAppId          = 0;
 char                   charFilter    [MAX_PATH + 2] = { };
 char                   charFilterTmp [MAX_PATH + 2] = { };
 bool                   bFilterActive     = false;
+bool                   sort_changed      = false;
 
 app_record_s::launch_config_s*
                        launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
@@ -407,6 +408,17 @@ SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
     );
     break;
   }
+
+  // Then apply any pins
+  std::sort ( apps->begin (),
+              apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+        return a.second.skif.pinned >
+               b.second.skif.pinned;
+    }
+  );
 }
 
 
@@ -450,7 +462,8 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
         { "AutoStop", pApp->skif.auto_stop },
         { "Hidden",   pApp->skif.hidden    },
         { "Uses",     pApp->skif.uses      },
-        { "Used",     pApp->skif.used      }
+        { "Used",     pApp->skif.used      },
+        { "Pin",      pApp->skif.pinned    }
       };
 
       if (pApp->store == app_record_s::Store::Steam ||
@@ -1093,6 +1106,7 @@ LaunchGame (app_record_s* pApp)
 
     // Ensure the sort order is updated as well
     SortApps (&g_apps);
+    sort_changed = true;
   }
 }
 
@@ -1867,7 +1881,9 @@ DrawGameContextMenu (app_record_s* pApp)
           pApp->store == app_record_s::Store::Custom ||
           pApp->store == app_record_s::Store::GOG);
       
-    ImGui::ItemSize    (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
+    
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
     ImGui::Separator ( );
@@ -1895,6 +1911,19 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
       ModifyGamePopup = PopupState_Open;
+
+    constexpr char* labelPin   =   "Pin";
+    constexpr char* labelUnpin = "Unpin";
+
+    if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
+    {
+      pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 1;
+
+      UpdateJsonMetaData  ( pApp, true);
+
+      SortApps (&g_apps);
+      sort_changed = true;
+    }
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
     ImGui::Separator ( );
@@ -1994,9 +2023,9 @@ DrawGameContextMenu (app_record_s* pApp)
         ConfirmPopup = PopupState_Open;
       }
     }
-    
-    constexpr char* labelHide   =   "Hide this game";
-    constexpr char* labelUnhide = "Unhide this game";
+
+    constexpr char* labelHide   =   "Hide";
+    constexpr char* labelUnhide = "Unhide";
     
     if (ImGui::Selectable ((pApp->skif.hidden == 1) ? labelUnhide : labelHide, false, ImGuiSelectableFlags_SpanAllColumns))
     {
@@ -2020,6 +2049,11 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::TextColored (
               ImColor   (200, 200, 200, 255),
                 ICON_FA_GEARS
+                          );
+    
+    ImGui::TextColored (
+                ImColor   (245, 66, 66, 255),
+                  (pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
                           );
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
@@ -2224,6 +2258,9 @@ DrawGameContextMenu (app_record_s* pApp)
           
           if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
             SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
+          
+          if (ImGui::MenuItem ("Pinned",             std::to_string (pApp->skif.pinned).c_str()))
+            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.pinned));
 
           ImGui::PopID        ( );
         }
@@ -2566,7 +2603,7 @@ DrawGameContextMenu (app_record_s* pApp)
 }
 
 void
-DrawSKIFContextMenu (app_record_s* pApp)
+DrawSpecialKContextMenu (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -2783,11 +2820,12 @@ DrawSKIFContextMenu (app_record_s* pApp)
   ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH).x, ImGui::GetTextLineHeight()));
 
   if (SKIF_STEAM_OWNER)
-  {
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
-  }
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
+
+  ImGui::Separator   ( );
+
+  ImGui::ItemSize    (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
+
   ImGui::EndGroup    ( );
   ImGui::SameLine    ( );
   ImGui::BeginGroup  ( );
@@ -2819,6 +2857,22 @@ DrawSKIFContextMenu (app_record_s* pApp)
                                       );
     }
   }
+
+  ImGui::Separator   ( );
+
+  constexpr char* labelPin   =   "Pin";
+  constexpr char* labelUnpin = "Unpin";
+
+  if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
+  {
+    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 2;
+
+    UpdateJsonMetaData  ( pApp, true);
+
+    SortApps (&g_apps);
+    sort_changed = true;
+  }
+
   ImGui::EndGroup      ( );
   ImGui::PopStyleColor ( );
 
@@ -2830,11 +2884,16 @@ DrawSKIFContextMenu (app_record_s* pApp)
                         );
 
   if (SKIF_STEAM_OWNER)
-  {
     ImGui::TextColored (
       (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
         ICON_FA_STEAM_SYMBOL );
-  }
+
+  ImGui::Separator   ( );
+
+  ImGui::TextColored (
+              ImColor   (245, 66, 66, 255),
+                (pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
+                       );
 }
 
 #pragma endregion
@@ -4504,7 +4563,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
 
   DWORD       current_time = SKIF_Util_timeGetTime ( );
-  static bool sort_changed = false;
   static bool update       = true;
   static bool populated    = false;
 
@@ -4617,14 +4675,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         app_record_s SKIF_record (SKIF_STEAM_APPID);
 
-        SKIF_record.id              = SKIF_STEAM_APPID;
-        SKIF_record.names.normal    = "Special K";
-        SKIF_record.names.all_upper = "SPECIAL K";
-        SKIF_record.install_dir     = _path_cache.specialk_install;
-        SKIF_record.store           = app_record_s::Store::Steam;
-        SKIF_record.store_utf8      = "Steam";
-        SKIF_record.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
-        SKIF_record.ImGuiPushID     = SK_FormatString("%i-%i", (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.id                = SKIF_STEAM_APPID;
+        SKIF_record.names.normal      = "Special K";
+        SKIF_record.names.all_upper   = "SPECIAL K";
+        SKIF_record._status.installed = true;
+        SKIF_record.install_dir       = _path_cache.specialk_install;
+        SKIF_record.store             = app_record_s::Store::Steam;
+        SKIF_record.store_utf8        = "Steam";
+        SKIF_record.ImGuiLabelAndID   = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiPushID       = SK_FormatString("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
 
         SKIF_record.specialk.profile_dir =
           SK_FormatStringW(LR"(%ws\Profiles)",
@@ -4756,6 +4815,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         //     the app is installed.
         if (app.second._status.installed)
         {
+          if (app.second.id == SKIF_STEAM_APPID)
+            app.second.skif.pinned = 2; // Special K defaults to pinned
+
           // Load any custom data
           if (! jsonMetaDB.is_discarded())
           {
@@ -4773,6 +4835,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               int         keyHidden       =  0;
               int         keyUses         =  0;
               std::string keyUsed         = "";
+              int         keyPinned       =  0;
 
               if (key != nullptr && ! key.empty())
               {
@@ -4794,12 +4857,16 @@ SKIF_UI_Tab_DrawLibrary (void)
                 if (key.contains("Used"))
                   keyUsed        = key.at("Used");
 
+                if (key.contains("Pin"))
+                  keyPinned      = key.at("Pin");
+
                 app.second.skif.name           = keyName;
                 app.second.skif.cpu_type       = keyCPU;
                 app.second.skif.auto_stop      = keyAutoStop;
                 app.second.skif.hidden         = keyHidden;
                 app.second.skif.uses           = keyUses;
                 app.second.skif.used           = keyUsed;
+                app.second.skif.pinned         = keyPinned;
 
                 // Human-readable time format (local time)
                 time_t            ltime        = (time_t)strtol(keyUsed.c_str(), NULL, 10);
@@ -4820,7 +4887,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                 { "AutoStop", keyAutoStop },
                 { "Hidden",   keyHidden   },
                 { "Uses",     keyUses     },
-                { "Used",     keyUsed     }
+                { "Used",     keyUsed     },
+                { "Pin",      keyPinned   }
               };
 
               if (app.second.store == app_record_s::Store::Steam ||
@@ -4832,6 +4900,10 @@ SKIF_UI_Tab_DrawLibrary (void)
               PLOG_ERROR << "Error occurred when trying to parse " << item << " (" << (int)app.second.store << ") from " << file_metadata;
             }
           }
+
+          // Don't continue processing the below for Special K
+          if (app.second.id == SKIF_STEAM_APPID)
+            continue;
 
           if (! app.second.names.normal.empty ())
             app.first = app.second.names.normal;
@@ -4912,7 +4984,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // Update ImGuiLabelAndID and ImGuiPushID
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
-          app.second.ImGuiPushID     = SK_FormatString("%i-%i", (int)app.second.store, app.second.id);
+          app.second.ImGuiPushID     = SK_FormatString("###%i-%i", (int)app.second.store, app.second.id);
         }
 
         // Check if install folder exists (but not for SKIF)
@@ -5533,7 +5605,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
   ImGui::Button         (ICON_FA_MAGNIFYING_GLASS);
   ImGui::PopItemFlag    ( );
-  ImGui::SameLine ( );
+  ImGui::SameLine       ( );
   
   ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
   ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
@@ -5551,9 +5623,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   // This is required to prevent the InputTextEx from not being deselected when clicking empty space
-  SKIF_ImGui_DisallowMouseDragMove      ( );
+  SKIF_ImGui_DisallowMouseDragMove ( );
 
-  bFilterActive  = ImGui::IsItemActive  ( );
+  bFilterActive = ImGui::IsItemActive ( );
 
   if (bFilterActive)
     allowShortcutCtrlA = false;
@@ -5709,6 +5781,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled);
   ImVec2 f1 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
+  ImVec2 f4 = ImGui::GetCursorPos (  );
     SKIF_ImGui_OptImage (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
   ImVec2 f2 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
@@ -5725,6 +5798,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (g_apps.empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
+  int pinned = 0;
+
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
   {
@@ -5735,6 +5810,20 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Skips those filtered out by an active search field entry
     if (app.second.filtered)
       continue;
+
+    // Separate pinned from unpinned
+    if (app.second.skif.pinned)
+      pinned++;
+    else if (pinned > 0)
+    {
+      ImGui::SetCursorPosY (
+        ImGui::GetCursorPosY ( )
+         - (fOffset / 2.0f)
+         - 2.0f * SKIF_ImGui_GlobalDPIScale
+      );
+      ImGui::Separator ( );
+      pinned = 0;
+    }
     
     bool selected = (selection.appid == app.second.id &&
                      selection.store == app.second.store);
@@ -5859,6 +5948,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       sort_changed = false;
       selection.reset ( );
+
+      // Special handling for Special K to reset the scroll pos
+      if (isSpecialK)
+      {
+        selection.appid = 0;
+        selection.store = app_record_s::Store::Unspecified;
+      }
+
       change = true;
     }
 
@@ -6619,9 +6716,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->loading)
         ImGui::TextDisabled ("Loading...");
       else if (pApp->id == SKIF_STEAM_APPID)
-        DrawSKIFContextMenu (pApp);
+        DrawSpecialKContextMenu (pApp);
       else
-        DrawGameContextMenu (pApp);
+        DrawGameContextMenu     (pApp);
       
       //else if (! update)
       //  ImGui::CloseCurrentPopup ();
@@ -7713,6 +7810,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     static bool cached_elevate      = false;
     static int  cached_hidden_load  = true;
     static bool cached_hidden       = false;
+    static int  cached_pinned_load  = true;
+    static bool cached_pinned       = false;
     static int  cached_auto_stop    = -1;
     static int  cached_instant_play = -1;
 
@@ -7728,6 +7827,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         cached_hidden          = (bool)pApp->skif.hidden;
         cached_hidden_load     = false;
+      }
+
+      if (cached_pinned_load)
+      {
+        cached_pinned          = (pApp->skif.pinned == 1);
+        cached_pinned_load     = false;
       }
 
       if (cached_auto_stop    == -1)
@@ -7908,7 +8013,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::SameLine    ( );
         ImGui::TextColored (
           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-            "Use Instant Play for this game:"
+            "Use Instant Play:"
         );
 
         ImGui::TreePush        ("ManageGame_InstantPlay");
@@ -7971,7 +8076,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::SameLine        ( );
     ImGui::Spacing         ( );
     ImGui::SameLine        ( );
-    ImGui::Checkbox        ("Hide this game###HideInLibrary", &cached_hidden);
+    ImGui::Checkbox        ("Hide game###HideInLibrary", &cached_hidden);
+    ImGui::SameLine        ( );
+    ImGui::Spacing         ( );
+    ImGui::SameLine        ( );
+    ImGui::Checkbox        ("Pin game###PinInLibrary", &cached_pinned);
 
     ImGui::TreePop         ( );
 
@@ -7988,6 +8097,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (ImGui::Button  ("Save", vButtonSize)) // Update
     {
       bool repopulate = false;
+      bool resort     = false;
 
       // If the elevate state has been changed, apply the new one
       if (cached_elevate != pApp->launch_configs[0].isElevated ( ))
@@ -8000,6 +8110,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         repopulate            = true;
         pApp->skif.hidden     = (int)cached_hidden;
+      }
+
+      if ((int)cached_pinned != pApp->skif.pinned)
+      {
+        resort                = true;
+        pApp->skif.pinned     = (int)cached_pinned;
       }
 
       if (pApp->store == app_record_s::Store::Custom)
@@ -8046,6 +8162,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       strncpy (charArgs, "\0", 500);
       cached_elevate_load = true;
       cached_hidden_load  = true;
+      cached_pinned_load  = true;
       cached_auto_stop    = -1;
       cached_instant_play = -1;
 
@@ -8053,6 +8170,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         RepopulateGames = true;
         update = true;
+      }
+
+      else if (resort)
+      {
+        SortApps (&g_apps);
+        sort_changed = true;
       }
 
       ModifyGamePopup = PopupState_Closed;

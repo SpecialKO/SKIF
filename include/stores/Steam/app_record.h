@@ -224,6 +224,7 @@ struct app_record_s {
     std::string        used = ""; // Unix timestamp (in string) of when the game was last used
     std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
     int              hidden =  0; // Visibility
+    int              pinned =  0; // Is app pinned? (0 = no; 1 = yes; 2 = Special K)
   } skif;
 
   struct extended_config_s {
