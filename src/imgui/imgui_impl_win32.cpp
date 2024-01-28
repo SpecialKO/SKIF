@@ -124,6 +124,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
   //return g_Focused;
 
 #if 1
+  // Semi-new workaround introduced in 2024-01-28
   extern DWORD SKIF_Util_timeGetTime (void);
   static DWORD lastTime = SKIF_Util_timeGetTime ( );
 
