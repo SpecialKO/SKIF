@@ -72,6 +72,11 @@ std::atomic<bool>      modInstalling     = false;
 std::atomic<bool>      gameWorkerRunning = false;
 std::atomic<uint32_t>  modAppId          = 0;
 
+// Filter field
+char                   charFilter    [MAX_PATH + 2] = { };
+char                   charFilterTmp [MAX_PATH + 2] = { };
+bool                   bFilterActive     = false;
+
 app_record_s::launch_config_s*
                        launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
 bool                   launchGame        = false;   // Respects Instant Play preference
@@ -131,6 +136,7 @@ std::wstring file_metadata;
 
 std::wstring dragDroppedFilePath = L"";
 
+extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecAlteredSize;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -186,10 +192,13 @@ struct {
 } static search_selection;
 
 Trie labels;
+Trie labelsFiltered;
 
 void
 SearchAppsList (void)
 {
+  if (bFilterActive)
+    return;
 
   static auto
     constexpr _text_chars =
@@ -203,6 +212,38 @@ SearchAppsList (void)
   char        out   [2]    = { 0, 0 };
   bool        bText        = false;
 
+  const  DWORD dwTimeout    = 850UL; // 425UL
+  static DWORD dwLastUpdate = MAXDWORD;
+
+  struct {
+    std::string text          = "";
+    app_record_s::Store store = app_record_s::Store::Unspecified;
+    uint32_t    app_id        = 0;
+    size_t      pos           = 0;
+    size_t      len           = 0;
+  } static result;
+
+  // We need to select any match and clear variables before we do a search,
+  //   as otherwise SKIF's conditional rendering can cause a search query
+  //     to not end within the properly allocated time frame
+  if (                           dwLastUpdate != MAXDWORD &&
+      SKIF_Util_timeGetTime () - dwLastUpdate >
+                                 dwTimeout )
+  {
+    // If we have a result, select it
+    if (result.app_id != 0)
+    {
+      search_selection.id    = result.app_id;
+      search_selection.store = result.store;
+    }
+
+    // Clear any temp data
+    result       = { };      // Found match
+    *test_       = '\0';     // Search query
+    dwLastUpdate = MAXDWORD; // Timer
+  }
+
+  // Check input
   for ( auto c : _text_chars )
   {
     if (ImGui::GetIO().KeysDownDuration[c] == 0.0f &&
@@ -214,26 +255,22 @@ SearchAppsList (void)
     }
   }
 
-  const  DWORD dwTimeout    = 850UL; // 425UL
-  static DWORD dwLastUpdate = SKIF_Util_timeGetTime ();
-
-  struct {
-    std::string text          = "";
-    app_record_s::Store store = app_record_s::Store::Unspecified;
-    uint32_t    app_id        = 0;
-    size_t      pos           = 0;
-    size_t      len           = 0;
-  } static result;
-
+  // Do search
   if (bText)
   {
     dwLastUpdate = SKIF_Util_timeGetTime ();
+
+    Trie* searchLabels = (charFilter[0] != '\0') ? &labelsFiltered : &labels;
       
     // Prioritize trie search first
-    if (labels.search (test_))
+    if (searchLabels->search (test_))
     {
       for (auto& app : g_apps)
       {
+        // Skip invalid/hidden and filtered ones
+        if (app.second.id == 0 || app.second.filtered)
+          continue;
+
         if (app.second.names.all_upper_alnum.find (test_) == 0)
         {
           result.text   = app.second.names.normal;
@@ -259,6 +296,10 @@ SearchAppsList (void)
     {
       for (auto& app : g_apps)
       {
+        // Skip invalid/hidden and filtered ones
+        if (app.second.id == 0 || app.second.filtered)
+          continue;
+
         size_t 
             pos  = app.second.names.all_upper.find (test_);
         if (pos != std::string::npos ) // == 0 
@@ -310,22 +351,6 @@ SearchAppsList (void)
       }
 
       ImGui::EndPopup ( );
-    }
-  }
-
-  if (                            dwLastUpdate != MAXDWORD &&
-        SKIF_Util_timeGetTime () - dwLastUpdate >
-                                  dwTimeout )
-  {
-    if (result.app_id != 0)
-    {
-      *test_           = '\0';
-      dwLastUpdate     = MAXDWORD;
-
-      search_selection.id    = result.app_id;
-      search_selection.store = result.store;
-
-      result = { };
     }
   }
 }
@@ -5012,12 +5037,25 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Clear current data
     g_apps      .clear( );
     g_apptickets.clear( );
-    labels      = Trie{ };
+    labels         = Trie{ };
+    labelsFiltered = Trie{ };
 
     // Insert new data
     g_apps       = library_worker->apps;
     g_apptickets = library_worker->apptickets;
     labels       = library_worker->labels;
+
+    // Apply any existing filter
+    if (charFilter[0] != '\0')
+    {
+      for (auto& app : g_apps)
+      {
+        app.second.filtered = (StrStrIA (app.first.c_str(), charFilter) == NULL);
+
+        if (! app.second.filtered)
+          InsertTrieKey (&app, &labelsFiltered);
+      }
+    }
 
     // Move cached icons over
     for (auto& app : g_apps)
@@ -5053,11 +5091,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (selection.appid != 0)
       selection.reset();
 
-    // Set to last selected if it can be found
     for (auto& app : g_apps)
     {
-      if (app.second.id    ==                      _registry.iLastSelectedGame &&
-          app.second.store == (app_record_s::Store)_registry.iLastSelectedStore)
+      // Set to last selected if it can be found
+      if (app.second.filtered == false &&
+          app.second.id       ==                      _registry.iLastSelectedGame &&
+          app.second.store    == (app_record_s::Store)_registry.iLastSelectedStore)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        = app.second.id;
@@ -5190,52 +5229,55 @@ SKIF_UI_Tab_DrawLibrary (void)
           appinfo->getAppInfo ( pApp->id, &g_apps );
       }
 
-      pApp->loading = true;
+      // Only run a worker if we're not dealing with Special K
+      if (! isSpecialK)
+      {
+        pApp->loading = true;
 
-      // Make a copy of pApp that we will use to update all data
+        // Make a copy of pApp that we will use to update all data
+        SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
+        worker->app        = *pApp;
+        worker->apptickets = g_apptickets;
+        worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
 
-      SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
-      worker->app        = *pApp;
-      worker->apptickets = g_apptickets;
-      worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
+        uintptr_t hWorkerThread =
+          _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+          {
+            SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
 
-      uintptr_t hWorkerThread =
-        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
-        {
-          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
+            // Is this combo really appropriate for this thread?
+            //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+            //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-          // Is this combo really appropriate for this thread?
-          //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+            //PLOG_DEBUG << "SKIF_GameWorker thread started!";
 
-          //PLOG_DEBUG << "SKIF_GameWorker thread started!";
+            SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
-          SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
-
-          UpdateInjectionStrategy (&_data->app, _data->apptickets);
+            UpdateInjectionStrategy (&_data->app, _data->apptickets);
       
-          // Force a refresh when the game icons have finished being streamed
-          PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+            // Force a refresh when the game icons have finished being streamed
+            PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-          //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
+            //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
 
-          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+            //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-          return 0;
-        }, worker, 0x0, nullptr);
+            return 0;
+          }, worker, 0x0, nullptr);
 
-      bool threadCreated = (hWorkerThread != 0);
+        bool threadCreated = (hWorkerThread != 0);
 
-      if (threadCreated)
-      {
-        worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
-        worker->free = false;
-      }
+        if (threadCreated)
+        {
+          worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+          worker->free = false;
+        }
 
-      else // Someting went wrong during thread creation
-      {
-        // Reset all values
-        *worker = SKIF_Lib_GameWorkerThread_s();
+        else // Someting went wrong during thread creation
+        {
+          // Reset all values
+          *worker = SKIF_Lib_GameWorkerThread_s();
+        }
       }
     }
 
@@ -5450,13 +5492,127 @@ SKIF_UI_Tab_DrawLibrary (void)
   // LIST + DETAILS START
   ImGui::BeginGroup   (                  );
 
+  // Top option: Filter icon + search field
+
+  float fTop1 = ImGui::GetCursorPosY ( );
+
+  ImGui::SetCursorPosX   (
+    ImGui::GetCursorPosX ( )          +
+    ImGui::GetStyle().WindowPadding.x + 
+    3.0f * SKIF_ImGui_GlobalDPIScale
+  );
+
+  ImGui::SetCursorPosY   (
+    ImGui::GetCursorPosY ( )          +
+    3.0f * SKIF_ImGui_GlobalDPIScale
+  );
+  
+  // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
+  float fTopHeight = ImGui::CalcTextSize (ICON_FA_FILTER).y + ImGui::GetStyle().FramePadding.y * 2.0f;
+  float fTopClearX = ImGui::CalcTextSize (ICON_FA_XMARK ).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x;
+
+  bool showClearBtn = (charFilter[0] != '\0');
+
+  ImGui::BeginChild          ( "###AppListTopRow",
+                                ImVec2 (_WIDTH, fTopHeight), (_registry.bUIBorders),
+                                    ImGuiWindowFlags_NavFlattened );
+  
+  ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
+  ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
+  ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4(0,0,0,0));
+
+  ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+
+  ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+  ImGui::Button         (ICON_FA_MAGNIFYING_GLASS);
+  ImGui::PopItemFlag    ( );
+  ImGui::SameLine ( );
+  ImGui::InputTextEx ("###SearchInput", "", charFilterTmp, MAX_PATH,
+                      ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f), 0.0f),
+                      ImGuiInputTextFlags_None, 0, nullptr);
+
+  ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+
+  bFilterActive = ImGui::IsItemActive();
+
+  ImGui::SameLine ( );
+
+  if (bFilterActive)
+    allowShortcutCtrlA = false;
+
+  // Update filtered status if query has changed
+  if (strncmp (charFilter, charFilterTmp, MAX_PATH) != 0)
+  {
+    strncpy (charFilter, charFilterTmp, MAX_PATH);
+
+    labelsFiltered = Trie { };
+
+    for (auto& app : g_apps)
+    {
+      if (app.second.id == 0)
+        continue;
+
+      app.second.filtered = (charFilter[0] != '\0' && StrStrIA (app.first.c_str(), charFilter) == NULL);
+
+      if (! app.second.filtered)
+        InsertTrieKey (&app, &labelsFiltered);
+    }
+  }
+
+  if (showClearBtn)
+  {
+    // Needed to stop flickering on the same frame as the field is emptied
+    bool justCleared = (charFilter[0] == '\0');
+
+    if (justCleared)
+      ImGui::PushStyleColor (ImGuiCol_Text, ImVec4(0, 0, 0, 0));
+
+    if (ImGui::Button (ICON_FA_XMARK))
+    {
+      strncpy (charFilter,    "\0", MAX_PATH);
+      strncpy (charFilterTmp, "\0", MAX_PATH);
+
+      for (auto& app : g_apps)
+        app.second.filtered = false;
+    }
+
+    if (justCleared)
+      ImGui::PopStyleColor ( );
+
+    ImGui::SameLine ( );
+  }
+
+  static bool btnFilterHover = false;
+
+  if (btnFilterHover)
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
+  else
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+
+  if (ImGui::Button (ICON_FA_FILTER))
+    EmptySpaceMenu = PopupState_Open;
+
+  ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+
+  ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonActive
+  ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonHovered
+  ImGui::PopStyleColor  ( ); // ImGuiCol_Button
+
+  btnFilterHover = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+  ImGui::EndChild ( );
+
+  float fTop2 = ImGui::GetCursorPosY ( );
+
+  // End top options
+
 #pragma region GamesList
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( (_WIDTH - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) ), (_registry.bUIBorders),
-                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding ); // | ImGuiWindowFlags_AlwaysUseWindowPadding );
+                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop2 - fTop1) ), (_registry.bUIBorders),
+                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
   ImGui::BeginGroup          ( );
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
@@ -5528,7 +5684,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImVec2 f2 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
   ImVec2 f3 = ImGui::GetCursorPos (  );
-              ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
+  
+  ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
 
   float fOffset =
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
@@ -5544,6 +5701,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
     if (app.second.id == 0)
+      continue;
+
+    // Skips those filtered out by an active search field entry
+    if (app.second.filtered)
       continue;
     
     bool selected = (selection.appid == app.second.id &&
@@ -8063,7 +8224,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       coverFadeActive = true;
     }
 
-    // Fade in the games list (but only on the next frame
+    // Fade in the games list (but only on the next frame)
     if (fAlphaList < 1.0f)
     {
       if (current_time - timeLastTick > 15)

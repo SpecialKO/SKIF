@@ -2618,7 +2618,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
 
           static bool btnHovered  = false;
-          static bool btnHovered2 = false;
           ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
           ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
           ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
@@ -2635,32 +2634,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SKIF_Tab_ChangeTo = UITab_Library;
           }
 
-          ImGui::PopStyleColor ( );
-
           btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
-          ImGui::SameLine      ( );
+          ImGui::PopStyleColor   (4); // ImGuiCol_Text, ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
 
-          if (btnHovered2)
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
-          else
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+          ImGui::PopItemFlag     ( );
 
-          if (SKIF_Tab_Selected == UITab_Library)
-          {
-            if (ImGui::Button   (ICON_FA_FILTER))
-              EmptySpaceMenu = PopupState_Open;
-          }
-
-          btnHovered2 = ImGui::IsItemHovered() || ImGui::IsItemActive();
-
-          ImGui::PopStyleColor ( );
-
-          ImGui::PopStyleColor (3);
-
-          ImGui::PopItemFlag   ( );
-
-          ImGui::SetCursorPos(tmpPos);
+          ImGui::SetCursorPos    (tmpPos);
           // End Add Game
 
           // Begin Pulsating Refresh Icon

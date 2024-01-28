@@ -403,6 +403,7 @@ struct app_record_s {
   uint32_t     id;
   bool         processed             =  false; // indicates if we have processed appinfo
   bool         loading               =  false; // indicates if we are processing in a background thread
+  bool         filtered              =  false; // indicates if the app has been filtered out (used for search; not the same as the skif.hidden state!)
   bool         cloud_enabled         =   true; // hidecloudui=false
   std::wstring install_dir;
   Store        store                 =  Store::Unspecified;
