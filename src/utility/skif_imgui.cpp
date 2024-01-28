@@ -168,7 +168,10 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_DragDropTarget]         = ImVec4(0.90f, 0.90f, 0.10f, 1.00f);
 
   // Nav/Modal
-  colors[ImGuiCol_NavHighlight]           = ImVec4(1.00f, 1.00f, 1.00f, 0.70f); // ImVec4(0.26f, 0.59f, 0.98f, 1.00f); // This is the white border that highlights selected items when using keyboard focus etc
+  // This is the white border that highlights selected items when using keyboard focus etc
+  colors[ImGuiCol_NavHighlight]           = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+//colors[ImGuiCol_NavHighlight]           = ImVec4(0.48f, 0.48f, 0.48f, 1.00f);
+//colors[ImGuiCol_NavHighlight]           = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.20f)
   colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.35f);

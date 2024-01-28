@@ -1871,7 +1871,7 @@ DrawGameContextMenu (app_record_s* pApp)
 #endif
 
   // Manage Game
-  if (ImGui::BeginMenu (ICON_FA_GEAR "  Manage"))
+  if (ImGui::BeginMenu (ICON_FA_GEARS " Manage"))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -1881,7 +1881,7 @@ DrawGameContextMenu (app_record_s* pApp)
           pApp->store == app_record_s::Store::Custom ||
           pApp->store == app_record_s::Store::GOG);
       
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
     
     ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
 
@@ -1892,7 +1892,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GAMEPAD).x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_WRENCH).x, ImGui::GetTextLineHeight()));
 
       ImGui::Separator ( );
     }
@@ -2047,8 +2047,8 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::SetCursorPos  (iconPos);
 
     ImGui::TextColored (
-              ImColor   (200, 200, 200, 255),
-                ICON_FA_GEARS
+         ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
+                ICON_FA_GEAR
                           );
     
     ImGui::TextColored (
@@ -2070,8 +2070,8 @@ DrawGameContextMenu (app_record_s* pApp)
           ICON_FA_GAMEPAD );
 
       ImGui::TextColored (
-        (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
-          ICON_FA_GEAR );
+              ImColor   (200, 200, 200, 255),
+          ICON_FA_WRENCH );
 
       ImGui::Separator ( );
     }
@@ -2865,7 +2865,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
   {
-    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 2;
+    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 99;
 
     UpdateJsonMetaData  ( pApp, true);
 
@@ -4195,13 +4195,13 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
   // PCGamingWiki
   pApp->ui.pcgwValue = (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
-                                            ?   std::to_wstring (pApp->id)
-                                            : SK_UTF8ToWideChar (pApp->names.original);
+                                                ?   std::to_wstring (pApp->id)
+                                                : SK_UTF8ToWideChar (pApp->names.original);
 
   pApp->ui.pcgwLink  = ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
-                 :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
-                                                                : L"https://www.pcgamingwiki.com/w/index.php?search=")
-                                                                  + pApp->ui.pcgwValue;
+                     :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
+                                                                    : L"https://www.pcgamingwiki.com/w/index.php?search=")
+                                                                    + pApp->ui.pcgwValue;
 
   // Steam Branches
   pApp->ui.branches.clear ();
@@ -4800,8 +4800,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Special handling for non-Steam owners of Special K / SKIF
         if (isSpecialK)
         {
-          app.first              = "Special K";
-          app.second.skif.pinned = 2; // Default to pinned
+          app.first               = "Special K";
+
+          // Default values that needs to be set
+          app.second.skif.pinned  = 99; // Default to pinned
+          app.second.ui.pcgwValue = std::to_wstring (app.second.id);
+          app.second.ui.pcgwLink  = L"https://www.pcgamingwiki.com/api/appid.php?appid=" + app.second.ui.pcgwValue;
         }
 
         // Regular handling for the remaining Steam games
@@ -4839,7 +4843,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
                 // Special K defaults to pinned
               if (isSpecialK)
-                keyPinned      = 2; // Needed as otherwise we'd overwrite it below
+                keyPinned        = 99; // Needed as otherwise we'd overwrite it below
 
               if (key != nullptr && ! key.empty())
               {
@@ -5606,12 +5610,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::Button         (ICON_FA_MAGNIFYING_GLASS);
   ImGui::PopItemFlag    ( );
   ImGui::SameLine       ( );
-  
-  ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
   ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
                       ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f), 0.0f),
                       ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
-  ImGui::PopStyleColor  ( ); // ImGuiCol_NavHighlight
 
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
@@ -5629,6 +5631,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (bFilterActive)
     allowShortcutCtrlA = false;
+  else if (ImGui::IsItemFocused ( ) && ! ImGui::IsItemHovered( ) && ImGui::IsAnyMouseDown( ))
+  {
+    // Clear highlight from filter box
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    g.NavDisableHighlight = false;
+  }
 
   ImGui::SameLine ( );
 
@@ -5709,11 +5717,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GamesList
 
+  ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysUseWindowPadding;
+
+  if (! _registry.bHorizonMode)
+    flags |= ImGuiWindowFlags_NavFlattened;
+
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
   ImGui::BeginChild          ( "###AppListInset",
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                          (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop2.y - fTop1.y) ), (_registry.bUIBorders),
-                                    ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_AlwaysUseWindowPadding );
+                                flags);
   ImGui::BeginGroup          ( );
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
@@ -5812,7 +5825,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       continue;
 
     // Separate pinned from unpinned
-    if (app.second.skif.pinned)
+    if (app.second.skif.pinned > 0)
       pinned++;
     else if (pinned > 0)
     {
@@ -5943,8 +5956,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if ( app.second.id    == selection.appid &&
          app.second.store == selection.store &&
-                   sort_changed &&
-        (! ImGui::IsItemVisible ()) )
+                   sort_changed /* &&
+        (! ImGui::IsItemVisible ()) */ )
     {
       sort_changed = false;
       selection.reset ( );
@@ -6707,7 +6720,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (pApp != nullptr)
   {
-    if (ImGui::BeginPopup ("GameContextMenu", ImGuiWindowFlags_NoMove))
+    if (ImGui::BeginPopup ("###GameContextMenu", ImGuiWindowFlags_NoMove))
     {
       // Context menu should not have any navigation highlight (white border around items)
       ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
@@ -6724,14 +6737,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       //  ImGui::CloseCurrentPopup ();
 
       ImGui::PopStyleColor   ( );
-      ImGui::EndPopup ();
+      ImGui::EndPopup ( );
     }
 
     // This is below the menu because it allows us to open the menu on the next frame,
     //   after the cache and whatnot has been updated.
     if (GameMenu == PopupState_Open)
     {
-      ImGui::OpenPopup    ("GameContextMenu");
+      ImGui::OpenPopup    ("###GameContextMenu");
       GameMenu = PopupState_Closed;
     }
   }
@@ -7831,7 +7844,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (cached_pinned_load)
       {
-        cached_pinned          = (pApp->skif.pinned == 1);
+        cached_pinned          = (pApp->skif.pinned > 0);
         cached_pinned_load     = false;
       }
 

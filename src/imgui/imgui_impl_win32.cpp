@@ -120,7 +120,38 @@ static HMODULE                   g_hModXInput = nullptr;
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
   // We should be able to trust g_Focused as it is fed by WM_SETFOCUS and WM_KILLFOCUS
+  // --- We cannot trust this crap...
+  //return g_Focused;
+
+#if 1
+  extern DWORD SKIF_Util_timeGetTime (void);
+  static DWORD lastTime = SKIF_Util_timeGetTime ( );
+
+  // Executes once per frame
+  if (lastTime != SKIF_Util_timeGetTime ( ))
+  { 
+    lastTime    = SKIF_Util_timeGetTime ( );
+
+    if (HWND focused_hwnd = ::GetForegroundWindow ())
+    {
+      DWORD
+        dwWindowOwnerPid = 0;
+
+      GetWindowThreadProcessId (
+        focused_hwnd,
+          &dwWindowOwnerPid
+      );
+
+      static DWORD
+        dwPidOfMe = GetCurrentProcessId ();
+
+      g_Focused = (dwWindowOwnerPid == dwPidOfMe);
+    }
+  }
+
   return g_Focused;
+
+#endif
 
 #if 0
   extern HWND SKIF_hWnd;

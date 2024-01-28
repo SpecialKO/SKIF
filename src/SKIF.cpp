@@ -2519,7 +2519,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _drag_drop.Revoke (SKIF_ImGui_hWnd);
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_LIST_CHECK " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_MICROCHIP " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2538,7 +2538,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GEAR " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (" " ICON_FA_LIST_CHECK " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -3275,6 +3275,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
+    // This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
     {
       // But don't close those of interest
