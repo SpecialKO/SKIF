@@ -1679,8 +1679,7 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
     else if (sourcePath.rfind(L".exe") != std::wstring::npos)
     {
       sourcePath.replace(sourcePath.rfind(L".exe"), 4, L".ico");
-      if (PathFileExists (sourcePath.c_str()))
-        ret = SKIF_Util_SaveExtractExeIcon (sourcePath, targetPath);
+      ret = SKIF_Util_SaveExtractExeIcon (sourcePath, targetPath);
     }
   }
 
