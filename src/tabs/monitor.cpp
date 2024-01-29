@@ -436,11 +436,27 @@ SK_Inject_GetRecord   = nullptr;
 // Some string manipulation to assume whether a process is an Xbox app or not
 bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
 {
-  // Does the string contain "WindowsApps" ?
-  bool xbox_app = (path.find("WindowsApps") != std::string::npos);
+  // Does the string contain "\Content\" ?
+  if (path.find(R"(\Content\)") != std::string::npos)
+    return true;
 
-  // If the string does not contain "WindowsApps", do some string manipulation and assumptions
-  if (!xbox_app && path.length() > 0)
+  // Does the string contain "XboxGames" ?
+  if (path.find("XboxGames")    != std::string::npos)
+    return true;
+
+  // Does the string contain "Xbox Games" ?
+  if (path.find("Xbox Games")   != std::string::npos)
+    return true;
+
+  // Legacy stuff that's disabled since they match non-games as well
+#if 0
+  // Does the string contain "WindowsApps" ?
+  if (path.find("WindowsApps") != std::string::npos)
+    return true;
+
+  // If the string does not contain any of the above,
+  //   do some string manipulation and assumptions
+  if (path.length() > 0)
   {
     // \Device\HarddiskVolume21\Hades.exe
 
@@ -457,10 +473,11 @@ bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
     // 21
 
     if (strlen(path.c_str()) < 3) // 0 - 99
-      xbox_app = true;
+      return true;
   }
+#endif
 
-  return xbox_app;
+  return false;
 }
 
 // Some string manipulation to assume whether a process is a Steam app or not
