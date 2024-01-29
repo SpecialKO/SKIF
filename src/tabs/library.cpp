@@ -1914,8 +1914,8 @@ DrawGameContextMenu (app_record_s* pApp)
     if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
       ModifyGamePopup = PopupState_Open;
 
-    constexpr char* labelPin   =   "Pin";
-    constexpr char* labelUnpin = "Unpin";
+    constexpr char* labelPin   =   "Favorite";
+    constexpr char* labelUnpin = "Unfavorite";
 
     if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
     {
@@ -2852,8 +2852,8 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   ImGui::Separator   ( );
 
-  constexpr char* labelPin   =   "Pin";
-  constexpr char* labelUnpin = "Unpin";
+  constexpr char* labelPin   =   "Favorite";
+  constexpr char* labelUnpin = "Unfavorite";
 
   if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
   {
