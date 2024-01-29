@@ -42,6 +42,73 @@ SKIF_Xbox_PackageFamilyNameFromFullName (IN PCWSTR packageFullName, IN OUT UINT3
   return SKIF_PackageFamilyNameFromFullName (packageFullName, packageFamilyNameLength, packageFamilyName);
 }
 
+static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring packageName, std::wstring packageFullName, std::wstring packageFamilyName)
+{
+  std::string lowercaseName = SKIF_Util_ToLower (input);
+  std::string pattern = "ms-resource://";
+
+  size_t pos_msResourceString = lowercaseName.find(pattern);
+
+  if (pos_msResourceString == std::string::npos)
+  {
+    pattern = "ms-resource:";
+    pos_msResourceString = lowercaseName.find(pattern);
+  }
+
+  if (pos_msResourceString != std::string::npos)
+  {
+    const UINT   cuiBufferSize = 1024;
+    WCHAR        wszDisplayName[cuiBufferSize]{ };
+    std::string  substr        = input.substr (pos_msResourceString + pattern.length());
+
+    // PackageFamilyName long
+    std::wstring msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/resources/%ws})", packageFullName.c_str(), packageFamilyName.c_str(), SK_UTF8ToWideChar(substr).c_str());
+    PLOG_DEBUG << "Attempting to load indirect string using package family name: " << msResourceURI;
+    HRESULT hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+
+    // PackageName long
+    if (FAILED (hr))
+    {
+      msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/resources/%ws})", packageFullName.c_str(), packageName.c_str(), SK_UTF8ToWideChar(substr).c_str());
+
+      PLOG_DEBUG << "Attempting to load indirect string using package name: " << msResourceURI;
+      hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+    }
+
+    // PackageFamilyName short
+    if (FAILED (hr))
+    {
+      // Remove "resource" from the URI path
+      msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws//%ws})", packageFullName.c_str(), packageFamilyName.c_str(), SK_UTF8ToWideChar(substr).c_str());
+
+      PLOG_DEBUG << "Attempting to load indirect string using package family name: " << msResourceURI;
+      hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+    }
+    
+    // PackageName short
+    if (FAILED (hr))
+    {
+      // Remove "resource" from the URI path
+      msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/%ws})", packageFullName.c_str(), packageName.c_str(), SK_UTF8ToWideChar(substr).c_str());
+
+      PLOG_DEBUG << "Attempting to load indirect string using package name: " << msResourceURI;
+      hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
+    }
+
+    if (SUCCEEDED (hr))
+    {
+      PLOG_DEBUG << L"Loaded ms-resource title: " << wszDisplayName;
+      input = SK_WideCharToUTF8 (wszDisplayName);
+    }
+    else
+    {
+      PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
+    }
+  }
+
+  return input;
+}
+
 void
 SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
@@ -126,14 +193,22 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
                       record.Xbox_AppDirectory    = record.install_dir;
+                      record.Xbox_PFDirectory     = LR"(C:\Program Files\WindowsApps\)" + packageFullName;
+                      if (! PathFileExists(record.Xbox_PFDirectory.c_str()))
+                        record.Xbox_PFDirectory.clear();
+
                       record.Xbox_PackageFullName = SK_WideCharToUTF8(packageFullName);
 
                       UINT32 length = 0;
                       SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, NULL);
-                      PWSTR packageFamilyName = (PWSTR)malloc(length * sizeof(WCHAR));
-                      if (ERROR_SUCCESS == SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, packageFamilyName))
-                        record.Xbox_PackageFamilyName = SK_WideCharToUTF8 (packageFamilyName);
-                      // packageFamilyName is used later as well, so do not free it up just yet
+                      PWSTR pwzPackageFamilyName = (PWSTR)malloc(length * sizeof(WCHAR));
+                      std::wstring packageFamilyName;
+                      if (ERROR_SUCCESS == SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, pwzPackageFamilyName))
+                      {
+                        packageFamilyName             =   std::wstring(pwzPackageFamilyName);
+                        record.Xbox_PackageFamilyName = SK_WideCharToUTF8(packageFamilyName);
+                      }
+                      free(pwzPackageFamilyName);
 
                       // Try to load the AppX XML Manifest in the install folder
                       if (! manifest.load_file((record.install_dir + LR"(\appxmanifest.xml)").c_str()))
@@ -193,7 +268,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
-                      record.names.original   = record.names.normal;
 
                       // Hash the PackageName into a unique integer we use for internal tracking purposes
                       std::hash <std::string> stoi_hasher;
@@ -214,49 +288,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       //   Via package full name:
                       //     @{Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
                       // 
-
-                      std::string lowercaseName = SKIF_Util_ToLower (record.names.normal);
-                      std::string pattern = "ms-resource://";
-
-                      size_t pos_msResourceString = lowercaseName.find(pattern);
-
-                      if (pos_msResourceString == std::string::npos)
-                      {
-                        pattern = "ms-resource:";
-                        pos_msResourceString = lowercaseName.find(pattern);
-                      }
-
-                      if (pos_msResourceString != std::string::npos)
-                      {
-                        const UINT cuiBufferSize = 1024;
-                        WCHAR      wszDisplayName[cuiBufferSize]{ };
-                        
-                        std::string  substr           = record.names.normal.substr (pos_msResourceString + pattern.length());
-                        std::wstring
-                          msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/%ws})",           packageFullName.c_str(), packageFamilyName, SK_UTF8ToWideChar(substr).c_str());
-                        PLOG_DEBUG << "Attempting to load indirect string: " << msResourceURI;
-                        HRESULT hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
-
-                        if (FAILED (hr))
-                        {
-                          // Add "resource" to the URI path as well
-                          msResourceURI = SK_FormatStringW (LR"(@{%ws?ms-resource://%ws/resources/%ws})", packageFullName.c_str(), packageFamilyName, SK_UTF8ToWideChar(substr).c_str());
-                          PLOG_DEBUG << "Attempting to load indirect string: " << msResourceURI;
-                          hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
-                        }
-
-                        if (SUCCEEDED (hr))
-                        {
-                          PLOG_DEBUG << L"Loaded ms-resource title: " << wszDisplayName;
-                          record.names.normal   = SK_WideCharToUTF8 (wszDisplayName);
-                          record.names.original = record.names.normal;
-                        }
-                        else
-                        {
-                          PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
-                          record.names.normal   = record.Xbox_PackageName;
-                        }
-                      }
+                      record.names.normal   = SKIF_Xbox_LoadMSResource (record.names.normal, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName);
+                      record.names.original = record.names.normal;
 
                       // If we have found a partial path, construct the assumed full path
                       if (! virtualFolder.empty())
@@ -293,7 +326,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
 
                         if (! appDisplayName.empty())
-                          lc.description = SK_UTF8ToWideChar (appDisplayName);
+                          lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (appDisplayName, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName));
 
                         if (config.load_file((record.install_dir + LR"(\MicrosoftGame.config)").c_str()))
                         {
@@ -329,8 +362,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                               std::string exeOverrideDisplayName = exe.attribute("OverrideDisplayName").value();
                               if (! exeOverrideDisplayName.empty())
                               {
-                                PLOG_VERBOSE << "Found override display name: " << exeOverrideDisplayName;
-                                lc.description = SK_UTF8ToWideChar (exeOverrideDisplayName);
+                                lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (exeOverrideDisplayName, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName));
+                                PLOG_VERBOSE << "Found override display name: " << lc.description;
                               }
                             }
                           }
@@ -384,7 +417,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                           if (!file.empty())
                           {
-                            std::wstring fullPath = record.install_dir + file;
+                            std::wstring fullPath = record.install_dir + LR"(\)" + file;
 
                             if (CopyFile(fullPath.c_str(), iconPath.c_str(), FALSE))
                               icon = true;
@@ -397,7 +430,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                           if (!file.empty())
                           {
-                            std::wstring fullPath = record.install_dir + file;
+                            std::wstring fullPath = record.install_dir + LR"(\)" + file;
 
                             if (CopyFile(fullPath.c_str(), coverPath.c_str(), FALSE))
                               cover = true;
@@ -428,9 +461,6 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       //PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (Xbox);
-
-                      // Free the family name once we're done with it
-                      free(packageFamilyName);
                     }
                   }
                 }
