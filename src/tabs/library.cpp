@@ -5031,10 +5031,17 @@ SKIF_UI_Tab_DrawLibrary (void)
           {
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
-            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(),
-                (DWORD)wsName.size() * sizeof(wchar_t)))
+            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
             {
               PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+            }
+
+            if (app.second.store == app_record_s::Store::Xbox)
+            {
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_AppDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
+              {
+                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_AppDirectory;
+              }
             }
           }
         }
