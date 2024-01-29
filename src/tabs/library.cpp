@@ -467,7 +467,8 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
       };
 
       if (pApp->store == app_record_s::Store::Steam ||
-          pApp->store == app_record_s::Store::GOG)
+          pApp->store == app_record_s::Store::GOG   ||
+          pApp->store == app_record_s::Store::Xbox)
         key += { "InstantPlay", pApp->skif.instant_play };
 
       return ! bWriteToDisk || WriteJsonMetaDataFile ( );
@@ -1984,18 +1985,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       if (ImGui::Selectable ("Create desktop shortcut", false, ImGuiSelectableFlags_SpanAllColumns))
       {
-        std::string name = pApp->names.normal;
-
-        // Strip (recently added) from the desktop shortcuts
-        try {
-          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-        }
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-        }
-
-        name = SKIF_Util_StripInvalidFilenameChars (name);
+        std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
 
         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
         std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
@@ -2222,6 +2212,8 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::TextDisabled   ("General");
         if (ImGui::MenuItem   ("Name",                    pApp->names.original.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->names.original));
+        if (ImGui::MenuItem   ("Name (pseudo)",           pApp->names.pseudo.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->names.pseudo));
         if (ImGui::MenuItem   ("ID",          std::to_string (pApp->id).c_str()))
             SKIF_Util_SetClipboardData (      std::to_wstring(pApp->id));
         if (ImGui::MenuItem   ("Store",                       pApp->store_utf8.c_str()))
@@ -2230,41 +2222,38 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (                              pApp->install_dir);
         ImGui::PopID          ( );
 
-        if (! pApp->skif.name.empty () || pApp->skif.cpu_type != 0)
+        ImGui::Separator    ( );
+
+        ImGui::PushID       ("#SKIF");
+        ImGui::TextDisabled ("SKIF Override Data");
+
+        if (! pApp->skif.name.empty ())
         {
-          ImGui::Separator    ( );
-
-          ImGui::PushID       ("#SKIF");
-          ImGui::TextDisabled ("SKIF Override Data");
-
-          if (! pApp->skif.name.empty ())
-          {
-            if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
-              SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
-          }
-
-          if (pApp->skif.cpu_type != 0)
-          {
-            if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
-              SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
-          }
-          
-          if (ImGui::MenuItem ("Visibility",  (pApp->skif.hidden) ?  "Hidden" :  "Visible"))
-            SKIF_Util_SetClipboardData   (    (pApp->skif.hidden) ? L"Hidden" : L"Visible");
-          
-          if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
-            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
-
-          SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
-          
-          if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
-            SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
-          
-          if (ImGui::MenuItem ("Pinned",             std::to_string (pApp->skif.pinned).c_str()))
-            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.pinned));
-
-          ImGui::PopID        ( );
+          if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
         }
+
+        if (pApp->skif.cpu_type != 0)
+        {
+          if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
+            SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
+        }
+          
+        if (ImGui::MenuItem ("Visibility",  (pApp->skif.hidden) ?  "Hidden" :  "Visible"))
+          SKIF_Util_SetClipboardData   (    (pApp->skif.hidden) ? L"Hidden" : L"Visible");
+          
+        if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
+          SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
+
+        SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
+          
+        if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
+          SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
+          
+        if (ImGui::MenuItem ("Pinned",             std::to_string (pApp->skif.pinned).c_str()))
+          SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.pinned));
+
+        ImGui::PopID        ( );
 
         if (pApp->store == app_record_s::Store::Steam)
         {
@@ -2297,8 +2286,10 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFamilyName));
           if (ImGui::MenuItem ("Store ID",                pApp->Xbox_StoreId.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_StoreId));
-          if (ImGui::MenuItem ("App Directory", SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str()))
-            SKIF_Util_SetClipboardData (                          pApp->Xbox_AppDirectory);
+          if (ImGui::MenuItem ("App Directory",    SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str()))
+            SKIF_Util_SetClipboardData (                             pApp->Xbox_AppDirectory);
+          if (ImGui::MenuItem ("PF Directory",     SK_WideCharToUTF8(pApp->Xbox_PFDirectory).c_str()))
+            SKIF_Util_SetClipboardData (                             pApp->Xbox_PFDirectory);
           ImGui::PopID        ( );
         }
 
@@ -4034,12 +4025,13 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
   }
 
-  // Steam profile folders uses localized name
-  if (pApp->store == app_record_s::Store::Steam &&
-      pApp->specialk.injection.localized_name.empty())
+  // Use a localized profile name
+  if (pApp->specialk.injection.localized_name.empty())
   {
     pApp->specialk.injection.localized_name =
-      SK_UseManifestToGetAppName (pApp);
+      (pApp->store == app_record_s::Store::Steam)
+        ? SK_UseManifestToGetAppName (pApp)
+        : pApp->names.original; // Use real original
 
     std::wstring name =
       SK_UTF8ToWideChar (pApp->specialk.injection.localized_name);
@@ -4197,7 +4189,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   // PCGamingWiki
   pApp->ui.pcgwValue = (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
                                                 ?   std::to_wstring (pApp->id)
-                                                : SK_UTF8ToWideChar (pApp->names.original);
+                                                : SK_UTF8ToWideChar (pApp->names.pseudo); // Use pseudo original
 
   pApp->ui.pcgwLink  = ((pApp->store == app_record_s::Store::GOG)   ? L"https://www.pcgamingwiki.com/api/gog.php?page="
                      :  (pApp->store == app_record_s::Store::Steam) ? L"https://www.pcgamingwiki.com/api/appid.php?appid="
@@ -4632,13 +4624,13 @@ SKIF_UI_Tab_DrawLibrary (void)
   struct lib_worker_thread_s {
     std::vector <
       std::pair <std::string, app_record_s >
-                > apps;
+                > apps       = { };
     std::set    < std::string >
-                  apptickets;
-    SteamId3_t    steam_user;
-    Trie          labels  = Trie { };
-    HANDLE        hWorker = NULL;
-    int           iWorker = 0;
+                  apptickets = { };
+    SteamId3_t    steam_user = 0;
+    Trie          labels     = { };
+    HANDLE        hWorker    = NULL;
+    int           iWorker    = 0;
   };
 
   static lib_worker_thread_s* library_worker = nullptr;
@@ -4757,7 +4749,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               std::replace(lc.executable.begin(), lc.executable.end(), '/', '\\'); // Replaces all forward slashes with backslashes
               lc.working_dir              = SK_UTF8ToWideChar(launch_config.at("Dir"));
               lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
-              lc.executable_path          = record.install_dir + L"\\" + lc.executable;
+              lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
               lc.install_dir              = record.install_dir;
               lc.custom_skif              =   lc_file.first;
               lc.custom_user              = ! lc.custom_skif;
@@ -4885,7 +4877,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                 app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
                 
                 if ((app.second.store == app_record_s::Store::Steam ||
-                     app.second.store == app_record_s::Store::GOG) && key.contains("InstantPlay"))
+                     app.second.store == app_record_s::Store::GOG   ||
+                     app.second.store == app_record_s::Store::Xbox) && key.contains("InstantPlay"))
                 {
                   keyInstantPlay               = key.at("InstantPlay");
                   app.second.skif.instant_play = keyInstantPlay;
@@ -4904,7 +4897,8 @@ SKIF_UI_Tab_DrawLibrary (void)
               };
 
               if (app.second.store == app_record_s::Store::Steam ||
-                  app.second.store == app_record_s::Store::GOG)
+                  app.second.store == app_record_s::Store::GOG   ||
+                  app.second.store == app_record_s::Store::Xbox)
                 key += { "InstantPlay", keyInstantPlay };
             }
             catch (const std::exception&)
@@ -4948,7 +4942,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             continue;
           }
 
-          std::string original_name = app.first;
+          app.second.names.original = app.first;
 
           // Some games use weird Unicode character combos that ImGui can't handle,
           //  so let's replace those with the normal ones.
@@ -4971,8 +4965,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
 
           // Output the name change (use widechar to have them appear correct in the logs)
-          if (original_name != app.first)
-            PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(original_name.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
+          if (app.second.names.original != app.first)
+            PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(app.second.names.original.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
 
           // Strip any remaining null terminators
           app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
@@ -4982,7 +4976,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
 
           // Pseudo-original. But let's store it!
-          app.second.names.original = app.first;
+          app.second.names.pseudo = app.first;
           
           // Apply any custom name
           if (! app.second.skif.name.empty())
@@ -5032,16 +5026,15 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
             if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
-            {
-              PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
-            }
+              PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
 
             if (app.second.store == app_record_s::Store::Xbox)
             {
               if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_AppDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
-              {
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_AppDirectory;
-              }
+
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_PFDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
+                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_PFDirectory;
             }
           }
         }
@@ -5139,10 +5132,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Clear current data
-    g_apps      .clear( );
-    g_apptickets.clear( );
-    labels         = Trie{ };
-    labelsFiltered = Trie{ };
+    g_apps         = { };
+    g_apptickets   = { };
+    labels         = { };
+    labelsFiltered = { };
 
     // Insert new data
     g_apps       = library_worker->apps;
@@ -5220,12 +5213,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     library_worker->iWorker = 2;
     library_worker->labels  = Trie { };
     library_worker->apps.clear ();
+    library_worker->apptickets.clear();
 
     delete library_worker;
     library_worker = nullptr;
 
     populated    = true;
     sort_changed = true;
+
+    PLOG_VERBOSE << "Swapped in the new library data!";
   }
 
   extern bool  coverFadeActive;
@@ -5249,7 +5245,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Update the injection strategy for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
-  if (pApp != nullptr)
+  // Also don't do it while the library worker is processing (to prevent stale data from surviving the refresh)
+  if (pApp != nullptr && library_worker == nullptr)
   {
     if (update)
     {
@@ -6678,20 +6675,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       auto _GetSteamGridDBLink = [&](void) -> std::string
       {
-        // Strip (recently added) from the game name
-        std::string name = pApp->names.normal;
-        try {
-          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-        }
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-        }
-
         return (pApp->store == app_record_s::Store::Steam)
                 ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids", pApp->id)
-                : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", name.c_str());
-
+                : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.pseudo.c_str()); // Use pseudo original
       };
 
       if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
@@ -6937,19 +6923,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::Separator();
 
-      // Strip (recently added) from the game name
-      std::string name = pApp->names.normal;
-      try {
-        name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-      }
-      catch (const std::exception& e)
-      {
-        UNREFERENCED_PARAMETER(e);
-      }
-
       std::string linkGridDB = (pApp->store == app_record_s::Store::Steam)
                              ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons", pApp->id)
-                             : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", name.c_str());
+                             : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.pseudo.c_str()); // Use pseudo original
 
       if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
       {
@@ -7843,7 +7819,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     static char charName     [MAX_PATH + 2] = { },
                 hintName     [MAX_PATH + 2] = { },
                 charPath     [MAX_PATH + 2] = { },
-                charArgs     [     500 + 2] = { };
+                charArgs     [    1024 + 2] = { };
     static bool changed_name        = false;
 
     static bool error = false;
@@ -7884,29 +7860,17 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (pApp->store == app_record_s::Store::Custom)
       {
-        std::string name = pApp->names.normal;
-        try {
-          name = std::regex_replace(name, std::regex(R"( \(recently added\))"), "");
-        }
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-        }
-
-        strncpy (charName, name.c_str( ), MAX_PATH);
         strncpy (charPath, pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
         strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].getLaunchOptions()).c_str(), 500);
       }
 
-      else {
-        // Use the appropriate hint for the game name
-        if (! pApp->names.original.empty())
-          strncpy (hintName, pApp->names.original.c_str(), MAX_PATH);
+      // Use the appropriate hint for the game name
+      if (! pApp->names.pseudo.empty())
+        strncpy (hintName, pApp->names.pseudo.c_str(), MAX_PATH);
 
-        // Fill out the current one if it is different from the original one
-        if (pApp->names.original != pApp->names.normal)
-          strncpy (charName, pApp->names.normal.c_str( ), MAX_PATH);
-      }
+      // Fill out the current one if it is different from the pseudo one
+      if (pApp->names.pseudo != pApp->names.normal)
+        strncpy (charName, pApp->names.normal.c_str( ), MAX_PATH);
       
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");
@@ -7922,12 +7886,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SKIF_ImGui_Spacing ( );
     
-    ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-    bool disabled      = false;
+    ImVec2 vButtonSize      = ImVec2 ( 80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+    ImVec2 vInputSize       = ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+    bool   disabled         = false;
+    float  fInputX          = fModifyGamePopupWidth / 2.0f - vInputSize.x / 2.0f;
 
     // Custom games has their own manage fields
     if (pApp->store == app_record_s::Store::Custom)
     {
+      static float fBtnX  = fInputX                                                              // ImGui::InputTextEx (center-aligned)
+                          - ImGui::CalcItemSize(vButtonSize, ImGui::CalcTextSize("Browse...").x  // ImGui::Button
+                          - ImGui::GetStyle().FramePadding.x * 2.0f, 0.0f).x                     // ImGui::Button
+                          - ImGui::GetStyle().ItemSpacing.x;                                     // ImGui::SameLine
+
+      ImGui::SetCursorPosX (fBtnX);
+
       if (ImGui::Button  ("Browse...", vButtonSize))
       {
         LPWSTR pwszFilePath = NULL;
@@ -7944,7 +7917,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (pathExtension == L".lnk")
           {
             WCHAR wszTarget    [MAX_PATH + 2] = { };
-            WCHAR wszArguments [MAX_PATH + 2] = { };
+            WCHAR wszArguments [    1024 + 2] = { };
 
             SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
 
@@ -7985,34 +7958,43 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::SameLine    ( );
 
-      float fModifyGamePopupX = ImGui::GetCursorPosX ( );
+      float fTxtErrorX = ImGui::GetCursorPosX ( );
 
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-      ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
+      ImGui::InputTextEx    ("###GamePath", "", charPath, MAX_PATH, vInputSize, ImGuiInputTextFlags_ReadOnly);
       SKIF_ImGui_DisallowMouseDragMove ( );
-      ImGui::PopStyleColor ( );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("Path");
+      ImGui::PopStyleColor  ( );
+      ImGui::SameLine       ( );
+      ImGui::Text           ("Path");
 
       if (error)
       {
-        ImGui::SetCursorPosX (fModifyGamePopupX);
+        ImGui::SetCursorPosX (fTxtErrorX);
         ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Incompatible type! Please select another file.");
       }
       else {
         ImGui::NewLine   ( );
       }
+    }
 
-      ImGui::SetCursorPosX (fModifyGamePopupX);
+    ImGui::SetCursorPosX (fInputX);
       
-      ImGui::InputText   ("###GameName", charName, MAX_PATH);
-      SKIF_ImGui_DisallowMouseDragMove ( );
-      ImGui::SameLine    ( );
-      ImGui::Text        ("Name");
+    ImGui::InputTextEx ("###GameName", hintName, charName, MAX_PATH, vInputSize, ImGuiInputTextFlags_None);
+    SKIF_ImGui_DisallowMouseDragMove ( );
+    ImGui::SameLine    ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Name"
+    );
 
-      ImGui::SetCursorPosX (fModifyGamePopupX);
+    if (charName[0] != '\0')
+      changed_name = true;
 
-      ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 502, ImVec2(0, 0), ImGuiInputTextFlags_None);
+    if (pApp->store == app_record_s::Store::Custom)
+    {
+      ImGui::SetCursorPosX (fInputX);
+
+      ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 1024, vInputSize, ImGuiInputTextFlags_None);
       SKIF_ImGui_DisallowMouseDragMove ( );
       ImGui::SameLine    ( );
       ImGui::Text        ("Launch Options");
@@ -8020,108 +8002,93 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
 
-      if ((charName[0] == '\0' || std::isspace(charName[0])) ||
-          (charPath[0] == '\0' || std::isspace(charPath[0])))
+      if (charPath[0] == '\0' || std::isspace(charPath[0]))
         disabled = true;
     }
 
-    // Other types of games are limited to db.json
-    else
+    SKIF_ImGui_Spacing ( );
+    SKIF_ImGui_Spacing ( );
+
+    // Steam / GOG / Xbox supports Instant Play
+    if (pApp->store == app_record_s::Store::Steam ||
+        pApp->store == app_record_s::Store::GOG   ||
+        pApp->store == app_record_s::Store::Xbox)
     {
-      ImGui::SetCursorPosX (fModifyGamePopupWidth / 2 - 175.0f * SKIF_ImGui_GlobalDPIScale);
-      
-      ImGui::InputTextWithHint ("###GameName", hintName, charName, MAX_PATH);
-      SKIF_ImGui_DisallowMouseDragMove ( );
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
+      SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
+                              "including steps like the cloud saves synchronization that usually occurs.");
       ImGui::SameLine    ( );
       ImGui::TextColored (
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "Name"
+          "Use Instant Play:"
       );
 
-      if (charName[0] != '\0')
-        changed_name = true;
-
-      SKIF_ImGui_Spacing ( );
-      SKIF_ImGui_Spacing ( );
-
-      // Steam / GOG supports Instant Play
-      if (pApp->store == app_record_s::Store::Steam ||
-          pApp->store == app_record_s::Store::GOG)
-      {
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
-        SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
-                                "including steps like the cloud saves synchronization that usually occurs.");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-            "Use Instant Play:"
-        );
-
-        ImGui::TreePush        ("ManageGame_InstantPlay");
-        ImGui::RadioButton     (
-          SK_FormatString ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
-                                            (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG))
-                                           ? "Always" : "Never").c_str(), &cached_instant_play, 0);
-        SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
-        ImGui::SameLine        ( );
-        ImGui::RadioButton     ("Never",             &cached_instant_play, 2);
-        SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
-        ImGui::SameLine        ( );
-        ImGui::RadioButton     ("Always",            &cached_instant_play, 1);
-        SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
-        ImGui::TreePop         ( );
+      ImGui::TreePush        ("ManageGame_InstantPlay");
+      ImGui::RadioButton     (
+        SK_FormatString ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
+                                          (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG))
+                                          ? "Always" : "Never").c_str(), &cached_instant_play, 0);
+      SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("Never",             &cached_instant_play, 2);
+      SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("Always",            &cached_instant_play, 1);
+      SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+      ImGui::TreePop         ( );
         
-        SKIF_ImGui_Spacing ( );
-        SKIF_ImGui_Spacing ( );
-      }
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
     }
-
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
-                            "Move the mouse over each option to get more information.");
-    ImGui::SameLine        ( );
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Auto-stop behavior when launching the game:"
-    );
-
-    ImGui::TreePush        ("ManageGame_AutoStopBehavior");
-    ImGui::RadioButton     (SK_FormatString ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit").c_str(), &cached_auto_stop, 0);
-    SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On inject", &cached_auto_stop, 1);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On exit",   &cached_auto_stop, 2);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
-    ImGui::SameLine        ( );
-    ImGui::BeginGroup      ( );
-    ImGui::RadioButton     ("Never",     &cached_auto_stop, 3);
-    ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
-    ImGui::EndGroup        ( );
-    SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
-    ImGui::TreePop         ( );
     
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
+    ImGui::TreePush        ("");
 
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Miscellaneous settings:"
-    );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
+                              "Move the mouse over each option to get more information.");
+      ImGui::SameLine        ( );
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          "Auto-stop behavior when launching the game:"
+      );
+
+      ImGui::TreePush        ("ManageGame_AutoStopBehavior");
+      ImGui::RadioButton     (SK_FormatString ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit").c_str(), &cached_auto_stop, 0);
+      SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("On inject", &cached_auto_stop, 1);
+      SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("On exit",   &cached_auto_stop, 2);
+      SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
+      ImGui::SameLine        ( );
+      ImGui::BeginGroup      ( );
+      ImGui::RadioButton     ("Never",     &cached_auto_stop, 3);
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::EndGroup        ( );
+      SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
+      ImGui::TreePop         ( );
     
-    ImGui::TreePush        ("ManageGame_Miscellaneous");
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
 
-    ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
-    ImGui::SameLine        ( );
-    ImGui::Spacing         ( );
-    ImGui::SameLine        ( );
-    ImGui::Checkbox        ("Hide game###HideInLibrary", &cached_hidden);
-    ImGui::SameLine        ( );
-    ImGui::Spacing         ( );
-    ImGui::SameLine        ( );
-    ImGui::Checkbox        ("Pin game###PinInLibrary", &cached_pinned);
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          "Miscellaneous settings:"
+      );
+    
+      ImGui::TreePush        ("ManageGame_Miscellaneous");
+      ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
+      ImGui::SameLine        ( );
+      ImGui::Spacing         ( );
+      ImGui::SameLine        ( );
+      ImGui::Checkbox        ("Hide game###HideInLibrary", &cached_hidden);
+      ImGui::SameLine        ( );
+      ImGui::Spacing         ( );
+      ImGui::SameLine        ( );
+      ImGui::Checkbox        ("Pin game###PinInLibrary", &cached_pinned);
+      ImGui::TreePop         ( );
 
     ImGui::TreePop         ( );
 
@@ -8129,9 +8096,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_ImGui_Spacing ( );
 
     if (disabled)
-    {
       SKIF_ImGui_PushDisableState ( );
-    }
 
     ImGui::SetCursorPosX (fModifyGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
 
@@ -8159,48 +8124,43 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->skif.pinned     = (int)cached_pinned;
       }
 
+      // Custom games also updates the registry
       if (pApp->store == app_record_s::Store::Custom)
       {
-        // If the name has been changed, we need to repopulate the list
-        if (charName != pApp->names.normal)
-          repopulate      = true;
+        std::wstring wszPath = SK_UTF8ToWideChar(charPath);
+        std::wstring wszArgs = SK_UTF8ToWideChar(charArgs);
 
-        if (SKIF_ModifyCustomAppID (pApp, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs)))
+        if (SKIF_ModifyCustomAppID (pApp, wszPath, wszArgs))
         {
           // Attempt to extract the icon from the given executable straight away
           std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, pApp->id);
           DeleteFile (SKIFCustomPath.c_str());
-          SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
+          SKIF_Util_SaveExtractExeIcon (wszPath, SKIFCustomPath);
         }
       }
 
-      // Other types of games are limited to db.json
-      else
+      // If the name has been changed, we need to repopulate the list
+      if (charName != pApp->names.normal)
       {
-        // If the name has been changed, we need to repopulate the list
-        if (charName != pApp->names.normal)
-        {
-          // If the name is the same as the original name, reset the custom value
-          if (! pApp->names.original.empty() && charName == pApp->names.original)
-            strncpy (charName, "\0", MAX_PATH);
+        // If the name is the same as the original name, reset the custom value
+        if (charName == pApp->names.pseudo)
+          strncpy (charName, "\0", MAX_PATH);
           
-          pApp->skif.name = charName;
+        pApp->skif.name = charName;
 
-          if (changed_name)
-            repopulate      = true;
-        }
-
-        changed_name = false;
+        if (changed_name)
+          repopulate      = true;
       }
 
       // Update any locally stored metadata
       UpdateJsonMetaData (pApp, true);
         
       // Clear variables
-      error = false;
+      changed_name        = false;
+      error               = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", 500);
+      strncpy (charArgs, "\0", 1024);
       cached_elevate_load = true;
       cached_hidden_load  = true;
       cached_pinned_load  = true;
@@ -8226,9 +8186,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_ImGui_DisallowMouseDragMove ( );
 
     if (disabled)
-    {
       SKIF_ImGui_PopDisableState  ( );
-    }
 
     ImGui::SameLine    ( );
 

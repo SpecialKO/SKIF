@@ -107,8 +107,9 @@ struct app_record_s {
   struct names_s {
     std::string all_upper;
     std::string all_upper_alnum;
-    std::string normal;   // Name used in SKIF (custom names are applied on this)
-    std::string original; // Holds the original name before any custom name was applied
+    std::string original;  // Holds the original name before any trimming or custom name was applied
+    std::string pseudo;    // Holds the pseudo-original name before any custom name was applied
+    std::string normal;    // Name used in SKIF (custom names are applied on this)
     size_t      pre_stripped = 0;
   } names;
 
@@ -428,7 +429,8 @@ struct app_record_s {
   std::string  Xbox_PackageFullName  =  "";
   std::string  Xbox_PackageFamilyName=  "";
   std::string  Xbox_StoreId          =  "";
-  std::wstring Xbox_AppDirectory     = L""; // Holds the x:\WindowsApps\<package-name> path for the game
+  std::wstring Xbox_AppDirectory     = L""; // Holds the x:\WindowsApps\<package-full-name> path
+  std::wstring Xbox_PFDirectory      = L""; // Holds the C:\Program Files\WindowsApps\<package-full-name> path
 
   template <class _Tp> static
     constexpr bool
