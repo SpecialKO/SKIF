@@ -3132,7 +3132,9 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
             StringCbCopy (lpszTarget, iPathBufferSize, szTarget);
 
           // Get the arguments of the target.
-          if (SUCCEEDED (psl->GetArguments (szArguments, MAX_PATH)))
+          // In the case of a Unicode string, there is no limitation on maximum string length.
+          // In the case of an ANSI string, the maximum length of the returned string varies depending on the version of Windows—MAX_PATH prior to Windows 2000 and INFOTIPSIZE (defined in Commctrl.h) in Windows 2000 and later.
+          if (SUCCEEDED (psl->GetArguments (szArguments, 1024)))
             StringCbCopy (lpszArguments, iPathBufferSize, szArguments);
         }
       }
