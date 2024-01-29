@@ -2615,7 +2615,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImVec2 tmpPos = ImGui::GetCursorPos ( );
 
           // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
-          ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
+          if (SKIF_Tab_Selected == UITab_Library)
+            ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
 
           static bool btnHovered  = false;
           ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
@@ -2638,7 +2639,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::PopStyleColor   (4); // ImGuiCol_Text, ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
 
-          ImGui::PopItemFlag     ( );
+          if (SKIF_Tab_Selected == UITab_Library)
+            ImGui::PopItemFlag     ( );
 
           ImGui::SetCursorPos    (tmpPos);
           // End Add Game
