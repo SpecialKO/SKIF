@@ -1618,11 +1618,11 @@ SKIF_Util_FindProcessByName (const wchar_t* wszName)
 }
 
 bool
-SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
+SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 {
-  bool ret = PathFileExists (targetPath.c_str());
+  bool  ret  = PathFileExists (targetPath.c_str());
 
-  if (! ret && PathFileExists (exePath.c_str()))
+  if (! ret && PathFileExists (sourcePath.c_str()))
   {
     std::filesystem::path target = targetPath;
 
@@ -1648,8 +1648,9 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
 
-    // Extract the icon    
-    if (SUCCEEDED (SHDefExtractIcon (exePath.c_str(), 0, 0, &hIcon, 0, 32))) // 256
+    // Extract the icon
+    HRESULT hr = SHDefExtractIcon (sourcePath.c_str(), 0, 0, &hIcon, 0, 32); // 256
+    if (SUCCEEDED(hr) && hr != S_FALSE) // S_FALSE = The requested icon is not present.
     {
       // Start up GDI+
       if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
@@ -1672,6 +1673,14 @@ SKIF_Util_SaveExtractExeIcon (std::wstring exePath, std::wstring targetPath)
 
       // Destroy the icon
       DestroyIcon (hIcon);
+    }
+
+    // Something went wrong -- let's try to look for an .ico by the same filename instead
+    else if (sourcePath.rfind(L".exe") != std::wstring::npos)
+    {
+      sourcePath.replace(sourcePath.rfind(L".exe"), 4, L".ico");
+      if (PathFileExists (sourcePath.c_str()))
+        ret = SKIF_Util_SaveExtractExeIcon (sourcePath, targetPath);
     }
   }
 
