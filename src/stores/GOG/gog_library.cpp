@@ -94,7 +94,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               if (RegGetValueW (hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                 record.install_dir = szData;
 
-              record.install_dir   = std::filesystem::path (record.install_dir).lexically_normal().wstring();
+              record.install_dir   = std::filesystem::path (record.install_dir).lexically_normal();
 
               dwSize = sizeof(szData) / sizeof(WCHAR);
               if (RegGetValueW (hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)

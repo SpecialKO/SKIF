@@ -48,9 +48,9 @@ int SKIF_AddCustomAppID (
   //   because the latter adds a bunch of undesireable
   //     null terminators that screw the registry over.
   std::filesystem::path p = std::filesystem::path (path);
-  std::wstring exe         = std::wstring(p.c_str()),
-               exeFileName = std::wstring(p.filename().c_str()),
-               installDir  = std::wstring(p.parent_path().lexically_normal().c_str());
+  std::wstring exe         = p.lexically_normal(),
+               exeFileName = p.filename().lexically_normal(),
+               installDir  = p.parent_path().lexically_normal();
   
   // Strip null terminators
   //name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
@@ -161,9 +161,9 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view path, std::ws
   //   because the latter adds a bunch of undesireable
   //     null terminators that screw the registry over.
   std::filesystem::path p  = std::filesystem::path (path);
-  std::wstring exe         = p.lexically_normal().wstring(),
-               exeFileName = p.filename().lexically_normal().wstring(),
-               installDir  = p.parent_path().lexically_normal().wstring();
+  std::wstring exe         = p.lexically_normal(),
+               exeFileName = p.filename().lexically_normal(),
+               installDir  = p.parent_path().lexically_normal();
 
   std::wstring key = SK_FormatStringW(LR"(SOFTWARE\Kaldaien\Special K\Games\%lu)", pApp->id);
   

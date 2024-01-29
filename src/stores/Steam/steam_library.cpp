@@ -1062,7 +1062,7 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
       app->install_dir = path;
 
       //std::replace(app->install_dir.begin(), app->install_dir.end(), '/', '\\'); // Replaces slashes
-      app->install_dir = std::filesystem::path(path).lexically_normal().wstring();
+      app->install_dir = std::filesystem::path(path).lexically_normal();
     }
   }
 

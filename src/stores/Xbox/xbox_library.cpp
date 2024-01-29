@@ -188,7 +188,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       if (! record.install_dir.empty() && record.install_dir.rfind(LR"(\)") == record.install_dir.length() - 1)
                         record.install_dir.pop_back ();
 
-                      record.install_dir = std::filesystem::path(record.install_dir).lexically_normal().wstring();
+                      record.install_dir = std::filesystem::path(record.install_dir).lexically_normal();
 
                       //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
@@ -297,7 +297,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       // Ensure that it actually exists before we swap it in!
                       if (PathFileExists(virtualFolder.c_str()))
-                        record.install_dir = std::filesystem::path(virtualFolder).lexically_normal().wstring();
+                        record.install_dir = std::filesystem::path(virtualFolder).lexically_normal();
 
                       //PLOG_VERBOSE << "install_dir: " << record.install_dir;
 

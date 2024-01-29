@@ -4033,6 +4033,9 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
         ? SK_UseManifestToGetAppName (pApp)
         : pApp->names.original; // Use real original
 
+    // Strip any remaining null terminators
+    pApp->specialk.injection.localized_name.erase(std::find(pApp->specialk.injection.localized_name.begin(), pApp->specialk.injection.localized_name.end(), '\0'), pApp->specialk.injection.localized_name.end());
+
     std::wstring name =
       SK_UTF8ToWideChar (pApp->specialk.injection.localized_name);
 
@@ -4075,6 +4078,9 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       if (*it == L' ') *it = L'\0';
       else                   break;
     }
+
+    // Strip any remaining null terminators
+    name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
 
     pApp->specialk.profile_dir = name;
   }
@@ -4942,6 +4948,9 @@ SKIF_UI_Tab_DrawLibrary (void)
             continue;
           }
 
+          // Strip any remaining null terminators
+          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
+
           app.second.names.original = app.first;
 
           // Some games use weird Unicode character combos that ImGui can't handle,
@@ -4968,12 +4977,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (app.second.names.original != app.first)
             PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(app.second.names.original.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
 
-          // Strip any remaining null terminators
-          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
-
           // Trim leftover spaces
           app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
           app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
+
+          // Strip any remaining null terminators
+          //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
 
           // Pseudo-original. But let's store it!
           app.second.names.pseudo = app.first;
@@ -5025,15 +5034,15 @@ SKIF_UI_Tab_DrawLibrary (void)
           {
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
-            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
+            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
 
             if (app.second.store == app_record_s::Store::Xbox)
             {
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_AppDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_AppDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_AppDirectory;
 
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_PFDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.size() * sizeof(wchar_t)))
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_PFDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_PFDirectory;
             }
           }
@@ -5246,6 +5255,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Update the injection strategy for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
   // Also don't do it while the library worker is processing (to prevent stale data from surviving the refresh)
+  // TODO: We still need to improve this by killing off any outdated workers and prevent them from swapping their
+  //         results in. Maybe using an integer indicating the library refresh iteration we're currently on, that
+  //           the worker can have a copy of for evaluation once it's finished?
   if (pApp != nullptr && library_worker == nullptr)
   {
     if (update)
