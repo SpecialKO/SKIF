@@ -792,6 +792,7 @@ LaunchGame (app_record_s* pApp)
       }
 
       std::map<std::wstring, std::wstring> env;
+      env.emplace         (L"SKFriendlyName", SK_UTF8ToWideChar(pApp->names.original));
       bool steamOverlay = true;
 
       if (uiSteamAppID != 0)
