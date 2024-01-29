@@ -115,10 +115,13 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       record.store_utf8 = "Xbox";
                       record._status.installed = true;
                       record.install_dir = szData;
-                      record.install_dir = record.install_dir.substr(4); // Strip \\?\
+                      record.install_dir = record.install_dir.substr(4); // Strip \\?\ from the path
 
-                      if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
-                        record.install_dir += LR"(\)";
+                      // Trim a trailing backslash if one exists
+                      if (! record.install_dir.empty() && record.install_dir.rfind(LR"(\)") == record.install_dir.length() - 1)
+                        record.install_dir.pop_back ();
+
+                      record.install_dir = std::filesystem::path(record.install_dir).lexically_normal().wstring();
 
                       //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
@@ -133,9 +136,9 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       // packageFamilyName is used later as well, so do not free it up just yet
 
                       // Try to load the AppX XML Manifest in the install folder
-                      if (! manifest.load_file((record.install_dir + LR"(appxmanifest.xml)").c_str()))
+                      if (! manifest.load_file((record.install_dir + LR"(\appxmanifest.xml)").c_str()))
                       {
-                        PLOG_ERROR << "Failed to load AppX manifest at: " << record.install_dir << "appxmanifest.xml";
+                        PLOG_ERROR << "Failed to load AppX manifest at: " << record.install_dir << R"(\appxmanifest.xml)";
                         continue; // Skip to the next enumeration
                       }
 
@@ -257,11 +260,11 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       // If we have found a partial path, construct the assumed full path
                       if (! virtualFolder.empty())
-                        virtualFolder = SK_FormatStringW (LR"(%ws\%ws\Content\)", virtualFolder.c_str(), SK_UTF8ToWideChar (SKIF_Util_ReplaceInvalidFilenameChars (record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
+                        virtualFolder = SK_FormatStringW (LR"(%ws\%ws\Content)", virtualFolder.c_str(), SK_UTF8ToWideChar (SKIF_Util_ReplaceInvalidFilenameChars (record.names.normal, '-')).c_str()); //LR"(\)" + SK_UTF8ToWideChar(SKIF_ReplaceInvalidFilenameChars(record.names.normal, '-')) + LR"(\Content\)";
 
                       // Ensure that it actually exists before we swap it in!
                       if (PathFileExists(virtualFolder.c_str()))
-                        record.install_dir = virtualFolder;
+                        record.install_dir = std::filesystem::path(virtualFolder).lexically_normal().wstring();
 
                       //PLOG_VERBOSE << "install_dir: " << record.install_dir;
 
@@ -292,7 +295,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         if (! appDisplayName.empty())
                           lc.description = SK_UTF8ToWideChar (appDisplayName);
 
-                        if (config.load_file((record.install_dir + LR"(MicrosoftGame.config)").c_str()))
+                        if (config.load_file((record.install_dir + LR"(\MicrosoftGame.config)").c_str()))
                         {
                           //PLOG_VERBOSE << "Successfully loaded MicrosoftGame.config";
 
@@ -319,8 +322,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                               size_t pos = lc.executable.rfind(LR"(\)");
                               if (pos != std::wstring::npos)
                               {
-                                lc.executable_path = record.install_dir + lc.executable;
-                                lc.executable = lc.executable.substr(pos + 1);
+                                lc.executable_path = record.install_dir + LR"(\)" + lc.executable;
+                                lc.executable      = lc.executable.substr(pos + 1);
                               }
 
                               std::string exeOverrideDisplayName = exe.attribute("OverrideDisplayName").value();
@@ -338,7 +341,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         }
 
                         // Some games (e.g. Quake 2) needs to be launched through the gamelaunchhelper.exe, so retain that value
-                        lc.executable_helper = record.install_dir + L"\\" + SK_UTF8ToWideChar (app.attribute("Executable").value());
+                        lc.executable_helper = record.install_dir + LR"(\)" + SK_UTF8ToWideChar (app.attribute("Executable").value());
 
                         if (lc.executable.empty())
                           lc.executable = lc.executable_helper;
@@ -346,7 +349,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         if (lc.executable_path.empty())
                           lc.executable_path = (lc.executable == lc.executable_helper)
                                               ? lc.executable
-                                              : record.install_dir + lc.executable;
+                                              : record.install_dir + LR"(\)" + lc.executable;
 
                         std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 

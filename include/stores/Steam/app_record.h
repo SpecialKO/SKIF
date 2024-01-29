@@ -428,7 +428,7 @@ struct app_record_s {
   std::string  Xbox_PackageFullName  =  "";
   std::string  Xbox_PackageFamilyName=  "";
   std::string  Xbox_StoreId          =  "";
-  std::wstring Xbox_AppDirectory     = L""; // Holds the :\WindowsApps\<package-name>\ path for the game
+  std::wstring Xbox_AppDirectory     = L""; // Holds the x:\WindowsApps\<package-name> path for the game
 
   template <class _Tp> static
     constexpr bool

@@ -304,9 +304,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 
           // Strip double backslashes characters from the string
           pAppRecord->install_dir = std::regex_replace (pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
-
-          if (pAppRecord->install_dir.rfind(LR"(\)") != pAppRecord->install_dir.size() - 1)
-            pAppRecord->install_dir += LR"(\)";
         }
         catch (const std::exception& e)
         {

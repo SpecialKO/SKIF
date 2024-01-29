@@ -50,7 +50,7 @@ int SKIF_AddCustomAppID (
   std::filesystem::path p = std::filesystem::path (path);
   std::wstring exe         = std::wstring(p.c_str()),
                exeFileName = std::wstring(p.filename().c_str()),
-               installDir  = std::wstring(p.parent_path().c_str());
+               installDir  = std::wstring(p.parent_path().lexically_normal().c_str());
   
   // Strip null terminators
   //name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
@@ -121,11 +121,7 @@ int SKIF_AddCustomAppID (
 
     record.ImGuiLabelAndID = SK_FormatString("%s (recently added)###%i-%i", record.names.normal.c_str(), (int)record.store, record.id);
     record.ImGuiPushID     = SK_FormatString("###%i-%i", (int)record.store, record.id);
-
-    record.install_dir = installDir;
-    std::replace(record.install_dir.begin(), record.install_dir.end(), '/', '\\'); // Replaces slashes
-    if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
-      record.install_dir += LR"(\)";
+    record.install_dir     = installDir;
     
     app_record_s::launch_config_s lc;
     lc.id               = 0;
@@ -219,9 +215,6 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->ImGuiPushID     = SK_FormatString("###%i-%i", (int)pApp->store, pApp->id);
 
     pApp->install_dir                       = installDir;
-    std::replace(pApp->install_dir.begin(), pApp->install_dir.end(), '/', '\\'); // Replaces slashes
-    if (pApp->install_dir.rfind(LR"(\)") != pApp->install_dir.size() - 1)
-      pApp->install_dir += LR"(\)";
     pApp->launch_configs[0].executable      = exeFileName;
     pApp->launch_configs[0].executable_path = exe;
     pApp->launch_configs[0].install_dir     = pApp->install_dir;
@@ -291,10 +284,6 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
             if (RegGetValueW (hKey, szSubKey, L"InstallDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               record.install_dir = szData;
 
-            std::replace(record.install_dir.begin(), record.install_dir.end(), '/', '\\'); // Replaces slashes
-            if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
-              record.install_dir += LR"(\)";
-
             dwSize = sizeof (szData) / sizeof (WCHAR);
             if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"Exe"
             {
@@ -315,7 +304,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
 
               record.launch_configs.emplace (0, lc);
 
-              record.specialk.profile_dir = lc.executable;
+              record.specialk.profile_dir              = lc.executable;
               record.specialk.injection.injection.type = InjectionType::Global;
 
               std::pair <std::string, app_record_s>
