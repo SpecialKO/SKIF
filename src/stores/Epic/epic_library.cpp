@@ -147,6 +147,10 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           record.store_utf8           = "Epic";
           record._status.installed    = true;
           record.install_dir          = SK_UTF8ToWideChar (jf.at ("InstallLocation"));
+          std::replace(record.install_dir.begin(), record.install_dir.end(), '/', '\\'); // Replaces all / with \
+
+          if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
+            record.install_dir += LR"(\)";
 
           record.names.normal         = jf.at ("DisplayName");
           record.names.original       = record.names.normal;
@@ -156,7 +160,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
           lc.id                       = 0;
           lc.valid                    = 1;
           lc.executable               = SK_UTF8ToWideChar(jf.at("LaunchExecutable")); // record.install_dir + L"\\" +
-          lc.executable_path          = record.install_dir + L"\\" + lc.executable;
+          lc.executable_path          = record.install_dir + lc.executable;
           lc.install_dir              = record.install_dir;
           std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
 

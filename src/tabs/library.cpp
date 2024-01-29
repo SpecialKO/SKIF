@@ -4790,6 +4790,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Processing detected games...";
 
+      HKEY hKey;
+      LSTATUS lsProfilesKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
+
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
       {
@@ -5018,10 +5021,27 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        // Prepare for the keyboard hint / search/filter functionality
         if ( app.second._status.installed)
+        {
+          // Prepare for the keyboard hint / search/filter functionality
           InsertTrieKey (&app, &_data->labels);
+
+          // Ensure the Profiles registry key is populated properly
+          if (ERROR_SUCCESS == lsProfilesKey)
+          {
+            std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
+
+            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(),
+                (DWORD)wsName.size() * sizeof(wchar_t)))
+            {
+              PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+            }
+          }
+        }
       }
+
+      if (ERROR_SUCCESS == lsProfilesKey)
+        RegCloseKey (hKey);
 
       // Update the db.json file with any additions and whatnot
       if (! jsonMetaDB.is_discarded())

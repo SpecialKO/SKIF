@@ -304,6 +304,9 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 
           // Strip double backslashes characters from the string
           pAppRecord->install_dir = std::regex_replace (pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
+
+          if (pAppRecord->install_dir.rfind(LR"(\)") != pAppRecord->install_dir.size() - 1)
+            pAppRecord->install_dir += LR"(\)";
         }
         catch (const std::exception& e)
         {
@@ -707,7 +710,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           // TODO: Test this out properly with games with different working directories set!
           //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
           if (! launch.working_dir.empty())
-              launch.working_dir = std::wstring (pAppRecord->install_dir + LR"(\)" + launch.working_dir + L"\0\0");
+              launch.working_dir = std::wstring (pAppRecord->install_dir + launch.working_dir + L"\0\0");
 
           // Flag the launch config to be added back
           _launches.push_back (launch);

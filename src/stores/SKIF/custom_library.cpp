@@ -123,6 +123,9 @@ int SKIF_AddCustomAppID (
     record.ImGuiPushID     = SK_FormatString("###%i-%i", (int)record.store, record.id);
 
     record.install_dir = installDir;
+    std::replace(record.install_dir.begin(), record.install_dir.end(), '/', '\\'); // Replaces slashes
+    if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
+      record.install_dir += LR"(\)";
     
     app_record_s::launch_config_s lc;
     lc.id               = 0;
@@ -215,13 +218,16 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring name, std::wstring
     pApp->ImGuiLabelAndID = SK_FormatString("%s###%i-%i", pApp->names.normal.c_str(), (int)pApp->store, pApp->id);
     pApp->ImGuiPushID     = SK_FormatString("###%i-%i", (int)pApp->store, pApp->id);
 
-    pApp->install_dir = installDir;
-    pApp->launch_configs[0].executable = exeFileName;
+    pApp->install_dir                       = installDir;
+    std::replace(pApp->install_dir.begin(), pApp->install_dir.end(), '/', '\\'); // Replaces slashes
+    if (pApp->install_dir.rfind(LR"(\)") != pApp->install_dir.size() - 1)
+      pApp->install_dir += LR"(\)";
+    pApp->launch_configs[0].executable      = exeFileName;
     pApp->launch_configs[0].executable_path = exe;
-    pApp->launch_configs[0].install_dir = pApp->install_dir;
-    pApp->launch_configs[0].working_dir = pApp->install_dir;
-    pApp->launch_configs[0].launch_options = args;
-    pApp->specialk.profile_dir = exeFileName; // THIS CAN BE WRONG!!!!
+    pApp->launch_configs[0].install_dir     = pApp->install_dir;
+    pApp->launch_configs[0].working_dir     = pApp->install_dir;
+    pApp->launch_configs[0].launch_options  = args;
+    pApp->specialk.profile_dir              = exeFileName; // THIS CAN BE WRONG!!!!
   }
 
   return ! failed;
@@ -284,6 +290,10 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
             dwSize = sizeof (szData) / sizeof (WCHAR);
             if (RegGetValueW (hKey, szSubKey, L"InstallDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               record.install_dir = szData;
+
+            std::replace(record.install_dir.begin(), record.install_dir.end(), '/', '\\'); // Replaces slashes
+            if (record.install_dir.rfind(LR"(\)") != record.install_dir.size() - 1)
+              record.install_dir += LR"(\)";
 
             dwSize = sizeof (szData) / sizeof (WCHAR);
             if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"Exe"

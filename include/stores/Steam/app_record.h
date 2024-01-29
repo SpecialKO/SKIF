@@ -406,7 +406,7 @@ struct app_record_s {
   bool         loading               =  false; // indicates if we are processing in a background thread
   bool         filtered              =  false; // indicates if the app has been filtered out (used for search; not the same as the skif.hidden state!)
   bool         cloud_enabled         =   true; // hidecloudui=false
-  std::wstring install_dir;
+  std::wstring install_dir; // Should be backslash-terminated
   Store        store                 =  Store::Unspecified;
   std::string  store_utf8            =  "";
 

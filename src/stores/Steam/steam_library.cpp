@@ -1060,6 +1060,10 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
                           app_path.c_str ());
 
       app->install_dir = path;
+
+      std::replace(app->install_dir.begin(), app->install_dir.end(), '/', '\\'); // Replaces slashes
+      if (app->install_dir.rfind(LR"(\)") != app->install_dir.size() - 1)
+        app->install_dir += LR"(\)";
     }
   }
 
