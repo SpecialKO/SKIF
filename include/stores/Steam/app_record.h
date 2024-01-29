@@ -107,9 +107,9 @@ struct app_record_s {
   struct names_s {
     std::string all_upper;
     std::string all_upper_alnum;
-    std::string original;  // Holds the original name before any trimming or custom name was applied
-    std::string pseudo;    // Holds the pseudo-original name before any custom name was applied
-    std::string normal;    // Name used in SKIF (custom names are applied on this)
+    std::string original;  // Holds the original name
+    std::string clean;     // Holds a cleaned copy of the original name
+    std::string normal;    // Name used in SKIF, and any custom name applied
     size_t      pre_stripped = 0;
   } names;
 
@@ -384,14 +384,18 @@ struct app_record_s {
     std::multimap <int64_t, branch_t>     branches;      // Steam Branches
 
     // PCGamingWiki
-    std::wstring pcgwValue;
-    std::wstring pcgwLink;
+    std:: string pcgw;
+
+    // SteamGridDB
+    std:: string sgdbGrids;
+    std:: string sgdbIcons;
 
     std:: string label_version; // type_version
   } ui;
 
   struct specialk_config_s {
     std::wstring           profile_dir;
+    std:: string           profile_dir_utf8;
     std::set <std::string> screenshots; // utf8 path
     sk_install_state_s     injection;
   } specialk;
@@ -407,7 +411,7 @@ struct app_record_s {
   bool         loading               =  false; // indicates if we are processing in a background thread
   bool         filtered              =  false; // indicates if the app has been filtered out (used for search; not the same as the skif.hidden state!)
   bool         cloud_enabled         =   true; // hidecloudui=false
-  std::wstring install_dir; // Should be backslash-terminated
+  std::wstring install_dir; // Should NOT be backslash-terminated
   Store        store                 =  Store::Unspecified;
   std::string  store_utf8            =  "";
 
@@ -423,7 +427,7 @@ struct app_record_s {
   std::string  Epic_CatalogNamespace =  "";
   std::string  Epic_CatalogItemId    =  "";
   std::string  Epic_AppName          =  "";
-  std::string  Epic_DisplayName      =  ""; // Might be removable, replaced with normal.original ??
+  std::string  Epic_DisplayName      =  ""; // Used for asset retrieval
 
   std::string  Xbox_PackageName      =  "";
   std::string  Xbox_PackageFullName  =  "";

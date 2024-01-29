@@ -454,7 +454,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       if (pos != std::wstring::npos)
                         trimmed = trimmed.substr(pos + 1);
 
-                      record.specialk.profile_dir = trimmed;
+                      record.specialk.profile_dir      = trimmed;
+                      record.specialk.profile_dir_utf8 = SK_WideCharToUTF8(record.specialk.profile_dir);
 
                       std::pair <std::string, app_record_s>
                         Xbox (record.names.normal, record);

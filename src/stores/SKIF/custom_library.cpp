@@ -129,7 +129,8 @@ int SKIF_AddCustomAppID (
     lc.launch_options   = args;
 
     record.launch_configs.emplace (0, lc);
-    record.specialk.profile_dir = exeFileName; // THIS CAN BE WRONG!!!!
+    record.specialk.profile_dir              = exeFileName; // THIS CAN BE WRONG!!!!
+    record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
     record.specialk.injection.injection.type = InjectionType::Global;
 
     std::pair <std::string, app_record_s>
@@ -199,6 +200,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view path, std::ws
     pApp->launch_configs.begin()->second.working_dir     = pApp->install_dir;
     pApp->launch_configs.begin()->second.launch_options  = args;
     pApp->specialk.profile_dir                           = exeFileName; // THIS CAN BE WRONG!!!!
+    pApp->specialk.profile_dir_utf8                      = SK_WideCharToUTF8(pApp->specialk.profile_dir);
   }
 
   return ! failed;
@@ -275,6 +277,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
               record.launch_configs.emplace (0, lc);
 
               record.specialk.profile_dir              = lc.executable;
+              record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
               record.specialk.injection.injection.type = InjectionType::Global;
 
               std::pair <std::string, app_record_s>

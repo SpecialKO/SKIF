@@ -119,7 +119,8 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
                 record.launch_configs.emplace (0, lc);
 
-                record.specialk.profile_dir = lc.executable;
+                record.specialk.profile_dir              = lc.executable;
+                record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
                 record.specialk.injection.injection.type = InjectionType::Global;
 
                 std::pair <std::string, app_record_s>
