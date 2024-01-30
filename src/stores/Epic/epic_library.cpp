@@ -178,15 +178,15 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
           record.launch_configs.emplace (0, lc);
 
-          record.Epic_CatalogNamespace = CatalogNamespace;
-          record.Epic_CatalogItemId    = CatalogItemId;
-          record.Epic_AppName          = AppName;
-          record.Epic_DisplayName      = record.names.normal;
+          record.epic.catalog_namespace = CatalogNamespace;
+          record.epic.catalog_item_id   = CatalogItemId;
+          record.epic.name_app          = AppName;
+          record.epic.name_display      = record.names.normal;
 
           record.specialk.injection.injection.type = InjectionType::Global;
 
           // Strip invalid filename characters
-          record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.Epic_DisplayName);
+          record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
           record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
             
           std::pair <std::string, app_record_s>

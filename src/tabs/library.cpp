@@ -448,8 +448,8 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
   // Update the db.json file with any new values
   if (! jsonMetaDB.is_discarded())
   {
-    std::string item = (pApp->store == app_record_s::Store::Epic)  ? pApp->Epic_AppName     :
-                       (pApp->store == app_record_s::Store::Xbox)  ? pApp->Xbox_PackageName :
+    std::string item = (pApp->store == app_record_s::Store::Epic)  ? pApp->epic.name_app     :
+                       (pApp->store == app_record_s::Store::Xbox)  ? pApp->xbox.package_name :
                                                      std::to_string (pApp->id);
 
     try {
@@ -573,9 +573,9 @@ LaunchGame (app_record_s* pApp)
         // Instant launches needs to fall back to the regular approach
         if (pApp->store == app_record_s::Store::Xbox && ! launchInstant)
         {
-          if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->Xbox_AppDirectory).c_str(), true))
+          if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->xbox.directory_app).c_str(), true))
           {
-            if (_inject.WhitelistPattern (pApp->Xbox_PackageName))
+            if (_inject.WhitelistPattern (pApp->xbox.package_name))
               _inject.SaveWhitelist ( );
           }
         }
@@ -703,7 +703,7 @@ LaunchGame (app_record_s* pApp)
           SK_FormatStringW (
             LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
             launchConfig->id,
-            SK_UTF8ToWideChar (pApp->Xbox_PackageFamilyName).c_str(),
+            SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
             launchConfig->getExecutableFullPath().c_str()
           ),
           pApp->install_dir,
@@ -1175,11 +1175,11 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   else if (pApp->store == app_record_s::Store::Custom)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
   else if (pApp->store == app_record_s::Store::Epic)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
   else if (pApp->store == app_record_s::Store::GOG)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
   else if (pApp->store == app_record_s::Store::Xbox)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+    targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
   else if (pApp->store == app_record_s::Store::Steam)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
@@ -2246,8 +2246,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
           ImGui::PushID       ("#Steam");
           ImGui::TextDisabled ("Steam Data");
-          if (ImGui::MenuItem ("Branch",                  pApp->branch.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->branch));
+          if (ImGui::MenuItem ("Branch",                  pApp->steam.branch.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.branch));
           if (ImGui::MenuItem ("Launch Option",           pApp->steam.local.launch_option.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.local.launch_option));
           if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->steam.manifest_path).c_str()))
@@ -2267,18 +2267,18 @@ DrawGameContextMenu (app_record_s* pApp)
 
           ImGui::PushID       ("#Xbox");
           ImGui::TextDisabled ("Xbox Data");
-          if (ImGui::MenuItem ("Package",                 pApp->Xbox_PackageName.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageName));
-          if (ImGui::MenuItem ("Full Name",               pApp->Xbox_PackageFullName.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFullName));
-          if (ImGui::MenuItem ("Family Name",             pApp->Xbox_PackageFamilyName.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_PackageFamilyName));
-          if (ImGui::MenuItem ("Store ID",                pApp->Xbox_StoreId.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Xbox_StoreId));
-          if (ImGui::MenuItem ("App Directory",    SK_WideCharToUTF8(pApp->Xbox_AppDirectory).c_str()))
-            SKIF_Util_SetClipboardData (                             pApp->Xbox_AppDirectory);
-          if (ImGui::MenuItem ("PF Directory",     SK_WideCharToUTF8(pApp->Xbox_PFDirectory).c_str()))
-            SKIF_Util_SetClipboardData (                             pApp->Xbox_PFDirectory);
+          if (ImGui::MenuItem ("Package",                 pApp->xbox.package_name.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name));
+          if (ImGui::MenuItem ("Full Name",               pApp->xbox.package_name_full.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_full));
+          if (ImGui::MenuItem ("Family Name",             pApp->xbox.package_name_family.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_family));
+          if (ImGui::MenuItem ("Store ID",                pApp->xbox.store_id.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.store_id));
+          if (ImGui::MenuItem ("App Directory",    SK_WideCharToUTF8(pApp->xbox.directory_app).c_str()))
+            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_app);
+          if (ImGui::MenuItem ("PF Directory",     SK_WideCharToUTF8(pApp->xbox.directory_program_files).c_str()))
+            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_program_files);
           ImGui::PopID        ( );
         }
 
@@ -2288,14 +2288,14 @@ DrawGameContextMenu (app_record_s* pApp)
 
           ImGui::PushID       ("#Epic");
           ImGui::TextDisabled ("Epic Data");
-          if (ImGui::MenuItem ("App Name",                pApp->Epic_AppName.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_AppName));
-          if (ImGui::MenuItem ("Display Name",            pApp->Epic_DisplayName.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_DisplayName));
-          if (ImGui::MenuItem ("Catalog Namespace",       pApp->Epic_CatalogNamespace.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogNamespace));
-          if (ImGui::MenuItem ("Catalog Item ID",         pApp->Epic_CatalogItemId.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Epic_CatalogItemId));
+          if (ImGui::MenuItem ("App Name",                pApp->epic.name_app.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_app));
+          if (ImGui::MenuItem ("Display Name",            pApp->epic.name_display.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_display));
+          if (ImGui::MenuItem ("Catalog Namespace",       pApp->epic.catalog_namespace.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_namespace));
+          if (ImGui::MenuItem ("Catalog Item ID",         pApp->epic.catalog_item_id.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_item_id));
           ImGui::PopID        ( );
         }
 
@@ -2500,7 +2500,7 @@ DrawGameContextMenu (app_record_s* pApp)
               L"",
               SKIF_Xbox_GetCustomLaunchCommandW (
                 pApp->launch_configs.begin()->second.id,
-                pApp->Xbox_PackageFamilyName,
+                pApp->xbox.package_name_family,
                 "cmd.exe"
               ),
               pApp->install_dir
@@ -2543,7 +2543,7 @@ DrawGameContextMenu (app_record_s* pApp)
                   L"",
                   SKIF_Xbox_GetCustomLaunchCommandW (
                     _launch.id,
-                    pApp->Xbox_PackageFamilyName,
+                    pApp->xbox.package_name_family,
                     "cmd.exe"
                   ),
                   pApp->install_dir
@@ -2568,10 +2568,10 @@ DrawGameContextMenu (app_record_s* pApp)
         switch (pApp->store)
         {
         case app_record_s::Store::Epic:
-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->Epic_AppName));
+          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->epic.name_app));
           break;
         case app_record_s::Store::Xbox:
-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->Xbox_PackageName));
+          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->xbox.package_name));
           break;
         default:
           SKIF_Util_SetClipboardData (std::to_wstring   (pApp->id));
@@ -2579,8 +2579,8 @@ DrawGameContextMenu (app_record_s* pApp)
       }
 
       SKIF_ImGui_SetHoverText (
-        (pApp->store == app_record_s::Store::Epic) ? pApp->Epic_AppName     :
-        (pApp->store == app_record_s::Store::Xbox) ? pApp->Xbox_PackageName :
+        (pApp->store == app_record_s::Store::Epic) ? pApp->epic.name_app     :
+        (pApp->store == app_record_s::Store::Xbox) ? pApp->xbox.package_name :
                                      std::to_string (pApp->id)
       );
 
@@ -4707,8 +4707,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             auto& append_cfg = (record.store == app_record_s::Store::Steam) ? record.launch_configs_custom
                                                                             : record.launch_configs;
 
-            std::string key  = (record.store == app_record_s::Store::Epic)  ? record.Epic_AppName     :
-                               (record.store == app_record_s::Store::Xbox)  ? record.Xbox_PackageName :
+            std::string key  = (record.store == app_record_s::Store::Epic)  ? record.epic.name_app     :
+                               (record.store == app_record_s::Store::Xbox)  ? record.xbox.package_name :
                                                               std::to_string (record.id);
 
             for (auto& launch_config : jf[record.store_utf8][key])
@@ -4796,8 +4796,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Load any custom data
           if (! jsonMetaDB.is_discarded())
           {
-            std::string item = (app.second.store == app_record_s::Store::Epic)  ? app.second.Epic_AppName     :
-                               (app.second.store == app_record_s::Store::Xbox)  ? app.second.Xbox_PackageName :
+            std::string item = (app.second.store == app_record_s::Store::Epic)  ? app.second.epic.name_app     :
+                               (app.second.store == app_record_s::Store::Xbox)  ? app.second.xbox.package_name :
                                                                   std::to_string (app.second.id);
 
             try {
@@ -4993,10 +4993,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Preload active branch for Steam games
           if (app.second.store == app_record_s::Store::Steam)
           {
-            app.second.branch = SK_UseManifestToGetCurrentBranch (&app.second);
+            app.second.steam.branch = SK_UseManifestToGetCurrentBranch (&app.second);
 
-            if (! app.second.branch.empty())
-              PLOG_VERBOSE << "App ID " << app.second.id << " has active branch : " << app.second.branch;
+            if (! app.second.steam.branch.empty())
+              PLOG_VERBOSE << "App ID " << app.second.id << " has active branch : " << app.second.steam.branch;
           }
         }
 
@@ -5015,11 +5015,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (app.second.store == app_record_s::Store::Xbox)
             {
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_AppDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_AppDirectory;
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_app;
 
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.Xbox_PFDirectory.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.Xbox_PFDirectory;
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_program_files.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_program_files;
             }
           }
         }
@@ -6618,11 +6618,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
           else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
@@ -6804,11 +6804,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
           else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
@@ -6858,11 +6858,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Custom)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
           else if (pApp->store == app_record_s::Store::GOG)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
           else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
           else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
@@ -7221,11 +7221,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (_pApp->store == app_record_s::Store::Epic)
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Epic_AppName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->epic.name_app).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
-          SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
+          SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
         }
         
         else {
@@ -7245,7 +7245,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 600 ||
                 meta.height == 900)
             {
-              SKIF_Epic_IdentifyAssetNew (_pApp->Epic_CatalogNamespace, _pApp->Epic_CatalogItemId, _pApp->Epic_AppName, _pApp->Epic_DisplayName);
+              SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
             }
           }
         }
@@ -7255,11 +7255,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       else if (_pApp->store == app_record_s::Store::Xbox)
       {
         load_str = 
-          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->Xbox_PackageName).c_str());
+          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->xbox.package_name).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
         {
-          SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
+          SKIF_Xbox_IdentifyAssetNew (_pApp->xbox.package_name, _pApp->xbox.store_id);
         }
         
         else {
@@ -7279,7 +7279,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (meta.width  == 600 ||
                 meta.height == 900)
             {
-              SKIF_Xbox_IdentifyAssetNew (_pApp->Xbox_PackageName, _pApp->Xbox_StoreId);
+              SKIF_Xbox_IdentifyAssetNew (_pApp->xbox.package_name, _pApp->xbox.store_id);
             }
           }
         }

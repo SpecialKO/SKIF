@@ -244,7 +244,7 @@ LoadLibraryTexture (
     // Epic
     else if (pApp->store == app_record_s::Store::Epic)
     {
-      std::wstring EpicAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Epic_AppName).c_str());
+      std::wstring EpicAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
       SKIFCustomPath = std::wstring(EpicAssetPath);
 
       if (libTexToLoad == LibraryTexture::Cover)
@@ -330,7 +330,7 @@ LoadLibraryTexture (
     // Xbox
     else if (pApp->store == app_record_s::Store::Xbox)
     {
-      std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->Xbox_PackageName).c_str());
+      std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
       SKIFCustomPath = std::wstring(XboxAssetPath);
 
       if (libTexToLoad == LibraryTexture::Cover)

@@ -263,11 +263,11 @@ struct app_record_s {
 
     std::wstring getBlacklistFilename       (void);
     bool         setBlacklisted             (bool blacklist);
-    bool         isBlacklisted              (bool refresh = false);
+    bool          isBlacklisted             (bool refresh = false);
 
     std::wstring getElevatedFilename        (void);
     bool         setElevated                (bool elevated);
-    bool         isElevated                 (bool refresh = false);
+    bool          isElevated                (bool refresh = false);
 
     std::wstring getExecutableFileName      (void);
     std:: string getExecutableFileNameUTF8  (void);
@@ -432,21 +432,24 @@ struct app_record_s {
 
     std::string  manifest_data    =  "";
     std::wstring manifest_path    = L"";
+    std::string  branch           = "public"; // Holds the current "beta" branch set in the Steam client (default: public)
   } steam;
 
-  std::string  branch                =  "public"; // Holds the current "beta" branch set in the Steam client (default: public)
+  struct {
+    std::string  catalog_namespace =  ""; // CatalogNamespace
+    std::string  catalog_item_id   =  ""; // CatalogItemId
+    std::string  name_app          =  ""; // AppName
+    std::string  name_display      =  ""; // DisplayName; Used for asset retrieval
+  } epic;
 
-  std::string  Epic_CatalogNamespace =  "";
-  std::string  Epic_CatalogItemId    =  "";
-  std::string  Epic_AppName          =  "";
-  std::string  Epic_DisplayName      =  ""; // Used for asset retrieval
-
-  std::string  Xbox_PackageName      =  "";
-  std::string  Xbox_PackageFullName  =  "";
-  std::string  Xbox_PackageFamilyName=  "";
-  std::string  Xbox_StoreId          =  "";
-  std::wstring Xbox_AppDirectory     = L""; // Holds the x:\WindowsApps\<package-full-name> path
-  std::wstring Xbox_PFDirectory      = L""; // Holds the C:\Program Files\WindowsApps\<package-full-name> path
+  struct {
+    std::string  package_name            =  ""; // PackageName
+    std::string  package_name_full       =  ""; // PackageFullName
+    std::string  package_name_family     =  ""; // PackageFamilyName
+    std::string  store_id                =  ""; // StoreId
+    std::wstring directory_app           = L""; // AppDirectory; Holds the x:\WindowsApps\<package-full-name> path
+    std::wstring directory_program_files = L""; // Program Files directory; Holds the C:\Program Files\WindowsApps\<package-full-name> path
+  } xbox;
 
   template <class _Tp> static
     constexpr bool

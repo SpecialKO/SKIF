@@ -192,12 +192,12 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       //PLOG_VERBOSE << "Adjusted install dir: " << record.install_dir;
 
-                      record.Xbox_AppDirectory    = record.install_dir;
-                      record.Xbox_PFDirectory     = LR"(C:\Program Files\WindowsApps\)" + packageFullName;
-                      if (! PathFileExists(record.Xbox_PFDirectory.c_str()))
-                        record.Xbox_PFDirectory.clear();
+                      record.xbox.directory_app           = record.install_dir;
+                      record.xbox.directory_program_files = LR"(C:\Program Files\WindowsApps\)" + packageFullName;
+                      if (! PathFileExists(record.xbox.directory_program_files.c_str()))
+                        record.xbox.directory_program_files.clear();
 
-                      record.Xbox_PackageFullName = SK_WideCharToUTF8(packageFullName);
+                      record.xbox.package_name_full = SK_WideCharToUTF8(packageFullName);
 
                       UINT32 length = 0;
                       SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, NULL);
@@ -205,8 +205,8 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       std::wstring packageFamilyName;
                       if (ERROR_SUCCESS == SKIF_Xbox_PackageFamilyNameFromFullName (packageFullName.c_str(), &length, pwzPackageFamilyName))
                       {
-                        packageFamilyName             =   std::wstring(pwzPackageFamilyName);
-                        record.Xbox_PackageFamilyName = SK_WideCharToUTF8(packageFamilyName);
+                        packageFamilyName               =   std::wstring(pwzPackageFamilyName);
+                        record.xbox.package_name_family = SK_WideCharToUTF8(packageFamilyName);
                       }
                       free(pwzPackageFamilyName);
 
@@ -266,12 +266,12 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       //PLOG_VERBOSE << "virtualFolder: " << virtualFolder;
 
-                      record.Xbox_PackageName = xmlRoot.child("Identity").attribute("Name").value();
+                      record.xbox.package_name = xmlRoot.child("Identity").attribute("Name").value();
                       record.names.normal     = xmlRoot.child("Properties").child_value("DisplayName");
 
                       // Hash the PackageName into a unique integer we use for internal tracking purposes
                       std::hash <std::string> stoi_hasher;
-                      size_t int_hash = stoi_hasher (record.Xbox_PackageName);
+                      size_t int_hash = stoi_hasher (record.xbox.package_name);
 
                       record.id = static_cast<uint32_t>(int_hash);
 
@@ -288,7 +288,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       //   Via package full name:
                       //     @{Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
                       // 
-                      record.names.normal   = SKIF_Xbox_LoadMSResource (record.names.normal, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName);
+                      record.names.normal   = SKIF_Xbox_LoadMSResource (record.names.normal, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName);
                       record.names.original = record.names.normal;
 
                       // If we have found a partial path, construct the assumed full path
@@ -308,7 +308,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       else
                         record.specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
-                      std::wstring targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (record.Xbox_PackageName).c_str());
+                      std::wstring targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (record.xbox.package_name).c_str());
                       std::wstring iconPath   = targetPath + L"icon-original.png";
                       std::wstring coverPath  = targetPath + L"cover-fallback.png";
 
@@ -326,7 +326,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
 
                         if (! appDisplayName.empty())
-                          lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (appDisplayName, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName));
+                          lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (appDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName));
 
                         if (config.load_file((record.install_dir + LR"(\MicrosoftGame.config)").c_str()))
                         {
@@ -334,7 +334,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                           pugi::xml_node xmlConfigRoot  = config.document_element();
 
-                          record.Xbox_StoreId = xmlConfigRoot.child_value("StoreId");
+                          record.xbox.store_id = xmlConfigRoot.child_value("StoreId");
 
                           int exeCount = 0;
 
@@ -362,7 +362,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                               std::string exeOverrideDisplayName = exe.attribute("OverrideDisplayName").value();
                               if (! exeOverrideDisplayName.empty())
                               {
-                                lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (exeOverrideDisplayName, SK_UTF8ToWideChar(record.Xbox_PackageName), packageFullName, packageFamilyName));
+                                lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (exeOverrideDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName));
                                 PLOG_VERBOSE << "Found override display name: " << lc.description;
                               }
                             }

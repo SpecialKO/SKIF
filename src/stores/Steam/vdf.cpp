@@ -654,7 +654,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           launch.executable = std::filesystem::path(launch.executable).lexically_normal();
 
           // Filter launch configurations requiring a beta branch that the user do not have
-          if (! launch.branches.empty() && launch.branches.count (pAppRecord->branch) == 0)
+          if (! launch.branches.empty() && launch.branches.count (pAppRecord->steam.branch) == 0)
             launch.valid = 0;
 
           // File extension, so we can flag out non-executable ones (e.g. link2ea)
