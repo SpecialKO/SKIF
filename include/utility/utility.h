@@ -32,9 +32,9 @@ extern std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
 // Generic Utilities
 
-std::string     SKIF_Util_ToLower                     (std::string_view  input);
+std:: string    SKIF_Util_ToLower                     (std:: string_view input);
 std::wstring    SKIF_Util_ToLowerW                    (std::wstring_view input);
-std::string     SKIF_Util_ToUpper                     (std::string_view  input);
+std:: string    SKIF_Util_ToUpper                     (std:: string_view input);
 std::wstring    SKIF_Util_ToUpperW                    (std::wstring_view input);
 std::wstring    SKIF_Util_GetErrorAsWStr              (DWORD error = GetLastError ( ), HMODULE module = NULL);
 void            SKIF_Util_GetErrorAsMsgBox            (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError ( ), HMODULE module = NULL);
@@ -47,14 +47,16 @@ int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std
 
 // Filenames
 
-std::string     SKIF_Util_StripInvalidFilenameChars   (std:: string name);
+std:: string    SKIF_Util_StripInvalidFilenameChars   (std:: string name);
 std::wstring    SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
-std::string     SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
+std:: string    SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
 std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
+std:: string    SKIF_Util_NormalizeFullPath           (std:: string string);
+std::wstring    SKIF_Util_NormalizeFullPath           (std::wstring string);
 
 // Usernames
-std::wstring    SKIF_Util_StripPersonalData           (std::wstring input);
 std:: string    SKIF_Util_StripPersonalData           (std:: string input);
+std::wstring    SKIF_Util_StripPersonalData           (std::wstring input);
 void            SKIF_Util_Debug_LogUserNames          (void);
 
 

@@ -4788,6 +4788,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (SKIF_Steam_UpdateAppState (&app.second))
             app.second._status.dwTimeLastChecked = SKIF_Util_timeGetTime1 ( ) + 333UL; // _RefreshInterval
+
+          // Set uninstalled apps id to 0 so that they are filtered out
+          if (! app.second._status.installed)
+            app.second.id = 0;
         }
 
         // Only bother opening the application manifest
@@ -4968,6 +4972,14 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Update ImGuiLabelAndID and ImGuiPushID
           app.second.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
           app.second.ImGuiPushID     = SK_FormatString("###%i-%i", (int)app.second.store, app.second.id);
+
+#if 0
+          PLOG_DEBUG << "\nGame Titles: (" << app.second.id << ")"
+                     << "\nOriginal : " << SK_UTF8ToWideChar(app.second.names.original)
+                     << "\nCleaned  : " << SK_UTF8ToWideChar(app.second.names.clean)
+                     << "\nNormal   : " << SK_UTF8ToWideChar(app.second.names.normal)
+                     << "\nImGuiLID : " << SK_UTF8ToWideChar(app.second.ImGuiLabelAndID);
+#endif
         }
 
         // Check if install folder exists (but not for Xbox games or Special K)

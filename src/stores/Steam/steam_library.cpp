@@ -645,15 +645,7 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 
             if (! lib_path.empty ())
             {
-              // Strip double backslashes characters from the string
-              try
-              {
-                lib_path = std::regex_replace (lib_path, std::wregex(LR"(\\\\)"), LR"(\)");
-              }
-              catch (const std::exception& e)
-              {
-                UNREFERENCED_PARAMETER(e);
-              }
+              lib_path = SKIF_Util_NormalizeFullPath (lib_path);
 
               wcsncpy_s (
                 (wchar_t *)steam_lib_paths [steam_libs++], MAX_PATH,
@@ -692,7 +684,7 @@ SK_UseManifestToGetAppName (app_record_s *app)
 
   if (! app->Steam_ManifestData.empty ())
   {
-    //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
+    //PLOG_VERBOSE << "Parsing manifest for AppID: " << app->id;
 
     std::string app_name =
       SK_Steam_KeyValues::getValue (
@@ -1059,10 +1051,7 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
       PathCombineW (path, app_root,
                           app_path.c_str ());
 
-      app->install_dir = path;
-
-      //std::replace(app->install_dir.begin(), app->install_dir.end(), '/', '\\'); // Replaces slashes
-      app->install_dir = std::filesystem::path(path).lexically_normal();
+      app->install_dir = SKIF_Util_NormalizeFullPath (path);
     }
   }
 

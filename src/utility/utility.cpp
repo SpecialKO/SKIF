@@ -501,6 +501,42 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
   return name;
 }
 
+std::wstring
+SKIF_Util_NormalizeFullPath (std::wstring string)
+{
+  // Are we dealing with a network path? (\\server\share)
+  bool isUNCpath = PathIsNetworkPathW (string.c_str());
+
+  // "Clean" the path... But also removes one of the initial two backslashes
+  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
+  string = std::filesystem::path(string).lexically_normal();
+
+  // If we are dealing with an UNC path that is no more,
+  //   we need to fix the initial missing backslash...
+  if (isUNCpath && ! PathIsNetworkPathW (string.c_str()))
+    string.insert(0, 1, '\\');
+
+  return string;
+}
+
+std::string
+SKIF_Util_NormalizeFullPath (std::string string)
+{
+  // Are we dealing with a network path? (\\server\share)
+  bool isUNCpath = PathIsNetworkPathA (string.c_str());
+
+  // "Clean" the path... But also removes one of the initial two backslashes
+  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
+  string = std::filesystem::path(string).lexically_normal().string();
+
+  // If we are dealing with an UNC path that is no more,
+  //   we need to fix the initial missing backslash...
+  if (isUNCpath && ! PathIsNetworkPathA (string.c_str()))
+    string.insert(0, 1, '\\');
+
+  return string;
+}
+
 
 // Usernames / Machine Name
 
@@ -581,26 +617,6 @@ SKIF_UtilInt_IniUserMachineStrip (void)
   }
 }
 
-std::wstring
-SKIF_Util_StripPersonalData (std::wstring input)
-{
-  SKIF_UtilInt_IniUserMachineStrip ( );
-  
-  if (! userDisName.empty())
-    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    replDisName.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
-
-  if (! userProfile.empty())
-    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    replProfile.c_str());
-
-  if (! userSamName.empty())
-    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    replSamName.c_str());
-
-  if (! machineName.empty())
-    input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
-
-  return input;
-}
-
 std::string
 SKIF_Util_StripPersonalData (std::string input)
 {
@@ -617,6 +633,26 @@ SKIF_Util_StripPersonalData (std::string input)
 
   if (! machineNameUTF8.empty())
     input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), replMacNameUTF8.c_str());
+
+  return input;
+}
+
+std::wstring
+SKIF_Util_StripPersonalData (std::wstring input)
+{
+  SKIF_UtilInt_IniUserMachineStrip ( );
+  
+  if (! userDisName.empty())
+    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    replDisName.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
+
+  if (! userProfile.empty())
+    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    replProfile.c_str());
+
+  if (! userSamName.empty())
+    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    replSamName.c_str());
+
+  if (! machineName.empty())
+    input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
 
   return input;
 }

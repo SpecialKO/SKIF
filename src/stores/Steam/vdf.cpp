@@ -24,6 +24,7 @@
 #include <utility/fsutil.h>
 #include <regex>
 #include <stores/Steam/steam_library.h>
+#include <filesystem>
 
 const int SKIF_STEAM_APPID = 1157970;
 
@@ -296,19 +297,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (pAppRecord);
-
-        try
-        {
-          // Replace forward slashes with backslashes
-          std::replace (pAppRecord->install_dir.begin(), pAppRecord->install_dir.end(), '/', '\\');
-
-          // Strip double backslashes characters from the string
-          pAppRecord->install_dir = std::regex_replace (pAppRecord->install_dir, std::wregex(LR"(\\\\)"), LR"(\)");
-        }
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-        }
 
         for (auto& finished_section : section.finished_sections)
         {
@@ -662,6 +650,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           // This also skips all the semi-weird duplicate launch configs SKIF randomly creates
           if (launch.executable.empty())
             continue;
+
+          launch.executable = std::filesystem::path(launch.executable).lexically_normal();
 
           // Filter launch configurations requiring a beta branch that the user do not have
           if (! launch.branches.empty() && launch.branches.count (pAppRecord->branch) == 0)
