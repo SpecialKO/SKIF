@@ -4164,8 +4164,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   pApp->ui.pcgw  = ((pApp->store == app_record_s::Store::GOG)   ? "https://www.pcgamingwiki.com/api/gog.php?page="
                  :  (pApp->store == app_record_s::Store::Steam) ? "https://www.pcgamingwiki.com/api/appid.php?appid="
                                                                 : "https://www.pcgamingwiki.com/w/index.php?search=")
-                 +  (pApp->store == app_record_s::Store::Steam  || pApp->store == app_record_s::Store::GOG)
-                 ? std::to_string(pApp->id) : pApp->names.clean;
+                 + ((pApp->store == app_record_s::Store::Steam  || pApp->store == app_record_s::Store::GOG)
+                 ? std::to_string(pApp->id) : pApp->names.clean);
 
   // SteamGridDB
   pApp->ui.sgdbGrids = (pApp->store == app_record_s::Store::Steam)
