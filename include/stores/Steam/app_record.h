@@ -418,10 +418,22 @@ struct app_record_s {
   std::string  ImGuiPushID           =  "";
   std::string  ImGuiLabelAndID       =  "";
 
-  std::string  Steam_ManifestData    =  "";
-  std::wstring Steam_ManifestPath    = L"";
-  std::string  Steam_LaunchOption    =  "";       // Holds the custom launch option set in the Steam client
-  std::string  Steam_LaunchOption1   =  "";       // Holds a cached parsed value of the launch option set in the Steam client
+  struct {
+    struct {
+      std::string launch_option        = ""; // Holds the custom launch option set in the Steam client
+      std::string launch_option_parsed = ""; // Holds a cached parsed value of the launch option set in the Steam client
+    } local;
+    
+    struct {
+      int hidden   = 0; // Hidden in Steam Client (not the same as flagged as private)
+      int favorite = 0; // Favorited in Steam Client
+      std::vector <std::string> tags; // ???
+    } shared; // roaming
+
+    std::string  manifest_data    =  "";
+    std::wstring manifest_path    = L"";
+  } steam;
+
   std::string  branch                =  "public"; // Holds the current "beta" branch set in the Steam client (default: public)
 
   std::string  Epic_CatalogNamespace =  "";

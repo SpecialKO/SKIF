@@ -35,8 +35,8 @@
 
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
-SteamId3_t    g_SteamUserID   = 0;
-DWORD         g_dwSteamProcessID = 0;
+SteamId3_t g_SteamUserID      = 0;
+DWORD      g_dwSteamProcessID = 0;
 
 #define MAX_STEAM_LIBRARIES 16
 
@@ -45,7 +45,7 @@ extern std::atomic<int> SKIF_FrameCount;
 CRITICAL_SECTION VFSManifestSection;
 
 // Thread safety is backed by the VFSManifestSection critical section
-struct derp {
+struct {
   int                 frame_last_scanned = 0; // 0 == not initialized nor scanned
   SKIF_DirectoryWatch watch;
   SK_VirtualFS        manifest_vfs;
@@ -278,8 +278,8 @@ SK_Steam_GetApplicationManifestPath (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
-  if (! app->Steam_ManifestPath.empty())
-    return app->Steam_ManifestPath;
+  if (! app->steam.manifest_path.empty())
+    return app->steam.manifest_path;
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
@@ -309,41 +309,14 @@ SK_Steam_GetApplicationManifestPath (app_record_s *app)
 
       if (hManifest != INVALID_HANDLE_VALUE)
       {
-        app->Steam_ManifestPath = wszManifest;
+        app->steam.manifest_path = wszManifest;
         break;
       }
     }
   }
 
-  return app->Steam_ManifestPath;
+  return app->steam.manifest_path;
 }
-
-std::wstring
-SK_Steam_GetLocalConfigPath (SteamId3_t userid)
-{
-
-  wchar_t    wszLocalConfig [MAX_PATH + 2] = { };
-  swprintf ( wszLocalConfig, MAX_PATH,
-                LR"(%s\userdata\%i\config\localconfig.vdf)",
-              SK_GetSteamDir ( ),
-                        userid );
-
-  CHandle hLocalConfig (
-    CreateFileW ( wszLocalConfig,
-                    GENERIC_READ,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                      nullptr,        OPEN_EXISTING,
-                        GetFileAttributesW (wszLocalConfig),
-                          nullptr
-                )
-  );
-
-  if (hLocalConfig != INVALID_HANDLE_VALUE)
-    return wszLocalConfig;
-
-  return L"";
-}
-
 
 std::string
 SK_GetManifestContentsForAppID (app_record_s *app)
@@ -353,8 +326,8 @@ SK_GetManifestContentsForAppID (app_record_s *app)
   static AppId_t     manifest_id = 0;
   static std::string manifest;
   
-  if (! app->Steam_ManifestData.empty())
-    return app->Steam_ManifestData;
+  if (! app->steam.manifest_data.empty())
+    return app->steam.manifest_data;
 
   if (manifest_id == app->id && (! manifest.empty ()))
     return manifest;
@@ -451,83 +424,109 @@ SK_GetManifestContentsForAppID (app_record_s *app)
 
         manifest_id = app->id;
 
-        app->Steam_ManifestData = manifest;
-        app->Steam_ManifestPath = wszManifestFullPath;
-        return app->Steam_ManifestData;
+        app->steam.manifest_data = manifest;
+        app->steam.manifest_path = wszManifestFullPath;
+        return app->steam.manifest_data;
       }
     }
   }
 
-  app->Steam_ManifestData =  "<InvalidData>";
-  app->Steam_ManifestPath = L"<InvalidPath>";
+  app->steam.manifest_data =  "<InvalidData>";
+  app->steam.manifest_path = L"<InvalidPath>";
 
   return "";
 }
 
+
 std::string
-SK_GetLocalConfigForSteamUser (SteamId3_t userid)
+SKIF_Steam_GetUserConfigStore (SteamId3_t userid, ConfigStore config)
 {
-  static SteamId3_t  localConfig_id = 0;
-  static std::string localConfig;
+  static SteamId3_t  cachedUser  [ConfigStore_ALL] = { };
+  static std::string cachedConfig[ConfigStore_ALL];
+  const  wchar_t*    pathFormats [ConfigStore_ALL] = {
+     LR"(%s\userdata\%i\config\localconfig.vdf)",   // ConfigStore_UserLocal
+     LR"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming
+  };
 
-  if (localConfig_id == userid && (! localConfig.empty ()))
-    return localConfig;
+  if (cachedUser[config] == userid && (! cachedConfig[config].empty()))
+    return cachedConfig[config];
 
-  std::wstring wszLocalConfig =
-    SK_Steam_GetLocalConfigPath (userid);
+  // AppID: 7 == Steam Client
+  wchar_t    wszConfig [MAX_PATH + 2] = { };
+  swprintf ( wszConfig, MAX_PATH,
+              pathFormats[config],
+              SK_GetSteamDir ( ),
+                        userid );
 
-  if (wszLocalConfig.empty ())
-    return localConfig;
+  if (wszConfig[0] == L'\0')
+    return cachedConfig[config];
 
-  CHandle hLocalConfig (
-    CreateFileW ( wszLocalConfig.c_str (),
+  CHandle hConfig (
+    CreateFileW (wszConfig,
                     GENERIC_READ,
                     FILE_SHARE_READ | FILE_SHARE_WRITE,
                       nullptr,        OPEN_EXISTING,
-                        GetFileAttributesW (wszLocalConfig.c_str ()),
+                        GetFileAttributesW (wszConfig),
                           nullptr
                 )
   );
 
-  if (hLocalConfig != INVALID_HANDLE_VALUE)
+  if (hConfig != INVALID_HANDLE_VALUE)
   {
     //PLOG_VERBOSE << "Reading " << wszLocalConfig;
 
     DWORD dwSizeHigh = 0,
           dwRead     = 0,
           dwSize     =
-     GetFileSize (hLocalConfig, &dwSizeHigh);
+     GetFileSize (hConfig, &dwSizeHigh);
 
-    auto szLocalConfigData =
+    auto szConfigData =
       std::make_unique <char []> (
         std::size_t (dwSize) + std::size_t (1)
       );
-    auto localConfig_data =
-       szLocalConfigData.get ();
+    auto Config_data =
+       szConfigData.get ();
 
-    if (! localConfig_data)
+    if (! Config_data)
       return "";
 
     const bool bRead =
-      ReadFile ( hLocalConfig,
-                  localConfig_data,
+      ReadFile (hConfig,
+                  Config_data,
                      dwSize,
                     &dwRead,
                        nullptr );
 
     if (bRead && dwRead)
     {
-      localConfig =
-        std::move (localConfig_data);
+      cachedConfig[config] =
+        std::move (Config_data);
 
-      localConfig_id = userid;
+      cachedUser[config] = userid;
 
       return
-        localConfig;
+        cachedConfig[config];
     }
   }
 
-  return localConfig;
+  return cachedConfig[config];
+}
+
+std::string
+SKIF_Steam_GetUserConfigStorePath (SteamId3_t userid, ConfigStore config)
+{
+  const  char*    pathFormats [ConfigStore_ALL] = {
+     R"(%s\userdata\%i\config\localconfig.vdf)",   // ConfigStore_UserLocal
+     R"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming... AppID 7 == Steam Client
+  };
+
+  char    szConfig [MAX_PATH + 2] = { };
+  snprintf( szConfig, MAX_PATH,
+                pathFormats[config],
+              SK_GetSteamDirUTF8 ( ),
+                        userid );
+
+  return szConfig;
 }
 
 const wchar_t*
@@ -559,7 +558,16 @@ SK_GetSteamDir (void)
   return wszSteamPath;
 }
 
+const char*
+SK_GetSteamDirUTF8 (void)
+{
+  static char
+       szSteamPath [MAX_PATH + 2] = { };
+  if (*szSteamPath == L'\0')
+    strncpy_s (szSteamPath, SK_WideCharToUTF8 (SK_GetSteamDir()).data(), MAX_PATH);
 
+  return szSteamPath;
+}
 
 int
 SK_Steam_GetLibraries (steam_library_t** ppLibraries)
@@ -678,17 +686,17 @@ SK_UseManifestToGetAppName (app_record_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
-  if (app->Steam_ManifestData.empty())
-      app->Steam_ManifestData =
+  if (app->steam.manifest_data.empty())
+      app->steam.manifest_data =
         SK_GetManifestContentsForAppID (app);
 
-  if (! app->Steam_ManifestData.empty ())
+  if (! app->steam.manifest_data.empty ())
   {
     //PLOG_VERBOSE << "Parsing manifest for AppID: " << app->id;
 
     std::string app_name =
       SK_Steam_KeyValues::getValue (
-        app->Steam_ManifestData, { "AppState" }, "name"
+        app->steam.manifest_data, { "AppState" }, "name"
       );
 
     if (! app_name.empty ())
@@ -703,15 +711,15 @@ SK_UseManifestToGetAppName (app_record_s *app)
 std::string
 SK_UseManifestToGetCurrentBranch (app_record_s *app)
 {
-  if (app->Steam_ManifestData.empty())
-      app->Steam_ManifestData =
+  if (app->steam.manifest_data.empty())
+      app->steam.manifest_data =
         SK_GetManifestContentsForAppID (app);
 
-  if (! app->Steam_ManifestData.empty ())
+  if (! app->steam.manifest_data.empty ())
   {
     std::string branch =
       SK_Steam_KeyValues::getValue (
-        app->Steam_ManifestData, { "AppState", "UserConfig" }, "BetaKey"
+        app->steam.manifest_data, { "AppState", "UserConfig" }, "BetaKey"
       );
 
     if (! branch.empty ())
@@ -726,84 +734,68 @@ SK_UseManifestToGetCurrentBranch (app_record_s *app)
 std::string
 SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *app)
 {
-  // Original implementation using SKIF's SK_Steam_KeyValue implementation
-#if 0
-  std::string localConfig_data =
-    SK_GetLocalConfigForSteamUser (userid);
-
-  if (! localConfig_data.empty ())
-  {
-    std::string launch_options =
-      SK_Steam_KeyValues::getValue (
-        localConfig_data, { "UserLocalConfigStore", "Software", "valve", "Steam", "apps", std::to_string (appid) }, "LaunchOptions"
-      );
-
-    if (! launch_options.empty ())
-    {
-      return launch_options;
-    }
-  }
-#endif
+  // Clear values
+  app->steam.local.launch_option.clear();
+  app->steam.local.launch_option_parsed.clear();
 
   // Implementation using the ValveFileVDF project
-  std::string localConfig_data =
-    SK_WideCharToUTF8 (
-      SK_Steam_GetLocalConfigPath (userid)
-  );
+  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
 
-  if (localConfig_data != "")
+  if (file.is_open())
   {
-    std::ifstream file (localConfig_data);
-
-    if (file.is_open())
+    try
     {
-      try
+      auto user_localconfig = tyti::vdf::read(file);
+      file.close();
+
+      if (user_localconfig.childs.size() > 0)
       {
-        auto user_localconfig = tyti::vdf::read(file);
-        file.close();
+        // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+        auto& apps_localconfig =
+          user_localconfig.
+            childs.at("Software") ->
+              childs.at("valve")  ->
+                childs.at("Steam")->
+                  childs.at("apps");
 
-        if (user_localconfig.childs.size() > 0)
+        if (apps_localconfig != nullptr &&
+            apps_localconfig->childs.size() > 0)
         {
-          // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
-          auto& apps_localconfig =
-            user_localconfig.
-              childs.at("Software") ->
-                childs.at("valve")  ->
-                  childs.at("Steam")->
-                    childs.at("apps");
-
-          if (apps_localconfig != nullptr &&
-              apps_localconfig->childs.size() > 0)
+          auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
+          if (lc_app != apps_localconfig->childs.end())
           {
-            auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
-            if (lc_app != apps_localconfig->childs.end())
+            auto& attribs = lc_app->second->attribs;
+
+            if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
             {
-              auto& attribs = lc_app->second->attribs;
+              // Also updates the copy
+              if (app != nullptr)
+                app->steam.local.launch_option = attribs.at("LaunchOptions");
 
-              if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
-              {
-                // Also updates the copy
-                if (app != nullptr)
-                  app->Steam_LaunchOption = attribs.at("LaunchOptions");
-
-                return attribs.at("LaunchOptions");
-              }
+              return attribs.at("LaunchOptions");
             }
           }
         }
       }
+    }
 
-      // I don't expect this to throw any std::out_of_range exceptions any more
-      //   but one can never be too sure when it comes to data structures like these.
-      //     - Aemony
-      catch (const std::exception& e)
-      {
-        UNREFERENCED_PARAMETER(e);
-      }
+    // I don't expect this to throw any std::out_of_range exceptions any more
+    //   but one can never be too sure when it comes to data structures like these.
+    //     - Aemony
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
     }
   }
 
   return "";
+}
+
+void
+SKIF_Steam_PreloadUserConfig (SteamId3_t userid, std::vector<std::pair<std::string,app_record_s>>* apps, std::set<std::string>* apptickets)
+{
+  SKIF_Steam_PreloadUserLocalConfig  (userid, apps, apptickets);
+  SKIF_Steam_PreloadUserSharedConfig (userid, apps);
 }
 
 bool
@@ -822,8 +814,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
       continue;
 
     // Reset any current data
-    app.second.Steam_LaunchOption  = "";
-    app.second.Steam_LaunchOption1 = "";
+    app.second.steam.local = { };
   }
 
   // Abort if the user signed out
@@ -831,93 +822,171 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
     return false;
 
   // Implementation using the ValveFileVDF project
-  std::string localConfig_data =
-    SK_WideCharToUTF8 (
-      SK_Steam_GetLocalConfigPath (userid)
-  );
+  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
 
-  if (localConfig_data != "")
+  if (file.is_open())
   {
-    std::ifstream file (localConfig_data);
-
-    if (file.is_open())
+    try
     {
-      try
-      {
-        auto user_localconfig = tyti::vdf::read(file);
-        file.close();
+      auto user_localconfig = tyti::vdf::read(file);
+      file.close();
 
-        if (user_localconfig.childs.size() > 0)
+      if (user_localconfig.childs.size() > 0)
+      {
+        // Preload LaunchOptions...
+        // 
+        // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+        auto& apps_localconfig =
+          user_localconfig.
+            childs.at("Software") ->
+              childs.at("valve")  ->
+                childs.at("Steam")->
+                  childs.at("apps");
+
+        if (apps_localconfig != nullptr &&
+            apps_localconfig->childs.size() > 0)
         {
-          // Preload LaunchOptions...
-          // 
-          // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
-          auto& apps_localconfig =
-            user_localconfig.
-              childs.at("Software") ->
-                childs.at("valve")  ->
-                  childs.at("Steam")->
-                    childs.at("apps");
-
-          if (apps_localconfig != nullptr &&
-              apps_localconfig->childs.size() > 0)
+          for (auto& app : *apps)
           {
-            for (auto& app : *apps)
+            if (app.second.store != app_record_s::Store::Steam)
+              continue;
+
+            auto lc_app = apps_localconfig->childs.find(std::to_string(app.second.id));
+            if (lc_app != apps_localconfig->childs.end())
             {
-              if (app.second.store != app_record_s::Store::Steam)
-                continue;
+              auto& attribs = lc_app->second->attribs;
 
-              auto lc_app = apps_localconfig->childs.find(std::to_string(app.second.id));
-              if (lc_app != apps_localconfig->childs.end())
-              {
-                auto& attribs = lc_app->second->attribs;
-
-                if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
-                  app.second.Steam_LaunchOption = attribs.at("LaunchOptions");
-              }
+              if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
+                app.second.steam.local.launch_option = attribs.at("LaunchOptions");
             }
           }
-
-          // Preload DLC ownership...
-          // 
-          // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
-          // This is used to determine if a DLC related launch option should be visible
-          auto& apptickets_localconfig =
-            user_localconfig.
-              childs.at("apptickets");
-
-          if (apptickets_localconfig != nullptr &&
-              apptickets_localconfig->attribs.size() > 0)
-          {
-            // Naively assume an app ticket indicates ownership
-            for (auto& child : apptickets_localconfig->attribs)
-            {
-              if (! child.first.empty())
-              {
-                try {
-                  apptickets->emplace (child.first);
-                } 
-                catch (const std::exception& e)
-                {
-                  UNREFERENCED_PARAMETER(e);
-                }
-              }
-            }
-          }
-
-          return true;
         }
-      }
 
-      // I don't expect this to throw any std::out_of_range exceptions any more
-      //   but one can never be too sure when it comes to data structures like these.
-      //     - Aemony
-      catch (const std::exception& e)
+        // Preload DLC ownership...
+        // 
+        // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
+        // This is used to determine if a DLC related launch option should be visible
+        auto& apptickets_localconfig =
+          user_localconfig.
+            childs.at("apptickets");
+
+        if (apptickets_localconfig != nullptr &&
+            apptickets_localconfig->attribs.size() > 0)
+        {
+          // Naively assume an app ticket indicates ownership
+          for (auto& child : apptickets_localconfig->attribs)
+          {
+            if (! child.first.empty())
+            {
+              try {
+                apptickets->emplace (child.first);
+              } 
+              catch (const std::exception& e)
+              {
+                UNREFERENCED_PARAMETER(e);
+              }
+            }
+          }
+        }
+
+        return true;
+      }
+    }
+
+    // I don't expect this to throw any std::out_of_range exceptions any more
+    //   but one can never be too sure when it comes to data structures like these.
+    //     - Aemony
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
+
+      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
+    }
+  }
+
+  return false;
+}
+
+bool
+SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps)
+{
+  if (apps->empty())
+    return false;
+
+  // Clear out any cached launch option data
+  for (auto& app : *apps)
+  {
+    if (app.second.store != app_record_s::Store::Steam)
+      continue;
+
+    // Reset any current data
+    app.second.steam.shared = { };
+  }
+
+  // Abort if the user signed out
+  if (userid == 0)
+    return false;
+
+  // Implementation using the ValveFileVDF project
+  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserRoaming));
+
+  if (file.is_open())
+  {
+    try
+    {
+      auto vdfConfig = tyti::vdf::read(file);
+      file.close();
+
+      if (vdfConfig.childs.size() > 0)
       {
-        UNREFERENCED_PARAMETER(e);
+        auto& vdfConfigAppsTree =
+          vdfConfig. // UserRoamingConfigStore
+            childs.at("Software") ->
+              childs.at("valve")  ->
+                childs.at("Steam")->
+                  childs.at("apps");
 
-        PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
+        if (vdfConfigAppsTree != nullptr &&
+            vdfConfigAppsTree->childs.size() > 0)
+        {
+          for (auto& app : *apps)
+          {
+            if (app.second.store != app_record_s::Store::Steam)
+              continue;
+
+            auto conf_app  = vdfConfigAppsTree->childs.find(std::to_string(app.second.id));
+            if ( conf_app != vdfConfigAppsTree->childs.end())
+            {
+              // Load hidden state...
+              // "UserRoamingConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "hidden" == 1
+              auto& attribs = conf_app->second->attribs;
+              if (! attribs.empty() && attribs.count("hidden") > 0 && attribs.at("hidden") == "1")
+                app.second.steam.shared.hidden     = 1;
+
+              // Load favorite state...
+              // "UserRoamingConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "tags" -> "<order>" == "favorite"
+              auto& tags = conf_app->second->childs.at("tags");
+              for (auto& child : tags->attribs)
+              {
+                if (! child.first.empty() && child.second == "favorite")
+                  app.second.steam.shared.favorite = 1;
+              }
+            }
+          }
+        }
+
+        return true;
       }
+    }
+
+    // I don't expect this to throw any std::out_of_range exceptions any more
+    //   but one can never be too sure when it comes to data structures like these.
+    //     - Aemony
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
+
+      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
     }
   }
 
@@ -927,63 +996,55 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
 bool
 SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
 {
-  std::string localConfig_data =
-    SK_WideCharToUTF8 (
-      SK_Steam_GetLocalConfigPath (userid)
-  );
+  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
 
-  if (localConfig_data != "")
+  if (file.is_open())
   {
-    std::ifstream file (localConfig_data);
-
-    if (file.is_open())
+    try
     {
-      try
+      auto user_localconfig = tyti::vdf::read(file);
+      file.close();
+
+      if (user_localconfig.childs.size() > 0)
       {
-        auto user_localconfig = tyti::vdf::read(file);
-        file.close();
+        // There are two relevant here:
+        // - Global state is tracked at "UserLocalConfigStore" -> "system" -> "EnableGameOverlay"
+        // - Game-specific state is tracked at "UserLocalConfigStore" -> "apps" -> "<app-id>" -> "OverlayAppEnable"
 
-        if (user_localconfig.childs.size() > 0)
+        auto& system_localconfig =
+          user_localconfig.
+            childs.at("system");
+
+        // If global state is disabled, don't bother checking the local state
+        if (! system_localconfig->attribs.empty() && system_localconfig->attribs.count("EnableGameOverlay") > 0 && system_localconfig->attribs.at("EnableGameOverlay") == "0")
+          return false;
+
+        // Continue checking the local state
+        auto& apps_localconfig =
+          user_localconfig.
+            childs.at("apps");
+
+        if (apps_localconfig != nullptr &&
+            apps_localconfig->childs.size() > 0)
         {
-          // There are two relevant here:
-          // - Global state is tracked at "UserLocalConfigStore" -> "system" -> "EnableGameOverlay"
-          // - Game-specific state is tracked at "UserLocalConfigStore" -> "apps" -> "<app-id>" -> "OverlayAppEnable"
-
-          auto& system_localconfig =
-            user_localconfig.
-              childs.at("system");
-
-          // If global state is disabled, don't bother checking the local state
-          if (! system_localconfig->attribs.empty() && system_localconfig->attribs.count("EnableGameOverlay") > 0 && system_localconfig->attribs.at("EnableGameOverlay") == "0")
-            return false;
-
-          // Continue checking the local state
-          auto& apps_localconfig =
-            user_localconfig.
-              childs.at("apps");
-
-          if (apps_localconfig != nullptr &&
-              apps_localconfig->childs.size() > 0)
+          auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
+          if (lc_app != apps_localconfig->childs.end())
           {
-            auto lc_app = apps_localconfig->childs.find(std::to_string(appid));
-            if (lc_app != apps_localconfig->childs.end())
-            {
-              auto& attribs = lc_app->second->attribs;
+            auto& attribs = lc_app->second->attribs;
 
-              if (! attribs.empty() && attribs.count("OverlayAppEnable") > 0 && attribs.at("OverlayAppEnable") == "0")
-                return false;
-            }
+            if (! attribs.empty() && attribs.count("OverlayAppEnable") > 0 && attribs.at("OverlayAppEnable") == "0")
+              return false;
           }
         }
       }
+    }
 
-      // I don't expect this to throw any std::out_of_range exceptions any more
-      //   but one can never be too sure when it comes to data structures like these.
-      //     - Aemony
-      catch (const std::exception& e)
-      {
-        UNREFERENCED_PARAMETER(e);
-      }
+    // I don't expect this to throw any std::out_of_range exceptions any more
+    //   but one can never be too sure when it comes to data structures like these.
+    //     - Aemony
+    catch (const std::exception& e)
+    {
+      UNREFERENCED_PARAMETER(e);
     }
   }
 
@@ -1024,24 +1085,24 @@ SK_UseManifestToGetInstallDir (app_record_s *app)
   if (! app->install_dir.empty())
     return app->install_dir;
 
-  if (app->Steam_ManifestData.empty())
-    app->Steam_ManifestData =
+  if (app->steam.manifest_data.empty())
+    app->steam.manifest_data =
       SK_GetManifestContentsForAppID (app);
 
-  if (! app->Steam_ManifestData.empty ())
+  if (! app->steam.manifest_data.empty ())
   {
     //PLOG_VERBOSE << "Parsing manifest for AppID: " << appid;
 
     std::wstring app_path =
       SK_Steam_KeyValues::getValueAsUTF16 (
-        app->Steam_ManifestData, { "AppState" }, "installdir"
+        app->steam.manifest_data, { "AppState" }, "installdir"
       );
 
     if (! app_path.empty ())
     {
       wchar_t    app_root [MAX_PATH + 2] = { };
       wcsncpy_s (app_root, MAX_PATH,
-            app->Steam_ManifestPath.c_str (), _TRUNCATE);
+            app->steam.manifest_path.c_str (), _TRUNCATE);
 
       PathRemoveFileSpecW (app_root);
       PathAppendW         (app_root, L"common\\");
@@ -1266,7 +1327,7 @@ SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_re
                && apps != nullptr    &&          apptickets != nullptr)
     {
       // Preload user's local config
-      SKIF_Steam_PreloadUserLocalConfig (g_SteamUserID, apps, apptickets);
+      SKIF_Steam_PreloadUserConfig (g_SteamUserID, apps, apptickets);
 
       // Reset DLC ownership
       for (auto& app : *apps)
@@ -1286,28 +1347,6 @@ SteamId3_t
 SKIF_Steam_GetCurrentUser (void)
 {
   return g_SteamUserID;
-
-  /* LEGACY METHOD:
-  static SteamId3_t SteamUserID = 0;
-
-  if (refresh)
-  {
-    WCHAR                    szData [255] = { };
-    DWORD   dwSize = sizeof (szData);
-    PVOID   pvData =         szData;
-    CRegKey hKey ((HKEY)0);
-
-    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
-    {
-      if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-        SteamUserID = *(DWORD*)pvData;
-
-      hKey.Close ( );
-    }
-  }
-
-  return SteamUserID;
-  */
 }
 
 DWORD
@@ -1315,339 +1354,6 @@ SKIF_Steam_GetActiveProcess (void)
 {
   return g_dwSteamProcessID;
 }
-
-
-#if 0
-// Only used for Steam games!
-void
-SKIF_Steam_GetInjectionStrategy (app_record_s* pApp)
-{
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-  int firstValidFound = -1;
-
-  // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
-  for ( auto& launch_cfg : pApp->launch_configs )
-  {
-    auto& launch = launch_cfg.second;
-
-    if (! launch.valid)
-      continue;
-
-    if (! launch.isExecutableFullPathValid ( ))
-      continue;
-
-    if (firstValidFound == -1)
-      firstValidFound = launch_cfg.first;
-
-    // Assume global
-    launch.injection.injection.type        =
-      InjectionType::Global;
-    launch.injection.injection.entry_pt    =
-      InjectionPoint::CBTHook;
-    launch.injection.config.type           =
-      ConfigType::Centralized;
-    launch.injection.config.shorthand      =
-      L"SpecialK.ini";
-    launch.injection.config.shorthand_utf8 =
-      SK_WideCharToUTF8 (launch.injection.config.shorthand);
-
-    // Check bitness
-    
-    // TODO: This needs to be gone through and reworked entirely as the logic still gets thrown off by edge cases
-    //  - e.g. EA games with "invalid" launch options where the 'osarch' of the common_config ends up never being used
-    if (launch.injection.injection.bitness == InjectionBitness::Unknown)
-    {
-
-#define TRUST_LAUNCH_CONFIG
-#ifdef TRUST_LAUNCH_CONFIG
-      app_record_s::CPUType
-          cpu_type  = pApp->common_config.cpu_type; // We start by using the common config
-
-      if (cpu_type != app_record_s::CPUType::Any)
-      {
-        if (launch.cpu_type != app_record_s::CPUType::Common)
-        {
-          cpu_type =
-            launch.cpu_type;
-        }
-      }
-
-      else
-      {
-        // The any case will just be 64-bit for us, since SK only runs on
-        //   64-bit systems. Thus, ignore 32-bit launch configs.
-#ifdef _WIN64
-        if (launch.cpu_type == app_record_s::CPUType::x86)
-#else
-        if (launch.cpu_type == app_record_s::CPUType::x64)
-#endif
-        {
-          continue;
-        }
-
-        else {
-          cpu_type =
-            launch.cpu_type;
-        }
-      }
-      
-      if (     cpu_type == app_record_s::CPUType::x64)
-        launch.injection.injection.bitness = InjectionBitness::SixtyFour;
-
-      else if (cpu_type == app_record_s::CPUType::x86)
-        launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-
-      // If we still haven't resolved it, use SKIF's cached property
-      else if (pApp->skif.cpu_type != 0)
-        launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
-
-      // In case we still haven't resolved the CPU architecture,
-      //   we need to check the actual arch of the game executable
-      else // Common || Any
-      {
-        if (launch.isExecutableFullPathValid ())
-        {
-          std::wstring exec_path =
-            launch.getExecutableFullPath ( );
-
-          DWORD dwBinaryType = MAXDWORD;
-          if (GetBinaryTypeW (exec_path.c_str (), &dwBinaryType))
-          {
-            if (dwBinaryType == SCS_64BIT_BINARY)
-              launch.injection.injection.bitness = InjectionBitness::SixtyFour;
-            else if (dwBinaryType == SCS_32BIT_BINARY)
-              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-          }
-        }
-      }
-#else
-
-      std::wstring exec_path =
-        launch.getExecutableFullPath ( );
-
-      DWORD dwBinaryType = MAXDWORD;
-      if ( GetBinaryTypeW (exec_path.c_str (), &dwBinaryType) )
-      {
-        if (dwBinaryType == SCS_32BIT_BINARY)
-          install_state.injection.bitness = InjectionBitness::ThirtyTwo;
-        else if (dwBinaryType == SCS_64BIT_BINARY)
-          install_state.injection.bitness = InjectionBitness::SixtyFour;
-      }
-
-#endif
-
-    } // End checking bitness
-
-    struct {
-      InjectionPoint   entry_pt;
-      std::wstring     name;
-      std::wstring     path;
-    } test_dlls [] = { // The small things matter -- array is sorted in the order of most expected
-      { InjectionPoint::DXGI,    L"DXGI",     L"" },
-      { InjectionPoint::D3D11,   L"D3D11",    L"" },
-      { InjectionPoint::D3D9,    L"D3D9",     L"" },
-      { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-      { InjectionPoint::DInput8, L"DInput8",  L"" },
-      { InjectionPoint::D3D8,    L"D3D8",     L"" },
-      { InjectionPoint::DDraw,   L"DDraw",    L"" }
-    };
-
-    std::wstring test_path    =
-      launch.getExecutableDir ( );
-    std::wstring test_pattern =
-      test_path + LR"(\*.dll)";
-
-    WIN32_FIND_DATA ffd         = { };
-    HANDLE          hFind       =
-      FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-
-    if (hFind != INVALID_HANDLE_VALUE)
-    {
-      bool breakOuterLoop = false;
-
-      do
-      {
-        if ( wcscmp (ffd.cFileName, L".")  == 0 ||
-             wcscmp (ffd.cFileName, L"..") == 0 )
-          continue;
-
-        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-          continue;
-
-        for ( auto& dll : test_dlls )
-        {
-          // Filename + extension
-          dll.path = dll.name + L".dll";
-          
-          if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
-            continue;
-          
-          // Full path
-          dll.path = test_path + LR"(\)" + dll.path;
-
-          std::wstring dll_ver =
-            SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
-
-          if (dll_ver.empty ())
-            continue;
-
-          launch.injection.injection = {
-            launch.injection.injection.bitness,
-            dll.entry_pt, InjectionType::Local
-          };
-
-          launch.injection.dll.full_path     = dll.path;
-          launch.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (launch.injection.dll.full_path);
-          launch.injection.dll.version        = dll_ver;
-          launch.injection.dll.version_utf8   = SK_WideCharToUTF8 (launch.injection.dll.version);
-
-          if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-            launch.injection.config.type =   ConfigType::Centralized;
-          else
-          {
-            launch.injection.config.type          = ConfigType::Localized;
-            launch.injection.config.root_dir      = test_path;
-            launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
-          }
-
-          launch.injection.config.shorthand      = dll.name + L".ini";
-          launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.shorthand);
-
-          breakOuterLoop = true;
-          break;
-        }
-
-        if (breakOuterLoop)
-          break;
-
-      } while (FindNextFile (hFind, &ffd));
-
-      FindClose (hFind);
-    }
-
-    // Check if the launch config is elevated or blacklisted
-    launch.isElevated    (true);
-    launch.isBlacklisted (true);
-  }
-
-  // Swap out the first element for the first valid one we found
-  if (firstValidFound != -1)
-  {
-    app_record_s::launch_config_s copy    = pApp->launch_configs[0];
-    pApp->launch_configs[0]               = pApp->launch_configs[firstValidFound];
-    pApp->launch_configs[firstValidFound] = copy;
-  }
-
-  // TODO: Make the specialk.injection bitness/state/etc stuff bound
-  //         to launch_config so it is not universal any longer
-
-  auto& launch = pApp->launch_configs.begin()->second;
-
-  // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
-  if (launch.injection.injection.type == InjectionType::Unknown)
-  {
-    // Assume global
-    launch.injection.injection.type        =
-      InjectionType::Global;
-    launch.injection.injection.entry_pt    =
-      InjectionPoint::CBTHook;
-    launch.injection.config.type           =
-      ConfigType::Centralized;
-    launch.injection.config.shorthand      =
-      L"SpecialK.ini";
-    launch.injection.config.shorthand_utf8 =
-      SK_WideCharToUTF8 (launch.injection.config.shorthand);
-  }
-
-  // Main UI stuff should follow the primary launch config
-  pApp->specialk.injection = launch.injection;
-
-  if ( InjectionType::Global ==
-         pApp->specialk.injection.injection.type )
-  {
-    // Assume Global 32-bit if we don't know otherwise
-    bool bIs64Bit =
-      (launch.injection.injection.bitness ==
-                        InjectionBitness::SixtyFour);
-
-    pApp->specialk.injection.config.type =
-      ConfigType::Centralized;
-    
-    pApp->specialk.injection.dll.full_path      = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (bIs64Bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
-    pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
-    pApp->specialk.injection.dll.version        = 
-                                       bIs64Bit ? _inject.SKVer64
-                                                : _inject.SKVer32;
-    pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
-  }
-
-  pApp->specialk.injection.localized_name =
-    SK_UseManifestToGetAppName (pApp);
-
-  if ( ConfigType::Centralized ==
-         pApp->specialk.injection.config.type )
-  {
-    std::wstring name =
-      SK_UTF8ToWideChar (
-        pApp->specialk.injection.localized_name
-      );
-
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                              [](wchar_t tval)
-                              {
-                                static
-                                const std::set <wchar_t>
-                                  invalid_file_char =
-                                  {
-                                    L'\\', L'/', L':',
-                                    L'*',  L'?', L'\"',
-                                    L'<',  L'>', L'|',
-                                  //L'&',
-
-                                    //
-                                    // Obviously a period is not an invalid character,
-                                    //   but three of them in a row messes with
-                                    //     Windows Explorer and some Steam games use
-                                    //       ellipsis in their titles.
-                                    //
-                                    L'.'
-                                  };
-
-                                return
-                                  ( invalid_file_char.find (tval) !=
-                                    invalid_file_char.end  (    ) );
-                              }
-                          ),
-
-               name.end ()
-         );
-
-    // Strip trailing spaces from name, these are usually the result of
-    //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == L' ') *it = L'\0';
-      else                   break;
-    }
-
-    pApp->specialk.injection.config.root_dir =
-      SK_FormatStringW ( LR"(%ws\Profiles\%ws)",
-                           _path_cache.specialk_userdata,
-                             name.c_str () );
-    pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
-  }
-
-  pApp->specialk.injection.config.full_path =
-    (pApp->specialk.injection.config.root_dir + LR"(\)" ) +
-     pApp->specialk.injection.config.shorthand;
-  pApp->specialk.injection.config.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.full_path);
-}
-
-#endif
 
 std::wstring
 SKIF_Steam_GetAppStateString (       AppId_t  appid,

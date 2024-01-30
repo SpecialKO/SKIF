@@ -488,14 +488,14 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
 std::string
 GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s* pLaunchCfg)
 {
-  if (! pApp->Steam_LaunchOption1.empty())
-    return pApp->Steam_LaunchOption1;
+  if (! pApp->steam.local.launch_option_parsed.empty())
+    return pApp->steam.local.launch_option_parsed;
 
   // Check if there is a custom launch option set up
-  if (pApp->Steam_LaunchOption.size() > 0)
+  if (pApp->steam.local.launch_option.size() > 0)
   {
     std::string strSteam_Command  = "%command%"; // Only for Steam games
-    size_t start_pos = SKIF_Util_ToLower (pApp->Steam_LaunchOption).find (strSteam_Command);
+    size_t start_pos = SKIF_Util_ToLower (pApp->steam.local.launch_option).find (strSteam_Command);
 
     // Check if a %COMMAND% is a part of the launch options
     // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
@@ -504,7 +504,7 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
     {
       // Base is dev-specified executable
       std::string newCmdLine = pLaunchCfg->getExecutableFullPathUTF8 ( );
-      std::string strSteamLO = pApp->Steam_LaunchOption;
+      std::string strSteamLO = pApp->steam.local.launch_option;
 
       // Appended is dev-specified cmd line arguments
       if (! pLaunchCfg->getLaunchOptionsUTF8().empty())
@@ -514,11 +514,11 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
       strSteamLO.replace (start_pos, strSteam_Command.length(), newCmdLine);
 
       // Swap in the result and flag to use shell execute
-      pApp->Steam_LaunchOption1 = strSteamLO;
+      pApp->steam.local.launch_option_parsed = strSteamLO;
     }
   }
 
-  return pApp->Steam_LaunchOption1;
+  return pApp->steam.local.launch_option_parsed;
 }
 
 #pragma region LaunchGame
@@ -816,14 +816,10 @@ LaunchGame (app_record_s* pApp)
         if (! launchConfig->custom_skif &&
             ! launchConfig->custom_user)
         {
-          std::string steamLaunchOptions =
-            SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ), pApp);
+          std::string steamLaunchOptions;
 
           if (pApp->store == app_record_s::Store::Steam)
-          {
-            pApp->Steam_LaunchOption  = steamLaunchOptions;
-            pApp->Steam_LaunchOption1 = ""; // Reset
-          }
+            steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser(), pApp);
           
           if (steamLaunchOptions.size() > 0)
           {
@@ -1048,17 +1044,15 @@ LaunchGame (app_record_s* pApp)
       // Check localconfig.vdf if user is attempting to launch without Special K 
       if (! usingSK && ! localInjection)
       {
-        pApp->Steam_LaunchOption  =
-          SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser ( ), pApp);
-        pApp->Steam_LaunchOption1 = ""; // Reset
+        ;
 
-        if (pApp->Steam_LaunchOption.size() > 0)
+        if (SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser(), pApp).size() > 0)
         {
-          if (SKIF_Util_ToLower (pApp->Steam_LaunchOption).find("skif ") == 0)
+          if (SKIF_Util_ToLower (pApp->steam.local.launch_option).find("skif ") == 0)
           {
             launchDecision = false;
 
-            std::string confirmCopy = pApp->Steam_LaunchOption;
+            std::string confirmCopy = pApp->steam.local.launch_option;
 
             // Escape any percent signs (%)
             for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
@@ -1438,7 +1432,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       std::string hoverText = (firstLaunchConfig != nullptr) ? firstLaunchConfig->getExecutableFullPathUTF8() : "";
 
-      if (firstLaunchConfig != nullptr && ! pApp->Steam_LaunchOption.empty())
+      if (firstLaunchConfig != nullptr && ! pApp->steam.local.launch_option.empty())
       {
         hoverText = GetSteamCommandLaunchOptions (pApp, firstLaunchConfig);
       }
@@ -1448,7 +1442,7 @@ DrawGameContextMenu (app_record_s* pApp)
           hoverText += (" " + firstLaunchConfig->getLaunchOptionsUTF8());
 
         if (pApp->store == app_record_s::Store::Steam)
-          hoverText += (" " + pApp->Steam_LaunchOption);
+          hoverText += (" " + pApp->steam.local.launch_option);
       }
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
@@ -1551,7 +1545,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (! _launch_cfg.second.custom_skif &&
               ! _launch_cfg.second.custom_user &&
-              ! pApp->Steam_LaunchOption.empty())
+              ! pApp->steam.local.launch_option.empty())
           {
             hoverText = GetSteamCommandLaunchOptions (pApp, &_launch_cfg.second);
           }
@@ -1562,9 +1556,9 @@ DrawGameContextMenu (app_record_s* pApp)
               hoverText += (" " + _launch.getLaunchOptionsUTF8());
 
             // Also add Steam defined launch options, but only if not using custom launch configs
-            if (pApp->store == app_record_s::Store::Steam && ! pApp->Steam_LaunchOption.empty() &&
+            if (pApp->store == app_record_s::Store::Steam && ! pApp->steam.local.launch_option.empty() &&
                ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
-              hoverText += (" " + pApp->Steam_LaunchOption);
+              hoverText += (" " + pApp->steam.local.launch_option);
           }
           
           if (! disabled && ! blacklisted)
@@ -2233,19 +2227,15 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
             SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
         }
-          
+
         if (ImGui::MenuItem ("Visibility",  (pApp->skif.hidden) ?  "Hidden" :  "Visible"))
           SKIF_Util_SetClipboardData   (    (pApp->skif.hidden) ? L"Hidden" : L"Visible");
-          
         if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
           SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
-
         SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
-          
         if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
           SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
-          
-        if (ImGui::MenuItem ("Pinned",             std::to_string (pApp->skif.pinned).c_str()))
+        if (ImGui::MenuItem ("Favorited",          std::to_string (pApp->skif.pinned).c_str()))
           SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.pinned));
 
         ImGui::PopID        ( );
@@ -2253,24 +2243,28 @@ DrawGameContextMenu (app_record_s* pApp)
         if (pApp->store == app_record_s::Store::Steam)
         {
           ImGui::Separator ( );
-          
+
           ImGui::PushID       ("#Steam");
           ImGui::TextDisabled ("Steam Data");
           if (ImGui::MenuItem ("Branch",                  pApp->branch.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->branch));
-          if (ImGui::MenuItem ("Launch Option",           pApp->Steam_LaunchOption.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->Steam_LaunchOption));
-          if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->Steam_ManifestPath).c_str()))
-            SKIF_Util_SetClipboardData (                          pApp->Steam_ManifestPath);
+          if (ImGui::MenuItem ("Launch Option",           pApp->steam.local.launch_option.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.local.launch_option));
+          if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->steam.manifest_path).c_str()))
+            SKIF_Util_SetClipboardData (                          pApp->steam.manifest_path);
           if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
             SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
+          if (ImGui::MenuItem ("Visibility",  (pApp->steam.shared.hidden) ?  "Hidden" :  "Visible"))
+            SKIF_Util_SetClipboardData   (    (pApp->steam.shared.hidden) ? L"Hidden" : L"Visible");
+          if (ImGui::MenuItem ("Favorited",          std::to_string (pApp->steam.shared.favorite).c_str()))
+            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->steam.shared.favorite));
           ImGui::PopID        ( );
         }
 
         else if (pApp->store == app_record_s::Store::Xbox)
         {
           ImGui::Separator ( );
-          
+
           ImGui::PushID       ("#Xbox");
           ImGui::TextDisabled ("Xbox Data");
           if (ImGui::MenuItem ("Package",                 pApp->Xbox_PackageName.c_str()))
@@ -2291,7 +2285,7 @@ DrawGameContextMenu (app_record_s* pApp)
         else if (pApp->store == app_record_s::Store::Epic)
         {
           ImGui::Separator ( );
-          
+
           ImGui::PushID       ("#Epic");
           ImGui::TextDisabled ("Epic Data");
           if (ImGui::MenuItem ("App Name",                pApp->Epic_AppName.c_str()))
@@ -4640,7 +4634,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_Steam_GetInstalledAppIDs (&_data->apps);
       
         // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-        SKIF_Steam_PreloadUserLocalConfig (_data->steam_user, &_data->apps, &_data->apptickets);
+        SKIF_Steam_PreloadUserConfig (_data->steam_user, &_data->apps, &_data->apptickets);
       }
 
       if ( ! SKIF_STEAM_OWNER )
@@ -4811,14 +4805,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
               std::string keyName         = "";
               int         keyCPU          =  0;
-              int         keyInstantPlay  =  0;
               int         keyAutoStop     =  0;
-              int         keyHidden       =  0;
+              int         keyHidden       = app.second.steam.shared.hidden;   // will be 1 for hidden Steam games; 0 for the rest
               int         keyUses         =  0;
               std::string keyUsed         = "";
-              int         keyPinned       =  0;
+              int         keyPinned       = app.second.steam.shared.favorite; // will be 1 for favorited Steam games; 0 for the rest
 
-                // Special K defaults to pinned
+              // Special K defaults to pinned
               if (isSpecialK)
                 keyPinned        = 99; // Needed as otherwise we'd overwrite it below
 
@@ -4844,43 +4837,43 @@ SKIF_UI_Tab_DrawLibrary (void)
 
                 if (key.contains("Pin"))
                   keyPinned      = key.at("Pin");
+              }
 
-                app.second.skif.name           = keyName;
-                app.second.skif.cpu_type       = keyCPU;
-                app.second.skif.auto_stop      = keyAutoStop;
-                app.second.skif.hidden         = keyHidden;
-                app.second.skif.uses           = keyUses;
-                app.second.skif.used           = keyUsed;
-                app.second.skif.pinned         = keyPinned;
+              // Populate SKIF's custom variables with the values as well
+              app.second.skif.name           = keyName;
+              app.second.skif.cpu_type       = keyCPU;
+              app.second.skif.auto_stop      = keyAutoStop;
+              app.second.skif.hidden         = keyHidden;
+              app.second.skif.uses           = keyUses;
+              app.second.skif.used           = keyUsed;
+              app.second.skif.pinned         = keyPinned;
 
-                // Human-readable time format (local time)
-                time_t            ltime        = (time_t)strtol(keyUsed.c_str(), NULL, 10);
-                app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
+              // Human-readable time format (local time)
+              time_t            ltime        = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
+              app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
                 
-                if ((app.second.store == app_record_s::Store::Steam ||
-                     app.second.store == app_record_s::Store::GOG   ||
-                     app.second.store == app_record_s::Store::Xbox) && key.contains("InstantPlay"))
-                {
-                  keyInstantPlay               = key.at("InstantPlay");
-                  app.second.skif.instant_play = keyInstantPlay;
-                }
+              if ((app.second.store == app_record_s::Store::Steam ||
+                   app.second.store == app_record_s::Store::GOG   ||
+                   app.second.store == app_record_s::Store::Xbox) && key.contains("InstantPlay"))
+              {
+                app.second.skif.instant_play = key.at("InstantPlay");
               }
 
               // This also populates the JSON object with empty entries for new games
               key = {
-                { "Name",     keyName     },
-                { "CPU",      keyCPU      },
-                { "AutoStop", keyAutoStop },
-                { "Hidden",   keyHidden   },
-                { "Uses",     keyUses     },
-                { "Used",     keyUsed     },
-                { "Pin",      keyPinned   }
+                { "Name",     app.second.skif.name      },
+                { "CPU",      app.second.skif.cpu_type  },
+                { "AutoStop", app.second.skif.auto_stop },
+                { "Hidden",   app.second.skif.hidden    },
+                { "Uses",     app.second.skif.uses      },
+                { "Used",     app.second.skif.used      },
+                { "Pin",      app.second.skif.pinned    }
               };
 
               if (app.second.store == app_record_s::Store::Steam ||
                   app.second.store == app_record_s::Store::GOG   ||
                   app.second.store == app_record_s::Store::Xbox)
-                key += { "InstantPlay", keyInstantPlay };
+                key += { "InstantPlay", app.second.skif.instant_play };
             }
             catch (const std::exception&)
             {

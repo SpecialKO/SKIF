@@ -45,6 +45,13 @@ struct SK_Steam_Depot {
   ManifestId_t manifest;
 };
 
+enum ConfigStore
+{
+  ConfigStore_UserLocal,
+  ConfigStore_UserRoaming,
+  ConfigStore_ALL
+};
+
 
 // Barely functional Steam Key/Value Parser
 //   -> Does not handle unquoted kv pairs.
@@ -240,10 +247,9 @@ int                          SK_VFS_ScanTree (SK_VirtualFS::vfsNode* pVFSRoot,
 int                          SK_Steam_GetLibraries               (steam_library_t **ppLibraries);
 std::vector <AppId_t>        SK_Steam_GetInstalledAppIDs         (void);
 std::wstring                 SK_Steam_GetApplicationManifestPath (app_record_s *app);
-std::wstring                 SK_Steam_GetLocalConfigPath         (SteamId3_t userid);
 std::string                  SK_GetManifestContentsForAppID      (app_record_s *app);
-std::string                  SK_GetLocalConfigForSteamUser       (SteamId3_t userid);
 const wchar_t *              SK_GetSteamDir                      (void);
+const  char   *              SK_GetSteamDirUTF8                  (void);
 std::wstring                 SK_UseManifestToGetInstallDir       (app_record_s *app);
 std::string                  SK_UseManifestToGetAppName          (app_record_s *app);
 std::string                  SK_UseManifestToGetCurrentBranch    (app_record_s *app);
@@ -251,7 +257,14 @@ std::string                  SK_UseManifestToGetAppOwner         (app_record_s *
 std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots           (app_record_s *app);
 ManifestId_t                 SK_UseManifestToGetDepotManifest    (app_record_s *app, DepotId_t depot);
 std::string                  SKIF_Steam_GetLaunchOptions         (AppId_t appid, SteamId3_t userid, app_record_s *app = nullptr);
-bool                         SKIF_Steam_PreloadUserLocalConfig   (SteamId3_t userid, std::vector <std::pair <std::string, app_record_s> > *apps, std::set <std::string> *apptickets);
+std::wstring                 SK_Steam_GetLocalConfigPath         (SteamId3_t userid);
+std::wstring                 SK_Steam_GetSharedConfigPath        (SteamId3_t userid);
+std::string                  SK_GetLocalConfigForSteamUser       (SteamId3_t userid);
+std::string                  SKIF_Steam_GetUserConfigStore       (SteamId3_t userid, ConfigStore config);
+std::string                  SKIF_Steam_GetUserConfigStorePath   (SteamId3_t userid, ConfigStore config);
+void                         SKIF_Steam_PreloadUserConfig        (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
+bool                         SKIF_Steam_PreloadUserLocalConfig   (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets);
+bool                         SKIF_Steam_PreloadUserSharedConfig  (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps);
 bool                         SKIF_Steam_isSteamOverlayEnabled    (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_areLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs       (std::vector <std::pair < std::string, app_record_s > > *apps);
