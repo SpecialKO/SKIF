@@ -4013,10 +4013,30 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
                 std::wstring dll_name   = p.filename().replace_extension();
                 std::wstring test_path  = p.parent_path();
 
+                const std::vector <wchar_t *> cleaned = {
+                  L"DXGI",
+                  L"D3D11",
+                  L"D3D9",
+                  L"OpenGL32",
+                  L"DInput8",
+                  L"D3D8",
+                  L"DDraw"
+                };
+
+                for (auto& clean : cleaned)
+                {
+                  PLOG_VERBOSE << clean;
+                  if (StrStrIW (dll_name.c_str(), clean) != NULL)
+                  {
+                    PLOG_VERBOSE << "Match!";
+                    dll_name = clean;
+                  }
+                }
+
                 pApp->specialk.injection.injection.type         = InjectionType::Local;
                 pApp->specialk.injection.dll.shorthand          = dll_name + L".dll";
                 pApp->specialk.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
-                pApp->specialk.injection.dll.full_path          = dll_full_path;
+                pApp->specialk.injection.dll.full_path          = test_path + LR"(\)" + dll_name + L".dll"; // This allows us to "clean" the DLL file of the full patch as well
                 pApp->specialk.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
                 pApp->specialk.injection.dll.version            = dll_ver;
                 pApp->specialk.injection.dll.version_utf8       = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
