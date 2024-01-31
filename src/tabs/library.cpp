@@ -676,25 +676,6 @@ LaunchGame (app_record_s* pApp)
           break;
         }
       }
-      
-      HKEY hKey;
-      LSTATUS lsEnvKey = RegOpenKeyExW (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, &hKey); // Open the user environment variable block
-
-      if (ERROR_SUCCESS == lsEnvKey)
-      {
-        std::wstring wsName = SK_UTF8ToWideChar (pApp->names.original);
-
-        if (proc          != nullptr &&
-            ERROR_SUCCESS == RegSetValueExW (hKey, L"SKFriendlyName", 0, REG_SZ, (LPBYTE)wsName.data(),
-                                                                                  (DWORD)wsName.size() * sizeof(wchar_t)))
-        {
-          PLOG_VERBOSE << "Temporary added user env variable SKFriendlyName: " << wsName;
-          proc->envFriendlyName = true;
-
-          // No need to broadcast our user env variable change since it is only temporary
-          //SendMessageTimeout (HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM)"Environment", SMTO_BLOCK, 100, NULL);
-        }
-      }
 
       if (launchInstant)
       {
@@ -727,14 +708,7 @@ LaunchGame (app_record_s* pApp)
 
         proc->id              =  0;
         proc->store_id        = -1;
-        proc->envFriendlyName = false;
-
-        if (ERROR_SUCCESS == lsEnvKey)
-          RegDeleteValueW (hKey, L"SKFriendlyName"); // Delete the temporary variable
       }
-
-      if (ERROR_SUCCESS == lsEnvKey)
-        RegCloseKey     (hKey);
     }
 
     // Instant Play
@@ -793,7 +767,6 @@ LaunchGame (app_record_s* pApp)
       }
 
       std::map<std::wstring, std::wstring> env;
-      env.emplace         (L"SKFriendlyName", SK_UTF8ToWideChar(pApp->names.original));
       bool steamOverlay = true;
 
       if (uiSteamAppID != 0)
@@ -3848,6 +3821,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     }
     // End checking bitness
 
+    // Check for local injections
     struct {
       InjectionPoint   entry_pt;
       std::wstring     name;
@@ -3916,15 +3890,15 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
               dll.entry_pt, InjectionType::Local
             };
             
-            launch.injection.dll.shorthand      = dll.name + L".dll";
-            launch.injection.dll.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
-            launch.injection.dll.full_path      = dll.path;
-            launch.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (launch.injection.dll.full_path);
-            launch.injection.dll.version        = dll_ver;
-            launch.injection.dll.version_utf8   = SK_WideCharToUTF8 (launch.injection.dll.version);
+            launch.injection.dll.shorthand          = dll.name + L".dll";
+            launch.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
+            launch.injection.dll.full_path          = dll.path;
+            launch.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (launch.injection.dll.full_path);
+            launch.injection.dll.version            = dll_ver;
+            launch.injection.dll.version_utf8       = SK_WideCharToUTF8 (launch.injection.dll.version);
 
             if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-              launch.injection.config.type =   ConfigType::Centralized;
+              launch.injection.config.type          = ConfigType::Centralized;
             else
             {
               launch.injection.config.type          = ConfigType::Localized;
@@ -3932,8 +3906,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
               launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
             }
 
-            launch.injection.config.shorthand      = dll.name + L".ini";
-            launch.injection.config.shorthand_utf8 = SK_WideCharToUTF8 (launch.injection.config.shorthand);
+            launch.injection.config.shorthand       = dll.name + L".ini";
+            launch.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
             breakOuterLoop = true;
             break;
@@ -3954,7 +3928,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     // Check if the launch config is elevated or blacklisted
     launch.isElevated    (true);
     launch.isBlacklisted (true);
-  }
+
+  } // End for ( auto& launch_cfg : pApp->launch_configs )
 
   // Swap out the first element for the first valid one we found
   if (firstValidFound != -1)
@@ -3987,6 +3962,90 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
   // Main UI stuff should follow the primary launch config
   pApp->specialk.injection = launch.injection;
+
+  // Use a registry based fallback method if we have been unable to detect a local injection by now
+  if (InjectionType::Global ==
+    pApp->specialk.injection.injection.type)
+  {
+    HKEY hKey;
+
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+      DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
+            dwResult          = 0,
+            dwMaxValueNameLen = 0; // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
+
+      if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, NULL, NULL, NULL) == ERROR_SUCCESS)
+      {
+
+        while (dwIndex > 0)
+        {
+          dwIndex--;
+          
+          DWORD dwValueNameLen =
+                (dwMaxValueNameLen + 2);
+
+          std::unique_ptr <wchar_t []> pValue =
+            std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
+
+          DWORD dwType = REG_NONE;
+
+          dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, NULL, NULL);
+
+          if (dwResult == ERROR_NO_MORE_ITEMS)
+            break;
+
+          if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
+          {
+            if (StrStrIW (pValue.get(), pApp->install_dir.c_str()) != NULL)
+            {
+              PLOG_VERBOSE << "Found local injection at: " << pValue;
+
+              std::wstring dll_full_path = std::wstring(pValue.get());
+              
+              std::wstring dll_ver =
+                SKIF_Util_GetSpecialKDLLVersion (dll_full_path.c_str ());
+
+              // Another validation that this is, in fact, a Special K DLL file we're dealing with
+              if (! dll_ver.empty ())
+              {
+                std::filesystem::path p = dll_full_path;
+                std::wstring dll_name   = p.filename().replace_extension();
+                std::wstring test_path  = p.parent_path();
+
+                pApp->specialk.injection.injection.type         = InjectionType::Local;
+                pApp->specialk.injection.dll.shorthand          = dll_name + L".dll";
+                pApp->specialk.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
+                pApp->specialk.injection.dll.full_path          = dll_full_path;
+                pApp->specialk.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
+                pApp->specialk.injection.dll.version            = dll_ver;
+                pApp->specialk.injection.dll.version_utf8       = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
+
+                if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str()))
+                  pApp->specialk.injection.config.type          = ConfigType::Centralized;
+                else
+                {
+                  pApp->specialk.injection.config.type          = ConfigType::Localized;
+                  pApp->specialk.injection.config.root_dir      = test_path;
+                  pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
+                }
+
+                pApp->specialk.injection.config.shorthand       = dll_name + L".ini";
+                pApp->specialk.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (pApp->specialk.injection.config.shorthand);
+              }
+
+              else {
+                // If it is not, remove the registry value
+                RegDeleteKeyValueW (hKey, LR"(SOFTWARE\Kaldaien\Special K\Local\)", pValue.get());
+              }
+            }
+          }
+        }
+      }
+
+      RegCloseKey (hKey);
+    }
+  }
 
   if ( InjectionType::Global ==
       pApp->specialk.injection.injection.type )
@@ -4431,23 +4490,8 @@ RefreshRunningApps (void)
               PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
               app.second._status.running = 0;
 
-              // If an environment friendly name has been set, we also need to remove that one
-              if (monitored_app.envFriendlyName)
-              {
-                HKEY hKey;
-                // Open the user environment variable block
-                if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, L"Environment", 0, KEY_ALL_ACCESS, &hKey))
-                {
-                  RegDeleteValueW (hKey, L"SKFriendlyName"); // Delete the temporary variable
-                  RegCloseKey     (hKey);
-                }
-
-                PLOG_VERBOSE << "Deleted temp user env variable SKFriendlyName";
-              }
-
               monitored_app.id              =  0;
               monitored_app.store_id        = -1;
-              monitored_app.envFriendlyName = false;
 
               CloseHandle (hProcess);
               hProcess = INVALID_HANDLE_VALUE;
