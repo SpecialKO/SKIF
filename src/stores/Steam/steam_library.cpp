@@ -791,13 +791,6 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
   return "";
 }
 
-void
-SKIF_Steam_PreloadUserConfig (SteamId3_t userid, std::vector<std::pair<std::string,app_record_s>>* apps, std::set<std::string>* apptickets)
-{
-  SKIF_Steam_PreloadUserLocalConfig  (userid, apps, apptickets);
-  SKIF_Steam_PreloadUserSharedConfig (userid, apps);
-}
-
 bool
 SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
 {
@@ -991,6 +984,13 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
   }
 
   return false;
+}
+
+void
+SKIF_Steam_PreloadUserConfig (SteamId3_t userid, std::vector<std::pair<std::string,app_record_s>>* apps, std::set<std::string>* apptickets)
+{
+  SKIF_Steam_PreloadUserLocalConfig  (userid, apps, apptickets);
+  SKIF_Steam_PreloadUserSharedConfig (userid, apps);
 }
 
 bool

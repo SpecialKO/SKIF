@@ -651,7 +651,7 @@ OutputT read(IterT first, const IterT last, const Options &opt = Options{})
     auto roots =
         detail::read_internal<OutputT>(first, last, exclude_files, opt);
 
-    OutputT result;
+    OutputT result{};
     if (roots.size() > 1)
     {
         for (auto &i : roots)
