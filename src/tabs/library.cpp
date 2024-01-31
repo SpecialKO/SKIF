@@ -7101,6 +7101,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 
+      if (library_worker != nullptr)
+        ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+
       if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
@@ -7143,6 +7146,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         RepopulateGames = true;
       }
+
+      if (library_worker != nullptr)
+        ImGui::PopItemFlag ( );
 
       ImGui::EndMenu ( );
     }
