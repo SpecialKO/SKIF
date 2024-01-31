@@ -3002,7 +3002,20 @@ GetInjectionSummary (app_record_s* pApp)
       if (ImGui::Selectable ("Uninstall"))
       {
         if (DeleteFile (pApp->specialk.injection.dll.full_path.c_str()))
+        {
           PLOG_INFO << "Successfully uninstalled local DLL v " << pApp->specialk.injection.dll.version << " from " << pApp->specialk.injection.dll.full_path;
+
+          HKEY     hKey;
+          LSTATUS lsKey = RegOpenKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
+      
+          if (ERROR_SUCCESS == lsKey)
+          {
+            if (ERROR_SUCCESS != RegDeleteValueW (hKey, pApp->specialk.injection.dll.full_path.c_str()))
+              PLOG_ERROR << "Failed deleting local install from registry value: " << pApp->specialk.injection.dll.full_path;
+
+            RegCloseKey (hKey);
+          }
+        }
       }
 
       ImGui::EndPopup ( );
@@ -3345,7 +3358,8 @@ Cache=false)";
   static bool quickServiceHover = false;
 
   // Service quick toogle / Waiting for game...
-  if (! pApp->loading && pApp->specialk.injection.injection.type == InjectionType::Global && ! _inject.isPending())
+  // Also show this while a game is loading since it is more likely to be using global than local! (and it's safe to show nowadays!)
+  if (/* ! pApp->loading && */ pApp->specialk.injection.injection.type != InjectionType::Local && ! _inject.isPending())
   {
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImColor(0, 0, 0, 0).Value);
@@ -3353,7 +3367,18 @@ Cache=false)";
                                                              : _inject.ui_game_summary.color.Value);
 
     if (ImGui::Selectable (_inject.ui_game_summary.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
-      _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), pApp->skif.auto_stop);
+    {
+      // Only allow the toggle to work to disable the service while a game is loading
+      if (pApp->loading)
+      {
+        if (_inject.bCurrentState)
+          _inject._StartStopInject (true);
+      }
+
+      // For non-loading games, allow the full functionality
+      else
+        _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), pApp->skif.auto_stop);
+    }
 
     ImGui::PopStyleColor (3);
 
@@ -3984,6 +4009,22 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
                                        bIs64Bit ? _inject.SKVer64
                                                 : _inject.SKVer32;
     pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
+  }
+
+  // For local injections, we need to populate the registry as well (used for managed updates)
+  else if ( InjectionType::Local ==
+           pApp->specialk.injection.injection.type )
+  {
+    HKEY     hKey;
+    LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
+      
+    if (ERROR_SUCCESS == lsKey)
+    {
+      if (ERROR_SUCCESS != RegSetValueExW (hKey, pApp->specialk.injection.dll.full_path.c_str(), 0, REG_SZ, (LPBYTE)pApp->specialk.injection.dll.version.data(), (DWORD)pApp->specialk.injection.dll.version.length() * sizeof(wchar_t)))
+        PLOG_ERROR << "Failed adding local install (" << pApp->specialk.injection.dll.version << ") to registry value: " << pApp->specialk.injection.dll.full_path;
+
+      RegCloseKey (hKey);
+    }
   }
 
   // Use a localized profile name
@@ -4754,8 +4795,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Processing detected games...";
 
-      HKEY hKey;
-      LSTATUS lsProfilesKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
+      HKEY     hKey;
+      LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
 
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
@@ -5006,7 +5047,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           InsertTrieKey (&app, &_data->labels);
 
           // Ensure the Profiles registry key is populated properly
-          if (ERROR_SUCCESS == lsProfilesKey)
+          if (ERROR_SUCCESS == lsKey)
           {
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
@@ -5025,7 +5066,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      if (ERROR_SUCCESS == lsProfilesKey)
+      if (ERROR_SUCCESS == lsKey)
         RegCloseKey (hKey);
 
       // Update the db.json file with any additions and whatnot

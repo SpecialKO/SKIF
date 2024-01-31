@@ -49,7 +49,7 @@ struct SKIF_InjectionContext {
 
   bool    bAutoStartServiceOnly = false;
 
-  bool    bCurrentState       = false;
+  bool    bCurrentState       = false; // true = running; false = not running
   bool    bAckInj             = false; // Indicates if we're using auto-stop mode or not
   bool    bAckInjSignaled     = false; // Indicates that the auto-stop event was signaled
   bool    bTaskbarOverlayIcon = false;
