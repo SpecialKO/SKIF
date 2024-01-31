@@ -4025,12 +4025,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
                 for (auto& clean : cleaned)
                 {
-                  PLOG_VERBOSE << clean;
                   if (StrStrIW (dll_name.c_str(), clean) != NULL)
-                  {
-                    PLOG_VERBOSE << "Match!";
                     dll_name = clean;
-                  }
                 }
 
                 pApp->specialk.injection.injection.type         = InjectionType::Local;
@@ -7166,7 +7162,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 
       if (library_worker != nullptr)
-        ImGui::PushItemFlag (ImGuiItemFlags_Disabled, true);
+        SKIF_ImGui_PushDisableState ( );
 
       if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
       {
@@ -7212,7 +7208,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       if (library_worker != nullptr)
-        ImGui::PopItemFlag ( );
+        SKIF_ImGui_PopDisableState ( );
 
       ImGui::EndMenu ( );
     }
