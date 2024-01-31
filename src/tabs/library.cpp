@@ -4602,6 +4602,36 @@ SKIF_UI_Tab_DrawLibrary (void)
     )
   }
 
+  // This populates the g_apps entry with Special K so its not empty even if the worker takes awhile to finish
+  // A bit too disruptive atm, so let's ignore it for now
+#if 0
+  static bool
+      lib_init = true;
+  if (lib_init)
+  {   lib_init = false;
+    
+    app_record_s SKIF_record (SKIF_STEAM_APPID);
+
+    SKIF_record.id                = SKIF_STEAM_APPID;
+    SKIF_record.names.normal      = "Special K";
+    SKIF_record.names.all_upper   = "SPECIAL K";
+    SKIF_record._status.installed = true;
+    SKIF_record.install_dir       = _path_cache.specialk_install;
+    SKIF_record.store             = app_record_s::Store::Steam;
+    SKIF_record.store_utf8        = "Steam";
+    SKIF_record.ImGuiLabelAndID   = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+    SKIF_record.ImGuiPushID       = SK_FormatString("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
+
+    SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
+    SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
+
+    std::pair <std::string, app_record_s>
+      SKIF ( "Special K", SKIF_record );
+
+    g_apps.emplace_back (SKIF);
+  }
+#endif
+
 #if 0
   SKIF_GamesCollection& _games              = SKIF_GamesCollection::GetInstance  ( );
 
@@ -6310,9 +6340,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (_registry.bFadeCovers)
     ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
-  if ( pApp        != nullptr            &&
-      (pApp->id    == SKIF_STEAM_APPID   &&
-       pApp->store == app_record_s::Store::Steam))
+  if (g_apps.empty() ||
+     (pApp        != nullptr            &&
+      pApp->id    == SKIF_STEAM_APPID   &&
+      pApp->store == app_record_s::Store::Steam))
   {
     _inject._GlobalInjectionCtl ();
   }
