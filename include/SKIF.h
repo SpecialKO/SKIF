@@ -44,6 +44,7 @@ const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
 const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
 const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
 const     UINT_PTR        IDT_REFRESH_DIR_ROOT  =             1344; // Used by the directory watch for the root folder
+const     UINT_PTR       cIDT_TIMER_EFFICIENCY  =             1345; // Engages Efficiency Mode (Win11) and compacts the working set
 //const   UINT_PTR        IDT_REFRESH_STEAM_LIB =        1983-1999; // Used by the directory watch for Steam libraries
 
 // Desktop notification types

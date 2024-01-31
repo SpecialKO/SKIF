@@ -504,6 +504,7 @@ struct SKIF_RegistrySettings {
   bool _ExitOnInjection             = false; // Used to exit SKIF on a successful injection if it's used merely as a launcher
   bool _sRGBColors                  = false;
   bool _LibraryHidden               = false; // Do not show hidden games by default
+  bool _EfficiencyMode              = false;
 
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)

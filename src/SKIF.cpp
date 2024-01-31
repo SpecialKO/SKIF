@@ -227,6 +227,35 @@ HWND  hWndOrigForeground;
 HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
 DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID that SKIF launched
 
+UINT_PTR IDT_TIMER_EFFICIENCY   = 0; // Holds current timer ID for engaging the efficiency mode
+
+void CALLBACK
+SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
+{
+  UNREFERENCED_PARAMETER (hWnd);
+  UNREFERENCED_PARAMETER (Msg);
+  UNREFERENCED_PARAMETER (wParamIDEvent);
+  UNREFERENCED_PARAMETER (dwTime);
+
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  
+  if (_registry.bEfficiencyMode && ! _registry._EfficiencyMode && ! SKIF_ImGui_IsFocused ( ))
+  {
+    // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
+    SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
+    SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
+
+    _registry._EfficiencyMode = true;
+    msgDontRedraw = true;
+  }
+
+  if (IDT_TIMER_EFFICIENCY != 0)
+  {
+    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
+    IDT_TIMER_EFFICIENCY = 0;
+  }
+}
+
 void
 SKIF_Startup_SetGameAsForeground (void)
 {
@@ -3524,11 +3553,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
 
+        /* Original approach
         if (_registry.bEfficiencyMode)
         {
           // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
           SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
           SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
+        }
+        */
+
+        // New approach: Update the timer when we are pausing
+        if (! msgDontRedraw)
+        {
+          IDT_TIMER_EFFICIENCY =
+            SetTimer (SKIF_Notify_hWnd,
+                      cIDT_TIMER_EFFICIENCY,
+                      5000,
+                      (TIMERPROC) &SKIF_EfficiencyModeTimerProc
+            );
         }
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
@@ -3544,13 +3586,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
             bWaitTimeoutMsgInputFallback = true;
           });
         }
-        
+
+        /* Original approach
         if (_registry.bEfficiencyMode)
         {
           // Wake up and disable idle priority + ECO QoS (let the system take over)
           SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
           SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), -1);
         }
+        */
 
         // Always render 3 additional frames after we wake up
         renderAdditionalFrames = ImGui::GetFrameCount() + 3;
@@ -3611,6 +3655,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (addAdditionalFrames > 0)
         msgDontRedraw = false;
 
+      // New approach: Disable Efficiency Mode when we are being interacted with
+      if (_registry._EfficiencyMode && ! msgDontRedraw && SKIF_ImGui_IsFocused ( ))
+      {
+        // Wake up and disable idle priority + ECO QoS (let the system take over)
+        SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+        SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), -1);
+
+        if (IDT_TIMER_EFFICIENCY != 0)
+        {
+          KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
+          IDT_TIMER_EFFICIENCY = 0;
+        }
+
+        _registry._EfficiencyMode = false;
+      }
+
       // Break if SKIF is no longer a window
       //if (! IsWindow (hWnd))
       //  break;
@@ -3645,6 +3705,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
+  KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
 
   PLOG_INFO << "Shutting down ImGui...";
   ImGui_ImplDX11_Shutdown     ( );
