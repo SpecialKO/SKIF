@@ -152,6 +152,7 @@ struct app_record_s {
         SixtyFour = 0x2,
         Unknown   = 0x0
       }            bitness = Bitness::Unknown;
+#if 0
       enum class EntryPoint {
         DDraw   = 0x1,
         D3D8    = 0x2,
@@ -163,6 +164,7 @@ struct app_record_s {
         CBTHook = 0x80,
         Unknown = 0x0
       }            entry_pt = EntryPoint::Unknown;
+#endif
       enum class Type {
         Global  = 0x1,
         Local   = 0x2,
@@ -477,8 +479,6 @@ struct app_record_s {
 
 using InjectionBitness =
   app_record_s::sk_install_state_s::Injection::Bitness;
-using InjectionPoint =
-  app_record_s::sk_install_state_s::Injection::EntryPoint;
 using InjectionType =
   app_record_s::sk_install_state_s::Injection::Type;
 using ConfigType =

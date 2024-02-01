@@ -163,7 +163,7 @@ struct terminate_process_s {
 
 std::atomic<int>  textureLoadQueueLength{ 1 };
 
-int getTextureLoadQueuePos (void) {
+static int getTextureLoadQueuePos (void) {
   return textureLoadQueueLength.fetch_add(1) + 1;
 }
 
@@ -179,7 +179,7 @@ extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::w
 
 // Functions / Structs
 
-float
+static float
 AdjustAlpha (float a)
 {
   return std::pow (a, 1.0f / 2.2f );
@@ -195,7 +195,7 @@ struct {
 Trie labels;
 Trie labelsFiltered;
 
-void
+static void
 SearchAppsList (void)
 {
   if (bFilterActive)
@@ -359,69 +359,6 @@ SearchAppsList (void)
 #pragma endregion
 
 
-// This sorts the app vector
-static void
-SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
-{
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
-  // Sort first by name
-  std::stable_sort ( apps->begin (),
-                     apps->end   (),
-    []( const std::pair <std::string, app_record_s>& a,
-        const std::pair <std::string, app_record_s>& b ) -> int
-    {
-      return a.second.names.all_upper_alnum.compare(
-             b.second.names.all_upper_alnum
-      ) < 0;
-    }
-  );
-
-  // Apply any custom sort
-  switch (_registry.iLibrarySort)
-  {
-
-  case 1: // Sorting by used count
-    PLOG_VERBOSE << "Sorting by used count...";
-    std::stable_sort ( apps->begin (),
-                       apps->end   (),
-      []( const std::pair <std::string, app_record_s>& a,
-          const std::pair <std::string, app_record_s>& b ) -> int
-      {
-        return a.second.skif.uses >
-               b.second.skif.uses;
-      }
-    );
-    break;
-
-  case 2: // Sorting by last used
-    PLOG_VERBOSE << "Sorting by last used...";
-    std::stable_sort ( apps->begin (),
-                       apps->end   (),
-      []( const std::pair <std::string, app_record_s>& a,
-          const std::pair <std::string, app_record_s>& b ) -> int
-      {
-        return a.second.skif.used.compare(
-               b.second.skif.used
-        ) > 0;
-      }
-    );
-    break;
-  }
-
-  // Then apply any pins
-  std::stable_sort ( apps->begin (),
-                     apps->end   (),
-    []( const std::pair <std::string, app_record_s>& a,
-        const std::pair <std::string, app_record_s>& b ) -> int
-    {
-        return a.second.skif.pinned >
-               b.second.skif.pinned;
-    }
-  );
-}
-
-
 // This writes the Json object to the disk
 bool
 WriteJsonMetaDataFile (void)
@@ -485,7 +422,7 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
   return false;
 }
 
-std::string
+static std::string
 GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s* pLaunchCfg)
 {
   if (! pApp->steam.local.launch_option_parsed.empty())
@@ -523,7 +460,7 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
 
 #pragma region LaunchGame
 
-void
+static void
 LaunchGame (app_record_s* pApp)
 {
 //static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Not currently used
@@ -1074,7 +1011,7 @@ LaunchGame (app_record_s* pApp)
     UpdateJsonMetaData (pApp, true);
 
     // Ensure the sort order is updated as well
-    SortApps (&g_apps);
+    SKIF_GamingCollection::SortApps (&g_apps);
     sort_changed = true;
   }
 }
@@ -1085,7 +1022,7 @@ LaunchGame (app_record_s* pApp)
 
 #pragma region UpdateGameCover
 
-bool
+static bool
 SaveGameCover (app_record_s* pApp, std::wstring_view path)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -1333,7 +1270,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
 #pragma region DrawGameContextMenu
 
-void
+static void
 DrawGameContextMenu (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -1821,29 +1758,6 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::EndMenu ();
   }
 
-#if 0
-  if (! pApp->specialk.screenshots.empty ())
-  {
-    if (ImGui::BeginMenu ("Screenshots"))
-    {
-      for (auto& screenshot : pApp->specialk.screenshots)
-      {
-        if (ImGui::Selectable (screenshot.c_str ()))
-        {
-          SKIF_GameManagement_ShowScreenshot (
-            SK_UTF8ToWideChar (screenshot)
-          );
-        }
-
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (screenshot.c_str ());
-      }
-
-      ImGui::EndMenu ();
-    }
-  }
-#endif
-
   // Manage Game
   if (ImGui::BeginMenu (ICON_FA_GEARS " Manage"))
   {
@@ -1886,7 +1800,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       UpdateJsonMetaData  ( pApp, true);
 
-      SortApps (&g_apps);
+      SKIF_GamingCollection::SortApps (&g_apps);
       sort_changed = true;
     }
 
@@ -2561,7 +2475,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 }
 
-void
+static void
 DrawSpecialKContextMenu (app_record_s* pApp)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -2769,7 +2683,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
     UpdateJsonMetaData  ( pApp, true);
 
-    SortApps (&g_apps);
+    SKIF_GamingCollection::SortApps (&g_apps);
     sort_changed = true;
   }
 
@@ -2826,7 +2740,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
 #pragma region PrintInjectionSummary
 
-void
+static void
 GetInjectionSummary (app_record_s* pApp)
 {
   if (pApp == nullptr || pApp->id == SKIF_STEAM_APPID)
@@ -2978,13 +2892,12 @@ GetInjectionSummary (app_record_s* pApp)
           PLOG_INFO << "Successfully uninstalled local DLL v " << pApp->specialk.injection.dll.version << " from " << pApp->specialk.injection.dll.full_path;
 
           HKEY     hKey;
-          LSTATUS lsKey = RegOpenKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
+          LSTATUS ls = RegOpenKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
       
-          if (ERROR_SUCCESS == lsKey)
+          if (ERROR_SUCCESS == ls)
           {
-            if (ERROR_SUCCESS != RegDeleteValueW (hKey, pApp->specialk.injection.dll.full_path.c_str()))
-              PLOG_ERROR << "Failed deleting local install from registry value: " << pApp->specialk.injection.dll.full_path;
-
+            ls = RegDeleteValueW (hKey, pApp->specialk.injection.dll.full_path.c_str());
+            PLOG_ERROR_IF (ls != ERROR_SUCCESS) << "Failed to delete registry value: " << SKIF_Util_GetErrorAsWStr (ls);
             RegCloseKey (hKey);
           }
         }
@@ -3704,7 +3617,7 @@ Cache=false)";
 
 #pragma region UpdateInjectionStrategy
 
-void
+static void
 UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 {
   if (pApp == nullptr || pApp->id == SKIF_STEAM_APPID)
@@ -3713,12 +3626,109 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  
-  //SKIF_Steam_GetInjectionStrategy (pApp);
+
+  bool registry_local = false;
+
+  // Use a registry based method as the primary choice of information for local injections
+  HKEY hKey;
+
+  if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local\)", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+  {
+    DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
+          dwResult          = 0,
+          dwMaxValueNameLen = 0; // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
+
+    if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, NULL, NULL, NULL) == ERROR_SUCCESS)
+    {
+
+      while (dwIndex > 0)
+      {
+        dwIndex--;
+          
+        DWORD dwValueNameLen =
+              (dwMaxValueNameLen + 2);
+
+        std::unique_ptr <wchar_t []> pValue =
+          std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
+
+        DWORD dwType = REG_NONE;
+
+        dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, NULL, NULL);
+
+        if (dwResult == ERROR_NO_MORE_ITEMS)
+          break;
+
+        if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
+        {
+          if (StrStrIW (pValue.get(), pApp->install_dir.c_str()) != NULL)
+          {
+            std::wstring dll_full_path = std::wstring(pValue.get());
+              
+            std::wstring dll_ver =
+              SKIF_Util_GetSpecialKDLLVersion (dll_full_path.c_str ());
+
+            // Another validation that this is, in fact, a Special K DLL file we're dealing with
+            if (! dll_ver.empty ())
+            {
+              registry_local = true;
+              PLOG_VERBOSE << "Found local injection at: " << pValue;
+
+              std::filesystem::path p = dll_full_path;
+              std::wstring dll_name   = p.filename().replace_extension();
+              std::wstring test_path  = p.parent_path();
+
+              const std::vector <wchar_t *> cleaned = {
+                L"DXGI",
+                L"D3D11",
+                L"D3D9",
+                L"OpenGL32",
+                L"DInput8",
+                L"D3D8",
+                L"DDraw"
+              };
+
+              for (auto& clean : cleaned)
+              {
+                if (StrStrIW (dll_name.c_str(), clean) != NULL)
+                  dll_name = clean;
+              }
+
+              pApp->specialk.injection.injection.type         = InjectionType::Local;
+              pApp->specialk.injection.dll.shorthand          = dll_name + L".dll";
+              pApp->specialk.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
+              pApp->specialk.injection.dll.full_path          = test_path + LR"(\)" + dll_name + L".dll"; // This allows us to "clean" the DLL file of the full patch as well
+              pApp->specialk.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
+              pApp->specialk.injection.dll.version            = dll_ver;
+              pApp->specialk.injection.dll.version_utf8       = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
+
+              if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str()))
+                pApp->specialk.injection.config.type          = ConfigType::Centralized;
+              else
+              {
+                pApp->specialk.injection.config.type          = ConfigType::Localized;
+                pApp->specialk.injection.config.root_dir      = test_path;
+                pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
+              }
+
+              pApp->specialk.injection.config.shorthand       = dll_name + L".ini";
+              pApp->specialk.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (pApp->specialk.injection.config.shorthand);
+            }
+
+            else {
+              // If it is not, remove the registry value
+              LSTATUS ls = RegDeleteValueW (hKey, pValue.get());
+              PLOG_ERROR_IF (ls != ERROR_SUCCESS) << "Failed to delete registry value: " << SKIF_Util_GetErrorAsWStr (ls);
+            }
+          }
+        }
+      }
+    }
+
+    RegCloseKey (hKey);
+  }
 
   int firstValidFound = -1;
 
-  // TODO: Go through all code and change pApp->launch_configs[0] to refer to whatever "preferred" launch config we've found...
   for ( auto& launch_cfg : pApp->launch_configs )
   {
     auto& launch = launch_cfg.second;
@@ -3734,22 +3744,16 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
     // Assume global
     launch.injection.injection.type        =
-      InjectionType::Global;
-    launch.injection.injection.entry_pt    =
-      InjectionPoint::CBTHook;
+      (registry_local) ? InjectionType::Local
+                       : InjectionType::Global;
     launch.injection.config.type           =
-      ConfigType::Centralized;
+      (registry_local) ? pApp->specialk.injection.config.type
+                       : ConfigType::Centralized;
     launch.injection.config.shorthand      =
-      L"SpecialK.ini";
+      (registry_local) ? pApp->specialk.injection.config.shorthand
+                       : L"SpecialK.ini";
     launch.injection.config.shorthand_utf8 =
       SK_WideCharToUTF8 (launch.injection.config.shorthand);
-
-    // Apply any custom stuff
-    if (pApp->skif.cpu_type != 0)
-    {
-      //launch.injection.injection.bitness = (InjectionBitness)     pApp->skif.cpu_type;
-      //launch.cpu_type                    = (app_record_s::CPUType)pApp->skif.cpu_type;
-    }
 
     // TODO: This needs to be gone through and reworked entirely as the logic still gets thrown off by edge cases
     //  - e.g. EA games with "invalid" launch options where the 'osarch' of the common_config ends up never being used
@@ -3820,114 +3824,113 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     }
     // End checking bitness
 
-    // Check for local injections
-    struct {
-      InjectionPoint   entry_pt;
-      std::wstring     name;
-      std::wstring     path;
-    } test_dlls [] = { // The small things matter -- array is sorted in the order of most expected
-      { InjectionPoint::DXGI,    L"DXGI",     L"" },
-      { InjectionPoint::D3D11,   L"D3D11",    L"" },
-      { InjectionPoint::D3D9,    L"D3D9",     L"" },
-      { InjectionPoint::OpenGL,  L"OpenGL32", L"" },
-      { InjectionPoint::DInput8, L"DInput8",  L"" },
-      { InjectionPoint::D3D8,    L"D3D8",     L"" },
-      { InjectionPoint::DDraw,   L"DDraw",    L"" }
-    };
-
-    std::wstring test_paths[] = { 
-      pApp->launch_configs[0].getExecutableDir ( ),
-      pApp->launch_configs[0].working_dir
-    };
-
-    if (test_paths[0] == test_paths[1])
-      test_paths[1] = L"";
-
-    bool breakOuterLoop = false;
-    for ( auto& test_path : test_paths)
+    // Fall back to the classic local detection code
+    if (InjectionType::Local != pApp->specialk.injection.injection.type)
     {
-      if (test_path.empty())
-        continue;
-      
-      std::wstring test_pattern =
-        test_path + LR"(\*.dll)";
+      // Check for local injections
+      struct {
+        std::wstring     name;
+        std::wstring     path;
+      } test_dlls [] = { // The small things matter -- array is sorted in the order of most expected
+        { L"DXGI",     L"" },
+        { L"D3D11",    L"" },
+        { L"D3D9",     L"" },
+        { L"OpenGL32", L"" },
+        { L"DInput8",  L"" },
+        { L"D3D8",     L"" },
+        { L"DDraw",    L"" }
+      };
 
-      WIN32_FIND_DATA ffd         = { };
-      HANDLE          hFind       =
-        FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+      std::wstring test_paths[] = { 
+        pApp->launch_configs[0].getExecutableDir ( ),
+        pApp->launch_configs[0].working_dir
+      };
 
-      if (hFind != INVALID_HANDLE_VALUE)
+      if (test_paths[0] == test_paths[1])
+        test_paths[1] = L"";
+
+      bool breakOuterLoop = false;
+      for ( auto& test_path : test_paths)
       {
-        do
+        if (test_path.empty())
+          continue;
+      
+        std::wstring test_pattern =
+          test_path + LR"(\*.dll)";
+
+        WIN32_FIND_DATA ffd         = { };
+        HANDLE          hFind       =
+          FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+
+        if (hFind != INVALID_HANDLE_VALUE)
         {
-          if ( wcscmp (ffd.cFileName, L"." ) == 0 ||
-               wcscmp (ffd.cFileName, L"..") == 0 )
-            continue;
-
-          if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-            continue;
-
-          for ( auto& dll : test_dlls )
+          do
           {
-            // Filename + extension
-            dll.path = dll.name + L".dll";
-            
-            if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
-              continue;
-          
-            // Full path
-            dll.path = test_path + LR"(\)" + dll.path;
-
-            std::wstring dll_ver =
-              SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
-
-            if (dll_ver.empty ())
+            if ( wcscmp (ffd.cFileName, L"." ) == 0 ||
+                 wcscmp (ffd.cFileName, L"..") == 0 )
               continue;
 
-            launch.injection.injection = {
-              launch.injection.injection.bitness,
-              dll.entry_pt, InjectionType::Local
-            };
-            
-            launch.injection.dll.shorthand          = dll.name + L".dll";
-            launch.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
-            launch.injection.dll.full_path          = dll.path;
-            launch.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (launch.injection.dll.full_path);
-            launch.injection.dll.version            = dll_ver;
-            launch.injection.dll.version_utf8       = SK_WideCharToUTF8 (launch.injection.dll.version);
+            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+              continue;
 
-            if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-              launch.injection.config.type          = ConfigType::Centralized;
-            else
+            for ( auto& dll : test_dlls )
             {
-              launch.injection.config.type          = ConfigType::Localized;
-              launch.injection.config.root_dir      = test_path;
-              launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
+              // Filename + extension
+              dll.path = dll.name + L".dll";
+            
+              if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
+                continue;
+          
+              // Full path
+              dll.path = test_path + LR"(\)" + dll.path;
+
+              std::wstring dll_ver =
+                SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+
+              if (dll_ver.empty ())
+                continue;
+
+              launch.injection.injection.type         = InjectionType::Local;
+
+              launch.injection.dll.shorthand          = dll.name + L".dll";
+              launch.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
+              launch.injection.dll.full_path          = dll.path;
+              launch.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (launch.injection.dll.full_path);
+              launch.injection.dll.version            = dll_ver;
+              launch.injection.dll.version_utf8       = SK_WideCharToUTF8 (launch.injection.dll.version);
+
+              if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
+                launch.injection.config.type          = ConfigType::Centralized;
+              else
+              {
+                launch.injection.config.type          = ConfigType::Localized;
+                launch.injection.config.root_dir      = test_path;
+                launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
+              }
+
+              launch.injection.config.shorthand       = dll.name + L".ini";
+              launch.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (launch.injection.config.shorthand);
+
+              breakOuterLoop = true;
+              break;
             }
 
-            launch.injection.config.shorthand       = dll.name + L".ini";
-            launch.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (launch.injection.config.shorthand);
+            if (breakOuterLoop)
+              break;
 
-            breakOuterLoop = true;
-            break;
-          }
+          } while (FindNextFile (hFind, &ffd));
 
-          if (breakOuterLoop)
-            break;
+          FindClose (hFind);
+        }
 
-        } while (FindNextFile (hFind, &ffd));
-
-        FindClose (hFind);
+        if (breakOuterLoop)
+          break;
       }
-
-      if (breakOuterLoop)
-        break;
     }
 
     // Check if the launch config is elevated or blacklisted
-    launch.isElevated    (true);
-    launch.isBlacklisted (true);
-
+    launch.isElevated    ( );
+    launch.isBlacklisted ( );
   } // End for ( auto& launch_cfg : pApp->launch_configs )
 
   // Swap out the first element for the first valid one we found
@@ -3949,8 +3952,6 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     // Assume global
     launch.injection.injection.type        =
       InjectionType::Global;
-    launch.injection.injection.entry_pt    =
-      InjectionPoint::CBTHook;
     launch.injection.config.type           =
       ConfigType::Centralized;
     launch.injection.config.shorthand      =
@@ -3960,114 +3961,15 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   }
 
   // Main UI stuff should follow the primary launch config
-  pApp->specialk.injection = launch.injection;
-
-  // Use a registry based fallback method if we have been unable to detect a local injection by now
-  if (InjectionType::Global ==
-    pApp->specialk.injection.injection.type)
-  {
-    HKEY hKey;
-
-    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-    {
-      DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
-            dwResult          = 0,
-            dwMaxValueNameLen = 0; // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
-
-      if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, NULL, NULL, NULL) == ERROR_SUCCESS)
-      {
-
-        while (dwIndex > 0)
-        {
-          dwIndex--;
-          
-          DWORD dwValueNameLen =
-                (dwMaxValueNameLen + 2);
-
-          std::unique_ptr <wchar_t []> pValue =
-            std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
-
-          DWORD dwType = REG_NONE;
-
-          dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, NULL, NULL);
-
-          if (dwResult == ERROR_NO_MORE_ITEMS)
-            break;
-
-          if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-          {
-            if (StrStrIW (pValue.get(), pApp->install_dir.c_str()) != NULL)
-            {
-              PLOG_VERBOSE << "Found local injection at: " << pValue;
-
-              std::wstring dll_full_path = std::wstring(pValue.get());
-              
-              std::wstring dll_ver =
-                SKIF_Util_GetSpecialKDLLVersion (dll_full_path.c_str ());
-
-              // Another validation that this is, in fact, a Special K DLL file we're dealing with
-              if (! dll_ver.empty ())
-              {
-                std::filesystem::path p = dll_full_path;
-                std::wstring dll_name   = p.filename().replace_extension();
-                std::wstring test_path  = p.parent_path();
-
-                const std::vector <wchar_t *> cleaned = {
-                  L"DXGI",
-                  L"D3D11",
-                  L"D3D9",
-                  L"OpenGL32",
-                  L"DInput8",
-                  L"D3D8",
-                  L"DDraw"
-                };
-
-                for (auto& clean : cleaned)
-                {
-                  if (StrStrIW (dll_name.c_str(), clean) != NULL)
-                    dll_name = clean;
-                }
-
-                pApp->specialk.injection.injection.type         = InjectionType::Local;
-                pApp->specialk.injection.dll.shorthand          = dll_name + L".dll";
-                pApp->specialk.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
-                pApp->specialk.injection.dll.full_path          = test_path + LR"(\)" + dll_name + L".dll"; // This allows us to "clean" the DLL file of the full patch as well
-                pApp->specialk.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
-                pApp->specialk.injection.dll.version            = dll_ver;
-                pApp->specialk.injection.dll.version_utf8       = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
-
-                if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str()))
-                  pApp->specialk.injection.config.type          = ConfigType::Centralized;
-                else
-                {
-                  pApp->specialk.injection.config.type          = ConfigType::Localized;
-                  pApp->specialk.injection.config.root_dir      = test_path;
-                  pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
-                }
-
-                pApp->specialk.injection.config.shorthand       = dll_name + L".ini";
-                pApp->specialk.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (pApp->specialk.injection.config.shorthand);
-              }
-
-              else {
-                // If it is not, remove the registry value
-                RegDeleteKeyValueW (hKey, LR"(SOFTWARE\Kaldaien\Special K\Local\)", pValue.get());
-              }
-            }
-          }
-        }
-      }
-
-      RegCloseKey (hKey);
-    }
-  }
+  if (! registry_local)
+    pApp->specialk.injection = launch.injection;
 
   if ( InjectionType::Global ==
       pApp->specialk.injection.injection.type )
   {
     // Assume Global 32-bit if we don't know otherwise
     bool bIs64Bit =
-      (launch.injection.injection.bitness ==
+      (pApp->specialk.injection.injection.bitness ==
                         InjectionBitness::SixtyFour);
 
     pApp->specialk.injection.config.type =
@@ -4089,7 +3991,6 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   else if ( InjectionType::Local ==
            pApp->specialk.injection.injection.type )
   {
-    HKEY     hKey;
     LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
       
     if (ERROR_SUCCESS == lsKey)
@@ -4312,278 +4213,6 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 #pragma endregion
 
 
-#pragma region RefreshRunningApps
-
-void
-RefreshRunningApps (void)
-{
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  
-  static DWORD lastGameRefresh = 0;
-  static std::wstring exeSteam = L"steam.exe";
-
-  DWORD current_time = SKIF_Util_timeGetTime ( );
-
-  if (current_time > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
-  {
-    bool new_steamRunning = false;
-
-    for (auto& app : g_apps)
-    {
-      if (app.second._status.dwTimeDelayChecks > current_time)
-        continue;
-
-      app.second._status.running_pid = 0;
-
-      if (app.second.store == app_record_s::Store::Steam && (steamRunning || ! steamFallback))
-        continue;
-
-      app.second._status.running     = false;
-    }
-
-    PROCESSENTRY32W none = { },
-                    pe32 = { };
-
-    SK_AutoHandle hProcessSnap (
-      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
-    );
-
-    if ((intptr_t)hProcessSnap.m_h > 0)
-    {
-      pe32.dwSize = sizeof (PROCESSENTRY32W);
-      std::wstring exeFileLast, exeFileNew;
-
-      if (Process32FirstW (hProcessSnap, &pe32))
-      {
-        do
-        {
-          SetLastError (NO_ERROR);
-          CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe32.th32ProcessID));
-          // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
-
-          if (hProcess == nullptr)
-            continue;
-
-          exeFileNew = pe32.szExeFile;
-
-          // Skip duplicate processes
-          // NOTE: Potential bug is that Epic, GOG and SKIF Custom games with two running and identically named executables (launcher + game) may not be detected as such
-          if (exeFileLast == exeFileNew)
-            continue;
-
-          exeFileLast = exeFileNew;
-
-          // Recognize that the Steam client is running
-          if (_wcsnicmp (exeFileLast.c_str(), exeSteam.c_str(), exeSteam.length()) == 0)
-          {
-            new_steamRunning = true;
-            continue;
-          }
-
-          bool accessDenied =
-            GetLastError ( ) == ERROR_ACCESS_DENIED;
-
-          // Get exit code to filter out zombie processes
-          DWORD dwExitCode = 0;
-          GetExitCodeProcess (hProcess, &dwExitCode);
-          
-          WCHAR szExePath     [MAX_PATH + 2] = { };
-          DWORD szExePathLen = MAX_PATH + 2; // Specifies the size of the lpExeName buffer, in characters.
-
-          if (! accessDenied)
-          {
-            // If the process is not active any longer, skip it (terminated or zombie process)
-            if (dwExitCode != STILL_ACTIVE)
-              continue;
-
-            // See if we can retrieve the full path of the executable
-            if (! QueryFullProcessImageName (hProcess, 0, szExePath, &szExePathLen))
-              szExePathLen = 0;
-          }
-
-          for (auto& app : g_apps)
-          {
-            if (! app.second.launch_configs.contains (0))
-              continue;
-
-            if (app.second._status.dwTimeDelayChecks > current_time)
-              continue;
-
-            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
-            // TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
-            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile, MAX_PATH) == 0)
-            {
-              app.second._status.running     = true;
-              app.second._status.running_pid = pe32.th32ProcessID;
-              break;
-            }
-
-            else if (szExePathLen != 0)
-            {
-              if (app.second.store == app_record_s::Store::Steam)
-              {
-                if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0)
-                {
-                  app.second._status.running_pid = pe32.th32ProcessID;
-
-                  // Only set the running state if the primary registry monitoring is unavailable
-                  if (! steamFallback)
-                    continue;
-
-                  app.second._status.running     = true;
-                  break;
-                }
-              }
-
-              // Epic, GOG and SKIF Custom should be straight forward
-              else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full patch
-              {
-                app.second._status.running     = true;
-                app.second._status.running_pid = pe32.th32ProcessID;
-                break;
-
-                // One can also perform a partial match with the below OR clause in the IF statement, however from testing
-                //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
-                //     even to elevated processes, meaning the below OR clause is unnecessary.
-                // 
-                // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
-                //
-              }
-            }
-          }
-
-          if (! _registry.bWarningRTSS    &&
-              ! ImGui::IsAnyPopupOpen ( ) &&
-              ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
-          {
-            _registry.bWarningRTSS = true;
-            _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
-            confirmPopupTitle = "One-time warning about RTSS.exe";
-            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
-                                "Try closing it down if Special K does not behave as expected, or enable\n"
-                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
-                                "\n"
-                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
-                                "automatically restart RTSS silently in the background.\n"
-                                "\n"
-                                "This warning will not appear again.";
-            ConfirmPopup      = PopupState_Open;
-          }
-
-        } while (Process32NextW (hProcessSnap, &pe32));
-      }
-    }
-
-    steamRunning = new_steamRunning;
-
-    lastGameRefresh = current_time;
-  }
-
-  
-  // Instant Play monitoring...
-
-  for (auto& monitored_app : iPlayCache)
-  {
-    if (monitored_app.id != 0)
-    {
-      HANDLE hProcess      = monitored_app.hProcess.load();
-      HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
-      int    iReturnCode   = monitored_app.iReturnCode.load();
-
-      for (auto& app : g_apps)
-      {
-        if (monitored_app.id       ==      app.second.id &&
-            monitored_app.store_id == (int)app.second.store)
-        {
-          app.second._status.running = 1;
-
-          // Failed start -- let's clean up the wrong data
-          if (iReturnCode > 0)
-          {
-            PLOG_ERROR << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " failed!";
-            app.second._status.running     =  0;
-
-            monitored_app.id               =  0;
-            monitored_app.store_id         = -1;
-            monitored_app.iReturnCode.store (-1);
-
-            if (hProcess != INVALID_HANDLE_VALUE)
-            {
-              CloseHandle (hProcess);
-              hProcess = INVALID_HANDLE_VALUE;
-              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
-            }
-
-            // Clean up these as well if they haven't been done so yet
-            if (hWorkerThread != INVALID_HANDLE_VALUE)
-            {
-              CloseHandle(hWorkerThread);
-              hWorkerThread = INVALID_HANDLE_VALUE;
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
-            }
-          }
-
-          // Monitor the external process primarily
-          if (hProcess != INVALID_HANDLE_VALUE)
-          {
-            if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
-            {
-              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
-              app.second._status.running = 0;
-
-              monitored_app.id              =  0;
-              monitored_app.store_id        = -1;
-
-              CloseHandle (hProcess);
-              hProcess = INVALID_HANDLE_VALUE;
-              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
-
-              // Clean up these as well if they haven't been done so yet
-              if (hWorkerThread != INVALID_HANDLE_VALUE)
-              {
-                CloseHandle(hWorkerThread);
-                hWorkerThread = INVALID_HANDLE_VALUE;
-                monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
-              }
-            }
-          }
-          
-          // If we cannot monitor the game process, monitor the worker thread
-          if (hWorkerThread != INVALID_HANDLE_VALUE)
-          {
-            if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
-            {
-              PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
-
-              CloseHandle (hWorkerThread);
-              hWorkerThread = INVALID_HANDLE_VALUE;
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
-
-#if 0
-              // Kickstart Steam -> GameOverlayUI.exe (TROUBLESHOOTING PURPOSES ONLY!!!!)
-              if (monitored_app.store_id == (int)app_record_s::Store::Steam && SKIF_Steam_GetActiveProcess() != 0)
-              {
-                DWORD procId = monitored_app.dwProcessId.load();
-                PLOG_VERBOSE << "Mer merp merp: " << procId;
-
-                // Kickstart GameOverlayUI.exe
-                SKIF_Util_CreateProcess (
-                  SK_FormatStringW (LR"(%ws\%ws)", _path_cache.steam_install, L"GameOverlayUI.exe"),
-                  (L"-pid " + std::to_wstring(procId) + L" -steampid " + std::to_wstring(SKIF_Steam_GetActiveProcess()) + L" -manuallyclearframes 1 -gameid " + std::to_wstring(monitored_app.id)),
-                  _path_cache.steam_install);
-              }
-#endif
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-#pragma endregion
-
 
 void
 SKIF_UI_Tab_DrawLibrary (void)
@@ -4591,6 +4220,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::GetInstance  ( );
   
   static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
@@ -4655,28 +4285,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF ( "Special K", SKIF_record );
 
     g_apps.emplace_back (SKIF);
-  }
-#endif
-
-#if 0
-  SKIF_GamesCollection& _games              = SKIF_GamesCollection::GetInstance  ( );
-
-  // Always read from the last written index
-  int nowReading = _games.snapshot_idx_written.load ( );
-  _games.snapshot_idx_reading.store (nowReading);
-
-  if (RepopulateGames)
-    _games.RefreshGames ( );
-
-  std::vector <std::unique_ptr<app_generic_s>>* apps_new =
-    _games.GetGames     ( );
-
-  if (apps_new != nullptr && ! apps_new->empty() && RepopulateGames)
-  {
-    PLOG_VERBOSE << "New library backend discovered the following games:";
-    for (auto const& app : *apps_new) {
-      PLOG_VERBOSE << app->names.normal;
-    }
   }
 #endif
 
@@ -5195,7 +4803,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Finished processing detected games...";
 
-      SortApps (&_data->apps);
+      SKIF_GamingCollection::SortApps (&_data->apps);
 
       //PLOG_INFO << "Apps were sorted!";
 
@@ -6683,7 +6291,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
 
   // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
-  RefreshRunningApps ( );
+  SKIF_GamingCollection::RefreshRunningApps (&g_apps);
 
 #pragma region ServiceMenu
   
@@ -7171,7 +6779,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bRecently   = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
       }
 
@@ -7183,7 +6791,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bRecently   = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
       }
 
@@ -7197,7 +6805,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bFrequently = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
       }
 
@@ -8313,7 +7921,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       else if (resort)
       {
-        SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
       }
 

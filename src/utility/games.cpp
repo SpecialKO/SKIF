@@ -1,3 +1,15 @@
+#include <regex>
+#include <cwctype>
+#include <regex>
+#include <iostream>
+#include <locale>
+#include <codecvt>
+#include <fstream>
+#include <filesystem>
+#include <string>
+#include <sstream>
+#include <concurrent_queue.h>
+
 #include <utility/games.h>
 #include <SKIF.h>
 #include <utility/utility.h>
@@ -11,29 +23,11 @@
 // Registry Settings
 #include <utility/registry.h>
 #include <stores/Steam/steam_library.h>
-#include <regex>
 
 // Stuff
-#include <cwctype>
-#include <regex>
-#include <iostream>
-#include <locale>
-#include <codecvt>
-#include <fstream>
-#include <filesystem>
-#include <string>
-#include <sstream>
-#include <concurrent_queue.h>
+#include <utility/skif_imgui.h>
 
 CONDITION_VARIABLE LibRefreshPaused = { };
-
-
-SKIF_GamesCollection::SKIF_GamesCollection (void)
-{
-  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-
-
-}
 
 #pragma region Trie Keyboard Hint Search
 
@@ -208,3 +202,342 @@ InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels)
 }
 
 #pragma endregion
+
+
+
+
+// This sorts the app vector
+void
+SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  // Sort first by name
+  std::stable_sort ( apps->begin (),
+                     apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+      return a.second.names.all_upper_alnum.compare(
+             b.second.names.all_upper_alnum
+      ) < 0;
+    }
+  );
+
+  // Apply any custom sort
+  switch (_registry.iLibrarySort)
+  {
+
+  case 1: // Sorting by used count
+    PLOG_VERBOSE << "Sorting by used count...";
+    std::stable_sort ( apps->begin (),
+                       apps->end   (),
+      []( const std::pair <std::string, app_record_s>& a,
+          const std::pair <std::string, app_record_s>& b ) -> int
+      {
+        return a.second.skif.uses >
+               b.second.skif.uses;
+      }
+    );
+    break;
+
+  case 2: // Sorting by last used
+    PLOG_VERBOSE << "Sorting by last used...";
+    std::stable_sort ( apps->begin (),
+                       apps->end   (),
+      []( const std::pair <std::string, app_record_s>& a,
+          const std::pair <std::string, app_record_s>& b ) -> int
+      {
+        return a.second.skif.used.compare(
+               b.second.skif.used
+        ) > 0;
+      }
+    );
+    break;
+  }
+
+  // Then apply any pins
+  std::stable_sort ( apps->begin (),
+                     apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+        return a.second.skif.pinned >
+               b.second.skif.pinned;
+    }
+  );
+}
+
+
+
+
+#pragma region RefreshRunningApps
+
+void
+SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  
+  static DWORD lastGameRefresh = 0;
+  static std::wstring exeSteam = L"steam.exe";
+
+  extern std::string confirmPopupTitle;
+  extern std::string confirmPopupText;
+  extern bool steamRunning;
+  extern bool steamFallback;
+  extern SKIF_Util_CreateProcess_s iPlayCache[15];
+
+  DWORD current_time = SKIF_Util_timeGetTime ( );
+
+  if (current_time > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  {
+    bool new_steamRunning = false;
+
+    for (auto& app : *apps)
+    {
+      if (app.second._status.dwTimeDelayChecks > current_time)
+        continue;
+
+      app.second._status.running_pid = 0;
+
+      if (app.second.store == app_record_s::Store::Steam && (steamRunning || ! steamFallback))
+        continue;
+
+      app.second._status.running     = false;
+    }
+
+    PROCESSENTRY32W none = { },
+                    pe32 = { };
+
+    SK_AutoHandle hProcessSnap (
+      CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+    );
+
+    if ((intptr_t)hProcessSnap.m_h > 0)
+    {
+      pe32.dwSize = sizeof (PROCESSENTRY32W);
+      std::wstring exeFileLast, exeFileNew;
+
+      if (Process32FirstW (hProcessSnap, &pe32))
+      {
+        do
+        {
+          SetLastError (NO_ERROR);
+          CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe32.th32ProcessID));
+          // Use PROCESS_QUERY_LIMITED_INFORMATION since that allows us to retrieve exit code/full process name for elevated processes
+
+          if (hProcess == nullptr)
+            continue;
+
+          exeFileNew = pe32.szExeFile;
+
+          // Skip duplicate processes
+          // NOTE: Potential bug is that Epic, GOG and SKIF Custom games with two running and identically named executables (launcher + game) may not be detected as such
+          if (exeFileLast == exeFileNew)
+            continue;
+
+          exeFileLast = exeFileNew;
+
+          // Recognize that the Steam client is running
+          if (_wcsnicmp (exeFileLast.c_str(), exeSteam.c_str(), exeSteam.length()) == 0)
+          {
+            new_steamRunning = true;
+            continue;
+          }
+
+          bool accessDenied =
+            GetLastError ( ) == ERROR_ACCESS_DENIED;
+
+          // Get exit code to filter out zombie processes
+          DWORD dwExitCode = 0;
+          GetExitCodeProcess (hProcess, &dwExitCode);
+          
+          WCHAR szExePath     [MAX_PATH + 2] = { };
+          DWORD szExePathLen = MAX_PATH + 2; // Specifies the size of the lpExeName buffer, in characters.
+
+          if (! accessDenied)
+          {
+            // If the process is not active any longer, skip it (terminated or zombie process)
+            if (dwExitCode != STILL_ACTIVE)
+              continue;
+
+            // See if we can retrieve the full path of the executable
+            if (! QueryFullProcessImageName (hProcess, 0, szExePath, &szExePathLen))
+              szExePathLen = 0;
+          }
+
+          for (auto& app : *apps)
+          {
+            if (! app.second.launch_configs.contains (0))
+              continue;
+
+            if (app.second._status.dwTimeDelayChecks > current_time)
+              continue;
+
+            // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
+            // TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
+            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile, MAX_PATH) == 0)
+            {
+              app.second._status.running     = true;
+              app.second._status.running_pid = pe32.th32ProcessID;
+              break;
+            }
+
+            else if (szExePathLen != 0)
+            {
+              if (app.second.store == app_record_s::Store::Steam)
+              {
+                if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0)
+                {
+                  app.second._status.running_pid = pe32.th32ProcessID;
+
+                  // Only set the running state if the primary registry monitoring is unavailable
+                  if (! steamFallback)
+                    continue;
+
+                  app.second._status.running     = true;
+                  break;
+                }
+              }
+
+              // Epic, GOG and SKIF Custom should be straight forward
+              else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full patch
+              {
+                app.second._status.running     = true;
+                app.second._status.running_pid = pe32.th32ProcessID;
+                break;
+
+                // One can also perform a partial match with the below OR clause in the IF statement, however from testing
+                //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
+                //     even to elevated processes, meaning the below OR clause is unnecessary.
+                // 
+                // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
+                //
+              }
+            }
+          }
+
+          if (! _registry.bWarningRTSS    &&
+              ! ImGui::IsAnyPopupOpen ( ) &&
+              ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
+          {
+            _registry.bWarningRTSS = true;
+            _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
+            confirmPopupTitle = "One-time warning about RTSS.exe";
+            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+                                "Try closing it down if Special K does not behave as expected, or enable\n"
+                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+                                "\n"
+                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+                                "automatically restart RTSS silently in the background.\n"
+                                "\n"
+                                "This warning will not appear again.";
+            ConfirmPopup      = PopupState_Open;
+          }
+
+        } while (Process32NextW (hProcessSnap, &pe32));
+      }
+    }
+
+    steamRunning = new_steamRunning;
+
+    lastGameRefresh = current_time;
+  }
+
+  
+  // Instant Play monitoring...
+
+  for (auto& monitored_app : iPlayCache)
+  {
+    if (monitored_app.id != 0)
+    {
+      HANDLE hProcess      = monitored_app.hProcess.load();
+      HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
+      int    iReturnCode   = monitored_app.iReturnCode.load();
+
+      for (auto& app : *apps)
+      {
+        if (monitored_app.id       ==      app.second.id &&
+            monitored_app.store_id == (int)app.second.store)
+        {
+          app.second._status.running = 1;
+
+          // Failed start -- let's clean up the wrong data
+          if (iReturnCode > 0)
+          {
+            PLOG_ERROR << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " failed!";
+            app.second._status.running     =  0;
+
+            monitored_app.id               =  0;
+            monitored_app.store_id         = -1;
+            monitored_app.iReturnCode.store (-1);
+
+            if (hProcess != INVALID_HANDLE_VALUE)
+            {
+              CloseHandle (hProcess);
+              hProcess = INVALID_HANDLE_VALUE;
+              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+            }
+
+            // Clean up these as well if they haven't been done so yet
+            if (hWorkerThread != INVALID_HANDLE_VALUE)
+            {
+              CloseHandle(hWorkerThread);
+              hWorkerThread = INVALID_HANDLE_VALUE;
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
+
+          // Monitor the external process primarily
+          if (hProcess != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
+            {
+              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
+              app.second._status.running = 0;
+
+              monitored_app.id              =  0;
+              monitored_app.store_id        = -1;
+
+              CloseHandle (hProcess);
+              hProcess = INVALID_HANDLE_VALUE;
+              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+
+              // Clean up these as well if they haven't been done so yet
+              if (hWorkerThread != INVALID_HANDLE_VALUE)
+              {
+                CloseHandle(hWorkerThread);
+                hWorkerThread = INVALID_HANDLE_VALUE;
+                monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+              }
+            }
+          }
+          
+          // If we cannot monitor the game process, monitor the worker thread
+          if (hWorkerThread != INVALID_HANDLE_VALUE)
+          {
+            if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
+            {
+              PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
+
+              CloseHandle (hWorkerThread);
+              hWorkerThread = INVALID_HANDLE_VALUE;
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#pragma endregion
+
+
+SKIF_GamingCollection::SKIF_GamingCollection (void)
+{
+  //static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+
+}

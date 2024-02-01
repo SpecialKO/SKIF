@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <stores/generic_library2.h>
+#include <nlohmann/json.hpp>
 
 // define character size
 #define CHAR_SIZE 128
@@ -31,27 +32,29 @@ public:
   bool haveChildren (Trie const*);
 };
 
-// Singleton struct
-struct SKIF_GamesCollection {
+// Helper functions
+void InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels);
 
-  static SKIF_GamesCollection& GetInstance (void)
+// Singleton struct
+struct SKIF_GamingCollection {
+
+  static SKIF_GamingCollection& GetInstance (void)
   {
-      static SKIF_GamesCollection instance;
+      static SKIF_GamingCollection instance;
       return instance;
   }
-
-  SKIF_GamesCollection (SKIF_GamesCollection const&) = delete; // Delete copy constructor
-  SKIF_GamesCollection (SKIF_GamesCollection&&)      = delete; // Delete move constructor
+  static void RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps);
+  static void SortApps (std::vector <std::pair <std::string, app_record_s> > *apps);
+  SKIF_GamingCollection (SKIF_GamingCollection const&) = delete; // Delete copy constructor
+  SKIF_GamingCollection (SKIF_GamingCollection&&)      = delete; // Delete move constructor
 
 private:
-  SKIF_GamesCollection (void);
-  int  m_iIconWorkers = 0;
-  Trie m_tLabels;
+  SKIF_GamingCollection (void);
+  Trie           m_tLabels;
+  Trie           m_tLabelsFiltered;
+  nlohmann::json m_jsonMetaDB;
 
   ID3D11ShaderResourceView* m_pPatTexSRV;
   ID3D11ShaderResourceView* m_pSKLogoTexSRV;
   ID3D11ShaderResourceView* m_pSKLogoTexSRV_small;
 };
-
-// Helper functions
-void InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels);
