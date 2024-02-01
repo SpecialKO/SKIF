@@ -300,18 +300,3 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
   if (_registry.iLogging < 5)
     DeleteFile ((targetAssetPath + L"offer.json").c_str());
 }
-
-void app_epic_s::launchGame(void)
-{
-
-}
-
-ID3D11ShaderResourceView* app_epic_s::getCover(void)
-{
-  return nullptr;
-}
-
-ID3D11ShaderResourceView* app_epic_s::getIcon(void)
-{
-  return nullptr;
-}

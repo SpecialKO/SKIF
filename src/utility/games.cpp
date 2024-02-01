@@ -27,120 +27,12 @@
 
 CONDITION_VARIABLE LibRefreshPaused = { };
 
-void SKIF_GamesCollection::LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>> *apps)
-{
-  PLOG_INFO << "Detecting custom SKIF games v2...";
-
-  HKEY    hKey;
-  DWORD   dwIndex = 0, dwResult, dwSize;
-  DWORD32 dwData  = 0;
-  WCHAR   szSubKey[MAX_PATH];
-  WCHAR   szData  [     500] = { };
-
-  extern uint32_t SelectNewSKIFGame;
-
-  /* Load custom titles from registry */
-  if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-  {
-    if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, &dwIndex, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-    {
-      while (dwIndex > 0)
-      {
-        dwIndex--;
-
-        dwSize   = sizeof (szSubKey) / sizeof (WCHAR);
-        dwResult = RegEnumKeyExW (hKey, dwIndex, szSubKey, &dwSize, NULL, NULL, NULL, NULL);
-
-        if (dwResult == ERROR_NO_MORE_ITEMS)
-          break;
-
-        if (dwResult == ERROR_SUCCESS)
-        {
-          dwSize = sizeof (DWORD32);
-          if (RegGetValueW (hKey, szSubKey, L"ID", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS)
-          {
-            app_skif_s record;
-
-            record.id = dwData;
-            record._status.installed = true;
-
-            dwSize = sizeof(szData) / sizeof (WCHAR);
-            if (RegGetValueW (hKey, szSubKey, L"Name", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-              record.names.normal = SK_WideCharToUTF8 (szData);
-
-            dwSize = sizeof (szData) / sizeof (WCHAR);
-            if (RegGetValueW (hKey, szSubKey, L"InstallDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-              record.install_dir = szData;
-
-            dwSize = sizeof (szData) / sizeof (WCHAR);
-            if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS) // L"Exe"
-            {
-              app_generic_s::launch_config_s lc(&record);
-              lc.id           = 0;
-              lc.valid        = true;
-              lc.executable   = szData;
-              lc.working_dir  = record.install_dir;
-
-              dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"Exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                lc.executable_path = szData;
-
-              dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"LaunchOptions", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                lc.launch_options = szData;
-
-              //record.launch_configs.emplace (0, lc);
-
-              /*
-              dwSize = sizeof (szData) / sizeof (WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"ExeFileName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                record.specialk.profile_dir = szData;
-              */
-              record.specialk.profile_dir = lc.executable;
-
-              record.specialk.injection.injection.type = app_generic_s::sk_install_state_s::Injection::Type::Global;
-
-              apps->emplace_back (std::make_unique <app_skif_s>(record));
-            }
-          }
-        }
-      }
-    }
-
-    RegCloseKey (hKey);
-  }
-}
 
 SKIF_GamesCollection::SKIF_GamesCollection (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
 
-}
-
-bool
-SKIF_GamesCollection::RefreshGames (bool refresh)
-{
-  UNREFERENCED_PARAMETER(refresh);
-
-  return false;
-}
-
-std::vector <std::unique_ptr<app_generic_s>>*
-SKIF_GamesCollection::GetGames (void)
-{
-  static snapshot_s& snapshot = snapshots[0];
-  static int lastRead = 0;
-  int lastWritten = snapshot_idx_written.load ( );
-
-  if (lastRead != lastWritten)
-  {
-    lastRead = lastWritten;
-    snapshot_idx_reading.store (lastRead);
-    snapshot = snapshots[lastRead];
-  }
-
-  return snapshot.apps;
 }
 
 #pragma region Trie Keyboard Hint Search

@@ -34,19 +34,6 @@ public:
 // Singleton struct
 struct SKIF_GamesCollection {
 
-  // Triple-buffer updates so we can go lock-free
-  struct snapshot_s {
-    std::vector <std::unique_ptr<app_generic_s>>* apps;
-    Trie labels;
-  } snapshots [3];
-  
-  std::atomic<int>  snapshot_idx_reading = 0,
-                    snapshot_idx_written = 1;
-  std::atomic<bool> awake                = false; // Used to protect against sporadic wake-ups
-
-  bool                                          RefreshGames (bool refresh);
-  std::vector <std::unique_ptr<app_generic_s>>* GetGames     (void);
-
   static SKIF_GamesCollection& GetInstance (void)
   {
       static SKIF_GamesCollection instance;
@@ -58,9 +45,7 @@ struct SKIF_GamesCollection {
 
 private:
   SKIF_GamesCollection (void);
-  void LoadCustomGames (std::vector <std::unique_ptr<app_generic_s>>* apps); // Load custom SKIF gmaes
   int  m_iIconWorkers = 0;
-
   Trie m_tLabels;
 
   ID3D11ShaderResourceView* m_pPatTexSRV;
