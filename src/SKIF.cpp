@@ -3558,7 +3558,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         */
 
         // New approach: Create/update the timer when we are pausing
-        if (_registry.bEfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw)
+        if (_registry.bEfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && ! SKIF_ImGui_IsFocused ( ))
           SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY, 1000, (TIMERPROC) &SKIF_EfficiencyModeTimerProc);
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
