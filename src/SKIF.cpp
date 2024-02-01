@@ -227,32 +227,27 @@ HWND  hWndOrigForeground;
 HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
 DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID that SKIF launched
 
-UINT_PTR IDT_TIMER_EFFICIENCY   = 0; // Holds current timer ID for engaging the efficiency mode
-
 void CALLBACK
 SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
 {
-  UNREFERENCED_PARAMETER (hWnd);
   UNREFERENCED_PARAMETER (Msg);
   UNREFERENCED_PARAMETER (wParamIDEvent);
   UNREFERENCED_PARAMETER (dwTime);
 
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  KillTimer (hWnd, cIDT_TIMER_EFFICIENCY);
   
   if (_registry.bEfficiencyMode && ! _registry._EfficiencyMode && ! SKIF_ImGui_IsFocused ( ))
   {
+    _registry._EfficiencyMode = true;
+    msgDontRedraw = true;
+
+    PLOG_DEBUG << "Engaging efficiency mode";
+
     // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
     SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
     SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
-
-    _registry._EfficiencyMode = true;
-    msgDontRedraw = true;
-  }
-
-  if (IDT_TIMER_EFFICIENCY != 0)
-  {
-    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
-    IDT_TIMER_EFFICIENCY = 0;
   }
 }
 
@@ -3562,16 +3557,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
         */
 
-        // New approach: Update the timer when we are pausing
-        if (! msgDontRedraw)
-        {
-          IDT_TIMER_EFFICIENCY =
-            SetTimer (SKIF_Notify_hWnd,
-                      cIDT_TIMER_EFFICIENCY,
-                      5000,
-                      (TIMERPROC) &SKIF_EfficiencyModeTimerProc
-            );
-        }
+        // New approach: Create/update the timer when we are pausing
+        if (_registry.bEfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw)
+          SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY, 1000, (TIMERPROC) &SKIF_EfficiencyModeTimerProc);
 
         //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
 
@@ -3656,17 +3644,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         msgDontRedraw = false;
 
       // New approach: Disable Efficiency Mode when we are being interacted with
-      if (_registry._EfficiencyMode && ! msgDontRedraw && SKIF_ImGui_IsFocused ( ))
+      if (_registry._EfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && SKIF_ImGui_IsFocused ( ))
       {
         // Wake up and disable idle priority + ECO QoS (let the system take over)
         SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
         SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), -1);
 
-        if (IDT_TIMER_EFFICIENCY != 0)
-        {
-          KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
-          IDT_TIMER_EFFICIENCY = 0;
-        }
+        PLOG_DEBUG << "Disengaged efficiency mode";
 
         _registry._EfficiencyMode = false;
       }
@@ -4221,7 +4205,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ( (uFlags & UpdateFlags_Downloaded) == UpdateFlags_Downloaded &&
             ((uFlags & UpdateFlags_Forced)     == UpdateFlags_Forced     ||
             ((uFlags & UpdateFlags_Ignored)    != UpdateFlags_Ignored    &&
-             (uFlags & UpdateFlags_Older)   != UpdateFlags_Older   )))
+             (uFlags & UpdateFlags_Older)      != UpdateFlags_Older     )))
         {
           // If we use auto-update *experimental*
           // But only if we have servlets, so we don't auto-install ourselves in users' Downloads folder :)
