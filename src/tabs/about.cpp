@@ -401,6 +401,21 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/Privacy");
   ImGui::EndGroup         ( );
+
+  ImGui::BeginGroup       ( );
+  ImGui::Spacing          ( );
+  ImGui::SameLine         (0.0f, 10.0f * SKIF_ImGui_GlobalDPIScale);
+  //ImGui::SetCursorPosX    (ImGui::GetCursorPosX ( ) + 1.0f);
+  ImGui::TextColored      (
+    (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+      ICON_FA_FILE_CONTRACT " ");
+  ImGui::SameLine         (0.0f, 10.0f);
+  if (ImGui::Selectable   ("Licenses"))
+    SKIF_Util_OpenURI     (L"https://github.com/SpecialKO/SKIF/blob/master/LICENSE-3RD-PARTY");
+
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO/SKIF/blob/master/LICENSE-3RD-PARTY");
+  ImGui::EndGroup         ( );
   
   ImGui::SetCursorPosY    (fY3);
   
