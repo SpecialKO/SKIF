@@ -712,7 +712,7 @@ SKIF_Util_OpenURI (
 
   //UINT flags =   SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS
 
-  PLOG_INFO                           << "Performing a ShellExecute call...";
+  PLOG_INFO                           << "Performing a ShellExecuteEx call...";
   PLOG_INFO_IF(! path.empty())        << "File      : " << path;
   PLOG_INFO_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
   PLOG_INFO_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
@@ -749,6 +749,7 @@ SKIF_Util_OpenURI (
   return ret;
 }
 
+// This stupid API doesn't support automatic elevation through e.g. "Run as administrator" registry flags etc
 bool
 SKIF_Util_CreateProcess (
                      const std::wstring_view& path,
@@ -844,7 +845,7 @@ SKIF_Util_CreateProcess (
       PLOG_INFO                                          << "Creating process...";
       PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
       PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
-      PLOG_DEBUG_IF (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
+      PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
       PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
       PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
 
@@ -862,6 +863,7 @@ SKIF_Util_CreateProcess (
       {
         if (_data->proc != nullptr)
         {
+          _data->proc->iReturnCode.store (0);
           _data->proc->hProcess.store    (procinfo.hProcess);
           _data->proc->dwProcessId.store (procinfo.dwProcessId);
         } else // We don't have a proc structure, so the handle is unneeded
@@ -871,8 +873,66 @@ SKIF_Util_CreateProcess (
         CloseHandle (procinfo.hThread);
       }
 
+      // Use fallback if the primary failed
       else
-        PLOG_VERBOSE << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr ( );
+      {
+        DWORD error = GetLastError ( );
+        PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
+
+        // In case elevation is needed, try ShellExecute!
+        if (error == 740)
+        {
+          PLOG_INFO << "Attempting elevation fallback...";
+
+          static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+          // Note that any new process will inherit SKIF's environment variables
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+
+          // Set any custom environment variables
+          for (auto& env_var : _data->env)
+            SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
+
+          PLOG_INFO << "Performing a ShellExecuteEx call...";
+  
+          SHELLEXECUTEINFOW
+            sexi              = { };
+            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+            sexi.lpVerb       = L"OPEN";
+            sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
+            sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
+            sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
+            sexi.nShow        = SW_SHOWNORMAL;
+            sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
+
+          if (ShellExecuteExW (&sexi))
+          {
+            PLOG_INFO << "The operation was successful.";
+            _data->proc->iReturnCode.store (0);
+            _data->proc->hProcess.store    (sexi.hProcess);
+          }
+
+          else {
+            error = GetLastError ( );
+            PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
+            _data->proc->iReturnCode.store (error);
+          }
+
+          // Remove any custom environment variables
+          for (auto& env_var : _data->env)
+            SetEnvironmentVariable (env_var.first.c_str(), NULL);
+
+          if (_registry._LoadedSteamOverlay)
+            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+        }
+
+        // No fallback available
+        else {
+          PLOG_ERROR << "No fallback was available!";
+          _data->proc->iReturnCode.store (error);
+        }
+      }
 
       // Free up the memory we allocated
       delete _data;
@@ -2678,7 +2738,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
       std::wstring wsError = (std::wstring(L"WinInet Failure (") + std::to_wstring(dwLastError) + std::wstring(L"): ") + _com_error(dwLastError).ErrorMessage());
 #endif
 
-      PLOG_VERBOSE << L"WinInet Failure: " << SKIF_Util_GetErrorAsWStr (GetLastError ( ), GetModuleHandle (L"wininet.dll"));
+      PLOG_ERROR << L"WinInet Failure: " << SKIF_Util_GetErrorAsWStr (GetLastError ( ), GetModuleHandle (L"wininet.dll"));
     }
 
     if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);

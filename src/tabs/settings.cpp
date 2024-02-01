@@ -1489,7 +1489,7 @@ SKIF_UI_Tab_DrawSettings (void)
       bool ret = ShellExecuteExW (&sexi);
 
       if (GetLastError ( ) != NO_ERROR)
-        PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
+        PLOG_ERROR << "An unexpected error occurred: " << SKIF_Util_GetErrorAsWStr();
 
       if (ret)
         PLOG_INFO  << "The operation was successful.";

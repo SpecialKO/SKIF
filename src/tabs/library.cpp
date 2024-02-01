@@ -928,7 +928,7 @@ LaunchGame (app_record_s* pApp)
                                 SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
                                 SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
               
-          PLOG_INFO                       << "Performing a ShellExecute call...";
+          PLOG_INFO                       << "Performing a ShellExecuteEx call...";
           PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
           PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
           PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
@@ -953,7 +953,7 @@ LaunchGame (app_record_s* pApp)
             SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
         }
 
-        // Main launcher
+        // Main launcher (uses ShellExecute in case elevation is required)
         else if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
                             cmdLine.c_str(),
                             dirPath.c_str(),
@@ -976,7 +976,7 @@ LaunchGame (app_record_s* pApp)
         }
         
         else {
-          PLOG_DEBUG << "Process creation failed ?!";
+          PLOG_ERROR << "Process worker creation failed ?!";
 
           proc->id       =  0;
           proc->store_id = -1;
@@ -1693,7 +1693,6 @@ DrawGameContextMenu (app_record_s* pApp)
                               ? ImGuiSelectableFlags_Disabled
                               : ImGuiSelectableFlags_None)))
       {
-        static_proc.pid    = 1337;
         static_proc.handle = hProcess;
         static_proc.name   = pApp->names.normal;
       }
@@ -3616,7 +3615,7 @@ Cache=false)";
                                   SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
                                   SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
               
-            PLOG_INFO                    << "Performing a ShellExecute call...";
+            PLOG_INFO                    << "Performing a ShellExecuteEx call...";
             PLOG_INFO_IF(! path.empty()) << "File      : " << path;
 
             // Attempt to run the downloaded installer,
@@ -4490,6 +4489,7 @@ RefreshRunningApps (void)
     {
       HANDLE hProcess      = monitored_app.hProcess.load();
       HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
+      int    iReturnCode   = monitored_app.iReturnCode.load();
 
       for (auto& app : g_apps)
       {
@@ -4497,6 +4497,32 @@ RefreshRunningApps (void)
             monitored_app.store_id == (int)app.second.store)
         {
           app.second._status.running = 1;
+
+          // Failed start -- let's clean up the wrong data
+          if (iReturnCode > 0)
+          {
+            PLOG_ERROR << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " failed!";
+            app.second._status.running     =  0;
+
+            monitored_app.id               =  0;
+            monitored_app.store_id         = -1;
+            monitored_app.iReturnCode.store (-1);
+
+            if (hProcess != INVALID_HANDLE_VALUE)
+            {
+              CloseHandle (hProcess);
+              hProcess = INVALID_HANDLE_VALUE;
+              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+            }
+
+            // Clean up these as well if they haven't been done so yet
+            if (hWorkerThread != INVALID_HANDLE_VALUE)
+            {
+              CloseHandle(hWorkerThread);
+              hWorkerThread = INVALID_HANDLE_VALUE;
+              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+            }
+          }
 
           // Monitor the external process primarily
           if (hProcess != INVALID_HANDLE_VALUE)
@@ -8338,7 +8364,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     
   // Confirm prompt
 
-  if (static_proc.pid != 0)
+  if (static_proc.handle != INVALID_HANDLE_VALUE ||
+      static_proc.pid    != 0)
   {
     ImGui::OpenPopup         ("Task Manager###TaskManagerLibrary");
 

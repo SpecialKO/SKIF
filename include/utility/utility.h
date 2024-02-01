@@ -64,11 +64,12 @@ void            SKIF_Util_Debug_LogUserNames          (void);
 
 // Struct used to hold monitored data populated by worker threads
 struct SKIF_Util_CreateProcess_s {
-  uint32_t            id            = 0; // App ID
+  uint32_t            id            =  0; // App ID
   int                 store_id      = -1;
   std::atomic<HANDLE> hWorkerThread = INVALID_HANDLE_VALUE; // Holds a handle to SKIF's worker thread servicing the request
   std::atomic<HANDLE> hProcess      = INVALID_HANDLE_VALUE; // Holds a handle to the spawned process
-  std::atomic<DWORD>  dwProcessId   = 0;
+  std::atomic<DWORD>  dwProcessId   =  0;
+  std::atomic<int>    iReturnCode   = -1; // Could the separate process be spawned through CreateProcess ? (0 == NO_ERROR; 1+ == ERROR_xxx)
 };
 
 HINSTANCE       SKIF_Util_ExplorePath                 (const std::wstring_view& path);

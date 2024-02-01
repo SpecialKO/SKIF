@@ -490,7 +490,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
 #endif // _WIN64
 
   if (GetLastError ( ) != NO_ERROR)
-    PLOG_DEBUG << SKIF_Util_GetErrorAsWStr ();
+    PLOG_ERROR << "An unexpected error occurred: " << SKIF_Util_GetErrorAsWStr();
 
   if (currentRunningState)
     runState = RunningState::Stopping;
