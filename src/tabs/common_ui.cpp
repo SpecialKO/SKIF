@@ -183,11 +183,20 @@ void SKIF_UI_DrawPlatformStatus (void)
     }
   };
 
+  // Unwinder on the topic of Vulkan layer compatibility issues:
+  // Ironically, true reason of 99% of compatibility issues with third-party implicit layers are on LunarG.
+  // Their sample Vulkan layer code, which virtually everyone used as a template to create own layers,
+  //   had a bug with Vulkan instance handle leak. So it was and it is echoed in any layer based on that
+  //     source code. I nailed it down myself in my layer when debugging compatibility issues with DXVK.
+  // 
+  // Version 7.3.0 (published on 28.02.2021)
+  // - Fixed Vulkan device and instance handle leak in Vulkan bootstrap layer
+
   static VulkanLayer Layers[]   = {
-    { "RTSS",         LR"(RTSSVkLayer)"               },
-    { "ReShade",      LR"(ReShade)"                   },
-    { "OBS Studio",   LR"(obs-vulkan)"                },
-    { "Action!",      LR"(MirillisActionVulkanLayer)" }
+  //{ "RTSS",         LR"(RTSSVkLayer)"               }, // Disabled since we seems to have no confirmed compatibility issues for now. // Aemony, 2024-02-02
+    { "ReShade",      LR"(ReShade)"                   }, //
+    { "OBS Studio",   LR"(obs-vulkan)"                }, //
+    { "Action!",      LR"(MirillisActionVulkanLayer)" }  // Causes Borderlands 2 with DXVK to fail to launch. // Aemony, 2024-02-02
   };
 
   // Timer has expired, refresh
