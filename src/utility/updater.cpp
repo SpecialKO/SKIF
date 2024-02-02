@@ -731,15 +731,15 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
                 // Fallback (check if file is > 0 bytes)
                 if (fallback)
                 {
+                  // When opening an existing file, the CreateFile function performs the following actions:
+                  // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
                   CHandle hInstaller (
-                    CreateFileW ( (root + filename).c_str(),
+                    CreateFileW ((root + filename).c_str(),
                                     GENERIC_READ,
-                                    FILE_SHARE_READ,
-                                      nullptr,        OPEN_EXISTING,
-                                        GetFileAttributesW ((root + filename).c_str()),
-                                          nullptr
-                                )
-                  );
+                                      FILE_SHARE_READ,
+                                        nullptr,       OPEN_EXISTING,
+                                          FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW ((root + filename).c_str())
+                                            nullptr ) );
 
                   if (hInstaller != INVALID_HANDLE_VALUE)
                   {

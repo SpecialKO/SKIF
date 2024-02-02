@@ -246,7 +246,6 @@ int                          SK_VFS_ScanTree (SK_VirtualFS::vfsNode* pVFSRoot,
 );
 int                          SK_Steam_GetLibraries               (steam_library_t **ppLibraries);
 std::vector <AppId_t>        SK_Steam_GetInstalledAppIDs         (void);
-std::wstring                 SK_Steam_GetApplicationManifestPath (app_record_s *app);
 std::string                  SK_GetManifestContentsForAppID      (app_record_s *app);
 const wchar_t *              SK_GetSteamDir                      (void);
 const  char   *              SK_GetSteamDirUTF8                  (void);

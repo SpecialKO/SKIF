@@ -3027,15 +3027,15 @@ GetInjectionSummary (app_record_s* pApp)
             // All files between 1-4 bytes should be checked for byte order marks (0 byte files are skipped automatically)
             else if (0 < size && size <= 4)
             {
+              // When opening an existing file, the CreateFile function performs the following actions:
+              // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
               CHandle hPreset (
                 CreateFileW (newPreset.Path.c_str(),
-                                GENERIC_READ,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                  nullptr,        OPEN_EXISTING,
-                                    GetFileAttributesW (newPreset.Path.c_str()),
-                                      nullptr
-                            )
-              );
+                               GENERIC_READ,
+                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                   nullptr,        OPEN_EXISTING,
+                                     FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (newPreset.Path.c_str())
+                                       nullptr ) );
 
               if (hPreset != INVALID_HANDLE_VALUE)
               {
@@ -4391,6 +4391,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_DEBUG << "SKIF_LibraryWorker thread started!";
 
+      DWORD start = SKIF_Util_timeGetTime1 ( );
+
       lib_worker_thread_s* _data = static_cast<lib_worker_thread_s*>(var);
 
       // Load Steam titles from disk
@@ -4820,6 +4822,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+      DWORD stop = SKIF_Util_timeGetTime1 ( );
+
+      PLOG_INFO << "Library refresh took " << (stop - start) << " ms.";
 
       PLOG_DEBUG << "SKIF_LibraryWorker thread stopped!";
 

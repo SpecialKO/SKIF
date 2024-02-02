@@ -273,51 +273,6 @@ SK_Steam_GetInstalledAppIDs (void)
   return apps;
 }
 
-std::wstring
-SK_Steam_GetApplicationManifestPath (app_record_s *app)
-{
-  //PLOG_VERBOSE << "Steam AppID: " << appid;
-
-  if (! app->steam.manifest_path.empty())
-    return app->steam.manifest_path;
-
-  steam_library_t* steam_lib_paths = nullptr;
-  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
-
-  if (! steam_lib_paths)
-    return L"";
-
-  if (steam_libs != 0)
-  {
-    for (int i = 0; i < steam_libs; i++)
-    {
-      wchar_t    wszManifest [MAX_PATH + 2] = { };
-      swprintf ( wszManifest, MAX_PATH,
-                   LR"(%s\steamapps\appmanifest_%u.acf)",
-               (wchar_t *)steam_lib_paths [i],
-                            app->id );
-
-      CHandle hManifest (
-        CreateFileW ( wszManifest,
-                        GENERIC_READ,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          nullptr,        OPEN_EXISTING,
-                            GetFileAttributesW (wszManifest),
-                              nullptr
-                    )
-      );
-
-      if (hManifest != INVALID_HANDLE_VALUE)
-      {
-        app->steam.manifest_path = wszManifest;
-        break;
-      }
-    }
-  }
-
-  return app->steam.manifest_path;
-}
-
 std::string
 SK_GetManifestContentsForAppID (app_record_s *app)
 {
@@ -381,15 +336,15 @@ SK_GetManifestContentsForAppID (app_record_s *app)
 
     LeaveCriticalSection (&VFSManifestSection);
 
+    // When opening an existing file, the CreateFile function performs the following actions:
+    // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
     CHandle hManifest (
       CreateFileW ( wszManifestFullPath,
                       GENERIC_READ,
-                      FILE_SHARE_READ | FILE_SHARE_WRITE,
-                        nullptr,        OPEN_EXISTING,
-                          GetFileAttributesW (wszManifestFullPath),
-                            nullptr
-                  )
-    );
+                        FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          nullptr,        OPEN_EXISTING,
+                            FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (wszManifestFullPath)
+                              nullptr ) );
 
     if (hManifest != INVALID_HANDLE_VALUE)
     {
@@ -460,16 +415,17 @@ SKIF_Steam_GetUserConfigStore (SteamId3_t userid, ConfigStore config)
 
   if (wszConfig[0] == L'\0')
     return cachedConfig[config];
+  
 
+  // When opening an existing file, the CreateFile function performs the following actions:
+  // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
   CHandle hConfig (
     CreateFileW (wszConfig,
-                    GENERIC_READ,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                      nullptr,        OPEN_EXISTING,
-                        GetFileAttributesW (wszConfig),
-                          nullptr
-                )
-  );
+                   GENERIC_READ,
+                     FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       nullptr,        OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (wszConfig)
+                           nullptr ) );
 
   if (hConfig != INVALID_HANDLE_VALUE)
   {
@@ -600,15 +556,15 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         lstrcatW (wszLibraryFolders, LR"(\steamapps\libraryfolders.vdf)");
       }
 
+      // When opening an existing file, the CreateFile function performs the following actions:
+      // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
       CHandle hLibFolders (
         CreateFileW ( wszLibraryFolders,
                         GENERIC_READ,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          nullptr,        OPEN_EXISTING,
-                            GetFileAttributesW (wszLibraryFolders),
-                              nullptr
-                    )
-      );
+                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                            nullptr,        OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (wszLibraryFolders)
+                                nullptr ) );
 
       if (hLibFolders != INVALID_HANDLE_VALUE)
       {
