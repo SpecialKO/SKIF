@@ -145,8 +145,26 @@ void SKIF_UI_DrawPlatformStatus (void)
     }
   };
 
-  static DWORD dwLastRefresh = 0;
-  static Platform Platforms[] = {
+  struct VulkanLayer {
+    std::string     Name;
+    std::wstring    Pattern;
+    std::wstring    Key;
+    std:: string    Key_utf8;
+    std::wstring    Value;
+    DWORD           Data;
+    bool            isPresent = false;
+    std:: string    uiLabel;
+    std::wstring    regCmd;
+
+    VulkanLayer (std::string n, std::wstring pn)
+    {
+      Name    =  n;
+      Pattern = pn;
+    }
+  };
+
+  static DWORD    dwLastRefresh = 0;
+  static Platform Platforms[]   = {
     {"32-bit service",  L"SKIFsvc32.exe"},
 #ifdef _WIN64
     {"64-bit service",  L"SKIFsvc64.exe"},
@@ -160,6 +178,12 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"RTSS",                L"RTSS.exe"}
   };
 
+  // TODO: Currently limited to only one match per tracked layer!
+  static VulkanLayer Layers[]   = {
+    {"RTSS",                L"RTSSVkLayer64.json"},
+    {"ReShade",             L"ReShade64.json"}
+  };
+
   // Timer has expired, refresh
   if (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
   {
@@ -167,6 +191,17 @@ void SKIF_UI_DrawPlatformStatus (void)
     {
       p.ProcessID = 0;
       p.isRunning = false;
+    }
+
+    for (auto& l : Layers)
+    {
+      l.Key       = L"";
+      l.Key_utf8  =  "";
+      l.Value     = L"";
+      l.Data      =   0;
+      l.isPresent = false;
+      l.uiLabel   =  "";
+      l.regCmd    = L"";
     }
 
     PROCESSENTRY32W pe32 = { };
@@ -205,6 +240,86 @@ void SKIF_UI_DrawPlatformStatus (void)
       }
     }
 
+    const HKEY regHives[] = {
+      HKEY_LOCAL_MACHINE,
+      HKEY_CURRENT_USER,
+    };
+
+    const std::wstring regKeys[] = {
+      LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)",
+      LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
+    };
+
+    // Identify conflicting Vulkan layers through the registry
+    for (auto& hHive : regHives)
+    {
+      for (auto& wzKey : regKeys)
+      {
+        HKEY hKey;
+
+        if (RegOpenKeyExW (hHive, wzKey.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        {
+          DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
+                dwResult          = 0,
+                dwMaxValueNameLen = 0, // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
+                dwMaxValueLen     = 0; // A pointer to a variable that receives the size of the longest data component among the key's values, in bytes.
+
+          if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, &dwMaxValueLen, NULL, NULL) == ERROR_SUCCESS)
+          {
+            while (dwIndex > 0)
+            {
+              dwIndex--;
+          
+              DWORD dwValueNameLen =
+                    (dwMaxValueNameLen + 2);
+
+              std::unique_ptr <wchar_t []> pValue =
+                std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
+          
+              DWORD dwValueLen =
+                    (dwMaxValueLen);
+
+              BYTE bArray[sizeof(DWORD)];
+              memcpy(bArray, &dwValueLen, sizeof(DWORD));
+
+              std::unique_ptr <BYTE> pData =
+                std::make_unique <BYTE> (bArray[0]);
+
+              DWORD dwType = REG_NONE;
+
+              dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, pData.get(), &dwValueLen);
+
+              if (dwResult == ERROR_NO_MORE_ITEMS)
+                break;
+
+              if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD)
+              {
+                for (auto& l : Layers)
+                {
+                  // Skip already found matches (allows us to prioritize HLKM over HKCU)
+                  if (l.isPresent)
+                    continue;
+
+                  if (StrStrIW (pValue.get(), l.Pattern.c_str()) != NULL)
+                  {
+                    l.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
+                    l.Key_utf8  = SK_WideCharToUTF8 (l.Key);
+                    l.Value     = pValue.get();
+                    l.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
+                    l.isPresent = true;
+                    l.uiLabel   = (l.Data == 0) ? (l.Name + "'s Vulkan layer may conflict with Special K!") : (l.Name + "'s Vulkan layer has been disabled.");
+                    l.regCmd    = SK_FormatStringW (LR"(add "%ws" /v "%ws" /t REG_DWORD /d %i /f)", l.Key.c_str(), l.Value.c_str(), ((l.Data == 0) ? 1 : 0));
+                  }
+                }
+              }
+            }
+          }
+
+          RegCloseKey (hKey);
+        }
+      }
+    }
+
     dwLastRefresh = SKIF_Util_timeGetTime () + 1000; // Set timer for next refresh
   }
 
@@ -221,7 +336,7 @@ void SKIF_UI_DrawPlatformStatus (void)
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
         ImGui::SameLine        ( );
         if (p.ProcessName == L"RTSS.exe")
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and might conflict with Special K!").c_str() );
+          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and may conflict with Special K!").c_str() );
         else
           ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
         ImGui::EndGroup        ( );
@@ -268,6 +383,27 @@ void SKIF_UI_DrawPlatformStatus (void)
     if (p.ProcessName == L"SKIFsvc32.exe")
       ImGui::NewLine();
 #endif
+  }
+
+  for (auto& l : Layers)
+  {
+    if (l.isPresent) // 0 = enabled; >0 = disabled
+    {
+      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.Data == 0) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
+
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::BeginGroup       ( );
+      ImGui::Text             ((l.Data == 0) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
+      ImGui::SameLine         ( );
+      if (ImGui::Selectable   (l.uiLabel.c_str()))
+        ShellExecuteW (nullptr, L"runas", L"reg", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
+      ImGui::EndGroup         ( );
+      ImGui::PopStyleColor    ( );
+
+      SKIF_ImGui_SetHoverText (l.Key_utf8);
+      SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
+    }
   }
 }
 
