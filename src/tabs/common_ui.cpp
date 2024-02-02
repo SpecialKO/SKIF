@@ -164,12 +164,13 @@ void SKIF_UI_DrawPlatformStatus (void)
     std::string     Name;
 
     struct {
-      std::wstring    Pattern;
-      std::wstring    Key;
-      std:: string    Key_utf8;
-      std::wstring    Value;
-      DWORD           Data; // 0 = enabled; >0 = disabled
-    } keys[2];
+      HKEY            Hive;
+      std::wstring    Pattern  = L"";
+      std::wstring    Key      = L"";
+      std:: string    Key_utf8 =  "";
+      std::wstring    Value    = L"";
+      DWORD           Data     =   0; // 0 = enabled; >0 = disabled
+    } keys[4];
 
     bool              isPresent = false;
     bool              isEnabled = false;
@@ -179,9 +180,17 @@ void SKIF_UI_DrawPlatformStatus (void)
 
     VulkanLayer (std::string n, std::wstring pn32, std::wstring pn64)
     {
-      Name            =    n;
+      Name            = n;
+      // HKCU
+      keys[0].Hive    = HKEY_CURRENT_USER;
       keys[0].Pattern = pn32;
+      keys[1].Hive    = HKEY_CURRENT_USER;
       keys[1].Pattern = pn64;
+      // HKLM
+      keys[2].Hive    = HKEY_LOCAL_MACHINE;
+      keys[2].Pattern = pn32;
+      keys[3].Hive    = HKEY_LOCAL_MACHINE;
+      keys[3].Pattern = pn64;
     }
   };
 
@@ -317,6 +326,10 @@ void SKIF_UI_DrawPlatformStatus (void)
                 {
                   for (auto& k : l.keys)
                   {
+                    // Skip keys not actively related to the current hive
+                    if (k.Hive != hHive)
+                      continue;
+
                     if (StrStrIW (pValue.get(), k.Pattern.c_str()) != NULL)
                     {
                       k.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
