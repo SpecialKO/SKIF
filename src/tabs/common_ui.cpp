@@ -193,10 +193,10 @@ void SKIF_UI_DrawPlatformStatus (void)
   // - Fixed Vulkan device and instance handle leak in Vulkan bootstrap layer
 
   static VulkanLayer Layers[]   = {
-  //{ "RTSS",         LR"(RTSSVkLayer)"               }, // Disabled since we seems to have no confirmed compatibility issues for now. // Aemony, 2024-02-02
-    { "ReShade",      LR"(ReShade)"                   }, //
-    { "OBS Studio",   LR"(obs-vulkan)"                }, //
-    { "Action!",      LR"(MirillisActionVulkanLayer)" }  // Causes Borderlands 2 with DXVK to fail to launch. // Aemony, 2024-02-02
+  //{ "RTSS",             LR"(RTSSVkLayer)"               }, // Disabled since we seems to have no confirmed compatibility issues for now. // Aemony, 2024-02-02
+    { "ReShade",          LR"(ReShade)"                   }, //
+    { "OBS Studio",       LR"(obs-vulkan)"                }, //
+    { "Mirillis Action!", LR"(MirillisActionVulkanLayer)" }  // Causes Borderlands 2 with DXVK to fail to launch. // Aemony, 2024-02-02
   };
 
   // Timer has expired, refresh
@@ -444,8 +444,18 @@ void SKIF_UI_DrawPlatformStatus (void)
 
       ImGui::TextColored (
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "Vulkan Layers:"
+          "Vulkan layers:"
       );
+
+      ImGui::SameLine         ( );
+
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+          ICON_FA_LIGHTBULB
+      );
+
+      SKIF_ImGui_SetHoverTip ("Vulkan allows applications to install custom layers that are auto-loaded by all games/apps.\n"
+                              "Those that have known compatibility issues with Special K can be toggled on/off from here.");
 
       SKIF_ImGui_Spacing      ( );
     }
