@@ -413,8 +413,6 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
-  SetStopOnInjectionEx ( (! currentRunningState && autoStop), autoStopBehavior);
-
 #if 0
   const wchar_t *wszStartStopCommand =
               LR"(rundll32.exe)";
@@ -519,8 +517,18 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     ShellExecuteExW (&sexi);
 #endif // _WIN64
 
-  if (GetLastError ( ) != NO_ERROR)
+  DWORD error = GetLastError ( );
+
+  if (error == ERROR_CANCELLED) // [1223] The operation was canceled by the user.
+  {
+    PLOG_INFO << "Operation was cancelled by the user";
+    return false; // Abort
+  } else if (error != NO_ERROR)
     PLOG_ERROR << "An unexpected error occurred: " << SKIF_Util_GetErrorAsWStr();
+
+  // Post-service launch stuff
+
+  SetStopOnInjectionEx ( (! currentRunningState && autoStop), autoStopBehavior);
 
   if (currentRunningState)
     runState = RunningState::Stopping;
