@@ -145,29 +145,11 @@ void SKIF_UI_DrawPlatformStatus (void)
     }
   };
 
-  struct VulkanLayer {
-    std::string     Name;
-    std::wstring    Pattern;
-    std::wstring    Key;
-    std:: string    Key_utf8;
-    std::wstring    Value;
-    DWORD           Data;
-    bool            isPresent = false;
-    std:: string    uiLabel;
-    std::wstring    regCmd;
-
-    VulkanLayer (std::string n, std::wstring pn)
-    {
-      Name    =  n;
-      Pattern = pn;
-    }
-  };
-
   static DWORD    dwLastRefresh = 0;
   static Platform Platforms[]   = {
-    {"32-bit service",  L"SKIFsvc32.exe"},
+    {"32-bit service",      L"SKIFsvc32.exe"},
 #ifdef _WIN64
-    {"64-bit service",  L"SKIFsvc64.exe"},
+    {"64-bit service",      L"SKIFsvc64.exe"},
 #endif
     {"Steam",               L"steam.exe"},
     {"Origin",              L"Origin.exe"},
@@ -178,14 +160,37 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"RTSS",                L"RTSS.exe"}
   };
 
-  // TODO: Currently limited to only one match per tracked layer!
+  struct VulkanLayer {
+    std::string     Name;
+
+    struct {
+      std::wstring    Pattern;
+      std::wstring    Key;
+      std:: string    Key_utf8;
+      std::wstring    Value;
+      DWORD           Data; // 0 = enabled; >0 = disabled
+    } keys[2];
+
+    bool              isPresent = false;
+    bool              isEnabled = false;
+    std:: string      uiLabel;
+    std:: string      uiHoverTxt; // Status bar text
+    std::wstring      regCmd;     // Combined command to toggle
+
+    VulkanLayer (std::string n, std::wstring pn32, std::wstring pn64)
+    {
+      Name            =    n;
+      keys[0].Pattern = pn32;
+      keys[1].Pattern = pn64;
+    }
+  };
+
+  // TODO: Currently limited to only one match per CPU arch per tracked layer (so only e.g. a HKLM match means no HKCU match)
   static VulkanLayer Layers[]   = {
-    {"RTSS (x86)",         L"RTSSVkLayer32.json"},
-    {"ReShade (x86)",      L"ReShade32.json"}
-#ifdef _WIN64
-   ,{"RTSS (x64)",         L"RTSSVkLayer64.json"},
-    {"ReShade (x64)",      L"ReShade64.json"},
-#endif
+    {"RTSS",         LR"(RTSSVkLayer32.json)",                        LR"(RTSSVkLayer64.json)"},
+    {"ReShade",      LR"(ReShade32.json)",                            LR"(ReShade64.json)"},
+    {"OBS Studio",   LR"(obs-vulkan32.json)",                         LR"(obs-vulkan64.json)"},
+    {"Action!",      LR"(vulkan_x86\MirillisActionVulkanLayer.json)", LR"(vulkan_x64\MirillisActionVulkanLayer.json)"}
   };
 
   // Timer has expired, refresh
@@ -199,13 +204,18 @@ void SKIF_UI_DrawPlatformStatus (void)
 
     for (auto& l : Layers)
     {
-      l.Key       = L"";
-      l.Key_utf8  =  "";
-      l.Value     = L"";
-      l.Data      =   0;
-      l.isPresent = false;
-      l.uiLabel   =  "";
-      l.regCmd    = L"";
+      for (auto& k : l.keys)
+      {
+        k.Key      = L"";
+        k.Key_utf8 =  "";
+        k.Value    = L"";
+        k.Data     =   0;
+      }
+
+      l.isPresent  = false;
+      l.isEnabled  = false;
+      l.uiLabel    =  "";
+      l.uiHoverTxt =  "";
     }
 
     PROCESSENTRY32W pe32 = { };
@@ -249,12 +259,13 @@ void SKIF_UI_DrawPlatformStatus (void)
       HKEY_CURRENT_USER,
     };
 
+    // Do not bother checking explicit layers
     const std::wstring regKeys[] = {
-      LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)",
-      LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
+      LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)"
+    //LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
 #ifdef _WIN64
-     ,LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ImplicitLayers)",
-      LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ExplicitLayers)"
+     ,LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ImplicitLayers)"
+    //LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ExplicitLayers)"
 #endif
     };
 
@@ -304,19 +315,20 @@ void SKIF_UI_DrawPlatformStatus (void)
               {
                 for (auto& l : Layers)
                 {
-                  // Skip already found matches (allows us to prioritize HLKM over HKCU)
-                  if (l.isPresent)
-                    continue;
-
-                  if (StrStrIW (pValue.get(), l.Pattern.c_str()) != NULL)
+                  for (auto& k : l.keys)
                   {
-                    l.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
-                    l.Key_utf8  = SK_WideCharToUTF8 (l.Key);
-                    l.Value     = pValue.get();
-                    l.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
-                    l.isPresent = true;
-                    l.uiLabel   = (l.Data == 0) ? (l.Name + " may conflict with Special K!") : (l.Name + " has been disabled.");
-                    l.regCmd    = SK_FormatStringW (LR"(add "%ws" /v "%ws" /t REG_DWORD /d %i /f)", l.Key.c_str(), l.Value.c_str(), ((l.Data == 0) ? 1 : 0));
+                    if (StrStrIW (pValue.get(), k.Pattern.c_str()) != NULL)
+                    {
+                      k.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
+                      k.Key_utf8  = SK_WideCharToUTF8 (k.Key);
+                      k.Value     = pValue.get();
+                      k.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
+
+                      l.isPresent = true;
+
+                      if (k.Data == 0)
+                        l.isEnabled = true;
+                    }
                   }
                 }
               }
@@ -324,6 +336,35 @@ void SKIF_UI_DrawPlatformStatus (void)
           }
 
           RegCloseKey (hKey);
+        }
+      }
+    }
+
+    // Prep the UI / command components
+    for (auto& l : Layers)
+    {
+      if (! l.isPresent)
+        continue;
+
+      l.regCmd     = LR"(/c )";
+      l.uiLabel    = (l.isEnabled) ? (l.Name + " may conflict with Special K!") : (l.Name + " has been disabled.");
+      l.uiHoverTxt = "";
+
+      for (auto& k : l.keys)
+      {
+        if (! k.Value.empty())
+        {
+          l.regCmd += SK_FormatStringW (LR"(%ws add "%ws" /v "%ws" /t REG_DWORD /d %i /f)",
+              ((l.regCmd.length() <= 3) ? L"reg" : L"& reg"),
+              k.Key.c_str(),
+              k.Value.c_str(),
+              ((l.isEnabled) ? 1 : 0)
+          );
+
+          if (l.uiHoverTxt.empty())
+            l.uiHoverTxt  =         k.Key_utf8;
+          else
+            l.uiHoverTxt += " / " + k.Key_utf8;
         }
       }
     }
@@ -396,7 +437,7 @@ void SKIF_UI_DrawPlatformStatus (void)
   bool header = false;
   for (auto& l : Layers)
   {
-    if (l.isPresent) // 0 = enabled; >0 = disabled
+    if (l.isPresent)
     {
       if (! header)
       {
@@ -413,19 +454,19 @@ void SKIF_UI_DrawPlatformStatus (void)
       }
         
 
-      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.Data == 0) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
+      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
 
       ImGui::Spacing          ( );
       ImGui::SameLine         ( );
       ImGui::BeginGroup       ( );
-      ImGui::Text             ((l.Data == 0) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
+      ImGui::Text             ((l.isEnabled) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
       ImGui::SameLine         ( );
       if (ImGui::Selectable   (l.uiLabel.c_str()))
-        ShellExecuteW (nullptr, L"runas", L"reg", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
+        ShellExecuteW (nullptr, L"runas", L"cmd", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
       ImGui::EndGroup         ( );
       ImGui::PopStyleColor    ( );
 
-      SKIF_ImGui_SetHoverText (l.Key_utf8);
+      SKIF_ImGui_SetHoverText (l.uiHoverTxt);
       SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
     }
   }
