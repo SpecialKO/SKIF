@@ -180,8 +180,12 @@ void SKIF_UI_DrawPlatformStatus (void)
 
   // TODO: Currently limited to only one match per tracked layer!
   static VulkanLayer Layers[]   = {
-    {"RTSS",                L"RTSSVkLayer64.json"},
-    {"ReShade",             L"ReShade64.json"}
+    {"RTSS (x86)",         L"RTSSVkLayer32.json"},
+    {"ReShade (x86)",      L"ReShade32.json"}
+#ifdef _WIN64
+   ,{"RTSS (x64)",         L"RTSSVkLayer64.json"},
+    {"ReShade (x64)",      L"ReShade64.json"},
+#endif
   };
 
   // Timer has expired, refresh
@@ -248,6 +252,10 @@ void SKIF_UI_DrawPlatformStatus (void)
     const std::wstring regKeys[] = {
       LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)",
       LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
+#ifdef _WIN64
+     ,LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ImplicitLayers)",
+      LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ExplicitLayers)"
+#endif
     };
 
     // Identify conflicting Vulkan layers through the registry
@@ -257,7 +265,7 @@ void SKIF_UI_DrawPlatformStatus (void)
       {
         HKEY hKey;
 
-        if (RegOpenKeyExW (hHive, wzKey.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        if (RegOpenKeyExW (hHive, wzKey.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) // Worth using KEY_WOW64_64KEY ?
         {
           DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
                 dwResult          = 0,
@@ -307,7 +315,7 @@ void SKIF_UI_DrawPlatformStatus (void)
                     l.Value     = pValue.get();
                     l.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
                     l.isPresent = true;
-                    l.uiLabel   = (l.Data == 0) ? (l.Name + "'s Vulkan layer may conflict with Special K!") : (l.Name + "'s Vulkan layer has been disabled.");
+                    l.uiLabel   = (l.Data == 0) ? (l.Name + " may conflict with Special K!") : (l.Name + " has been disabled.");
                     l.regCmd    = SK_FormatStringW (LR"(add "%ws" /v "%ws" /t REG_DWORD /d %i /f)", l.Key.c_str(), l.Value.c_str(), ((l.Data == 0) ? 1 : 0));
                   }
                 }
@@ -385,10 +393,26 @@ void SKIF_UI_DrawPlatformStatus (void)
 #endif
   }
 
+  bool header = false;
   for (auto& l : Layers)
   {
     if (l.isPresent) // 0 = enabled; >0 = disabled
     {
+      if (! header)
+      {
+        header = true;
+
+        SKIF_ImGui_Spacing      ( );
+
+        ImGui::TextColored (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+            "Vulkan Layers:"
+        );
+
+        SKIF_ImGui_Spacing      ( );
+      }
+        
+
       ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.Data == 0) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
 
       ImGui::Spacing          ( );
