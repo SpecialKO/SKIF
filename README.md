@@ -44,6 +44,7 @@ SKIF supports detecting and launching games from the following platforms:
 | `SKIF_URI=<string>`       | Uses SKIF as a launcher to call a specific command, as a replacement of the "<path>.exe" cmd line argument. This is used for Steam and Epic games in the app jump list. |
 | `AddGame="<path>"`        | Adds the specified application to the library of SKIF as a custom game. |
 | `RestartDisplDrv`         | **Requires elevation!** Restarts the display driver (useful as this can sometimes fix MPOs). |
+| `ResetOverlayMode`        | **Requires elevation!** Resets registry values that controls the state of MPOs on the system. |
 | `RunUpdater`              | Triggers a check for update. Used internally by the "Check for Updates" taskbar jump list action. |
 
 ## Keyboard shortcuts
