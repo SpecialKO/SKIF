@@ -533,17 +533,15 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   // Trim any trailing spaces
   proxiedCmdLine.erase(std::find_if (proxiedCmdLine.rbegin(), proxiedCmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), proxiedCmdLine.end());
 
-  // Path does not seem to be absolute -- add the current working directory in front of the path
-  if (path.find(L"\\") == std::wstring::npos)
-    path = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.skif_workdir_org, path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
-
-  // Assume the original working directory is the right one
-  // This is required for e.g. Shadow Warrior Classic Redux
   std::wstring workingDirectory = _path_cache.skif_workdir_org;
   
-  // If the original working folder is empty or set to system32, change it to the parent folder of the game
-  if (workingDirectory.empty() || workingDirectory.find(L"system32") != std::wstring::npos)
+  // Fall back to using the folder of the game executable if the original working directory fails a few simple checks
+  if (workingDirectory.empty() || _wcsicmp (_path_cache.skif_workdir_org, _path_cache.skif_workdir) == 0 || workingDirectory.find(L"system32") != std::wstring::npos)
     workingDirectory = std::filesystem::path(path).parent_path().wstring();
+
+  // Path does not seem to be absolute -- add the current working directory in front of the path
+  if (path.find(L"\\") == std::wstring::npos)
+    path = SK_FormatStringW (LR"(%ws\%ws)", workingDirectory.c_str(), path.c_str()); //orgWorkingDirectory.wstring() + L"\\" + path;
 
   PLOG_INFO                               << "Executable:        " << path;
   PLOG_INFO_IF (! proxiedCmdLine.empty()) << "Command Line Args: " << proxiedCmdLine;
@@ -1289,8 +1287,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
     SKIF_debuggerPresent = true;
   }
   
-  wchar_t current_workdir [MAX_PATH + 2] = { };
-  GetCurrentDirectoryW    (MAX_PATH, current_workdir);
+  GetCurrentDirectoryW    (MAX_PATH, _path_cache.skif_workdir);
 
 
 #ifdef _WIN64
@@ -1306,7 +1303,7 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
             << "\n|    > arguments   | " << lpCmdLine
             << "\n|    > directory   | "
             << "\n|      > original  | " << _path_cache.skif_workdir_org
-            << "\n|      > adjusted  | " << current_workdir
+            << "\n|      > adjusted  | " << _path_cache.skif_workdir
             << "\n| SK Install       | " << _path_cache.specialk_install
             << "\n| SK User Data     | " << _path_cache.specialk_userdata
             << "\n+------------------+-------------------------------------+";

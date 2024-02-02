@@ -88,6 +88,7 @@ struct SKIF_CommonPathsCache {
 
   wchar_t skif_executable   [MAX_PATH + 2] = { }; // Holds the path to the executable
   wchar_t skif_workdir_org  [MAX_PATH + 2] = { }; // Holds the original work directory (rarely used)
+  wchar_t skif_workdir      [MAX_PATH + 2] = { }; // Holds the adjusted work directory (rarely used)
   wchar_t steam_install     [MAX_PATH + 2] = { }; // Holds the install folder for the Steam client
   wchar_t specialk_install  [MAX_PATH + 2] = { }; // Holds the install folder for SK/SKIF, 
   wchar_t specialk_userdata [MAX_PATH + 2] = { }; // Holds the user data folder for SK/SKIF
