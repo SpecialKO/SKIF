@@ -651,13 +651,13 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (setInitialRefreshInterval)
   {   setInitialRefreshInterval = false;
     if (     _registry.iProcessRefreshInterval == 0) // Paused
-      refreshIntervalInMsec = 0;
+      refreshIntervalInMsec.store(0);
     else if (_registry.iProcessRefreshInterval == 1) // Slow (5s)
-      refreshIntervalInMsec = 5000;
+      refreshIntervalInMsec.store(5000);
     else if (_registry.iProcessRefreshInterval == 2) // Normal (1s)
-      refreshIntervalInMsec = 1000;
-    else                                        // Treat everything else as High (0.5s)
-      refreshIntervalInMsec = 500;
+      refreshIntervalInMsec.store(1000);
+    else                                             // Treat everything else as High (0.5s)
+      refreshIntervalInMsec.store(500);
 
     InitializeConditionVariable (&ProcRefreshPaused);
   }
@@ -750,21 +750,24 @@ SKIF_UI_Tab_DrawMonitor (void)
       if (ImGui::Selectable (RefreshInterval[n], is_selected))
       {
         // Unpause the child thread that refreshes processes
-        if (_registry.iProcessRefreshInterval == 0 && n != 0)
-          WakeConditionVariable (&ProcRefreshPaused);
+        //if (_registry.iProcessRefreshInterval == 0 && n != 0)
+        //  WakeConditionVariable (&ProcRefreshPaused);
 
         _registry.iProcessRefreshInterval = n;
         _registry.regKVProcessRefreshInterval.putData  (_registry.iProcessRefreshInterval);
         RefreshIntervalCurrent = RefreshInterval[_registry.iProcessRefreshInterval];
         
         if (     _registry.iProcessRefreshInterval == 0) // Paused
-          refreshIntervalInMsec = 0;
+          refreshIntervalInMsec.store(0);
         else if (_registry.iProcessRefreshInterval == 1) // Slow (5s)
-          refreshIntervalInMsec = 5000;
+          refreshIntervalInMsec.store(5000);
         else if (_registry.iProcessRefreshInterval == 2) // Normal (1s)
-          refreshIntervalInMsec = 1000;
+          refreshIntervalInMsec.store(1000);
         else                                        // Treat everything else as High (0.5s)
-          refreshIntervalInMsec = 500;
+          refreshIntervalInMsec.store(500);
+
+        // Unpause the child thread that refreshes processes
+        WakeConditionVariable (&ProcRefreshPaused);
       }
       if (is_selected)
           ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
@@ -931,7 +934,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         do
         {
-          while (SKIF_Tab_Selected != UITab_Monitor || ! refreshIntervalInMsec)
+          while (SKIF_Tab_Selected != UITab_Monitor || refreshIntervalInMsec.load() == 0)
           {
             SleepConditionVariableCS (
               &ProcRefreshPaused, &ProcessRefreshJob,
@@ -1385,7 +1388,7 @@ SKIF_UI_Tab_DrawMonitor (void)
           PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
 
           // Sleep until it's time to check again
-          Sleep (refreshIntervalInMsec);
+          Sleep (refreshIntervalInMsec.load());
 
         } while (IsWindow (SKIF_ImGui_hWnd)); // Keep thread alive until exit
 
