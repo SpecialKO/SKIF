@@ -1725,13 +1725,13 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     ((proc.status <= 2) ? colStatus
-                                                : colText,
+                                               : colText,
                                           "%s", SK_WideCharToUTF8 (proc.filename).c_str());
     if (! proc.tooltip.empty())
       SKIF_ImGui_SetHoverTip (proc.tooltip);
     /* Detail column is so far only used for special purposes */
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (495.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (565.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.details.c_str());
     if (proc.details.length() > 73)
