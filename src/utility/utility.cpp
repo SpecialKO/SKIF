@@ -749,6 +749,78 @@ SKIF_Util_OpenURI (
   return ret;
 }
 
+// Make an unelevated ShellExecute call through Explorer.
+// Allows elevated processes to spawn unelevated processes.
+// https://devblogs.microsoft.com/oldnewthing/20131118-00/?p=2643
+bool
+SKIF_Util_ShellExecuteUnelevated (
+  const std::wstring_view& path,
+               int         nShow,
+               LPCWSTR     verb,
+               LPCWSTR     parameters,
+               LPCWSTR     directory)
+{
+  auto _FindDesktopFolderView = [&](REFIID riid, void **ppv) -> void
+  {
+    CComPtr<IShellWindows> spShellWindows;
+    spShellWindows.CoCreateInstance(CLSID_ShellWindows);
+
+    CComVariant vtLoc(CSIDL_DESKTOP);
+    CComVariant vtEmpty;
+    long lhwnd;
+    CComPtr<IDispatch> spdisp;
+    spShellWindows->FindWindowSW(
+        &vtLoc, &vtEmpty,
+        SWC_DESKTOP, &lhwnd, SWFO_NEEDDISPATCH, &spdisp);
+
+    CComPtr<IShellBrowser> spBrowser;
+    CComQIPtr<IServiceProvider>(spdisp)->
+        QueryService(SID_STopLevelBrowser,
+                    IID_PPV_ARGS(&spBrowser));
+
+    CComPtr<IShellView> spView;
+    spBrowser->QueryActiveShellView(&spView);
+
+    spView->QueryInterface(riid, ppv);
+  };
+    
+  auto _GetDesktopAutomationObject = [&](REFIID riid, void **ppv) -> void
+  {
+    CComPtr<IShellView> spsv;
+    _FindDesktopFolderView (IID_PPV_ARGS(&spsv));
+    CComPtr<IDispatch> spdispView;
+    spsv->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&spdispView));
+    spdispView->QueryInterface(riid, ppv);
+  };
+
+  CComPtr<IShellFolderViewDual> spFolderView;
+  _GetDesktopAutomationObject (IID_PPV_ARGS(&spFolderView));
+  CComPtr<IDispatch> spdispShell;
+  spFolderView->get_Application(&spdispShell);
+  CComQIPtr<IShellDispatch2> shell(spdispShell);
+
+  HRESULT hr = E_UNEXPECTED;
+
+  if (shell != nullptr)
+  {
+    PLOG_INFO                           << "Performing a ShellExecuteUnelevated call...";
+    PLOG_INFO_IF(! path.empty())        << "File      : " << path;
+    PLOG_INFO_IF(verb       != nullptr) << "Verb      : " << std::wstring(verb);
+    PLOG_INFO_IF(parameters != nullptr) << "Parameters: " << std::wstring(parameters);
+    PLOG_INFO_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
+
+    hr = shell->ShellExecuteW (
+                   CComBSTR    (path.data()),
+                   CComVariant (parameters != nullptr ? parameters : L""),
+                   CComVariant (directory  != nullptr ? directory  : L""),
+                   CComVariant (verb       != nullptr ? verb       : L""),
+                   CComVariant (nShow)
+    );
+  }
+
+  return SUCCEEDED (hr);
+}
+
 // This stupid API doesn't support automatic elevation through e.g. "Run as administrator" registry flags etc
 bool
 SKIF_Util_CreateProcess (

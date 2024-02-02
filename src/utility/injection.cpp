@@ -469,10 +469,30 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     sexi.lpParameters = (currentRunningState) ? L"Stop Proxy64" : L"Start Proxy64";
 
     ret =
+#ifndef UNELEVATED
       ShellExecuteExW (&sexi);
+#else
+      SKIF_Util_ShellExecuteUnelevated (
+        sexi.lpFile,
+        sexi.nShow,
+        sexi.lpVerb,
+        sexi.lpParameters,
+        sexi.lpDirectory
+      );
+#endif // UNELEVATED
   }
 
+#ifndef UNELEVATED
   else if ( ShellExecuteExW (&sexi) || currentRunningState )
+#else
+  else if ( SKIF_Util_ShellExecuteUnelevated (
+              sexi.lpFile,
+              sexi.nShow,
+              sexi.lpVerb,
+              sexi.lpParameters,
+              sexi.lpDirectory
+            ) || currentRunningState )
+#endif // UNELEVATED
   {
     if (elevated)
       PLOG_VERBOSE << "SKIFsvc < 1.0.2.0 or curDir != workDir. Using fallback calls.";
@@ -482,7 +502,17 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     sexi.lpFile       = SKIFsvc64.c_str();
 
     ret =
+#ifndef UNELEVATED
       ShellExecuteExW (&sexi);
+#else
+      SKIF_Util_ShellExecuteUnelevated (
+        sexi.lpFile,
+        sexi.nShow,
+        sexi.lpVerb,
+        sexi.lpParameters,
+        sexi.lpDirectory
+      );
+#endif // UNELEVATED
   }
 #else
   ret =
