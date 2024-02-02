@@ -813,6 +813,9 @@ SKIF_UI_Tab_DrawMonitor (void)
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject (false, _registry.bStopOnInjection);
   ImGui::PopStyleColor ( );
+    
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ServiceMenu = PopupState_Open;
 
   ImGui::SameLine   ( );
     
@@ -821,6 +824,9 @@ SKIF_UI_Tab_DrawMonitor (void)
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject(true);
   ImGui::PopStyleColor ( );
+    
+  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    ServiceMenu = PopupState_Open;
     
   SKIF_ImGui_Spacing      ( );
 
@@ -1750,7 +1756,11 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::EndChildFrame ( );
 
 #pragma endregion
-    
+
+  // Service Menu
+
+  SKIF_ImGui_ServiceMenu ( );
+
   // Confirm prompt
 
   if (static_proc.pid != 0)

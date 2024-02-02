@@ -6300,8 +6300,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   SKIF_GamingCollection::RefreshRunningApps (&g_apps);
 
 #pragma region ServiceMenu
-  
-  extern void SKIF_ImGui_ServiceMenu (void);
 
   SKIF_ImGui_ServiceMenu ( );
 
