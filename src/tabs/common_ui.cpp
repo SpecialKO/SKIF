@@ -161,45 +161,33 @@ void SKIF_UI_DrawPlatformStatus (void)
   };
 
   struct VulkanLayer {
-    std::string     Name;
-
-    struct {
-      HKEY            Hive;
-      std::wstring    Pattern  = L"";
+    struct reg {
       std::wstring    Key      = L"";
-      std:: string    Key_utf8 =  "";
       std::wstring    Value    = L"";
       DWORD           Data     =   0; // 0 = enabled; >0 = disabled
-    } keys[4];
+    };
+    
+    std:: string      Name;
+    std::wstring      Pattern   = L"";
+    std::vector <reg> Matches   = { };
+    bool              isEnabled = false; // Simplified state
 
-    bool              isPresent = false;
-    bool              isEnabled = false;
     std:: string      uiLabel;
     std:: string      uiHoverTxt; // Status bar text
     std::wstring      regCmd;     // Combined command to toggle
 
-    VulkanLayer (std::string n, std::wstring pn32, std::wstring pn64)
+    VulkanLayer (std::string n, std::wstring pn)
     {
-      Name            = n;
-      // HKCU
-      keys[0].Hive    = HKEY_CURRENT_USER;
-      keys[0].Pattern = pn32;
-      keys[1].Hive    = HKEY_CURRENT_USER;
-      keys[1].Pattern = pn64;
-      // HKLM
-      keys[2].Hive    = HKEY_LOCAL_MACHINE;
-      keys[2].Pattern = pn32;
-      keys[3].Hive    = HKEY_LOCAL_MACHINE;
-      keys[3].Pattern = pn64;
+      Name    = n;
+      Pattern = pn;
     }
   };
 
-  // TODO: Currently limited to only one match per CPU arch per tracked layer (so only e.g. a HKLM match means no HKCU match)
   static VulkanLayer Layers[]   = {
-    {"RTSS",         LR"(RTSSVkLayer32.json)",                        LR"(RTSSVkLayer64.json)"},
-    {"ReShade",      LR"(ReShade32.json)",                            LR"(ReShade64.json)"},
-    {"OBS Studio",   LR"(obs-vulkan32.json)",                         LR"(obs-vulkan64.json)"},
-    {"Action!",      LR"(vulkan_x86\MirillisActionVulkanLayer.json)", LR"(vulkan_x64\MirillisActionVulkanLayer.json)"}
+    { "RTSS",         LR"(RTSSVkLayer)"               },
+    { "ReShade",      LR"(ReShade)"                   },
+    { "OBS Studio",   LR"(obs-vulkan)"                },
+    { "Action!",      LR"(MirillisActionVulkanLayer)" }
   };
 
   // Timer has expired, refresh
@@ -213,15 +201,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
     for (auto& l : Layers)
     {
-      for (auto& k : l.keys)
-      {
-        k.Key      = L"";
-        k.Key_utf8 =  "";
-        k.Value    = L"";
-        k.Data     =   0;
-      }
-
-      l.isPresent  = false;
+      l.Matches.clear();
       l.isEnabled  = false;
       l.uiLabel    =  "";
       l.uiHoverTxt =  "";
@@ -263,13 +243,13 @@ void SKIF_UI_DrawPlatformStatus (void)
       }
     }
 
-    const HKEY regHives[] = {
+    static const HKEY regHives[] = {
       HKEY_LOCAL_MACHINE,
       HKEY_CURRENT_USER,
     };
 
     // Do not bother checking explicit layers
-    const std::wstring regKeys[] = {
+    static const std::wstring regKeys[] = {
       LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)"
     //LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
 #ifdef _WIN64
@@ -324,24 +304,18 @@ void SKIF_UI_DrawPlatformStatus (void)
               {
                 for (auto& l : Layers)
                 {
-                  for (auto& k : l.keys)
+                  if (StrStrIW (pValue.get(), l.Pattern.c_str()) != NULL)
                   {
-                    // Skip keys not actively related to the current hive
-                    if (k.Hive != hHive)
-                      continue;
+                    VulkanLayer::reg item;
 
-                    if (StrStrIW (pValue.get(), k.Pattern.c_str()) != NULL)
-                    {
-                      k.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
-                      k.Key_utf8  = SK_WideCharToUTF8 (k.Key);
-                      k.Value     = pValue.get();
-                      k.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
+                    item.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
+                    item.Value     = pValue.get();
+                    item.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
 
-                      l.isPresent = true;
+                    if (item.Data == 0)
+                      l.isEnabled = true;
 
-                      if (k.Data == 0)
-                        l.isEnabled = true;
-                    }
+                    l.Matches.push_back (item);
                   }
                 }
               }
@@ -356,28 +330,28 @@ void SKIF_UI_DrawPlatformStatus (void)
     // Prep the UI / command components
     for (auto& l : Layers)
     {
-      if (! l.isPresent)
+      if (l.Matches.empty())
         continue;
 
       l.regCmd     = LR"(/c )";
       l.uiLabel    = (l.isEnabled) ? (l.Name + " may conflict with Special K!") : (l.Name + " has been disabled.");
       l.uiHoverTxt = "";
 
-      for (auto& k : l.keys)
+      for (auto& item : l.Matches)
       {
-        if (! k.Value.empty())
+        if (!item.Value.empty())
         {
           l.regCmd += SK_FormatStringW (LR"(%ws add "%ws" /v "%ws" /t REG_DWORD /d %i /f)",
               ((l.regCmd.length() <= 3) ? L"reg" : L"& reg"),
-              k.Key.c_str(),
-              k.Value.c_str(),
+                item.Key.c_str(),
+                item.Value.c_str(),
               ((l.isEnabled) ? 1 : 0)
           );
 
           if (l.uiHoverTxt.empty())
-            l.uiHoverTxt  =         k.Key_utf8;
+            l.uiHoverTxt  =         SK_WideCharToUTF8 (item.Key);
           else
-            l.uiHoverTxt += " / " + k.Key_utf8;
+            l.uiHoverTxt += " / " + SK_WideCharToUTF8 (item.Key);
         }
       }
     }
@@ -450,38 +424,37 @@ void SKIF_UI_DrawPlatformStatus (void)
   bool header = false;
   for (auto& l : Layers)
   {
-    if (l.isPresent)
+    if (l.Matches.empty())
+      continue;
+
+    if (! header)
     {
-      if (! header)
-      {
-        header = true;
+      header = true;
 
-        SKIF_ImGui_Spacing      ( );
+      SKIF_ImGui_Spacing      ( );
 
-        ImGui::TextColored (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-            "Vulkan Layers:"
-        );
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          "Vulkan Layers:"
+      );
 
-        SKIF_ImGui_Spacing      ( );
-      }
-        
-
-      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
-
-      ImGui::Spacing          ( );
-      ImGui::SameLine         ( );
-      ImGui::BeginGroup       ( );
-      ImGui::Text             ((l.isEnabled) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
-      ImGui::SameLine         ( );
-      if (ImGui::Selectable   (l.uiLabel.c_str()))
-        ShellExecuteW (nullptr, L"runas", L"cmd", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
-      ImGui::EndGroup         ( );
-      ImGui::PopStyleColor    ( );
-
-      SKIF_ImGui_SetHoverText (l.uiHoverTxt);
-      SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
+      SKIF_ImGui_Spacing      ( );
     }
+
+    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
+
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::BeginGroup       ( );
+    ImGui::Text             ((l.isEnabled) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
+    ImGui::SameLine         ( );
+    if (ImGui::Selectable   (l.uiLabel.c_str()))
+      ShellExecuteW (nullptr, L"runas", L"cmd", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
+    ImGui::EndGroup         ( );
+    ImGui::PopStyleColor    ( );
+
+    SKIF_ImGui_SetHoverText (l.uiHoverTxt);
+    SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
   }
 }
 
