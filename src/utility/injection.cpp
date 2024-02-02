@@ -450,7 +450,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = (elevated) ? L"RUNAS" : L"OPEN";
+    sexi.lpVerb       = (elevated && ! currentRunningState) ? L"RUNAS" : L"OPEN"; // Only elevate the Start cmd -- not the Stop cmd (not needed)
     sexi.lpFile       = SKIFsvc32.c_str();
     sexi.lpParameters = (currentRunningState) ? L"Stop" : L"Start";
     sexi.lpDirectory  = workDir.c_str(); // LR"(D:\Games\Special K\Servlet)"; // SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_userdata).c_str(); // L"Servlet"
