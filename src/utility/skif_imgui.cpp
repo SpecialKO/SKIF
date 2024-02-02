@@ -653,13 +653,19 @@ void SKIF_ImGui_ServiceMenu (void)
 
     ImGui::Separator ( );
 
-    if (ImGui::Selectable("Force start service"))
+    if (ImGui::Selectable("Force start service###ServiceMenuStart"))
       _inject._StartStopInject (false, _registry.bStopOnInjection);
 
-    if (ImGui::Selectable("Force start service (elevated)"))
+    ImGui::PushStyleColor      (ImGuiCol_Text,
+      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+    );
+
+    if (ImGui::Selectable("\xe2\x94\x94 Elevated###ServiceMenuStartElevated"))
       _inject._StartStopInject (false, _registry.bStopOnInjection, true);
 
-    if (ImGui::Selectable("Force stop service"))
+    ImGui::PopStyleColor   ( );
+
+    if (ImGui::Selectable("Force stop service###ServiceMenuStop"))
       _inject._StartStopInject (true);
 
     ImGui::PopStyleColor ( );
