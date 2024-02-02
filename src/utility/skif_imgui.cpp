@@ -656,6 +656,9 @@ void SKIF_ImGui_ServiceMenu (void)
     if (ImGui::Selectable("Force start service"))
       _inject._StartStopInject (false, _registry.bStopOnInjection);
 
+    if (ImGui::Selectable("Force start service (elevated)"))
+      _inject._StartStopInject (false, _registry.bStopOnInjection, true);
+
     if (ImGui::Selectable("Force stop service"))
       _inject._StartStopInject (true);
 
