@@ -578,7 +578,7 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         char*   data = nullptr;
 
         local_data =
-          std::make_unique <char []> (dwSize + 4u);
+          std::make_unique <char []> (static_cast<size_t>(dwSize) + 4u);
               data = local_data.get ();
 
         if (data == nullptr)
