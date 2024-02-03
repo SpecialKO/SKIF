@@ -67,70 +67,77 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
 
         if (dwResult == ERROR_SUCCESS)
         {
-          dwSize = sizeof(szData) / sizeof(WCHAR);
-
-          if (RegGetValueW (hKey, szSubKey, L"dependsOn", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS &&
-            wcslen(szData) == 0) // Only handles items without a dependency (skips DLCs)
+          HKEY hSubKey = nullptr;
+          
+          if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, SK_FormatStringW (LR"(SOFTWARE\GOG.com\Games\%ws)", szSubKey).c_str(), 0, KEY_READ | KEY_WOW64_32KEY, &hSubKey) == ERROR_SUCCESS)
           {
             dwSize = sizeof(szData) / sizeof(WCHAR);
 
-            if (RegGetValueW (hKey, szSubKey, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+            if (RegGetValueW (hSubKey, NULL, L"dependsOn", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS &&
+              wcslen(szData) == 0) // Only handles items without a dependency (skips DLCs)
             {
-              int appid = _wtoi(szData);
-              app_record_s record(appid);
-
-              record.store      = app_record_s::Store::GOG;
-              record.store_utf8 = "GOG";
-              record._status.installed = true;
-
               dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+
+              if (RegGetValueW (hSubKey, NULL, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               {
-                record.names.normal   = SK_WideCharToUTF8(szData);
-                record.names.original = record.names.normal;
-              }
+                int appid = _wtoi(szData);
+                app_record_s record(appid);
 
-              dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                record.install_dir = szData;
-
-              record.install_dir   = std::filesystem::path (record.install_dir).lexically_normal();
-
-              dwSize = sizeof(szData) / sizeof(WCHAR);
-              if (RegGetValueW (hKey, szSubKey, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-              {
-                app_record_s::launch_config_s lc;
-                lc.id         = 0;
-                lc.valid      = 1;
-                lc.executable = szData;
-                lc.install_dir = record.install_dir;
+                record.store      = app_record_s::Store::GOG;
+                record.store_utf8 = "GOG";
+                record._status.installed = true;
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW (hKey, szSubKey, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                  lc.executable_path = szData;
+                if (RegGetValueW (hSubKey, NULL, L"GameName", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                {
+                  record.names.normal   = SK_WideCharToUTF8(szData);
+                  record.names.original = record.names.normal;
+                }
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW (hKey, szSubKey, L"workingDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                  lc.working_dir = szData;
+                if (RegGetValueW (hSubKey, NULL, L"path", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                  record.install_dir = szData;
+
+                record.install_dir   = std::filesystem::path (record.install_dir).lexically_normal();
 
                 dwSize = sizeof(szData) / sizeof(WCHAR);
-                if (RegGetValueW (hKey, szSubKey, L"launchParam", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
-                  lc.launch_options = szData;
+                if (RegGetValueW (hSubKey, NULL, L"exeFile", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                {
+                  app_record_s::launch_config_s lc;
+                  lc.id         = 0;
+                  lc.valid      = 1;
+                  lc.executable = szData;
+                  lc.install_dir = record.install_dir;
 
-                record.launch_configs.emplace (0, lc);
+                  dwSize = sizeof(szData) / sizeof(WCHAR);
+                  if (RegGetValueW (hSubKey, NULL, L"exe", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                    lc.executable_path = szData;
 
-                record.specialk.profile_dir              = lc.executable;
-                record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
-                record.specialk.injection.injection.type = InjectionType::Global;
+                  dwSize = sizeof(szData) / sizeof(WCHAR);
+                  if (RegGetValueW (hSubKey, NULL, L"workingDir", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                    lc.working_dir = szData;
 
-                std::pair <std::string, app_record_s>
-                  GOG(record.names.normal, record);
+                  dwSize = sizeof(szData) / sizeof(WCHAR);
+                  if (RegGetValueW (hSubKey, NULL, L"launchParam", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                    lc.launch_options = szData;
 
-                apps->emplace_back(GOG);
+                  record.launch_configs.emplace (0, lc);
 
-                dwRead++;
+                  record.specialk.profile_dir              = lc.executable;
+                  record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
+                  record.specialk.injection.injection.type = InjectionType::Global;
+
+                  std::pair <std::string, app_record_s>
+                    GOG(record.names.normal, record);
+
+                  apps->emplace_back(GOG);
+
+                  dwRead++;
+                }
               }
             }
+
+            RegCloseKey (hSubKey);
           }
         }
       }

@@ -1312,20 +1312,18 @@ SKIF_Steam_GetActiveProcess (void)
 }
 
 std::wstring
-SKIF_Steam_GetAppStateString (       AppId_t  appid,
-                               const wchar_t *wszStateKey )
+SKIF_Steam_GetAppStateString (HKEY* hKey, const wchar_t *wszStateKey)
 {
   std::wstring str ( MAX_PATH, L'\0' );
   DWORD        len = MAX_PATH;
   LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
-                           appid ).c_str (),
-                     wszStateKey,
-                       RRF_RT_REG_SZ,
-                         nullptr,
-                           str.data (),
-                             &len );
+    RegGetValueW ( *hKey,
+                     NULL,
+                       wszStateKey,
+                         RRF_RT_REG_SZ,
+                           nullptr,
+                             str.data (),
+                               &len );
 
   if (status == ERROR_SUCCESS)
     return str;
@@ -1334,20 +1332,17 @@ SKIF_Steam_GetAppStateString (       AppId_t  appid,
 }
 
 wchar_t
-SKIF_Steam_GetAppStateDWORD (       AppId_t  appid,
-                              const wchar_t *wszStateKey,
-                                    DWORD   *pdwStateVal )
+SKIF_Steam_GetAppStateDWORD (HKEY* hKey, const wchar_t *wszStateKey, DWORD *pdwStateVal)
 {
   DWORD     len    = sizeof (DWORD);
   LSTATUS   status =
-    RegGetValueW ( HKEY_CURRENT_USER,
-      SK_FormatStringW ( LR"(SOFTWARE\Valve\Steam\Apps\%lu)",
-                           appid ).c_str (),
-                     wszStateKey,
-                       RRF_RT_DWORD,
-                         nullptr,
-                           pdwStateVal,
-                             &len );
+    RegGetValueW ( *hKey,
+                     NULL,
+                       wszStateKey,
+                         RRF_RT_DWORD,
+                           nullptr,
+                             pdwStateVal,
+                               &len );
 
   if (status == ERROR_SUCCESS)
     return TRUE;
@@ -1361,42 +1356,49 @@ SKIF_Steam_UpdateAppState (app_record_s *pApp)
   if (! pApp)
     return false;
 
-  SKIF_Steam_GetAppStateDWORD (
-     pApp->id,   L"Installed",
-    &pApp->_status.installed );
+  HKEY hKey = nullptr;
 
-  if (pApp->_status.installed != 0x0)
-  {   pApp->_status.running    = 0x0;
-
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Valve\Steam\Apps\%lu)", pApp->id).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+  {
     SKIF_Steam_GetAppStateDWORD (
-       pApp->id,   L"Running",
-      &pApp->_status.running );
+      &hKey,   L"Installed",
+      &pApp->_status.installed);
 
-    if (! pApp->_status.running)
-    {
+    if (pApp->_status.installed != 0x0)
+    {   pApp->_status.running    = 0x0;
+
       SKIF_Steam_GetAppStateDWORD (
-         pApp->id,   L"Updating",
-        &pApp->_status.updating );
-    }
+        &hKey,   L"Running",
+        &pApp->_status.running);
 
-    else
-    {
-      pApp->_status.updating = 0x0;
-    }
-
-    if (pApp->names.normal.empty ())
-    {
-      std::wstring wide_name =
-        SKIF_Steam_GetAppStateString (
-          pApp->id,   L"Name"
-        );
-
-      if (! wide_name.empty ())
+      if (! pApp->_status.running)
       {
-        pApp->names.normal =
-          SK_WideCharToUTF8 (wide_name);
+        SKIF_Steam_GetAppStateDWORD (
+          &hKey,   L"Updating",
+          &pApp->_status.updating);
+      }
+
+      else
+      {
+        pApp->_status.updating = 0x0;
+      }
+
+      if (pApp->names.normal.empty ())
+      {
+        std::wstring wide_name =
+          SKIF_Steam_GetAppStateString (
+            &hKey,   L"Name"
+          );
+
+        if (! wide_name.empty ())
+        {
+          pApp->names.normal =
+            SK_WideCharToUTF8 (wide_name);
+        }
       }
     }
+
+    RegCloseKey (hKey);
   }
 
   return true;

@@ -7487,13 +7487,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (ImGui::Button  ("Add Game", vButtonSize))
     {
-      int newAppId = SKIF_AddCustomAppID(&g_apps, SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
+      int newAppId = SKIF_AddCustomAppID (SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs));
 
       if (newAppId > 0)
       {
         // Attempt to extract the icon from the given executable straight away
-        std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, newAppId);
-        SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
+        //std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, newAppId);
+        //SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
 
         _registry.iLastSelectedGame  = newAppId;
         _registry.iLastSelectedStore = (int)app_record_s::Store::Custom;
