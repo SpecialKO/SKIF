@@ -31,8 +31,8 @@ struct SKIF_RegistrySettings {
       };
 
     public:
-      bool         hasData       (void);
-      _Tp          getData       (void);
+      bool         hasData       (HKEY* hKey = nullptr);
+      _Tp          getData       (HKEY* hKey = nullptr);
       bool         putData       (_Tp in)
       {
         if ( ERROR_SUCCESS == _SetValue (&in) )
@@ -121,11 +121,11 @@ struct SKIF_RegistrySettings {
         return lStat;
       };
       
-      LSTATUS _GetValue ( _Tp* pVal, DWORD* pLen = nullptr )
+      LSTATUS _GetValue ( _Tp* pVal, DWORD* pLen = nullptr, HKEY* hKey = nullptr )
       {
         LSTATUS lStat =
-          RegGetValueW ( _desc.hKey,
-                            _desc.wszSubKey,
+          RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
+                         (hKey != nullptr) ?  NULL : _desc.wszSubKey,
                               _desc.wszKeyValue,
                               _desc.dwFlags,
                                 &_desc.dwType,
@@ -134,12 +134,12 @@ struct SKIF_RegistrySettings {
         return lStat;
       };
 
-      DWORD _SizeOfData (void)
+      DWORD _SizeOfData (HKEY* hKey = nullptr)
       {
         DWORD len = 0;
 
         if ( ERROR_SUCCESS ==
-                _GetValue ( nullptr, &len )
+                _GetValue ( nullptr, &len, hKey)
             ) return len;
 
         return 0;

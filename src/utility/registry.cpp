@@ -7,7 +7,7 @@ extern bool SKIF_Util_IsWindows10v1709OrGreater (void);
 
 template<class _Tp>
 bool
-SKIF_RegistrySettings::KeyValue<_Tp>::hasData (void)
+SKIF_RegistrySettings::KeyValue<_Tp>::hasData (HKEY* hKey)
 {
   _Tp   out = _Tp ( );
   DWORD dwOutLen;
@@ -21,7 +21,7 @@ SKIF_RegistrySettings::KeyValue<_Tp>::hasData (void)
     _desc.dwType   = REG_SZ;
 
     // Two null terminators are stored at the end of REG_SZ, so account for those
-    return (_SizeOfData ( ) > 4);
+    return (_SizeOfData (hKey) > 4);
   }
 
   if ( type_idx == std::type_index (typeid (bool)) )
@@ -43,24 +43,24 @@ SKIF_RegistrySettings::KeyValue<_Tp>::hasData (void)
           dwOutLen = sizeof (float);
   }
 
-  if ( ERROR_SUCCESS == _GetValue (&out, &dwOutLen) )
+  if ( ERROR_SUCCESS == _GetValue (&out, &dwOutLen, hKey) )
     return true;
 
   return false;
 };
 
 std::wstring
-SKIF_RegistrySettings::KeyValue<std::wstring>::getData (void)
+SKIF_RegistrySettings::KeyValue<std::wstring>::getData (HKEY* hKey)
 {
   _desc.dwFlags  = RRF_RT_REG_SZ;
   _desc.dwType   = REG_SZ;
-  DWORD dwOutLen = _SizeOfData ( );
+  DWORD dwOutLen = _SizeOfData (hKey);
 
   std::wstring out(dwOutLen, '\0');
 
   if ( ERROR_SUCCESS != 
-    RegGetValueW ( _desc.hKey,
-                      _desc.wszSubKey,
+    RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
+                   (hKey != nullptr) ?  NULL : _desc.wszSubKey,
                         _desc.wszKeyValue,
                         _desc.dwFlags,
                           &_desc.dwType,
@@ -74,7 +74,7 @@ SKIF_RegistrySettings::KeyValue<std::wstring>::getData (void)
 
 template<class _Tp>
 _Tp
-SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
+SKIF_RegistrySettings::KeyValue<_Tp>::getData (HKEY* hKey)
 {
   _Tp   out = _Tp ( );
   DWORD dwOutLen;
@@ -102,7 +102,7 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (void)
   }
 
   if ( ERROR_SUCCESS !=
-          _GetValue (&out, &dwOutLen) ) out = _Tp ();
+          _GetValue (&out, &dwOutLen, hKey) ) out = _Tp ();
 
   return out;
 };
@@ -139,99 +139,106 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // iUIMode defaults to 1 on Win7 and 8.1, but 2 on 10+
   if (SKIF_Util_IsWindows10OrGreater ( ))
     iUIMode                =   2;
+
+  HKEY hKey = nullptr;
   
-  iProcessSort             =   regKVProcessSort            .getData ( );
-  if (regKVProcessIncludeAll   .hasData())
-    bProcessIncludeAll     =   regKVProcessIncludeAll      .getData ( );
-  if (regKVProcessSortAscending.hasData())
-    bProcessSortAscending  =   regKVProcessSortAscending   .getData ( );
-  if (regKVProcessRefreshInterval.hasData())
-    iProcessRefreshInterval=   regKVProcessRefreshInterval .getData ( );
+  LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\)", &hKey);
 
-  bLibraryIgnoreArticles   =   regKVLibraryIgnoreArticles  .getData ( );
+  if (lsKey != ERROR_SUCCESS)
+    hKey = nullptr;
+  
+  iProcessSort             =   regKVProcessSort            .getData (&hKey);
+  if (regKVProcessIncludeAll   .hasData(&hKey))
+    bProcessIncludeAll     =   regKVProcessIncludeAll      .getData (&hKey);
+  if (regKVProcessSortAscending.hasData(&hKey))
+    bProcessSortAscending  =   regKVProcessSortAscending   .getData (&hKey);
+  if (regKVProcessRefreshInterval.hasData(&hKey))
+    iProcessRefreshInterval=   regKVProcessRefreshInterval .getData (&hKey);
 
-  bLowBandwidthMode        =   regKVLowBandwidthMode       .getData ( );
-  bInstantPlayGOG          =   regKVInstantPlayGOG         .getData ( );
-  bInstantPlaySteam        =   regKVInstantPlaySteam       .getData ( );
+  bLibraryIgnoreArticles   =   regKVLibraryIgnoreArticles  .getData (&hKey);
+
+  bLowBandwidthMode        =   regKVLowBandwidthMode       .getData (&hKey);
+  bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
+  bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
   
   // UI elements that can be toggled
 
-  if (regKVUIBorders.hasData())
-    bUIBorders             =   regKVUIBorders              .getData ( );
-  if (regKVUITooltips.hasData())
-    bUITooltips            =   regKVUITooltips             .getData ( );
-  if (regKVUIStatusBar.hasData())
-    bUIStatusBar           =   regKVUIStatusBar            .getData ( );
-  if (regKVDPIScaling.hasData())
-    bDPIScaling            =   regKVDPIScaling             .getData ( );
-  if (regKVWin11Corners.hasData())
-    bWin11Corners          =   regKVWin11Corners           .getData ( );
+  if (regKVUIBorders.hasData(&hKey))
+    bUIBorders             =   regKVUIBorders              .getData (&hKey);
+  if (regKVUITooltips.hasData(&hKey))
+    bUITooltips            =   regKVUITooltips             .getData (&hKey);
+  if (regKVUIStatusBar.hasData(&hKey))
+    bUIStatusBar           =   regKVUIStatusBar            .getData (&hKey);
+  if (regKVDPIScaling.hasData(&hKey))
+    bDPIScaling            =   regKVDPIScaling             .getData (&hKey);
+  if (regKVWin11Corners.hasData(&hKey))
+    bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
 
   // Store libraries
 
-  iLibrarySort             =   regKVLibrarySort            .getData ( );
+  iLibrarySort             =   regKVLibrarySort            .getData (&hKey);
   
-  if (regKVLibrarySteam.hasData())
-    bLibrarySteam          =   regKVLibrarySteam           .getData ( );
+  if (regKVLibrarySteam.hasData(&hKey))
+    bLibrarySteam          =   regKVLibrarySteam           .getData (&hKey);
 
-  if (regKVLibraryEpic.hasData())
-    bLibraryEpic           =   regKVLibraryEpic            .getData ( );
+  if (regKVLibraryEpic.hasData(&hKey))
+    bLibraryEpic           =   regKVLibraryEpic            .getData (&hKey);
 
-  if (regKVLibraryGOG.hasData())
-    bLibraryGOG            =   regKVLibraryGOG             .getData ( );
+  if (regKVLibraryGOG.hasData(&hKey))
+    bLibraryGOG            =   regKVLibraryGOG             .getData (&hKey);
 
-  if (regKVLibraryXbox.hasData())
-    bLibraryXbox           =   regKVLibraryXbox            .getData ( );
+  if (regKVLibraryXbox.hasData(&hKey))
+    bLibraryXbox           =   regKVLibraryXbox            .getData (&hKey);
 
-  if (regKVLibraryCustom.hasData())
-    bLibraryCustom         =   regKVLibraryCustom          .getData ( );
+  if (regKVLibraryCustom.hasData(&hKey))
+    bLibraryCustom         =   regKVLibraryCustom          .getData (&hKey);
 
-//bServiceMode             =   regKVServiceMode            .getData ( );
-  bHorizonMode             =   regKVHorizonMode            .getData ( );
+//bServiceMode             =   regKVServiceMode            .getData (&hKey);
+  bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
 
-  if (regKVHorizonModeAuto.hasData ())
-    bHorizonModeAuto       =   regKVHorizonModeAuto        .getData ( );
+  if (regKVHorizonModeAuto.hasData (&hKey))
+    bHorizonModeAuto       =   regKVHorizonModeAuto        .getData (&hKey);
 
-  bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData( );
-  bFirstLaunch             =   regKVFirstLaunch            .getData ( );
-  bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData ( );
-  bAllowBackgroundService  =   regKVAllowBackgroundService .getData ( );
-  bAutoUpdate              =   regKVAutoUpdate             .getData ( );
+  bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData(&hKey);
+  bFirstLaunch             =   regKVFirstLaunch            .getData (&hKey);
+  bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData (&hKey);
+  bAllowBackgroundService  =   regKVAllowBackgroundService .getData (&hKey);
+  bAutoUpdate              =   regKVAutoUpdate             .getData (&hKey);
   
-  if (regKVSDRMode.hasData())
-    iSDRMode               =   regKVSDRMode                .getData ( );
+  if (regKVSDRMode.hasData(&hKey))
+    iSDRMode               =   regKVSDRMode                .getData (&hKey);
 
-  if (regKVHDRMode.hasData())
-    iHDRMode               =   regKVHDRMode                .getData ( );
-  if (regKVHDRBrightness.hasData())
+  if (regKVHDRMode.hasData(&hKey))
+    iHDRMode               =   regKVHDRMode                .getData (&hKey);
+  if (regKVHDRBrightness.hasData(&hKey))
   {
-    iHDRBrightness         =   regKVHDRBrightness          .getData ( );
+    iHDRBrightness         =   regKVHDRBrightness          .getData (&hKey);
     
     // Reset to 203 nits (the default) if outside of the acceptable range of 80-400 nits
     if (iHDRBrightness < 80 || 400 < iHDRBrightness)
       iHDRBrightness       =   203;
   }
   
-  if (regKVUIMode.hasData())
-    iUIMode                =   regKVUIMode                 .getData ( );
+  if (regKVUIMode.hasData(&hKey))
+    iUIMode                =   regKVUIMode                 .getData (&hKey);
   
-  if (regKVDiagnostics.hasData())
-    iDiagnostics           =   regKVDiagnostics            .getData ( );
+  if (regKVDiagnostics.hasData(&hKey))
+    iDiagnostics           =   regKVDiagnostics            .getData (&hKey);
 
-  bDisableCFAWarning       =   regKVDisableCFAWarning      .getData ( );
-  bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData ( );
-  bStopOnInjection         = ! regKVDisableStopOnInjection .getData ( );
+  bDisableCFAWarning       =   regKVDisableCFAWarning      .getData (&hKey);
+  bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData (&hKey);
+  bStopOnInjection         = ! regKVDisableStopOnInjection .getData (&hKey);
 
   bMaximizeOnDoubleClick   = 
     SKIF_Util_GetDragFromMaximized ( )         // IF the OS prerequisites are enabled
-    ? regKVMaximizeOnDoubleClick.hasData ( )   // AND we have data in the registry
-      ? regKVMaximizeOnDoubleClick.getData ( ) // THEN use the data,
+    ? regKVMaximizeOnDoubleClick.hasData (&hKey)   // AND we have data in the registry
+      ? regKVMaximizeOnDoubleClick.getData (&hKey) // THEN use the data,
       : false                                  // otherwise default to false,
     : false;                                   // and false if OS prerequisites are disabled
 
-  bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData ( );
-  bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData ( );
-  bCloseToTray             =   regKVCloseToTray            .getData ( );
+  bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData (&hKey);
+  bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData (&hKey);
+  bCloseToTray             =   regKVCloseToTray            .getData (&hKey);
 
   // Do not allow AllowMultipleInstances and CloseToTray at the same time
   if (  bAllowMultipleInstances && bCloseToTray)
@@ -239,68 +246,71 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     regKVAllowMultipleInstances .putData (bAllowMultipleInstances);
   }
 
-  if (regKVAutoStopBehavior.hasData())
-    iAutoStopBehavior      =   regKVAutoStopBehavior       .getData ( );
+  if (regKVAutoStopBehavior.hasData(&hKey))
+    iAutoStopBehavior      =   regKVAutoStopBehavior       .getData (&hKey);
 
-  if (regKVNotifications.hasData())
-    iNotifications         =   regKVNotifications          .getData ( );
+  if (regKVNotifications.hasData(&hKey))
+    iNotifications         =   regKVNotifications          .getData (&hKey);
 
-  if (regKVGhostVisibility.hasData())
-    iGhostVisibility       =   regKVGhostVisibility        .getData ( );
+  if (regKVGhostVisibility.hasData(&hKey))
+    iGhostVisibility       =   regKVGhostVisibility        .getData (&hKey);
 
-  if (regKVStyle.hasData())
-    iStyle  =  iStyleTemp  =   regKVStyle                  .getData ( );
+  if (regKVStyle.hasData(&hKey))
+    iStyle  =  iStyleTemp  =   regKVStyle                  .getData (&hKey);
 
-  if (regKVLogging.hasData())
-    iLogging               =   regKVLogging                .getData ( );
+  if (regKVLogging.hasData(&hKey))
+    iLogging               =   regKVLogging                .getData (&hKey);
 
-  if (regKVDimCovers.hasData())
-    iDimCovers             =   regKVDimCovers              .getData ( );
+  if (regKVDimCovers.hasData(&hKey))
+    iDimCovers             =   regKVDimCovers              .getData (&hKey);
 
-  if (regKVCheckForUpdates.hasData())
-    iCheckForUpdates       =   regKVCheckForUpdates        .getData ( );
+  if (regKVCheckForUpdates.hasData(&hKey))
+    iCheckForUpdates       =   regKVCheckForUpdates        .getData (&hKey);
 
-  if (regKVIgnoreUpdate.hasData())
-    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getData ( );
+  if (regKVIgnoreUpdate.hasData(&hKey))
+    wsIgnoreUpdate         =   regKVIgnoreUpdate           .getData (&hKey);
 
-  if (regKVUpdateChannel.hasData())
-    wsUpdateChannel        =   regKVUpdateChannel          .getData ( );
+  if (regKVUpdateChannel.hasData(&hKey))
+    wsUpdateChannel        =   regKVUpdateChannel          .getData (&hKey);
   
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;
   iLastSelectedGame        =   STEAM_APPID; // Default selected game
   iLastSelectedStore       =   0;
 
-  if (regKVRememberLastSelected.hasData())
-    bRememberLastSelected  =   regKVRememberLastSelected   .getData ( );
+  if (regKVRememberLastSelected.hasData(&hKey))
+    bRememberLastSelected  =   regKVRememberLastSelected   .getData (&hKey);
 
   if (bRememberLastSelected)
   {
-    if (regKVLastSelectedGame.hasData())
-      iLastSelectedGame    =   regKVLastSelectedGame       .getData ( );
+    if (regKVLastSelectedGame.hasData(&hKey))
+      iLastSelectedGame    =   regKVLastSelectedGame       .getData (&hKey);
 
-    if (regKVLastSelectedStore.hasData())
-      iLastSelectedStore  =   regKVLastSelectedStore      .getData ( );
+    if (regKVLastSelectedStore.hasData(&hKey))
+      iLastSelectedStore  =   regKVLastSelectedStore      .getData (&hKey);
   }
 
-  if (regKVPath.hasData())
-    wsPath                 =   regKVPath                   .getData ( );
+  if (regKVPath.hasData(&hKey))
+    wsPath                 =   regKVPath                   .getData (&hKey);
 
-  if (regKVAutoUpdateVersion.hasData())
-    wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData ( );
+  if (regKVAutoUpdateVersion.hasData(&hKey))
+    wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData (&hKey);
   
-  bDeveloperMode           =   regKVDeveloperMode          .getData ( );
+  bDeveloperMode           =   regKVDeveloperMode          .getData (&hKey);
 
-  if (regKVEfficiencyMode.hasData())
-    bEfficiencyMode        =   regKVEfficiencyMode         .getData ( );
+  if (regKVEfficiencyMode.hasData(&hKey))
+    bEfficiencyMode        =   regKVEfficiencyMode         .getData (&hKey);
   else
     bEfficiencyMode        =   SKIF_Util_IsWindows11orGreater ( ); // Win10 and below: false, Win11 and above: true
   
-  if (regKVFadeCovers.hasData())
-    bFadeCovers            =   regKVFadeCovers             .getData ( );
+  if (regKVFadeCovers.hasData(&hKey))
+    bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 
   // Warnings
-  bWarningRTSS             =   regKVWarningRTSS            .getData ( );
+  bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
+
+  if (hKey != nullptr)
+    RegCloseKey (hKey);
 
   // Windows stuff
 
