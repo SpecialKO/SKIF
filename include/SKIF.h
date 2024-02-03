@@ -144,5 +144,6 @@ extern float       fBottomDist;
 extern std::string SKIF_StatusBarText;
 extern std::string SKIF_StatusBarHelp;
 
+extern bool        PopulatedGames;
 extern bool        RepopulateGames;
 extern bool        RefreshSettingsTab;

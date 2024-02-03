@@ -71,6 +71,7 @@ std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
 std::atomic<bool>      gameWorkerRunning = false;
 std::atomic<uint32_t>  modAppId          = 0;
+bool                   PopulatedGames    = false;
 
 // Filter field
 char                   charFilter    [MAX_PATH + 2] = { };
@@ -4295,7 +4296,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   DWORD       current_time = SKIF_Util_timeGetTime ( );
   static bool update       = true;
-  static bool populated    = false;
 
   struct {
     uint32_t            appid = SKIF_STEAM_APPID;
@@ -4350,7 +4350,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     RepopulateGames = false;
     //gameWorkerRunning.store(true);
 
-    populated = false;
+    PopulatedGames = false;
   }
   
   else if (RepopulateGames)
@@ -4373,7 +4373,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   static lib_worker_thread_s* library_worker = nullptr;
 
-  if (! populated && library_worker == nullptr)
+  if (! PopulatedGames && library_worker == nullptr)
   {
     PLOG_INFO << "Populating library list...";
 
@@ -4848,7 +4848,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
-  else if (! populated && library_worker != nullptr && library_worker->iWorker == 1 && WaitForSingleObject (library_worker->hWorker, 0) == WAIT_OBJECT_0)
+  else if (! PopulatedGames && library_worker != nullptr && library_worker->iWorker == 1 && WaitForSingleObject (library_worker->hWorker, 0) == WAIT_OBJECT_0)
   {
 
     struct IconCache {
@@ -4974,8 +4974,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     delete library_worker;
     library_worker = nullptr;
 
-    populated    = true;
-    sort_changed = true;
+    PopulatedGames = true;
+    sort_changed   = true;
 
     PLOG_VERBOSE << "Swapped in the new library data!";
   }
@@ -6935,7 +6935,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
   }
   
-  if (loadCover && populated && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
+  if (loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
     // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
     // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.

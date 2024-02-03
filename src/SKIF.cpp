@@ -2811,7 +2811,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
       static float  UpdateAvailableWidth = 0.0f;
 
-      if (UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+      // Only open the update prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
+      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -3127,14 +3128,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::string AutoUpdatePopupTitle;
       static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && _registry.wsAutoUpdateVersion == _inject.SKVer32);
 
-      // SKIF launches too quickly so delay opening the popup a few frames as otherwise it'll just instantly close
-      if (AutoUpdateChanges && ImGui::GetFrameCount ( ) > 5)
+      if (AutoUpdateChanges)
       {
         AutoUpdateChanges = false;
         AutoUpdatePopup = PopupState_Open;
       }
-
-      if (AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      
+      // Only open the popup prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
+      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
       {
         AutoUpdatePopupWidth = 360.0f;
 
