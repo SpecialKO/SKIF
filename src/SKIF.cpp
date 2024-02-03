@@ -2781,7 +2781,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static SKIF_DirectoryWatch root_folder;
       static DWORD               root_folder_signaled = 0;
       const  DWORD               root_folder_auto_refresh = 1000;
-      if (root_folder.isSignaled (_path_cache.specialk_install, UITab_ALL))
+      if (SKIF_Notify_hWnd != NULL && SKIF_ImGui_hWnd != NULL && root_folder.isSignaled (_path_cache.specialk_install, UITab_ALL, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME))
       {
         root_folder_signaled = SKIF_Util_timeGetTime ( );
 
@@ -2790,7 +2790,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // if we were signaled more than 5 seconds ago, do the usual refesh
-      if (root_folder_signaled > 0 && root_folder_signaled + root_folder_auto_refresh < SKIF_Util_timeGetTime ( ))
+      //   ... or if we are refreshing the view!
+      if ((root_folder_signaled > 0 && root_folder_signaled + root_folder_auto_refresh < SKIF_Util_timeGetTime ( )) || hotkeyCtrlR || hotkeyF5)
       {   root_folder_signaled = 0;
         
         // Destroy the timer
