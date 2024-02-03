@@ -1098,6 +1098,8 @@ SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
         "GetFileVersionInfoExW"                                            );
   */
 
+  DWORD start = SKIF_Util_timeGetTime1 ( );
+
   UINT cbTranslatedBytes = 0,
        cbProductBytes    = 0,
        cbVersionBytes    = 0;
@@ -1150,13 +1152,14 @@ SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
                          wszPropName,
         static_cast_p2p <void> (&wszVersion),
                                 &cbVersionBytes );
-
-      if (cbVersionBytes)
-        return wszVersion;
     }
   }
 
-  return L"";
+  DWORD stop = SKIF_Util_timeGetTime1 ( );
+
+  PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
+
+  return (cbVersionBytes) ? wszVersion : L"";
 }
 
 std::wstring
@@ -1176,6 +1179,8 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
                 LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "GetFileVersionInfoExW"                                            );
   */
+
+  DWORD start = SKIF_Util_timeGetTime1 ( );
 
   UINT cbTranslatedBytes = 0,
        cbVersionBytes    = 0;
@@ -1215,12 +1220,13 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
                             wszPropName,
             static_cast_p2p <void> (&wszVersion),
                                     &cbVersionBytes );
-
-    if (cbVersionBytes)
-      return wszVersion;
   }
 
-  return L"";
+  DWORD stop = SKIF_Util_timeGetTime1 ( );
+
+  PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
+
+  return (cbVersionBytes) ? wszVersion  : L"";
 }
 
 std::wstring
