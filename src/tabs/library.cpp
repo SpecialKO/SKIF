@@ -3661,7 +3661,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
         if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
         {
-          if (StrStrIW (pValue.get(), pApp->install_dir.c_str()) != NULL)
+          if (StrStrIW (pValue.get(), (pApp->install_dir + LR"(\)").c_str()) != NULL)
           {
             std::wstring dll_full_path = std::wstring(pValue.get());
               
