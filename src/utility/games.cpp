@@ -262,8 +262,9 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
     []( const std::pair <std::string, app_record_s>& a,
         const std::pair <std::string, app_record_s>& b ) -> int
     {
-        return a.second.skif.pinned >
-               b.second.skif.pinned;
+      // Use the highest value between SKIF's pinned value, or 0 / Steam's pinned value if SKIF's is unset
+      return std::max (a.second.skif.pinned, (a.second.skif.pinned == -1) ? a.second.steam.shared.favorite : 0) >
+             std::max (b.second.skif.pinned, (b.second.skif.pinned == -1) ? b.second.steam.shared.favorite : 0);
     }
   );
 }

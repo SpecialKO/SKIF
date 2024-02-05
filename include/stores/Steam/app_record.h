@@ -217,19 +217,6 @@ struct app_record_s {
     AppType      type      = AppType::Unknown; // Steam
   };
 
-  // Struct used to hold custom SKIF metadata about the game
-  struct custom_metadata_s {
-    std::string        name;
-    int            cpu_type =  0; // 0 = Common,             1 = x86,                 2 = x64,                0xFFFF = Any
-    int        instant_play =  0; // 0 = use global default, 1 = always instant play, 2 = never instant play
-    int           auto_stop =  0; // 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
-    int                uses =  0; // Number of times game has been launched
-    std::string        used = ""; // Unix timestamp (in string) of when the game was last used
-    std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
-    int              hidden =  0; // Visibility
-    int              pinned =  0; // Is app pinned? (0 = no; 1 = yes; 99 = Special K)
-  } skif;
-
   struct extended_config_s {
     struct vac_config_s    {
       uint32_t    vacmacmodulecache =     0;
@@ -419,6 +406,19 @@ struct app_record_s {
 
   std::string  ImGuiPushID           =  "";
   std::string  ImGuiLabelAndID       =  "";
+
+  // Struct used to hold custom SKIF metadata about the game
+  struct custom_metadata_s {
+    std::string        name;
+    int            cpu_type =  0; // 0 = Common,             1 = x86,                 2 = x64,                0xFFFF = Any
+    int        instant_play =  0; // 0 = use global default, 1 = always instant play, 2 = never instant play
+    int           auto_stop =  0; // 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
+    int                uses =  0; // Number of times game has been launched
+    std::string        used = ""; // Unix timestamp (in string) of when the game was last used
+    std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
+    int              hidden =  -1; // Is app hidden? (-1 = unset;   0 = no;   1 = yes)
+    int              pinned =  -1; // Is app pinned? (-1 = unset;   0 = no;   1 = yes;   99 = Special K)
+  } skif;
 
   struct {
     struct {

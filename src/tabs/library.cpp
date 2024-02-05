@@ -1772,7 +1772,7 @@ DrawGameContextMenu (app_record_s* pApp)
       
     ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
     
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
     ImGui::Separator ( );
@@ -1780,7 +1780,7 @@ DrawGameContextMenu (app_record_s* pApp)
     if (desktopShortcutPossible)
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_PAPERCLIP).x, ImGui::GetTextLineHeight()));
     
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.hidden == 1) ? ICON_FA_EYE : ICON_FA_EYE_SLASH).x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? ICON_FA_EYE : ICON_FA_EYE_SLASH).x, ImGui::GetTextLineHeight()));
 
     if (pApp->store == app_record_s::Store::Custom)
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_TRASH).x, ImGui::GetTextLineHeight()));
@@ -1795,9 +1795,9 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelPin   =   "Favorite";
     constexpr char* labelUnpin = "Unfavorite";
 
-    if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
+    if (ImGui::Selectable ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
     {
-      pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 1;
+      pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
 
       UpdateJsonMetaData  ( pApp, true);
 
@@ -1845,9 +1845,9 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelHide   =   "Hide";
     constexpr char* labelUnhide = "Unhide";
     
-    if (ImGui::Selectable ((pApp->skif.hidden == 1) ? labelUnhide : labelHide, false, ImGuiSelectableFlags_SpanAllColumns))
+    if (ImGui::Selectable ((pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? labelUnhide : labelHide, false, ImGuiSelectableFlags_SpanAllColumns))
     {
-      pApp->skif.hidden =  (pApp->skif.hidden == 1) ? 0 : 1;
+      pApp->skif.hidden =  (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? 0 : 1;
 
       UpdateJsonMetaData  ( pApp, true);
 
@@ -1871,7 +1871,7 @@ DrawGameContextMenu (app_record_s* pApp)
     
     ImGui::TextColored (
                 ImColor   (245, 66, 66, 255),
-                  (pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
+                  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
                           );
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
@@ -1885,7 +1885,7 @@ DrawGameContextMenu (app_record_s* pApp)
     
     ImGui::TextColored (
                 ImColor   (200, 200, 200, 255),
-                  (pApp->skif.hidden == 1) ? ICON_FA_EYE : ICON_FA_EYE_SLASH
+                  (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? ICON_FA_EYE : ICON_FA_EYE_SLASH
                             );
 
     if (pApp->store == app_record_s::Store::Custom)
@@ -2109,21 +2109,17 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
         }
 
-        if (pApp->skif.cpu_type != 0)
-        {
-          if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
-            SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
-        }
-
-        if (ImGui::MenuItem ("Visibility",  (pApp->skif.hidden) ?  "Hidden" :  "Visible"))
-          SKIF_Util_SetClipboardData   (    (pApp->skif.hidden) ? L"Hidden" : L"Visible");
         if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
           SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
         SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
         if (ImGui::MenuItem ("Last Used",                          pApp->skif.used_formatted.c_str()))
           SKIF_Util_SetClipboardData   (         SK_UTF8ToWideChar(pApp->skif.used));
-        if (ImGui::MenuItem ("Favorited",          std::to_string (pApp->skif.pinned).c_str()))
-          SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.pinned));
+        if (ImGui::MenuItem ("CPU Architecture", std::to_string (pApp->skif.cpu_type).c_str()))
+          SKIF_Util_SetClipboardData (           std::to_wstring(pApp->skif.cpu_type));
+        if (ImGui::MenuItem ("Favorited",        std::to_string (pApp->skif.pinned).c_str()))
+          SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->skif.pinned));
+        if (ImGui::MenuItem ("Hidden",           std::to_string (pApp->skif.hidden).c_str()))
+          SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->skif.hidden));
 
         ImGui::PopID        ( );
 
@@ -2141,10 +2137,10 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (                          pApp->steam.manifest_path);
           if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
             SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
-          if (ImGui::MenuItem ("Visibility",  (pApp->steam.shared.hidden) ?  "Hidden" :  "Visible"))
-            SKIF_Util_SetClipboardData   (    (pApp->steam.shared.hidden) ? L"Hidden" : L"Visible");
-          if (ImGui::MenuItem ("Favorited",          std::to_string (pApp->steam.shared.favorite).c_str()))
-            SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->steam.shared.favorite));
+          if (ImGui::MenuItem ("Favorited",        std::to_string (pApp->steam.shared.favorite).c_str()))
+            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.favorite));
+          if (ImGui::MenuItem ("Hidden",           std::to_string (pApp->steam.shared.hidden).c_str()))
+            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.hidden));
           ImGui::PopID        ( );
         }
 
@@ -4573,10 +4569,10 @@ SKIF_UI_Tab_DrawLibrary (void)
               std::string keyName         = "";
               int         keyCPU          =  0;
               int         keyAutoStop     =  0;
-              int         keyHidden       = app.second.steam.shared.hidden;   // will be 1 for hidden Steam games; 0 for the rest
+              int         keyHidden       = -1;   // will be 1 for hidden Steam games; 0 for the rest
               int         keyUses         =  0;
               std::string keyUsed         = "";
-              int         keyPinned       = app.second.steam.shared.favorite; // will be 1 for favorited Steam games; 0 for the rest
+              int         keyPinned       = -1; // will be 1 for favorited Steam games; 0 for the rest
 
               // Special K defaults to pinned
               if (isSpecialK)
@@ -4667,7 +4663,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           // Hide any... uhm... hidden... games...
-          if (app.second.skif.hidden == 1 && ! _registry._LibraryHidden)
+          if (! _registry._LibraryHidden && (app.second.skif.hidden == 1 || (app.second.skif.hidden == -1 && app.second.steam.shared.hidden == 1)))
           {
             PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has been hidden; ignoring!";
 
@@ -4677,7 +4673,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // Hide all non-hidden games if we are in "hidden mode", lol?
           // Except for Special K, obviously
-          else if (app.second.skif.hidden == 0 && _registry._LibraryHidden && ! isSpecialK)
+          else if (_registry._LibraryHidden && ! isSpecialK && (app.second.skif.hidden == 0 || (app.second.skif.hidden == -1 && app.second.steam.shared.hidden == 0)))
           {
             app.second.id = 0;
             continue;
@@ -5610,7 +5606,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       continue;
 
     // Separate pinned from unpinned
-    if (app.second.skif.pinned > 0)
+    if (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
       pinned++;
     else if (pinned > 0)
     {
@@ -7592,13 +7588,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (cached_hidden_load)
       {
-        cached_hidden          = (bool)pApp->skif.hidden;
+        cached_hidden          = (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1));
         cached_hidden_load     = false;
       }
 
       if (cached_pinned_load)
       {
-        cached_pinned          = (pApp->skif.pinned > 0);
+        cached_pinned          = (pApp->skif.pinned  > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
         cached_pinned_load     = false;
       }
 
@@ -7833,11 +7829,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::SameLine        ( );
       ImGui::Spacing         ( );
       ImGui::SameLine        ( );
-      ImGui::Checkbox        ("Hide game###HideInLibrary", &cached_hidden);
+      ImGui::Checkbox        ("Hidden###HideInLibrary", &cached_hidden);
       ImGui::SameLine        ( );
       ImGui::Spacing         ( );
       ImGui::SameLine        ( );
-      ImGui::Checkbox        ("Pin game###PinInLibrary", &cached_pinned);
+      ImGui::Checkbox        ("Favorite###PinInLibrary", &cached_pinned);
       ImGui::TreePop         ( );
 
     ImGui::TreePop         ( );
@@ -7862,13 +7858,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       pApp->skif.auto_stop    = cached_auto_stop;
       pApp->skif.instant_play = cached_instant_play;
 
-      if ((int)cached_hidden != pApp->skif.hidden)
+      if (cached_hidden != (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)))
       {
         repopulate            = true;
         pApp->skif.hidden     = (int)cached_hidden;
       }
 
-      if ((int)cached_pinned != pApp->skif.pinned)
+      if (cached_pinned != (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)))
       {
         resort                = true;
         pApp->skif.pinned     = (int)cached_pinned;
