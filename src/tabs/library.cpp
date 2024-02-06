@@ -530,13 +530,18 @@ LaunchGame (app_record_s* pApp)
           _registry._SuppressServiceNotification = true;
       }
 
-      // Kickstart service if it is currently not running
-      if (usingSK && ! _inject.bCurrentState)
-        _inject._StartStopInject (false, true, launchConfig->isElevated( ), pApp->skif.auto_stop);
+      if (_inject.bHasServlet)
+      {
+        // Kickstart service if it is currently not running
+        if (usingSK && ! _inject.bCurrentState)
+          _inject._StartStopInject (false, true, launchConfig->isElevated( ), pApp->skif.auto_stop);
 
-      // Stop the service if the user attempts to launch without SK
-      else if (! usingSK && _inject.bCurrentState)
-        _inject._StartStopInject (true);
+        // Stop the service if the user attempts to launch without SK
+        else if (! usingSK && _inject.bCurrentState)
+          _inject._StartStopInject (true);
+      }
+
+      PLOG_ERROR_IF (! _inject.bHasServlet) << "The injection service could not be started due to missing critical files! Please reinstall Special K using the latest installer.";
     }
 
     // Create the injection acknowledge events in case of a local injection
@@ -1302,7 +1307,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             : ImGuiSelectableFlags_None)))
     launchGameMenu = true;
 
-  if (pApp->specialk.injection.injection.type != InjectionType::Local)
+  if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
   {
     if (! _inject.bCurrentState)
       SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
@@ -1361,7 +1366,7 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
                                 "including steps such as cloud saves synchronization.");
           
-      if (pApp->specialk.injection.injection.type != InjectionType::Local)
+      if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
       {
         ImGui::PushStyleColor      (ImGuiCol_Text,
           ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
@@ -1487,96 +1492,99 @@ DrawGameContextMenu (app_record_s* pApp)
       if (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
         SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
                                   "including steps such as cloud saves synchronization.");
-      
-      if (! disabled)
-        ImGui::PushStyleColor      (ImGuiCol_Text,
-          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-        );
 
-      if (ImGui::BeginMenu ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSKMenu"))
+      if (_inject.bHasServlet)
       {
-        bool sepCustomSKIF = true,
-             sepCustomUser = true;
+        if (! disabled)
+          ImGui::PushStyleColor      (ImGuiCol_Text,
+            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+          );
 
-        for (auto& _launch_cfg : pApp->launch_configs)
+        if (ImGui::BeginMenu ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSKMenu"))
         {
-          if (! _launch_cfg.second.valid ||
-                _launch_cfg.second.duplicate_exe_args)
-            continue;
+          bool sepCustomSKIF = true,
+               sepCustomUser = true;
 
-          // Filter out launch configs requiring not owned DLCs
-          if (! _launch_cfg.second.owns_dlc)
-            continue;
-
-          auto& _launch = _launch_cfg.second;
-
-          // Separators between official / user / SKIF launch configs
-          if (_launch_cfg.second.custom_user && sepCustomUser)
+          for (auto& _launch_cfg : pApp->launch_configs)
           {
-            sepCustomUser = false;
-            ImGui::Separator ( );
-          }
+            if (! _launch_cfg.second.valid ||
+                  _launch_cfg.second.duplicate_exe_args)
+              continue;
 
-          else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
-          {
-            sepCustomSKIF = false;
-            ImGui::Separator ( );
-          }
+            // Filter out launch configs requiring not owned DLCs
+            if (! _launch_cfg.second.owns_dlc)
+              continue;
 
-          bool localDisabled = (_launch.injection.injection.type == InjectionType::Local);
+            auto& _launch = _launch_cfg.second;
 
-          char        szButtonLabel [256] = { };
+            // Separators between official / user / SKIF launch configs
+            if (_launch_cfg.second.custom_user && sepCustomUser)
+            {
+              sepCustomUser = false;
+              ImGui::Separator ( );
+            }
 
-          sprintf_s ( szButtonLabel, 255,
-                        "%s%s%s###GameContextMenu_InstantPlayWoSKMenu-%d",
-                                (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
-                         (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
-                          _launch.getDescriptionUTF8().empty ()
-                            ? _launch.getExecutableFileNameUTF8().c_str ()
-                            : _launch.getDescriptionUTF8().c_str (),
-                          _launch.id);
+            else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
+            {
+              sepCustomSKIF = false;
+              ImGui::Separator ( );
+            }
+
+            bool localDisabled = (_launch.injection.injection.type == InjectionType::Local);
+
+            char        szButtonLabel [256] = { };
+
+            sprintf_s ( szButtonLabel, 255,
+                          "%s%s%s###GameContextMenu_InstantPlayWoSKMenu-%d",
+                                  (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
+                           (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
+                            _launch.getDescriptionUTF8().empty ()
+                              ? _launch.getExecutableFileNameUTF8().c_str ()
+                              : _launch.getDescriptionUTF8().c_str (),
+                            _launch.id);
           
-          if (disabled || localDisabled)
-          {
-            ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-          }
-          else
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+            if (disabled || localDisabled)
+            {
+              ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
+              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+            }
+            else
+              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
-          if (ImGui::Selectable (szButtonLabel))
-          {
-            launchConfig = &_launch_cfg.second;
-            launchInstant = launchWithoutSK = true;
-          }
+            if (ImGui::Selectable (szButtonLabel))
+            {
+              launchConfig = &_launch_cfg.second;
+              launchInstant = launchWithoutSK = true;
+            }
           
-          if (disabled || localDisabled)
-          {
-            ImGui::PopStyleColor  ( );
-            ImGui::PopItemFlag    ( );
-          }
-          else
-            ImGui::PopStyleColor  ( );
+            if (disabled || localDisabled)
+            {
+              ImGui::PopStyleColor  ( );
+              ImGui::PopItemFlag    ( );
+            }
+            else
+              ImGui::PopStyleColor  ( );
 
-          std::string hoverText = _launch.getExecutableFullPathUTF8();
+            std::string hoverText = _launch.getExecutableFullPathUTF8();
 
-          if (! _launch.getLaunchOptionsUTF8().empty())
-            hoverText += (" " + _launch.getLaunchOptionsUTF8());
+            if (! _launch.getLaunchOptionsUTF8().empty())
+              hoverText += (" " + _launch.getLaunchOptionsUTF8());
 
-          if (! disabled && ! localDisabled)
-            SKIF_ImGui_SetMouseCursorHand ( );
+            if (! disabled && ! localDisabled)
+              SKIF_ImGui_SetMouseCursorHand ( );
           
-          SKIF_ImGui_SetHoverText       (hoverText.c_str());
+            SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
-          if (localDisabled)
-            SKIF_ImGui_SetHoverTip      ("This option is not available due to a local injection being used.");
+            if (localDisabled)
+              SKIF_ImGui_SetHoverTip      ("This option is not available due to a local injection being used.");
+          }
+
+          ImGui::EndMenu ();
         }
-
-        ImGui::EndMenu ();
-      }
       
-      if (! disabled)
-        ImGui::PopStyleColor ( );
+        if (! disabled)
+          ImGui::PopStyleColor ( );
+      }
       
       if (disabled)
         ImGui::PopStyleColor ( );
@@ -2740,14 +2748,12 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 static void
 GetInjectionSummary (app_record_s* pApp)
 {
-  if (pApp == nullptr || pApp->id == SKIF_STEAM_APPID)
+  if (pApp == nullptr)
     return;
 
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  // All _cache calls in this must be prefaced with ! pApp->loading to prevent
-  //   reads from the _cache while a worker thread is writing to it.
 
 #pragma region _IsLocalDLLFileOutdated
 
@@ -2907,8 +2913,10 @@ GetInjectionSummary (app_record_s* pApp)
   else
   {
     // Most will use global injection, so default to this in situations where the data is actually being loaded.
-    ImGui::Text ("v %s", pApp->specialk.injection.dll.version_utf8.c_str());
-    //ImGui::NewLine ( );
+    if (! pApp->specialk.injection.dll.version_utf8.empty())
+      ImGui::Text    ("v %s", pApp->specialk.injection.dll.version_utf8.c_str());
+    else
+      ImGui::NewLine ( );
   }
 
   // Config Root
@@ -3392,7 +3400,7 @@ Cache=false)";
   ImVec2 posButton =
      ImGui::GetCursorPos ( );
 
-  if (loading || pApp->_status.running || pApp->_status.updating)
+  if (loading || pApp->_status.running || pApp->_status.updating || buttonPending)
   {
     buttonLabel =               (loading) ? "Loading..." :
                   (pApp->_status.running) ? "Running..." :
@@ -3400,10 +3408,6 @@ Cache=false)";
     buttonFlags = ImGuiButtonFlags_Disabled;
     ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
   }
-
-  // Disable the button for the injection service types if the servlets are missing
-  if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
-    SKIF_ImGui_PushDisableState ( );
 
   // Horizontal center-align
   ImGui::SetCursorPosX (
@@ -3566,14 +3570,10 @@ Cache=false)";
     }
   }
 
-  // Disable the button for the injection service types if the servlets are missing
-  if ((! pApp->loading && ! _inject.bHasServlet && pApp->specialk.injection.injection.type != InjectionType::Local) || buttonPending)
-    SKIF_ImGui_PopDisableState  ( );
-
   if (buttonPending)
     SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
 
-  if (loading || pApp->_status.running || pApp->_status.updating)
+  if (loading || pApp->_status.running || pApp->_status.updating || buttonPending)
     ImGui::PopStyleColor ( );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
@@ -3606,6 +3606,199 @@ Cache=false)";
       EmptySpaceMenu == PopupState_Closed)
   {
     EmptySpaceMenu = PopupState_Open;
+  }
+
+  // Bottom bar: Disable Special K
+  if ( pApp->specialk.injection.injection.type != InjectionType::Local )
+  {
+    ImGui::SetCursorPosY (
+      ImGui::GetWindowHeight () - fBottomDist);
+
+    if (_registry.bUIBorders)
+      ImGui::SetCursorPosY (
+        ImGui::GetCursorPosY () -
+        ImGui::GetStyle      ().ItemSpacing.y -
+        ImGui::GetStyle      ().WindowBorderSize * 2.0f);
+
+    ImGui::Separator     ( );
+
+    SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
+                                  ImVec2 (ImGui::GetContentRegionAvail ().x,
+                                std::max (ImGui::GetContentRegionAvail ().y,
+                                          ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                          )),
+                                  ImGuiWindowFlags_NavFlattened      |
+                                  ImGuiWindowFlags_NoScrollbar       |
+                                  ImGuiWindowFlags_NoScrollWithMouse |
+                                  ImGuiWindowFlags_NoBackground
+    );
+
+    auto _BlacklistCfg =
+    [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
+    void
+    {
+      bool blacklist =
+        launch_cfg.isBlacklisted ( );
+      bool blacklist_pattern =
+        launch_cfg.isExecutableFullPathValid () &&
+        _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
+
+      char          szButtonLabel [256] = { };
+
+      if (menu)
+        sprintf_s ( szButtonLabel, 255,
+                      " for %s###DisableSpecialK-%d",
+                        launch_cfg.getDescriptionUTF8().empty()
+                          ? launch_cfg.getExecutableFileNameUTF8().c_str ()
+                          : launch_cfg.getDescriptionUTF8().c_str (),
+                        launch_cfg.id);
+      else
+        sprintf_s ( szButtonLabel, 255,
+                      " Disable Special K###DisableSpecialK%d",
+                        launch_cfg.id );
+
+      if (blacklist_pattern)
+      {
+        blacklist = true;
+        SKIF_ImGui_PushDisableState ( );
+      }
+          
+      if (ImGui::Checkbox (szButtonLabel,   &blacklist))
+        launch_cfg.setBlacklisted (blacklist);
+
+      if (blacklist_pattern)
+      {
+        SKIF_ImGui_PopDisableState ( );
+        SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.");
+      }
+
+      SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
+    };
+
+    if ( ! _inject.bHasServlet )
+    {
+      ImGui::BeginGroup      ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine        ( );
+      ImGui::TextDisabled    ("Special K is unavailable due to missing files.");
+      ImGui::EndGroup        ( );
+      SKIF_ImGui_SetHoverTip ("Please reinstall Special K using the latest available installer.");
+    }
+
+    // Only show the bottom options if there's some launch configs, and the first one is valid...
+    else if ( ! pApp->launch_configs.empty()) //&&
+                //pApp->launch_configs[0].isExecutableFileNameValid())
+    {
+      /*
+      bool elevate =
+        pApp->launch_configs[0].isElevated ( );
+
+      if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
+        pApp->launch_configs[0].setElevated (elevate);
+
+      ImGui::SameLine ( );
+      */
+
+      // Set horizontal position
+      ImGui::SetCursorPosX (
+        ImGui::GetCursorPosX  ( ) +
+        ImGui::GetColumnWidth ( ) -
+        ImGui::CalcTextSize   ("[] Disable Special K").x -
+        ImGui::GetStyle       ( ).ItemSpacing.x * 2
+      );
+
+      static uint32_t currAppId  = 0;
+      static int      numOfItems = 0;
+
+      if (currAppId != pApp->id)
+      {   currAppId  = pApp->id;
+
+        numOfItems = 0;
+
+        for ( auto& launch : pApp->launch_configs )
+        {
+          if (! launch.second.valid ||
+                launch.second.duplicate_exe)
+            continue;
+
+          numOfItems++;
+        }
+      }
+
+      // If there is 0-1 valid launch option
+      if (numOfItems <= 1)
+      {
+        _BlacklistCfg          (
+              pApp->launch_configs.begin ()->second, false );
+      }
+
+      // If there are more than one launch option
+      else
+      {
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX  ( ) +
+          14.0f * SKIF_ImGui_GlobalDPIScale
+        );
+
+        // Selectable is not as tall as Checkbox, so since we disabled 'Elevated Service', we need to push this one down a bit
+        ImGui::SetCursorPosY(
+          ImGui::GetCursorPosY  ( ) +
+            ImGui::GetStyle().FramePadding.y
+        );
+
+        if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
+        {
+          ImVec2 pos =
+            ImGui::GetCursorPos ( );
+
+          ImGui::SameLine     ( );
+
+          ImGui::SetNextWindowPos (
+            ImGui::GetCursorScreenPos ( ) -
+            ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
+          );
+
+          ImGui::OpenPopup    ("###DisableSK");
+          ImGui::SetCursorPos (pos);
+        }
+
+        if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
+        {
+          //std::set <std::wstring> _used_launches;
+          bool sepCustomSKIF = true,
+                sepCustomUser = true;
+
+          for ( auto& launch : pApp->launch_configs )
+          {
+            if (! launch.second.valid || 
+                  launch.second.duplicate_exe)
+              continue;
+
+            // Separators between official / user / SKIF launch configs
+
+            if (launch.second.custom_user && sepCustomUser)
+            {
+              sepCustomUser = false;
+              ImGui::Separator ( );
+            }
+
+            else if (launch.second.custom_skif && sepCustomSKIF)
+            {
+              sepCustomSKIF = false;
+              ImGui::Separator ( );
+            }
+
+            _BlacklistCfg (launch.second, true);
+          }
+
+          ImGui::EndMenu       ();
+        }
+      }
+    }
+
+    ImGui::EndChildFrame     ();
+
+    fBottomDist = ImGui::GetItemRectSize().y;
   }
 }
 
@@ -5012,7 +5205,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.dir_watch.isSignaled (pApp->install_dir, UITab_Library);
     }
 
-    // This eats references to _cache when it is being updated through a background thread
     int availableWorker = -1;
     int idx             = -1;
 
@@ -5976,206 +6168,20 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (_registry.bFadeCovers)
     ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
+  /*
   if (g_apps.empty() ||
      (pApp        != nullptr            &&
       pApp->id    == SKIF_STEAM_APPID   &&
       pApp->store == app_record_s::Store::Steam))
   {
-    _inject._GlobalInjectionCtl ();
+    _inject._GlobalInjectionCtl ( );
   }
-
-  else if (pApp != nullptr)
-  {
-    // References _cache (needs to be prefaced with ! pApp->loading)
+  
+  else*/ if (pApp != nullptr && ! isSpecialK)
     GetInjectionSummary (pApp);
 
-    if ( pApp->specialk.injection.injection.type != InjectionType::Local )
-    {
-      ImGui::SetCursorPosY (
-        ImGui::GetWindowHeight () - fBottomDist);
-
-      if (_registry.bUIBorders)
-        ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY () -
-          ImGui::GetStyle      ().ItemSpacing.y -
-          ImGui::GetStyle      ().WindowBorderSize * 2.0f);
-
-      ImGui::Separator     ( );
-
-      SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
-                                    ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                  std::max (ImGui::GetContentRegionAvail ().y,
-                                            ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
-                                           )),
-                                    ImGuiWindowFlags_NavFlattened      |
-                                    ImGuiWindowFlags_NoScrollbar       |
-                                    ImGuiWindowFlags_NoScrollWithMouse |
-                                    ImGuiWindowFlags_NoBackground
-      );
-
-      auto _BlacklistCfg =
-      [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
-      void
-      {
-        bool blacklist =
-          launch_cfg.isBlacklisted ( );
-        bool blacklist_pattern =
-          launch_cfg.isExecutableFullPathValid () &&
-          _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
-
-        char          szButtonLabel [256] = { };
-
-        if (menu)
-          sprintf_s ( szButtonLabel, 255,
-                        " for %s###DisableSpecialK-%d",
-                          launch_cfg.getDescriptionUTF8().empty()
-                            ? launch_cfg.getExecutableFileNameUTF8().c_str ()
-                            : launch_cfg.getDescriptionUTF8().c_str (),
-                          launch_cfg.id);
-        else
-          sprintf_s ( szButtonLabel, 255,
-                        " Disable Special K###DisableSpecialK%d",
-                          launch_cfg.id );
-
-        if (blacklist_pattern)
-        {
-          blacklist = true;
-          SKIF_ImGui_PushDisableState ( );
-        }
-          
-        if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-          launch_cfg.setBlacklisted (blacklist);
-
-        if (blacklist_pattern)
-        {
-          SKIF_ImGui_PopDisableState ( );
-          SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.");
-        }
-
-        SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
-      };
-
-      if ( ! _inject.bHasServlet )
-      {
-        ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
-      }
-
-      // Only show the bottom options if there's some launch configs, and the first one is valid...
-      else if ( ! pApp->launch_configs.empty()) //&&
-                  //pApp->launch_configs[0].isExecutableFileNameValid())
-      {
-        /*
-        bool elevate =
-          pApp->launch_configs[0].isElevated ( );
-
-        if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
-          pApp->launch_configs[0].setElevated (elevate);
-
-        ImGui::SameLine ( );
-        */
-
-        // Set horizontal position
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX  ( ) +
-          ImGui::GetColumnWidth ( ) -
-          ImGui::CalcTextSize   ("[] Disable Special K").x -
-          ImGui::GetStyle       ( ).ItemSpacing.x * 2
-        );
-
-        static uint32_t currAppId  = 0;
-        static int      numOfItems = 0;
-
-        if (currAppId != pApp->id)
-        {   currAppId  = pApp->id;
-
-          numOfItems = 0;
-
-          for ( auto& launch : pApp->launch_configs )
-          {
-            if (! launch.second.valid ||
-                  launch.second.duplicate_exe)
-              continue;
-
-            numOfItems++;
-          }
-        }
-
-        // If there is 0-1 valid launch option
-        if (numOfItems <= 1)
-        {
-          _BlacklistCfg          (
-                pApp->launch_configs.begin ()->second, false );
-        }
-
-        // If there are more than one launch option
-        else
-        {
-          ImGui::SetCursorPosX (
-            ImGui::GetCursorPosX  ( ) +
-            14.0f * SKIF_ImGui_GlobalDPIScale
-          );
-
-          // Selectable is not as tall as Checkbox, so since we disabled 'Elevated Service', we need to push this one down a bit
-          ImGui::SetCursorPosY(
-            ImGui::GetCursorPosY  ( ) +
-             ImGui::GetStyle().FramePadding.y
-          );
-
-          if (ImGui::Selectable (ICON_FA_BARS " Disable Special K "))
-          {
-            ImVec2 pos =
-              ImGui::GetCursorPos ( );
-
-            ImGui::SameLine     ( );
-
-            ImGui::SetNextWindowPos (
-              ImGui::GetCursorScreenPos ( ) -
-              ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
-            );
-
-            ImGui::OpenPopup    ("###DisableSK");
-            ImGui::SetCursorPos (pos);
-          }
-
-          if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
-          {
-            //std::set <std::wstring> _used_launches;
-            bool sepCustomSKIF = true,
-                 sepCustomUser = true;
-
-            for ( auto& launch : pApp->launch_configs )
-            {
-              if (! launch.second.valid || 
-                    launch.second.duplicate_exe)
-                continue;
-
-              // Separators between official / user / SKIF launch configs
-
-              if (launch.second.custom_user && sepCustomUser)
-              {
-                sepCustomUser = false;
-                ImGui::Separator ( );
-              }
-
-              else if (launch.second.custom_skif && sepCustomSKIF)
-              {
-                sepCustomSKIF = false;
-                ImGui::Separator ( );
-              }
-
-              _BlacklistCfg (launch.second, true);
-            }
-
-            ImGui::EndMenu       ();
-          }
-        }
-      }
-
-      ImGui::EndChildFrame     ();
-
-      fBottomDist = ImGui::GetItemRectSize().y;
-    }
-  }
+  else
+    _inject._GlobalInjectionCtl ( );
 
   if (_registry.bFadeCovers)
     ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha

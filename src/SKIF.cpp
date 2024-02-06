@@ -3126,7 +3126,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       
       static float       AutoUpdatePopupWidth          = 0.0f;
       static std::string AutoUpdatePopupTitle;
-      static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && _registry.wsAutoUpdateVersion == _inject.SKVer32);
+      static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && ! _inject.SKVer32.empty() && _inject.SKVer32 == _registry.wsAutoUpdateVersion);
 
       if (AutoUpdateChanges)
       {

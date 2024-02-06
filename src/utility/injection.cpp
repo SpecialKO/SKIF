@@ -812,18 +812,16 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   // Column 2            
   ImGui::BeginGroup      ();
 #ifdef _WIN64
-  if (SKVer32 == SKVer64)
+  if (SKVer32 == SKVer64 && ! SKVer64.empty())
     ImGui::TextUnformatted (("v " + SKVer64_utf8).c_str ());
   else
     ImGui::NewLine       ();
 #else
+  if (! SKVer32_utf8.empty())
     ImGui::TextUnformatted (("v " + SKVer32_utf8).c_str ());
 #endif
 
   // Config Root
-  //static std::wstring root_dir =
-  //  _path_cache.specialk_userdata.path;
-
   if (ImGui::Selectable ("Centralized"))
   {
     SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
@@ -1041,7 +1039,12 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   else {
-    ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Service is unavailable due to missing files.");
+    ImGui::BeginGroup      ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::SameLine        ( );
+    ImGui::TextDisabled    ("Special K is unavailable due to missing files.");
+    ImGui::EndGroup        ( );
+    SKIF_ImGui_SetHoverTip ("Please reinstall Special K using the latest available installer.");
   }
 
   ImGui::EndChildFrame ();
