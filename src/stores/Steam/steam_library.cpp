@@ -1253,6 +1253,7 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 bool
 SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_record_s > > *apps, std::set <std::string> *apptickets)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_RegistryWatch SteamActiveProcess (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess)", L"SteamActiveUser", FALSE);
   static bool               firstRun = true;
 
@@ -1271,6 +1272,17 @@ SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_re
     {
       if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
         g_SteamUserID      = *(DWORD*)pvData;
+      
+      // Update SKIF's fallback registry value if the user is new
+      if (g_SteamUserID != 0 && g_SteamUserID != _registry.uiSteamUser)
+      {
+        _registry.uiSteamUser = g_SteamUserID;
+        _registry.regKVSteamUser.putData (g_SteamUserID);
+      }
+
+      // If the registry does not hold a value, fall back to using the last recognized user
+      else if (g_SteamUserID == 0)
+        g_SteamUserID = _registry.uiSteamUser;
 
       if (RegGetValueW (hKey, NULL, L"pid", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
         g_dwSteamProcessID = *(DWORD*)pvData;
@@ -1280,7 +1292,7 @@ SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_re
 
     // Refresh stuff if the current user has changed
     if ((g_SteamUserID != oldUserID || g_dwSteamProcessID != oldProcID)
-               && apps != nullptr    &&          apptickets != nullptr)
+               && apps != nullptr   &&         apptickets != nullptr)
     {
       // Preload user's local config
       SKIF_Steam_PreloadUserConfig (g_SteamUserID, apps, apptickets);
@@ -1302,7 +1314,9 @@ SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_re
 SteamId3_t
 SKIF_Steam_GetCurrentUser (void)
 {
-  return g_SteamUserID;
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (g_SteamUserID != 0) ? g_SteamUserID : _registry.uiSteamUser;
 }
 
 DWORD

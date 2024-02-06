@@ -10,12 +10,12 @@ struct SKIF_RegistrySettings {
   //       also hold the actual current value as well, allowing us to
   //       move away from ugly stuff like
   // 
-  //  _registry.iLastSelectedGame = newValue;
-  //  _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
+  //  _registry.uiLastSelectedGame = newValue;
+  //  _registry.regKVLastSelectedGame.putData  (_registry.uiLastSelectedGame);
   // 
   //       and instead do things like
   // 
-  //  _registry.iLastSelectedGame.putData (newValue);
+  //  _registry.uiLastSelectedGame.putData (newValue);
   // 
   //       and have it automatically get stored in the registry as well.
 
@@ -315,7 +315,7 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
 
-  // Integers
+  // Integers (DWORDs)
 
   KeyValue <int> regKVLibrarySort =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -384,6 +384,10 @@ struct SKIF_RegistrySettings {
   KeyValue <int> regKVDiagnostics =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Diagnostics)" );
+
+  KeyValue <int> regKVSteamUser =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Steam User)" );
 
   // Wide Strings
 
@@ -489,8 +493,9 @@ struct SKIF_RegistrySettings {
   std::wstring wsAutoUpdateVersion; // Holds the version the auto-updater is trying to install
 
   // Misc settings
-  unsigned int iLastSelectedStore;
-  unsigned int iLastSelectedGame;
+  unsigned int uiLastSelectedStore;
+  unsigned int uiLastSelectedGame;
+  unsigned int uiSteamUser;         // This holds the last read ActiveUser from the Steam client. It's used to have something to fall back on when the Steam client is not running.
 
   // Windows stuff
   std::wstring wsSKIFdrvLocation;

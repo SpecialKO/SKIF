@@ -193,6 +193,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVLibraryCustom.hasData(&hKey))
     bLibraryCustom         =   regKVLibraryCustom          .getData (&hKey);
 
+  uiSteamUser              =   regKVSteamUser              .getData (&hKey);
+
 //bServiceMode             =   regKVServiceMode            .getData (&hKey);
   bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
 
@@ -275,8 +277,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;
-  iLastSelectedGame        =   STEAM_APPID; // Default selected game
-  iLastSelectedStore       =   0;
+  uiLastSelectedGame       =   STEAM_APPID; // Default selected game
+  uiLastSelectedStore      =   0;
 
   if (regKVRememberLastSelected.hasData(&hKey))
     bRememberLastSelected  =   regKVRememberLastSelected   .getData (&hKey);
@@ -284,10 +286,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (bRememberLastSelected)
   {
     if (regKVLastSelectedGame.hasData(&hKey))
-      iLastSelectedGame    =   regKVLastSelectedGame       .getData (&hKey);
+      uiLastSelectedGame   =   regKVLastSelectedGame       .getData (&hKey);
 
     if (regKVLastSelectedStore.hasData(&hKey))
-      iLastSelectedStore  =   regKVLastSelectedStore      .getData (&hKey);
+      uiLastSelectedStore  =   regKVLastSelectedStore      .getData (&hKey);
   }
 
   if (regKVPath.hasData(&hKey))

@@ -3671,10 +3671,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   
   if (! _registry._LastSelectedWritten)
   {
-    _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
-    _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
+    _registry.regKVLastSelectedGame.putData  (_registry.uiLastSelectedGame);
+    _registry.regKVLastSelectedStore.putData (_registry.uiLastSelectedStore);
     _registry._LastSelectedWritten = true;
-    PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
+    PLOG_INFO << "Wrote the last selected game to registry: " << _registry.uiLastSelectedGame << " (" << _registry.uiLastSelectedStore << ")";
   }
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
@@ -4031,10 +4031,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         if (! _registry._LastSelectedWritten)
         {
-          _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
-          _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
+          _registry.regKVLastSelectedGame.putData  (_registry.uiLastSelectedGame);
+          _registry.regKVLastSelectedStore.putData (_registry.uiLastSelectedStore);
           _registry._LastSelectedWritten = true;
-          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
+          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.uiLastSelectedGame << " (" << _registry.uiLastSelectedStore << ")";
         }
 
         SKIF_Shutdown = true;
@@ -4054,10 +4054,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PLOG_INFO << "System is suspending operation.";
         if (! _registry._LastSelectedWritten)
         {
-          _registry.regKVLastSelectedGame.putData  (_registry.iLastSelectedGame);
-          _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
+          _registry.regKVLastSelectedGame.putData  (_registry.uiLastSelectedGame);
+          _registry.regKVLastSelectedStore.putData (_registry.uiLastSelectedStore);
           _registry._LastSelectedWritten = true;
-          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.iLastSelectedGame << " (" << _registry.iLastSelectedStore << ")";
+          PLOG_INFO << "Wrote the last selected game to registry: " << _registry.uiLastSelectedGame << " (" << _registry.uiLastSelectedStore << ")";
         }
       }
 

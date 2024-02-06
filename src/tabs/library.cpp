@@ -5137,8 +5137,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       // Set to last selected if it can be found
       if (app.second.filtered == false &&
-          app.second.id       ==                      _registry.iLastSelectedGame &&
-          app.second.store    == (app_record_s::Store)_registry.iLastSelectedStore)
+          app.second.id       ==                      _registry.uiLastSelectedGame &&
+          app.second.store    == (app_record_s::Store)_registry.uiLastSelectedStore)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        = app.second.id;
@@ -5957,8 +5957,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Only update the last selected value if we're not in hidden view
       if (! _registry._LibraryHidden)
       {
-        _registry.iLastSelectedGame  =      selection.appid;
-        _registry.iLastSelectedStore = (int)selection.store;
+        _registry.uiLastSelectedGame  =      selection.appid;
+        _registry.uiLastSelectedStore = (int)selection.store;
       }
 
       if (update)
@@ -7497,10 +7497,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         //std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, newAppId);
         //SKIF_Util_SaveExtractExeIcon (SK_UTF8ToWideChar(charPath), SKIFCustomPath);
 
-        _registry.iLastSelectedGame  = newAppId;
-        _registry.iLastSelectedStore = (int)app_record_s::Store::Custom;
-        _registry.regKVLastSelectedGame .putData (_registry.iLastSelectedGame);
-        _registry.regKVLastSelectedStore.putData (_registry.iLastSelectedStore);
+        _registry.uiLastSelectedGame  = newAppId;
+        _registry.uiLastSelectedStore = (int)app_record_s::Store::Custom;
+        _registry.regKVLastSelectedGame .putData (_registry.uiLastSelectedGame);
+        _registry.regKVLastSelectedStore.putData (_registry.uiLastSelectedStore);
         RepopulateGames = true; // Rely on the RepopulateGames method instead
       }
 
