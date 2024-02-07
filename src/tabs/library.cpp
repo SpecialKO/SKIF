@@ -89,6 +89,7 @@ bool                   launchWithoutSK   = false;
 bool                   coverRefresh      = false; // This just triggers a refresh of the cover
 uint32_t               coverRefreshAppId = 0;
 int                    coverRefreshStore = 0;
+int                    numPinnedOnTop    = 0;
 
 // Support up to 15 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
@@ -150,11 +151,11 @@ extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
-#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // AppListInset1, AppListInset2, Injection_Summary_Frame (prev. 414.0f)
+#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f)
 // 1038px == 415px
 // 1000px == 377px (using 380px)
-//#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // AppListInset1
-//#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // AppListInset2
+//#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
+//#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // GameDetails
 
 struct terminate_process_s {
   uint32_t      pid = 0;
@@ -1777,9 +1778,12 @@ DrawGameContextMenu (app_record_s* pApp)
           (SteamShortcutPossible                     ||
           pApp->store == app_record_s::Store::Custom ||
           pApp->store == app_record_s::Store::GOG);
-      
+
     ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
-    
+
+    if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
+      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_THUMBTACK).x, ImGui::GetTextLineHeight()));
+
     ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
 
     //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
@@ -1800,11 +1804,28 @@ DrawGameContextMenu (app_record_s* pApp)
     if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
       ModifyGamePopup = PopupState_Open;
 
+    if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
+    {
+      if (ImGui::Selectable ("Favorite (pinned; max 5)", false, ImGuiSelectableFlags_SpanAllColumns))
+      {
+        pApp->skif.pinned =  51;
+        numPinnedOnTop++;
+
+        UpdateJsonMetaData  ( pApp, true);
+
+        SKIF_GamingCollection::SortApps (&g_apps);
+        sort_changed = true;
+      }
+    }
+
     constexpr char* labelPin   =   "Favorite";
     constexpr char* labelUnpin = "Unfavorite";
 
     if (ImGui::Selectable ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
     {
+      if (pApp->skif.pinned > 50)
+        numPinnedOnTop--;
+
       pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
 
       UpdateJsonMetaData  ( pApp, true);
@@ -1876,7 +1897,13 @@ DrawGameContextMenu (app_record_s* pApp)
          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
                 ICON_FA_GEAR
                           );
-    
+
+    if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
+      ImGui::TextColored (
+                ImColor   (200, 200, 200, 255),
+                ICON_FA_THUMBTACK
+                            );
+
     ImGui::TextColored (
                 ImColor   (245, 66, 66, 255),
                   (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
@@ -1890,7 +1917,7 @@ DrawGameContextMenu (app_record_s* pApp)
                   ImColor   (200, 200, 200, 255),
                     ICON_FA_PAPERCLIP
                               );
-    
+
     ImGui::TextColored (
                 ImColor   (200, 200, 200, 255),
                   (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? ICON_FA_EYE : ICON_FA_EYE_SLASH
@@ -2684,7 +2711,14 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
   {
-    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : 99;
+    int old_value = pApp->skif.pinned;
+
+    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : (5 > numPinnedOnTop) ? 99 : 50;
+
+    if (pApp->skif.pinned > 50)
+      numPinnedOnTop++;
+    else if (old_value > 50)
+      numPinnedOnTop--;
 
     UpdateJsonMetaData  ( pApp, true);
 
@@ -5133,6 +5167,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (selection.appid != 0)
       selection.reset();
 
+    bool resortGames = false;
+    numPinnedOnTop   = 0;
+
     for (auto& app : g_apps)
     {
       // Set to last selected if it can be found
@@ -5151,6 +5188,27 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Prefill all apps with the current version (solves a single frame flicker the first time a game is selected)
       app.second.specialk.injection.dll.version      = _inject.SKVer32;
       app.second.specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second.specialk.injection.dll.version);
+
+      // Count the number of pinned entries on top
+      if (app.second.skif.pinned > 50)
+      {
+        // Only allow 5 pinned on top
+        if (5 > numPinnedOnTop)
+          numPinnedOnTop++;
+
+        // Reduce all other to normal favorite status
+        else
+        {
+          app.second.skif.pinned = 50;
+          resortGames = true;
+        }
+      }
+    }
+
+    if (resortGames)
+    {
+      SKIF_GamingCollection::SortApps (&g_apps);
+      sort_changed = true;
     }
 
     CloseHandle (library_worker->hWorker);
@@ -5696,11 +5754,47 @@ SKIF_UI_Tab_DrawLibrary (void)
     flags |= ImGuiWindowFlags_NavFlattened;
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
-  ImGui::BeginChild          ( "###AppListInset",
-                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                         (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop2.y - fTop1.y) ), (_registry.bUIBorders),
-                                flags);
+
   ImGui::BeginGroup          ( );
+
+  ImVec2 fTop3 = ImGui::GetCursorPos ( );
+  static float fHeight = 0.0f;
+  int  numPinned       = 0;
+  int  numRegular      = 0;
+  bool resortGames     = false;
+
+  // Preprocess pinned/favorite entries
+  for (auto& app : g_apps)
+  {
+    if (app.second.id == 0 || app.second.filtered)
+      continue;
+
+    numRegular++;
+
+    if (app.second.skif.pinned > 50)
+    {
+      // Only allow 5 pinned on top
+      if (5 > numPinned)
+        numPinned++;
+
+      // Reduce all other to normal favorite status
+      else
+      {
+        app.second.skif.pinned = 1;
+        resortGames = true;
+      }
+    }
+  }
+
+  numRegular -= numPinned;
+
+  ImGui::BeginChild          ( "###GameListOnTop",
+                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                  (numPinned > 0 && numRegular > 0)
+                                  ? numPinned * fHeight + ImGui::GetStyle().WindowPadding.y
+                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)
+                                  ), (_registry.bUIBorders),
+                                flags | ((numPinned > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
@@ -5767,24 +5861,29 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled);
   ImVec2 f1 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
-  ImVec2 f4 = ImGui::GetCursorPos (  );
+//ImVec2 f4 = ImGui::GetCursorPos (  );
     SKIF_ImGui_OptImage (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
   ImVec2 f2 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
   ImVec2 f3 = ImGui::GetCursorPos (  );
-  
+
   ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
 
   float fOffset =
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
                  ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
 
+  fHeight = std::max (f2.y, f1.y) - f0.y + fOffset;
+
   // Start populating the list
 
   if (g_apps.empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
-  int pinned = 0;
+  int  pinned     = 0;
+  int  pinned_top = 0;
+  bool resetNumOnTop = true;
+  // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
 
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
@@ -5793,12 +5892,41 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (app.second.id == 0)
       continue;
 
+    // Count the number of pinned entries separately from filtered entries
+    if (app.second.skif.pinned > 50)
+      resetNumOnTop = false;
+
     // Skips those filtered out by an active search field entry
     if (app.second.filtered)
       continue;
 
+    // Separate always on top (>50) from regular pinned (1-50)
+    if (app.second.skif.pinned > 50)
+      pinned_top++;
+    else if (pinned_top > 0)
+    {
+      ImGui::SetCursorPosY (
+        ImGui::GetCursorPosY ( )
+         - (fOffset / 2.0f)
+         - 2.0f * SKIF_ImGui_GlobalDPIScale
+      );
+
+      ImGui::Separator ( );
+
+      ImGui::EndChild             ( );
+
+      ImVec2 fTop4 = ImGui::GetCursorPos ( );
+
+      ImGui::BeginChild           ( "###GameList",
+                                     ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                              (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop4.y - fTop1.y)), (_registry.bUIBorders),
+                                     flags );
+
+      pinned_top = 0;
+    }
+
     // Separate pinned from unpinned
-    if (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+    if ((app.second.skif.pinned > 0 && 50 >= app.second.skif.pinned) || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
       pinned++;
     else if (pinned > 0)
     {
@@ -6091,6 +6219,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
+  if (resetNumOnTop)
+    numPinnedOnTop = 0;
+
   // 'Add Game' to the bottom of the list if the status bar is disabled
   if (! _registry.bUIStatusBar)
   {
@@ -6129,8 +6260,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Stop populating the list
 
-  ImGui::EndGroup        ( );
   ImGui::EndChild        ( );
+  ImGui::EndGroup        ( );
   ImGui::PopStyleColor   ( );
   
 #pragma endregion
@@ -6151,11 +6282,14 @@ SKIF_UI_Tab_DrawLibrary (void)
                                            3.0f * SKIF_ImGui_GlobalDPIScale,
                                  fTop1.y));
   }
+  else {
+    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y));
+  }
 
 #pragma region GameDetails
 
   ImGui::BeginChild (
-    "###AppListInset2",
+    "###GameDetails",
       ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                 sizeDetails.y * SKIF_ImGui_GlobalDPIScale), (_registry.bUIBorders),
         ImGuiWindowFlags_NoScrollbar       |
