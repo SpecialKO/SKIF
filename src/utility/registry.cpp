@@ -1,5 +1,6 @@
 #include <utility/registry.h>
 #include <algorithm>
+#include <utility/sk_utility.h>
 #include <utility/utility.h>
 
 extern bool SKIF_Util_IsWindows10OrGreater      (void);
@@ -48,6 +49,48 @@ SKIF_RegistrySettings::KeyValue<_Tp>::hasData (HKEY* hKey)
 
   return false;
 };
+
+std::vector <std::wstring>
+SKIF_RegistrySettings::KeyValue<std::vector <std::wstring>>::getData (HKEY* hKey)
+{
+  _desc.dwFlags  = RRF_RT_REG_MULTI_SZ;
+  _desc.dwType   = REG_MULTI_SZ;
+  DWORD dwOutLen = _SizeOfData (hKey);
+
+  std::wstring out(dwOutLen, '\0');
+
+  if ( ERROR_SUCCESS != 
+    RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
+                   (hKey != nullptr) ?  NULL : _desc.wszSubKey,
+                        _desc.wszKeyValue,
+                        _desc.dwFlags,
+                          &_desc.dwType,
+                            out.data(), &dwOutLen)) return std::vector <std::wstring>();
+
+  std::vector <std::wstring> vector;
+
+  const wchar_t* currentItem = (const wchar_t*)out.data();
+
+  // Parse the given wstring into a vector
+  while (*currentItem)
+  {
+    vector.push_back (currentItem);
+    currentItem = currentItem + _tcslen(currentItem) + 1;
+  }
+
+  /*
+  // Strip null terminators
+  for (auto& item : vector)
+  {
+    item.erase (std::find (item.begin(), item.end(), '\0'), item.end());
+    OutputDebugStringW (L"Found: ");
+    OutputDebugStringW (item.c_str());
+    OutputDebugStringW (L"\n");
+  }
+  */
+
+  return vector;
+}
 
 std::wstring
 SKIF_RegistrySettings::KeyValue<std::wstring>::getData (HKEY* hKey)
@@ -297,6 +340,12 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVAutoUpdateVersion.hasData(&hKey))
     wsAutoUpdateVersion    =   regKVAutoUpdateVersion      .getData (&hKey);
+
+  std::vector <std::wstring>
+    mwzCategories          = regKVCategories               .getData (&hKey);
+
+  for (auto& wzCategory : mwzCategories)
+    mszCategories.push_back (SK_WideCharToUTF8 (wzCategory));
   
   bDeveloperMode           =   regKVDeveloperMode          .getData (&hKey);
 
