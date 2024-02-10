@@ -5889,8 +5889,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (g_apps.empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
-  static std::string current_group = "";
-  static int groups = 0;
+  std::string current_group = "";
+  int groups = 0;
 
   int  pinned     = 0;
   int  pinned_top = 0;
@@ -5958,14 +5958,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (app.second.skif.group != current_group)
       {
-        if (groups > 0)
-        {
-          ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-          ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-          group_opened = ImGui::CollapsingHeader ((app.second.skif.group.empty() ? "Uncategorized" : app.second.skif.group.c_str()), 0); // ImGuiTreeNodeFlags_DefaultOpen
-          ImGui::PopStyleColor  ( );
-          ImGui::PopStyleColor  ( );
-        }
+        ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+        ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
+        group_opened = ImGui::CollapsingHeader ((app.second.skif.group.empty() ? "Uncategorized" : app.second.skif.group.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Selected : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        ImGui::PopStyleColor  ( );
+        ImGui::PopStyleColor  ( );
 
         current_group = app.second.skif.group;
         groups++;
