@@ -5000,7 +5000,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
 
-        if ( app.second._status.installed)
+        if (app.second._status.installed && ! isSpecialK)
         {
           // Prepare for the keyboard hint / search/filter functionality
           InsertTrieKey (&app, &_data->labels);
