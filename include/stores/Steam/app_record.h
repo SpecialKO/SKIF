@@ -416,9 +416,9 @@ struct app_record_s {
     int                uses =  0; // Number of times game has been launched
     std::string        used = ""; // Unix timestamp (in string) of when the game was last used
     std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
-    std::string       group = ""; // Category to sort the game under
-    int              hidden =  -1; // Is app hidden? (-1 = unset;   0 = no;   1 = yes)
-    int              pinned =  -1; // Is app pinned? (-1 = unset;   0 = no;   1 = yes;   99 = Special K)
+    std::string    category = ""; // Category to sort the game under
+    int              hidden = -1; // Is app hidden? (-1 = unset;   0 = no;   1 = yes)
+    int              pinned = -1; // Is app pinned? (-1 = unset;   0 = no;   1 = yes;   99 = Special K)
   } skif;
 
   struct {

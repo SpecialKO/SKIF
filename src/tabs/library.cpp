@@ -403,7 +403,7 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
         { "Hidden",   pApp->skif.hidden    },
         { "Uses",     pApp->skif.uses      },
         { "Used",     pApp->skif.used      },
-        { "Group",    pApp->skif.group     },
+        { "Category", pApp->skif.category  },
         { "Pin",      pApp->skif.pinned    }
       };
 
@@ -1788,8 +1788,13 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
 
-    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
     ImGui::Separator ( );
+
+    if (!_registry.mszCategories.empty())
+    {
+      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_OBJECT_GROUP).x, ImGui::GetTextLineHeight()));
+      ImGui::Separator ( );
+    }
 
     if (desktopShortcutPossible)
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_PAPERCLIP).x, ImGui::GetTextLineHeight()));
@@ -1830,13 +1835,66 @@ DrawGameContextMenu (app_record_s* pApp)
 
       pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
 
-      UpdateJsonMetaData  ( pApp, true);
+      UpdateJsonMetaData   (pApp, true);
 
       SKIF_GamingCollection::SortApps (&g_apps);
       sort_changed = true;
     }
 
-    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
+    ImGui::Separator ( );
+
+    // Category
+    if (ImGui::BeginMenu ("Category"))
+    {
+      ImGui::PushID  ("###ManageCategories");
+
+      bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
+
+      if (ImGui::MenuItem ("Favorites", "", isFavorite))
+      {
+        if (pApp->skif.pinned > 50)
+          numPinnedOnTop--;
+
+        pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
+        UpdateJsonMetaData (pApp, true);
+
+        SKIF_GamingCollection::SortApps (&g_apps);
+        sort_changed = true;
+      }
+
+      ImGui::Separator ( );
+
+      for (auto& category : _registry.mszCategories)
+      {
+        if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category)))
+        {
+          pApp->skif.category = (pApp->skif.category != category) ? category : "";
+          UpdateJsonMetaData (pApp, true);
+
+          SKIF_GamingCollection::SortApps (&g_apps);
+          sort_changed = true;
+        }
+      }
+
+      /*
+      if (! _registry.mszCategories.empty())
+        ImGui::Separator ( );
+
+      if (ImGui::MenuItem ("Uncategorized", "", pApp->skif.category.empty(), ! isFavorite && ! pApp->skif.category.empty()))
+      {
+        pApp->skif.category = "";
+        UpdateJsonMetaData (pApp, true);
+
+        SKIF_GamingCollection::SortApps (&g_apps);
+        sort_changed = true;
+      }
+      */
+
+      ImGui::PopID   ( );
+
+      ImGui::EndMenu ( );
+    }
+
     ImGui::Separator ( );
 
     if (desktopShortcutPossible)
@@ -1911,8 +1969,16 @@ DrawGameContextMenu (app_record_s* pApp)
                   (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
                           );
 
-    //if (pApp->store == app_record_s::Store::Steam || desktopShortcutPossible || pApp->store == app_record_s::Store::Custom)
     ImGui::Separator ( );
+
+    if (!_registry.mszCategories.empty())
+    {
+      ImGui::TextColored (
+                  ImColor   (200, 200, 200, 255),
+                    ICON_FA_OBJECT_GROUP
+                              );
+      ImGui::Separator ( );
+    }
 
     if (desktopShortcutPossible)
       ImGui::TextColored (
@@ -2146,8 +2212,8 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
         }
         
-        if (ImGui::MenuItem ("Group",                     pApp->skif.group.c_str()))
-          SKIF_Util_SetClipboardData   (SK_UTF8ToWideChar(pApp->skif.group));
+        if (ImGui::MenuItem ("Category",                  pApp->skif.category.c_str()))
+          SKIF_Util_SetClipboardData   (SK_UTF8ToWideChar(pApp->skif.category));
         if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
           SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
         SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
@@ -4833,8 +4899,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                 if (key.contains("Pin"))
                   keyPinned      = key.at("Pin");
 
-                if (key.contains("Group"))
-                  keyGroup      = key.at("Group");
+                if (key.contains("Category"))
+                  keyGroup      = key.at("Category");
               }
 
               // Populate SKIF's custom variables with the values as well
@@ -4844,7 +4910,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               app.second.skif.hidden         = keyHidden;
               app.second.skif.uses           = keyUses;
               app.second.skif.used           = keyUsed;
-              app.second.skif.group          = keyGroup;
+              app.second.skif.category       = keyGroup;
               app.second.skif.pinned         = keyPinned;
 
               // Human-readable time format (local time)
@@ -4866,7 +4932,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 { "Hidden",   app.second.skif.hidden    },
                 { "Uses",     app.second.skif.uses      },
                 { "Used",     app.second.skif.used      },
-                { "Group",    app.second.skif.group     },
+                { "Category", app.second.skif.category  },
                 { "Pin",      app.second.skif.pinned    }
               };
 
@@ -5906,11 +5972,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (g_apps.empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
-  std::string current_group = "";
-  int groups = 0;
-
-  int  pinned_top = 0;
-  bool resetNumOnTop = true;
+  std::string current_category = "";
+  int         categories       = 0;
+  int         pinned_top       = 0;
+  bool        resetNumOnTop    = true;
   // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
 
   // Populate the list of games with all recognized games
@@ -5956,26 +6021,26 @@ SKIF_UI_Tab_DrawLibrary (void)
     // If we have passed the pinned on top games, order the rest by group
     if (pinned_top == 0)
     {
-      static bool group_opened = false;
+      static bool category_opened = false;
 
       // All favorited games are grouped as such
-      std::string tmpGroup = (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                           ? "Favorites"
-                           : app.second.skif.group;
+      std::string tmpCategory = (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                              ? "Favorites"
+                              : app.second.skif.category;
 
-      if (tmpGroup != current_group)
+      if (tmpCategory != current_category)
       {
         ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-        group_opened = ImGui::CollapsingHeader ((tmpGroup.empty() ? "Uncategorized" : tmpGroup.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Uncategorized" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
         ImGui::PopStyleColor  ( );
         ImGui::PopStyleColor  ( );
 
-        current_group = tmpGroup;
-        groups++;
+        current_category = tmpCategory;
+        categories++;
       }
 
-      if (groups > 0 && ! group_opened)
+      if (categories > 0 && ! category_opened)
         continue;
     }
     

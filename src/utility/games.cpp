@@ -279,14 +279,14 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
     it++;
   }
 
-  // Then sort unpinned entires by group
+  // Then sort unpinned entires by category
   std::stable_sort ( it,
                      apps->end   (),
     []( const std::pair <std::string, app_record_s>& a,
         const std::pair <std::string, app_record_s>& b ) -> int
     {
-      return a.second.skif.group.compare(
-             b.second.skif.group) < 0;
+      return a.second.skif.category.compare(
+             b.second.skif.category) < 0;
     }
   );
 
@@ -295,7 +295,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
                           apps->end   (),
     []( const std::pair <std::string, app_record_s>& a ) -> bool
     {
-      return ! a.second.skif.group.empty();
+      return ! a.second.skif.category.empty();
     }
   );
 }
