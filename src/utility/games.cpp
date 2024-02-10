@@ -212,7 +212,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  // Sort first by name
+  // The base sort is by name
   std::stable_sort ( apps->begin (),
                      apps->end   (),
     []( const std::pair <std::string, app_record_s>& a,
@@ -224,7 +224,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
     }
   );
 
-  // Apply any custom sort
+  // Then we apply any overarching custom sort
   switch (_registry.iLibrarySort)
   {
 
@@ -256,28 +256,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
     break;
   }
 
-  // Sort by group
-  std::stable_sort ( apps->begin (),
-                     apps->end   (),
-    []( const std::pair <std::string, app_record_s>& a,
-        const std::pair <std::string, app_record_s>& b ) -> int
-    {
-      return a.second.skif.group.compare(
-             b.second.skif.group
-      ) < 0;
-    }
-  );
-
-  // Sort all uncategorized entries last
-  std::stable_partition ( apps->begin (),
-                          apps->end   (),
-    []( const std::pair <std::string, app_record_s>& a ) -> bool
-    {
-      return ! a.second.skif.group.empty();
-    }
-  );
-
-  // Then apply any pins
+  // Now we sort by the pinned state
   std::stable_sort ( apps->begin (),
                      apps->end   (),
     []( const std::pair <std::string, app_record_s>& a,
@@ -286,6 +265,37 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
       // Use the highest value between SKIF's pinned value, or 0 / Steam's pinned value if SKIF's is unset
       return std::max (a.second.skif.pinned, (a.second.skif.pinned == -1) ? a.second.steam.shared.favorite : 0) >
              std::max (b.second.skif.pinned, (b.second.skif.pinned == -1) ? b.second.steam.shared.favorite : 0);
+    }
+  );
+
+  // We need an iterator at the unpinned entries to sort the rest separately
+  auto it    = apps->begin ();
+  while (it != apps->end   ())
+  {
+    auto& item = *it;
+    if (std::max (item.second.skif.pinned, (item.second.skif.pinned == -1) ? item.second.steam.shared.favorite : 0) == 0)
+      break;
+
+    it++;
+  }
+
+  // Then sort unpinned entires by group
+  std::stable_sort ( it,
+                     apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+      return a.second.skif.group.compare(
+             b.second.skif.group) < 0;
+    }
+  );
+
+  // And move all uncategorized entries last
+  std::stable_partition ( it,
+                          apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a ) -> bool
+    {
+      return ! a.second.skif.group.empty();
     }
   );
 }
