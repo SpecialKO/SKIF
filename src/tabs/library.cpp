@@ -402,6 +402,7 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
         { "Hidden",   pApp->skif.hidden    },
         { "Uses",     pApp->skif.uses      },
         { "Used",     pApp->skif.used      },
+        { "Group",    pApp->skif.group     },
         { "Pin",      pApp->skif.pinned    }
       };
 
@@ -2143,7 +2144,9 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
         }
-
+        
+        if (ImGui::MenuItem ("Group",                     pApp->skif.group.c_str()))
+          SKIF_Util_SetClipboardData   (SK_UTF8ToWideChar(pApp->skif.group));
         if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
           SKIF_Util_SetClipboardData   (           std::to_wstring(pApp->skif.uses));
         SKIF_ImGui_SetHoverTip ("The number of times this game has been launched.");
@@ -4799,6 +4802,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               int         keyHidden       = -1;   // will be 1 for hidden Steam games; 0 for the rest
               int         keyUses         =  0;
               std::string keyUsed         = "";
+              std::string keyGroup        = "";
               int         keyPinned       = -1; // will be 1 for favorited Steam games; 0 for the rest
 
               // Special K defaults to pinned
@@ -4827,6 +4831,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
                 if (key.contains("Pin"))
                   keyPinned      = key.at("Pin");
+
+                if (key.contains("Group"))
+                  keyGroup      = key.at("Group");
               }
 
               // Populate SKIF's custom variables with the values as well
@@ -4836,6 +4843,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               app.second.skif.hidden         = keyHidden;
               app.second.skif.uses           = keyUses;
               app.second.skif.used           = keyUsed;
+              app.second.skif.group          = keyGroup;
               app.second.skif.pinned         = keyPinned;
 
               // Human-readable time format (local time)
@@ -4857,6 +4865,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 { "Hidden",   app.second.skif.hidden    },
                 { "Uses",     app.second.skif.uses      },
                 { "Used",     app.second.skif.used      },
+                { "Group",    app.second.skif.group     },
                 { "Pin",      app.second.skif.pinned    }
               };
 
@@ -5880,6 +5889,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (g_apps.empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
+  static std::string current_group = "";
+  static int groups = 0;
+
   int  pinned     = 0;
   int  pinned_top = 0;
   bool resetNumOnTop = true;
@@ -5937,6 +5949,30 @@ SKIF_UI_Tab_DrawLibrary (void)
       );
       ImGui::Separator ( );
       pinned = 0;
+    }
+
+    // If we are passed top pinned and regular pinned, order by group
+    if (pinned_top == 0 && pinned == 0)
+    {
+      static bool group_opened = false;
+
+      if (app.second.skif.group != current_group)
+      {
+        if (groups > 0)
+        {
+          ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+          ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
+          group_opened = ImGui::CollapsingHeader ((app.second.skif.group.empty() ? "Uncategorized" : app.second.skif.group.c_str()), 0); // ImGuiTreeNodeFlags_DefaultOpen
+          ImGui::PopStyleColor  ( );
+          ImGui::PopStyleColor  ( );
+        }
+
+        current_group = app.second.skif.group;
+        groups++;
+      }
+
+      if (groups > 0 && ! group_opened)
+        continue;
     }
     
     bool selected = (selection.appid == app.second.id &&

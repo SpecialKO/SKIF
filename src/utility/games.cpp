@@ -256,6 +256,27 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
     break;
   }
 
+  // Sort by group
+  std::stable_sort ( apps->begin (),
+                     apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a,
+        const std::pair <std::string, app_record_s>& b ) -> int
+    {
+      return a.second.skif.group.compare(
+             b.second.skif.group
+      ) < 0;
+    }
+  );
+
+  // Sort all uncategorized entries last
+  std::stable_partition ( apps->begin (),
+                          apps->end   (),
+    []( const std::pair <std::string, app_record_s>& a ) -> bool
+    {
+      return ! a.second.skif.group.empty();
+    }
+  );
+
   // Then apply any pins
   std::stable_sort ( apps->begin (),
                      apps->end   (),
