@@ -89,6 +89,7 @@ bool                   launchWithoutSK   = false;
 bool                   coverRefresh      = false; // This just triggers a refresh of the cover
 uint32_t               coverRefreshAppId = 0;
 int                    coverRefreshStore = 0;
+int                    numRegular        = 0;
 int                    numPinnedOnTop    = 0;
 
 // Support up to 15 running games at once, lol
@@ -5130,18 +5131,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     g_apptickets = library_worker->apptickets;
     labels       = library_worker->labels;
 
-    // Apply any existing filter
-    if (charFilter[0] != '\0')
-    {
-      for (auto& app : g_apps)
-      {
-        app.second.filtered = (StrStrIA (app.first.c_str(), charFilter) == NULL);
-
-        if (! app.second.filtered)
-          InsertTrieKey (&app, &labelsFiltered);
-      }
-    }
-
     // Move cached icons over
     for (auto& app : g_apps)
     {
@@ -5176,14 +5165,17 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (selection.appid != 0)
       selection.reset();
 
-    bool resortGames = false;
-    numPinnedOnTop   = 0;
+    bool resortGames   = false;
+    int tmpPinnedOnTop = 0;
 
+    // Do other misc stuff
     for (auto& app : g_apps)
     {
+      if (app.second.id == 0)
+        continue;
+
       // Set to last selected if it can be found
-      if (app.second.filtered == false &&
-          app.second.id       ==                      _registry.uiLastSelectedGame &&
+      if (app.second.id       ==                      _registry.uiLastSelectedGame &&
           app.second.store    == (app_record_s::Store)_registry.uiLastSelectedStore)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
@@ -5198,12 +5190,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       app.second.specialk.injection.dll.version      = _inject.SKVer32;
       app.second.specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second.specialk.injection.dll.version);
 
+      // Apply the current filter
+      app.second.filtered = (charFilter[0] != '\0' && StrStrIA (app.first.c_str(), charFilter) == NULL);
+
       // Count the number of pinned entries on top
       if (app.second.skif.pinned > 50)
       {
         // Only allow 5 pinned on top
-        if (5 > numPinnedOnTop)
-          numPinnedOnTop++;
+        if (5 > tmpPinnedOnTop)
+          tmpPinnedOnTop++;
 
         // Reduce all other to normal favorite status
         else
@@ -5219,6 +5214,25 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_GamingCollection::SortApps (&g_apps);
       sort_changed = true;
     }
+
+    // Use a separate pass to count the actual figures used for the UI calculations later
+    numRegular       = 0;
+    numPinnedOnTop   = 0;
+
+    for (auto& app : g_apps)
+    {
+      if (app.second.id == 0 || app.second.filtered)
+        continue;
+
+      InsertTrieKey (&app, &labelsFiltered);
+
+      numRegular++;
+
+      if (app.second.skif.pinned > 50)
+        numPinnedOnTop++;
+    }
+
+    numRegular -= numPinnedOnTop;
 
     CloseHandle (library_worker->hWorker);
     library_worker->hWorker = NULL;
@@ -5679,13 +5693,21 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   ImGui::SameLine ( );
+  
+  //static int numPinned   = 0;
+  //static int numRegular  = 0;
+  //bool       resortGames = false;
 
-  // Update filtered status if query has changed
+  // Preprocess pinned/favorite entries
+
+  // Update some stuff if filter query has changed
   if (strncmp (charFilter, charFilterTmp, MAX_PATH) != 0)
   {
     strncpy (charFilter, charFilterTmp, MAX_PATH);
 
     labelsFiltered = Trie { };
+    numPinnedOnTop = 0;
+    numRegular     = 0;
 
     for (auto& app : g_apps)
     {
@@ -5694,10 +5716,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       app.second.filtered = (charFilter[0] != '\0' && StrStrIA (app.first.c_str(), charFilter) == NULL);
 
-      if (! app.second.filtered)
-        InsertTrieKey (&app, &labelsFiltered);
+      if (app.second.filtered)
+        continue;
+
+      InsertTrieKey (&app, &labelsFiltered);
+
+      numRegular++;
+
+      if (app.second.skif.pinned > 50)
+        numPinnedOnTop++;
     }
+
+    numRegular -= numPinnedOnTop;
   }
+
+  //PLOG_VERBOSE << "Numbers: " << numRegular << " (regular) -- " << numPinnedOnTop << " (on top)";
 
   if (showClearBtn)
   {
@@ -5716,9 +5749,21 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       strncpy (charFilter,    "\0", MAX_PATH);
       strncpy (charFilterTmp, "\0", MAX_PATH);
+      
+      numPinnedOnTop = 0;
+      numRegular     = 0;
 
       for (auto& app : g_apps)
+      {
         app.second.filtered = false;
+
+        numRegular++;
+
+        if (app.second.skif.pinned > 50)
+          numPinnedOnTop++;
+      }
+
+      numRegular -= numPinnedOnTop;
     }
 
     ImGui::PopStyleColor ( );
@@ -5768,42 +5813,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImVec2 fTop3 = ImGui::GetCursorPos ( );
   static float fHeight = 0.0f;
-  int  numPinned       = 0;
-  int  numRegular      = 0;
-  bool resortGames     = false;
-
-  // Preprocess pinned/favorite entries
-  for (auto& app : g_apps)
-  {
-    if (app.second.id == 0 || app.second.filtered)
-      continue;
-
-    numRegular++;
-
-    if (app.second.skif.pinned > 50)
-    {
-      // Only allow 5 pinned on top
-      if (5 > numPinned)
-        numPinned++;
-
-      // Reduce all other to normal favorite status
-      else
-      {
-        app.second.skif.pinned = 1;
-        resortGames = true;
-      }
-    }
-  }
-
-  numRegular -= numPinned;
 
   ImGui::BeginChild          ( "###GameListOnTop",
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                  (numPinned > 0 && numRegular > 0)
-                                  ? numPinned * fHeight + ImGui::GetStyle().WindowPadding.y
+                                  (numPinnedOnTop > 0 && numRegular > 0)
+                                  ? numPinnedOnTop * fHeight + ImGui::GetStyle().WindowPadding.y
                                   : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)
                                   ), (_registry.bUIBorders),
-                                flags | ((numPinned > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
+                                flags | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
@@ -5892,7 +5909,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   std::string current_group = "";
   int groups = 0;
 
-  int  pinned     = 0;
   int  pinned_top = 0;
   bool resetNumOnTop = true;
   // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
@@ -5937,34 +5953,25 @@ SKIF_UI_Tab_DrawLibrary (void)
       pinned_top = 0;
     }
 
-    // Separate pinned from unpinned
-    if ((app.second.skif.pinned > 0 && 50 >= app.second.skif.pinned) || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-      pinned++;
-    else if (pinned > 0)
-    {
-      ImGui::SetCursorPosY (
-        ImGui::GetCursorPosY ( )
-         - (fOffset / 2.0f)
-         - 2.0f * SKIF_ImGui_GlobalDPIScale
-      );
-      ImGui::Separator ( );
-      pinned = 0;
-    }
-
-    // If we are passed top pinned and regular pinned, order by group
-    if (pinned_top == 0 && pinned == 0)
+    // If we have passed the pinned on top games, order the rest by group
+    if (pinned_top == 0)
     {
       static bool group_opened = false;
 
-      if (app.second.skif.group != current_group)
+      // All favorited games are grouped as such
+      std::string tmpGroup = (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                           ? "Favorites"
+                           : app.second.skif.group;
+
+      if (tmpGroup != current_group)
       {
         ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-        group_opened = ImGui::CollapsingHeader ((app.second.skif.group.empty() ? "Uncategorized" : app.second.skif.group.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Selected : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        group_opened = ImGui::CollapsingHeader ((tmpGroup.empty() ? "Uncategorized" : tmpGroup.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
         ImGui::PopStyleColor  ( );
         ImGui::PopStyleColor  ( );
 
-        current_group = app.second.skif.group;
+        current_group = tmpGroup;
         groups++;
       }
 
