@@ -6039,6 +6039,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (app.second.skif.pinned > 50)
       resetNumOnTop = false;
 
+    // Check if there is an icon worker pending that we need to acknowledge the results for...
+    //   ... *before* we filter out the game and skips the whole rest of the loop for this one!
+    if (app.second.tex_icon.iWorker == 1 && WaitForSingleObject (app.second.tex_icon.hWorker, 0) == WAIT_OBJECT_0)
+    {
+      CloseHandle (app.second.tex_icon.hWorker);
+      app.second.tex_icon.hWorker = NULL;
+      app.second.tex_icon.iWorker = 2;
+      activeIconWorkers--;
+    }
+
     // Skips those filtered out by an active search field entry
     if (app.second.filtered)
       continue;
@@ -6198,6 +6208,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Clear stuff
       selection.appid        = 0;
       selection.store        = app_record_s::Store::Unspecified;
+      selection.category     = "";
       search_selection.id    = 0;
       search_selection.store = app_record_s::Store::Unspecified;
       change                 = true;
@@ -6369,14 +6380,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         app.second.tex_icon.iWorker = 2;
         activeIconWorkers--;
       }
-    }
-
-    if (app.second.tex_icon.iWorker == 1 && WaitForSingleObject (app.second.tex_icon.hWorker, 0) == WAIT_OBJECT_0)
-    {
-      CloseHandle (app.second.tex_icon.hWorker);
-      app.second.tex_icon.hWorker = NULL;
-      app.second.tex_icon.iWorker = 2;
-      activeIconWorkers--;
     }
   }
 
@@ -8492,8 +8495,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (SelectNewSKIFGame > 0)
   {
     // Change selection to the new game
-    selection.appid = SelectNewSKIFGame;
-    selection.store = app_record_s::Store::Custom;
+    selection.appid    = SelectNewSKIFGame;
+    selection.store    = app_record_s::Store::Custom;
+    selection.category = "";
 
     update = true;
 
