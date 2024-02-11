@@ -4624,15 +4624,17 @@ SKIF_UI_Tab_DrawLibrary (void)
   static bool update       = true;
 
   struct {
-    uint32_t            appid = SKIF_STEAM_APPID;
-    app_record_s::Store store = app_record_s::Store::Steam;
-    SKIF_DirectoryWatch dir_watch;
+    uint32_t                    appid = SKIF_STEAM_APPID;
+    app_record_s::Store         store = app_record_s::Store::Steam;
+    SKIF_DirectoryWatch     dir_watch;
     bool                reset_to_skif = true;
+    std::string              category = "";
 
     void reset ()
     {
-      appid = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
-      store = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
+      appid    = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
+      store    = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
+      category = "";
       
       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
         dir_watch.reset();
@@ -5292,6 +5294,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        = app.second.id;
         selection.store        = app.second.store;
+        selection.category     = app.second.skif.category;
         search_selection.id    = selection.appid;
         search_selection.store = selection.store;
         update = true;
@@ -5302,7 +5305,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       app.second.specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second.specialk.injection.dll.version);
 
       // Apply the current filter
-      app.second.filtered = (charFilter[0] != '\0' && StrStrIA (app.first.c_str(), charFilter) == NULL);
+      app.second.filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       StrStrIA (app.second.skif.category.c_str(), charFilter) == NULL)); // Category
 
       // Count the number of pinned entries on top
       if (app.second.skif.pinned > 50)
@@ -5824,8 +5828,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (app.second.id == 0)
         continue;
-
-      app.second.filtered = (charFilter[0] != '\0' && StrStrIA (app.first.c_str(), charFilter) == NULL);
+      
+      app.second.filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       StrStrIA (app.second.skif.category.c_str(), charFilter) == NULL)); // Category
 
       if (app.second.filtered)
         continue;
@@ -6075,6 +6080,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (tmpCategory != current_category)
       {
+        // Always expand a category if a filter is active or the selected game was changed
+        if (sort_changed && selection.category == tmpCategory)
+          ImGui::SetNextItemOpen (true);
+
         ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
         category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Uncategorized" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
@@ -6216,8 +6225,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Special handling for Special K to reset the scroll pos
       if (isSpecialK)
       {
-        selection.appid = 0;
-        selection.store = app_record_s::Store::Unspecified;
+        selection.appid    = 0;
+        selection.store    = app_record_s::Store::Unspecified;
+        selection.category = "";
       }
 
       change = true;
@@ -6230,6 +6240,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       selection.appid              = app.second.id;
       selection.store              = app.second.store;
+      selection.category           = app.second.skif.category;
       selected                     = true;
 
       // Only update the last selected value if we're not in hidden view
