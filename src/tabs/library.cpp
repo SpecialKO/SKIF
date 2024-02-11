@@ -5294,7 +5294,11 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        = app.second.id;
         selection.store        = app.second.store;
-        selection.category     = app.second.skif.category;
+        selection.category     = (app.second.skif.pinned > 50)
+                               ? "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                               : (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                               ? "Favorites"
+                               : app.second.skif.category;
         search_selection.id    = selection.appid;
         search_selection.store = selection.store;
         update = true;
@@ -6058,13 +6062,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       pinned_top++;
     else if (pinned_top > 0)
     {
-      ImGui::SetCursorPosY (
-        ImGui::GetCursorPosY ( )
-         - (fOffset / 2.0f)
-         - 2.0f * SKIF_ImGui_GlobalDPIScale
-      );
+      if (! _registry.bUIBorders)
+      {
+        ImGui::SetCursorPosY (
+          ImGui::GetCursorPosY ( )
+          // - (fOffset / 2.0f)
+           - 1.0f * SKIF_ImGui_GlobalDPIScale
+        );
 
-      ImGui::Separator ( );
+        ImGui::Separator ( );
+      }
 
       ImGui::EndChild             ( );
 
@@ -6251,7 +6258,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       selection.appid              = app.second.id;
       selection.store              = app.second.store;
-      selection.category           = app.second.skif.category;
+      selection.category           = (app.second.skif.pinned > 50)
+                                   ? "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                                   : (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                                   ? "Favorites"
+                                   : app.second.skif.category;
       selected                     = true;
 
       // Only update the last selected value if we're not in hidden view
