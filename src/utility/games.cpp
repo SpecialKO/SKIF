@@ -269,7 +269,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
   );
 
   // We need an iterator at the unpinned entries to sort the rest separately
-  auto it    = apps->begin ();
+  auto   it  = apps->begin ();
   while (it != apps->end   ())
   {
     auto& item = *it;

@@ -77,6 +77,7 @@ bool                   PopulatedGames    = false;
 char                   charFilter    [MAX_PATH + 2] = { };
 char                   charFilterTmp [MAX_PATH + 2] = { };
 bool                   bFilterActive     = false;
+bool                   bNewCategory      = false;
 bool                   sort_changed      = false;
 
 app_record_s::launch_config_s*
@@ -201,7 +202,7 @@ Trie labelsFiltered;
 static void
 SearchAppsList (void)
 {
-  if (bFilterActive)
+  if (bFilterActive || bNewCategory)
     return;
 
   static auto
@@ -1846,7 +1847,9 @@ DrawGameContextMenu (app_record_s* pApp)
     // Category
     if (ImGui::BeginMenu ("Category"))
     {
-      ImGui::PushID  ("###ManageCategories");
+      // Prevent the popup from being closed when selecting a category
+      ImGui::PushItemFlag (ImGuiItemFlags_SelectableDontClosePopup, true);
+      ImGui::PushID       ("###ManageCategories");
 
       bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
 
@@ -1866,7 +1869,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       for (auto& category : _registry.mszCategories)
       {
-        if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category)))
+        if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category), ! isFavorite))
         {
           pApp->skif.category = (pApp->skif.category != category) ? category : "";
           UpdateJsonMetaData (pApp, true);
@@ -1876,21 +1879,51 @@ DrawGameContextMenu (app_record_s* pApp)
         }
       }
 
-      /*
       if (! _registry.mszCategories.empty())
         ImGui::Separator ( );
 
-      if (ImGui::MenuItem ("Uncategorized", "", pApp->skif.category.empty(), ! isFavorite && ! pApp->skif.category.empty()))
+      constexpr int maxCategoryNameLen = 50;
+      static char charCategoryName[maxCategoryNameLen] = { };
+
+      if (isFavorite)
+        SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::InputTextEx ("###ManageCategoriesAddNew", "New category...", charCategoryName, 50,
+                      ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
       {
-        pApp->skif.category = "";
+        std::string szName = charCategoryName;
+        strncpy (charCategoryName, "\0", maxCategoryNameLen);
+
+        if (! szName.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), szName) == _registry.mszCategories.end())
+        {
+          _registry.mszCategories.push_back (szName);
+
+          std::vector<std::wstring> _in;
+
+          for (auto& category : _registry.mszCategories)
+            _in.push_back (SK_UTF8ToWideChar (category));
+
+          _registry.regKVCategories.putDataMultiSZ (_in);
+        }
+
+        pApp->skif.category = szName;
         UpdateJsonMetaData (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
       }
-      */
 
-      ImGui::PopID   ( );
+      if (isFavorite)
+        SKIF_ImGui_PopDisableState ( );
+
+      bNewCategory = ImGui::IsItemActive ( );
+
+      if (bNewCategory)
+        allowShortcutCtrlA = false;
+
+
+      ImGui::PopID       ( );
+      ImGui::PopItemFlag ( );
 
       ImGui::EndMenu ( );
     }
@@ -4912,6 +4945,18 @@ SKIF_UI_Tab_DrawLibrary (void)
               app.second.skif.used           = keyUsed;
               app.second.skif.category       = keyGroup;
               app.second.skif.pinned         = keyPinned;
+
+              // For unrecognized categories, add them to SKIF's internal database as well
+              if (! keyGroup.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), keyGroup) == _registry.mszCategories.end())
+              {
+                _registry.mszCategories.push_back (keyGroup);
+                std::vector<std::wstring> _in;
+
+                for (auto& category : _registry.mszCategories)
+                  _in.push_back (SK_UTF8ToWideChar (category));
+
+                _registry.regKVCategories.putDataMultiSZ (_in);
+              }
 
               // Human-readable time format (local time)
               time_t            ltime        = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);

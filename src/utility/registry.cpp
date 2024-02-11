@@ -48,7 +48,7 @@ SKIF_RegistrySettings::KeyValue<_Tp>::hasData (HKEY* hKey)
     return true;
 
   return false;
-};
+}
 
 std::vector <std::wstring>
 SKIF_RegistrySettings::KeyValue<std::vector <std::wstring>>::getData (HKEY* hKey)
@@ -115,6 +115,49 @@ SKIF_RegistrySettings::KeyValue<std::wstring>::getData (HKEY* hKey)
   return out;
 }
 
+bool
+SKIF_RegistrySettings::KeyValue<std::vector <std::wstring>>::putDataMultiSZ (std::vector<std::wstring> _in)
+{
+  LSTATUS lStat         = STATUS_INVALID_DISPOSITION;
+  HKEY    hKeyToSet     = 0;
+  DWORD   dwDisposition = 0;
+  size_t  stDataSize    = 0;
+
+  lStat =
+    RegCreateKeyExW (
+      _desc.hKey,
+        _desc.wszSubKey,
+          0x00, nullptr,
+            REG_OPTION_NON_VOLATILE,
+            KEY_ALL_ACCESS, nullptr,
+              &hKeyToSet, &dwDisposition );
+
+  _desc.dwType     = REG_MULTI_SZ;
+
+  std::wstring wzData;
+
+  // Serialize into std::wstring
+  for (const auto& item : _in)
+  {
+    wzData     += item + L'\0';
+    stDataSize += item.length ( ) + 1;
+  }
+
+  wzData    += L'\0';
+  stDataSize++;
+
+  lStat =
+    RegSetKeyValueW ( hKeyToSet,
+                        nullptr,
+                        _desc.wszKeyValue,
+                        _desc.dwType,
+                  (LPBYTE) wzData.data ( ), (DWORD) stDataSize * sizeof(wchar_t));
+            
+  RegCloseKey (hKeyToSet);
+
+  return (ERROR_SUCCESS == lStat);
+}
+
 template<class _Tp>
 _Tp
 SKIF_RegistrySettings::KeyValue<_Tp>::getData (HKEY* hKey)
@@ -148,7 +191,7 @@ SKIF_RegistrySettings::KeyValue<_Tp>::getData (HKEY* hKey)
           _GetValue (&out, &dwOutLen, hKey) ) out = _Tp ();
 
   return out;
-};
+}
 
 template<class _Tp>
 SKIF_RegistrySettings::KeyValue<_Tp>
@@ -168,7 +211,7 @@ SKIF_RegistrySettings::KeyValue<_Tp>::MakeKeyValue (const wchar_t* wszSubKey, co
   kv._desc.dwFlags = dwFlags;
 
   return kv;
-};
+}
 
 
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
@@ -345,7 +388,20 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     mwzCategories          = regKVCategories               .getData (&hKey);
 
   for (auto& wzCategory : mwzCategories)
-    mszCategories.push_back (SK_WideCharToUTF8 (wzCategory));
+  {
+    if (! wzCategory.empty() && wzCategory[0] != L'\0')
+      mszCategories.push_back (SK_WideCharToUTF8 (wzCategory));
+  }
+
+  // Sort categories in alphabetical order
+  std::stable_sort (mszCategories.begin (),
+                    mszCategories.end   (),
+    []( const std::string& a,
+        const std::string& b ) -> int
+    {
+      return a.compare(b) < 0;
+    }
+  );
   
   bDeveloperMode           =   regKVDeveloperMode          .getData (&hKey);
 

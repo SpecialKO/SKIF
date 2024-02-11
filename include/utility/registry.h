@@ -32,9 +32,10 @@ struct SKIF_RegistrySettings {
       };
 
     public:
-      bool         hasData       (HKEY* hKey = nullptr);
-      _Tp          getData       (HKEY* hKey = nullptr);
-      bool         putData       (_Tp in)
+      bool         hasData        (HKEY* hKey = nullptr);
+      _Tp          getData        (HKEY* hKey = nullptr);
+      bool         putDataMultiSZ (std::vector<std::wstring> in);
+      bool         putData        (_Tp in)
       {
         if ( ERROR_SUCCESS == _SetValue (&in) )
           return true;
@@ -122,7 +123,7 @@ struct SKIF_RegistrySettings {
         return lStat;
       };
       
-      LSTATUS _GetValue ( _Tp* pVal, DWORD* pLen = nullptr, HKEY* hKey = nullptr )
+      LSTATUS _GetValue (_Tp* pVal, DWORD* pLen = nullptr, HKEY* hKey = nullptr)
       {
         LSTATUS lStat =
           RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
@@ -500,7 +501,7 @@ struct SKIF_RegistrySettings {
   std::wstring wsPath;
   std::wstring wsAutoUpdateVersion; // Holds the version the auto-updater is trying to install
 
-  // Multi wide strings
+  // Multi strings
   std::vector <std::string> mszCategories;
 
   // Misc settings
