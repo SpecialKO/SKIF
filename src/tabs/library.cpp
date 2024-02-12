@@ -77,7 +77,7 @@ bool                   PopulatedGames    = false;
 char                   charFilter    [MAX_PATH + 2] = { };
 char                   charFilterTmp [MAX_PATH + 2] = { };
 bool                   bFilterActive     = false;
-bool                   bNewCategory      = false;
+bool                   bCategoryMgnt     = false;
 bool                   sort_changed      = false;
 
 app_record_s::launch_config_s*
@@ -202,7 +202,7 @@ Trie labelsFiltered;
 static void
 SearchAppsList (void)
 {
-  if (bFilterActive || bNewCategory)
+  if (bFilterActive || bCategoryMgnt)
     return;
 
   static auto
@@ -1867,28 +1867,95 @@ DrawGameContextMenu (app_record_s* pApp)
 
       ImGui::Separator ( );
 
+      static constexpr int maxCategoryNameLen = 50;
+      static char charCategoryRename[maxCategoryNameLen] = { };
+      static char charCategoryName[maxCategoryNameLen] = { };
+      static int  isRenaming = -1;
+      static bool hasFocused = false;
+      static std::string renameLabel = "###ManageCategoriesRename";
+      int index = 0;
+
+      std::string newCategory;
+      bool        newCategorySet = false;
+      bool        activeInput    = false;
+
       for (auto& category : _registry.mszCategories)
       {
-        if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category), ! isFavorite))
+        if (index == isRenaming)
         {
-          pApp->skif.category = (pApp->skif.category != category) ? category : "";
-          UpdateJsonMetaData (pApp, true);
+          if (ImGui::InputTextEx (renameLabel.c_str(), category.c_str(), charCategoryRename, maxCategoryNameLen,
+                          ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
+          {
+            // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
+            //   and update/clear out the entries where the current category that we are working with is set
+          }
 
-          SKIF_GamingCollection::SortApps (&g_apps);
-          sort_changed = true;
+          else if (! hasFocused)
+          {
+            hasFocused  = true;
+            activeInput = true;
+            ImGui::ActivateItem (ImGui::GetID (renameLabel.c_str()));
+          }
+
+          else if (ImGui::IsItemActive ( ))
+            activeInput = true;
+
+          else //! ImGui::IsItemActive ( )
+          {
+            isRenaming = -1;
+            hasFocused = false;
+          }
         }
+
+        else
+        {
+          if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category), ! isFavorite))
+          {
+            // Delay setting the new category to prevent an one-frame issue from too new data
+            newCategory    = (pApp->skif.category != category) ? category : "";
+            newCategorySet = true;
+          }
+        }
+
+        if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
+          ImGui::OpenPopup (SK_FormatStringRaw ("###Popup-%i", index));
+
+        if (ImGui::BeginPopup (SK_FormatStringRaw ("###Popup-%i", index), ImGuiWindowFlags_NoMove))
+        {
+          if (ImGui::Selectable (SK_FormatStringRaw ("Rename###PopupRename-%i", index)))
+          {
+            isRenaming = index;
+            strncpy (charCategoryRename, category.c_str(), maxCategoryNameLen);
+            ImGui::CloseCurrentPopup ( );
+          }
+
+          if (ImGui::Selectable (SK_FormatStringRaw ("Remove###PopupRemove-%i", index)))
+          {
+            ImGui::CloseCurrentPopup ( );
+          }
+
+          ImGui::EndPopup ( );
+        }
+
+        index++;
+      }
+
+      if (newCategorySet)
+      {
+        pApp->skif.category = newCategory;
+        UpdateJsonMetaData (pApp, true);
+
+        SKIF_GamingCollection::SortApps (&g_apps);
+        //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
       if (! _registry.mszCategories.empty())
         ImGui::Separator ( );
 
-      constexpr int maxCategoryNameLen = 50;
-      static char charCategoryName[maxCategoryNameLen] = { };
-
       if (isFavorite)
         SKIF_ImGui_PushDisableState ( );
 
-      if (ImGui::InputTextEx ("###ManageCategoriesAddNew", "New category...", charCategoryName, 50,
+      if (ImGui::InputTextEx ("###ManageCategoriesAddNew", "New category...", charCategoryName, maxCategoryNameLen,
                       ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
       {
         std::string szName = charCategoryName;
@@ -1916,11 +1983,13 @@ DrawGameContextMenu (app_record_s* pApp)
       if (isFavorite)
         SKIF_ImGui_PopDisableState ( );
 
-      bNewCategory = ImGui::IsItemActive ( );
+      activeInput = activeInput || ImGui::IsItemActive ( );
 
-      if (bNewCategory)
+      if (activeInput)
+        bCategoryMgnt = true;
+
+      if (bCategoryMgnt)
         allowShortcutCtrlA = false;
-
 
       ImGui::PopID       ( );
       ImGui::PopItemFlag ( );
@@ -6103,7 +6172,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-        category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Uncategorized" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Games" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
         ImGui::PopStyleColor  ( );
         ImGui::PopStyleColor  ( );
 
