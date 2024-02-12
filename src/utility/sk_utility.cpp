@@ -352,8 +352,8 @@ SK_FormatStringRaw (char const* const _Format, ...)
   }
   va_end   (_ArgList);
 
-  static size_t s_alloc_size = 0;
-  static std::unique_ptr <char[]> s_pData;
+  static thread_local size_t s_alloc_size = 0;
+  static thread_local std::unique_ptr <char[]> s_pData;
 
   size_t alloc_size = sizeof (char) * (len + 2);
 
