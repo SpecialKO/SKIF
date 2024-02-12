@@ -4936,7 +4936,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // Default values that needs to be set
           app.second.skif.pinned  = 99; // Default to pinned
-          app.second.ui.pcgw      = "https://www.pcgamingwiki.com/api/appid.php?appid=" + std::to_string(app.second.id);
+          app.second.ui.pcgw      = SKIF_Util_FormatStringRaw ("https://www.pcgamingwiki.com/api/appid.php?appid=%lu", app.second.id);
+          app.second.ui.sgdbGrids = SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/grids",          app.second.id);
+          app.second.ui.sgdbIcons = SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/icons",          app.second.id);
         }
 
         // Regular handling for the remaining Steam games
