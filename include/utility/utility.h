@@ -32,6 +32,8 @@ extern std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
 // Generic Utilities
 
+char *
+__cdecl         SKIF_Util_FormatStringRaw             (char    const* const _Format, ...);
 std:: string    SKIF_Util_ToLower                     (std:: string_view input);
 std::wstring    SKIF_Util_ToLowerW                    (std::wstring_view input);
 std:: string    SKIF_Util_ToUpper                     (std:: string_view input);

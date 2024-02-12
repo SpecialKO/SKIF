@@ -1918,18 +1918,18 @@ DrawGameContextMenu (app_record_s* pApp)
         }
 
         if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
-          ImGui::OpenPopup (SK_FormatStringRaw ("###Popup-%i", index));
+          ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", index));
 
-        if (ImGui::BeginPopup (SK_FormatStringRaw ("###Popup-%i", index), ImGuiWindowFlags_NoMove))
+        if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", index), ImGuiWindowFlags_NoMove))
         {
-          if (ImGui::Selectable (SK_FormatStringRaw ("Rename###PopupRename-%i", index)))
+          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", index)))
           {
             isRenaming = index;
             strncpy (charCategoryRename, category.c_str(), maxCategoryNameLen);
             ImGui::CloseCurrentPopup ( );
           }
 
-          if (ImGui::Selectable (SK_FormatStringRaw ("Remove###PopupRemove-%i", index)))
+          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", index)))
           {
             ImGui::CloseCurrentPopup ( );
           }
@@ -2122,7 +2122,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
       SKIF_ImGui_SetHoverText       (
-        SK_FormatString (
+        SKIF_Util_FormatStringRaw (
           "steam://nav/games/details/%lu", pApp->id
                         )
                                       );
@@ -2134,7 +2134,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
       SKIF_ImGui_SetHoverText       (
-        SK_FormatString (
+        SKIF_Util_FormatStringRaw (
           "steam://controllerconfig/%lu", pApp->id
                         )
                                       );
@@ -2147,7 +2147,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
       SKIF_ImGui_SetHoverText       (
-        SK_FormatString (
+        SKIF_Util_FormatStringRaw (
           "steam://gameproperties/%lu", pApp->id
                         )
                                       );
@@ -2204,7 +2204,7 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (
-          SK_FormatString (
+          SKIF_Util_FormatStringRaw (
             "https://www.gogdb.org/product/%lu", pApp->id
           )
         );
@@ -2221,7 +2221,7 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (
-          SK_FormatString (
+          SKIF_Util_FormatStringRaw (
             "https://steamcommunity.com/app/%lu", pApp->id
                           )
                                         );
@@ -2235,7 +2235,7 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (
-          SK_FormatString (
+          SKIF_Util_FormatStringRaw (
             "https://steamdb.info/app/%lu", pApp->id
                           )
                                         );
@@ -2399,7 +2399,7 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         bool bMenuOpen =
           ImGui::BeginMenu  (
-            SK_FormatString ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", pApp->ui.branches.size()).c_str()
+            SKIF_Util_FormatStringRaw ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", pApp->ui.branches.size())
           );
 
         if (bMenuOpen)
@@ -2458,7 +2458,7 @@ DrawGameContextMenu (app_record_s* pApp)
       if (! pApp->launch_configs.empty ())
       {
         if (ImGui::BeginMenu  (
-              SK_FormatString ("%s (%i)", ICON_FA_FLASK "  Launches", pApp->launch_configs.size()).c_str()
+              SKIF_Util_FormatStringRaw ("%s (%i)", ICON_FA_FLASK "  Launches", pApp->launch_configs.size())
             ))
         {
           bool sepCustomSKIF = true,
@@ -2867,7 +2867,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
     {
       SKIF_ImGui_SetMouseCursorHand ( );
       SKIF_ImGui_SetHoverText       (
-        SK_FormatString (
+        SKIF_Util_FormatStringRaw (
           "steam://nav/games/details/%lu", pApp->id
                         )
                                       );
@@ -4498,13 +4498,13 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   switch (pApp->specialk.injection.injection.type)
   {
     case InjectionType::Local:
-      pApp->ui.label_version = SK_FormatString (R"(v %s (%s))", pApp->specialk.injection.dll.version_utf8.c_str(), pApp->specialk.injection.dll.shorthand_utf8.c_str()); // injection.type_utf8.c_str()
+      pApp->ui.label_version = SKIF_Util_FormatStringRaw (R"(v %s (%s))", pApp->specialk.injection.dll.version_utf8.c_str(), pApp->specialk.injection.dll.shorthand_utf8.c_str()); // injection.type_utf8.c_str()
       break;
 
     case InjectionType::Global:
     default: // Unknown injection strategy, but let's assume global would work
       if ( _inject.bHasServlet )
-        pApp->ui.label_version = SK_FormatString (R"(v %s)", pApp->specialk.injection.dll.version_utf8.c_str()); // injection.type_utf8.c_str() // We don't actually have SKIF say "Global v XXX" any longer due to space constraints -- Aemony, 2024-01-04
+        pApp->ui.label_version = SKIF_Util_FormatStringRaw (R"(v %s)", pApp->specialk.injection.dll.version_utf8.c_str()); // injection.type_utf8.c_str() // We don't actually have SKIF say "Global v XXX" any longer due to space constraints -- Aemony, 2024-01-04
       break;
   }
 
@@ -4575,11 +4575,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
   // SteamGridDB
   pApp->ui.sgdbGrids = (pApp->store == app_record_s::Store::Steam)
-                     ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/grids",      pApp->id)
-                     : SK_FormatString("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.clean.c_str());
+                     ? SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/grids",      pApp->id)
+                     : SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.clean.c_str());
   pApp->ui.sgdbIcons = (pApp->store == app_record_s::Store::Steam)
-                     ? SK_FormatString("https://www.steamgriddb.com/steam/%lu/icons",      pApp->id)
-                     : SK_FormatString("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.clean.c_str());
+                     ? SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/icons",      pApp->id)
+                     : SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.clean.c_str());
 
   // Steam Branches
   pApp->ui.branches.clear ();
@@ -4812,8 +4812,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_record.install_dir       = _path_cache.specialk_install;
         SKIF_record.store             = app_record_s::Store::Steam;
         SKIF_record.store_utf8        = "Steam";
-        SKIF_record.ImGuiLabelAndID   = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
-        SKIF_record.ImGuiPushID       = SK_FormatString("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiLabelAndID   = SKIF_Util_FormatStringRaw ("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
 
         SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
         SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
@@ -4842,8 +4842,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Loading custom launch configs synchronously...";
 
       static const std::pair <bool, std::wstring> lc_files[] = {
-        { false, SK_FormatStringW(LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata) }, // We load user-specified first
-        {  true, SK_FormatStringW(LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata) }
+        { false, SK_FormatStringW (LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata) }, // We load user-specified first
+        {  true, SK_FormatStringW (LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata) }
       };
 
       for (auto& lc_file : lc_files)
@@ -5145,8 +5145,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
 
           // Update ImGuiLabelAndID and ImGuiPushID
-          app.second.ImGuiLabelAndID = SK_FormatString("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
-          app.second.ImGuiPushID     = SK_FormatString("###%i-%i", (int)app.second.store, app.second.id);
+          app.second.ImGuiLabelAndID = SKIF_Util_FormatStringRaw ("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
+          app.second.ImGuiPushID     = SKIF_Util_FormatStringRaw ("###%i-%i", (int)app.second.store, app.second.id);
 
 #if 0
           PLOG_DEBUG << "\nGame Titles: (" << app.second.id << ")"
@@ -8155,9 +8155,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::TreePush        ("ManageGame_InstantPlay");
       ImGui::RadioButton     (
-        SK_FormatString ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
-                                          (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG))
-                                          ? "Always" : "Never").c_str(), &cached_instant_play, 0);
+        SKIF_Util_FormatStringRaw ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
+                                             (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG))
+                                            ? "Always" : "Never"), &cached_instant_play, 0);
       SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
       ImGui::SameLine        ( );
       ImGui::RadioButton     ("Never",             &cached_instant_play, 2);
@@ -8183,7 +8183,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       );
 
       ImGui::TreePush        ("ManageGame_AutoStopBehavior");
-      ImGui::RadioButton     (SK_FormatString ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit").c_str(), &cached_auto_stop, 0);
+      ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit"), &cached_auto_stop, 0);
       SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
       ImGui::SameLine        ( );
       ImGui::RadioButton     ("On inject", &cached_auto_stop, 1);

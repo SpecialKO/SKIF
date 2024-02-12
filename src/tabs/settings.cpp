@@ -2327,7 +2327,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::Text          ((monitor.Supported) ? stretchFormat.c_str() : "Not Supported",
                                monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
         if (! monitor.Supported && monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
-          SKIF_ImGui_SetHoverTip (SK_FormatString (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor));
+          SKIF_ImGui_SetHoverTip (SKIF_Util_FormatStringRaw (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor));
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (((monitor.Supported) ? 390.0f : 360.0f) * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );

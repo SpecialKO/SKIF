@@ -39,6 +39,54 @@ CRITICAL_SECTION CriticalSectionDbgHelp = { };
 
 // Generic Utilities
 
+// Companion variant of SK_FormatString
+// Not safe to use in scenarios such as:
+//   - Recursion (calling itself)
+//   - Multiple as part of a single expression
+// since the static memory buffer gets overwritten
+// Basically only keep to using this in ImGui label scenarios
+char *
+__cdecl
+SKIF_Util_FormatStringRaw (char const* const _Format, ...)
+{
+  if (_Format == NULL)
+    return "";
+
+  size_t len      = 0;
+
+  va_list   _ArgList;
+  va_start (_ArgList, _Format);
+  {
+    len =
+      vsnprintf ( nullptr, 0, _Format, _ArgList ) + 1ui64;
+  }
+  va_end   (_ArgList);
+
+  static thread_local size_t s_alloc_size = 0;
+  static thread_local std::unique_ptr <char[]> s_pData;
+
+  size_t alloc_size = sizeof (char) * (len + 2);
+
+  if (s_alloc_size != alloc_size)
+    s_pData = std::make_unique <char []> (alloc_size);
+
+  if (! s_pData)
+    return "";
+
+  s_alloc_size = alloc_size;
+  s_pData.get ()[0] = '\0';
+
+  va_start (_ArgList, _Format);
+  {
+    len =
+      vsnprintf ( s_pData.get (), len + 1, _Format, _ArgList );
+  }
+  va_end   (_ArgList);
+
+  return
+    s_pData.get ();
+}
+
 std::string
 SKIF_Util_ToLower      (std::string_view input)
 {
@@ -662,8 +710,8 @@ SKIF_Util_Debug_LogUserNames (void)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
 
-  std::wstring names      = SK_FormatStringW (L"ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfile    .c_str(), userSamName    .c_str(), userDisName    .c_str(), machineName    .c_str());
-  std:: string names_utf8 = SK_FormatString  ( "ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfileUTF8.c_str(), userSamNameUTF8.c_str(), userDisNameUTF8.c_str(), machineNameUTF8.c_str());
+  std::wstring names      = SK_FormatStringW   (L"ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfile    .c_str(), userSamName    .c_str(), userDisName    .c_str(), machineName    .c_str());
+  std:: string names_utf8 = SKIF_Util_FormatStringRaw ( "ProfileName: %s, UserName: %s, DisplayName: %s, MachineName: %s", userProfileUTF8.c_str(), userSamNameUTF8.c_str(), userDisNameUTF8.c_str(), machineNameUTF8.c_str());
 
   PLOG_VERBOSE << names;
   PLOG_VERBOSE << names_utf8;

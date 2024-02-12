@@ -1081,14 +1081,13 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   SK_RunOnce (SKIF_GetFolderPath (&_path_cache.user_startup));
 
-  static std::string link    = SK_FormatString ( R"(%ws\SKIF.lnk)",
-                               _path_cache.user_startup.path );
+  static std::string link         = SKIF_Util_FormatStringRaw (R"(%ws\SKIF.lnk)",                 _path_cache.user_startup.path);
 
-  static std::wstring Svc32Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc32.exe")", _path_cache.specialk_install),
-                      Svc64Target = SK_FormatStringW(LR"("%ws\Servlet\SKIFsvc64.exe")", _path_cache.specialk_install);
+  static std::wstring Svc32Target = SK_FormatStringW   (LR"("%ws\Servlet\SKIFsvc32.exe")", _path_cache.specialk_install),
+                      Svc64Target = SK_FormatStringW   (LR"("%ws\Servlet\SKIFsvc64.exe")", _path_cache.specialk_install);
 
-  static std::string  Svc32Link = SK_FormatString(R"(%ws\SKIFsvc32.lnk)", _path_cache.user_startup.path),
-                      Svc64Link = SK_FormatString(R"(%ws\SKIFsvc64.lnk)", _path_cache.user_startup.path);
+  static std::string  Svc32Link   = SKIF_Util_FormatStringRaw (R"(%ws\SKIFsvc32.lnk)",            _path_cache.user_startup.path),
+                      Svc64Link   = SKIF_Util_FormatStringRaw (R"(%ws\SKIFsvc64.lnk)",            _path_cache.user_startup.path);
 
   static bool dontCare = bAutoStartServiceOnly = _CheckRegistry() ||
                                                  PathFileExistsW(SK_UTF8ToWideChar(Svc32Link).c_str()) ||

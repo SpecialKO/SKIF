@@ -1458,6 +1458,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   hModSKIF =
     GetModuleHandleW (nullptr);
 
+  //SKIF_Util_Debug_LogUserNames ( );
+
   // First round
   if (_Signal.Minimize)
     nCmdShow = SW_SHOWMINNOACTIVE;
