@@ -339,7 +339,10 @@ char *
 __cdecl
 SK_FormatStringRaw (char const* const _Format, ...)
 {
-  size_t len = 0;
+  if (_Format == NULL)
+    return "";
+
+  size_t len      = 0;
 
   va_list   _ArgList;
   va_start (_ArgList, _Format);
@@ -349,24 +352,28 @@ SK_FormatStringRaw (char const* const _Format, ...)
   }
   va_end   (_ArgList);
 
-  size_t alloc_size =
-    sizeof (char) * (len + 2);
+  static size_t s_alloc_size = 0;
+  static std::unique_ptr <char[]> s_pData;
 
-  std::unique_ptr <char []> pData =
-    std::make_unique <char []> (alloc_size);
+  size_t alloc_size = sizeof (char) * (len + 2);
 
-  if (! pData)
+  if (s_alloc_size != alloc_size)
+    s_pData = std::make_unique <char []> (alloc_size);
+
+  if (! s_pData)
     return "";
+
+  s_alloc_size = alloc_size;
 
   va_start (_ArgList, _Format);
   {
     len =
-      vsnprintf ( pData.get (), len + 1, _Format, _ArgList );
+      vsnprintf ( s_pData.get (), len + 1, _Format, _ArgList );
   }
   va_end   (_ArgList);
 
   return
-    pData.get ();
+    s_pData.get ();
 }
 
 std::wstring
