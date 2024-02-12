@@ -335,6 +335,40 @@ SK_FormatString (char const* const _Format, ...)
     pData.get ();
 }
 
+char *
+__cdecl
+SK_FormatStringRaw (char const* const _Format, ...)
+{
+  size_t len = 0;
+
+  va_list   _ArgList;
+  va_start (_ArgList, _Format);
+  {
+    len =
+      vsnprintf ( nullptr, 0, _Format, _ArgList ) + 1ui64;
+  }
+  va_end   (_ArgList);
+
+  size_t alloc_size =
+    sizeof (char) * (len + 2);
+
+  std::unique_ptr <char []> pData =
+    std::make_unique <char []> (alloc_size);
+
+  if (! pData)
+    return "";
+
+  va_start (_ArgList, _Format);
+  {
+    len =
+      vsnprintf ( pData.get (), len + 1, _Format, _ArgList );
+  }
+  va_end   (_ArgList);
+
+  return
+    pData.get ();
+}
+
 std::wstring
 __cdecl
 SK_FormatStringW (wchar_t const* const _Format, ...)

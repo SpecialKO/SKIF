@@ -159,6 +159,8 @@ std::wstring   SK_UTF8ToWideChar            (const std::string&  in);
 
 std::string
 __cdecl        SK_FormatString              (char    const* const _Format, ...);
+char *
+__cdecl        SK_FormatStringRaw           (char    const* const _Format, ...);
 std::wstring
 __cdecl        SK_FormatStringW             (wchar_t const* const _Format, ...);
 int
