@@ -175,9 +175,6 @@ CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
 CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV_small;
 
-// Forward declaration
-void UpdateInjectionStrategy (app_record_s* pApp);
-
 // External declaration
 extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService);
 
@@ -365,7 +362,7 @@ SearchAppsList (void)
 
 // This writes the Json object to the disk
 bool
-WriteJsonMetaDataFile (void)
+JsonDB_WriteFile (void)
 {
   if (! jsonMetaDB.is_discarded())
   {
@@ -384,7 +381,7 @@ WriteJsonMetaDataFile (void)
 
 // This both updates the metadata and optionally writes the new object to the disk
 bool
-UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
+JsonDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
 {
   // Update the db.json file with any new values
   if (! jsonMetaDB.is_discarded())
@@ -413,12 +410,45 @@ UpdateJsonMetaData (app_record_s* pApp, bool bWriteToDisk)
           pApp->store == app_record_s::Store::Xbox)
         key += { "InstantPlay", pApp->skif.instant_play };
 
-      return ! bWriteToDisk || WriteJsonMetaDataFile ( );
+      return ! bWriteToDisk || JsonDB_WriteFile ( );
     }
     catch (const std::exception&)
     {
       PLOG_ERROR << "Error occurred when trying to update the JSON metadata for " << item;
     }
+  }
+
+  else
+    PLOG_ERROR << "Could not write metadata to JSON file as the metadata had been discarded.";
+
+  return false;
+}
+
+// This updates the category name of all items in the JSON
+bool
+JsonDB_SetCategoryName (std::string szOld, std::string szNew)
+{
+  if (szOld.empty())
+    return false;
+
+  if (! jsonMetaDB.is_discarded())
+  {
+    for (auto& platform : jsonMetaDB)
+    {
+      for (auto& game : platform)
+      {
+        if (! game.empty())
+        {
+          if (game.contains("Category") && game.at("Category") == szOld)
+          {
+            game.at("Category") = szNew;
+            PLOG_VERBOSE << "Made a replacement!";
+          }
+        }
+      }
+    }
+
+    return JsonDB_WriteFile ( );
   }
 
   else
@@ -1018,7 +1048,7 @@ LaunchGame (app_record_s* pApp)
       ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
 
     // Update the db.json file with the new Uses/Used values
-    UpdateJsonMetaData (pApp, true);
+    JsonDB_UpdateApp (pApp, true);
 
     // Ensure the sort order is updated as well
     SKIF_GamingCollection::SortApps (&g_apps);
@@ -1821,7 +1851,7 @@ DrawGameContextMenu (app_record_s* pApp)
         pApp->skif.pinned =  51;
         numPinnedOnTop++;
 
-        UpdateJsonMetaData  ( pApp, true);
+        JsonDB_UpdateApp  ( pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
@@ -1838,7 +1868,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
 
-      UpdateJsonMetaData   (pApp, true);
+      JsonDB_UpdateApp   (pApp, true);
 
       SKIF_GamingCollection::SortApps (&g_apps);
       sort_changed = true;
@@ -1861,7 +1891,7 @@ DrawGameContextMenu (app_record_s* pApp)
           numPinnedOnTop--;
 
         pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
-        UpdateJsonMetaData (pApp, true);
+        JsonDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
@@ -1869,16 +1899,18 @@ DrawGameContextMenu (app_record_s* pApp)
 
       ImGui::Separator ( );
 
-      static constexpr int maxCategoryNameLen = 50;
-      static char charCategoryRename[maxCategoryNameLen] = { };
-      static char charCategoryName[maxCategoryNameLen] = { };
+      static constexpr int           maxCategoryNameLen  =  50;
+      static char charCategoryRename[maxCategoryNameLen] = {  };
+      static char charCategoryName  [maxCategoryNameLen] = {  };
       static int  isRenaming = -1;
       static bool hasFocused = false;
       static std::string renameLabel = "###ManageCategoriesRename";
       int index = 0;
 
-      std::string newCategory;
-      bool        newCategorySet = false;
+      std::string categoryName, // Holds the old name
+               newCategoryName; // Holds the new name
+      bool        newCategory    = false, // New
+                  renameCategory = false; // Rename + Remove
       bool        activeInput    = false;
 
       for (auto& category : _registry.mszCategories)
@@ -1888,8 +1920,20 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::InputTextEx (renameLabel.c_str(), category.c_str(), charCategoryRename, maxCategoryNameLen,
                           ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
           {
-            // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
-            //   and update/clear out the entries where the current category that we are working with is set
+            newCategoryName = charCategoryRename;
+            strncpy (charCategoryRename, "\0", maxCategoryNameLen);
+
+            // Update _registry.mszCategories
+            if (! newCategoryName.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), newCategoryName) == _registry.mszCategories.end())
+            {
+              categoryName   = category;
+              renameCategory = true;
+              category       = newCategoryName;
+              
+              ImGui::CloseCurrentPopup ( );
+              // It's not safe to iterate in this loop any longer
+              break;
+            }
           }
 
           else if (! hasFocused)
@@ -1914,8 +1958,8 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category), ! isFavorite))
           {
             // Delay setting the new category to prevent an one-frame issue from too new data
-            newCategory    = (pApp->skif.category != category) ? category : "";
-            newCategorySet = true;
+            newCategoryName = (pApp->skif.category != category) ? category : "";
+            newCategory     = true;
           }
         }
 
@@ -1933,6 +1977,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", index)))
           {
+            categoryName    = category;
+            newCategoryName = "";
+            renameCategory  = true;
             ImGui::CloseCurrentPopup ( );
           }
 
@@ -1942,10 +1989,47 @@ DrawGameContextMenu (app_record_s* pApp)
         index++;
       }
 
-      if (newCategorySet)
+      // Handle both renames and removals
+      if (renameCategory)
       {
-        pApp->skif.category = newCategory;
-        UpdateJsonMetaData (pApp, true);
+        // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
+        //   and update/clear out the entries where the current category that we are working with is set
+        JsonDB_SetCategoryName (categoryName, newCategoryName);
+
+        // Update g_apps
+        for (auto& app : g_apps)
+        {
+          if (app.second.skif.category == categoryName)
+            app.second.skif.category = newCategoryName;
+        }
+
+        SKIF_GamingCollection::SortApps (&g_apps);
+
+        if (newCategoryName.empty())
+          std::erase_if(_registry.mszCategories, [&](std::string const& name) { return name == categoryName; });
+
+        // Update the registry
+        std::stable_sort (_registry.mszCategories.begin (),
+                          _registry.mszCategories.end   (),
+          []( const std::string& a,
+              const std::string& b ) -> int
+          {
+            return a.compare(b) < 0;
+          }
+        );
+
+        std::vector<std::wstring> _in;
+        for (auto& category : _registry.mszCategories)
+          _in.push_back (SK_UTF8ToWideChar (category));
+
+        _registry.regKVCategories.putDataMultiSZ (_in);
+      }
+
+      // Handles new categories
+      if (newCategory)
+      {
+        pApp->skif.category = newCategoryName;
+        JsonDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
         //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
@@ -1976,7 +2060,7 @@ DrawGameContextMenu (app_record_s* pApp)
         }
 
         pApp->skif.category = szName;
-        UpdateJsonMetaData (pApp, true);
+        JsonDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
         sort_changed = true;
@@ -2042,7 +2126,7 @@ DrawGameContextMenu (app_record_s* pApp)
     {
       pApp->skif.hidden =  (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? 0 : 1;
 
-      UpdateJsonMetaData  ( pApp, true);
+      JsonDB_UpdateApp  ( pApp, true);
 
       RepopulateGames = true;
     }
@@ -2894,7 +2978,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
     else if (old_value > 50)
       numPinnedOnTop--;
 
-    UpdateJsonMetaData  ( pApp, true);
+    JsonDB_UpdateApp  ( pApp, true);
 
     SKIF_GamingCollection::SortApps (&g_apps);
     sort_changed = true;
@@ -5519,7 +5603,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               app.second.skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
 
               // Update the db.json file with any new values
-              UpdateJsonMetaData (pApp, true);
+              JsonDB_UpdateApp (pApp, true);
             }
           }
         }
@@ -8287,7 +8371,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Update any locally stored metadata
-      UpdateJsonMetaData (pApp, true);
+      JsonDB_UpdateApp (pApp, true);
         
       // Clear variables
       changed_name        = false;
@@ -8434,6 +8518,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! dragDroppedFilePath.empty())
   {
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
+
     // A child thread will set refreshCover once done
     if (SaveGameCover (pApp, dragDroppedFilePath))
     {
