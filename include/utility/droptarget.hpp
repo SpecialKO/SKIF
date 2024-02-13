@@ -5,6 +5,7 @@
 #include <objidl.h>
 #include <shlwapi.h>
 #include <vector>
+#include <filesystem>
 
 class DropTarget : public IDropTarget {
 public:
@@ -31,7 +32,7 @@ public:
 
   ~DropTarget ()
   {
-    if (NULL != m_pDropTargetHelper)
+    if (m_pDropTargetHelper != nullptr)
       m_pDropTargetHelper->Release();
   }
 
@@ -73,27 +74,36 @@ public:
   {
     UNREFERENCED_PARAMETER (grfKeyState);
 
-    if (pDataObj == nullptr)
+    // Reset stuff
+    m_bAllowDrop  = false;
+    m_fmtDropping = nullptr;
+
+    if (pdwEffect == NULL)
       return E_INVALIDARG;
 
-    if (m_pDropTargetHelper)
-      m_pDropTargetHelper->DragEnter (m_hWnd, pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+    if (pDataObj == nullptr)
+      return E_UNEXPECTED;
 
-    for (auto& fmt : m_fmtSupported)
+    // We are only interested in copy operations (for now)
+    if ((*pdwEffect & DROPEFFECT_COPY) == DROPEFFECT_COPY)
     {
-      if (SUCCEEDED (pDataObj->QueryGetData (&fmt)))
+      for (auto& fmt : m_fmtSupported)
       {
-        m_bAllowDrop = true;
-        m_fmtDropping = &fmt;
-        *pdwEffect  &= DROPEFFECT_COPY;
+        if (SUCCEEDED (pDataObj->QueryGetData (&fmt)))
+        {
+          m_bAllowDrop  = true;
+          m_fmtDropping = &fmt;
+          *pdwEffect    = DROPEFFECT_COPY;
 
-        return S_OK;
+          if (m_pDropTargetHelper != nullptr)
+            m_pDropTargetHelper->DragEnter (m_hWnd, pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+
+          return S_OK;
+        }
       }
     }
 
-    // Not a valid drop target for this type of content
     *pdwEffect = DROPEFFECT_NONE;
-
     return S_FALSE;
   }
 
@@ -101,24 +111,31 @@ public:
   {
     UNREFERENCED_PARAMETER (grfKeyState);
 
-    if (m_pDropTargetHelper)
-      m_pDropTargetHelper->DragOver (reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+    if (pdwEffect == NULL)
+      return E_INVALIDARG;
 
-    if (m_bAllowDrop)
+    // Here we could theoretically check if an ImGui component that supports the text is being hovered
+    if (m_bAllowDrop && (*pdwEffect & DROPEFFECT_COPY) == DROPEFFECT_COPY)
     {
-      // Here we should check if an ImGui component that supports the text is being hovered
-      *pdwEffect &= DROPEFFECT_COPY;
+      *pdwEffect = DROPEFFECT_COPY;
+
+      if (m_pDropTargetHelper != nullptr)
+        m_pDropTargetHelper->DragOver (reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+
+      return S_OK;
     }
 
-    return S_OK;
+    *pdwEffect = DROPEFFECT_NONE;
+    return S_FALSE;
   }
 
   STDMETHODIMP DragLeave (void) override
   {
-    if (m_pDropTargetHelper)
+    if (m_pDropTargetHelper != nullptr)
       m_pDropTargetHelper->DragLeave ( );
 
-    m_bAllowDrop = false;
+    m_bAllowDrop  = false;
+    m_fmtDropping = nullptr;
 
     return S_OK;
   }
@@ -127,54 +144,72 @@ public:
   {
     UNREFERENCED_PARAMETER (grfKeyState);
 
-    STGMEDIUM medium = { };
-
-    if (pDataObj == nullptr)
+    if (pdwEffect == NULL)
       return E_INVALIDARG;
-    
-    if (m_pDropTargetHelper)
-      m_pDropTargetHelper->Drop (pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
-    extern std::wstring dragDroppedFilePath;
+    if (pDataObj == nullptr || m_fmtDropping == nullptr)
+      return E_UNEXPECTED;
 
-    // Files from e.g. File Explorer
-    if (m_fmtDropping->cfFormat == CF_HDROP && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
+    if ((*pdwEffect & DROPEFFECT_COPY) == DROPEFFECT_COPY)
     {
-      HDROP hDrop = static_cast<HDROP> (GlobalLock(medium.hGlobal));
+      *pdwEffect = DROPEFFECT_COPY;
 
-      if (hDrop != nullptr)
+      if (m_pDropTargetHelper != nullptr)
+        m_pDropTargetHelper->Drop (pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+
+      extern std::wstring dragDroppedFilePath;
+      STGMEDIUM medium = { };
+
+      // Files from e.g. File Explorer
+      if (m_fmtDropping->cfFormat == CF_HDROP && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
       {
-        UINT numFiles = DragQueryFile (hDrop, 0xFFFFFFFF, nullptr, 0);
+        HDROP hDrop = static_cast<HDROP> (GlobalLock(medium.hGlobal));
 
-        if (numFiles > 0)
+        if (hDrop != nullptr)
         {
-          TCHAR filePath [MAX_PATH];
-          DragQueryFile (hDrop, 0, filePath, MAX_PATH);
-          dragDroppedFilePath = std::wstring(filePath);
+          UINT numFiles = DragQueryFile (hDrop, 0xFFFFFFFF, nullptr, 0);
+
+          if (numFiles > 0)
+          {
+            TCHAR filePath [MAX_PATH];
+            DragQueryFile (hDrop, 0, filePath, MAX_PATH);
+            dragDroppedFilePath = std::wstring(filePath);
+          }
+
+          GlobalUnlock (medium.hGlobal);
         }
 
-        GlobalUnlock (medium.hGlobal);
+        ReleaseStgMedium (&medium);
+
+        m_bAllowDrop  = false;
+        m_fmtDropping = nullptr;
+
+        return S_OK;
       }
 
-      ReleaseStgMedium (&medium);
-    }
-
-    // ANSI text
-    else if (m_fmtDropping->cfFormat == CF_TEXT && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
-    {
-      char *pszData = static_cast<char *> (GlobalLock (medium.hGlobal));
-
-      if (pszData != nullptr)
+      // ANSI text
+      else if (m_fmtDropping->cfFormat == CF_TEXT && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
       {
-        dragDroppedFilePath = SK_UTF8ToWideChar (pszData);
+        char *pszData = static_cast<char *> (GlobalLock (medium.hGlobal));
 
-        GlobalUnlock (medium.hGlobal);
+        if (pszData != nullptr)
+        {
+          dragDroppedFilePath = SK_UTF8ToWideChar (pszData);
+
+          GlobalUnlock (medium.hGlobal);
+        }
+
+        ReleaseStgMedium (&medium);
+
+        m_bAllowDrop  = false;
+        m_fmtDropping = nullptr;
+
+        return S_OK;
       }
-
-      ReleaseStgMedium (&medium);
     }
 
-    return S_OK;
+    *pdwEffect = DROPEFFECT_NONE;
+    return S_FALSE;
   }
 
 private:
