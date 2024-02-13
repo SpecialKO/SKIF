@@ -1040,8 +1040,10 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (path.empty())
     return false;
 
+  std::error_code ec;
+  const std::filesystem::path fsPath (path.data());
   std::wstring targetPath  = L"";
-  std::wstring extOriginal = std::filesystem::path (path.data()).extension().wstring();
+  std::wstring extOriginal = fsPath.extension().wstring();
   bool         isURL       = PathIsURL (path.data());
 
   extOriginal = SKIF_Util_ToLowerW  (extOriginal);
@@ -1075,8 +1077,8 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     return false;
   }
 
-  // For local files, check if they do. in fact, exist
-  if (! isURL && ! PathFileExists (path.data()))
+  // For local files, check if they do. in fact, exist and are local files
+  if (! isURL && ! std::filesystem::is_regular_file (fsPath, ec))
   {
     confirmPopupTitle = "Unsupported image format";
     confirmPopupText  = "Please use a supported image format:\n"
@@ -8431,6 +8433,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (! dragDroppedFilePath.empty())
   {
+    PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
     // A child thread will set refreshCover once done
     if (SaveGameCover (pApp, dragDroppedFilePath))
     {
@@ -8447,7 +8450,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
       fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
     }
-
 
     dragDroppedFilePath.clear();
   }
