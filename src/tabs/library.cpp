@@ -4809,7 +4809,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       RepopulateGames = true;
 
     // Sets up a wait object on UITab_Library
-    if (SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath, UITab_Library) && _registry.bLibraryEpic)
+    if (SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath) && _registry.bLibraryEpic)
       RepopulateGames = true;
     
     // Sets up a wait object on UITab_Library
@@ -5559,7 +5559,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.dir_watch.reset ( );
 
       if (! pApp->install_dir.empty())
-        selection.dir_watch.isSignaled (pApp->install_dir, UITab_Library);
+        selection.dir_watch.isSignaled (pApp->install_dir);
     }
 
     int availableWorker = -1;
