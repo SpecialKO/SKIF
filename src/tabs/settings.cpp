@@ -2046,10 +2046,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("DirectFlip is engaged, bypassing desktop composition (DWM).");
+    ImGui::TextWrapped ("DirectFlip has engaged, bypassing desktop composition (DWM).");
     ImGui::EndGroup    ();
 
     SKIF_ImGui_SetHoverTip        ("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.");
+
+    SKIF_ImGui_SetHoverTip        ("DirectFlip appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
+                                   "Lack of it appears as 'Composed: Flip'.");
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
 
@@ -2061,7 +2064,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode has enaged or if Fullscreen Optimizations (FSO) overrides it.");
+    ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode is being used or if Fullscreen Optimizations (FSO) overrides it.");
     ImGui::EndGroup    ();
 
     SKIF_ImGui_SetHoverTip        ("FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
