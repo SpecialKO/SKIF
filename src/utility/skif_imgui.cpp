@@ -1176,16 +1176,17 @@ bool
 SKIF_ImGui_CanMouseDragMove (void)
 {
   extern bool SKIF_MouseDragMoveAllowed;
-  return      SKIF_MouseDragMoveAllowed   &&       // Manually disabled by a few UI elements
-            ! ImGui::IsAnyItemHovered ( ) &&       // Disabled if any item is hovered
-          ( ! ImGui::IsAnyPopupOpen ( )         || // Disabled if any popup is opened..
-          (   AddGamePopup == PopupState_Opened || // ..except for a few standard ones
-          PopupMessageInfo == PopupState_Opened || //   which are actually aligned to
-           ModifyGamePopup == PopupState_Opened || //   the center of the app window
-           RemoveGamePopup == PopupState_Opened ||
-         UpdatePromptPopup == PopupState_Opened ||
-              HistoryPopup == PopupState_Opened ||
-           AutoUpdatePopup == PopupState_Opened ));
+  return      SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
+            ! ImGui::IsAnyItemHovered ( ) &&          // Disabled if any item is hovered
+          ( ! ImGui::IsAnyPopupOpen ( )            || // Disabled if any popup is opened..
+          (   AddGamePopup    == PopupState_Opened || // ..except for a few standard ones
+          PopupMessageInfo    == PopupState_Opened || //   which are actually aligned to
+           ModifyGamePopup    == PopupState_Opened || //   the center of the app window
+          PopupCategoryModify == PopupState_Opened ||
+           RemoveGamePopup    == PopupState_Opened ||
+         UpdatePromptPopup    == PopupState_Opened ||
+              HistoryPopup    == PopupState_Opened ||
+           AutoUpdatePopup    == PopupState_Opened ));
 }
 
 void

@@ -122,19 +122,20 @@ struct SKIF_Signals { // Used for command line arguments
 
 // External declarations
 
-extern PopupState  GameMenu;          // Library: used to show context menu for games
-extern PopupState  ServiceMenu;       // Library / Service Mode: used to show an options menu for the service when right clicking
-extern PopupState  EmptySpaceMenu;    // Library: used to show an options menu for the library when right clicking around the play/service buttons
-extern PopupState  AddGamePopup;      // Library: show an  add  custom game prompt
-extern PopupState  RemoveGamePopup;   // Library: show a remove custom game prompt
-extern PopupState  ModifyGamePopup;   // Library: show a modify custom game prompt
-extern PopupState  UpdatePromptPopup; // App Mode: show an update prompt
-extern PopupState  HistoryPopup;      // Monitor / About: show a changelog popup
-extern PopupState  AutoUpdatePopup;   // Show changelog from the latest auto-installed update
+extern PopupState  GameMenu;            // Library: used to show context menu for games
+extern PopupState  ServiceMenu;         // Library / Service Mode: used to show an options menu for the service when right clicking
+extern PopupState  EmptySpaceMenu;      // Library: used to show an options menu for the library when right clicking around the play/service buttons
+extern PopupState  AddGamePopup;        // Library: show an  add  custom game prompt
+extern PopupState  RemoveGamePopup;     // Library: show a remove custom game prompt
+extern PopupState  ModifyGamePopup;     // Library: show a modify custom game prompt
+extern PopupState  PopupCategoryModify; // Library: show a modify category prompt
+extern PopupState  UpdatePromptPopup;   // App Mode: show an update prompt
+extern PopupState  HistoryPopup;        // Monitor / About: show a changelog popup
+extern PopupState  AutoUpdatePopup;     // Show changelog from the latest auto-installed update
 
-extern HMODULE     hModSpecialK;     // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
-extern HWND        SKIF_ImGui_hWnd;  // Main ImGui platform window (aka the main window of SKIF)
-extern HWND        SKIF_Notify_hWnd; // Notification area icon "window" that also doubles as a handler for the stuff previously tied to the now removed SKIF_hWnd 0x0 hidden window
+extern HMODULE     hModSpecialK;        // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
+extern HWND        SKIF_ImGui_hWnd;     // Main ImGui platform window (aka the main window of SKIF)
+extern HWND        SKIF_Notify_hWnd;    // Notification area icon "window" that also doubles as a handler for the stuff previously tied to the now removed SKIF_hWnd 0x0 hidden window
 
 extern float       SKIF_ImGui_GlobalDPIScale;
 extern float       SKIF_ImGui_GlobalDPIScale_Last;

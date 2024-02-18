@@ -2369,14 +2369,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::IsKeyPressedMap (ImGuiKey_Escape))
       {
-        if (AddGamePopup      != PopupState_Closed ||
-            ModifyGamePopup   != PopupState_Closed ||
-            RemoveGamePopup   != PopupState_Closed ||
-            UpdatePromptPopup != PopupState_Closed ||
-            HistoryPopup      != PopupState_Closed  )
+        if (AddGamePopup        != PopupState_Closed ||
+            ModifyGamePopup     != PopupState_Closed ||
+            PopupCategoryModify != PopupState_Closed ||
+            RemoveGamePopup     != PopupState_Closed ||
+            UpdatePromptPopup   != PopupState_Closed ||
+            HistoryPopup        != PopupState_Closed  )
         {
           AddGamePopup         = PopupState_Closed;
           ModifyGamePopup      = PopupState_Closed;
+          PopupCategoryModify  = PopupState_Closed;
           RemoveGamePopup      = PopupState_Closed;
           UpdatePromptPopup    = PopupState_Closed;
           HistoryPopup         = PopupState_Closed;
@@ -3320,6 +3322,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
            PopupMessageInfo != PopupState_Opened &&
             ModifyGamePopup != PopupState_Open   &&
             ModifyGamePopup != PopupState_Opened &&
+        PopupCategoryModify != PopupState_Open   &&
+        PopupCategoryModify != PopupState_Opened &&
           UpdatePromptPopup != PopupState_Open   &&
           UpdatePromptPopup != PopupState_Opened &&
                HistoryPopup != PopupState_Open   &&

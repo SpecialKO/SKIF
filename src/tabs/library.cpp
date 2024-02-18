@@ -124,18 +124,28 @@ const float fTintMin     = 0.75f;
       float fAlphaPrev   = 1.0f;
       float fAlphaList   = 0.0f;
       
-PopupState GameMenu        = PopupState_Closed;
-PopupState EmptySpaceMenu  = PopupState_Closed;
-PopupState CoverMenu       = PopupState_Closed;
-PopupState IconMenu        = PopupState_Closed;
-PopupState ServiceMenu     = PopupState_Closed;
+PopupState GameMenu            = PopupState_Closed;
+PopupState EmptySpaceMenu      = PopupState_Closed;
+PopupState CoverMenu           = PopupState_Closed;
+PopupState IconMenu            = PopupState_Closed;
+PopupState ServiceMenu         = PopupState_Closed;
 
-PopupState AddGamePopup     = PopupState_Closed;
-PopupState RemoveGamePopup  = PopupState_Closed;
-PopupState ModifyGamePopup  = PopupState_Closed;
+PopupState AddGamePopup        = PopupState_Closed;
+PopupState RemoveGamePopup     = PopupState_Closed;
+PopupState ModifyGamePopup     = PopupState_Closed;
+PopupState PopupCategoryModify = PopupState_Closed;
+
+constexpr int maxCategoryNameLen = 50;
+struct change_category_s {
+  std::string  Name = "",    // Holds the old name
+            newName = "";    // Holds the new name
+  bool       change = false; // Rename + Remove
+  bool       remove = false; // Remove
+  bool       rename = false; // Rename (through collapsible header)
+  bool       exists = false; // If the new category already exists
+} static_category;
 
 std::wstring file_metadata;
-
 std::wstring dragDroppedFilePath = L"";
 
 extern bool            allowShortcutCtrlA;
@@ -434,14 +444,8 @@ JsonDB_SetCategoryName (std::string szOld, std::string szNew)
     {
       for (auto& game : platform)
       {
-        if (! game.empty())
-        {
-          if (game.contains("Category") && game.at("Category") == szOld)
-          {
-            game.at("Category") = szNew;
-            PLOG_VERBOSE << "Made a replacement!";
-          }
-        }
+        if (! game.empty() && game.contains("Category") && game.at("Category") == szOld)
+          game.at("Category") = szNew;
       }
     }
 
@@ -1090,14 +1094,12 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   constexpr char* error_title =
     "Unsupported image format";
   constexpr char* error_label =
-    "Please use a supported image format:\n"
+    "Please use one of these image formats:\n"
     "\n"
     "*.png\n"
     "*.jpg\n"
-    "*.jpeg\n"
     "*.webp (no animation)";
 
-  
   if (
       (  extTarget != L".jpg" && extTarget != L".png" )           || // Unsupported file format
       (! isURL  && ! std::filesystem::is_regular_file (fsPath, ec) ) // For local files, check if they do. in fact, exist and are local files
@@ -1885,36 +1887,35 @@ DrawGameContextMenu (app_record_s* pApp)
 
       ImGui::Separator ( );
 
-      static constexpr int           maxCategoryNameLen  =  50;
       static char charCategoryRename[maxCategoryNameLen] = {  };
       static char charCategoryName  [maxCategoryNameLen] = {  };
       static int  isRenaming = -1;
       static bool hasFocused = false;
-      static std::string renameLabel = "###ManageCategoriesRename";
+      static constexpr char* renameLabel = "###ManageCategoriesRename";
       int index = 0;
 
       std::string categoryName, // Holds the old name
                newCategoryName; // Holds the new name
-      bool        newCategory    = false, // New
-                  renameCategory = false; // Rename + Remove
+      bool        newCategory    = false; // New
       bool        activeInput    = false;
 
       for (auto& category : _registry.mszCategories)
       {
         if (index == isRenaming)
         {
-          if (ImGui::InputTextEx (renameLabel.c_str(), category.c_str(), charCategoryRename, maxCategoryNameLen,
+          if (ImGui::InputTextEx (renameLabel, category.c_str(), charCategoryRename, maxCategoryNameLen,
                           ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
           {
             newCategoryName = charCategoryRename;
             strncpy (charCategoryRename, "\0", maxCategoryNameLen);
 
             // Update _registry.mszCategories
-            if (! newCategoryName.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), newCategoryName) == _registry.mszCategories.end())
+            if (! newCategoryName.empty())
             {
-              categoryName   = category;
-              renameCategory = true;
-              category       = newCategoryName;
+              static_category.Name    = category;
+              static_category.newName = newCategoryName;
+              static_category.change  = true;
+              static_category.exists  = (std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), newCategoryName) != _registry.mszCategories.end());
               
               ImGui::CloseCurrentPopup ( );
               // It's not safe to iterate in this loop any longer
@@ -1926,7 +1927,7 @@ DrawGameContextMenu (app_record_s* pApp)
           {
             hasFocused  = true;
             activeInput = true;
-            ImGui::ActivateItem (ImGui::GetID (renameLabel.c_str()));
+            ImGui::ActivateItem (ImGui::GetID (renameLabel));
           }
 
           else if (ImGui::IsItemActive ( ))
@@ -1963,9 +1964,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", index)))
           {
-            categoryName    = category;
-            newCategoryName = "";
-            renameCategory  = true;
+            static_category.Name   = category;
+            static_category.change = true;
+            static_category.remove = true;
+
             ImGui::CloseCurrentPopup ( );
           }
 
@@ -1975,43 +1977,9 @@ DrawGameContextMenu (app_record_s* pApp)
         index++;
       }
 
-      // Handle both renames and removals
-      if (renameCategory)
-      {
-        // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
-        //   and update/clear out the entries where the current category that we are working with is set
-        JsonDB_SetCategoryName (categoryName, newCategoryName);
+      // Renames and removals are handled in the main library loop through static_category and the CategoryManipulation popup
 
-        // Update g_apps
-        for (auto& app : g_apps)
-        {
-          if (app.second.skif.category == categoryName)
-            app.second.skif.category = newCategoryName;
-        }
-
-        SKIF_GamingCollection::SortApps (&g_apps);
-
-        if (newCategoryName.empty())
-          std::erase_if(_registry.mszCategories, [&](std::string const& name) { return name == categoryName; });
-
-        // Update the registry
-        std::stable_sort (_registry.mszCategories.begin (),
-                          _registry.mszCategories.end   (),
-          []( const std::string& a,
-              const std::string& b ) -> int
-          {
-            return a.compare(b) < 0;
-          }
-        );
-
-        std::vector<std::wstring> _in;
-        for (auto& category : _registry.mszCategories)
-          _in.push_back (SK_UTF8ToWideChar (category));
-
-        _registry.regKVCategories.putDataMultiSZ (_in);
-      }
-
-      // Handles new categories
+      // Handle adding the game to another existing category
       if (newCategory)
       {
         pApp->skif.category = newCategoryName;
@@ -2035,10 +2003,21 @@ DrawGameContextMenu (app_record_s* pApp)
 
         if (! szName.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), szName) == _registry.mszCategories.end())
         {
+          // Add the new category
           _registry.mszCategories.push_back (szName);
 
-          std::vector<std::wstring> _in;
+          // Sort the list of categories
+          std::stable_sort (_registry.mszCategories.begin (),
+                            _registry.mszCategories.end   (),
+            []( const std::string& a,
+                const std::string& b ) -> int
+            {
+              return a.compare(b) < 0;
+            }
+          );
 
+          // Update the registry
+          std::vector<std::wstring> _in;
           for (auto& category : _registry.mszCategories)
             _in.push_back (SK_UTF8ToWideChar (category));
 
@@ -6250,6 +6229,34 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::PopStyleColor  ( );
         ImGui::PopStyleColor  ( );
 
+        if (! tmpCategory.empty() && tmpCategory != "Favorites")
+        {
+          if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
+            ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
+
+          if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
+          {
+            if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", categories)))
+            {
+              static_category.Name   = tmpCategory;
+              static_category.change = true;
+              static_category.rename = true;
+              ImGui::CloseCurrentPopup ( );
+            }
+
+            if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", categories)))
+            {
+              static_category.Name   = tmpCategory;
+              static_category.change = true;
+              static_category.remove = true;
+
+              ImGui::CloseCurrentPopup ( );
+            }
+
+            ImGui::EndPopup ( );
+          }
+        }
+
         current_category = tmpCategory;
         categories++;
       }
@@ -7651,6 +7658,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (AddGamePopup    == PopupState_Closed &&
       ModifyGamePopup == PopupState_Closed &&
+      PopupCategoryModify == PopupState_Closed &&
       RemoveGamePopup == PopupState_Closed &&
       ! io.KeyCtrl)
   {
@@ -8378,13 +8386,206 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   
-    
-  // Confirm prompt
+
+  // End Task confirmation prompt
+
+  if (static_category.change)
+  {
+    ImGui::OpenPopup           ("###PopupCategoryModify");
+    ImGui::SetNextWindowSize   (ImVec2 (0.0f, 0.0f));
+    ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+    constexpr char* titleRemove =  "Remove category###PopupCategoryModify";
+    constexpr char* titleMerge  = "Merge categories###PopupCategoryModify";
+    constexpr char* titleRename =  "Rename category###PopupCategoryModify";
+
+    if (ImGui::BeginPopupModal ( (static_category.remove) ? titleRemove :
+                                 (static_category.exists) ? titleMerge  :
+                                                            titleRename,
+                                    nullptr,
+                                    ImGuiWindowFlags_NoResize |
+                                    ImGuiWindowFlags_NoMove   |
+                                    ImGuiWindowFlags_AlwaysAutoResize )
+        )
+    {
+      // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+      ImGuiWindow* window = ImGui::FindWindowByName ("###PopupCategoryModify");
+      if (window != nullptr && ! window->Appearing)
+        PopupCategoryModify = PopupState_Opened;
+
+      SKIF_ImGui_Spacing ( );
+      
+      static char charCategoryRename[maxCategoryNameLen] = {  };
+      static constexpr char* renameInputID = "###PopupCategoryModifyRename";
+      static bool hasFocus    = false;
+      static bool renamedName = false;
+
+      if (static_category.remove)
+      {
+        ImGui::Text        ("Are you sure you want to remove the");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("category?");
+      }
+
+      else if (static_category.exists)
+      {
+        ImGui::Text        ("Are you sure you want to merge the");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("category with the");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.newName.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("category?");
+      }
+
+      else if (! static_category.newName.empty())
+      {
+        ImGui::Text        ("Are you sure you want to rename");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("to");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.newName.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("?");
+      }
+
+      else
+      {
+        ImGui::Text        ("What do you want to rename the ");
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
+        ImGui::SameLine    ( );
+        ImGui::Text        ("category to?");
+
+        SKIF_ImGui_Spacing ( );
+        
+        if (ImGui::InputTextEx (renameInputID, static_category.Name.c_str(), charCategoryRename, maxCategoryNameLen,
+                        ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_None))
+        {
+          renamedName = (charCategoryRename[0] != '\0' && strncmp (static_category.Name.c_str(), charCategoryRename, maxCategoryNameLen) != 0);
+        }
+
+        else if (! hasFocus)
+        {
+          strncpy (charCategoryRename, static_category.Name.c_str(), maxCategoryNameLen);
+
+          hasFocus    = true;
+          ImGui::ActivateItem (ImGui::GetID (renameInputID));
+        }
+      }
+
+      SKIF_ImGui_Spacing ( );
+      ImGui::Text        ("This will affect all games that makes use of the category.");
+      SKIF_ImGui_Spacing ( );
+
+      float fX = (ImGui::GetContentRegionAvail().x - 200 * SKIF_ImGui_GlobalDPIScale) / 2;
+
+      ImGui::SetCursorPosX (fX);
+
+      if (static_category.rename && ! renamedName)
+        SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::Button ("Yes", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+                                           25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        if (static_category.rename)
+        {
+          hasFocus                = false;
+          renamedName             = false;
+          static_category.newName = charCategoryRename;
+          strncpy(charCategoryRename, "\0", maxCategoryNameLen);
+          static_category.exists = (std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), static_category.newName) != _registry.mszCategories.end());
+        }
+
+        if (! static_category.rename || (static_category.rename && ! static_category.exists))
+        {
+          // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
+          //   and update/clear out the entries where the current category that we are working with is set
+          JsonDB_SetCategoryName (static_category.Name, static_category.newName);
+
+          // Update g_apps
+          for (auto& app : g_apps)
+          {
+            if (app.second.skif.category == static_category.Name)
+              app.second.skif.category    = static_category.newName;
+          }
+
+          SKIF_GamingCollection::SortApps (&g_apps);
+
+          // If the category is being removed, or merged, delete the existing entry
+          if (static_category.newName.empty() || static_category.exists)
+            std::erase_if(_registry.mszCategories, [&](std::string const& name) { return name == static_category.Name; });
+
+          // If it is being renamed, rename it
+          else
+          {
+            for (auto& category : _registry.mszCategories)
+            {
+              if (category == static_category.Name)
+                category    = static_category.newName;
+            }
+
+            // Sort the list of categories
+            std::stable_sort (_registry.mszCategories.begin (),
+                              _registry.mszCategories.end   (),
+              []( const std::string& a,
+                  const std::string& b ) -> int
+              {
+                return a.compare(b) < 0;
+              }
+            );
+          }
+
+          // Update the registry
+          std::vector<std::wstring> _in;
+          for (auto& category : _registry.mszCategories)
+            _in.push_back (SK_UTF8ToWideChar (category));
+
+          _registry.regKVCategories.putDataMultiSZ (_in);
+
+          hasFocus        = false;
+          static_category = change_category_s { };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        if (static_category.rename)
+          static_category.rename = false;
+      }
+
+      if (static_category.rename && ! renamedName)
+        SKIF_ImGui_PopDisableState ( );
+
+      ImGui::SameLine ( );
+      ImGui::Spacing  ( );
+      ImGui::SameLine ( );
+
+      if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        hasFocus        = false;
+        static_category = change_category_s { };
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      ImGui::EndPopup ( );
+    }
+  }
+  else {
+    PopupCategoryModify = PopupState_Closed;
+  }
+
+  // End Task confirmation prompt
 
   if (static_proc.handle != INVALID_HANDLE_VALUE ||
       static_proc.pid    != 0)
   {
-    ImGui::OpenPopup         ("Task Manager###TaskManagerLibrary");
+    ImGui::OpenPopup         ("###TaskManagerLibrary");
 
     static std::string warning = "Any unsaved game data may be lost.";
     float fXwarning = ImGui::CalcTextSize (warning.c_str()).x; // DPI related so cannot be static
