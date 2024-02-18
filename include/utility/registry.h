@@ -452,7 +452,7 @@ struct SKIF_RegistrySettings {
   int iDiagnostics             = 1;   // 0 = None,                        1 = Normal,                 2 = Enhanced (not actually used yet)
 
   // Default settings (booleans)
-  bool bRememberLastSelected    = false;
+  bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default
 
   bool bUIBorders               = false;
   bool bUITooltips              =  true;
@@ -477,7 +477,7 @@ struct SKIF_RegistrySettings {
   bool bOpenInServiceMode       = false;
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
-  bool bLowBandwidthMode        = false; // Instant Play
+  bool bLowBandwidthMode        = false;
   bool bInstantPlayGOG          = false;
   bool bInstantPlaySteam        = false;
   bool bMaximizeOnDoubleClick   = false;
