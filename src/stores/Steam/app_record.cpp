@@ -449,7 +449,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
   static SKIF_RegistryWatch
     _appWatch ( HKEY_CURRENT_USER,
                   LR"(SOFTWARE\Valve\Steam\Apps)",
-                    L"SteamAppNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_Library );
+                    L"SteamAppNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET ); // UITab_Library
 
   extern INT64 current_time_ms;
 

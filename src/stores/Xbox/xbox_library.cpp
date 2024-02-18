@@ -557,7 +557,7 @@ SKIF_Xbox_hasInstalledGamesChanged (void)
     static SKIF_RegistryWatch
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root)",
-                     L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME, UITab_Library, false, true);
+                     L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME, UITab_None, false, true); // UITab_Library
   
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );

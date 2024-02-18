@@ -211,7 +211,7 @@ SKIF_GOG_hasInstalledGamesChanged (void)
     static SKIF_RegistryWatch
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\GOG.com\Games)",
-                     L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, UITab_Library, true);
+                     L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, UITab_None, true); // UITab_Library
   
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
