@@ -106,6 +106,7 @@ bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when inter
 bool  SKIF_MouseDragMoveAllowed = true;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
+HANDLE SteamProcessHandle       = NULL;
 
 // Shell messages
 UINT SHELL_TASKBAR_RESTART        = 0;
@@ -3549,6 +3550,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
     */
 
+    // Follow up on our attempt to restart the Steam client
+
+    if (SteamProcessHandle != NULL &&
+        SteamProcessHandle != INVALID_HANDLE_VALUE)
+    {
+      // When Steam has closed, restart it again
+      if (WaitForSingleObject (SteamProcessHandle, 0) != WAIT_TIMEOUT)
+      {
+        // Stop waiting for it on all tabs
+        for (auto& vWatchHandle : vWatchHandles)
+        {
+          if (! vWatchHandle.empty())
+            vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), SteamProcessHandle), vWatchHandle.end());
+        }
+
+        PLOG_INFO << "Starting up the Steam client...";
+        SKIF_Util_OpenURI (L"steam://open/main");
+
+        CloseHandle (SteamProcessHandle);
+        SteamProcessHandle = NULL;
+      }
+    }
+
     do
     {
       // Pause rendering
@@ -3691,6 +3715,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
     _registry._LastSelectedWritten = true;
     PLOG_INFO << "Wrote the last selected game to registry: " << _registry.uiLastSelectedGame << " (" << _registry.uiLastSelectedStore << ")";
   }
+
+  // Update the registry
+  std::vector<std::wstring> _inNames, _inBools;
+  for (auto& category : _registry.vecCategories)
+  {
+    _inNames.push_back (SK_UTF8ToWideChar (category.name));
+    _inBools.push_back (std::to_wstring   (category.expanded));
+  }
+
+  _registry.regKVCategories.     putDataMultiSZ (_inNames);
+  _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
+  PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
   SKIF_Util_UnregisterHotKeySVCTemp   ( );

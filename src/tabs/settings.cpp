@@ -438,6 +438,8 @@ SKIF_UI_Tab_DrawSettings (void)
   static bool HDRSupported = false;
 
   static DWORD dwTriggerNewRefresh = 0; // Set when to trigger a new refresh (0 = DISABLED)
+  static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
+  static       bool         valvePlug     = false;
 
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
@@ -466,6 +468,10 @@ SKIF_UI_Tab_DrawSettings (void)
     driverStatusPending =                     driverStatus;
     RefreshSettingsTab  = false;
     dwTriggerNewRefresh = 0;
+    valvePlug = (SKIF_Util_GetProductName (valvePlugPath.c_str()).find(L"Valve Plug") != std::wstring::npos);
+
+    if (valvePlug && _registry.regKVValvePlug.hasData())
+      _registry.iValvePlug = _registry.regKVValvePlug.getData();
   }
 
   SKIF_Tab_Selected = UITab_Settings;
@@ -751,6 +757,32 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
       _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
 
+    if (valvePlug)
+    {
+      static bool valvePlugState = (bool)_registry.iValvePlug;
+
+      if ( ImGui::Checkbox ( "Disable Steam Input (will restart Steam)", &valvePlugState) )
+      {
+        _registry.regKVValvePlug.putData (              static_cast<int> (valvePlugState));
+
+        PROCESSENTRY32W pe32 = SKIF_Util_FindProcessByName (L"steam.exe");
+        // Exits the Steam client if it is running
+        if (pe32.th32ProcessID != 0)
+        {
+          extern HANDLE SteamProcessHandle;
+          SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
+
+          // Wait on all tabs as well...
+          for (auto& vWatchHandle : vWatchHandles)
+            vWatchHandle.push_back (SteamProcessHandle);
+
+          // Signal the Steam client to exit
+          PLOG_INFO << "Shutting down the Steam client...";
+          SKIF_Util_OpenURI (L"steam://exit");
+        }
+      }
+    }
+
     ImGui::NextColumn       ( );
 
     ImGui::TreePush         ( );
@@ -808,7 +840,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     ImGui::TreePop          ( );
-            
+
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
     SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
                             "including steps like the cloud saves synchronization that usually occurs.");
