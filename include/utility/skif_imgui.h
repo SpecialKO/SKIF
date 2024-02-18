@@ -15,6 +15,7 @@ ImVec4  SKIF_ImGui_sRGBtoLinear       (ImVec4 col);
 void    SKIF_ImGui_StyleColorsDark    (ImGuiStyle* dst = nullptr);
 void    SKIF_ImGui_StyleColorsLight   (ImGuiStyle* dst = nullptr);
 void    SKIF_ImGui_AdjustAppModeSize  (HMONITOR monitor);
+void    SKIF_ImGui_InfoMessage        (const std::string szTitle, const std::string szLabel);
 bool    SKIF_ImGui_IsFocused          (void);
 bool    SKIF_ImGui_IsMouseHovered     (void);
 bool    SKIF_ImGui_IsAnyInputDown     (void);
@@ -43,15 +44,8 @@ void    SKIF_ImGui_InvalidateFonts    (void);
 //   to among other things force 1.0f for the alpha color channel (w)
 static ImVec4 SKIF_ImGui_ImDerp       (const ImVec4& a, const ImVec4& b, float t) { return ImVec4 (a.x + ((b.x - a.x) * t), a.y + ((b.y - a.y) * t), a.z + ((b.z - a.z) * t), 1.0f /*a.w + (b.w - a.w) * t */); }
 
-// Fonts
-extern bool SKIF_bFontChineseSimplified,
-            SKIF_bFontChineseAll,
-            SKIF_bFontCyrillic,
-            SKIF_bFontJapanese,
-            SKIF_bFontKorean,
-            SKIF_bFontThai,
-            SKIF_bFontVietnamese,
-            SKIF_bFontAwesomeSolid,
-            SKIF_bFontAwesomeBrands;
+// Message popups
+extern PopupState  PopupMessageInfo;  // App Mode: show an informational message box with text set through SKIF_ImGui_InfoMessage
 
+// Fonts
 extern ImFont* fontConsolas;

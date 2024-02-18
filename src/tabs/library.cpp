@@ -130,13 +130,10 @@ PopupState CoverMenu       = PopupState_Closed;
 PopupState IconMenu        = PopupState_Closed;
 PopupState ServiceMenu     = PopupState_Closed;
 
-PopupState AddGamePopup    = PopupState_Closed;
-PopupState RemoveGamePopup = PopupState_Closed;
-PopupState ModifyGamePopup = PopupState_Closed;
-PopupState ConfirmPopup    = PopupState_Closed;
+PopupState AddGamePopup     = PopupState_Closed;
+PopupState RemoveGamePopup  = PopupState_Closed;
+PopupState ModifyGamePopup  = PopupState_Closed;
 
-std::string confirmPopupTitle;
-std::string confirmPopupText;
 std::wstring file_metadata;
 
 std::wstring dragDroppedFilePath = L"";
@@ -510,8 +507,7 @@ LaunchGame (app_record_s* pApp)
   if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
       ! launchConfig->isExecutableFullPathValid ( ))
   {
-    confirmPopupText = "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( );
-    ConfirmPopup     = PopupState_Open;
+    SKIF_ImGui_InfoMessage ("Missing executable", "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( ));
   }
 
   else {
@@ -792,13 +788,13 @@ LaunchGame (app_record_s* pApp)
                         steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
                         pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
               { }
-                          
-              confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
-                                  "\n"
-                                +  steamLaunchOptions + "\n"
-                                  "\n"
-                                  "Please change the launch options in Steam before trying again.";
-              ConfirmPopup     = PopupState_Open;
+
+              SKIF_ImGui_InfoMessage ("Conflicting configuration",
+                                      "Could not launch game due to conflicting launch options in Steam:\n"
+                                      "\n"
+                                    +  steamLaunchOptions + "\n"
+                                      "\n"
+                                      "Please change the launch options in Steam before trying again.");
 
               PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
             }
@@ -1011,12 +1007,12 @@ LaunchGame (app_record_s* pApp)
                       pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
             { }
                           
-            confirmPopupText = "Could not launch game due to conflicting launch options in Steam:\n"
-                                "\n"
-                              +  confirmCopy + "\n"
-                                "\n"
-                                "Please change the launch options in Steam before trying again.";
-            ConfirmPopup     = PopupState_Open;
+            SKIF_ImGui_InfoMessage ("Conflicting configuration",
+                                    "Could not launch game due to conflicting launch options in Steam:\n"
+                                    "\n"
+                                  +  confirmCopy + "\n"
+                                    "\n"
+                                    "Please change the launch options in Steam before trying again.");
 
             PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
           }
@@ -1091,33 +1087,23 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (extOriginal == L".bmp")
     extTarget = L".png";
 
-  // Unsupported file format
-  if (extTarget != L".jpg" &&
-      extTarget != L".png")
-  {
-    confirmPopupTitle = "Unsupported image format";
-    confirmPopupText  = "Please use a supported image format:\n"
-                        "\n"
-                        "*.png\n"
-                        "*.jpg\n"
-                        "*.jpeg\n"
-                        "*.webp (no animation)";
-    ConfirmPopup = PopupState_Open;
+  constexpr char* error_title =
+    "Unsupported image format";
+  constexpr char* error_label =
+    "Please use a supported image format:\n"
+    "\n"
+    "*.png\n"
+    "*.jpg\n"
+    "*.jpeg\n"
+    "*.webp (no animation)";
 
-    return false;
-  }
-
-  // For local files, check if they do. in fact, exist and are local files
-  if (! isURL && ! std::filesystem::is_regular_file (fsPath, ec))
+  
+  if (
+      (  extTarget != L".jpg" && extTarget != L".png" )           || // Unsupported file format
+      (! isURL  && ! std::filesystem::is_regular_file (fsPath, ec) ) // For local files, check if they do. in fact, exist and are local files
+     )
   {
-    confirmPopupTitle = "Unsupported image format";
-    confirmPopupText  = "Please use a supported image format:\n"
-                        "\n"
-                        "*.png\n"
-                        "*.jpg\n"
-                        "*.jpeg\n"
-                        "*.webp (no animation)";
-    ConfirmPopup = PopupState_Open;
+    SKIF_ImGui_InfoMessage (error_title, error_label);
 
     return false;
   }
@@ -2100,7 +2086,9 @@ DrawGameContextMenu (app_record_s* pApp)
         if (pApp->store == app_record_s::Store::Steam)
           linkArgs += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
-        confirmPopupTitle = "Create desktop shortcut";
+        constexpr char* info_title         = "Create desktop shortcut";
+        constexpr char* info_label_success = "A desktop shortcut has been created.";
+        constexpr char* info_label_failure = "Failed to create a desktop shortcut!";
 
         if (SKIF_Util_CreateShortcut (
             linkPath.c_str(),
@@ -2111,11 +2099,9 @@ DrawGameContextMenu (app_record_s* pApp)
             pApp->launch_configs[0].getExecutableFullPath().c_str()
             )
           )
-          confirmPopupText = "A desktop shortcut has been created.";
+          SKIF_ImGui_InfoMessage (info_title, info_label_success);
         else
-          confirmPopupText = "Failed to create a desktop shortcut!";
-
-        ConfirmPopup = PopupState_Open;
+          SKIF_ImGui_InfoMessage (info_title, info_label_failure);
       }
     }
 
@@ -7674,55 +7660,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
 
 #pragma region Popups
-
-  static float fConfirmPopupWidth;
-  if (ConfirmPopup == PopupState_Open)
-  {
-    fConfirmPopupWidth = ImGui::CalcTextSize (confirmPopupText.c_str()).x + ImGui::GetStyle().IndentSpacing * 3.0f; // 60.0f * SKIF_ImGui_GlobalDPIScale
-    ImGui::OpenPopup ("###ConfirmPopup");
-    ImGui::SetNextWindowSize (ImVec2 (fConfirmPopupWidth, 0.0f));
-  }
-
-  ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-  if (ImGui::BeginPopupModal ((confirmPopupTitle + "###ConfirmPopup").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
-  {
-    if (ConfirmPopup == PopupState_Open)
-    {
-      // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-      ImGuiWindow* window = ImGui::FindWindowByName ("###ConfirmPopup");
-      if (window != nullptr && ! window->Appearing)
-        ConfirmPopup = PopupState_Opened;
-    }
-
-    ImGui::TreePush    ("ConfirmTreePush");
-
-    SKIF_ImGui_Spacing ( );
-
-    ImGui::Text        (confirmPopupText.c_str());
-
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
-
-    ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-
-    ImGui::SetCursorPosX (fConfirmPopupWidth / 2 - vButtonSize.x / 2);
-
-    if (ImGui::Button  ("OK", vButtonSize))
-    {
-      confirmPopupText = "";
-      ConfirmPopup = PopupState_Closed;
-      ImGui::CloseCurrentPopup ( );
-    }
-
-    SKIF_ImGui_DisallowMouseDragMove ( );
-
-    SKIF_ImGui_Spacing ( );
-
-    ImGui::TreePop     ( );
-
-    ImGui::EndPopup ( );
-  }
-
 
   if (RemoveGamePopup == PopupState_Open)
   {

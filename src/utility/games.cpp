@@ -314,8 +314,6 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   static DWORD lastGameRefresh = 0;
   static std::wstring exeSteam = L"steam.exe";
 
-  extern std::string confirmPopupTitle;
-  extern std::string confirmPopupText;
   extern bool steamRunning;
   extern bool steamFallback;
   extern SKIF_Util_CreateProcess_s iPlayCache[15];
@@ -456,16 +454,20 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
           {
             _registry.bWarningRTSS = true;
             _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
-            confirmPopupTitle = "One-time warning about RTSS.exe";
-            confirmPopupText  = "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
-                                "Try closing it down if Special K does not behave as expected, or enable\n"
-                                "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
-                                "\n"
-                                "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
-                                "automatically restart RTSS silently in the background.\n"
-                                "\n"
-                                "This warning will not appear again.";
-            ConfirmPopup      = PopupState_Open;
+
+            constexpr char* error_title =
+              "One-time warning about RTSS.exe";
+            constexpr char* error_label =
+              "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+              "Try closing it down if Special K does not behave as expected, or enable\n"
+              "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+              "\n"
+              "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+              "automatically restart RTSS silently in the background.\n"
+              "\n"
+              "This warning will not appear again.";
+            
+            SKIF_ImGui_InfoMessage (error_title, error_label);
           }
 
         } while (Process32NextW (hProcessSnap, &pe32));

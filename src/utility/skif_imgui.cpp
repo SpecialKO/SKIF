@@ -17,27 +17,20 @@
 #include <fonts/fa_brands_400.ttf.h>
 #include <imgui/D3D11/imgui_impl_dx11.h>
 
-bool SKIF_bFontChineseSimplified   = false,
-     SKIF_bFontChineseAll          = false,
-     SKIF_bFontCyrillic            = false,
-     SKIF_bFontJapanese            = false,
-     SKIF_bFontKorean              = false,
-     SKIF_bFontThai                = false,
-     SKIF_bFontVietnamese          = false,
-     SKIF_bFontAwesomeSolid        = false,
-     SKIF_bFontAwesomeBrands       = false;
+ImFont*               fontConsolas = nullptr;
+std::vector <ImWchar> vFontChineseSimplified;
+std::vector <ImWchar> vFontChineseAll;
+std::vector <ImWchar> vFontCyrillic;
+std::vector <ImWchar> vFontJapanese;
+std::vector <ImWchar> vFontKorean;
+std::vector <ImWchar> vFontThai;
+std::vector <ImWchar> vFontVietnamese;
+std::vector <ImWchar> vFontAwesome;
+std::vector <ImWchar> vFontAwesomeBrands;
 
-ImFont* fontConsolas = nullptr;
-
-std::vector<ImWchar> vFontChineseSimplified;
-std::vector<ImWchar> vFontChineseAll;
-std::vector<ImWchar> vFontCyrillic;
-std::vector<ImWchar> vFontJapanese;
-std::vector<ImWchar> vFontKorean;
-std::vector<ImWchar> vFontThai;
-std::vector<ImWchar> vFontVietnamese;
-std::vector<ImWchar> vFontAwesome;
-std::vector<ImWchar> vFontAwesomeBrands;
+PopupState PopupMessageInfo = PopupState_Closed;
+std::vector <std::string> vInfoMessage_Titles;
+std::vector <std::string> vInfoMessage_Labels;
 
 float
 SKIF_ImGui_sRGBtoLinear (float col_srgb)
@@ -351,6 +344,73 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
 
     if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
       SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
+  }
+}
+
+void
+SKIF_ImGui_InfoMessage (const std::string szTitle, const std::string szLabel)
+{
+  vInfoMessage_Titles.push_back (szTitle);
+  vInfoMessage_Labels.push_back (szLabel);
+}
+
+// Internal; processes any existing info messages
+void
+SKIF_ImGui_InfoMessage_Process (void)
+{
+  if (! vInfoMessage_Labels.empty())
+  {
+    static float fPopupWidth;
+    fPopupWidth = ImGui::CalcTextSize (vInfoMessage_Labels.back().c_str()).x + ImGui::GetStyle().IndentSpacing * 3.0f; // 60.0f * SKIF_ImGui_GlobalDPIScale
+    ImGui::OpenPopup ("###PopupMessageInfo");
+    ImGui::SetNextWindowSize (ImVec2 (fPopupWidth, 0.0f));
+
+    if (PopupMessageInfo == PopupState_Closed)
+      PopupMessageInfo = PopupState_Open;
+
+    ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+    if (ImGui::BeginPopupModal ((vInfoMessage_Titles.back() + "###PopupMessageInfo").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    {
+      if (PopupMessageInfo == PopupState_Open)
+      {
+        // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+        ImGuiWindow* window = ImGui::FindWindowByName ("###PopupMessageInfo");
+        if (window != nullptr && ! window->Appearing)
+          PopupMessageInfo = PopupState_Opened;
+      }
+
+      ImGui::TreePush    ("PopupMessageInfoTreePush");
+
+      SKIF_ImGui_Spacing ( );
+
+      ImGui::Text        (vInfoMessage_Labels.back().c_str());
+
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
+
+      ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+
+      ImGui::SetCursorPosX (fPopupWidth / 2 - vButtonSize.x / 2);
+
+      if (ImGui::Button  ("OK", vButtonSize))
+      {
+        vInfoMessage_Labels.pop_back();
+        vInfoMessage_Titles.pop_back();
+
+        if (vInfoMessage_Labels.empty())
+          PopupMessageInfo = PopupState_Closed;
+
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      SKIF_ImGui_DisallowMouseDragMove ( );
+
+      SKIF_ImGui_Spacing ( );
+
+      ImGui::TreePop     ( );
+
+      ImGui::EndPopup ( );
+    }
   }
 }
 
@@ -1120,7 +1180,7 @@ SKIF_ImGui_CanMouseDragMove (void)
             ! ImGui::IsAnyItemHovered ( ) &&       // Disabled if any item is hovered
           ( ! ImGui::IsAnyPopupOpen ( )         || // Disabled if any popup is opened..
           (   AddGamePopup == PopupState_Opened || // ..except for a few standard ones
-              ConfirmPopup == PopupState_Opened || //   which are actually aligned to
+          PopupMessageInfo == PopupState_Opened || //   which are actually aligned to
            ModifyGamePopup == PopupState_Opened || //   the center of the app window
            RemoveGamePopup == PopupState_Opened ||
          UpdatePromptPopup == PopupState_Opened ||

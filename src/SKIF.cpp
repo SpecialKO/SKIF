@@ -2810,6 +2810,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _inject._RefreshSKDLLVersions   ();
       }
 
+
+      // Process any existing message popups
+      extern void
+        SKIF_ImGui_InfoMessage_Process (void);
+      SKIF_ImGui_InfoMessage_Process ( );
+
+
+      // Handle the update popup
+
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
       static float  UpdateAvailableWidth = 0.0f;
 
@@ -3235,7 +3244,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
                  SKIF_ImGui_GetWindowModeState ( ) &&
           (      AddGamePopup == PopupState_Opened ||
-                 ConfirmPopup == PopupState_Opened ||
+             PopupMessageInfo == PopupState_Opened ||
               ModifyGamePopup == PopupState_Opened ||
               RemoveGamePopup == PopupState_Opened ||
             UpdatePromptPopup == PopupState_Opened ||
@@ -3245,8 +3254,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if      (     AddGamePopup == PopupState_Opened)
                       AddGamePopup  = PopupState_Open;
-        else if (     ConfirmPopup == PopupState_Opened)
-                      ConfirmPopup  = PopupState_Open;
+        else if ( PopupMessageInfo == PopupState_Opened)
+                  PopupMessageInfo  = PopupState_Open;
         else if (  ModifyGamePopup == PopupState_Opened)
                    ModifyGamePopup  = PopupState_Open;
         else if (  RemoveGamePopup == PopupState_Opened)
@@ -3307,8 +3316,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // But don't close those of interest
       if (     AddGamePopup != PopupState_Open   &&
                AddGamePopup != PopupState_Opened &&
-               ConfirmPopup != PopupState_Open   &&
-               ConfirmPopup != PopupState_Opened &&
+           PopupMessageInfo != PopupState_Open   &&
+           PopupMessageInfo != PopupState_Opened &&
             ModifyGamePopup != PopupState_Open   &&
             ModifyGamePopup != PopupState_Opened &&
           UpdatePromptPopup != PopupState_Open   &&

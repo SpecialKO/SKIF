@@ -128,7 +128,6 @@ extern PopupState  EmptySpaceMenu;    // Library: used to show an options menu f
 extern PopupState  AddGamePopup;      // Library: show an  add  custom game prompt
 extern PopupState  RemoveGamePopup;   // Library: show a remove custom game prompt
 extern PopupState  ModifyGamePopup;   // Library: show a modify custom game prompt
-extern PopupState  ConfirmPopup;      // Library: show a confirm prompt with text set through confirmPopupText
 extern PopupState  UpdatePromptPopup; // App Mode: show an update prompt
 extern PopupState  HistoryPopup;      // Monitor / About: show a changelog popup
 extern PopupState  AutoUpdatePopup;   // Show changelog from the latest auto-installed update
