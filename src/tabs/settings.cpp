@@ -877,10 +877,12 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
-    const char* StyleItems[] = { "SKIF Dark",
-                                 "ImGui Dark",
-                                 "SKIF Light",
-                                 "ImGui Classic"
+    constexpr char* StyleItems[UIStyle_COUNT] =
+    { "Dynamic",
+      "SKIF Dark",
+      "SKIF Light",
+      "ImGui Classic",
+      "ImGui Dark"
     };
     static const char*
       StyleItemsCurrent;
@@ -894,15 +896,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::BeginCombo ("###_registry.iStyleCombo", StyleItemsCurrent)) // The second parameter is the label previewed before opening the combo.
     {
-        for (int n = 0; n < IM_ARRAYSIZE (StyleItems); n++)
-        {
-            bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
-            if (ImGui::Selectable (StyleItems[n], is_selected))
-              _registry.iStyleTemp = n;         // We apply the new style at the beginning of the next frame to prevent any PushStyleColor/Var from causing issues
-            if (is_selected)
-              ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-        }
-        ImGui::EndCombo  ( );
+      for (int n = 0; n < UIStyle_COUNT; n++)
+      {
+        bool is_selected = (StyleItemsCurrent == StyleItems[n]); // You can store your selection however you want, outside or inside your objects
+        if (ImGui::Selectable (StyleItems[n], is_selected))
+          _registry.iStyleTemp = n;         // We apply the new style at the beginning of the next frame to prevent any PushStyleColor/Var from causing issues
+        if (is_selected)
+          ImGui::SetItemDefaultFocus ( );   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+      }
+      ImGui::EndCombo  ( );
     }
 
     ImGui::TreePop       ( );
@@ -1707,8 +1709,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::SameLine    ();
     ImGui::BeginGroup  ();
-    ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
-  //ImGui::TextColored ((_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
+    ImGui::TextColored ((_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_WINDOWS);
+  //ImGui::TextColored ((_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255), ICON_FA_XBOX);
     ImGui::EndGroup    ();
 
     ImGui::SameLine    ();

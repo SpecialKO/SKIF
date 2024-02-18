@@ -5,6 +5,8 @@
 #include <sstream>
 #include <vector>
 
+
+
 struct SKIF_RegistrySettings {
 
   // TODO: Rework this whole thing to not only hold a registry path but
@@ -433,10 +435,15 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI  ( LR"(Control Panel\Accessibility\)",
                          LR"(MessageDuration)" );
 
+  // Notification duration
+  KeyValue <int> regKVWindowUseLightTheme =
+    SKIF_MakeRegKeyI  ( LR"(Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\)",
+                         LR"(AppsUseLightTheme)" );
+
   // Default settings (multiple options)
   int iNotifications           = 2;   // 0 = Never,                       1 = Always,                 2 = When unfocused
   int iGhostVisibility         = 0;   // 0 = Never,                       1 = Always,                 2 = While service is running
-  int iStyle                   = 0;   // 0 = SKIF Dark,                   1 = ImGui Dark,             2 = SKIF Light,                 3 = ImGui Classic
+  int iStyle                   = 0;   // 0 = Dynamic,                     1 = SKIF Dark,              2 = SKIF Light,                  3 = ImGui Classic,                  4 = ImGui Dark
   int iStyleTemp               = 0;   // Used to temporary hold changes in the style during the current session
   int iDimCovers               = 0;   // 0 = Never,                       1 = Always,                 2 = On mouse hover
   int iCheckForUpdates         = 1;   // 0 = Never,                       1 = Weekly,                 2 = On each launch
@@ -522,6 +529,7 @@ struct SKIF_RegistrySettings {
   bool _sRGBColors                  = false;
   bool _LibraryHidden               = false; // Do not show hidden games by default
   bool _EfficiencyMode              = false;
+  bool _StyleLightMode              = false; // Indicates whether we are currently using a light theme or not
 
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)

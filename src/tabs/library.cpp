@@ -2209,11 +2209,11 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::SetCursorPos  (iconPos);
     
     ImGui::TextColored (
-      (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
         ICON_FA_BARS_STAGGERED );
 
     ImGui::TextColored (
-      (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
         ICON_FA_GAMEPAD );
 
     ImGui::TextColored (
@@ -2315,7 +2315,7 @@ DrawGameContextMenu (app_record_s* pApp)
     else if (pApp->store == app_record_s::Store::Steam)
     {
       ImGui::TextColored (
-        (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+        (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
           ICON_FA_STEAM_SYMBOL );
 
       ImGui::TextColored (
@@ -2963,7 +2963,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
             ICON_FA_DISCORD
                         );
   ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
+          (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
             ICON_FA_DISCOURSE
                         );
   ImGui::TextColored (
@@ -2971,7 +2971,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
             ICON_FA_PATREON
                         );
   ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
             ICON_FA_GITHUB
                         );
 
@@ -2984,7 +2984,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (SKIF_STEAM_OWNER)
     ImGui::TextColored (
-      (_registry.iStyle == 2) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
+      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
             ICON_FA_STEAM_SYMBOL );
 
   ImGui::Separator ( ); // ==============================
@@ -5812,7 +5812,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                               sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                       vecCoverUv0_old, // Top Left coordinates
                                                       vecCoverUv1_old, // Bottom Right coordinates
-                                    (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
+                                    (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
                                     (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
     );
 
@@ -5825,7 +5825,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             sizeCover.y * SKIF_ImGui_GlobalDPIScale),
                                                     vecCoverUv0, // Top Left coordinates
                                                     vecCoverUv1, // Bottom Right coordinates
-                                  (_registry.iStyle == 2) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
+                                  (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
                                   (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
   );
 
@@ -6223,11 +6223,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (sort_changed && selection.category == tmpCategory)
           ImGui::SetNextItemOpen (true);
 
-        ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-        ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
+        if (! _registry._StyleLightMode)
+        {
+          ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
+
+          ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+        }
         category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Games" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
-        ImGui::PopStyleColor  ( );
-        ImGui::PopStyleColor  ( );
+
+        if (! _registry._StyleLightMode)
+          ImGui::PopStyleColor  (2);
 
         if (! tmpCategory.empty() && tmpCategory != "Favorites")
         {
@@ -6906,23 +6911,23 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->tex_cover.isCustom)
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE_LEFT
                               );
       else if (pApp->tex_cover.isManaged)
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE
                               );
       else if (resetVisible) // If texture is neither custom nor managed
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
+          (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
                   ICON_FA_ROTATE
                               );
 
@@ -7147,24 +7152,24 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::SetCursorPos (iconPos);
 
       ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                 ICON_FA_FILE_IMAGE
                             );
 
       if (pApp->tex_icon.isCustom)
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE_LEFT
                               );
 
       else if (pApp->tex_icon.isManaged)
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
+          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
                   ICON_FA_ROTATE
                               );
       else if (resetVisible) // If texture is neither custom nor managed
         ImGui::TextColored (
-          (_registry.iStyle == 2) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
+          (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
                   ICON_FA_ROTATE
                               );
 

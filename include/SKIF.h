@@ -88,6 +88,15 @@ enum PopupState {
   PopupState_Opened
 };
 
+enum UIStyle {
+  UIStyle_Dynamic,
+  UIStyle_SKIF_Dark,
+  UIStyle_SKIF_Light,
+  UIStyle_ImGui_Classic,
+  UIStyle_ImGui_Dark,
+  UIStyle_COUNT     // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
+};
+
 enum UIMode {
   UIMode_Normal,
   UIMode_VRR_Compatibility,

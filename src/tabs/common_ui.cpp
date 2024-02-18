@@ -500,7 +500,7 @@ void SKIF_UI_DrawShellyTheGhost (void)
         0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
       );
 
-    if (_registry.iStyle == 2)
+    if (_registry._StyleLightMode)
       vGhostColor = vGhostColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f);
 
     // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs

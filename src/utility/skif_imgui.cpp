@@ -1087,22 +1087,34 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   if (dst == nullptr)
     dst = &ImGui::GetStyle ( );
 
+  _registry._StyleLightMode = false;
+
   // Setup Dear ImGui style
   switch (_registry.iStyle)
   {
-  case 3:
-    ImGui::StyleColorsClassic   (dst);
-    break;
-  case 2:
-    SKIF_ImGui_StyleColorsLight (dst);
-    break;
-  case 1:
+  case UIStyle_ImGui_Dark:
     ImGui::StyleColorsDark      (dst);
     break;
-  case 0:
-  default:
+  case UIStyle_ImGui_Classic:
+    ImGui::StyleColorsClassic   (dst);
+    break;
+  case UIStyle_SKIF_Light:
+    SKIF_ImGui_StyleColorsLight (dst);
+    _registry._StyleLightMode = true;
+    break;
+  case UIStyle_SKIF_Dark:
     SKIF_ImGui_StyleColorsDark  (dst);
-    _registry.iStyle = 0;
+    break;
+  case UIStyle_Dynamic:
+  default:
+    _registry.iStyle          = 0;
+    _registry._StyleLightMode = static_cast<bool> (_registry.regKVWindowUseLightTheme.getData ( ));
+
+    if (_registry._StyleLightMode)
+      SKIF_ImGui_StyleColorsLight (dst);
+    else
+      SKIF_ImGui_StyleColorsDark  (dst);
+    break;
   }
 
   // Override the style with a few tweaks of our own
@@ -1145,9 +1157,9 @@ SKIF_ImGui_PushDisableState (void)
   ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
   //ImGui::PushStyleVar (ImGuiStyleVar_Alpha,     ImGui::GetStyle ().Alpha * 0.5f); // [UNUSED]
   ImGui::PushStyleColor (ImGuiCol_Text,           ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-  ImGui::PushStyleColor (ImGuiCol_SliderGrab,     SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry.iStyle == 2) ? 0.75f : 0.25f));
-  ImGui::PushStyleColor (ImGuiCol_CheckMark,      SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry.iStyle == 2) ? 0.75f : 0.25f));
-  ImGui::PushStyleColor (ImGuiCol_FrameBg,        SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg),      (_registry.iStyle == 2) ? 0.75f : 0.15f));
+  ImGui::PushStyleColor (ImGuiCol_SliderGrab,     SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry._StyleLightMode) ? 0.75f : 0.25f));
+  ImGui::PushStyleColor (ImGuiCol_CheckMark,      SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (_registry._StyleLightMode) ? 0.75f : 0.25f));
+  ImGui::PushStyleColor (ImGuiCol_FrameBg,        SKIF_ImGui_ImDerp (ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg), ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg),      (_registry._StyleLightMode) ? 0.75f : 0.15f));
 }
 
 void

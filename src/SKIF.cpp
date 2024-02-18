@@ -1912,7 +1912,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
-                                  : (_registry.iStyle + 1) % 4;
+                                  : (_registry.iStyle + 1) % UIStyle_COUNT;
       _registry.regKVStyle.putData  (_registry.iStyle);
 
       ImGuiStyle            newStyle;
@@ -2402,7 +2402,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       static bool closeButtonHoverActive = false;
 
-      if (_registry.iStyle == 2 && closeButtonHoverActive)
+      if (_registry._StyleLightMode && closeButtonHoverActive)
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImVec4 (0.9F, 0.9F, 0.9F, 1.0f));
 
       if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
@@ -2426,7 +2426,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
       
-      if (_registry.iStyle == 2)
+      if (_registry._StyleLightMode)
       {
         if (closeButtonHoverActive)
           ImGui::PopStyleColor ( );
@@ -4059,6 +4059,18 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_QUIT:
       SKIF_Shutdown = true;
+      break;
+
+    case WM_SETTINGCHANGE:
+      if (_registry.iStyle == 0 && _wcsicmp (L"ImmersiveColorSet", reinterpret_cast<wchar_t*> (lParam)) == 0)
+      {
+        PLOG_VERBOSE << "Theme was changed";
+
+        ImGuiStyle            newStyle;
+        SKIF_ImGui_SetStyle (&newStyle);
+        ImGui_ImplWin32_UpdateDWMBorders ( );
+      }
+
       break;
 
     case WM_POWERBROADCAST:
