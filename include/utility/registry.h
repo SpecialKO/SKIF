@@ -22,6 +22,11 @@ struct SKIF_RegistrySettings {
   // 
   //       and have it automatically get stored in the registry as well.
 
+  struct category_s {
+    std::string name     = "";
+    bool        expanded = false;
+  };
+
   template <class _Tp>
     class KeyValue
     {
@@ -394,6 +399,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Steam User)" );
 
+  KeyValue <int> regKVValvePlug =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\ValvePlug\)",
+                         LR"(FillTheSwamp)" );
+
   // Wide Strings
 
   KeyValue <std::wstring> regKVIgnoreUpdate =
@@ -417,6 +426,10 @@ struct SKIF_RegistrySettings {
   KeyValue <std::vector<std::wstring>> regKVCategories =
     SKIF_MakeRegKeyVEC ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Categories)" );
+
+  KeyValue <std::vector<std::wstring>> regKVCategoriesState =
+    SKIF_MakeRegKeyVEC ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Categories State)" );
 
   // Windows stuff
 
@@ -457,6 +470,7 @@ struct SKIF_RegistrySettings {
   int iHDRBrightness           = 203; // HDR reference white for BT.2408
   int iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
   int iDiagnostics             = 1;   // 0 = None,                        1 = Normal,                 2 = Enhanced (not actually used yet)
+  int iValvePlug               = 1;   // 0 = Disabled,                    1 = Enabled (default)
 
   // Default settings (booleans)
   bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default
@@ -508,8 +522,8 @@ struct SKIF_RegistrySettings {
   std::wstring wsPath;
   std::wstring wsAutoUpdateVersion; // Holds the version the auto-updater is trying to install
 
-  // Multi strings
-  std::vector <std::string> mszCategories;
+  // Vectors
+  std::vector <category_s> vecCategories;
 
   // Misc settings
   unsigned int uiLastSelectedStore;

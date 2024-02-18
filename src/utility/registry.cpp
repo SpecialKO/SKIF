@@ -387,19 +387,35 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   std::vector <std::wstring>
     mwzCategories          = regKVCategories               .getData (&hKey);
 
-  for (auto& wzCategory : mwzCategories)
+  std::vector <std::wstring>
+    mwzCategoriesState     = regKVCategoriesState          .getData (&hKey);
+
+  for (int i = 0; i < mwzCategories.size(); i++)
   {
+    auto& wzCategory      = mwzCategories     [i];
+
     if (! wzCategory.empty() && wzCategory[0] != L'\0')
-      mszCategories.push_back (SK_WideCharToUTF8 (wzCategory));
+    {
+      category_s category;
+      category.name     = SK_WideCharToUTF8 (wzCategory);
+
+      if (i < mwzCategoriesState.size())
+      {
+        auto& wzCategoryState = mwzCategoriesState[i];
+        category.expanded = std::stoi (wzCategoryState);
+      }
+
+      vecCategories.push_back (category);
+    }
   }
 
   // Sort categories in alphabetical order
-  std::stable_sort (mszCategories.begin (),
-                    mszCategories.end   (),
-    []( const std::string& a,
-        const std::string& b ) -> int
+  std::stable_sort (vecCategories.begin (),
+                    vecCategories.end   (),
+    []( const SKIF_RegistrySettings::category_s& a,
+        const SKIF_RegistrySettings::category_s& b ) -> int
     {
-      return a.compare(b) < 0;
+      return a.name.compare(b.name) < 0;
     }
   );
   

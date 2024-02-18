@@ -1811,7 +1811,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::Separator ( );
 
-    if (!_registry.mszCategories.empty())
+    if (! _registry.vecCategories.empty())
     {
       ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_OBJECT_GROUP).x, ImGui::GetTextLineHeight()));
       ImGui::Separator ( );
@@ -1899,11 +1899,11 @@ DrawGameContextMenu (app_record_s* pApp)
       bool        newCategory    = false; // New
       bool        activeInput    = false;
 
-      for (auto& category : _registry.mszCategories)
+      for (auto& category : _registry.vecCategories)
       {
         if (index == isRenaming)
         {
-          if (ImGui::InputTextEx (renameLabel, category.c_str(), charCategoryRename, maxCategoryNameLen,
+          if (ImGui::InputTextEx (renameLabel, category.name.c_str(), charCategoryRename, maxCategoryNameLen,
                           ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
           {
             newCategoryName = charCategoryRename;
@@ -1912,10 +1912,10 @@ DrawGameContextMenu (app_record_s* pApp)
             // Update _registry.mszCategories
             if (! newCategoryName.empty())
             {
-              static_category.Name    = category;
+              static_category.Name    = category.name;
               static_category.newName = newCategoryName;
               static_category.change  = true;
-              static_category.exists  = (std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), newCategoryName) != _registry.mszCategories.end());
+              static_category.exists  = (std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == newCategoryName; }) != _registry.vecCategories.end());
               
               ImGui::CloseCurrentPopup ( );
               // It's not safe to iterate in this loop any longer
@@ -1942,10 +1942,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
         else
         {
-          if (ImGui::MenuItem (category.c_str(), "", (pApp->skif.category == category), ! isFavorite))
+          if (ImGui::MenuItem (category.name.c_str(), "", (pApp->skif.category == category.name), ! isFavorite))
           {
             // Delay setting the new category to prevent an one-frame issue from too new data
-            newCategoryName = (pApp->skif.category != category) ? category : "";
+            newCategoryName = (pApp->skif.category != category.name) ? category.name : "";
             newCategory     = true;
           }
         }
@@ -1958,13 +1958,13 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", index)))
           {
             isRenaming = index;
-            strncpy (charCategoryRename, category.c_str(), maxCategoryNameLen);
+            strncpy (charCategoryRename, category.name.c_str(), maxCategoryNameLen);
             ImGui::CloseCurrentPopup ( );
           }
 
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", index)))
           {
-            static_category.Name   = category;
+            static_category.Name   = category.name;
             static_category.change = true;
             static_category.remove = true;
 
@@ -1989,7 +1989,7 @@ DrawGameContextMenu (app_record_s* pApp)
         //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
-      if (! _registry.mszCategories.empty())
+      if (! _registry.vecCategories.empty())
         ImGui::Separator ( );
 
       if (isFavorite)
@@ -2001,27 +2001,32 @@ DrawGameContextMenu (app_record_s* pApp)
         std::string szName = charCategoryName;
         strncpy (charCategoryName, "\0", maxCategoryNameLen);
 
-        if (! szName.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), szName) == _registry.mszCategories.end())
+        if (! szName.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == szName; }) == _registry.vecCategories.end())
         {
           // Add the new category
-          _registry.mszCategories.push_back (szName);
+          SKIF_RegistrySettings::category_s  new_category{ szName, false };
+          _registry.vecCategories.push_back (new_category);
 
           // Sort the list of categories
-          std::stable_sort (_registry.mszCategories.begin (),
-                            _registry.mszCategories.end   (),
-            []( const std::string& a,
-                const std::string& b ) -> int
+          std::stable_sort (_registry.vecCategories.begin (),
+                            _registry.vecCategories.end   (),
+            [](const SKIF_RegistrySettings::category_s& a,
+               const SKIF_RegistrySettings::category_s& b ) -> int
             {
-              return a.compare(b) < 0;
+              return a.name.compare(b.name) < 0;
             }
           );
 
           // Update the registry
-          std::vector<std::wstring> _in;
-          for (auto& category : _registry.mszCategories)
-            _in.push_back (SK_UTF8ToWideChar (category));
+          std::vector<std::wstring> _inNames, _inBools;
+          for (auto& category : _registry.vecCategories)
+          {
+            _inNames.push_back (SK_UTF8ToWideChar (category.name));
+            _inBools.push_back (std::to_wstring   (category.expanded));
+          }
 
-          _registry.regKVCategories.putDataMultiSZ (_in);
+          _registry.regKVCategories.     putDataMultiSZ (_inNames);
+          _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
         }
 
         pApp->skif.category = szName;
@@ -2124,7 +2129,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::Separator ( );
 
-    if (!_registry.mszCategories.empty())
+    if (!_registry.vecCategories.empty())
     {
       ImGui::TextColored (
                   ImColor   (200, 200, 200, 255),
@@ -5071,15 +5076,21 @@ SKIF_UI_Tab_DrawLibrary (void)
               app.second.skif.pinned         = keyPinned;
 
               // For unrecognized categories, add them to SKIF's internal database as well
-              if (! keyGroup.empty() && std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), keyGroup) == _registry.mszCategories.end())
+              if (! keyGroup.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == keyGroup; }) == _registry.vecCategories.end())
               {
-                _registry.mszCategories.push_back (keyGroup);
-                std::vector<std::wstring> _in;
+                SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
+                _registry.vecCategories.push_back (new_category);
 
-                for (auto& category : _registry.mszCategories)
-                  _in.push_back (SK_UTF8ToWideChar (category));
+                // Update the registry
+                std::vector<std::wstring> _inNames, _inBools;
+                for (auto& category : _registry.vecCategories)
+                {
+                  _inNames.push_back (SK_UTF8ToWideChar (category.name));
+                  _inBools.push_back (std::to_wstring   (category.expanded));
+                }
 
-                _registry.regKVCategories.putDataMultiSZ (_in);
+                _registry.regKVCategories.     putDataMultiSZ (_inNames);
+                _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
               }
 
               // Human-readable time format (local time)
@@ -6219,17 +6230,23 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (tmpCategory != current_category)
       {
+        // TODO: Handle storing collapsible state for Favorites and Games categories
+        auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
+
         // Always expand a category if a filter is active or the selected game was changed
-        if (sort_changed && selection.category == tmpCategory)
+        if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
           ImGui::SetNextItemOpen (true);
 
         if (! _registry._StyleLightMode)
         {
           ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-
           ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         }
+
         category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Games" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+
+        if (it != _registry.vecCategories.end())
+          it->expanded = category_opened;
 
         if (! _registry._StyleLightMode)
           ImGui::PopStyleColor  (2);
@@ -8505,7 +8522,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           renamedName             = false;
           static_category.newName = charCategoryRename;
           strncpy(charCategoryRename, "\0", maxCategoryNameLen);
-          static_category.exists = (std::find(_registry.mszCategories.begin(), _registry.mszCategories.end(), static_category.newName) != _registry.mszCategories.end());
+          static_category.exists = (std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == static_category.newName; }) != _registry.vecCategories.end());
         }
 
         if (! static_category.rename || (static_category.rename && ! static_category.exists))
@@ -8525,34 +8542,38 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // If the category is being removed, or merged, delete the existing entry
           if (static_category.newName.empty() || static_category.exists)
-            std::erase_if(_registry.mszCategories, [&](std::string const& name) { return name == static_category.Name; });
+            std::erase_if(_registry.vecCategories, [&](const SKIF_RegistrySettings::category_s& category) { return category.name == static_category.Name; });
 
           // If it is being renamed, rename it
           else
           {
-            for (auto& category : _registry.mszCategories)
+            for (auto& category : _registry.vecCategories)
             {
-              if (category == static_category.Name)
-                category    = static_category.newName;
+              if (category.name == static_category.Name)
+                category.name    = static_category.newName;
             }
 
             // Sort the list of categories
-            std::stable_sort (_registry.mszCategories.begin (),
-                              _registry.mszCategories.end   (),
-              []( const std::string& a,
-                  const std::string& b ) -> int
+            std::stable_sort (_registry.vecCategories.begin (),
+                              _registry.vecCategories.end   (),
+              [](const SKIF_RegistrySettings::category_s& a,
+                 const SKIF_RegistrySettings::category_s& b ) -> int
               {
-                return a.compare(b) < 0;
+                return a.name.compare(b.name) < 0;
               }
             );
           }
 
           // Update the registry
-          std::vector<std::wstring> _in;
-          for (auto& category : _registry.mszCategories)
-            _in.push_back (SK_UTF8ToWideChar (category));
+          std::vector<std::wstring> _inNames, _inBools;
+          for (auto& category : _registry.vecCategories)
+          {
+            _inNames.push_back (SK_UTF8ToWideChar (category.name));
+            _inBools.push_back (std::to_wstring   (category.expanded));
+          }
 
-          _registry.regKVCategories.putDataMultiSZ (_in);
+          _registry.regKVCategories.     putDataMultiSZ (_inNames);
+          _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
 
           hasFocus        = false;
           static_category = change_category_s { };
