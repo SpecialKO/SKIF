@@ -4062,13 +4062,21 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SETTINGCHANGE:
+      // ImmersiveColorSet is sent when either SystemUsesLightTheme (OS) or AppsUseLightTheme (apps) changes
+      // If both are changed by the OS at the same time, two messages are sent to all apps
       if (_registry.iStyle == 0 && _wcsicmp (L"ImmersiveColorSet", reinterpret_cast<wchar_t*> (lParam)) == 0)
       {
-        PLOG_VERBOSE << "Theme was changed";
+        bool oldMode = _registry._StyleLightMode;
 
         ImGuiStyle            newStyle;
         SKIF_ImGui_SetStyle (&newStyle);
-        ImGui_ImplWin32_UpdateDWMBorders ( );
+
+        // Only log and change the DWM borders if the color mode was actually changed
+        if (oldMode != _registry._StyleLightMode)
+        {
+          PLOG_VERBOSE << "Detected a color change through a ImmersiveColorSet broadcast.";
+          ImGui_ImplWin32_UpdateDWMBorders ( );
+        }
       }
 
       break;
