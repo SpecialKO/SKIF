@@ -8569,6 +8569,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         hasFocus        = false;
+        renamedName     = false;
         static_category = change_category_s { };
         ImGui::CloseCurrentPopup ( );
       }
