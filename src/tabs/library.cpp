@@ -8462,7 +8462,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       else
       {
-        ImGui::Text        ("What do you want to rename the ");
+        ImGui::Text        ("What do you want to rename the");
         ImGui::SameLine    ( );
         ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
         ImGui::SameLine    ( );
