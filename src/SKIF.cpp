@@ -1540,6 +1540,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Shell_CreateNotifyIcon       ();
   SKIF_Shell_CreateUpdateNotifyMenu ();
 
+  // Also register for device changes
+  HDEVNOTIFY hRegisteredNotification = NULL;
+
+  GUID GUID_DEVINTERFACE_HID =
+  { 0x4D1E55B2L, 0xF16F, 0x11CF,
+         { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+
+  DEV_BROADCAST_DEVICEINTERFACE_W
+    NotificationFilter                 = { };
+    NotificationFilter.dbcc_size       = sizeof (DEV_BROADCAST_DEVICEINTERFACE_W);
+    NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+    NotificationFilter.dbcc_classguid  = GUID_DEVINTERFACE_HID;
+
+  hRegisteredNotification =
+      RegisterDeviceNotificationW (
+        SKIF_Notify_hWnd, &NotificationFilter,
+        DEVICE_NOTIFY_WINDOW_HANDLE
+      );
+
   // If there were not an instance of SKIF already running
   //   we need to handle any remaining tasks here after 
   //   we have a window ready to handle remaining cmds
@@ -3337,10 +3356,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
-    extern bool ImGui_ImplWin32_RegisterXInputNotifications (void*);
     if (SKIF_ImGui_hWnd != NULL)
     {
-      ImGui_ImplWin32_RegisterXInputNotifications (SKIF_ImGui_hWnd);
       SK_RunOnce (SKIF_Shell_CreateJumpList ( ));
     }
 
@@ -3747,6 +3764,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   CleanupDeviceD3D            ( );
 
   PLOG_INFO << "Destroying notification icon...";
+  if (hRegisteredNotification != NULL)
+  UnregisterDeviceNotification (hRegisteredNotification);
   SKIF_Shell_DeleteNotifyIcon ( );
   DestroyWindow             (SKIF_Notify_hWnd);
 
@@ -4044,6 +4063,33 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
   switch (msg)
   {
+    case WM_DEVICECHANGE:
+      switch (wParam)
+      {
+        case DBT_DEVICEARRIVAL:
+        case DBT_DEVICEREMOVECOMPLETE:
+        {
+          DEV_BROADCAST_HDR* pDevHdr =
+            (DEV_BROADCAST_HDR *)lParam;
+          if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+          {
+            DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
+              (DEV_BROADCAST_DEVICEINTERFACE_W *)pDevHdr;
+
+            static constexpr GUID GUID_DEVINTERFACE_HID =
+              { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+
+            if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
+            {
+              extern void ImGui_ImplWin32_CheckGamepads (void);
+              ImGui_ImplWin32_CheckGamepads ( );
+              PLOG_VERBOSE << "We need to update gamepads!";
+            }
+          }
+        }
+      }
+      break;
+
     case WM_HOTKEY:
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );

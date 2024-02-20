@@ -475,6 +475,24 @@ void SKIF_UI_DrawPlatformStatus (void)
     SKIF_ImGui_SetHoverText (l.uiHoverTxt);
     SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
   }
+
+  SKIF_ImGui_Spacing      ( );
+  ImGui::Text             ("XInput slots:");
+  SKIF_ImGui_Spacing      ( );
+
+  extern std::vector<bool> ImGui_ImplWin32_GetXInputSlotState (void);
+  std::vector<bool> idxs = ImGui_ImplWin32_GetXInputSlotState ( );
+  
+  ImGui::Spacing          ( );
+  for (auto slot : idxs)
+  {
+    ImGui::SameLine ( );
+
+    if (slot)
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
+    else
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK);
+  }
 }
 
 void SKIF_UI_DrawShellyTheGhost (void)
