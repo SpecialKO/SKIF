@@ -37,6 +37,7 @@
 
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
+#include <utility/gamepad.h>
 
 #include <utility/injection.h>
 
@@ -94,11 +95,11 @@ DWORD invalidatedDevice         = 0;
 bool  startedMinimized          = false;
 bool  msgDontRedraw             = false;
 bool  coverFadeActive           = false;
-bool  SKIF_Shutdown             = false;
+std::atomic<bool> SKIF_Shutdown = false;
 bool  SKIF_NoInternet           = false;
 int   SKIF_ExitCode             = 0;
 int   SKIF_nCmdShow             = -1;
-std::atomic<int> SKIF_FrameCount = 0;
+std::atomic<int>  SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
 DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
 bool  SteamOverlayDisabled      = false;
@@ -132,8 +133,6 @@ ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
-
-std::atomic<bool> gamepadThreadAwake = false; // 0 - No focus, so sleep.       1 - Focus, so remain awake
 
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
@@ -221,8 +220,6 @@ std::string SKIF_StatusBarText = "";
 std::string SKIF_StatusBarHelp = "";
 HWND        SKIF_ImGui_hWnd    = NULL;
 HWND        SKIF_Notify_hWnd   = NULL;
-
-CONDITION_VARIABLE SKIF_IsFocused    = { };
 
 HWND  hWndOrigForeground;
 HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
@@ -1452,9 +1449,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (FAILED (SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
     PLOG_ERROR << "Call to SetCurrentProcessExplicitAppUserModelID failed!";
 
-  // Initialize the SKIF_IsFocused variable that the gamepad thread will sleep on
-  InitializeConditionVariable (&SKIF_IsFocused);
-
   // Load the SKIF.exe module (used to populate the icon here and there)
   hModSKIF =
     GetModuleHandleW (nullptr);
@@ -1540,24 +1534,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Shell_CreateNotifyIcon       ();
   SKIF_Shell_CreateUpdateNotifyMenu ();
 
-  // Also register for device changes
-  HDEVNOTIFY hRegisteredNotification = NULL;
+  // Initialize the gamepad input child thread
+  static SKIF_GamePadInputHelper& _gamepad =
+         SKIF_GamePadInputHelper::GetInstance ( );
 
-  GUID GUID_DEVINTERFACE_HID =
-  { 0x4D1E55B2L, 0xF16F, 0x11CF,
-         { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
-
-  DEV_BROADCAST_DEVICEINTERFACE_W
-    NotificationFilter                 = { };
-    NotificationFilter.dbcc_size       = sizeof (DEV_BROADCAST_DEVICEINTERFACE_W);
-    NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
-    NotificationFilter.dbcc_classguid  = GUID_DEVINTERFACE_HID;
-
-  hRegisteredNotification =
-      RegisterDeviceNotificationW (
-        SKIF_Notify_hWnd, &NotificationFilter,
-        DEVICE_NOTIFY_WINDOW_HANDLE
-      );
+  // Register for device notifications
+  _gamepad.RegisterDevNotification  (SKIF_Notify_hWnd);
 
   // If there were not an instance of SKIF already running
   //   we need to handle any remaining tasks here after 
@@ -1702,6 +1684,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   ( );
+
+    // Spawn the gamepad input thread
+    _gamepad.SpawnChildThread         ( );
   }
 
   PLOG_INFO << "Initializing updater...";
@@ -1711,7 +1696,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Main loop
   PLOG_INFO << "Entering main loop...";
-  while (! SKIF_Shutdown ) // && IsWindow (hWnd) )
+  while (! SKIF_Shutdown.load() ) // && IsWindow (hWnd) )
   {
     // Reset on each frame
     SKIF_MouseDragMoveAllowed = true;
@@ -1758,13 +1743,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
-      while (! SKIF_Shutdown && PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE))
+      while (! SKIF_Shutdown.load() && PeekMessage (&msg, 0, 0U, 0U, PM_REMOVE))
       {
         if (msg.message == WM_QUIT)
         {
-          SKIF_Shutdown = true;
+          SKIF_Shutdown.store (true);
           SKIF_ExitCode = (int) msg.wParam;
-          return ! SKIF_Shutdown; // return false on exit or system shutdown
+          return false; // return false on exit or system shutdown
         }
 
         //if (! IsWindow (hWnd))
@@ -1827,7 +1812,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         uiLastMsg = msg.message;
       }
 
-      return ! SKIF_Shutdown; // return false on exit or system shutdown
+      return ! SKIF_Shutdown.load(); // return false on exit or system shutdown
     };
 
     static bool restoreOnInjExitAck = false;
@@ -2334,6 +2319,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
             // Kickstart the update thread
             _updater.CheckForUpdates ( );
+
+            // Spawn the gamepad input thread
+            _gamepad.SpawnChildThread ( );
           }
         }
 
@@ -3436,63 +3424,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       PostQuitMessage (0);
       //PostMessage (hWnd, WM_QUIT, 0x0, 0x0);
 
-    // GamepadInputPump child thread
-    static auto thread =
-      _beginthreadex ( nullptr, 0x0, [](void *) -> unsigned
-      {
-        CRITICAL_SECTION            GamepadInputPump = { };
-        InitializeCriticalSection (&GamepadInputPump);
-        EnterCriticalSection      (&GamepadInputPump);
-        
-        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamepadInputPump");
-
-        DWORD packetLast = 0,
-              packetNew  = 0;
-
-        do
-        {
-          // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
-          while (! gamepadThreadAwake.load ())
-          {
-            //OutputDebugString(L"SKIF_GamepadInputPump entering sleep\n");
-            //PLOG_DEBUG << "SKIF_GamepadInputPump entering sleep";
-
-            SleepConditionVariableCS (
-              &SKIF_IsFocused, &GamepadInputPump,
-                INFINITE
-            );
-
-            //PLOG_DEBUG << "SKIF_GamepadInputPump exiting sleep";
-            //OutputDebugString(L"SKIF_GamepadInputPump exiting sleep\n");
-          }
-
-          // Only act on new gamepad input if we are actually focused
-          // Reworked thread-safe iplementation
-          extern XINPUT_STATE ImGui_ImplWin32_GetXInputPackage (void);
-          packetNew  = ImGui_ImplWin32_GetXInputPackage ( ).dwPacketNumber;
-
-          if (packetNew  > 0  &&
-              packetNew != packetLast)
-          {
-            packetLast = packetNew;
-            PostMessage (SKIF_Notify_hWnd, WM_SKIF_GAMEPAD, 0x0, 0x0);
-          }
-
-          // XInput tends to have ~3-7 ms of latency between updates
-          //   best-case, try to delay the next poll until there's
-          //     new data.
-          Sleep (5);
-        } while (! SKIF_Shutdown);
-
-        LeaveCriticalSection  (&GamepadInputPump);
-        DeleteCriticalSection (&GamepadInputPump);
-
-        _endthreadex (0x0);
-
-        return 0;
-      }, nullptr, 0x0, nullptr
-    );
-
     // Handle dynamic pausing
     bool pause = false;
     static int
@@ -3713,7 +3644,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       //if (! IsWindow (hWnd))
       //  break;
 
-    } while (! SKIF_Shutdown && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
+    } while (! SKIF_Shutdown.load() && msgDontRedraw); // For messages we don't want to redraw on, we set msgDontRedraw to true.
   }
 
   PLOG_INFO << "Exited main loop...";
@@ -3764,8 +3695,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   CleanupDeviceD3D            ( );
 
   PLOG_INFO << "Destroying notification icon...";
-  if (hRegisteredNotification != NULL)
-  UnregisterDeviceNotification (hRegisteredNotification);
+  _gamepad.UnregisterDevNotification ( );
   SKIF_Shell_DeleteNotifyIcon ( );
   DestroyWindow             (SKIF_Notify_hWnd);
 
@@ -4055,9 +3985,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   
   UpdateFlags uFlags = UpdateFlags_Unknown;
   
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_CommonPathsCache&   _path_cache = SKIF_CommonPathsCache  ::GetInstance ( );
+  static SKIF_RegistrySettings&   _registry   = SKIF_RegistrySettings  ::GetInstance ( );
+  static SKIF_InjectionContext&   _inject     = SKIF_InjectionContext  ::GetInstance ( );
+  static SKIF_GamePadInputHelper& _gamepad    = SKIF_GamePadInputHelper::GetInstance ( );
   // We don't define this here to ensure it doesn't get created before we are ready to handle it
 //static SKIF_Updater&          _updater    = SKIF_Updater         ::GetInstance ( );
 
@@ -4081,9 +4012,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
             {
-              extern void ImGui_ImplWin32_CheckGamepads (void);
-              ImGui_ImplWin32_CheckGamepads ( );
-              PLOG_VERBOSE << "We need to update gamepads!";
+              PLOG_VERBOSE << "A device has arrived or was removed, and we need to recheck the connected gamepads...";
+              _gamepad.InvalidateGamePads( );
+              _gamepad.WakeThread ( );
             }
           }
         }
@@ -4134,13 +4065,13 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           PLOG_INFO << "Wrote the last selected game to registry: " << _registry.uiLastSelectedGame << " (" << _registry.uiLastSelectedStore << ")";
         }
 
-        SKIF_Shutdown = true;
+        SKIF_Shutdown.store(true);
       }
       //return 0;
       break;
 
     case WM_QUIT:
-      SKIF_Shutdown = true;
+      SKIF_Shutdown.store(true);
       break;
 
     case WM_SETTINGCHANGE:
@@ -4259,6 +4190,14 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           50,
           (TIMERPROC) NULL
       );
+      break;
+
+    case WM_SKIF_REFRESHFOCUS:
+      // Ensure the gamepad input thread knows what state we are actually in
+      if (SKIF_ImGui_IsFocused ( ))
+        _gamepad.WakeThread  ( );
+      else
+        _gamepad.SleepThread ( );
       break;
 
     case WM_SKIF_LAUNCHER:

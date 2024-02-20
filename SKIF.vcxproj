@@ -379,6 +379,7 @@
     <ClInclude Include="include\stores\Epic\epic_library.h" />
     <ClInclude Include="include\utility\droptarget.hpp" />
     <ClInclude Include="include\utility\drvreset.h" />
+    <ClInclude Include="include\utility\gamepad.h" />
     <ClInclude Include="include\utility\plog_formatter.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
     <ClInclude Include="packages_misc\picosha2.h" />
@@ -432,6 +433,7 @@
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
     <ClCompile Include="src\utility\drvreset.cpp" />
+    <ClCompile Include="src\utility\gamepad.cpp" />
     <ClCompile Include="src\utility\games.cpp" />
     <ClCompile Include="src\utility\registry.cpp" />
     <ClCompile Include="src\utility\skif_imgui.cpp" />

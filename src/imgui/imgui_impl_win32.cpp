@@ -20,8 +20,6 @@
 #endif
 #include <windows.h>
 #include <windowsx.h>
-#include <Dbt.h>
-#include <XInput.h>
 #include <tchar.h>
 #include <limits>
 #include <array>
@@ -39,6 +37,7 @@
 
 // Registry Settings
 #include <utility/registry.h>
+#include <utility/gamepad.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
@@ -93,10 +92,6 @@ static INT64                g_Time = 0;
 static bool                 g_Focused = false; // Always assume we don't have focus on launch
 static INT64                g_TicksPerSecond = 0;
 static ImGuiMouseCursor     g_LastMouseCursor = ImGuiMouseCursor_COUNT;
-std::array<std::atomic<bool>, XUSER_MAX_COUNT> g_HasGamepad = { false, false, false, false };
-std::atomic<XINPUT_STATE>   g_LastGamepad = { };
-
-std::atomic<bool>           g_WantUpdateHasGamepad = true;
 static bool                 g_WantUpdateMonitors   = true;
 
 // Peripheral Functions
@@ -433,209 +428,16 @@ memset_size (
     dest;
 }
 
-std::vector<bool> ImGui_ImplWin32_GetXInputSlotState ( )
+XINPUT_STATE ImGui_ImplWin32_CheckGamepads ( )
 {
-  std::vector<bool> vec;
-
-  for (int i = 0; i < XUSER_MAX_COUNT; i++)
-    vec.push_back (g_HasGamepad[i].load());
-
-  return vec;
-}
-
-void ImGui_ImplWin32_CheckGamepads ( )
-{
-  g_WantUpdateHasGamepad.store(true);
-}
-
-XINPUT_STATE ImGui_ImplWin32_GetXInputPackage ( )
-{
-  using XInputGetState_pfn =
-    DWORD (WINAPI *)( DWORD, XINPUT_STATE * );
-  using XInputGetCapabilities_pfn =
-    DWORD (WINAPI *)( DWORD, DWORD, XINPUT_CAPABILITIES * );
-
-  static XInputGetState_pfn        ImGui_XInputGetState = nullptr;
-  static XInputGetCapabilities_pfn ImGui_XInputGetCapabilities = nullptr;
-  static HMODULE                   g_hModXInput = nullptr;
-  static const XINPUT_STATE empty_state{ 0, XINPUT_GAMEPAD { } };
-
-  // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
-  // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
-  if (g_WantUpdateHasGamepad.load())
-  {
-    bool hasGamepad = false;
-
-    if (g_hModXInput == nullptr)
-    {
-        g_hModXInput = LoadLibraryW (L"XInput1_4.dll");
-
-      if (g_hModXInput == nullptr)
-        g_hModXInput = LoadLibraryW (L"XInput1_3.dll");
-
-      if (g_hModXInput == nullptr)
-        g_hModXInput = LoadLibraryW (L"XInput9_1_0.dll");
-
-      if (g_hModXInput != nullptr)
-      {
-        PLOG_VERBOSE << "Loaded the XInput library!";
-
-        ImGui_XInputGetState = (XInputGetState_pfn)
-          GetProcAddress (g_hModXInput, "XInputGetState");
-
-        ImGui_XInputGetCapabilities = (XInputGetCapabilities_pfn)
-          GetProcAddress (g_hModXInput, "XInputGetCapabilities");
-      }
-    }
-
-    if (ImGui_XInputGetCapabilities != nullptr)
-    {
-      XINPUT_CAPABILITIES caps;
-      for ( auto idx : XUSER_INDEXES )
-      {
-        bool connected = (ImGui_XInputGetCapabilities(idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS);
-
-        g_HasGamepad [idx].store (connected);
-
-        if (connected)
-          hasGamepad = true;
-      }
-    }
-
-    else
-    {
-      for ( auto idx : XUSER_INDEXES )
-        g_HasGamepad [idx].store (false);
-    }
-
-    // If we have no gamepad, free up any reference to XInput
-    if (! hasGamepad)
-    {
-      PLOG_VERBOSE << "No gamepad connected.";
-      if (g_hModXInput != nullptr)
-      {
-        ImGui_XInputGetState        = nullptr;
-        ImGui_XInputGetCapabilities = nullptr;
-
-        FreeLibrary (g_hModXInput);
-        g_hModXInput = nullptr;
-        PLOG_VERBOSE << "Released the XInput library!";
-      }
-    }
-
-    g_WantUpdateHasGamepad.store(false);
-  }
-
-  if (ImGui_XInputGetState == nullptr)
-  {
-    g_LastGamepad.store (empty_state);
-    return empty_state;
-  }
-
-  struct gamepad_state_s {
-    XINPUT_STATE  last_state = {         };
-    LARGE_INTEGER last_qpc   = { 0, 0ULL };
-  };
-
-  struct {
-    LARGE_INTEGER qpc   = { 0, 0ULL };
-    XINPUT_STATE  state = {         };
-    DWORD         slot  =    INFINITE;
-  } newest;
-
-  static std::array<std::atomic<gamepad_state_s>, XUSER_MAX_COUNT> history;
-
-  for ( auto idx : XUSER_INDEXES )
-  {
-    // Load the atomic data
-    gamepad_state_s local        = history [idx].load ();
-    XINPUT_STATE    xinput_state = { };
-
-    if (g_HasGamepad[idx].load())
-    {
-      DWORD dwResult = ImGui_XInputGetState (idx, &xinput_state);
-
-      if (dwResult == ERROR_DEVICE_NOT_CONNECTED)
-      {
-        g_HasGamepad[idx].store(false);
-      }
-
-      else if (dwResult == ERROR_SUCCESS)
-      {
-        // If button state is different, this controller is active...
-        if ( xinput_state.dwPacketNumber != local.last_state.dwPacketNumber )
-        {
-          if (                      xinput_state.Gamepad.wButtons !=
-                        local.last_state.Gamepad.wButtons ||
-                                    xinput_state.Gamepad.bLeftTrigger !=
-                        local.last_state.Gamepad.bLeftTrigger ||
-                                    xinput_state.Gamepad.bRightTrigger !=
-                        local.last_state.Gamepad.bRightTrigger )
-          {
-                                      local.last_state = xinput_state;
-            QueryPerformanceCounter (&local.last_qpc);
-          }
-
-          // Analog input may contain jitter, perform deadzone test.
-          else
-          {
-  #define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
-  #define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
-  #define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
-
-            float LX = xinput_state.Gamepad.sThumbLX,
-                  LY = xinput_state.Gamepad.sThumbLY;
-            float RX = xinput_state.Gamepad.sThumbRX,
-                  RY = xinput_state.Gamepad.sThumbRY;
-
-            float NL = sqrt (LX*LX + LY*LY);
-            float NR = sqrt (RX*RX + RY*RY);
-
-            if (NL > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE ||
-                NR > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
-            {
-                                        local.last_state = xinput_state;
-              QueryPerformanceCounter (&local.last_qpc);
-            }
-
-            // Inside deadzone, record position but do not update the packet count
-            else
-            {
-              local.last_state.Gamepad =
-                                   xinput_state.Gamepad;
-            }
-          }
-        }
-      }
-
-      else
-      {
-        local.last_qpc.QuadPart = 0;
-      }
-
-      if (local.last_qpc.QuadPart > newest.qpc.QuadPart )
-      {
-        newest.slot         = idx;
-        newest.state        = local.last_state;
-        newest.qpc.QuadPart = local.last_qpc.QuadPart;
-      }
-
-      // Save the atomic data
-      history[idx].store (local);
-    }
-  }
-
-  if (newest.slot == INFINITE)
-    newest.state = empty_state;
-
-  g_LastGamepad.store (newest.state);
-
-  return newest.state;
+  static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
+  return _gamepad.GetXInputState ( );
 }
 
 // Gamepad navigation mapping
 void ImGui_ImplWin32_UpdateGamepads ( )
 {
+
   ImGuiIO &io =
     ImGui::GetIO ( );
 
@@ -680,7 +482,7 @@ void ImGui_ImplWin32_UpdateGamepads ( )
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
   
   XINPUT_STATE state =
-    g_LastGamepad.load();
+    ImGui_ImplWin32_CheckGamepads ( );
 
   if (state.dwPacketNumber != 0)
   {
@@ -814,9 +616,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
 
   ImGuiIO &io = ImGui::GetIO ( );
 
-  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
-  extern std::atomic<bool> gamepadThreadAwake;
+  static SKIF_RegistrySettings&   _registry = SKIF_RegistrySettings  ::GetInstance ( );
+  static SKIF_InjectionContext&   _inject   = SKIF_InjectionContext  ::GetInstance ( );
+  static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
   extern HWND SKIF_ImGui_hWnd;
 
   extern bool msgDontRedraw;
@@ -867,12 +669,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //  SKIF_ImGui_hWnd == GetAncestor (hwnd, GA_ROOTOWNER)))
     {
       g_Focused = true;
-      gamepadThreadAwake.store (true);
       //OutputDebugString(L"Gained focus\n");
       PLOG_VERBOSE << "Gained focus";
-
-      extern CONDITION_VARIABLE  SKIF_IsFocused;
-      WakeAllConditionVariable (&SKIF_IsFocused);
+      _gamepad.WakeThread ( );
 
       return 0;
     }
@@ -895,9 +694,9 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler (HWND hwnd, UINT msg, WPAR
     //  SKIF_ImGui_hWnd != GetAncestor ((HWND)wParam, GA_ROOTOWNER)))
     {
       g_Focused = false;
-      gamepadThreadAwake.store (false);
       //OutputDebugString(L"Killed focus\n");
       PLOG_VERBOSE << "Killed focus";
+      _gamepad.SleepThread ( );
 
       std::fill ( std::begin (io.KeysDown), std::end (io.KeysDown),
                   false );

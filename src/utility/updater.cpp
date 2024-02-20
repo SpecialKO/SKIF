@@ -55,7 +55,7 @@ SKIF_Updater::SKIF_Updater (void)
 
       static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
       extern SKIF_Signals _Signal;
-      extern bool SKIF_Shutdown;
+      extern std::atomic<bool> SKIF_Shutdown;
       bool SKIF_NoInternet = false;
 
       // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
@@ -245,7 +245,7 @@ SKIF_Updater::SKIF_Updater (void)
           );
         }
 
-      } while (! SKIF_Shutdown); // Keep thread alive until exit
+      } while (! SKIF_Shutdown.load()); // Keep thread alive until exit
 
       PLOG_DEBUG << "SKIF_UpdaterJob thread stopped!";
 

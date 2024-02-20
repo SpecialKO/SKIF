@@ -68,6 +68,7 @@ constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover wor
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
 constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Patreon/Cover/Icon textures workers completed...
 constexpr UINT           WM_SKIF_REFRESHCOVER   = WM_USER + 0x2053; // Refresh Cover -- Update Cover worker completed
+constexpr UINT           WM_SKIF_REFRESHFOCUS   = WM_USER + 0x2054; // Trigger a new focus check from the main thread (used by child threads, e.g. gamepad input thread)
 
 // Callbacks / Event Signals
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2101; // Used to signal that a new effective power mode has been applied

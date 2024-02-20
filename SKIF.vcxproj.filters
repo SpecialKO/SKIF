@@ -252,6 +252,9 @@
     <ClInclude Include="include\utility\plog_formatter.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\gamepad.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
@@ -343,6 +346,9 @@
     </ClCompile>
     <ClCompile Include="src\stores\Epic\epic_library.cpp">
       <Filter>Source Files\Stores\Epic</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\gamepad.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

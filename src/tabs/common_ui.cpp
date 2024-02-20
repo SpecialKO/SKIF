@@ -14,6 +14,7 @@
 #include <utility/injection.h>
 #include <utility/registry.h>
 #include <utility/updater.h>
+#include <utility/gamepad.h>
 
 #include <ShlObj.h>
 #include <fonts/fa_621b.h>
@@ -107,6 +108,8 @@ void SKIF_UI_DrawComponentVersion (void)
 
 void SKIF_UI_DrawPlatformStatus (void)
 {
+  static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
+
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
@@ -477,14 +480,13 @@ void SKIF_UI_DrawPlatformStatus (void)
   }
 
   SKIF_ImGui_Spacing      ( );
-  ImGui::Text             ("XInput slots:");
-  SKIF_ImGui_Spacing      ( );
+  ImGui::Text             ("Connected XInput gamepads:");
+  ImGui::SameLine         ( );
 
-  extern std::vector<bool> ImGui_ImplWin32_GetXInputSlotState (void);
-  std::vector<bool> idxs = ImGui_ImplWin32_GetXInputSlotState ( );
+  std::vector<bool> slots = _gamepad.GetGamePads ( );
   
-  ImGui::Spacing          ( );
-  for (auto slot : idxs)
+  ImGui::BeginGroup       ( );
+  for (auto slot : slots)
   {
     ImGui::SameLine ( );
 
@@ -492,6 +494,30 @@ void SKIF_UI_DrawPlatformStatus (void)
       ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
     else
       ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK);
+  }
+  ImGui::EndGroup         ( );
+  SKIF_ImGui_SetHoverTip  ("Indicates which Xbox (XInput) controller slots are currently in use/connected.");
+
+  // If the primary slot is false and one of the other are true, show a warning
+  if (slots[0] == false &&
+     (slots[1] == true  ||
+      slots[2] == true  ||
+      slots[3] == true  ))
+  {
+    ImGui::Spacing          ( );
+
+    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow));
+    ImGui::BeginGroup       ( );
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::Text             (ICON_FA_TRIANGLE_EXCLAMATION " ");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("Some games may not detect the gamepad!");
+    ImGui::EndGroup         ( );
+    ImGui::PopStyleColor    ( );
+
+    SKIF_ImGui_SetHoverTip  ("Some games may not be able to detect the controller if it is not connected to the first slot.\n"
+                             "Disconnect and reconnect the controller to the system usually takes care of the issue.");
   }
 }
 
