@@ -4092,7 +4092,6 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
     if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, NULL, NULL, NULL) == ERROR_SUCCESS)
     {
-
       while (dwIndex > 0)
       {
         dwIndex--;

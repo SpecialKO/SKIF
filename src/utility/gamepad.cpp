@@ -134,12 +134,12 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
     DWORD         slot  =    INFINITE;
   } newest;
 
-  static std::array<std::atomic<gamepad_state_s>, XUSER_MAX_COUNT> history;
+  static std::array<gamepad_state_s, XUSER_MAX_COUNT> history;
 
   for ( auto idx : XUSER_INDEXES )
   {
-    // Load the atomic data
-    gamepad_state_s local        = history [idx].load ();
+    // Load the static object
+    gamepad_state_s local        = history [idx];
     XINPUT_STATE    xinput_state = { };
 
     if (m_bGamepads [idx].load())
@@ -211,8 +211,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
         newest.qpc.QuadPart = local.last_qpc.QuadPart;
       }
 
-      // Save the atomic data
-      history[idx].store (local);
+      // Save to the static object
+      history[idx] = local;
     }
   }
 

@@ -26,7 +26,7 @@ struct SKIF_GamePadInputHelper
   }
 
 protected:
-  XINPUT_STATE       UpdateXInputState         (void); // Responsible for updating the latest XINPUT_STATE
+  XINPUT_STATE       UpdateXInputState         (void); // Responsible for updating the latest XINPUT_STATE; only called by the child thread!
 
 private:
   SKIF_GamePadInputHelper (void);
