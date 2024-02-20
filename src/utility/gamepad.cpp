@@ -26,11 +26,16 @@ SKIF_GamePadInputHelper::InvalidateGamePads (void)
   m_bWantUpdate.store (true);
 }
 
-XINPUT_STATE SKIF_GamePadInputHelper::GetXInputState (void)
+XINPUT_STATE
+SKIF_GamePadInputHelper::GetXInputState (void)
 {
   return m_xisGamepad.load();
 }
 
+// If we really wanted to limit the exposure of this function,
+//   it should've technically been a part of the thread in
+//     SpawnChildThread ( ) since that is the only one intended
+//       to update the XInput state.
 XINPUT_STATE
 SKIF_GamePadInputHelper::UpdateXInputState (void)
 {
