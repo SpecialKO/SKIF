@@ -26,6 +26,9 @@ struct SKIF_RegistrySettings {
     std::string name     = "";
     bool        expanded = false;
   };
+  
+  std::vector<SKIF_RegistrySettings::category_s>
+    SortCategories (std::vector<SKIF_RegistrySettings::category_s>& categories);
 
   template <class _Tp>
     class KeyValue
@@ -325,6 +328,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
 
+  KeyValue <bool> regKVControllers =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Controllers)" );
+
   // Integers (DWORDs)
 
   KeyValue <int> regKVLibrarySort =
@@ -512,6 +519,7 @@ struct SKIF_RegistrySettings {
   bool bDeveloperMode           = false;
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bFadeCovers              =  true;
+  bool bControllers             =  true; // Should SKIF support controller input ?
 
   // Warnings
   bool bWarningRTSS             = false;

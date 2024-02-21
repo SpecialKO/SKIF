@@ -1390,20 +1390,13 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Requires 'Close to the notification area' to be disabled.");
     }
 
-    if (ImGui::Checkbox  ("Developer mode",
-                                                      &_registry.bDeveloperMode))
-      _registry.regKVDeveloperMode.putData            (_registry.bDeveloperMode);
+    /* Not exposed since its not finalized (and I am still not sure if I want to have this or not...)
+    if (ImGui::Checkbox  ("Controller support",
+                                                      &_registry.bControllers))
+      _registry.regKVControllers.putData              (_registry.bControllers);
 
-    SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
-
-    ImGui::SameLine         ( );
-
-    if (ImGui::Checkbox  ("Efficiency mode",
-                                                      &_registry.bEfficiencyMode))
-      _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
-
-    SKIF_ImGui_SetHoverTip  ("Engage efficiency mode for this app when idle.\n"
-                             "Not recommended for Windows 10 and earlier.");
+    SKIF_ImGui_SetHoverTip  ("Allow using a controller to navigate the UI of this app.");
+    */
 
     ImGui::NextColumn       ( );
 
@@ -1413,6 +1406,8 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         ICON_FA_WRENCH "  Troubleshooting:"
     );
+
+    SKIF_ImGui_Spacing ( );
 
     const char* LogSeverity[] = { "None",
                                   "Fatal",
@@ -1476,6 +1471,23 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::IsItemClicked      ())
       SKIF_Util_OpenURI           (L"https://wiki.special-k.info/Privacy");
+
+    SKIF_ImGui_Spacing ( );
+
+    if (ImGui::Checkbox  ("Developer mode",
+                                                      &_registry.bDeveloperMode))
+      _registry.regKVDeveloperMode.putData            (_registry.bDeveloperMode);
+
+    SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
+
+    ImGui::SameLine    ( );
+
+    if (ImGui::Checkbox  ("Efficiency mode",
+                                                      &_registry.bEfficiencyMode))
+      _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
+
+    SKIF_ImGui_SetHoverTip  ("Engage efficiency mode for this app when idle.\n"
+                             "Not recommended for Windows 10 and earlier.");
 
     SKIF_ImGui_Spacing ( );
 
