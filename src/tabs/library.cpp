@@ -6176,6 +6176,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
 
   static int  apply_header_state = 0;
+  bool        new_header_state   = false;
 
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
@@ -6298,9 +6299,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Expand all###PopupExpand-%i", categories)))
           {
             apply_header_state = ImGui::GetFrameCount ( );
-
-            for (auto& category : _registry.vecCategories)
-              category.expanded = true;
+            new_header_state = true;
 
             ImGui::CloseCurrentPopup ( );
           }
@@ -6308,9 +6307,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Collapse all###PopupCollapse-%i", categories)))
           {
             apply_header_state = ImGui::GetFrameCount ( );
-
-            for (auto& category : _registry.vecCategories)
-              category.expanded = false;
+            new_header_state = false;
 
             ImGui::CloseCurrentPopup ( );
           }
@@ -6607,8 +6604,19 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
-  if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state)
-    apply_header_state = 0;
+  if (apply_header_state > 0)
+  {
+    if (ImGui::GetFrameCount() == apply_header_state)
+    {
+      for (auto& category : _registry.vecCategories)
+        category.expanded = new_header_state;
+    }
+
+    else
+    {
+      apply_header_state = 0;
+    }
+  }
 
   if (resetNumOnTop)
     numPinnedOnTop = 0;
