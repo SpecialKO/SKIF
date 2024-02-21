@@ -1901,6 +1901,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
       for (auto& category : _registry.vecCategories)
       {
+        // Skip the default categories
+        if (category.name == "Favorites" || category.name == "Games")
+          continue;
+
         if (index == isRenaming)
         {
           if (ImGui::InputTextEx (renameLabel, category.name.c_str(), charCategoryRename, maxCategoryNameLen,
@@ -1910,7 +1914,10 @@ DrawGameContextMenu (app_record_s* pApp)
             strncpy (charCategoryRename, "\0", maxCategoryNameLen);
 
             // Update _registry.mszCategories
-            if (! newCategoryName.empty())
+            // ... but only if its not trying to rename Favorites or Games
+            if (! newCategoryName.empty()        &&
+                  newCategoryName != "Favorites" &&
+                  newCategoryName != "Games")
             {
               static_category.Name    = category.name;
               static_category.newName = newCategoryName;
@@ -2008,14 +2015,7 @@ DrawGameContextMenu (app_record_s* pApp)
           _registry.vecCategories.push_back (new_category);
 
           // Sort the list of categories
-          std::stable_sort (_registry.vecCategories.begin (),
-                            _registry.vecCategories.end   (),
-            [](const SKIF_RegistrySettings::category_s& a,
-               const SKIF_RegistrySettings::category_s& b ) -> int
-            {
-              return a.name.compare(b.name) < 0;
-            }
-          );
+          _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
 
           // Update the registry
           std::vector<std::wstring> _inNames, _inBools;
@@ -2029,7 +2029,16 @@ DrawGameContextMenu (app_record_s* pApp)
           _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
         }
 
-        pApp->skif.category = szName;
+        pApp->skif.category.clear();
+        if (szName == "Favorites")
+          pApp->skif.pinned = 1;
+
+        else if (szName == "Games")
+          pApp->skif.pinned = 0;
+
+        else
+          pApp->skif.category = szName;
+
         JsonDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
@@ -5424,15 +5433,17 @@ SKIF_UI_Tab_DrawLibrary (void)
           app.second.store    == (app_record_s::Store)_registry.uiLastSelectedStore)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
-        selection.appid        = app.second.id;
-        selection.store        = app.second.store;
-        selection.category     = (app.second.skif.pinned > 50)
-                               ? "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                               : (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                               ? "Favorites"
-                               : app.second.skif.category;
-        search_selection.id    = selection.appid;
-        search_selection.store = selection.store;
+        selection.appid        =    app.second.id;
+        selection.store        =    app.second.store;
+        selection.category     = (  app.second.skif.pinned > 50)
+                               ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                               : (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                               ?   "Favorites"
+                               : (! app.second.skif.category.empty())
+                               ?    app.second.skif.category
+                               :   "Games";
+        search_selection.id    =  selection.appid;
+        search_selection.store =  selection.store;
         update = true;
       }
 
@@ -6164,6 +6175,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool        resetNumOnTop    = true;
   // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
 
+  static int  apply_header_state = 0;
+
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
   {
@@ -6220,21 +6233,26 @@ SKIF_UI_Tab_DrawLibrary (void)
     // If we have passed the pinned on top games, order the rest by group
     if (pinned_top == 0)
     {
-      static bool category_opened = false;
+      static bool category_opened    = false;
 
       // All favorited games are grouped as such
-      std::string tmpCategory = (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                              ? "Favorites"
-                              : app.second.skif.category;
+      std::string tmpCategory = (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                              ?   "Favorites"
+                              : (! app.second.skif.category.empty())
+                              ?    app.second.skif.category
+                              :   "Games";
 
       if (tmpCategory != current_category)
       {
-        // TODO: Handle storing collapsible state for Favorites and Games categories
         auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
 
         // Always expand a category if a filter is active or the selected game was changed
         if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
           ImGui::SetNextItemOpen (true);
+
+        // TODO: Fix collapse all
+        if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state && it != _registry.vecCategories.end())
+          ImGui::SetNextItemOpen (it->expanded);
 
         if (! _registry._StyleLightMode)
         {
@@ -6242,7 +6260,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         }
 
-        category_opened = ImGui::CollapsingHeader ((tmpCategory.empty() ? "Games" : tmpCategory.c_str()), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        category_opened = ImGui::CollapsingHeader (tmpCategory.c_str(), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
 
         if (it != _registry.vecCategories.end())
           it->expanded = category_opened;
@@ -6250,12 +6268,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._StyleLightMode)
           ImGui::PopStyleColor  (2);
 
-        if (! tmpCategory.empty() && tmpCategory != "Favorites")
-        {
-          if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
-            ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
+        if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
+          ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
 
-          if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
+        if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
+        {
+          if (tmpCategory != "Games" && tmpCategory != "Favorites")
           {
             if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", categories)))
             {
@@ -6274,8 +6292,30 @@ SKIF_UI_Tab_DrawLibrary (void)
               ImGui::CloseCurrentPopup ( );
             }
 
-            ImGui::EndPopup ( );
+            ImGui::Separator ( );
           }
+
+          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Expand all###PopupExpand-%i", categories)))
+          {
+            apply_header_state = ImGui::GetFrameCount ( );
+
+            for (auto& category : _registry.vecCategories)
+              category.expanded = true;
+
+            ImGui::CloseCurrentPopup ( );
+          }
+
+          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Collapse all###PopupCollapse-%i", categories)))
+          {
+            apply_header_state = ImGui::GetFrameCount ( );
+
+            for (auto& category : _registry.vecCategories)
+              category.expanded = false;
+
+            ImGui::CloseCurrentPopup ( );
+          }
+
+          ImGui::EndPopup ( );
         }
 
         current_category = tmpCategory;
@@ -6386,7 +6426,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Clear stuff
       selection.appid        = 0;
       selection.store        = app_record_s::Store::Unspecified;
-      selection.category     = "";
+      selection.category     = "Games";
       search_selection.id    = 0;
       search_selection.store = app_record_s::Store::Unspecified;
       change                 = true;
@@ -6416,7 +6456,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         selection.appid    = 0;
         selection.store    = app_record_s::Store::Unspecified;
-        selection.category = "";
+        selection.category = "Games";
       }
 
       change = true;
@@ -6427,14 +6467,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       update = (selection.appid != app.second.id ||
                 selection.store != app.second.store);
 
-      selection.appid              = app.second.id;
-      selection.store              = app.second.store;
-      selection.category           = (app.second.skif.pinned > 50)
-                                   ? "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                                   : (app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                                   ? "Favorites"
-                                   : app.second.skif.category;
-      selected                     = true;
+      selection.appid              =    app.second.id;
+      selection.store              =    app.second.store;
+      selection.category           = (  app.second.skif.pinned > 50)
+                                   ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                                   : (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
+                                   ?   "Favorites"
+                                   : (! app.second.skif.category.empty())
+                                   ?    app.second.skif.category
+                                   :   "Games";
+      selected                     =    true;
 
       // Only update the last selected value if we're not in hidden view
       if (! _registry._LibraryHidden)
@@ -6564,6 +6606,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
   }
+
+  if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state)
+    apply_header_state = 0;
 
   if (resetNumOnTop)
     numPinnedOnTop = 0;
@@ -8553,14 +8598,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
 
             // Sort the list of categories
-            std::stable_sort (_registry.vecCategories.begin (),
-                              _registry.vecCategories.end   (),
-              [](const SKIF_RegistrySettings::category_s& a,
-                 const SKIF_RegistrySettings::category_s& b ) -> int
-              {
-                return a.name.compare(b.name) < 0;
-              }
-            );
+            _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
           }
 
           // Update the registry
@@ -8830,7 +8868,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Change selection to the new game
     selection.appid    = SelectNewSKIFGame;
     selection.store    = app_record_s::Store::Custom;
-    selection.category = "";
+    selection.category = "Games";
 
     update = true;
 

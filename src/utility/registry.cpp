@@ -214,6 +214,45 @@ SKIF_RegistrySettings::KeyValue<_Tp>::MakeKeyValue (const wchar_t* wszSubKey, co
 }
 
 
+std::vector <SKIF_RegistrySettings::category_s>
+SKIF_RegistrySettings::SortCategories (std::vector <SKIF_RegistrySettings::category_s>& categories)
+{
+  category_s favorites = { "Favorites", false },
+                 games = { "Games",     false };
+  std::vector <category_s> _new;
+
+  // Move all exiting items over to a new vector
+  for (auto& category : categories)
+  {
+    if (! category.name.empty())
+    {
+      if (category.name == "Favorites")
+        favorites = category;
+      else if (category.name == "Games")
+        games     = category;
+      else
+        _new.push_back (category);
+    }
+  }
+
+  // Sort the new vector in alphabetical order (without Favorites or Games added to it)
+  std::stable_sort (_new.begin (),
+                    _new.end   (),
+    []( const SKIF_RegistrySettings::category_s& a,
+        const SKIF_RegistrySettings::category_s& b ) -> int
+    {
+      return a.name.compare(b.name) < 0;
+    }
+  );
+
+  // Add the favorites and games categories
+  _new.insert    (_new.begin(), favorites);
+  _new.push_back (games);
+
+  // Return the new reordered vector
+  return _new;
+}
+
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
@@ -409,16 +448,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     }
   }
 
-  // Sort categories in alphabetical order
-  std::stable_sort (vecCategories.begin (),
-                    vecCategories.end   (),
-    []( const SKIF_RegistrySettings::category_s& a,
-        const SKIF_RegistrySettings::category_s& b ) -> int
-    {
-      return a.name.compare(b.name) < 0;
-    }
-  );
-  
+  // Sort categories in alphabetical order + add Favorites and Games
+  vecCategories            =   SortCategories (vecCategories);
+
   bDeveloperMode           =   regKVDeveloperMode          .getData (&hKey);
 
   if (regKVEfficiencyMode.hasData(&hKey))
@@ -428,6 +460,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
+
+  if (regKVControllers.hasData(&hKey))
+    bControllers           =   regKVControllers            .getData (&hKey);
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
