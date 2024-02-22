@@ -484,7 +484,7 @@ void SKIF_UI_DrawPlatformStatus (void)
   ImGui::SameLine         ( );
 
   std::vector<bool> slots = _gamepad.GetGamePads ( );
-  
+
   ImGui::BeginGroup       ( );
   for (auto slot : slots)
   {

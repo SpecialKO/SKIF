@@ -49,9 +49,9 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static constexpr auto         XUSER_INDEXES =
     std::array <DWORD, 4> { 0, 1, 2, 3 };
   
-  static HMODULE                   g_hModXInput                = nullptr;
-  static XInputGetState_pfn        ImGui_XInputGetState        = nullptr;
-  static XInputGetCapabilities_pfn ImGui_XInputGetCapabilities = nullptr;
+  static HMODULE                         hModXInput                       = nullptr;
+  static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
+  static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
@@ -59,34 +59,34 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   {
     bool hasGamepad = false;
 
-    if (g_hModXInput == nullptr)
+    if (hModXInput == nullptr)
     {
-        g_hModXInput = LoadLibraryW (L"XInput1_4.dll");
+      hModXInput = LoadLibraryW (L"XInput1_4.dll");
 
-      if (g_hModXInput == nullptr)
-        g_hModXInput = LoadLibraryW (L"XInput1_3.dll");
+      if (hModXInput == nullptr)
+        hModXInput = LoadLibraryW (L"XInput1_3.dll");
 
-      if (g_hModXInput == nullptr)
-        g_hModXInput = LoadLibraryW (L"XInput9_1_0.dll");
+      if (hModXInput == nullptr)
+        hModXInput = LoadLibraryW (L"XInput9_1_0.dll");
 
-      if (g_hModXInput != nullptr)
+      if (hModXInput != nullptr)
       {
         PLOG_VERBOSE << "Loaded the XInput library!";
 
-        ImGui_XInputGetState = (XInputGetState_pfn)
-          GetProcAddress (g_hModXInput, "XInputGetState");
+        SKIF_XInputGetState = (XInputGetState_pfn)
+          GetProcAddress (hModXInput, "XInputGetState");
 
-        ImGui_XInputGetCapabilities = (XInputGetCapabilities_pfn)
-          GetProcAddress (g_hModXInput, "XInputGetCapabilities");
+        SKIF_XInputGetCapabilities = (XInputGetCapabilities_pfn)
+          GetProcAddress (hModXInput, "XInputGetCapabilities");
       }
     }
 
-    if (ImGui_XInputGetCapabilities != nullptr)
+    if (SKIF_XInputGetCapabilities != nullptr)
     {
       XINPUT_CAPABILITIES caps;
       for ( auto idx : XUSER_INDEXES )
       {
-        bool connected = (ImGui_XInputGetCapabilities (idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS);
+        bool connected = (SKIF_XInputGetCapabilities (idx, XINPUT_FLAG_GAMEPAD, &caps) == ERROR_SUCCESS);
 
         m_bGamepads [idx].store (connected);
 
@@ -105,13 +105,15 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
     if (! hasGamepad)
     {
       PLOG_VERBOSE << "No gamepad connected.";
-      if (g_hModXInput != nullptr)
-      {
-        ImGui_XInputGetState        = nullptr;
-        ImGui_XInputGetCapabilities = nullptr;
 
-        FreeLibrary (g_hModXInput);
-        g_hModXInput = nullptr;
+      if (hModXInput != nullptr)
+      {
+        SKIF_XInputGetState              = nullptr;
+        SKIF_XInputGetCapabilities       = nullptr;
+
+        FreeLibrary (hModXInput);
+        hModXInput = nullptr;
+
         PLOG_VERBOSE << "Released the XInput library!";
       }
     }
@@ -122,7 +124,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
     PostMessage (m_hWindowHandle, WM_SKIF_REFRESHFOCUS, 0x0, 0x0);
   }
 
-  if (ImGui_XInputGetState == nullptr)
+  if (SKIF_XInputGetState == nullptr)
   {
     m_xisGamepad.store (XSTATE_EMPTY);
     return XSTATE_EMPTY;
@@ -144,17 +146,15 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   for ( auto idx : XUSER_INDEXES )
   {
     // Load the static object
-    gamepad_state_s local        = history [idx];
-    XINPUT_STATE    xinput_state = { };
+    gamepad_state_s            local        = history [idx];
+    XINPUT_STATE               xinput_state = { };
 
     if (m_bGamepads [idx].load())
     {
-      DWORD dwResult = ImGui_XInputGetState (idx, &xinput_state);
+      DWORD dwResult = SKIF_XInputGetState (idx, &xinput_state);
 
       if (dwResult == ERROR_DEVICE_NOT_CONNECTED)
-      {
-        m_bGamepads [idx].store(false);
-      }
+        m_bGamepads    [idx].store (false);
 
       else if (dwResult == ERROR_SUCCESS)
       {
