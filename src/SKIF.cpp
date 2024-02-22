@@ -3478,28 +3478,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Pause if we don't need to render any additional frames
     if (renderAdditionalFrames == 0)
       pause = true;
+
     // Don't pause if there's hidden frames that needs rendering
     if (HiddenFramesContinueRendering)
       pause = false;
-    
-    bool frameRateUnlocked = false;
-
-    // We need to ignore the first 240 frames that ImGui has rendered because of how invisible frames on launch affects it...
-    // Instead, wait until the frame count is at least 240, to ensure all initial 120 frames used for frame rate calculations are gone
-    if (SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount () > 240)
-      frameRateUnlocked = static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod));
-
-    /*
-    if (frameRateUnlocked)
-    {
-      OutputDebugString((L"ImGui::GetIO().Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
-      OutputDebugString((L"dwDwmPeriod: " + std::to_wstring(dwDwmPeriod) + L"\n").c_str());
-      OutputDebugString((L"Frame rate unlocked: " + std::to_wstring(frameRateUnlocked) + L"\n").c_str());
-    }
-    */
 
     // Follow up on our attempt to restart the Steam client
-
     if (SteamProcessHandle != NULL &&
         SteamProcessHandle != INVALID_HANDLE_VALUE)
     {
@@ -3526,31 +3510,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Pause rendering
       if (pause)
       {
-        //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][PAUSE] Rendering paused!\n").c_str());
+        static bool bWaitTimeoutMsgInputFallback = false;
 
         // Empty working set before we pause
         // - Bad idea because it will immediately hitch when that stuff has to be moved back from the pagefile
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
 
-        /* Original approach
-        if (_registry.bEfficiencyMode)
-        {
-          // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
-          SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
-          SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
-        }
-        */
-
-        // New approach: Create/update the timer when we are pausing
+        // Create/update the timer when we are pausing
         if (_registry.bEfficiencyMode && ! _registry._EfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && ! SKIF_ImGui_IsFocused ( ))
           SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY, 1000, (TIMERPROC) &SKIF_EfficiencyModeTimerProc);
 
-        //OutputDebugString ((L"vWatchHandles[SKIF_Tab_Selected].second.size(): " + std::to_wstring(vWatchHandles[SKIF_Tab_Selected].second.size()) + L"\n").c_str());
-
         // Sleep until a message is in the queue or a change notification occurs
-        static bool bWaitTimeoutMsgInputFallback = false;
-        if (WAIT_FAILED == MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? dwDwmPeriod : INFINITE, QS_ALLINPUT))
+        DWORD res =
+          MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? dwDwmPeriod : INFINITE, QS_ALLINPUT);
+
+        // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
+        // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
+        if (res == WAIT_FAILED)
         {
           SK_RunOnce (
           {
@@ -3560,35 +3537,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
           });
         }
 
-        /* Original approach
-        if (_registry.bEfficiencyMode)
-        {
-          // Wake up and disable idle priority + ECO QoS (let the system take over)
-          SetPriorityClass (SKIF_Util_GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-          SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), -1);
-        }
-        */
-
         // Always render 3 additional frames after we wake up
         renderAdditionalFrames = ImGui::GetFrameCount() + 3;
-        
-        //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"][AWAKE] Woken up again!\n").c_str());
       }
-      
-      // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
-      else if (frameRateUnlocked && input) // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
-        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, dwDwmPeriod, QS_ALLINPUT);
 
-      
-      if (bRefresh)
+      if (bRefresh && ! msgDontRedraw && SKIF_ImGui_hWnd != NULL && ! vSwapchainWaitHandles.empty())
       {
-        //auto timePre = SKIF_Util_timeGetTime();
+        static bool frameRateUnlocked = false;
+        static int  unlockedCount     = 0;
 
-        if (! msgDontRedraw && ! vSwapchainWaitHandles.empty())
+        // If the frame rate was ever detected as being unlocked, use sleep as a limiter instead
+        if (frameRateUnlocked)
+          Sleep (dwDwmPeriod);
+
+        else
         {
           static bool bWaitTimeoutSwapChainsFallback = false;
+          auto timePre = SKIF_Util_timeGetTime1 ( );
 
-          DWORD res = WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : 1000, true);
+          DWORD res =
+            WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : 1000, true);
 
           //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
           if (res == WAIT_TIMEOUT)
@@ -3598,6 +3566,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // swapchain in the middle of a frame.
             PLOG_ERROR << "Timed out while waiting on the swapchain wait objects!";
           }
+
+          // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
           else if (res == WAIT_FAILED)
           {
             SK_RunOnce (
@@ -3607,13 +3577,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
               bWaitTimeoutSwapChainsFallback = true;
             });
           }
-        }
-        // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
 
-        //auto timePost = SKIF_Util_timeGetTime();
-        //auto timeDiff = timePost - timePre;
-        //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
-        //OutputDebugString((L"Waited: " + std::to_wstring(timeDiff) + L" ms (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
+          auto timePost = SKIF_Util_timeGetTime1 ( );
+          auto timeDiff = timePost - timePre;
+
+          if (! frameRateUnlocked && timeDiff <= 4 && ImGui::GetFrameCount ( ) > 240 && static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod)))
+            unlockedCount++;
+
+          if (unlockedCount > 10)
+            frameRateUnlocked = true;
+
+          //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
+        }
       }
       
       // Reset stuff that's set as part of pumping the message queue
@@ -3628,7 +3603,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (addAdditionalFrames > 0)
         msgDontRedraw = false;
 
-      // New approach: Disable Efficiency Mode when we are being interacted with
+      // Disable Efficiency Mode when we are being interacted with
       if (_registry._EfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && SKIF_ImGui_IsFocused ( ))
       {
         // Wake up and disable idle priority + ECO QoS (let the system take over)
