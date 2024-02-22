@@ -1684,9 +1684,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   ( );
-
-    // Spawn the gamepad input thread
-    _gamepad.SpawnChildThread         ( );
   }
 
   PLOG_INFO << "Initializing updater...";
@@ -3394,6 +3391,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
         //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
+
+        // Spawn the gamepad input thread
+        if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
+          _gamepad.SpawnChildThread         ( );
       }
     }
 
