@@ -273,9 +273,10 @@ SKIF_GamePadInputHelper::SleepThread (void)
 void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {
+  PLOG_VERBOSE << "Spawning SKIF_LibraryWorker thread...";
+  
   // Start the child thread that is responsible for checking for gamepad input
-  static HANDLE hThread =
-    CreateThread ( nullptr, 0x0,
+  static HANDLE hThread = CreateThread ( nullptr, 0x0,
       [](LPVOID)
     -> DWORD
     {
@@ -293,7 +294,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
 
       do
       {
-        // If we are unfocused, sleep until we're woken up by WM_SETFOCUS
+        // Sleep when there's nothing to do
         while (! parent.m_bThreadAwake.load())
         {
           SleepConditionVariableCS (
@@ -302,7 +303,6 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
           );
         }
 
-        // Only act on new gamepad input if we are actually focused
         packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
 
         if (packetNew  > 0  &&
@@ -316,6 +316,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         //   best-case, try to delay the next poll until there's
         //     new data.
         Sleep (5);
+
       } while (! SKIF_Shutdown.load());
 
       LeaveCriticalSection  (&GamepadInputPump);

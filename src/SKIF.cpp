@@ -2314,11 +2314,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
             }
             */
 
-            // Kickstart the update thread
-            _updater.CheckForUpdates ( );
+            static bool
+                runOnce = true;
+            if (runOnce)
+            {   runOnce = false;
+            
+              // Kickstart the update thread
+              _updater.CheckForUpdates ( );
 
-            // Spawn the gamepad input thread
-            _gamepad.SpawnChildThread ( );
+              // Spawn the gamepad input thread
+              _gamepad.SpawnChildThread ( );
+            }
           }
         }
 
@@ -3385,7 +3391,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // This runs only once, after the ImGui window has been created
-      static bool runOnce = true;
+      static bool
+          runOnce = true;
       if (runOnce && SKIF_ImGui_hWnd != NULL)
       {   runOnce = false;
 
