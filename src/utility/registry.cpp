@@ -429,7 +429,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   std::vector <std::wstring>
     mwzCategoriesState     = regKVCategoriesState          .getData (&hKey);
 
-  for (int i = 0; i < mwzCategories.size(); i++)
+  for (size_t i = 0; i < mwzCategories.size(); i++)
   {
     auto& wzCategory      = mwzCategories     [i];
 
@@ -439,10 +439,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       category.name     = SK_WideCharToUTF8 (wzCategory);
 
       if (i < mwzCategoriesState.size())
-      {
-        auto& wzCategoryState = mwzCategoriesState[i];
-        category.expanded = std::stoi (wzCategoryState);
-      }
+        category.expanded = std::stoi (mwzCategoriesState[i]);
 
       vecCategories.push_back (category);
     }

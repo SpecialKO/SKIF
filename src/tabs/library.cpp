@@ -4982,6 +4982,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Processing detected games...";
 
+      bool     newCategories = true;
       HKEY     hKey;
       LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
 
@@ -5088,17 +5089,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               {
                 SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
                 _registry.vecCategories.push_back (new_category);
-
-                // Update the registry
-                std::vector<std::wstring> _inNames, _inBools;
-                for (auto& category : _registry.vecCategories)
-                {
-                  _inNames.push_back (SK_UTF8ToWideChar (category.name));
-                  _inBools.push_back (std::to_wstring   (category.expanded));
-                }
-
-                _registry.regKVCategories.     putDataMultiSZ (_inNames);
-                _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
+                newCategories = true;
               }
 
               // Human-readable time format (local time)
@@ -5288,6 +5279,24 @@ SKIF_UI_Tab_DrawLibrary (void)
         std::ofstream out_file(file_metadata);
         out_file << std::setw(2) << jsonMetaDB << std::endl;
         out_file.close();
+      }
+
+      // We have detected new categories!
+      if (newCategories)
+      {
+        // Sort the list of categories
+        _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
+
+        // Update the registry
+        std::vector<std::wstring> _inNames, _inBools;
+        for (auto& category : _registry.vecCategories)
+        {
+          _inNames.push_back (SK_UTF8ToWideChar (category.name));
+          _inBools.push_back (std::to_wstring   (category.expanded));
+        }
+
+        _registry.regKVCategories.     putDataMultiSZ (_inNames);
+        _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
       }
 
       PLOG_INFO << "Finished processing detected games...";
