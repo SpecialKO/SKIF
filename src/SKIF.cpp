@@ -45,6 +45,7 @@
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_win32.h>
+#include "imgui/imgui_impl_dx11.h"
 #include <imgui/imgui_internal.h>
 #include <xinput.h>
 
@@ -55,7 +56,6 @@
 #include <oleidl.h>
 #include <utility/droptarget.hpp>
 
-#include "imgui/d3d11/imgui_impl_dx11.h"
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
 
@@ -137,12 +137,6 @@ float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line stat
 // Custom Global Key States used for moving SKIF around using WinKey + Arrows
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
-
-// Graphics options set during runtime
-bool SKIF_bCanWaitSwapchain        = false, // Waitable Swapchain            Windows 8.1+
-     SKIF_bCanAllowTearing         = false, // DWM Tearing                   Windows 10+
-     SKIF_bCanHDR                  = false, // High Dynamic Range            Windows 10 1709+ (Build 16299)
-     SKIF_bHDREnabled              = false; // HDR Enabled
 
 // Holds swapchain wait handles
 std::vector<HANDLE> vSwapchainWaitHandles;
@@ -1616,17 +1610,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.IniFilename = "SKIF.ini";                                // nullptr to disable imgui.ini
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
-//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 //io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
 //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP! 
 //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
+
+  // Viewports
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
   io.ConfigViewportsNoAutoMerge      = false;
   io.ConfigViewportsNoTaskBarIcon    = false;
+  io.ConfigViewportsNoDecoration     =  true;
   io.ConfigViewportsNoDefaultParent  = false;
+
+  // Docking
+//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
-  io.ConfigViewportsNoDecoration     = false;
 
   // Setup Dear ImGui style
   ImGuiStyle& style =
@@ -1721,22 +1719,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif // DEBUG
 
     // Various hotkeys that SKIF supports (resets on every frame)
-    bool hotkeyF5    = (              io.KeysDown[VK_F5]  &&  io.KeysDownDuration[VK_F5]  == 0.0f), // Library/About: Refresh data
-         hotkeyF6    = (              io.KeysDown[VK_F6]  &&  io.KeysDownDuration[VK_F6]  == 0.0f), // Appearance: Toggle DPI scaling
-         hotkeyF7    = (              io.KeysDown[VK_F7]  &&  io.KeysDownDuration[VK_F7]  == 0.0f), // Appearance: Cycle between color themes
-         hotkeyF8    = (              io.KeysDown[VK_F8]  &&  io.KeysDownDuration[VK_F8]  == 0.0f), // Appearance: Toggle UI borders
-         hotkeyF9    = (              io.KeysDown[VK_F9]  &&  io.KeysDownDuration[VK_F9]  == 0.0f), // Appearance: Toggle color depth
-         hotkeyF11   = (              io.KeysDown[VK_F11] &&  io.KeysDownDuration[VK_F11] == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlQ = (io.KeyCtrl && io.KeysDown['Q']    &&  io.KeysDownDuration['Q']    == 0.0f), // Close the app
-         hotkeyCtrlW = (io.KeyCtrl && io.KeysDown['W']    &&  io.KeysDownDuration['W']    == 0.0f), // Close the app
-         hotkeyCtrlR = (io.KeyCtrl && io.KeysDown['R']    &&  io.KeysDownDuration['R']    == 0.0f), // Library/About: Refresh data
-         hotkeyCtrlT = (io.KeyCtrl && io.KeysDown['T']    &&  io.KeysDownDuration['T']    == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlA = (io.KeyCtrl && io.KeysDown['A']    &&  io.KeysDownDuration['A']    == 0.0f), // Library: Add game
-         hotkeyCtrlN = (io.KeyCtrl && io.KeysDown['N']    &&  io.KeysDownDuration['N']    == 0.0f), // Minimize app
-         hotkeyCtrl1 = (io.KeyCtrl && io.KeysDown['1']    &&  io.KeysDownDuration['1']    == 0.0f), // Switch to Library
-         hotkeyCtrl2 = (io.KeyCtrl && io.KeysDown['2']    &&  io.KeysDownDuration['2']    == 0.0f), // Switch to Monitor
-         hotkeyCtrl3 = (io.KeyCtrl && io.KeysDown['3']    &&  io.KeysDownDuration['3']    == 0.0f), // Switch to Settings
-         hotkeyCtrl4 = (io.KeyCtrl && io.KeysDown['4']    &&  io.KeysDownDuration['4']    == 0.0f); // Switch to About
+    bool hotkeyF5    = (              ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyF6    = (              ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
+         hotkeyF7    = (              ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
+         hotkeyF8    = (              ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
+         hotkeyF9    = (              ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
+         hotkeyF11   = (              ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlQ = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlW = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlR = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyCtrlT = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlA = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
+         hotkeyCtrlN = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app
+         hotkeyCtrl1 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
+         hotkeyCtrl2 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
+         hotkeyCtrl3 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Settings
+         hotkeyCtrl4 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f); // Switch to About
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -1922,7 +1920,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       _registry.iStyleTemp = _registry.iStyle;
 
-      ImGui_ImplWin32_UpdateDWMBorders ( );
+      extern void
+        SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
+        SKIF_ImGui_ImplWin32_UpdateDWMBorders (    );
     }
 
     // Registry watch to check if snapping/drag from window settings has changed in Windows
@@ -2054,9 +2054,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif
     
     extern bool
-      ImGui_ImplWin32_WantUpdateMonitors (void);
+      SKIF_ImGui_ImplWin32_WantUpdateMonitors (void);
     bool _WantUpdateMonitors =
-      ImGui_ImplWin32_WantUpdateMonitors (    );
+      SKIF_ImGui_ImplWin32_WantUpdateMonitors (    );
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
@@ -2163,9 +2163,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HoverTipActive = false;
 
       extern ImGuiPlatformMonitor*
-        ImGui_ImplWin32_GetPlatformMonitorProxy (ImGuiViewport* viewport, bool center);
+        SKIF_ImGui_ImplWin32_GetPlatformMonitorProxy (ImGuiViewport* viewport, bool center);
       ImGuiPlatformMonitor* actMonitor =
-        ImGui_ImplWin32_GetPlatformMonitorProxy (ImGui::GetWindowViewport ( ), true);
+        SKIF_ImGui_ImplWin32_GetPlatformMonitorProxy (ImGui::GetWindowViewport ( ), true);
 
       // Crop the window on resolutions with a height smaller than what SKIF requires
       if (actMonitor != nullptr)
@@ -2341,7 +2341,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! ImGui::IsAnyPopupOpen ( ) && ! _registry.bServiceMode)
+      if (! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) && ! _registry.bServiceMode)
       {
         if (hotkeyCtrl1)
         {
@@ -2378,7 +2378,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       allowShortcutCtrlA = true;
 
-      if (ImGui::IsKeyPressedMap (ImGuiKey_Escape))
+      if (ImGui::IsKeyPressed (ImGuiKey_Escape))
       {
         if (AddGamePopup        != PopupState_Closed ||
             ModifyGamePopup     != PopupState_Closed ||
@@ -2476,8 +2476,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_BeginChildFrame ( smallMode_id,
           ImVec2 ( 400.0f * SKIF_ImGui_GlobalDPIScale,
                     12.0f * ImGui::GetTextLineHeightWithSpacing () ),
-            ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NavFlattened      |
-            ImGuiWindowFlags_NoScrollbar            | ImGuiWindowFlags_NoScrollWithMouse |
+            ImGuiChildFlags_None,
+            ImGuiWindowFlags_NavFlattened      |
+            ImGuiWindowFlags_NoScrollbar       |
+            ImGuiWindowFlags_NoScrollWithMouse |
             ImGuiWindowFlags_NoBackground
         );
 
@@ -2836,7 +2838,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  UpdateAvailableWidth = 0.0f;
 
       // Only open the update prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -3051,7 +3053,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  HistoryPopupWidth          = 0.0f;
       static std::string HistoryPopupTitle;
 
-      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
       {
         HistoryPopupWidth = 360.0f;
 
@@ -3159,7 +3161,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       // Only open the popup prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsAnyPopupOpen ( ))
+      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
       {
         AutoUpdatePopupWidth = 360.0f;
 
@@ -3283,9 +3285,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Ensure the taskbar overlay icon always shows the correct state
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
         _inject._SetTaskbarOverlay      (_inject.bCurrentState);
-
+      
       monitor_extent =
-        ImGui::GetWindowAllowedExtentRect (
+        ImGui::GetPopupAllowedExtentRect ( // ImGui::GetWindowAllowedExtentRect
           ImGui::GetCurrentWindowRead   ()
         );
       windowPos      = ImGui::GetWindowPos ();
@@ -3321,10 +3323,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
+    // Do stuff when focus is changed
+    static int
+        AppHasFocus  = -1;
+    if (AppHasFocus != (int)SKIF_ImGui_IsFocused())
+    {   AppHasFocus  = (int)SKIF_ImGui_IsFocused();
+
+      // If focus was received
+      if (AppHasFocus)
+      {
+        PLOG_VERBOSE << "Waking...";
+        _gamepad.WakeThread  ( );
+      }
+
+      // If focus was lost
+      else
+      {
+        PLOG_VERBOSE << "Sleeping...";
+        _gamepad.SleepThread ( );
+      }
+    }
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     // This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
-    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsAnyPopupOpen ( ))
+    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
     {
       // But don't close those of interest
       if (     AddGamePopup != PopupState_Open   &&
@@ -3474,7 +3496,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     //OutputDebugString((L"Framerate: " + std::to_wstring(ImGui::GetIO().Framerate) + L"\n").c_str());
 
     // Clear gamepad/nav input for the next frame as we're done with it
-    memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
+    //memset (ImGui::GetIO ( ).NavInputs, 0, sizeof(ImGui::GetIO ( ).NavInputs));
 
     //if (uiLastMsg == WM_SKIF_GAMEPAD)
     //  OutputDebugString(L"[doWhile] Message spotted: WM_SKIF_GAMEPAD\n");
@@ -3755,11 +3777,11 @@ bool CreateDeviceD3D (HWND hWnd)
   // SKIF_bCanFlip            =         true; // Should never be set to false here
 
   // Windows 8.1+
-  SKIF_bCanWaitSwapchain      =
+  _registry._RendererCanWaitSwapchain      =
     SKIF_Util_IsWindows8Point1OrGreater ();
 
   // Windows 10 1709+ (Build 16299)
-  SKIF_bCanHDR                =
+  _registry._RendererCanHDR                =
     SKIF_Util_IsWindows10v1709OrGreater (    ) &&
     SKIF_Util_IsHDRActive               (true);
 
@@ -3775,13 +3797,13 @@ bool CreateDeviceD3D (HWND hWnd)
                                         &supportsTearing,
                                 sizeof  (supportsTearing)
                                               );
-    SKIF_bCanAllowTearing = (supportsTearing != FALSE);
+    _registry._RendererCanAllowTearing = (supportsTearing != FALSE);
 
     pFactory5.Release();
   }
 
   // Overrides
-  //SKIF_bCanAllowTearing       = false; // Allow Tearing
+  //_registry._RendererCanAllowTearing       = false; // Allow Tearing
   //SKIF_bCanFlip               = false; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
   //SKIF_bCanWaitSwapchain      = false; // Waitable Swapchain
 
@@ -3825,7 +3847,7 @@ bool CreateDeviceD3D (HWND hWnd)
     DXGI_FORMAT dxgi_format;
 
     // HDR formats
-    if (SKIF_bCanHDR && _registry.iHDRMode > 0)
+    if (_registry._RendererCanHDR && _registry.iHDRMode > 0)
     {
       if      (_registry.iHDRMode == 2)
         dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // scRGB (16 bpc)
@@ -3857,10 +3879,10 @@ bool CreateDeviceD3D (HWND hWnd)
     // Assume flip by default
     swap_desc.BufferCount  = 3; // Must be 2-16 for flip model
 
-    if (SKIF_bCanWaitSwapchain)
+    if (_registry._RendererCanWaitSwapchain)
       swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
-    if (SKIF_bCanAllowTearing)
+    if (_registry._RendererCanAllowTearing)
       swap_desc.Flags     |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
     for (auto  _swapEffect : {DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_SWAP_EFFECT_DISCARD}) // DXGI_SWAP_EFFECT_FLIP_DISCARD
@@ -3873,9 +3895,9 @@ bool CreateDeviceD3D (HWND hWnd)
         swap_desc.Format       = DXGI_FORMAT_R8G8B8A8_UNORM;
         swap_desc.BufferCount  = 1;
         swap_desc.Flags        = 0x0;
-        SKIF_bCanHDR           = false;
-        SKIF_bCanWaitSwapchain = false;
-        SKIF_bCanAllowTearing  = false;
+        _registry._RendererCanHDR           = false;
+        _registry._RendererCanWaitSwapchain = false;
+        _registry._RendererCanAllowTearing = false;
         _registry.iUIMode      = 0;
       }
 
@@ -3954,9 +3976,6 @@ void CleanupRenderTarget (void)
 */
 
 // Win32 message handler
-extern LRESULT
-ImGui_ImplWin32_WndProcHandler (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 LRESULT
 WINAPI
 SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4060,7 +4079,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SETTINGCHANGE:
       // ImmersiveColorSet is sent when either SystemUsesLightTheme (OS) or AppsUseLightTheme (apps) changes
       // If both are changed by the OS at the same time, two messages are sent to all apps
-      if (_registry.iStyle == 0 && _wcsicmp (L"ImmersiveColorSet", reinterpret_cast<wchar_t*> (lParam)) == 0)
+      if (lParam != NULL && _registry.iStyle == 0 && _wcsicmp (L"ImmersiveColorSet", reinterpret_cast<wchar_t*> (lParam)) == 0)
       {
         bool oldMode = _registry._StyleLightMode;
 
@@ -4071,7 +4090,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (oldMode != _registry._StyleLightMode)
         {
           PLOG_VERBOSE << "Detected a color change through a ImmersiveColorSet broadcast.";
-          ImGui_ImplWin32_UpdateDWMBorders ( );
+
+          extern void
+            SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
+            SKIF_ImGui_ImplWin32_UpdateDWMBorders (    );
         }
       }
 

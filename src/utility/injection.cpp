@@ -53,11 +53,6 @@
 #include <sstream>
 #include <strsafe.h>
 
-// External functions
-extern bool SKIF_ImGui_BeginChildFrame         (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags = 0);
-extern std::wstring SKIF_Util_GetSpecialKDLLVersion (const wchar_t*);
-extern std::wstring SKIF_Util_GetFileVersion        (const wchar_t*);
-
 // Helper Functions
 
 void CALLBACK
@@ -783,6 +778,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   SKIF_ImGui_BeginChildFrame (
     frame_id, ImVec2 (0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing ()),
+      ImGuiChildFlags_None,
       ImGuiWindowFlags_NavFlattened      |
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
@@ -910,6 +906,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     frame_id2,
       ImVec2 (  0.0f,
                 0.0f), //110.f *SKIF_ImGui_GlobalDPIScale ),
+        ImGuiChildFlags_None,
         ImGuiWindowFlags_NavFlattened      |
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
@@ -957,11 +954,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   }
 
   else
+  {
+    ImGui::BeginDisabled ( );
     ImGui::ButtonEx (runState == Stopping ? ICON_FA_TOGGLE_ON  "  Stopping...###GlobalStartStop" :
                                             ICON_FA_TOGGLE_OFF "  Starting...###GlobalStartStop",
                       ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
-                                50.0f * SKIF_ImGui_GlobalDPIScale ),
-                        ImGuiButtonFlags_Disabled );
+                                50.0f * SKIF_ImGui_GlobalDPIScale ) );
+    ImGui::EndDisabled ( );
+  }
 
   ImGui::SetCursorPos (posButton);
 
@@ -1006,6 +1006,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                               std::max (ImGui::GetContentRegionAvail ().y,
                                         ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
                                        )),
+                                ImGuiChildFlags_None,
                                 ImGuiWindowFlags_NavFlattened      |
                                 ImGuiWindowFlags_NoScrollbar       |
                                 ImGuiWindowFlags_NoScrollWithMouse |
@@ -1349,7 +1350,7 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
   {
     ui_game_summary.text        =
                       (active)  ? (bAckInj) ? "Waiting for game..." : "Running"
-                                : "                                ";
+                                : "                                ##ui_game_summary";
 
     ui_game_summary.color       =
                       (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)

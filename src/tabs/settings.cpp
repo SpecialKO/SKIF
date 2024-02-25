@@ -534,12 +534,10 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::NextColumn    ( );
 
-  ImGui::TreePush      ( );
+  ImGui::TreePush      ("");
 
   // New column
-          
-  ImGui::BeginGroup    ( );
-            
+
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
                           "Move the mouse over each option to get more information.");
@@ -785,7 +783,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ( );
+    ImGui::TreePush         ("");
             
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1094,7 +1092,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn    ( );
 
-    ImGui::TreePush      ( );
+    ImGui::TreePush      ("");
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1400,7 +1398,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ( );
+    ImGui::TreePush         ("");
     
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1831,8 +1829,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_PushDisableState ( );
     else
       hotkeyCtrlS = ImGui::GetIO().KeyCtrl               &&
-                    ImGui::GetIO().KeysDown['S']         &&
-                    ImGui::GetIO().KeysDownDuration['S'] == 0.0f;
+                    ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f;
 
     // Hotkey: Ctrl+S
     if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || hotkeyCtrlS)
@@ -2081,7 +2078,6 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Columns      (2, nullptr, true);
 
-            
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                         "Tell at a glance whether:"
@@ -2231,17 +2227,15 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Administrative privileges are required on the system to toggle this.");
     }
 
-    ImGui::EndGroup ();
-
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("");
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Independent Flip");
@@ -2271,7 +2265,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
@@ -2301,7 +2295,6 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Separator   ();
 
     // Multi-Plane Overlay (MPO) section
-    ImGui::BeginGroup  ();
     ImGui::Spacing     ();
             
     ImGui::TextColored (
@@ -2470,7 +2463,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("");
 
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));

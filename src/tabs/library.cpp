@@ -255,7 +255,7 @@ SearchAppsList (void)
   // Check input
   for ( auto c : _text_chars )
   {
-    if (ImGui::GetIO().KeysDownDuration[c] == 0.0f &&
+    if (false && ImGui::GetKeyData (SKIF_ImGui_CharToImGuiKey (c))->DownDuration == 0.0f &&
         (c != ' ' || strlen (test_) > 0))
     {
       out [0] = c;
@@ -1685,8 +1685,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
   ImGui::Separator ( );
   // ==============================
-
-  if (ImGui::BeginMenu (ICON_FA_FOLDER "  Browse"))
+  
+  if (ImGui::BeginMenuEx("Browse", ICON_FA_FOLDER))
   {
     ImVec2 iconPos = ImGui::GetCursorPos();
 
@@ -1792,7 +1792,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 
   // Manage Game
-  if (ImGui::BeginMenu (ICON_FA_GEARS " Manage"))
+  if (ImGui::BeginMenuEx("Manage", ICON_FA_GEARS))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -1934,7 +1934,7 @@ DrawGameContextMenu (app_record_s* pApp)
           {
             hasFocused  = true;
             activeInput = true;
-            ImGui::ActivateItem (ImGui::GetID (renameLabel));
+            ImGui::ActivateItemByID (ImGui::GetID (renameLabel));
           }
 
           else if (ImGui::IsItemActive ( ))
@@ -2168,7 +2168,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
   
   if (pApp->store == app_record_s::Store::Steam &&
-    ImGui::BeginMenu (ICON_FA_STEAM "  Steam"))
+      ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -2236,8 +2236,8 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::EndMenu     ( );
   }
-
-  if (ImGui::BeginMenu (ICON_FA_SHARE "  Websites"))
+  
+  if (ImGui::BeginMenuEx ("Websites", ICON_FA_SHARE))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -2350,9 +2350,9 @@ DrawGameContextMenu (app_record_s* pApp)
   {
     ImGui::Separator ( );
 
-    if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
+    if (ImGui::BeginMenuEx ("Developer", ICON_FA_TOOLBOX))
     {
-      if (ImGui::BeginMenu (ICON_FA_FILE_LINES "  Application"))
+      if (ImGui::BeginMenuEx ("Application", ICON_FA_FILE_LINES))
       {
         ImGui::PushID         ("#General");
         ImGui::TextDisabled   ("General");
@@ -2462,12 +2462,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (! pApp->branches.empty ())
       {
-        bool bMenuOpen =
-          ImGui::BeginMenu  (
-            SKIF_Util_FormatStringRaw ("%s (%i)", ICON_FA_CODE_BRANCH "  Branches", pApp->ui.branches.size())
-          );
-
-        if (bMenuOpen)
+        if (ImGui::BeginMenuEx (SKIF_Util_FormatStringRaw ("Branches (%i)", pApp->ui.branches.size()), ICON_FA_FOLDER))
         {
 
           for ( auto& it : pApp->ui.branches)
@@ -2483,6 +2478,7 @@ DrawGameContextMenu (app_record_s* pApp)
             );
 
             bool bExpand =
+          
               ImGui::BeginMenu (branch_name.c_str ());
 
             ImGui::PopStyleColor ();
@@ -2522,9 +2518,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (! pApp->launch_configs.empty ())
       {
-        if (ImGui::BeginMenu  (
-              SKIF_Util_FormatStringRaw ("%s (%i)", ICON_FA_FLASK "  Launches", pApp->launch_configs.size())
-            ))
+        if (ImGui::BeginMenuEx (SKIF_Util_FormatStringRaw ("Launches (%i)", pApp->launch_configs.size()), ICON_FA_FLASK))
         {
           bool sepCustomSKIF = true,
                sepCustomUser = true;
@@ -3092,10 +3086,11 @@ GetInjectionSummary (app_record_s* pApp)
   SKIF_ImGui_BeginChildFrame ( frame_id,
                                   ImVec2 ( _WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f,
                                                                             num_lines * line_ht ),
+                                    ImGuiChildFlags_AlwaysAutoResize  |
+                                    ImGuiChildFlags_AutoResizeY,
                                     ImGuiWindowFlags_NavFlattened      |
                                     ImGuiWindowFlags_NoScrollbar       |
                                     ImGuiWindowFlags_NoScrollWithMouse |
-                                    ImGuiWindowFlags_AlwaysAutoResize  |
                                     ImGuiWindowFlags_NoBackground
                               );
 
@@ -3597,17 +3592,16 @@ Cache=false)";
   SKIF_ImGui_BeginChildFrame (
     frame_id2, ImVec2 (  0.0f,
                          0.0f), //110.f * SKIF_ImGui_GlobalDPIScale ),
+      ImGuiChildFlags_None,
       ImGuiWindowFlags_NavFlattened      |
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
-      ImGuiWindowFlags_AlwaysAutoResize  |
       ImGuiWindowFlags_NoBackground
   );
 
   //ImGui::PopStyleVar ();
 
   std::string      buttonLabel   = ICON_FA_GAMEPAD "  Play";
-  ImGuiButtonFlags buttonFlags   = ImGuiButtonFlags_None;
   bool             buttonInstall = false,
                    buttonPending = false;
 
@@ -3676,8 +3670,8 @@ Cache=false)";
     buttonLabel =               (loading) ? "Loading..." :
                   (pApp->_status.running) ? "Running..." :
                                             "Updating...";
-    buttonFlags = ImGuiButtonFlags_Disabled;
     ImGui::PushStyleColor (ImGuiCol_Button, ImGui::GetStyleColorVec4 (ImGuiCol_Button) * ImVec4 (0.75f, 0.75f, 0.75f, 1.0f));
+    ImGui::BeginDisabled  ( );
   }
 
   // Horizontal center-align
@@ -3704,7 +3698,7 @@ Cache=false)";
   if (ImGui::ButtonEx (
               buttonLabel.c_str (),
                   ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
-                            50.0f * SKIF_ImGui_GlobalDPIScale ), buttonFlags ))
+                            50.0f * SKIF_ImGui_GlobalDPIScale )))
   {
     if (pApp->loading)
     {
@@ -3845,7 +3839,10 @@ Cache=false)";
     SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
 
   if (loading || pApp->_status.running || pApp->_status.updating || buttonPending)
+  {
+    ImGui::EndDisabled   ( );
     ImGui::PopStyleColor ( );
+  }
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
       GameMenu == PopupState_Closed)
@@ -3898,6 +3895,7 @@ Cache=false)";
                                 std::max (ImGui::GetContentRegionAvail ().y,
                                           ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
                                           )),
+                                  ImGuiChildFlags_None,
                                   ImGuiWindowFlags_NavFlattened      |
                                   ImGuiWindowFlags_NoScrollbar       |
                                   ImGuiWindowFlags_NoScrollWithMouse |
@@ -4876,8 +4874,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_record.install_dir       = _path_cache.specialk_install;
         SKIF_record.store             = app_record_s::Store::Steam;
         SKIF_record.store_utf8        = "Steam";
-        SKIF_record.ImGuiLabelAndID   = SKIF_Util_FormatStringRaw ("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
-        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiLabelAndID   = SKIF_Util_FormatStringRaw ("%s##%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("##%i-%i", (int)SKIF_record.store, SKIF_record.id);
 
         SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
         SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
@@ -5826,11 +5824,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SetCursorPos (vecPosCoverImage);
 
-  extern bool SKIF_bHDREnabled;
-
   float fGammaCorrectedTint = 
-    ((! SKIF_bHDREnabled && _registry.iSDRMode == 2) || 
-     (  SKIF_bHDREnabled && _registry.iHDRMode == 2))
+    ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) || 
+     (  _registry._RendererHDREnabled && _registry.iHDRMode == 2))
         ? AdjustAlpha (fTint)
         : fTint;
 
@@ -5943,10 +5939,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
   // Ctrl+F should focus filter field
-  if (io.KeyCtrl && io.KeysDown['F'] && io.KeysDownDuration['F'] == 0.0f)
+  if (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_F)->DownDuration == 0.0f)
   {
-    ImGui::ActivateItem (ImGui::GetID("###AppListFilterField"));
-    ImGui::SetFocusID   (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
+    ImGui::ActivateItemByID (ImGui::GetID("###AppListFilterField"));
+    ImGui::SetFocusID       (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
   }
 
   // This is required to prevent the InputTextEx from not being deselected when clicking empty space
@@ -6098,15 +6094,16 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool
   {
     bool _GamePadRightClick =
-      ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
-                                      io.NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
-                                            ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
+      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
+                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f ));
 
     static constexpr float _LONG_INTERVAL = .15f;
 
     bool _NavLongActivate =
-      ( ImGui::IsItemFocused ( ) && ( io.NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
-                                      io.NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL   &&
+                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL ) ||
+                                    ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
+                                      ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
 
     bool ret =
       ImGui::IsItemActivated (                      ) ||
@@ -6382,6 +6379,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
     ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth);
+    //ImGui::Text (app.second.ImGuiLabelAndID.c_str());
     ImGui::PopStyleColor   (2                    );
 
     if (_registry.bFadeCovers)
@@ -6426,8 +6424,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         search_selection.store == app.second.store)
     {
       // Set focus on current row
-      ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
-      ImGui::SetFocusID   (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()), ImGui::GetCurrentWindow());
+      ImGui::ActivateItemByID (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
+      ImGui::SetFocusID       (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()), ImGui::GetCurrentWindow());
 
       // Clear stuff
       selection.appid        = 0;
@@ -6502,12 +6500,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! ImGui::IsMouseDown (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
-          ImGui::ActivateItem (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
+          ImGui::ActivateItemByID (ImGui::GetID (app.second.ImGuiLabelAndID.c_str()));
 
           if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
           
-          ImGui::SetKeyboardFocusHere (    );
+          //ImGui::SetKeyboardFocusHere (    ); // Disabled after ImGui update since this set the keyboard focus on the next item
 
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
           //   without an additional keyboard input
@@ -7828,7 +7826,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 
-  if (AddGamePopup == PopupState_Open && ! ImGui::IsAnyPopupOpen ( ))
+  if (AddGamePopup == PopupState_Open && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
   {
     ImGui::OpenPopup("###AddGamePopup");
     //AddGamePopup = PopupState_Opened; // Set as part of the BeginPopupModal() call below instead
@@ -8559,7 +8557,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           strncpy (charCategoryRename, static_category.Name.c_str(), maxCategoryNameLen);
 
           hasFocus    = true;
-          ImGui::ActivateItem (ImGui::GetID (renameInputID));
+          ImGui::ActivateItemByID (ImGui::GetID (renameInputID));
         }
       }
 

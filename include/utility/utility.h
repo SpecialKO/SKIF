@@ -10,6 +10,7 @@
 #include <Tlhelp32.h>
 #include <processthreadsapi.h>
 #include <vector>
+#include <shellapi.h>
 
 #pragma comment(lib, "wininet.lib")
 

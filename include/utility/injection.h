@@ -61,7 +61,7 @@ struct SKIF_InjectionContext {
   struct {
     ImColor       color;
     ImColor       color_hover;
-    std::string   text;
+    std::string   text = "##ui_game_summary";
     std::string   hover_tip;
   } ui_game_summary;
 

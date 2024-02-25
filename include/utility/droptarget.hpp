@@ -6,6 +6,7 @@
 #include <shlwapi.h>
 #include <vector>
 #include <filesystem>
+#include <utility/sk_utility.h>
 
 class DropTarget : public IDropTarget {
 public:

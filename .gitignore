@@ -12,3 +12,5 @@
 /resources/shaders/imgui_pix.h
 /resources/shaders/imgui_vtx.h
 /steam_appid.txt
+/include/imgui_old/*
+/src/imgui_old/*

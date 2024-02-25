@@ -52,11 +52,13 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static HMODULE                         hModXInput                       = nullptr;
   static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
   static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
+  PLOG_VERBOSE << "herp?";
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
   if (m_bWantUpdate.load())
   {
+    PLOG_VERBOSE << "derp?";
     bool hasGamepad = false;
 
     if (hModXInput == nullptr)
@@ -224,6 +226,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   if (newest.slot == INFINITE)
     newest.state = XSTATE_EMPTY;
 
+  PLOG_VERBOSE << "Stored new data!";
   m_xisGamepad.store (newest.state);
 
   return newest.state;
@@ -273,7 +276,7 @@ SKIF_GamePadInputHelper::SleepThread (void)
 void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {
-  PLOG_VERBOSE << "Spawning SKIF_LibraryWorker thread...";
+  PLOG_VERBOSE << "Spawning SKIF_GamePadInputPump thread...";
   
   // Start the child thread that is responsible for checking for gamepad input
   static HANDLE hThread = CreateThread ( nullptr, 0x0,
@@ -297,11 +300,14 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         // Sleep when there's nothing to do
         while (! parent.m_bThreadAwake.load())
         {
+          PLOG_VERBOSE << "SLEEP!";
           SleepConditionVariableCS (
             &parent.m_GamePadInput, &GamepadInputPump,
               INFINITE
           );
         }
+
+        PLOG_VERBOSE << "Awake!";
 
         packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
 
@@ -321,6 +327,8 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
 
       LeaveCriticalSection  (&GamepadInputPump);
       DeleteCriticalSection (&GamepadInputPump);
+
+      PLOG_VERBOSE << "Shutting down...";
 
       return 0;
     }, nullptr, 0x0, nullptr

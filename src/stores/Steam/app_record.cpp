@@ -451,11 +451,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
                   LR"(SOFTWARE\Valve\Steam\Apps)",
                     L"SteamAppNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET ); // UITab_Library
 
-  extern INT64 current_time_ms;
-
-  DWORD dwTimeNow =
-    static_cast <DWORD>
-      ( current_time_ms & 0xFFFFFFFFLL );
+  DWORD dwTimeNow = SKIF_Util_timeGetTime ( );
 
   static DWORD
        dwLastSignalCheck = 0UL;

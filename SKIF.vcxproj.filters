@@ -16,14 +16,8 @@
     <Filter Include="Source Files\ImGui">
       <UniqueIdentifier>{63076e31-4f80-4ca1-b4af-bfe9a9c359b2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\ImGui\D3D11">
-      <UniqueIdentifier>{c1e4600b-6cfe-4460-8df5-01dd30f01d5c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ImGui">
       <UniqueIdentifier>{7e60a39e-3f7a-46ab-abac-6d25a90a2549}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\ImGui\Win32">
-      <UniqueIdentifier>{840abb22-849f-4480-95e4-02dd28955bd3}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Stores">
       <UniqueIdentifier>{489abe81-33aa-408e-b6c8-743add85f42d}</UniqueIdentifier>
@@ -36,12 +30,6 @@
     </Filter>
     <Filter Include="Source Files\Stores\Steam">
       <UniqueIdentifier>{89d533fc-6293-4896-9a8a-ea8cd8d09e9d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\ImGui\Backends">
-      <UniqueIdentifier>{50a540e9-c9d2-4223-8bd0-d839f1ae1197}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\ImGui\Backends\D3D11">
-      <UniqueIdentifier>{444c152e-6991-45d2-acb5-69bb839615ac}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Utility">
       <UniqueIdentifier>{e5817b47-00d5-484e-9bc2-e710e2866fb8}</UniqueIdentifier>
@@ -119,9 +107,6 @@
     </ClInclude>
     <ClInclude Include="include\imgui\imstb_truetype.h">
       <Filter>Header Files\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h">
-      <Filter>Header Files\ImGui\Backends\D3D11</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Steam\steam_library.h">
       <Filter>Header Files\Stores\Steam</Filter>
@@ -255,14 +240,11 @@
     <ClInclude Include="include\utility\gamepad.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\imgui\imgui_impl_dx11.h">
+      <Filter>Header Files\ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp">
-      <Filter>Source Files\ImGui\D3D11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_impl_win32.cpp">
-      <Filter>Source Files\ImGui\Win32</Filter>
-    </ClCompile>
     <ClCompile Include="src\imgui\imgui.cpp">
       <Filter>Source Files\ImGui</Filter>
     </ClCompile>
@@ -349,6 +331,15 @@
     </ClCompile>
     <ClCompile Include="src\utility\gamepad.cpp">
       <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_tables.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_impl_dx11.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_impl_win32.cpp">
+      <Filter>Source Files\ImGui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

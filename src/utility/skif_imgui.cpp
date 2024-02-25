@@ -15,7 +15,7 @@
 #include <fonts/fa_621b.h>
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
-#include <imgui/D3D11/imgui_impl_dx11.h>
+#include <imgui/imgui_impl_dx11.h>
 
 ImFont*               fontConsolas = nullptr;
 std::vector <ImWchar> vFontChineseSimplified;
@@ -439,8 +439,11 @@ SKIF_ImGui_IsMouseHovered (void)
 bool
 SKIF_ImGui_IsAnyInputDown (void)
 {
-  ImGuiContext& g = *GImGui;
+  for (ImGuiKey key = ImGuiKey_KeysData_OFFSET; key < ImGuiKey_COUNT; key = (ImGuiKey)(key + 1))
+    if (ImGui::IsKeyDown(key))
+      return true;
 
+  /*
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
     if (g.IO.MouseDown[n])
       return true;
@@ -452,6 +455,7 @@ SKIF_ImGui_IsAnyInputDown (void)
   for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
     if (g.IO.NavInputs[n])
       return true;
+  */
 
   return false;
 }
@@ -480,7 +484,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
 
-  if (ImGui::IsItemHovered ())
+  if (ImGui::IsItemHovered () && ! szText.empty())
   {
     if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
@@ -570,7 +574,7 @@ SKIF_ImGui_Selectable (const char* label)
 
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
-SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags)
+SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags)
 {
   const ImGuiStyle& style =
     ImGui::GetStyle ();
@@ -581,7 +585,7 @@ SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags ext
   ImGui::PushStyleVar   (ImGuiStyleVar_WindowPadding,   style.FramePadding);
 
   bool ret =
-    ImGui::BeginChild (id, size, true, ImGuiWindowFlags_AlwaysUseWindowPadding | extra_flags);
+    ImGui::BeginChild (id, size, ImGuiChildFlags_AlwaysUseWindowPadding | child_flags, window_flags);
 
   ImGui::PopStyleVar   (3);
   //ImGui::PopStyleColor ( );
@@ -630,11 +634,11 @@ SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeb
   ImGuiWindow* window = ImGui::GetCurrentWindowRead();
   IM_ASSERT(columns_count >= 1);
 
-  ImGuiColumnsFlags flags = (border ? 0 : ImGuiColumnsFlags_NoBorder);
+  ImGuiOldColumnFlags flags = (border ? 0 : ImGuiOldColumnFlags_NoBorder);
   if (! resizeble)
-    flags |= ImGuiColumnsFlags_NoResize;
-  //flags |= ImGuiColumnsFlags_NoPreserveWidths; // NB: Legacy behavior
-  ImGuiColumns* columns = window->DC.CurrentColumns;
+    flags |= ImGuiOldColumnFlags_NoResize;
+  //flags |= ImGuiOldColumnFlags_NoPreserveWidths; // NB: Legacy behavior
+  ImGuiOldColumns* columns = window->DC.CurrentColumns;
   if (columns != NULL && columns->Count == columns_count && columns->Flags == flags)
     return;
 
@@ -663,6 +667,7 @@ void SKIF_ImGui_BeginTabChildFrame (void)
     frame_content_area_id,
       ImVec2 (   0.0f,
                maxContentHeight * SKIF_ImGui_GlobalDPIScale ), // 900.0f
+        ImGuiChildFlags_None,
         ImGuiWindowFlags_NavFlattened
   );
 }
@@ -1118,6 +1123,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   }
 
   // Override the style with a few tweaks of our own
+  dst->DisabledAlpha   = 1.0f; // Disable the default 60% alpha transparency for disabled items
   dst->WindowRounding  = 4.0F; // style.ScrollbarRounding;
   dst->ChildRounding   = dst->WindowRounding;
   dst->TabRounding     = dst->WindowRounding;
@@ -1190,7 +1196,7 @@ SKIF_ImGui_CanMouseDragMove (void)
   extern bool SKIF_MouseDragMoveAllowed;
   return      SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
             ! ImGui::IsAnyItemHovered ( ) &&          // Disabled if any item is hovered
-          ( ! ImGui::IsAnyPopupOpen ( )            || // Disabled if any popup is opened..
+          ( ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)            || // Disabled if any popup is opened..
           (   AddGamePopup    == PopupState_Opened || // ..except for a few standard ones
           PopupMessageInfo    == PopupState_Opened || //   which are actually aligned to
            ModifyGamePopup    == PopupState_Opened || //   the center of the app window
@@ -1218,4 +1224,58 @@ SKIF_ImGui_InvalidateFonts (void)
   }
 
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
+}
+
+
+// Map char to ImGuiKey_xxx.
+ImGuiKey
+SKIF_ImGui_CharToImGuiKey (char c)
+{
+  switch (c)
+  { // ' ','-',':','.'
+    case ' ': return ImGuiKey_Space;
+    case '\'': return ImGuiKey_Apostrophe;
+    case ',': return ImGuiKey_Comma;
+    case '-': return ImGuiKey_Minus;
+    case '.': return ImGuiKey_Period;
+    case '/': return ImGuiKey_Slash;
+    case ';': return ImGuiKey_Semicolon;
+    case '0': return ImGuiKey_0;
+    case '1': return ImGuiKey_1;
+    case '2': return ImGuiKey_2;
+    case '3': return ImGuiKey_3;
+    case '4': return ImGuiKey_4;
+    case '5': return ImGuiKey_5;
+    case '6': return ImGuiKey_6;
+    case '7': return ImGuiKey_7;
+    case '8': return ImGuiKey_8;
+    case '9': return ImGuiKey_9;
+    case 'A': return ImGuiKey_A;
+    case 'B': return ImGuiKey_B;
+    case 'C': return ImGuiKey_C;
+    case 'D': return ImGuiKey_D;
+    case 'E': return ImGuiKey_E;
+    case 'F': return ImGuiKey_F;
+    case 'G': return ImGuiKey_G;
+    case 'H': return ImGuiKey_H;
+    case 'I': return ImGuiKey_I;
+    case 'J': return ImGuiKey_J;
+    case 'K': return ImGuiKey_K;
+    case 'L': return ImGuiKey_L;
+    case 'M': return ImGuiKey_M;
+    case 'N': return ImGuiKey_N;
+    case 'O': return ImGuiKey_O;
+    case 'P': return ImGuiKey_P;
+    case 'Q': return ImGuiKey_Q;
+    case 'R': return ImGuiKey_R;
+    case 'S': return ImGuiKey_S;
+    case 'T': return ImGuiKey_T;
+    case 'U': return ImGuiKey_U;
+    case 'V': return ImGuiKey_V;
+    case 'W': return ImGuiKey_W;
+    case 'X': return ImGuiKey_X;
+    case 'Y': return ImGuiKey_Y;
+    case 'Z': return ImGuiKey_Z;
+    default: return ImGuiKey_None;
+  }
 }

@@ -31,6 +31,7 @@
 #include <HybridDetect.h>
 
 std::vector<HANDLE> vWatchHandles[UITab_ALL];
+INT64               SKIF_TimeInMilliseconds = 0;
 
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
@@ -161,10 +162,8 @@ SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD er
 DWORD
 SKIF_Util_timeGetTime (void)
 {
-  extern INT64 current_time_ms;
-
   return static_cast<DWORD>
-          ( current_time_ms & 0xFFFFFFFFLL );
+          ( SKIF_TimeInMilliseconds & 0xFFFFFFFFLL );
 }
 
 DWORD
@@ -172,29 +171,6 @@ SKIF_Util_timeGetTime1 (void)
 {
   static LARGE_INTEGER qpcFreq = { };
          LARGE_INTEGER li      = { };
-
-  /*
-  using timeGetTime_pfn =
-          DWORD (WINAPI *)(void);
-  static timeGetTime_pfn
-   winmm_timeGetTime     = nullptr;
-
-  if (  winmm_timeGetTime == nullptr || qpcFreq.QuadPart == 1)
-  {
-    if (winmm_timeGetTime == nullptr)
-    {
-      HMODULE hModWinMM =
-        LoadLibraryEx ( L"winmm.dll", nullptr,
-                          LOAD_LIBRARY_SEARCH_SYSTEM32 );
-        winmm_timeGetTime =
-             (timeGetTime_pfn)GetProcAddress (hModWinMM,
-             "timeGetTime"                   );
-    }
-
-    return winmm_timeGetTime != nullptr ?
-           winmm_timeGetTime ()         : static_cast <DWORD> (-1);
-  }
-  */
 
   if ( qpcFreq.QuadPart == 1)
   {

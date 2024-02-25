@@ -552,6 +552,10 @@ struct SKIF_RegistrySettings {
   bool _LibraryHidden               = false; // Do not show hidden games by default
   bool _EfficiencyMode              = false;
   bool _StyleLightMode              = false; // Indicates whether we are currently using a light theme or not
+  bool _RendererCanWaitSwapchain    = false; // Waitable Swapchain            Windows 8.1+
+  bool _RendererCanAllowTearing     = false; // DWM Tearing                   Windows 10+
+  bool _RendererCanHDR              = false; // High Dynamic Range            Windows 10 1709+ (Build 16299)
+  bool _RendererHDREnabled          = false; // HDR Enabled
 
   // Functions
   static SKIF_RegistrySettings& GetInstance (void)

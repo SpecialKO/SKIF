@@ -376,6 +376,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\imgui\imgui_impl_dx11.h" />
     <ClInclude Include="include\stores\Epic\epic_library.h" />
     <ClInclude Include="include\utility\droptarget.hpp" />
     <ClInclude Include="include\utility\drvreset.h" />
@@ -394,7 +395,6 @@
     <ClInclude Include="resources\fonts\fa_brands_400.ttf.h" />
     <ClInclude Include="resources\fonts\fa_solid_900.ttf.h" />
     <ClInclude Include="include\utility\fsutil.h" />
-    <ClInclude Include="include\imgui\D3D11\imgui_impl_dx11.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
     <ClInclude Include="include\imgui\imgui_impl_win32.h" />
@@ -430,6 +430,9 @@
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\imgui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="src\imgui\imgui_tables.cpp" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
     <ClCompile Include="src\utility\drvreset.cpp" />
@@ -439,10 +442,8 @@
     <ClCompile Include="src\utility\skif_imgui.cpp" />
     <ClCompile Include="src\utility\utility.cpp" />
     <ClCompile Include="src\utility\fsutil.cpp" />
-    <ClCompile Include="src\imgui\D3D11\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\imgui\imgui.cpp" />
     <ClCompile Include="src\imgui\imgui_draw.cpp" />
-    <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\utility\injection.cpp" />
     <ClCompile Include="src\SKIF.cpp" />

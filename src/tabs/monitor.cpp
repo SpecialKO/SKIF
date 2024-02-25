@@ -724,7 +724,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine         ( );
 
   ImGui::BeginGroup       ( );
-  ImGui::TreePush         ( );
+  ImGui::TreePush         ("");
 
   const char* RefreshInterval[] = { "Paused",   // 0 (never)
                                     "Slow",     // 1 (5s)
@@ -806,7 +806,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TreePush   ( );
+  ImGui::TreePush   ("");
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
   if (ImGui::Button ( ICON_FA_TOGGLE_ON  "  Force start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY
@@ -1420,15 +1420,16 @@ SKIF_UI_Tab_DrawMonitor (void)
     static bool openedWithAltMethod = false;
 
     bool _GamePadRightClick =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Input] != 0.0f &&
-                                      ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Input] == 0.0f &&
-                                            ImGui::GetCurrentContext ()->NavInputSource == ImGuiInputSource_NavGamepad ) );
+      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
+                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f ));
 
     static constexpr float _LONG_INTERVAL = .15f;
 
     bool _NavLongActivate =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetIO ( ).NavInputsDownDuration     [ImGuiNavInput_Activate] >= _LONG_INTERVAL &&
-                                      ImGui::GetIO ( ).NavInputsDownDurationPrev [ImGuiNavInput_Activate] <= _LONG_INTERVAL ) );
+      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL   &&
+                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL ) ||
+                                    ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
+                                      ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
 
     if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
           _GamePadRightClick                            ||
@@ -1606,7 +1607,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::Separator   ( );
 
   SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-           (_registry.bHorizonMode) ? 250.0f : ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+           (_registry.bHorizonMode) ? 250.0f : ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
       
   ImGui::PushStyleColor (
     ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
