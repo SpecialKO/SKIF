@@ -1232,50 +1232,51 @@ ImGuiKey
 SKIF_ImGui_CharToImGuiKey (char c)
 {
   switch (c)
-  { // ' ','-',':','.'
-    case ' ': return ImGuiKey_Space;
+  {
+    case ' ':  return ImGuiKey_Space;
     case '\'': return ImGuiKey_Apostrophe;
-    case ',': return ImGuiKey_Comma;
-    case '-': return ImGuiKey_Minus;
-    case '.': return ImGuiKey_Period;
-    case '/': return ImGuiKey_Slash;
-    case ';': return ImGuiKey_Semicolon;
-    case '0': return ImGuiKey_0;
-    case '1': return ImGuiKey_1;
-    case '2': return ImGuiKey_2;
-    case '3': return ImGuiKey_3;
-    case '4': return ImGuiKey_4;
-    case '5': return ImGuiKey_5;
-    case '6': return ImGuiKey_6;
-    case '7': return ImGuiKey_7;
-    case '8': return ImGuiKey_8;
-    case '9': return ImGuiKey_9;
-    case 'A': return ImGuiKey_A;
-    case 'B': return ImGuiKey_B;
-    case 'C': return ImGuiKey_C;
-    case 'D': return ImGuiKey_D;
-    case 'E': return ImGuiKey_E;
-    case 'F': return ImGuiKey_F;
-    case 'G': return ImGuiKey_G;
-    case 'H': return ImGuiKey_H;
-    case 'I': return ImGuiKey_I;
-    case 'J': return ImGuiKey_J;
-    case 'K': return ImGuiKey_K;
-    case 'L': return ImGuiKey_L;
-    case 'M': return ImGuiKey_M;
-    case 'N': return ImGuiKey_N;
-    case 'O': return ImGuiKey_O;
-    case 'P': return ImGuiKey_P;
-    case 'Q': return ImGuiKey_Q;
-    case 'R': return ImGuiKey_R;
-    case 'S': return ImGuiKey_S;
-    case 'T': return ImGuiKey_T;
-    case 'U': return ImGuiKey_U;
-    case 'V': return ImGuiKey_V;
-    case 'W': return ImGuiKey_W;
-    case 'X': return ImGuiKey_X;
-    case 'Y': return ImGuiKey_Y;
-    case 'Z': return ImGuiKey_Z;
-    default: return ImGuiKey_None;
+    case ',':  return ImGuiKey_Comma;
+    case '-':  return ImGuiKey_Minus;
+    case '.':  return ImGuiKey_Period;
+    case '/':  return ImGuiKey_Slash;
+  //case ':':  return ImGuiKey_Colon; // ???
+    case ';':  return ImGuiKey_Semicolon;
+    case '0':  return ImGuiKey_0;
+    case '1':  return ImGuiKey_1;
+    case '2':  return ImGuiKey_2;
+    case '3':  return ImGuiKey_3;
+    case '4':  return ImGuiKey_4;
+    case '5':  return ImGuiKey_5;
+    case '6':  return ImGuiKey_6;
+    case '7':  return ImGuiKey_7;
+    case '8':  return ImGuiKey_8;
+    case '9':  return ImGuiKey_9;
+    case 'A':  return ImGuiKey_A;
+    case 'B':  return ImGuiKey_B;
+    case 'C':  return ImGuiKey_C;
+    case 'D':  return ImGuiKey_D;
+    case 'E':  return ImGuiKey_E;
+    case 'F':  return ImGuiKey_F;
+    case 'G':  return ImGuiKey_G;
+    case 'H':  return ImGuiKey_H;
+    case 'I':  return ImGuiKey_I;
+    case 'J':  return ImGuiKey_J;
+    case 'K':  return ImGuiKey_K;
+    case 'L':  return ImGuiKey_L;
+    case 'M':  return ImGuiKey_M;
+    case 'N':  return ImGuiKey_N;
+    case 'O':  return ImGuiKey_O;
+    case 'P':  return ImGuiKey_P;
+    case 'Q':  return ImGuiKey_Q;
+    case 'R':  return ImGuiKey_R;
+    case 'S':  return ImGuiKey_S;
+    case 'T':  return ImGuiKey_T;
+    case 'U':  return ImGuiKey_U;
+    case 'V':  return ImGuiKey_V;
+    case 'W':  return ImGuiKey_W;
+    case 'X':  return ImGuiKey_X;
+    case 'Y':  return ImGuiKey_Y;
+    case 'Z':  return ImGuiKey_Z;
+    default:   return ImGuiKey_None;
   }
 }

@@ -215,7 +215,7 @@ SearchAppsList (void)
         'I','J','K','L','M','N','O','P',
         'Q','R','S','T','U','V','W','X',
         'Y','Z','0','1','2','3','4','5',
-        '6','7','8','9',' ','-',':','.' };
+        '6','7','8','9',' ','-','.' }; // ':', // ???
 
   static char test_ [1024] = {      };
   char        out   [2]    = { 0, 0 };
@@ -255,7 +255,7 @@ SearchAppsList (void)
   // Check input
   for ( auto c : _text_chars )
   {
-    if (false && ImGui::GetKeyData (SKIF_ImGui_CharToImGuiKey (c))->DownDuration == 0.0f &&
+    if (ImGui::GetKeyData (SKIF_ImGui_CharToImGuiKey (c))->DownDuration == 0.0f &&
         (c != ' ' || strlen (test_) > 0))
     {
       out [0] = c;
