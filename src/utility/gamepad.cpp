@@ -52,13 +52,11 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static HMODULE                         hModXInput                       = nullptr;
   static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
   static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
-  PLOG_VERBOSE << "herp?";
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
   if (m_bWantUpdate.load())
   {
-    PLOG_VERBOSE << "derp?";
     bool hasGamepad = false;
 
     if (hModXInput == nullptr)
@@ -226,7 +224,6 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   if (newest.slot == INFINITE)
     newest.state = XSTATE_EMPTY;
 
-  PLOG_VERBOSE << "Stored new data!";
   m_xisGamepad.store (newest.state);
 
   return newest.state;
@@ -300,14 +297,11 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         // Sleep when there's nothing to do
         while (! parent.m_bThreadAwake.load())
         {
-          PLOG_VERBOSE << "SLEEP!";
           SleepConditionVariableCS (
             &parent.m_GamePadInput, &GamepadInputPump,
               INFINITE
           );
         }
-
-        PLOG_VERBOSE << "Awake!";
 
         packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
 
