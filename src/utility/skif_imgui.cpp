@@ -688,6 +688,26 @@ void SKIF_ImGui_BeginTabChildFrame (void)
   );
 }
 
+bool
+SKIF_ImGui_BeginMenuEx2 (const char* label, const char* icon, const ImVec4& colIcon, bool enabled)
+{
+  ImGui::PushStyleColor         (ImGuiCol_SKIF_Icon, colIcon);
+  bool ret = ImGui::BeginMenuEx (label, icon, enabled);
+  ImGui::PopStyleColor          ( );
+
+  return ret;
+}
+
+bool
+SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool selected, bool enabled)
+{
+  ImGui::PushStyleColor        (ImGuiCol_SKIF_Icon, colIcon);
+  bool ret = ImGui::MenuItemEx (label, icon, shortcut, selected, enabled);
+  ImGui::PopStyleColor         ( );
+
+  return ret;
+}
+
 bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4& colIcon)
 {
   bool ret   = false;
