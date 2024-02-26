@@ -1319,17 +1319,22 @@ DrawGameContextMenu (app_record_s* pApp)
 
   if (firstLaunchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
     SteamShortcutPossible = firstLaunchConfig->isExecutableFullPathValid ( );
+    
+  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
   
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
     ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
   );
 
-  if ( ImGui::Selectable ("Play###GameContextMenu_Launch", false,
-                          ((pApp->_status.running || pApp->_status.updating)
-                            ? ImGuiSelectableFlags_Disabled
-                            : ImGuiSelectableFlags_None)))
+  if (playDisabled)
+    ImGui::BeginDisabled ( );
+
+  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
     launchGameMenu = true;
+
+  if (playDisabled)
+    ImGui::EndDisabled ( );
 
   if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
   {
@@ -1340,18 +1345,21 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if ( ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK", false,
-                            ((pApp->_status.running || pApp->_status.updating)
-                              ? ImGuiSelectableFlags_Disabled
-                              : ImGuiSelectableFlags_None)))
+    if (playDisabled)
+      ImGui::BeginDisabled ( );
+
+    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
       launchGameMenu = launchWithoutSK = true;
+
+    if (playDisabled)
+      ImGui::EndDisabled ( );
 
     ImGui::PopStyleColor   ( );
 
     if (_inject.bCurrentState)
       SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
   }
-        
+
   // Instant Play options
   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
@@ -1364,11 +1372,18 @@ DrawGameContextMenu (app_record_s* pApp)
         pApp->store == app_record_s::Store::GOG   ||
         pApp->store == app_record_s::Store::Xbox))
     {
-      if (ImGui::Selectable ("Instant play###GameContextMenu_InstantPlay", false,
-                            ((pApp->_status.running || pApp->_status.updating)
-                              ? ImGuiSelectableFlags_Disabled
-                              : ImGuiSelectableFlags_None)))
+      if (playDisabled)
+        ImGui::BeginDisabled ( );
+
+      ImGui::PushStyleColor (ImGuiCol_SKIF_Icon, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure));
+
+      if (ImGui::MenuItemEx ("Instant play###GameContextMenu_InstantPlay", ICON_FA_ROCKET))
         launchInstant = true;
+
+      ImGui::PopStyleColor ( );
+
+      if (playDisabled)
+        ImGui::EndDisabled ( );
 
       std::string hoverText = (firstLaunchConfig != nullptr) ? firstLaunchConfig->getExecutableFullPathUTF8() : "";
 
@@ -1396,11 +1411,14 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
         );
 
-        if (ImGui::Selectable ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSK", false,
-                              ((pApp->_status.running || pApp->_status.updating)
-                                ? ImGuiSelectableFlags_Disabled
-                                : ImGuiSelectableFlags_None)))
+        if (playDisabled)
+          ImGui::BeginDisabled ( );
+
+        if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSK"))
           launchInstant = launchWithoutSK = true;
+
+        if (playDisabled)
+          ImGui::EndDisabled ( );
 
         ImGui::PopStyleColor   ( );
         
@@ -1411,12 +1429,10 @@ DrawGameContextMenu (app_record_s* pApp)
     // Multiple launch configs
     else if (pApp->ui.numSecondaryLaunchConfigs > 0)
     {
-      bool disabled = (pApp->_status.running || pApp->_status.updating);
-
-      if (disabled)
+      if (playDisabled)
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
 
-      if (ImGui::BeginMenu ("Instant play###GameContextMenu_InstantPlayMenu"))
+      if (SKIF_ImGui_BeginMenuEx2 ("Instant play###GameContextMenu_InstantPlayMenu", ICON_FA_ROCKET, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure)))
       {
         bool sepCustomSKIF = true,
              sepCustomUser = true;
@@ -1459,7 +1475,7 @@ DrawGameContextMenu (app_record_s* pApp)
                             : _launch.getDescriptionUTF8().c_str (),
                           _launch.id);
 
-          if (disabled || blacklisted)
+          if (playDisabled || blacklisted)
           {
             ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
             ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
@@ -1473,7 +1489,7 @@ DrawGameContextMenu (app_record_s* pApp)
             launchInstant = true;
           }
           
-          if (disabled || blacklisted)
+          if (playDisabled || blacklisted)
           {
             ImGui::PopStyleColor  ( );
             ImGui::PopItemFlag    ( );
@@ -1501,7 +1517,7 @@ DrawGameContextMenu (app_record_s* pApp)
               hoverText += (" " + pApp->steam.local.launch_option);
           }
           
-          if (! disabled && ! blacklisted)
+          if (! playDisabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
           
           SKIF_ImGui_SetHoverText       (hoverText.c_str());
@@ -1519,7 +1535,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (_inject.bHasServlet)
       {
-        if (! disabled)
+        if (! playDisabled)
           ImGui::PushStyleColor      (ImGuiCol_Text,
             ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
           );
@@ -1567,7 +1583,7 @@ DrawGameContextMenu (app_record_s* pApp)
                               : _launch.getDescriptionUTF8().c_str (),
                             _launch.id);
           
-            if (disabled || localDisabled)
+            if (playDisabled || localDisabled)
             {
               ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
               ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
@@ -1581,7 +1597,7 @@ DrawGameContextMenu (app_record_s* pApp)
               launchInstant = launchWithoutSK = true;
             }
           
-            if (disabled || localDisabled)
+            if (playDisabled || localDisabled)
             {
               ImGui::PopStyleColor  ( );
               ImGui::PopItemFlag    ( );
@@ -1594,7 +1610,7 @@ DrawGameContextMenu (app_record_s* pApp)
             if (! _launch.getLaunchOptionsUTF8().empty())
               hoverText += (" " + _launch.getLaunchOptionsUTF8());
 
-            if (! disabled && ! localDisabled)
+            if (! playDisabled && ! localDisabled)
               SKIF_ImGui_SetMouseCursorHand ( );
           
             SKIF_ImGui_SetHoverText       (hoverText.c_str());
@@ -1606,44 +1622,14 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::EndMenu ();
         }
       
-        if (! disabled)
+        if (! playDisabled)
           ImGui::PopStyleColor ( );
       }
 
-      if (disabled)
+      if (playDisabled)
         ImGui::PopStyleColor ( );
     }
   }
-
-  // GOG launch options
-  /*
-  if (GOGGalaxy_Installed && pApp->store == app_record_s::Store::GOG)
-  {
-    if (pApp->specialk.injection.injection.type != InjectionType::Local)
-      ImGui::Separator        ( );
-
-    if (ImGui::Selectable ("Play using GOG Galaxy###GameContextMenu_GalaxyLaunch", false,
-                          ((pApp->_status.running || pApp->_status.updating)
-                            ? ImGuiSelectableFlags_Disabled
-                            : ImGuiSelectableFlags_None)))
-      launchGalaxyGame = true;
-
-    if (pApp->specialk.injection.injection.type != InjectionType::Local)
-    {
-      ImGui::PushStyleColor ( ImGuiCol_Text,
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f)
-      );
-
-      if (ImGui::Selectable (ICON_FA_TOGGLE_OFF " without Special K###GameContextMenu_GalaxyLaunchWoSK", false,
-                            ((pApp->_status.running || pApp->_status.updating)
-                              ? ImGuiSelectableFlags_Disabled
-                              : ImGuiSelectableFlags_None)))
-        launchGalaxyGame = launchWithoutSK = true;
-
-      ImGui::PopStyleColor  ( );
-    }
-  }
-  */
 
   if (pApp->_status.running)
   {
@@ -1658,21 +1644,26 @@ DrawGameContextMenu (app_record_s* pApp)
 
       ImGui::Separator ( );
 
-      if (ImGui::Selectable (ICON_FA_SQUARE_XMARK "  Terminate game", false,
-                            ((hProcess == INVALID_HANDLE_VALUE)
-                              ? ImGuiSelectableFlags_Disabled
-                              : ImGuiSelectableFlags_None)))
+      bool bInvalid = (hProcess == INVALID_HANDLE_VALUE);
+
+      if (bInvalid)
+        ImGui::BeginDisabled ( );
+      
+      if (SKIF_ImGui_MenuItemEx2 ("Terminate game", ICON_FA_POWER_OFF))
       {
         static_proc.handle = hProcess;
         static_proc.name   = pApp->names.normal;
       }
+
+      if (bInvalid)
+        ImGui::EndDisabled ( );
     }
 
     else if (pApp->_status.running_pid != 0)
     {
       ImGui::Separator ( );
-
-      if (ImGui::Selectable (ICON_FA_SQUARE_XMARK "  Terminate game"))
+      
+      if (SKIF_ImGui_MenuItemEx2 ("Terminate game", ICON_FA_POWER_OFF))
       {
         static_proc.pid    = pApp->_status.running_pid;
         static_proc.name   = pApp->names.normal;
@@ -1685,96 +1676,51 @@ DrawGameContextMenu (app_record_s* pApp)
 
   ImGui::Separator ( );
   // ==============================
-  
-  if (ImGui::BeginMenu (ICON_FA_FOLDER "  Browse"))
+
+  if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
-    ImVec2 iconPos = ImGui::GetCursorPos();
-
-    ImGui::BeginGroup  ( );
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN)       .x, ImGui::GetTextLineHeight()));
-    ImGui::EndGroup    ( );
-    ImGui::SameLine    ( );
-    ImGui::BeginGroup  ( );
-    if (ImGui::Selectable           ("Game folder", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Game folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath         (pApp->install_dir);
-    else {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
-    }
-    ImGui::EndGroup    ( );
 
-    ImGui::SetCursorPos  (iconPos);
-
-    ImGui::TextColored (
-              ImColor (255, 207, 72),
-                ICON_FA_FOLDER_OPEN
-                          );
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
 
     // If Profile Folder Exists
     if (pApp->ui.profileFolderExists)
     {
-      ImGui::BeginGroup  ( );
-      ImVec2 iconPosDummy = ImGui::GetCursorPos();
-
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN) .x, ImGui::GetTextLineHeight()));
-      if (pApp->ui.screenshotsFolderExists)
-        ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_IMAGES)       .x, ImGui::GetTextLineHeight()));
-        
-      ImGui::EndGroup    ( );
-      ImGui::SameLine    ( );
-      ImGui::BeginGroup  ( );
-
       // Config Root
-      if (ImGui::Selectable         ("Profile folder", false, ImGuiSelectableFlags_SpanAllColumns))
+      if (SKIF_ImGui_MenuItemEx2 ("Profile folder", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
         SKIF_Util_ExplorePath       (pApp->specialk.injection.config.root_dir);
-      else {
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir.c_str()).c_str());
-      }
-        
+
+      SKIF_ImGui_SetMouseCursorHand ();
+      SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir.c_str()).c_str());
+
       if (pApp->ui.screenshotsFolderExists)
       {
         // Screenshot Folder
-        if (ImGui::Selectable         ("Screenshots", false, ImGuiSelectableFlags_SpanAllColumns))
+        if (SKIF_ImGui_MenuItemEx2 ("Screenshots", ICON_FA_IMAGES, ImColor(200, 200, 200, 255)))
           SKIF_Util_ExplorePath       (pApp->ui.wsScreenshotDir);
-        else {
-          SKIF_ImGui_SetMouseCursorHand ();
-          SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
-        }
+
+        SKIF_ImGui_SetMouseCursorHand ();
+        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
       }
-
-      ImGui::EndGroup  ( );
-
-      ImGui::SetCursorPos  (iconPosDummy);
-
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), // ImColor (255, 207, 72),
-                  ICON_FA_FOLDER_OPEN
-                            );
-      if (pApp->ui.screenshotsFolderExists)
-        ImGui::TextColored (
-                  ImColor   (200, 200, 200, 255),
-                    ICON_FA_IMAGES
-                              );
     }
 
     if (! pApp->ui.cloud_paths.empty())
     {
       ImGui::Separator  ( );
 
-      if (ImGui::BeginMenu (ICON_FA_SD_CARD "   Save/config folders"))
+      if (SKIF_ImGui_BeginMenuEx2 ("Save/config folders", ICON_FA_FLOPPY_DISK, ImColor(200, 200, 200, 255)))
       {
         for (auto& folder : pApp->ui.cloud_paths)
         {
-      
           ImGui::PushStyleColor ( ImGuiCol_Text,
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
           );
-
-          if (ImGui::Selectable         (folder.label.c_str()))
+          
+          if (SKIF_ImGui_MenuItemEx2 (folder.label.c_str(), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
           {
             SKIF_Util_ExplorePath       (folder.path);
-
             ImGui::CloseCurrentPopup    ( );
           }
 
@@ -1792,49 +1738,19 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 
   // Manage Game
-  if (ImGui::BeginMenu (ICON_FA_GEARS " Manage"))
+  if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
   {
-    ImGui::BeginGroup  ( );
-    ImVec2 iconPos = ImGui::GetCursorPos ( );
-
     bool desktopShortcutPossible =
           (SteamShortcutPossible                     ||
           pApp->store == app_record_s::Store::Custom ||
           pApp->store == app_record_s::Store::GOG);
 
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEAR).x, ImGui::GetTextLineHeight()));
-
-    if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
-      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_THUMBTACK).x, ImGui::GetTextLineHeight()));
-
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
-
-    ImGui::Separator ( );
-
-    if (! _registry.vecCategories.empty())
-    {
-      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_OBJECT_GROUP).x, ImGui::GetTextLineHeight()));
-      ImGui::Separator ( );
-    }
-
-    if (desktopShortcutPossible)
-      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_PAPERCLIP).x, ImGui::GetTextLineHeight()));
-    
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize ((pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? ICON_FA_EYE : ICON_FA_EYE_SLASH).x, ImGui::GetTextLineHeight()));
-
-    if (pApp->store == app_record_s::Store::Custom)
-      ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_TRASH).x, ImGui::GetTextLineHeight()));
-
-    ImGui::EndGroup    ( );
-    ImGui::SameLine    ( );
-    ImGui::BeginGroup  ( );
-
-    if (ImGui::Selectable ("Properties", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Properties", ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
 
     if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
     {
-      if (ImGui::Selectable ("Favorite (pinned; max 5)", false, ImGuiSelectableFlags_SpanAllColumns))
+      if (SKIF_ImGui_MenuItemEx2 ("Favorite (pinned; max 5)", ICON_FA_STAR, ImColor(255, 207, 72)))
       {
         pApp->skif.pinned =  51;
         numPinnedOnTop++;
@@ -1849,12 +1765,13 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelPin   =   "Favorite";
     constexpr char* labelUnpin = "Unfavorite";
 
-    if (ImGui::Selectable ((pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
+    bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
+    if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
     {
       if (pApp->skif.pinned > 50)
         numPinnedOnTop--;
 
-      pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
+      pApp->skif.pinned = isFavorite ? 0 : 1;
 
       JsonDB_UpdateApp   (pApp, true);
 
@@ -1865,20 +1782,18 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::Separator ( );
 
     // Category
-    if (ImGui::BeginMenu ("Category"))
+    if (SKIF_ImGui_BeginMenuEx2 ("Category", ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
     {
       // Prevent the popup from being closed when selecting a category
       ImGui::PushItemFlag (ImGuiItemFlags_SelectableDontClosePopup, true);
       ImGui::PushID       ("###ManageCategories");
-
-      bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
 
       if (ImGui::MenuItem ("Favorites", "", isFavorite))
       {
         if (pApp->skif.pinned > 50)
           numPinnedOnTop--;
 
-        pApp->skif.pinned =  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? 0 : 1;
+        pApp->skif.pinned = isFavorite ? 0 : 1;
         JsonDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&g_apps);
@@ -2066,7 +1981,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (desktopShortcutPossible)
     {
-      if (ImGui::Selectable ("Create desktop shortcut", false, ImGuiSelectableFlags_SpanAllColumns))
+      if (SKIF_ImGui_MenuItemEx2 ("Create desktop shortcut", ICON_FA_PAPERCLIP, ImColor(200, 200, 200, 255)))
       {
         std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
 
@@ -2100,10 +2015,12 @@ DrawGameContextMenu (app_record_s* pApp)
 
     constexpr char* labelHide   =   "Hide";
     constexpr char* labelUnhide = "Unhide";
+
+    bool bUnhide = (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1));
     
-    if (ImGui::Selectable ((pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? labelUnhide : labelHide, false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ((bUnhide ? labelUnhide : labelHide), (bUnhide ? ICON_FA_EYE : ICON_FA_EYE_SLASH), ImColor(200, 200, 200, 255)))
     {
-      pApp->skif.hidden =  (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? 0 : 1;
+      pApp->skif.hidden = bUnhide ? 0 : 1;
 
       JsonDB_UpdateApp  ( pApp, true);
 
@@ -2112,235 +2029,69 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (pApp->store == app_record_s::Store::Custom)
     {
-      if (ImGui::Selectable ("Remove", false, ImGuiSelectableFlags_SpanAllColumns))
+      if (SKIF_ImGui_MenuItemEx2 ("Remove", ICON_FA_TRASH, ImColor(200, 200, 200, 255)))
         RemoveGamePopup = PopupState_Open;
     }
-
-    ImGui::EndGroup      ( );
-
-    ImGui::SetCursorPos  (iconPos);
-
-    ImGui::TextColored (
-         ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
-                ICON_FA_GEAR
-                          );
-
-    if (51 > pApp->skif.pinned && 5 > numPinnedOnTop)
-      ImGui::TextColored (
-                ImColor   (200, 200, 200, 255),
-                ICON_FA_THUMBTACK
-                            );
-
-    ImGui::TextColored (
-                ImColor   (245, 66, 66, 255),
-                  (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)) ? ICON_FA_HEART_CRACK : ICON_FA_HEART
-                          );
-
-    ImGui::Separator ( );
-
-    if (!_registry.vecCategories.empty())
-    {
-      ImGui::TextColored (
-                  ImColor   (200, 200, 200, 255),
-                    ICON_FA_OBJECT_GROUP
-                              );
-      ImGui::Separator ( );
-    }
-
-    if (desktopShortcutPossible)
-      ImGui::TextColored (
-                  ImColor   (200, 200, 200, 255),
-                    ICON_FA_PAPERCLIP
-                              );
-
-    ImGui::TextColored (
-                ImColor   (200, 200, 200, 255),
-                  (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)) ? ICON_FA_EYE : ICON_FA_EYE_SLASH
-                            );
-
-    if (pApp->store == app_record_s::Store::Custom)
-      ImGui::TextColored (
-                ImColor   (200, 200, 200, 255),
-                  ICON_FA_TRASH
-                            );
 
     ImGui::EndMenu ( );
   }
   
   if (pApp->store == app_record_s::Store::Steam &&
-      ImGui::BeginMenu (ICON_FA_STEAM "  Steam"))
+      ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
   {
-    ImGui::BeginGroup  ( );
-    ImVec2 iconPos = ImGui::GetCursorPos ( );
-
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_BARS_STAGGERED).x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_GAMEPAD).x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_WRENCH).x, ImGui::GetTextLineHeight()));
-
-    ImGui::EndGroup    ( );
-    ImGui::SameLine    ( );
-    ImGui::BeginGroup  ( );
-
-    if (ImGui::Selectable  ("Details", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Details", ICON_FA_BARS_STAGGERED, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (
-        SKIF_Util_FormatStringRaw (
-          "steam://nav/games/details/%lu", pApp->id
-                        )
-                                      );
-    }
 
-    if (ImGui::Selectable  ("Steam Input", false, ImGuiSelectableFlags_SpanAllColumns))
-      SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (pApp->id)).c_str());
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (
-        SKIF_Util_FormatStringRaw (
-          "steam://controllerconfig/%lu", pApp->id
-                        )
-                                      );
-      SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
-    }
-
-    if (ImGui::Selectable  ("Game Properties", false, ImGuiSelectableFlags_SpanAllColumns))
-      SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (
-        SKIF_Util_FormatStringRaw (
-          "steam://gameproperties/%lu", pApp->id
-                        )
-                                      );
-    }
-
-    ImGui::EndGroup      ( );
-
-    ImGui::SetCursorPos  (iconPos);
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://nav/games/details/%lu", pApp->id));
     
-    ImGui::TextColored (
-      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
-        ICON_FA_BARS_STAGGERED );
+    if (SKIF_ImGui_MenuItemEx2 ("Steam Input", ICON_FA_GAMEPAD, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+      SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (pApp->id)).c_str());
 
-    ImGui::TextColored (
-      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
-        ICON_FA_GAMEPAD );
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
+    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", pApp->id));
+    
+    if (SKIF_ImGui_MenuItemEx2 ("Game Properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
+      SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
 
-    ImGui::TextColored (
-            ImColor   (200, 200, 200, 255),
-        ICON_FA_WRENCH );
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://gameproperties/%lu", pApp->id));
 
     ImGui::EndMenu     ( );
   }
   
-  if (ImGui::BeginMenu (ICON_FA_SHARE "  Websites"))
+  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
   {
-    ImGui::BeginGroup  ( );
-    ImVec2 iconPos = ImGui::GetCursorPos ( );
-
     if (pApp->store == app_record_s::Store::GOG)
     {
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
-    }
-
-    else if (pApp->store == app_record_s::Store::Steam)
-    {
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DATABASE)    .x, ImGui::GetTextLineHeight()));
-    }
-
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH).x, ImGui::GetTextLineHeight()));
-
-    ImGui::EndGroup    ( );
-    ImGui::SameLine    ( );
-    ImGui::BeginGroup  ( );
-
-    if (pApp->store == app_record_s::Store::GOG)
-    {
-      if (ImGui::Selectable  ("GOG Database", false, ImGuiSelectableFlags_SpanAllColumns))
-      {
+      if (SKIF_ImGui_MenuItemEx2 ("GOG Database", ICON_FA_DATABASE, ImColor(155, 89, 182, 255)))
         SKIF_Util_OpenURI ((L"https://www.gogdb.org/product/" + std::to_wstring (pApp->id)).c_str());
-      }
-      else
-      {
-        SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (
-          SKIF_Util_FormatStringRaw (
-            "https://www.gogdb.org/product/%lu", pApp->id
-          )
-        );
-      }
-    }
 
-    else if (pApp->store == app_record_s::Store::Steam)
-    {
-      if (ImGui::Selectable  ("Steam Community", false, ImGuiSelectableFlags_SpanAllColumns))
-      {
-        SKIF_Util_OpenURI ((L"https://steamcommunity.com/app/" + std::to_wstring (pApp->id)).c_str());
-      }
-      else
-      {
-        SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (
-          SKIF_Util_FormatStringRaw (
-            "https://steamcommunity.com/app/%lu", pApp->id
-                          )
-                                        );
-      }
-
-      if (ImGui::Selectable  ("SteamDB", false, ImGuiSelectableFlags_SpanAllColumns))
-      {
-        SKIF_Util_OpenURI ((L"https://steamdb.info/app/" + std::to_wstring (pApp->id)).c_str());
-      }
-      else
-      {
-        SKIF_ImGui_SetMouseCursorHand ( );
-        SKIF_ImGui_SetHoverText       (
-          SKIF_Util_FormatStringRaw (
-            "https://steamdb.info/app/%lu", pApp->id
-                          )
-                                        );
-      }
-    }
-
-    if (ImGui::Selectable  ("PCGamingWiki", false, ImGuiSelectableFlags_SpanAllColumns))
-      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
-    else
-    {
       SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
-    }
-
-    ImGui::EndGroup      ( );
-
-    ImGui::SetCursorPos  (iconPos);
-
-    if (pApp->store == app_record_s::Store::GOG)
-    {
-      ImGui::TextColored (
-        ImColor   (155, 89, 182, 255),
-          ICON_FA_DATABASE );
+      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://www.gogdb.org/product/%lu", pApp->id));
     }
 
     else if (pApp->store == app_record_s::Store::Steam)
     {
-      ImGui::TextColored (
-        (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
-          ICON_FA_STEAM_SYMBOL );
+      if (SKIF_ImGui_MenuItemEx2 ("Steam Community", ICON_FA_STEAM_SYMBOL, ((_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255))))
+        SKIF_Util_OpenURI ((L"https://steamcommunity.com/app/" + std::to_wstring (pApp->id)).c_str());
 
-      ImGui::TextColored (
-        ImColor   (101, 192, 244, 255).Value,
-          ICON_FA_DATABASE );
+      SKIF_ImGui_SetMouseCursorHand ( );
+      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamcommunity.com/app/%lu", pApp->id));
+
+      if (SKIF_ImGui_MenuItemEx2 ("SteamDB", ICON_FA_DATABASE, ImColor(101, 192, 244, 255)))
+        SKIF_Util_OpenURI ((L"https://steamdb.info/app/" + std::to_wstring (pApp->id)).c_str());
+
+      SKIF_ImGui_SetMouseCursorHand ( );
+      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamdb.info/app/%lu", pApp->id));
     }
 
-    ImGui::TextColored (
-              ImColor   (200, 200, 200, 255),
-                ICON_FA_SCREWDRIVER_WRENCH
-                          );
+    if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
+      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
+
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
 
     ImGui::EndMenu ( );
   }
@@ -2350,7 +2101,7 @@ DrawGameContextMenu (app_record_s* pApp)
   {
     ImGui::Separator ( );
 
-    if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
+    if (SKIF_ImGui_BeginMenuEx2 ("Developer", ICON_FA_TOOLBOX, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
     {
       if (ImGui::BeginMenuEx ("Application", ICON_FA_FILE_LINES))
       {
