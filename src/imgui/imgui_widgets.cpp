@@ -7524,7 +7524,11 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
         pressed = Selectable("", menu_is_open, selectable_flags | ImGuiSelectableFlags_SpanAvailWidth, ImVec2(min_w, label_size.y));
         RenderText(text_pos, label);
         if (icon_w > 0.0f)
+        {
+            PushStyleColor (ImGuiCol_Text, GetColorU32(ImGuiCol_SKIF_Icon));
             RenderText(pos + ImVec2(offsets->OffsetIcon, 0.0f), icon);
+            PopStyleColor  ( );
+        }
         RenderArrow(window->DrawList, pos + ImVec2(offsets->OffsetMark + extra_w + g.FontSize * 0.30f, 0.0f), GetColorU32(ImGuiCol_Text), ImGuiDir_Right);
     }
     if (!enabled)
@@ -7731,7 +7735,11 @@ bool ImGui::MenuItemEx(const char* label, const char* icon, const char* shortcut
         {
             RenderText(pos + ImVec2(offsets->OffsetLabel, 0.0f), label);
             if (icon_w > 0.0f)
+            {
+                PushStyleColor (ImGuiCol_Text, GetColorU32(ImGuiCol_SKIF_Icon));
                 RenderText(pos + ImVec2(offsets->OffsetIcon, 0.0f), icon);
+                PopStyleColor  ( );
+            }
             if (shortcut_w > 0.0f)
             {
                 PushStyleColor(ImGuiCol_Text, style.Colors[ImGuiCol_TextDisabled]);

@@ -1626,6 +1626,7 @@ enum ImGuiCol_
     ImGuiCol_SKIF_Failure,          // Red
     ImGuiCol_SKIF_Info,             // Blue
     ImGuiCol_SKIF_Yellow,           // Yellow
+    ImGuiCol_SKIF_Icon,             // Used for icons in BeginMenuEx and MenuItemEx
 
     ImGuiCol_COUNT
 };
