@@ -4775,18 +4775,41 @@ SKIF_UI_Tab_DrawLibrary (void)
   // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
   SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
 
+  extern DWORD SKIF_firstFrameTime;
+
   // Check if any monitored platforms have been signaled
   // !!! The signal checks must be before the platform checks,
   //       otherwise SKIF can end up with signaled objects that's never cleared !!!
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
+    static bool runOnce = true;
+    static DWORD time_preprocessing, time_current;
+
+    if (runOnce)
+    {
+      time_preprocessing = SKIF_Util_timeGetTime1();
+      time_current = time_preprocessing;
+    }
+
     // Sets up a wait object on UITab_Library
     if (SKIF_Steam_areLibrariesSignaled () && _registry.bLibrarySteam)
       RepopulateGames = true;
 
+    if (runOnce)
+    {
+      PLOG_INFO << "[Library Pre-Processing] Steam took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    }
+
     // Sets up a wait object on UITab_Library
     if (SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath) && _registry.bLibraryEpic)
       RepopulateGames = true;
+
+    if (runOnce)
+    {
+      PLOG_INFO << "[Library Pre-Processing] Epic took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    }
     
     // Sets up a wait object on UITab_Library
     if (SKIF_GOG_hasInstalledGamesChanged ( ) && _registry.bLibraryGOG)
@@ -4796,9 +4819,24 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry.bLibraryGOG && SKIF_GOG_hasGalaxySettingsChanged ( ))
       SKIF_GOG_UpdateGalaxyUserID ( );
 
+    if (runOnce)
+    {
+      PLOG_INFO << "[Library Pre-Processing] GOG took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    }
+
+    time_current = SKIF_Util_timeGetTime1 ( );
+
     // Sets up a wait object on UITab_Library
     if (SKIF_Xbox_hasInstalledGamesChanged ( ) && _registry.bLibraryXbox)
       RepopulateGames = true;
+
+    if (runOnce)
+    {
+      PLOG_INFO << "[Library Pre-Processing] Xbox took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      PLOG_INFO << "[Library Pre-Processing] Total process took " << (SKIF_Util_timeGetTime1 ( ) - time_preprocessing) << " ms.";
+      runOnce = false;
+    }
   }
 
   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers

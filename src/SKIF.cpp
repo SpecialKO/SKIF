@@ -107,6 +107,7 @@ bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when inter
 bool  SKIF_MouseDragMoveAllowed = true;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
+DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
 HANDLE SteamProcessHandle       = NULL;
 
 // Shell messages
@@ -1691,6 +1692,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Main loop
   PLOG_INFO << "Entering main loop...";
+  SKIF_firstFrameTime = SKIF_Util_timeGetTime1 ( );
+
   while (! SKIF_Shutdown.load() ) // && IsWindow (hWnd) )
   {
     // Reset on each frame
@@ -3534,6 +3537,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SteamProcessHandle = NULL;
       }
     }
+
+    SK_RunOnce (PLOG_INFO << "Processed first frame! Start -> End took " << (SKIF_Util_timeGetTime1() - SKIF_firstFrameTime) << " ms.");
 
     do
     {
