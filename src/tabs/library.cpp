@@ -2569,25 +2569,17 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
     SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
-  else
-  {
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
-  }
+
+  SKIF_ImGui_SetMouseCursorHand ( );
+  SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
 
   if (SKIF_STEAM_OWNER)
   {
     if (SKIF_ImGui_MenuItemEx2 ("Steam", ICON_FA_STEAM_SYMBOL, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (
-        SKIF_Util_FormatStringRaw (
-          "steam://nav/games/details/%lu", pApp->id
-                        )
-                                      );
-    }
+
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://nav/games/details/%lu", pApp->id));
   }
 
   ImGui::PopStyleColor ( );
