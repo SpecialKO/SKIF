@@ -38,6 +38,12 @@ std::unique_ptr <skValveDataFile> appinfo = nullptr;
 SteamId3_t g_SteamUserID      = 0;
 DWORD      g_dwSteamProcessID = 0;
 
+// This is used to indicate to the main thread whether appmanifest files have
+//   been parsed by the child thread or not yet.
+// This is a critical optimization as it ensures the main thread isn't parsing
+//   the Steam libraries the first time around.
+std::atomic<bool> g_SteamLibrariesParsed = false;
+
 #define MAX_STEAM_LIBRARIES 16
 
 extern std::atomic<int> SKIF_FrameCount;
@@ -209,6 +215,8 @@ SK_Steam_GetInstalledAppIDs (void)
         }
       }
     }
+
+    g_SteamLibrariesParsed.store (true);
 
     LeaveCriticalSection (&VFSManifestSection);
   }
@@ -1129,9 +1137,6 @@ SK_UseManifestToGetDepotManifest (app_record_s *app, DepotId_t depot)
   return 0;
 }
 
-// TODO: Fix thread race and shared resources between
-//  - SKIF_Steam_isLibrariesSignaled (main thread)
-//  - SK_Steam_GetInstalledAppIDs (library worker)
 bool
 SKIF_Steam_areLibrariesSignaled (void)
 {
@@ -1139,7 +1144,6 @@ SKIF_Steam_areLibrariesSignaled (void)
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
-  static bool      isInitialized   = false;
 
   extern HWND      SKIF_Notify_hWnd;
 
@@ -1150,6 +1154,9 @@ SKIF_Steam_areLibrariesSignaled (void)
     return false;
 
   if (steam_libs == 0)
+    return false;
+
+  if (! g_SteamLibrariesParsed.load())
     return false;
 
   if (! TryEnterCriticalSection (&VFSManifestSection))
@@ -1208,8 +1215,6 @@ SKIF_Steam_areLibrariesSignaled (void)
   }
 
   LeaveCriticalSection (&VFSManifestSection);
-
-  isInitialized = true;
 
   return isSignaled;
 };
