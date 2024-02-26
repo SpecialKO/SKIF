@@ -2495,165 +2495,71 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  ImVec2 iconPos;
-
-  ImGui::BeginGroup  ( );
-  iconPos = ImGui::GetCursorPos();
-
-  if (! _inject.bCurrentState)
-  {
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TOGGLE_ON)       .x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TOGGLE_ON)       .x, ImGui::GetTextLineHeight()));
-  }
-
-  else {
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_TOGGLE_OFF)       .x, ImGui::GetTextLineHeight()));
-  }
-
-  ImGui::EndGroup    ( );
-  ImGui::SameLine    ( );
-  ImGui::BeginGroup  ( );
   
   if (! _inject.bCurrentState)
   {
-    if (ImGui::Selectable ("Start service", false, ImGuiSelectableFlags_SpanAllColumns))
-    {
+    if (SKIF_ImGui_MenuItemEx2 ("Start service", ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
       _inject._StartStopInject (_inject.bCurrentState, true);
-    }
-    if (ImGui::Selectable ("Start service (manual stop)", false, ImGuiSelectableFlags_SpanAllColumns))
-    {
+
+    if (SKIF_ImGui_MenuItemEx2 ("Start service (manual stop)", ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
       _inject._StartStopInject (_inject.bCurrentState, false);
-    }
   }
 
   else {
-    if (ImGui::Selectable("Stop service", false, ImGuiSelectableFlags_SpanAllColumns))
-    {
+    if (SKIF_ImGui_MenuItemEx2 ("Stop service", ICON_FA_TOGGLE_OFF, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning)))
       _inject._StartStopInject (_inject.bCurrentState);
-    }
-  }
-
-  ImGui::EndGroup    ( );
-  ImGui::SetCursorPos  (iconPos);
-  
-  if (! _inject.bCurrentState)
-  {
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success),
-                ICON_FA_TOGGLE_ON
-                          );
-
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success),
-                ICON_FA_TOGGLE_ON
-                          );
-  }
-
-  else {
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning),
-                ICON_FA_TOGGLE_OFF
-                          );
   }
 
   ImGui::Separator ( ); // ==============================
-
-  if (ImGui::BeginMenu (ICON_FA_FOLDER "  Browse"))
+  
+  if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
-    iconPos = ImGui::GetCursorPos();
-    ImGui::BeginGroup  ( );
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN)       .x, ImGui::GetTextLineHeight()));
-    ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FOLDER_OPEN)       .x, ImGui::GetTextLineHeight()));
-    ImGui::EndGroup    ( );
-    ImGui::SameLine    ( );
-    ImGui::BeginGroup  ( );
-    if (ImGui::Selectable ("Install folder", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Install folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath (pApp->install_dir);
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
-    }
 
-    if (ImGui::Selectable   ("Profile folders", false, ImGuiSelectableFlags_SpanAllColumns))
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
+    
+    if (SKIF_ImGui_MenuItemEx2 ("Profile folders", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       SKIF_Util_ExplorePath (pApp->specialk.profile_dir);
-    else
-    {
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText (pApp->specialk.profile_dir_utf8);
-    }
-    ImGui::EndGroup    ( );
 
-    ImGui::SetCursorPos(iconPos);
-
-    ImGui::BeginGroup  ( );
-    ImGui::TextColored (
-              ImColor (255, 207, 72),
-                ICON_FA_FOLDER_OPEN
-                          );
-    ImGui::TextColored (
-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
-                ICON_FA_FOLDER_OPEN
-                          );
-    ImGui::EndGroup    ( );
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText (pApp->specialk.profile_dir_utf8);
 
     ImGui::EndMenu ( );
   }
 
   ImGui::Separator ( ); // ==============================
 
-  iconPos = ImGui::GetCursorPos();
-  ImGui::BeginGroup (  );
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_BOOK_BOOKMARK).x, ImGui::GetTextLineHeight()));
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCORD)  .x, ImGui::GetTextLineHeight()));
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_DISCOURSE).x, ImGui::GetTextLineHeight()));
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_PATREON)  .x, ImGui::GetTextLineHeight()));
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_GITHUB)   .x, ImGui::GetTextLineHeight()));
-  ImGui::Separator ( ); // ==============================
-  ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_SCREWDRIVER_WRENCH).x, ImGui::GetTextLineHeight()));
-  if (SKIF_STEAM_OWNER)
-    ImGui::ItemSize  (ImVec2 (ImGui::CalcTextSize (ICON_FA_STEAM_SYMBOL).x, ImGui::GetTextLineHeight()));
-  ImGui::Separator ( ); // ==============================
-  ImGui::ItemSize    (ImVec2 (ImGui::CalcTextSize ((pApp->skif.pinned > 0) ? ICON_FA_HEART_CRACK : ICON_FA_HEART).x, ImGui::GetTextLineHeight()));
-  ImGui::EndGroup   (  );
-
-  ImGui::SameLine   (  );
-
-  ImGui::BeginGroup (  );
-  if (ImGui::Selectable ("Wiki", false, ImGuiSelectableFlags_SpanAllColumns))
+  if (SKIF_ImGui_MenuItemEx2 ("Wiki", ICON_FA_BOOK_BOOKMARK, ImColor(25, 118, 210)))
     SKIF_Util_OpenURI (L"https://wiki.special-k.info/");
-  else {
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
-  }
 
-  if (ImGui::Selectable ("Discord", false, ImGuiSelectableFlags_SpanAllColumns))
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
+
+  if (SKIF_ImGui_MenuItemEx2 ("Discord", ICON_FA_DISCORD, ImColor(114, 137, 218)))
     SKIF_Util_OpenURI (L"https://discord.gg/specialk");
-  else {
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://discord.gg/specialk");
-  }
 
-  if (ImGui::Selectable ("Forum", false, ImGuiSelectableFlags_SpanAllColumns))
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText       ("https://discord.gg/specialk");
+
+  if (SKIF_ImGui_MenuItemEx2 ("Forum", ICON_FA_DISCOURSE, (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4(ImColor(247, 241, 169))))
     SKIF_Util_OpenURI (L"https://discourse.differentk.fyi/");
-  else {
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
-  }
 
-  if (ImGui::Selectable ("Patreon", false, ImGuiSelectableFlags_SpanAllColumns))
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
+
+  if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor(249, 104, 84)))
     SKIF_Util_OpenURI (L"https://www.patreon.com/Kaldaien");
-  else {
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
-  }
 
-  if (ImGui::Selectable ("GitHub", false, ImGuiSelectableFlags_SpanAllColumns))
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText       ("https://www.patreon.com/Kaldaien");
+
+  if (SKIF_ImGui_MenuItemEx2 ("GitHub", ICON_FA_GITHUB, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255))) // ImColor (226, 67, 40)
     SKIF_Util_OpenURI (L"https://github.com/SpecialKO");
-  else {
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       ("https://github.com/SpecialKO");
-  }
+
+  SKIF_ImGui_SetMouseCursorHand ();
+  SKIF_ImGui_SetHoverText       ("https://github.com/SpecialKO");
 
   ImGui::Separator ( ); // ==============================
 
@@ -2661,7 +2567,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(1.0f, 1.0f, 1.0f, 0.7f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
   );
 
-  if (ImGui::Selectable  ("PCGamingWiki", false, ImGuiSelectableFlags_SpanAllColumns))
+  if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
     SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
   else
   {
@@ -2671,7 +2577,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (SKIF_STEAM_OWNER)
   {
-    if (ImGui::Selectable  ("Steam", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Steam", ICON_FA_STEAM_SYMBOL, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
     else
     {
@@ -2691,11 +2597,12 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   constexpr char* labelPin   =   "Favorite";
   constexpr char* labelUnpin = "Unfavorite";
 
-  if (ImGui::Selectable ((pApp->skif.pinned > 0) ? labelUnpin : labelPin, false, ImGuiSelectableFlags_SpanAllColumns))
+  bool isFavorite = (pApp->skif.pinned > 0);
+  if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
   {
     int old_value = pApp->skif.pinned;
 
-    pApp->skif.pinned =  (pApp->skif.pinned > 0) ? 0 : (5 > numPinnedOnTop) ? 99 : 50;
+    pApp->skif.pinned =  (isFavorite ? 0 : (5 > numPinnedOnTop ? 99 : 50));
 
     if (pApp->skif.pinned > 50)
       numPinnedOnTop++;
@@ -2707,53 +2614,6 @@ DrawSpecialKContextMenu (app_record_s* pApp)
     SKIF_GamingCollection::SortApps (&g_apps);
     sort_changed = true;
   }
-
-  ImGui::EndGroup   ( );
-
-  ImGui::SetCursorPos(iconPos);
-
-  ImGui::BeginGroup (  );
-  ImGui::TextColored (
-          ImColor   (25, 118, 210),
-            ICON_FA_BOOK_BOOKMARK
-                        );
-  ImGui::TextColored (
-          ImColor   (114, 137, 218),
-            ICON_FA_DISCORD
-                        );
-  ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
-            ICON_FA_DISCOURSE
-                        );
-  ImGui::TextColored (
-          ImColor   (249, 104,  84),
-            ICON_FA_PATREON
-                        );
-  ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
-            ICON_FA_GITHUB
-                        );
-
-  ImGui::Separator ( ); // ==============================
-
-  ImGui::TextColored (
-            ImColor   (200, 200, 200, 255),
-            ICON_FA_SCREWDRIVER_WRENCH
-                        );
-
-  if (SKIF_STEAM_OWNER)
-    ImGui::TextColored (
-      (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255),
-            ICON_FA_STEAM_SYMBOL );
-
-  ImGui::Separator ( ); // ==============================
-
-  ImGui::TextColored (
-              ImColor   (245, 66, 66, 255),
-                (pApp->skif.pinned > 0)
-          ? ICON_FA_HEART_CRACK : ICON_FA_HEART
-                       );
-  ImGui::EndGroup   ( );
 }
 
 #pragma endregion
