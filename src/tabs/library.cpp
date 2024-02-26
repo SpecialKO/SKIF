@@ -1609,7 +1609,7 @@ DrawGameContextMenu (app_record_s* pApp)
         if (! disabled)
           ImGui::PopStyleColor ( );
       }
-      
+
       if (disabled)
         ImGui::PopStyleColor ( );
     }
@@ -1686,7 +1686,7 @@ DrawGameContextMenu (app_record_s* pApp)
   ImGui::Separator ( );
   // ==============================
   
-  if (ImGui::BeginMenuEx("Browse", ICON_FA_FOLDER))
+  if (ImGui::BeginMenu (ICON_FA_FOLDER "  Browse"))
   {
     ImVec2 iconPos = ImGui::GetCursorPos();
 
@@ -1792,7 +1792,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 
   // Manage Game
-  if (ImGui::BeginMenuEx("Manage", ICON_FA_GEARS))
+  if (ImGui::BeginMenu (ICON_FA_GEARS " Manage"))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -2168,7 +2168,7 @@ DrawGameContextMenu (app_record_s* pApp)
   }
   
   if (pApp->store == app_record_s::Store::Steam &&
-      ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
+      ImGui::BeginMenu (ICON_FA_STEAM "  Steam"))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -2237,7 +2237,7 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::EndMenu     ( );
   }
   
-  if (ImGui::BeginMenuEx ("Websites", ICON_FA_SHARE))
+  if (ImGui::BeginMenu (ICON_FA_SHARE "  Websites"))
   {
     ImGui::BeginGroup  ( );
     ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -2350,7 +2350,7 @@ DrawGameContextMenu (app_record_s* pApp)
   {
     ImGui::Separator ( );
 
-    if (ImGui::BeginMenuEx ("Developer", ICON_FA_TOOLBOX))
+    if (ImGui::BeginMenu (ICON_FA_TOOLBOX "  Developer"))
     {
       if (ImGui::BeginMenuEx ("Application", ICON_FA_FILE_LINES))
       {
@@ -4774,8 +4774,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
   SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
-
-  extern DWORD SKIF_firstFrameTime;
 
   // Check if any monitored platforms have been signaled
   // !!! The signal checks must be before the platform checks,
