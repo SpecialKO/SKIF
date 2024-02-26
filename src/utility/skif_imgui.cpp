@@ -1226,8 +1226,8 @@ SKIF_ImGui_InvalidateFonts (void)
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }
 
-
-// Map char to ImGuiKey_xxx.
+// This helper function maps char to ImGuiKey_xxx
+// For use with e.g. ImGui::GetKeyData ( )
 ImGuiKey
 SKIF_ImGui_CharToImGuiKey (char c)
 {

@@ -2956,7 +2956,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                           std::min<float>(
                                             std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
                                               SKIF_vecCurrentMode.y * 0.5f)
-                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
+                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
 
           SKIF_ImGui_DisallowMouseDragMove ( );
 
@@ -3124,7 +3124,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                           std::min<float> (
                                               std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
                                               SKIF_vecCurrentMode.y * 0.6f)
-                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
+                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
 
           SKIF_ImGui_DisallowMouseDragMove ( );
 
@@ -3227,7 +3227,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                           std::min<float> (
                                               std::min<float>(_updater.GetAutoUpdateNotes().lines, 40.0f) * fontConsolas->FontSize,
                                               SKIF_vecCurrentMode.y * 0.6f)
-                                               ), ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_ReadOnly);
+                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
 
           SKIF_ImGui_DisallowMouseDragMove ( );
 
