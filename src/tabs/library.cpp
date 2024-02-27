@@ -2103,7 +2103,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     if (SKIF_ImGui_BeginMenuEx2 ("Developer", ICON_FA_TOOLBOX, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
     {
-      if (ImGui::BeginMenuEx ("Application", ICON_FA_FILE_LINES))
+      if (SKIF_ImGui_BeginMenuEx2 ("Application", ICON_FA_FILE_LINES))
       {
         ImGui::PushID         ("#General");
         ImGui::TextDisabled   ("General");
@@ -2213,7 +2213,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (! pApp->branches.empty ())
       {
-        if (ImGui::BeginMenuEx (SKIF_Util_FormatStringRaw ("Branches (%i)", pApp->ui.branches.size()), ICON_FA_FOLDER))
+        if (SKIF_ImGui_BeginMenuEx2 (SKIF_Util_FormatStringRaw ("Branches (%i)", pApp->ui.branches.size()), ICON_FA_CODE_BRANCH, ImColor(255, 207, 72)))
         {
 
           for ( auto& it : pApp->ui.branches)
@@ -2269,7 +2269,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       if (! pApp->launch_configs.empty ())
       {
-        if (ImGui::BeginMenuEx (SKIF_Util_FormatStringRaw ("Launches (%i)", pApp->launch_configs.size()), ICON_FA_FLASK))
+        if (SKIF_ImGui_BeginMenuEx2 (SKIF_Util_FormatStringRaw ("Launches (%i)", pApp->launch_configs.size()), ICON_FA_FLASK, ImColor(255, 105, 180)))
         {
           bool sepCustomSKIF = true,
                sepCustomUser = true;
@@ -2394,7 +2394,7 @@ DrawGameContextMenu (app_record_s* pApp)
       {
         if (pApp->ui.numSecondaryLaunchConfigs == 0)
         {
-          if (ImGui::Selectable (ICON_FA_TERMINAL "  Open Terminal###GameContextMenu_TerminalMenu"))
+          if (SKIF_ImGui_MenuItemEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
           {
             SKIF_Util_CreateProcess (
               L"",
@@ -2412,7 +2412,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
         else if (pApp->ui.numSecondaryLaunchConfigs > 0)
         {
-          if (ImGui::BeginMenu (ICON_FA_TERMINAL "  Open Terminal###GameContextMenu_TerminalMenu"))
+          if (SKIF_ImGui_BeginMenuEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
           {
             for (auto& _launch_cfg : pApp->launch_configs)
             {
@@ -2463,7 +2463,7 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverTip ("This invokes a terminal in the context of the desktop package.");
 
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
-      if (ImGui::Selectable (ICON_FA_FINGERPRINT "  Copy ID"))
+      if (SKIF_ImGui_MenuItemEx2 ("Copy ID", ICON_FA_FINGERPRINT))
       {
         switch (pApp->store)
         {
