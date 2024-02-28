@@ -136,151 +136,6 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   return found;
 }
 
-// There's two of these:
-// *   SK_Steam_GetInstalledAppIDs ( ) <- The one below
-// * SKIF_Steam_GetInstalledAppIDs ( )
-std::vector <AppId_t>
-SK_Steam_GetInstalledAppIDs (void)
-{
-  PLOG_INFO << "Detecting Steam games...";
-
-  std::vector <AppId_t> apps;
-
-  steam_library_t* steam_lib_paths = nullptr;
-  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
-
-  if (! steam_lib_paths)
-    return apps;
-
-  bool bHasSpecialK = false;
-
-  int frame_count_ = SKIF_FrameCount.load();
-
-  if (steam_libs != 0)
-  {
-    EnterCriticalSection (&VFSManifestSection);
-
-    // Scan through the libraries first for all appmanifest files they contain
-    for (int i = 0; i < steam_libs; i++)
-    {
-      auto& library =
-        steam_libraries[i];
-
-      // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
-      if (library.frame_last_scanned == 0)
-      {
-        swprintf (library.path, MAX_PATH + 2,
-                      LR"(%s\steamapps)",
-                  (wchar_t *)steam_lib_paths [i] );
-
-        library.timer = static_cast <UINT_PTR>(1983 + i); // 1983-1999
-      }
-
-      // Scan the folder if we haven't already done so during this frame
-      if (library.frame_last_scanned != frame_count_)
-      {
-        library.frame_last_scanned    = frame_count_;
-
-        // Clear out any existing paths
-        library.manifest_vfs.clear();
-
-        library.count =
-          SK_VFS_ScanTree ( library.manifest_vfs,
-                            library.path, L"appmanifest_*.acf", 0);
-      }
-      
-      SK_VirtualFS::vfsNode* pFolder =
-        library.manifest_vfs;
-
-      // Really, this will just iterate once, across pFolder->children[0]
-      //   ...as long as SKIF doesn't dynamically recognize
-      //        new Steam libraries during runtime, that is...
-      for (const auto& folder : pFolder->children)
-      {
-        // Now add the App IDs of all manifests that are installed,
-        //   and also check for Special K ownership on Steam...
-        for (const auto& file : folder.second->children)
-        {
-          uint32_t appid;
-
-          if ( swscanf (file.first.c_str(),
-                            L"appmanifest_%lu.acf",
-                              &appid ) == 1 )
-          {
-            apps.push_back (appid);
-
-            if (appid == 1157970)
-              bHasSpecialK = true;
-          }
-        }
-      }
-    }
-
-    g_SteamLibrariesParsed.store (true);
-
-    LeaveCriticalSection (&VFSManifestSection);
-  }
-  
-  if (bHasSpecialK)
-  {
-    static bool
-          bInit = false;
-    if (! bInit)
-    {
-      static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-      
-      // We don't want Steam to draw its overlay on us
-      _registry._LoadedSteamOverlay = true;
-      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-      // Store the current state of the environment variables
-      auto env_str = GetEnvironmentStringsW ( );
-
-      static bool bLoaded =
-        (LoadLibraryW (L"steam_api64.dll") != nullptr);
-
-      if (bLoaded)
-      {
-        using  SteamAPI_Init_pfn = bool (__cdecl *)(void);
-        static SteamAPI_Init_pfn
-              _SteamAPI_Init     = nullptr;
-
-        if (_SteamAPI_Init == nullptr)
-        {   _SteamAPI_Init =
-            (SteamAPI_Init_pfn)GetProcAddress (GetModuleHandleW (
-               SK_RunLHIfBitness ( 64, L"steam_api64.dll",
-                                       L"steam_api.dll" )
-         ), "SteamAPI_Init");
-        }
-
-        if (_SteamAPI_Init != nullptr)
-        {
-          std::ofstream ("steam_appid.txt") << std::to_string (1157970);
-
-          if (_SteamAPI_Init ())
-          {
-            DeleteFileW (L"steam_appid.txt");
-            bInit = true;
-          }
-        }
-      }
-
-      // Restore the state (clears out any additional Steam set variables)
-      SetEnvironmentStringsW  (env_str);
-      FreeEnvironmentStringsW (env_str);
-
-      // If the DLL file could not be loaded, go back to regular handling
-      if (! bLoaded)
-      {
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-        _registry._LoadedSteamOverlay = false;
-      }
-    }
-  }
-
-  return apps;
-}
-
 std::string
 SK_GetManifestContentsForAppID (app_record_s *app)
 {
@@ -778,6 +633,8 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
   if (userid == 0)
     return false;
 
+  PLOG_INFO << "Preloading Steam user local config...";
+
   // Implementation using the ValveFileVDF project
   std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
 
@@ -883,6 +740,8 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
   // Abort if the user signed out
   if (userid == 0)
     return false;
+
+  PLOG_INFO << "Preloading Steam user roaming config...";
 
   // Implementation using the ValveFileVDF project
   std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserRoaming));
@@ -1220,9 +1079,151 @@ SKIF_Steam_areLibrariesSignaled (void)
 };
 
 
-// There's two of these:
-// *   SK_Steam_GetInstalledAppIDs ( )
-// * SKIF_Steam_GetInstalledAppIDs ( ) <- The one below
+// This is an internal helper function used by SKIF_Steam_GetInstalledAppIDs ( ).
+// This function discovers and returns an unprocessed vector of all apps on the system.
+static std::vector <AppId_t>
+SKIF_SteamInt_DiscoverInstalledApps (void)
+{
+  std::vector <AppId_t> apps;
+
+  steam_library_t* steam_lib_paths = nullptr;
+  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+
+  if (! steam_lib_paths)
+    return apps;
+
+  bool bHasSpecialK = false;
+
+  int frame_count_ = SKIF_FrameCount.load();
+
+  if (steam_libs != 0)
+  {
+    EnterCriticalSection (&VFSManifestSection);
+
+    // Scan through the libraries first for all appmanifest files they contain
+    for (int i = 0; i < steam_libs; i++)
+    {
+      auto& library =
+        steam_libraries[i];
+
+      // SKIF_FrameCount iterates at the start of the frame, so even the first frame will be frame count 1
+      if (library.frame_last_scanned == 0)
+      {
+        swprintf (library.path, MAX_PATH + 2,
+                      LR"(%s\steamapps)",
+                  (wchar_t *)steam_lib_paths [i] );
+
+        library.timer = static_cast <UINT_PTR>(1983 + i); // 1983-1999
+      }
+
+      // Scan the folder if we haven't already done so during this frame
+      if (library.frame_last_scanned != frame_count_)
+      {
+        library.frame_last_scanned    = frame_count_;
+
+        // Clear out any existing paths
+        library.manifest_vfs.clear();
+
+        library.count =
+          SK_VFS_ScanTree ( library.manifest_vfs,
+                            library.path, L"appmanifest_*.acf", 0);
+      }
+      
+      SK_VirtualFS::vfsNode* pFolder =
+        library.manifest_vfs;
+
+      // Really, this will just iterate once, across pFolder->children[0]
+      //   ...as long as SKIF doesn't dynamically recognize
+      //        new Steam libraries during runtime, that is...
+      for (const auto& folder : pFolder->children)
+      {
+        // Now add the App IDs of all manifests that are installed,
+        //   and also check for Special K ownership on Steam...
+        for (const auto& file : folder.second->children)
+        {
+          uint32_t appid;
+
+          if ( swscanf (file.first.c_str(),
+                            L"appmanifest_%lu.acf",
+                              &appid ) == 1 )
+          {
+            apps.push_back (appid);
+
+            if (appid == 1157970)
+              bHasSpecialK = true;
+          }
+        }
+      }
+    }
+
+    g_SteamLibrariesParsed.store (true);
+
+    LeaveCriticalSection (&VFSManifestSection);
+  }
+  
+  if (bHasSpecialK)
+  {
+    static bool
+          bInit = false;
+    if (! bInit)
+    {
+      static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+      
+      // We don't want Steam to draw its overlay on us
+      _registry._LoadedSteamOverlay = true;
+      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+
+      // Store the current state of the environment variables
+      auto env_str = GetEnvironmentStringsW ( );
+
+      static bool bLoaded =
+        (LoadLibraryW (L"steam_api64.dll") != nullptr);
+
+      if (bLoaded)
+      {
+        using  SteamAPI_Init_pfn = bool (__cdecl *)(void);
+        static SteamAPI_Init_pfn
+              _SteamAPI_Init     = nullptr;
+
+        if (_SteamAPI_Init == nullptr)
+        {   _SteamAPI_Init =
+            (SteamAPI_Init_pfn)GetProcAddress (GetModuleHandleW (
+               SK_RunLHIfBitness ( 64, L"steam_api64.dll",
+                                       L"steam_api.dll" )
+         ), "SteamAPI_Init");
+        }
+
+        if (_SteamAPI_Init != nullptr)
+        {
+          std::ofstream ("steam_appid.txt") << std::to_string (1157970);
+
+          if (_SteamAPI_Init ())
+          {
+            DeleteFileW (L"steam_appid.txt");
+            bInit = true;
+          }
+        }
+      }
+
+      // Restore the state (clears out any additional Steam set variables)
+      SetEnvironmentStringsW  (env_str);
+      FreeEnvironmentStringsW (env_str);
+
+      // If the DLL file could not be loaded, go back to regular handling
+      if (! bLoaded)
+      {
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        _registry._LoadedSteamOverlay = false;
+      }
+    }
+  }
+
+  return apps;
+}
+
+
+// Updates the given vector with a filtered list of all discovered Steam apps.
+// Filters out various non-game type of apps.
 void
 SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
@@ -1230,7 +1231,9 @@ SKIF_Steam_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_
 
   std::set <uint32_t> unique_apps;
 
-  for ( auto app : SK_Steam_GetInstalledAppIDs ( ))
+  PLOG_INFO << "Detecting Steam games...";
+
+  for (auto app : SKIF_SteamInt_DiscoverInstalledApps ( ))
   {
     // Skip Steamworks Common Redists
     if (app == 228980) continue;
