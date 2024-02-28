@@ -50,6 +50,67 @@
 
 #define SKIF_D3D11
 
+#ifdef SKIF_D3D11
+
+#include "imgui/imgui_internal.h"
+#include <format>
+#include <atlbase.h>
+#include <utility/registry.h>
+#include <plog/Log.h>
+
+// External declarations
+extern DWORD SKIF_Util_timeGetTime1                (void);
+extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
+extern bool  SKIF_Util_IsWindows10OrGreater        (void);
+extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool  SKIF_Util_IsHDRSupported              (bool refresh = false);
+extern bool  SKIF_Util_IsHDRActive                 (bool refresh = false);
+extern float SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
+extern std::vector<HANDLE> vSwapchainWaitHandles;
+extern bool  RecreateSwapChains;
+extern bool  RecreateSwapChainsPending;
+
+
+// Error handling
+class SK_ComException : public
+       std::exception
+{
+public:
+  SK_ComException (
+    HRESULT hr
+  ) : __hr (hr) { }
+
+  const char*
+  what (void) const override
+  {
+    static char
+      s_str [64] = { };
+
+    sprintf_s (
+      s_str, "Failure with HRESULT of %08X",
+                    (int)__hr
+              );
+    return
+      s_str;
+  }
+
+private:
+  HRESULT
+    __hr;
+};
+
+inline void
+ThrowIfFailed (HRESULT hr)
+{
+  if (SUCCEEDED (hr))
+    return;
+
+  throw
+    SK_ComException (hr);
+}
+
+#endif // SKIF_D3D11
+
 // DirectX11 data
 #ifndef SKIF_D3D11
 struct ImGui_ImplDX11_Data
@@ -121,6 +182,7 @@ static void ImGui_ImplDX11_RenderWindow  (ImGuiViewport* viewport, void*);
 static void ImGui_ImplDX11_SwapBuffers   (ImGuiViewport* viewport, void*);
 static void ImGui_ImplDX11_CreateWindow  (ImGuiViewport* viewport       );
 static void ImGui_ImplDX11_DestroyWindow (ImGuiViewport* viewport       );
+       void ImGui_ImplDX11_InvalidateDevice (void);
 #endif
 
 // Functions
@@ -643,6 +705,7 @@ void ImGui_ImplDX11_Shutdown()
     IM_DELETE(bd);
 }
 
+#ifndef SKIF_D3D11
 void ImGui_ImplDX11_NewFrame()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -651,6 +714,92 @@ void ImGui_ImplDX11_NewFrame()
     if (!bd->pFontSampler)
         ImGui_ImplDX11_CreateDeviceObjects();
 }
+#else
+void ImGui_ImplDX11_NewFrame()
+{
+    ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+    IM_ASSERT(bd != nullptr && "Did you call ImGui_ImplDX11_Init()?");
+
+    static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+
+    // External declarations
+    extern bool CreateDeviceD3D    (HWND hWnd);
+    extern void CleanupDeviceD3D   (void);
+    extern HWND                    SKIF_Notify_hWnd;
+    extern ID3D11Device*           SKIF_g_pd3dDevice;
+    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
+    extern DWORD                   invalidatedDevice;
+
+    // Check if the device have been removed for any reason
+    bool  RecreateDevice  =
+      FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( ));
+
+    // Only bother checking if the factory needs to be recreated if the device hasn't been removed
+    bool  RecreateFactory =
+                ( ! RecreateDevice          &&
+                    bd->pFactory != nullptr &&
+                  ! bd->pFactory->IsCurrent ( ) );
+
+    RecreateSwapChainsPending = false;
+
+    if (RecreateSwapChains ||
+        RecreateFactory    ||
+        RecreateDevice     )
+    {
+      RecreateSwapChains        = false;
+      RecreateSwapChainsPending = true;
+
+      PLOG_DEBUG << "Destroying any existing swapchains and their wait objects...";
+      for (int i = 0; i < g.Viewports.Size; i++)
+        ImGui_ImplDX11_DestroyWindow (g.Viewports [i]);
+
+      ImGui_ImplDX11_InvalidateDeviceObjects ( );
+
+      if (bd->pd3dDeviceContext != nullptr)
+      {
+        PLOG_DEBUG << "Clearing ID3D11DeviceContext state and flushing...";
+        bd->pd3dDeviceContext->ClearState ( );
+        bd->pd3dDeviceContext->Flush      ( );
+      }
+
+      if (RecreateFactory || RecreateDevice)
+      {
+        PLOG_DEBUG << "Recreating factory...";
+        bd->pFactory->Release();
+        bd->pFactory = nullptr;
+
+        if (! RecreateDevice)
+          CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
+      }
+
+      if (RecreateDevice)
+      {
+        PLOG_DEBUG << "Recreating the D3D11 device...";
+        ImGui_ImplDX11_InvalidateDevice ( );
+        CleanupDeviceD3D                ( );
+
+        // At this point all traces of the previous device should have been cleared
+        CreateDeviceD3D                 (SKIF_Notify_hWnd);
+        ImGui_ImplDX11_Init             (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext); // This creates a new factory
+
+        // This is used to flag that rendering should not occur until
+        // any loaded textures and such also have been unloaded
+        invalidatedDevice = 1;
+      }
+
+      _registry._RendererCanHDR = SKIF_Util_IsHDRActive (true);
+    
+      PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
+      for (int i = 0; i < g.Viewports.Size; i++)
+        ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
+    }
+
+    if (!bd->pFontSampler)
+        ImGui_ImplDX11_CreateDeviceObjects();
+}
+#endif // !SKIF_D3D11
 
 //--------------------------------------------------------------------------------------------------------
 // MULTI-VIEWPORT / PLATFORM INTERFACE SUPPORT
@@ -746,6 +895,7 @@ static void ImGui_ImplDX11_DestroyWindow(ImGuiViewport* viewport)
 }
 #endif
 
+#ifndef SKIF_D3D11
 static void ImGui_ImplDX11_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -765,6 +915,64 @@ static void ImGui_ImplDX11_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
         pBackBuffer->Release();
     }
 }
+#else
+static void
+ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
+                               ImVec2         size )
+{
+  ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+  ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData;
+
+  if (vd != nullptr)
+  {
+    if (vd->RTView)
+    {
+      vd->RTView->Release ();
+      vd->RTView = nullptr;
+    }
+
+    if (vd->SwapChain)
+    {
+      ID3D11Texture2D* pBackBuffer = nullptr;
+
+      DXGI_SWAP_CHAIN_DESC1       swap_desc = { };
+      vd->SwapChain->GetDesc1 (&swap_desc);
+
+      vd->SwapChain->ResizeBuffers (
+        0, (UINT)size.x,
+           (UINT)size.y,
+            swap_desc.Format,
+            swap_desc.Flags
+      );
+      PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Resized swapchain to " << size.x << "x" << size.y;
+
+      vd->SwapChain->GetBuffer (
+        0, IID_PPV_ARGS (
+                    &pBackBuffer
+                        )
+      );
+
+      if (pBackBuffer == nullptr) {
+        PLOG_ERROR << "ImGui_ImplDX11_SetWindowSize() failed creating buffers";
+        return;
+      }
+    
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+#ifdef _SRGB
+    if (swap_desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+    {
+      rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    }
+#endif
+
+      bd->pd3dDevice->CreateRenderTargetView ( pBackBuffer, &rtvDesc, &vd->RTView );
+      pBackBuffer->Release();
+    }
+  }
+}
+#endif // !SKIF_D3D11
 
 #ifndef SKIF_D3D11
 static void ImGui_ImplDX11_RenderWindow(ImGuiViewport* viewport, void*)
@@ -806,67 +1014,11 @@ static void ImGui_ImplDX11_ShutdownPlatformInterface()
 
 
 //--------------------------------------------------------------------------------------------------------
-// SKIF CUSTOM DX11 IMPLEMENTATION
+// SKIF CUSTOM D3D11 FUNCTIONS
 //--------------------------------------------------------------------------------------------------------
 
-#include <format>
-#include <atlbase.h>
-#include <plog/Log.h>
-#include <utility/registry.h>
-
-
-// External declarations
-extern DWORD SKIF_Util_timeGetTime1                (void);
-extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
-extern bool  SKIF_Util_IsWindows10OrGreater        (void);
-extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
-extern bool  SKIF_Util_IsHDRSupported              (bool refresh = false);
-extern bool  SKIF_Util_IsHDRActive                 (bool refresh = false);
-extern float SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
-extern std::vector<HANDLE> vSwapchainWaitHandles;
-
-
-// Error handling
-class SK_ComException : public
-       std::exception
-{
-public:
-  SK_ComException (
-    HRESULT hr
-  ) : __hr (hr) { }
-
-  const char*
-  what (void) const override
-  {
-    static char
-      s_str [64] = { };
-
-    sprintf_s (
-      s_str, "Failure with HRESULT of %08X",
-                    (int)__hr
-              );
-    return
-      s_str;
-  }
-
-private:
-  HRESULT
-    __hr;
-};
-
-inline void
-ThrowIfFailed (HRESULT hr)
-{
-  if (SUCCEEDED (hr))
-    return;
-
-  throw
-    SK_ComException (hr);
-}
 
 // Render functions
-
-
 
 static void
 SKIF_ImGui_ImplDX11_LogSwapChainFormat (ImGuiViewport *viewport)
@@ -935,12 +1087,6 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
     ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData;
-
-    if (vd == nullptr || vd->SwapChain == nullptr)
-      return;
-
-    vd->SwapChain->Present(0, 0); // Present without vsync
-    
 
   if (vd            != nullptr && // Win32 window was destroyed
       vd->SwapChain != nullptr)   // Swapchain was destroyed
@@ -1066,6 +1212,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
   swap_desc.Height             = (UINT)viewport->Size.y;
   swap_desc.Format             = dxgi_format;
   swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+  swap_desc.Scaling            = (_registry.iUIMode > 0) ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
   swap_desc.Flags              = 0x0;
   swap_desc.SampleDesc.Count   = 1;
   swap_desc.SampleDesc.Quality = 0;
@@ -1089,11 +1236,12 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       // In case flip failed, fall back to using BitBlt
       if (_swapEffect == DXGI_SWAP_EFFECT_DISCARD)
       {
-        swap_desc.Format      = DXGI_FORMAT_R8G8B8A8_UNORM;
-        swap_desc.BufferCount = 1;
-        swap_desc.Flags       = 0x0;
-        _registry._RendererCanHDR          = false;
-        _registry.iUIMode     = 0;
+        swap_desc.Format          = DXGI_FORMAT_R8G8B8A8_UNORM;
+        swap_desc.Scaling         = DXGI_SCALING_STRETCH;
+        swap_desc.BufferCount     = 1;
+        swap_desc.Flags           = 0x0;
+        _registry._RendererCanHDR = false;
+        _registry.iUIMode         = 0;
       }
 
       if (SUCCEEDED (  bd->pFactory->CreateSwapChainForHwnd (bd->pd3dDevice, hWnd, &swap_desc, NULL, NULL,
@@ -1329,4 +1477,16 @@ static void ImGui_ImplDX11_DestroyWindow(ImGuiViewport* viewport)
     }
 
     viewport->RendererUserData = nullptr;
+}
+
+void    ImGui_ImplDX11_InvalidateDevice()
+{
+    ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+
+    if (bd->pFactory)             { bd->pFactory->Release(); }
+        bd->pFactory              = nullptr;
+    if (bd->pd3dDevice)           { bd->pd3dDevice->Release(); }
+        bd->pd3dDevice            = nullptr;
+    if (bd->pd3dDeviceContext)    { bd->pd3dDeviceContext->Release(); }
+        bd->pd3dDeviceContext     = nullptr;
 }
