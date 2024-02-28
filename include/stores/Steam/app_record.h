@@ -263,6 +263,7 @@ struct app_record_s {
     bool          isExecutableFileNameValid (void);
 
     std::wstring getExecutableDir           (void) const;
+    std:: string getExecutableDirUTF8       (void) const;
     bool          isExecutableDirValid      (void) const;
 
     std::wstring getExecutableFullPath      (void) const;
@@ -277,6 +278,9 @@ struct app_record_s {
     
     std::wstring getWorkingDirectory        (void) const;
     std:: string getWorkingDirectoryUTF8    (void);
+    
+    std::wstring getWorkOrExeDirectory      (void) const;
+    std:: string getWorkOrExeDirectoryUTF8  (void);
 
   //private:
   //app_record_s* parent = nullptr;

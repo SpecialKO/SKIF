@@ -105,6 +105,12 @@ app_launch_config_s::getExecutableDir (void) const
   return wszExecutableBase;
 }
 
+std:: string
+app_launch_config_s::getExecutableDirUTF8 (void) const
+{
+  return SK_WideCharToUTF8 (getExecutableDir ( ));
+}
+
 bool
 app_launch_config_s::isExecutableDirValid (void) const
 {
@@ -165,6 +171,26 @@ app_launch_config_s::getWorkingDirectoryUTF8 (void)
   working_dir_utf8 = SK_WideCharToUTF8 (getWorkingDirectory ( ));
 
   return working_dir_utf8;
+}
+
+std::wstring
+app_record_s::launch_config_s::getWorkOrExeDirectory (void) const
+{
+  return (! getWorkingDirectory    ( ).empty())
+            ? getWorkingDirectory  ( )
+            : isExecutableDirValid ( )
+              ? getExecutableDir   ( )
+              : std::wstring();
+}
+
+std::string
+app_record_s::launch_config_s::getWorkOrExeDirectoryUTF8 (void)
+{
+  return (! getWorkingDirectoryUTF8   ( ).empty())
+            ? getWorkingDirectoryUTF8 ( )
+            : isExecutableDirValid    ( )
+              ? getExecutableDirUTF8  ( )
+              : std::string();
 }
 
 std::wstring
