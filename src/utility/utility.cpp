@@ -3382,6 +3382,13 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
 
+  PLOG_INFO                                      << "Creating a desktop shortcut...";
+  PLOG_INFO_IF(lpszPathLink != nullptr)          << "Shortcut    : " << std::wstring(lpszPathLink);
+  PLOG_INFO_IF(lpszTarget   != nullptr)          << "Target      : " << std::wstring(lpszTarget);
+  PLOG_INFO_IF(wcscmp (lpszArgs,    L"\0") != 0) << "Parameters  : " << std::wstring(lpszArgs);
+  PLOG_INFO_IF(wcscmp (lpszWorkDir, L"\0") != 0) << "Start in    : " << std::wstring(lpszWorkDir);
+  PLOG_INFO_IF(wcscmp (lpszDesc,    L"\0") != 0) << "Description : " << std::wstring(lpszDesc);
+
   if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
     IPersistFile* ppf = nullptr;
@@ -3422,6 +3429,11 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
     }
     psl->Release();
   }
+
+  if (ret)
+    PLOG_INFO << "Shortcut was created successfully.";
+  else
+    PLOG_ERROR << "Failed to create shortcut!";
 
   return ret;
 }
