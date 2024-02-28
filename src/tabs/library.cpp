@@ -850,10 +850,7 @@ LaunchGame (app_record_s* pApp)
           }
         }
 
-        std::wstring dirPath =
-          (! launchConfig->working_dir.empty())
-              ? launchConfig->working_dir.c_str()
-              : launchConfig->getExecutableDir().c_str();
+        std::wstring dirPath = launchConfig->getWorkOrExeDirectory ( );
 
         // This is a fallback for handling Steam's %COMMAND% scenarios
         if (useShellExecute)
@@ -1997,12 +1994,12 @@ DrawGameContextMenu (app_record_s* pApp)
         constexpr char* info_title         = "Create desktop shortcut";
         constexpr char* info_label_success = "A desktop shortcut has been created.";
         constexpr char* info_label_failure = "Failed to create a desktop shortcut!";
-
+        
         if (SKIF_Util_CreateShortcut (
             linkPath.c_str(),
             _path_cache.skif_executable,
             linkArgs.c_str(),
-            pApp->launch_configs[0].working_dir.c_str(),
+            pApp->launch_configs[0].getWorkOrExeDirectory().c_str(),
             SK_UTF8ToWideChar(name).c_str(),
             pApp->launch_configs[0].getExecutableFullPath().c_str()
             )
@@ -4488,18 +4485,36 @@ SKIF_UI_Tab_DrawLibrary (void)
       //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
       PLOG_DEBUG << "SKIF_LibraryWorker thread started!";
-
-      DWORD start = SKIF_Util_timeGetTime1 ( );
+      
+      DWORD pre   = 0,
+            post  = 0,
+            start = SKIF_Util_timeGetTime1 ( );
 
       lib_worker_thread_s* _data = static_cast<lib_worker_thread_s*>(var);
 
       // Load Steam titles from disk
       if (_registry.bLibrarySteam || _registry._LibraryHidden)
       {
+        pre  = start;
+
         SKIF_Steam_GetInstalledAppIDs (&_data->apps);
-      
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed Steam in " << (post - pre) << " ms.";
+          pre  = post;
+        }
+
         // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
         SKIF_Steam_PreloadUserConfig (_data->steam_user, &_data->apps, &_data->apptickets);
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed Steam user configs in " << (post - pre) << " ms.";
+          pre  = post;
+        }
       }
 
       if ( ! SKIF_STEAM_OWNER )
@@ -4527,18 +4542,53 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Load GOG titles from registry
       if (_registry.bLibraryGOG || _registry._LibraryHidden)
+      {
         SKIF_GOG_GetInstalledAppIDs  (&_data->apps);
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed GOG in " << (post - pre) << " ms.";
+          pre  = post;
+        }
+      }
 
       // Load Epic titles from disk
       if (_registry.bLibraryEpic || _registry._LibraryHidden)
+      {
         SKIF_Epic_GetInstalledAppIDs (&_data->apps);
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed Epic in " << (post - pre) << " ms.";
+          pre  = post;
+        }
+      }
     
       if (_registry.bLibraryXbox || _registry._LibraryHidden)
+      {
         SKIF_Xbox_GetInstalledAppIDs (&_data->apps);
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed Xbox in " << (post - pre) << " ms.";
+          pre  = post;
+        }
+      }
 
       // Load custom SKIF titles from registry
       if (_registry.bLibraryCustom || _registry._LibraryHidden)
+      {
         SKIF_GetCustomAppIDs (&_data->apps);
+
+        if (! _registry._LibraryHidden)
+        {
+          post = SKIF_Util_timeGetTime1 ( );
+          PLOG_INFO << "[Library Processing] Processed custom SKIF titles in " << (post - pre) << " ms.";
+        }
+      }
 
       PLOG_INFO << "Loading custom launch configs synchronously...";
 
@@ -4618,6 +4668,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       PLOG_INFO << "Processing detected games...";
+      pre = SKIF_Util_timeGetTime1 ( );
 
       bool     newCategories = true;
       HKEY     hKey;
@@ -4936,7 +4987,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
       }
 
-      PLOG_INFO << "Finished processing detected games...";
+      post = SKIF_Util_timeGetTime1 ( );
+      PLOG_INFO << "Finished processing detected games in " << (post - pre) << " ms.";
 
       SKIF_GamingCollection::SortApps (&_data->apps);
 
@@ -4956,9 +5008,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-      DWORD stop = SKIF_Util_timeGetTime1 ( );
-
-      PLOG_INFO << "Library refresh took " << (stop - start) << " ms.";
+      PLOG_INFO << "Library refresh took " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms.";
 
       PLOG_DEBUG << "SKIF_LibraryWorker thread stopped!";
 
