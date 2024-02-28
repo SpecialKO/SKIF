@@ -129,7 +129,8 @@ ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
-ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
+ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
@@ -1619,7 +1620,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
   io.ConfigViewportsNoAutoMerge      = false;
   io.ConfigViewportsNoTaskBarIcon    = false;
-  io.ConfigViewportsNoDecoration     =  true;
+  io.ConfigViewportsNoDecoration     = false; // We want decoration (OS-provided animations etc)
   io.ConfigViewportsNoDefaultParent  = false;
 
   // Docking
@@ -1895,14 +1896,49 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {   runPostWindowCreation =  false;
       SKIF_Startup_SetGameAsForeground ( );
     }
-    
+
+    static bool newHorizonMode = _registry.bHorizonMode;
+    static bool newServiceMode = _registry.bServiceMode;
+
+    // Apply new service mode state
+    if (newServiceMode != _registry.bServiceMode)
+    {
+      _registry.bServiceMode = newServiceMode;
+
+      PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
+
+      SKIF_ImGui_AdjustAppModeSize (NULL);
+    }
+
+    // Apply new horizon mode state
+    if (newHorizonMode != _registry.bHorizonMode)
+    {
+      _registry.bHorizonMode  =                   newHorizonMode;
+      _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
+
+      PLOG_DEBUG << "Switched to " << ((_registry.bHorizonMode) ? "Horizon mode" : "App mode");
+
+      SKIF_ImGui_AdjustAppModeSize (NULL);
+
+      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+      if (lStyle & WS_MAXIMIZE)
+        repositionToCenter   = true;
+      else
+        RespectMonBoundaries = true;
+
+      // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
+      //   This prevent flashing and elements appearing too large during those frames.
+      //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+      // This destroys and recreates the ImGui windows
+    }
+
     // Automatically engage Horizon mode on smaller displays
     static bool autoHorizonFallback = (! _registry.bHorizonMode && _registry.bHorizonModeAuto);
     if (autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
     {
       autoHorizonFallback = false;
 
-      _registry.bHorizonMode = true;
+      _registry.bHorizonMode = newHorizonMode = true;
       SKIF_ImGui_AdjustAppModeSize (NULL);
     }
 
@@ -2093,14 +2129,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
       
-      SKIF_vecServiceMode    = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecHorizonMode    = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecRegularMode    = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
       
-      SKIF_vecHorizonMode.y -= SKIF_vecAlteredSize.y;
-      SKIF_vecRegularMode.y -= SKIF_vecAlteredSize.y;
+      SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
+      SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
 
-      SKIF_vecCurrentMode    =
+      SKIF_vecCurrentMode =
                     (_registry.bServiceMode) ? SKIF_vecServiceMode :
                     (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
                                                SKIF_vecRegularMode ;
@@ -2108,7 +2144,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Don't set the window size for the first few frames to prevent
       // a pseudo-window from being created and flashing by at launch
       if (ImGui::GetFrameCount() > 2)
-        ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
+      {
+        static ImVec2
+            lastSize;
+        if (lastSize != SKIF_vecCurrentMode)
+        {   lastSize  = SKIF_vecCurrentMode;
+
+          ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
+          PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Set app size to " << SKIF_vecCurrentMode.x << "x" << SKIF_vecCurrentMode.y;
+        }
+      }
 
       // RepositionSKIF -- Step 2: Repositon the window
       // Repositions the window in the center of the monitor the cursor is currently on
@@ -2236,26 +2281,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         ImGui::SetCursorPosX (ImGui::GetCursorPosX () - 50.0f * SKIF_ImGui_GlobalDPIScale);
 
-        if (ImGui::Button ((_registry.bHorizonMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-        {
-          _registry.bHorizonMode  =         ! _registry.bHorizonMode;
-          _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
-
-          PLOG_DEBUG << "Switched to " << ((_registry.bHorizonMode) ? "Horizon mode" : "App mode");
-
-          SKIF_ImGui_AdjustAppModeSize (NULL);
-
-          LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-          if (lStyle & WS_MAXIMIZE)
-            repositionToCenter   = true;
-          else
-            RespectMonBoundaries = true;
-
-          // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
-          //   This prevent flashing and elements appearing too large during those frames.
-          //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
-          // This destroys and recreates the ImGui windows
-        }
+        if (ImGui::Button ( (newHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          newHorizonMode = ! newHorizonMode;
 
         ImGui::SameLine ();
       }
@@ -2263,12 +2290,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
           || hotkeyCtrlT || hotkeyF11)
       {
-        _registry.bServiceMode = ! _registry.bServiceMode;
+        newServiceMode = ! _registry.bServiceMode;
         _registry._ExitOnInjection = false;
-
-        PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
-
-        SKIF_ImGui_AdjustAppModeSize (NULL);
 
         if (SteamOverlayDisabled)
         {
@@ -2277,7 +2300,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SteamOverlayDisabled = false;
         }
 
-        if (_registry.bServiceMode)
+        if (newServiceMode)
         {
           // If we switch to small mode, close all popups
           ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
@@ -2640,7 +2663,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::EndGroup             ( );
 
       
-      if ( ! _registry.bServiceMode )
+      if (! _registry.bServiceMode)
       {
         // This counteracts math performed on SKIF_vecRegularMode.y at the beginning of the frame
         if (_registry.bUIStatusBar)
@@ -3410,7 +3433,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window
+        ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window, and also updates the window and swapchain sizes etc
         // This renders any additional viewports (index 1+)
         ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
       }

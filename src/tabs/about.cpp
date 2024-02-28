@@ -319,7 +319,8 @@ SKIF_UI_Tab_DrawAbout (void)
     ImColor (25, 118, 210),
       ICON_FA_BOOK " "   );
   ImGui::SameLine         ( );
-
+  
+  //if (SKIF_ImGui_MenuItemEx2 ("Wiki", ICON_FA_BOOK, ImColor(25, 118, 210)))
   if (ImGui::Selectable   ("Wiki"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
