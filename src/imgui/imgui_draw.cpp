@@ -3845,6 +3845,18 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, const ImVec2& pos, Im
         if (glyph == NULL)
             continue;
 
+        //
+        // SKIF Mod:  Unprintable Character Callback
+        //
+        if (glyph == FallbackGlyph)
+        {
+          extern void
+          SKIF_ImGui_MissingGlyphCallback (wchar_t c);
+          SKIF_ImGui_MissingGlyphCallback (
+            static_cast <wchar_t> (c)
+          );
+        }
+
         float char_width = glyph->AdvanceX * scale;
         if (glyph->Visible)
         {
