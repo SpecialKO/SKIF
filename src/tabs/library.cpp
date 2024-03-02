@@ -5608,8 +5608,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   //static bool bFilterHovered = false;
 
   ImGui::BeginChild          ( "###AppListTopRow",
-                                ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight), (_registry.bUIBorders),
-                                    ImGuiWindowFlags_NavFlattened );
+                                ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight),
+                                (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
+                                ImGuiWindowFlags_NavFlattened );
   
   ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
   ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));

@@ -1605,7 +1605,9 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::Separator   ( );
 
   SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-           (_registry.bHorizonMode) ? 250.0f : ImGui::GetContentRegionAvail ().y /* / 1.3f */), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+           (_registry.bHorizonMode) ? 250.0f : ImGui::GetContentRegionAvail ().y /* / 1.3f */),
+            ImGuiChildFlags_None,
+            ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
       
   ImGui::PushStyleColor (
     ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
