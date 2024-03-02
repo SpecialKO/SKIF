@@ -1132,10 +1132,18 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
           0,       DXGI_FORMAT_R32G32_FLOAT, 0,
             offsetof (ImDrawVert,       uv),
                 D3D11_INPUT_PER_VERTEX_DATA, 0 },
+#ifdef SKIF_ImDrawVert
       { "COLOR",
-          0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, // DXGI_FORMAT_R32G32B32A32_FLOAT // DXGI_FORMAT_R8G8B8A8_UNORM
+          0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
             offsetof (ImDrawVert,      col),
                 D3D11_INPUT_PER_VERTEX_DATA, 0 }
+#else
+      { "COLOR",
+          0, DXGI_FORMAT_R8G8B8A8_UNORM, 0,
+            offsetof (ImDrawVert,      col),
+                D3D11_INPUT_PER_VERTEX_DATA, 0 }
+
+#endif // SKIF_ImDrawVert
     };
   
   ThrowIfFailed (
@@ -1201,7 +1209,7 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   blend_desc                                        = { };
   blend_desc.AlphaToCoverageEnable                  = false;
   blend_desc.RenderTarget [0].BlendEnable           = true;
-  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_SRC_ALPHA; //D3D11_BLEND_ONE; // D3D11_BLEND_SRC_ALPHA
+  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_ONE; // Required to prevent alpha transparency issues. Original: D3D11_BLEND_SRC_ALPHA
   blend_desc.RenderTarget [0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
   blend_desc.RenderTarget [0].BlendOp               = D3D11_BLEND_OP_ADD;
   blend_desc.RenderTarget [0].SrcBlendAlpha         = D3D11_BLEND_ONE;

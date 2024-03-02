@@ -43,14 +43,14 @@ struct VS_INPUT
 {
   float2 pos : POSITION;
   float2 uv  : TEXCOORD0;
-  float4 col : COLOR0;
+  float4 col : COLOR0; // ImU32
 };
 
 struct PS_INPUT
 {
   float4 pos : SV_POSITION;
   float2 uv  : TEXCOORD0;
-  float4 col : COLOR0;
+  float4 col : COLOR0; // ImU32
   float4 lum : COLOR1; // constant_buffer->luminance_scale
 };
 
