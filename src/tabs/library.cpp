@@ -2720,7 +2720,7 @@ GetInjectionSummary (app_record_s* pApp)
   if (! pApp->loading && ! pApp->specialk.injection.dll.shorthand.empty ())
   {
     //ImGui::TextUnformatted  (cache.dll.shorthand.c_str  ());
-    ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowItemOverlap;
+    ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowOverlap;
 
     if (pApp->specialk.injection.injection.type == InjectionType::Global)
       flags |= ImGuiSelectableFlags_Disabled;
@@ -3170,12 +3170,12 @@ Cache=false)";
     }
   }
 
-  ImGui::EndGroup         ();
+  ImGui::EndGroup         ( );
 
   // End of columns
-  ImGui::EndGroup         ();
+  ImGui::EndGroup         ( );
 
-  ImGui::EndChildFrame    ();
+  ImGui::EndChild         ( );
 
   ImGui::Separator ();
 
@@ -3468,7 +3468,7 @@ Cache=false)";
 
   ImGui::SetCursorPos (posButton);
 
-  ImGui::EndChildFrame ();
+  ImGui::EndChild     ( );
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
       GameMenu       == PopupState_Closed &&
@@ -3666,7 +3666,7 @@ Cache=false)";
       }
     }
 
-    ImGui::EndChildFrame     ();
+    ImGui::EndChild ( );
 
     fBottomDist = ImGui::GetItemRectSize().y;
   }
@@ -5760,10 +5760,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GamesList
 
-  ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysUseWindowPadding;
+  ImGuiChildFlags flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
+  ImGuiChildFlags flags_wnd = 0x0;
 
   if (! _registry.bHorizonMode)
-    flags |= ImGuiWindowFlags_NavFlattened;
+    flags_wnd |= ImGuiWindowFlags_NavFlattened;
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
@@ -5776,9 +5777,9 @@ SKIF_UI_Tab_DrawLibrary (void)
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                   (numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * fHeight + ImGui::GetStyle().WindowPadding.y
-                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)
-                                  ), (_registry.bUIBorders),
-                                flags | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
+                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
+                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0 ),
+                                  flags_wnd | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
@@ -5921,8 +5922,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::BeginChild           ( "###GameList",
                                      ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                              (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop4.y - fTop1.y)), (_registry.bUIBorders),
-                                     flags );
+                                              (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop4.y - fTop1.y)),
+                                     flags_cld,
+                                     flags_wnd );
 
       pinned_top = 0;
     }
@@ -6386,11 +6388,11 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::BeginChild (
     "###GameDetails",
       ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                sizeDetails.y * SKIF_ImGui_GlobalDPIScale), (_registry.bUIBorders),
+                sizeDetails.y * SKIF_ImGui_GlobalDPIScale),
+        ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NavFlattened      |
-        ImGuiWindowFlags_AlwaysUseWindowPadding
+        ImGuiWindowFlags_NavFlattened
   );
   ImGui::BeginGroup ();
 
@@ -6447,20 +6449,21 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
     ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
 
-    // Remove frame border
+    // Remove frame border + padding
     ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,    0.0f);
 
     bool        clicked =
-    ImGui::ImageButton   ((ImTextureID)pPatTexSRV.p, ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+    ImGui::ImageButton   ("###GameCover", (ImTextureID)pPatTexSRV.p, ImVec2(200.0F * SKIF_ImGui_GlobalDPIScale,
                                                              200.0F * SKIF_ImGui_GlobalDPIScale),
                                                      ImVec2 (0.f,       0.f),
-                                                     ImVec2 (1.f,       1.f),     0,
+                                                     ImVec2 (1.f,       1.f),    // 0,
                                                      ImVec4 (0, 0, 0, 0), // Use a transparent background
                                   hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
                                                    : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
 
-    // Restore frame border
-    ImGui::PopStyleVar   ( );
+    // Restore frame border + padding
+    ImGui::PopStyleVar   (3);
 
     // Restore the custom button styling
     ImGui::PopStyleColor (3);
@@ -6484,10 +6487,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                                           : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
     ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
                                                           200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                                      (_registry.bUIBorders),
-                                                      ImGuiWindowFlags_NoScrollbar            |
-                                                      ImGuiWindowFlags_AlwaysUseWindowPadding |
-                                                      ImGuiWindowFlags_None); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
+                                                      ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
+                                                      ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 

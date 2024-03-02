@@ -683,7 +683,7 @@ void SKIF_ImGui_BeginTabChildFrame (void)
     frame_content_area_id,
       ImVec2 (   0.0f,
                maxContentHeight * SKIF_ImGui_GlobalDPIScale ), // 900.0f
-        ImGuiChildFlags_None,
+        ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
         ImGuiWindowFlags_NavFlattened
   );
 }
@@ -714,10 +714,11 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   icon       = " " + icon;
   label      = label + " ";
 
-  ImGui::BeginChildFrame (id, ImVec2 (ImGui::CalcTextSize(icon.c_str())  .x +
-                                      ImGui::CalcTextSize(label.c_str()) .x +
-                                      ImGui::CalcTextSize("    ").x,
-                                      ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+  ImGui::BeginChild (id, ImVec2 (ImGui::CalcTextSize(icon.c_str())  .x +
+                                 ImGui::CalcTextSize(label.c_str()) .x +
+                                 ImGui::CalcTextSize("    ").x,
+                                 ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+    ImGuiChildFlags_FrameStyle,
     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NavFlattened
   );
 
@@ -728,7 +729,7 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   ImGui::SetCursorPos  (iconPos);
   ImGui::TextColored   (colIcon, icon.c_str());
 
-  ImGui::EndChildFrame ( );
+  ImGui::EndChild ( );
 
   return ret;
 }

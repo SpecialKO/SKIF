@@ -2509,11 +2509,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ImGuiWindowFlags_NoBackground
         );
 
-        _inject._GlobalInjectionCtl ();
+        _inject._GlobalInjectionCtl ( );
 
-        ImGui::EndChildFrame ();
+        ImGui::EndChild             ( );
 
-        SKIF_ImGui_ServiceMenu ();
+        SKIF_ImGui_ServiceMenu      ( );
 
         // Shelly the Ghost (Small Mode)
 
@@ -2573,7 +2573,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_UI_Tab_DrawLibrary (void);
             SKIF_UI_Tab_DrawLibrary (     );
             
-          ImGui::EndChildFrame    ( );
+          ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
 
@@ -2590,7 +2590,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_UI_Tab_DrawMonitor (void);
             SKIF_UI_Tab_DrawMonitor (    );
 
-          ImGui::EndChildFrame    ( );
+          ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
 
@@ -2607,7 +2607,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_UI_Tab_DrawSettings( );
 
-          ImGui::EndChildFrame    ( );
+          ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
         
@@ -2622,7 +2622,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // About Tab
           SKIF_UI_Tab_DrawAbout   ( );
 
-          ImGui::EndChildFrame    ( );
+          ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
 

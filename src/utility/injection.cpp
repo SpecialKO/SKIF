@@ -882,8 +882,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::EndGroup  ();
 
   // End columns
-  ImGui::EndGroup      ();
-  ImGui::EndChildFrame ();
+  ImGui::EndGroup  ();
+  ImGui::EndChild  ();
 
 
   ImGui::Separator ();
@@ -974,7 +974,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if ( ! bHasServlet )
     SKIF_ImGui_PopDisableState  ( );
 
-  ImGui::EndChildFrame ();
+  ImGui::EndChild ();
 
   // Only when we're not in service mode
   if (! _registry.bServiceMode &&
@@ -1048,7 +1048,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     SKIF_ImGui_SetHoverTip ("Please reinstall Special K using the latest available installer.");
   }
 
-  ImGui::EndChildFrame ();
+  ImGui::EndChild ();
 
   fBottomDist = ImGui::GetItemRectSize().y;
 };

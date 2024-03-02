@@ -848,8 +848,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     ImGui::SameLine         ( );
   }
-
-  extern bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4 & colIcon);
     
   if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Install folder", ImColor(255, 207, 72)))
     SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
@@ -1643,7 +1641,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::PushID (proc.pid);
 
     ImVec2 curPos = ImGui::GetCursorPos ( );
-    ImGui::Selectable   ("", (hoveredPID == proc.pid), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap);
+    ImGui::Selectable   ("", (hoveredPID == proc.pid), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
     _ProcessMenu (proc);
     if (ImGui::IsItemHovered ( ))
       hoveredPID = proc.pid;
@@ -1754,7 +1752,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::PopStyleColor ( );
 
-  ImGui::EndChildFrame ( );
+  ImGui::EndChild      ( );
 
 #pragma endregion
 
