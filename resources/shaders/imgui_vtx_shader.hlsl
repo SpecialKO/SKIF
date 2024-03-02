@@ -1,10 +1,13 @@
 #pragma warning ( disable : 3571 )
-cbuffer vertexBuffer : register (b0)
+
+#define SKIF_Shaders
+
+#ifndef SKIF_Shaders
+
+cbuffer vertexBuffer : register(b0) 
 {
   float4x4 ProjectionMatrix;
-  float4   Luminance;
 };
-
 struct VS_INPUT
 {
   float2 pos : POSITION;
@@ -17,22 +20,51 @@ struct PS_INPUT
   float4 pos : SV_POSITION;
   float4 col : COLOR0;
   float2 uv  : TEXCOORD0;
-  float2 uv2 : TEXCOORD1;
-  float4 uv3 : TEXCOORD2;
+};
+
+PS_INPUT main(VS_INPUT input)
+{
+  PS_INPUT output;
+  output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));
+  output.col = input.col;
+  output.uv  = input.uv;
+  return output;
+}
+
+#else
+
+cbuffer vertexBuffer : register (b0)
+{
+  float4x4 ProjectionMatrix;
+  float4   Luminance;
+};
+
+struct VS_INPUT
+{
+  float2 pos : POSITION;
+  float2 uv  : TEXCOORD0;
+  float4 col : COLOR0;
+};
+
+struct PS_INPUT
+{
+  float4 pos : SV_POSITION;
+  float2 uv  : TEXCOORD0;
+  float4 col : COLOR0;
+  float4 lum : COLOR1; // constant_buffer->luminance_scale
 };
 
 PS_INPUT main (VS_INPUT input)
 {
   PS_INPUT output;
-
+  
   output.pos  = mul ( ProjectionMatrix,
                         float4 (input.pos.xy, 0.f, 1.f) );
-
-  output.uv  = saturate (input.uv);
-
   output.col = input.col;
-  output.uv2 = float2 (0.f, 0.f);
-  output.uv3 = Luminance.xyzw;
+  output.uv  = input.uv; // Texture coordinates
+  output.lum = Luminance.xyzw;
 
   return output;
 }
+
+#endif

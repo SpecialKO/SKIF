@@ -190,8 +190,8 @@ concurrency::concurrent_queue <IUnknown*> SKIF_ResourcesToFree; // CComPtr <IUnk
 
 float fBottomDist = 0.0f;
 
-ID3D11Device*           SKIF_g_pd3dDevice           = nullptr;
-ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext    = nullptr;
+ID3D11Device*           SKIF_pd3dDevice           = nullptr;
+ID3D11DeviceContext*    SKIF_pd3dDeviceContext    = nullptr;
 //ID3D11RenderTargetView* SKIF_g_mainRenderTargetView = nullptr;
 
 // Forward declarations
@@ -1648,7 +1648,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Initializing ImGui Win32 platform...";
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
   PLOG_INFO << "Initializing ImGui D3D11 platform...";
-  ImGui_ImplDX11_Init  (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
+  ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
 
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
@@ -2071,7 +2071,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (RecreateSwapChains)
     {
       // If the device have been removed/reset/hung, we need to invalidate all resources
-      if (FAILED (SKIF_g_pd3dDevice->GetDeviceRemovedReason ( )))
+      if (FAILED (SKIF_pd3dDevice->GetDeviceRemovedReason ( )))
       {
         // Invalidate resources
         ImGui_ImplDX11_InvalidateDeviceObjects ( );
@@ -2083,7 +2083,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Recreate
         CreateDeviceD3D                        (SKIF_Notify_hWnd);
-        ImGui_ImplDX11_Init                    (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext);
+        ImGui_ImplDX11_Init                    (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
 
         // This is used to flag that rendering should not occur until
         // any loaded textures and such also have been unloaded
@@ -3851,9 +3851,9 @@ bool CreateDeviceD3D (HWND hWnd)
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
-                                                       &SKIF_g_pd3dDevice,
+                                                       &SKIF_pd3dDevice,
                                                                 &featureLevel,
-                                                       &SKIF_g_pd3dDeviceContext)))
+                                                       &SKIF_pd3dDeviceContext)))
   {
     //OutputDebugString(L"D3D11CreateDevice failed!\n");
     PLOG_ERROR << "D3D11CreateDevice failed!";
@@ -3929,7 +3929,7 @@ bool CreateDeviceD3D (HWND hWnd)
         _registry.iUIMode      = 0;
       }
 
-      if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd (SKIF_g_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
+      if (SUCCEEDED (pFactory2->CreateSwapChainForHwnd (SKIF_pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                                 &pSwapChain1 )))
       {
         pSwapChain1.Release();
@@ -3952,16 +3952,16 @@ void CleanupDeviceD3D (void)
   //CleanupRenderTarget ();
 
   //IUnknown_AtomicRelease ((void **)&g_pSwapChain);
-  IUnknown_AtomicRelease ((void **)&SKIF_g_pd3dDeviceContext);
-  IUnknown_AtomicRelease ((void **)&SKIF_g_pd3dDevice);
+  IUnknown_AtomicRelease ((void **)&SKIF_pd3dDeviceContext);
+  IUnknown_AtomicRelease ((void **)&SKIF_pd3dDevice);
 }
 
 // Prevent race conditions between asset loading and device init
 //
 void SKIF_WaitForDeviceInitD3D (void)
 {
-  while (SKIF_g_pd3dDevice        == nullptr    ||
-         SKIF_g_pd3dDeviceContext == nullptr /* ||
+  while (SKIF_pd3dDevice        == nullptr    ||
+         SKIF_pd3dDeviceContext == nullptr /* ||
          SKIF_g_pSwapChain        == nullptr  */ )
   {
     Sleep (10UL);
@@ -3975,12 +3975,12 @@ SKIF_D3D11_GetDevice (bool bWait)
     SKIF_WaitForDeviceInitD3D ();
 
   return
-    SKIF_g_pd3dDevice;
+    SKIF_pd3dDevice;
 }
 
 bool SKIF_D3D11_IsDevicePtr (void)
 {
-  return (SKIF_g_pd3dDevice != nullptr)
+  return (SKIF_pd3dDevice != nullptr)
                      ? true : false;
 }
 

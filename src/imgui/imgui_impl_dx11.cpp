@@ -58,6 +58,9 @@
 #include <utility/registry.h>
 #include <plog/Log.h>
 
+#include <shaders/imgui_pix.h>
+#include <shaders/imgui_vtx.h>
+
 // External declarations
 extern DWORD SKIF_Util_timeGetTime1                (void);
 extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
@@ -109,6 +112,8 @@ ThrowIfFailed (HRESULT hr)
     SK_ComException (hr);
 }
 
+struct ImGui_ImplDX11_ViewportData;
+
 #endif // SKIF_D3D11
 
 // DirectX11 data
@@ -134,7 +139,14 @@ struct ImGui_ImplDX11_Data
 
     ImGui_ImplDX11_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
 };
+
+struct VERTEX_CONSTANT_BUFFER_DX11
+{
+    float   mvp[4][4];
+};
+
 #else
+
 struct ImGui_ImplDX11_Data
 {
     ID3D11Device*               pd3dDevice;
@@ -145,8 +157,8 @@ struct ImGui_ImplDX11_Data
     ID3D11VertexShader*         pVertexShader;
     ID3D11InputLayout*          pInputLayout;
     ID3D11Buffer*               pVertexConstantBuffer;
-  //ID3D11Buffer*               pPixelConstantBuffer; // Unused in new ImGui?
-  //ID3D11Buffer*               pFontConstantBuffer;  // Unused in new ImGui?
+    ID3D11Buffer*               pPixelConstantBuffer; // SKIF Custom
+    ID3D11Buffer*               pFontConstantBuffer;  // SKIF Custom
     ID3D11PixelShader*          pPixelShader;
     ID3D11SamplerState*         pFontSampler;
     ID3D11ShaderResourceView*   pFontTextureView;
@@ -158,12 +170,22 @@ struct ImGui_ImplDX11_Data
 
     ImGui_ImplDX11_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
 };
-#endif
 
-struct VERTEX_CONSTANT_BUFFER_DX11
-{
-    float   mvp[4][4];
+struct VERTEX_CONSTANT_BUFFER_DX11 {
+  float mvp [4][4];
+
+  // scRGB allows values > 1.0, sRGB (SDR) simply clamps them
+  // x = Luminance/Brightness -- For HDR displays, 1.0 = 80 Nits, For SDR displays, >= 1.0 = 80 Nits
+  // y = isHDR
+  // z = is10bpc
+  // w = is16bpc
+  float luminance_scale [4];
 };
+
+struct PIXEL_CONSTANT_BUFFER_DX11 {
+  float font_dims [4];
+};
+#endif
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
@@ -183,6 +205,11 @@ static void ImGui_ImplDX11_SwapBuffers   (ImGuiViewport* viewport, void*);
 static void ImGui_ImplDX11_CreateWindow  (ImGuiViewport* viewport       );
 static void ImGui_ImplDX11_DestroyWindow (ImGuiViewport* viewport       );
        void ImGui_ImplDX11_InvalidateDevice (void);
+       
+static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat    (ImGuiViewport* viewport);
+static bool        SKIF_ImplDX11_ViewPort_IsHDR            (ImGuiViewport* viewport);
+static int         SKIF_ImplDX11_ViewPort_GetHDRMode       (ImGuiViewport* viewport);
+static FLOAT       SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (ImGuiViewport* viewport);
 #endif
 
 // Functions
@@ -224,6 +251,7 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
 }
 
 // Render function
+#ifndef SKIF_D3D11
 void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized
@@ -300,6 +328,15 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
             { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
         };
         memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+    
+        // Defaults
+        /*
+        constant_buffer->luminance_scale [0] = 1.0f; // x - White Level
+        constant_buffer->luminance_scale [1] = 0.0f; // y - isHDR
+        constant_buffer->luminance_scale [2] = 0.0f; // z - is10bpc
+        constant_buffer->luminance_scale [3] = 0.0f; // w - is16bpc
+        */
+
         ctx->Unmap(bd->pVertexConstantBuffer, 0);
     }
 
@@ -412,7 +449,280 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
     ctx->IASetVertexBuffers(0, 1, &old.VertexBuffer, &old.VertexBufferStride, &old.VertexBufferOffset); if (old.VertexBuffer) old.VertexBuffer->Release();
     ctx->IASetInputLayout(old.InputLayout); if (old.InputLayout) old.InputLayout->Release();
 }
+#else
+//#if 0
+void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
+  // Avoid rendering when minimized
+  if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
+      return;
+
+  ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+  ID3D11DeviceContext* ctx = bd->pd3dDeviceContext;
+
+  // Create and grow vertex/index buffers if needed
+  if (!bd->pVB || bd->VertexBufferSize < draw_data->TotalVtxCount)
+  {
+    bd->pVB = nullptr;
+
+    bd->VertexBufferSize =
+      draw_data->TotalVtxCount + 5000;
+
+    D3D11_BUFFER_DESC
+    buffer_desc                = { };
+    buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+    buffer_desc.ByteWidth      = bd->VertexBufferSize * sizeof (ImDrawVert);
+    buffer_desc.BindFlags      = D3D11_BIND_VERTEX_BUFFER;
+    buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    buffer_desc.MiscFlags      = 0;
+
+    if ( FAILED ( bd->pd3dDevice->CreateBuffer ( &buffer_desc,
+                        nullptr, &bd->pVB      )
+       )        ) return;
+  }
+
+  if (! bd->pIB || bd->IndexBufferSize < draw_data->TotalIdxCount)
+  {
+    bd->pIB = nullptr;
+
+    bd->IndexBufferSize =
+      draw_data->TotalIdxCount + 10000;
+
+    D3D11_BUFFER_DESC
+    buffer_desc                = { };
+    buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+    buffer_desc.ByteWidth      = bd->IndexBufferSize * sizeof (ImDrawIdx);
+    buffer_desc.BindFlags      = D3D11_BIND_INDEX_BUFFER;
+    buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    if ( FAILED ( bd->pd3dDevice->CreateBuffer ( &buffer_desc,
+                        nullptr, &bd->pIB      )
+       )        ) return;
+  }
+
+  // Upload vertex/index data into a single contiguous GPU buffer
+  D3D11_MAPPED_SUBRESOURCE
+    vtx_resource = { },
+    idx_resource = { };
+
+  if (FAILED (ctx->Map (bd->pVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
+    return;
+  if (FAILED (ctx->Map (bd->pIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)))
+    return;
+
+  ImDrawVert *vtx_dst =
+    static_cast <ImDrawVert *> (vtx_resource.pData);
+  ImDrawIdx  *idx_dst =
+    static_cast <ImDrawIdx  *> (idx_resource.pData);
+
+  for (int n = 0; n < draw_data->CmdListsCount; n++)
+  {
+    const ImDrawList *cmd_list =
+      draw_data->CmdLists [n];
+
+    memcpy ( vtx_dst, cmd_list->VtxBuffer.Data,
+                      cmd_list->VtxBuffer.Size * sizeof (ImDrawVert) );
+    memcpy ( idx_dst, cmd_list->IdxBuffer.Data,
+                      cmd_list->IdxBuffer.Size * sizeof (ImDrawIdx)  );
+
+    vtx_dst += cmd_list->VtxBuffer.Size;
+    idx_dst += cmd_list->IdxBuffer.Size;
+  }
+
+  ctx->Unmap (bd->pVB, 0);
+  ctx->Unmap (bd->pIB, 0);
+
+  // Setup orthographic projection matrix into our constant buffer
+  // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
+  {
+    D3D11_MAPPED_SUBRESOURCE
+          mapped_resource = { };
+
+    if ( FAILED (ctx->Map (
+           bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
+                                    0, &mapped_resource
+                    ))
+       ) return;
+
+    VERTEX_CONSTANT_BUFFER_DX11 *constant_buffer =
+        static_cast <VERTEX_CONSTANT_BUFFER_DX11 *> (
+                              mapped_resource.pData
+        );
+
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(VERTEX_CONSTANT_BUFFER_DX11) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
+    float L = draw_data->DisplayPos.x;
+    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+    float T = draw_data->DisplayPos.y;
+    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
+    float mvp [4][4] = {
+      {    2.0f   / ( R - L ),     0.0f,               0.0f, 0.0f },
+      {    0.0f,                   2.0f   / ( T - B ), 0.0f, 0.0f },
+      {    0.0f,                   0.0f,               0.5f, 0.0f },
+      { ( R + L ) / ( L - R ),  ( T + B ) / ( B - T ), 0.5f, 1.0f } };
+
+    memcpy ( &constant_buffer->mvp,
+                               mvp,
+                       sizeof (mvp) );
+    
+    // Defaults
+    constant_buffer->luminance_scale [0] = 1.0f; // x - White Level
+    constant_buffer->luminance_scale [1] = 0.0f; // y - isHDR
+    constant_buffer->luminance_scale [2] = 0.0f; // z - is10bpc
+    constant_buffer->luminance_scale [3] = 0.0f; // w - is16bpc
+
+    ImGuiViewport* vp = draw_data->OwnerViewport;
+
+    if (vp != nullptr && vp->RendererUserData != nullptr)
+    {
+      if (SKIF_ImplDX11_ViewPort_IsHDR (vp))
+      {
+        constant_buffer->luminance_scale [1] = 1.0f;
+
+        // scRGB HDR 16 bpc
+        if (SKIF_ImplDX11_ViewPort_GetHDRMode (vp) == 2)
+        {
+          constant_buffer->luminance_scale [0] =       (_registry.iHDRBrightness / 80.0f); // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
+          constant_buffer->luminance_scale [3] = 1.0f;
+        }
+
+        // HDR10
+        else {
+          constant_buffer->luminance_scale [0] = float (-_registry.iHDRBrightness);           // Org: -data->SKIF_GetHDRWhiteLuma ( )
+          constant_buffer->luminance_scale [2] = 1.0f;
+        }
+      }
+
+      // scRGB 16 bpc special handling
+      else if (SKIF_ImplDX11_ViewPort_GetDXGIFormat (vp) == DXGI_FORMAT_R16G16B16A16_FLOAT)
+      {
+        // SDR 16 bpc on HDR display
+        if (SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (vp) > 80.0f)
+          constant_buffer->luminance_scale [0] = (SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (vp) / 80.0f);
+
+        // SDR 16 bpc on SDR display
+        constant_buffer->luminance_scale [3] = 1.0f;
+      }
+
+      else if (SKIF_ImplDX11_ViewPort_GetDXGIFormat (vp) == DXGI_FORMAT_R10G10B10A2_UNORM)
+      {
+        // SDR 10 bpc on SDR display
+        constant_buffer->luminance_scale [2] = 1.0f;
+      }
+    }
+
+    ctx->Unmap ( bd->pVertexConstantBuffer, 0 );
+
+    if ( FAILED (ctx->Map (
+           bd->pFontConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
+                                   0, &mapped_resource
+                )         )
+       ) return;
+
+    PIXEL_CONSTANT_BUFFER_DX11 *pix_constant_buffer =
+        static_cast <PIXEL_CONSTANT_BUFFER_DX11 *> (
+                              mapped_resource.pData
+        );
+
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(PIXEL_CONSTANT_BUFFER_DX11) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
+    pix_constant_buffer->font_dims [0] = (float)ImGui::GetIO ().Fonts->TexWidth;
+    pix_constant_buffer->font_dims [1] = (float)ImGui::GetIO ().Fonts->TexHeight;
+
+    ctx->Unmap ( bd->pFontConstantBuffer, 0 );
+
+    if ( FAILED (ctx->Map (
+           bd->pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
+                                   0, &mapped_resource
+                )         )
+       ) return;
+
+    pix_constant_buffer =
+      static_cast <PIXEL_CONSTANT_BUFFER_DX11 *> (
+        mapped_resource.pData
+      );
+
+    // Assert that the constant buffer remains 16-byte aligned.
+    static_assert((sizeof(PIXEL_CONSTANT_BUFFER_DX11) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+
+    pix_constant_buffer->font_dims [0] = 0.0f;
+    pix_constant_buffer->font_dims [1] = 0.0f;
+
+    ctx->Unmap ( bd->pPixelConstantBuffer, 0 );
+  }
+
+  // Setup desired DX state
+  ImGui_ImplDX11_SetupRenderState (draw_data, ctx);
+
+  // Render command lists
+  // (Because we merged all buffers into a single one, we maintain our own offset into them)
+  int global_idx_offset = 0;
+  int global_vtx_offset = 0;
+
+  ImVec2 clip_off =
+    draw_data->DisplayPos;
+
+  for (int n = 0; n < draw_data->CmdListsCount; n++)
+  {
+    const ImDrawList *cmd_list =
+      draw_data->CmdLists [n];
+
+    for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+    {
+      ctx->PSSetConstantBuffers ( 0, 1, &bd->pPixelConstantBuffer );
+
+      const ImDrawCmd *pcmd =
+        &cmd_list->CmdBuffer [cmd_i];
+
+      if (pcmd->UserCallback != nullptr)
+      {
+        // User callback, registered via ImDrawList::AddCallback()
+        // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
+        if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+          ImGui_ImplDX11_SetupRenderState (draw_data, ctx);
+        else
+          pcmd->UserCallback (cmd_list, pcmd);
+      }
+
+      else
+      {
+        // Apply scissor/clipping rectangle
+        const D3D11_RECT r =
+          { (LONG)( pcmd->ClipRect.x - clip_off.x ),
+            (LONG)( pcmd->ClipRect.y - clip_off.y ),
+            (LONG)( pcmd->ClipRect.z - clip_off.x ),
+            (LONG)( pcmd->ClipRect.w - clip_off.y ) };
+
+        ctx->RSSetScissorRects (1, &r);
+
+        // Bind texture, Draw
+        ID3D11ShaderResourceView *texture_srv =
+          static_cast <ID3D11ShaderResourceView *> (
+                                    pcmd->TextureId
+          );
+
+        if (pcmd->TextureId == ImGui::GetIO ().Fonts->TexID)
+        ctx->PSSetConstantBuffers ( 0, 1, &bd->pFontConstantBuffer );
+        ctx->PSSetShaderResources ( 0, 1, &texture_srv);
+        ctx->DrawIndexed          ( pcmd->ElemCount,
+                                    pcmd->IdxOffset + global_idx_offset,
+                                    pcmd->VtxOffset + global_vtx_offset );
+      }
+    }
+
+    global_idx_offset += cmd_list->IdxBuffer.Size;
+    global_vtx_offset += cmd_list->VtxBuffer.Size;
+  }
+}
+
+#endif // !SKIF_D3D11
+
+#ifndef SKIF_D3D11
 static void ImGui_ImplDX11_CreateFontsTexture()
 {
     // Build texture atlas
@@ -474,7 +784,170 @@ static void ImGui_ImplDX11_CreateFontsTexture()
         bd->pd3dDevice->CreateSamplerState(&desc, &bd->pFontSampler);
     }
 }
+#else
+static void ImGui_ImplDX11_CreateFontsTexture()
+{
+  auto
+  _BuildForSlot =
+  [&](UINT slot)
+  {
+    std::ignore = slot;
 
+    // Build texture atlas
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+
+    unsigned char* pixels = nullptr;
+    int            width  = 0,
+                   height = 0;
+
+    if (io.Fonts->TexPixelsAlpha8 == NULL)
+    {
+      DWORD temp_time = SKIF_Util_timeGetTime1();
+      io.Fonts->Build ( );
+      PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+    }
+
+    io.Fonts->GetTexDataAsAlpha8 ( &pixels,
+                                   &width, &height );
+
+    D3D_FEATURE_LEVEL  featureLevel =
+      bd->pd3dDevice->GetFeatureLevel ();
+
+    extern bool failedLoadFonts;
+
+    switch (featureLevel)
+    {
+      case D3D_FEATURE_LEVEL_10_0:
+      case D3D_FEATURE_LEVEL_10_1:
+      if (width > 8192 || height > 8192) // Warn User
+        failedLoadFonts = true;
+        width  = std::min (8192, width);
+        height = std::min (8192, height);
+        // Max Texture Resolution = 8192x8192
+        break;
+      case D3D_FEATURE_LEVEL_11_0:
+      case D3D_FEATURE_LEVEL_11_1:
+      if (width > 16384 || height > 16384) // Warn User
+        failedLoadFonts = true;
+        width  = std::min (16384, width);
+        height = std::min (16384, height);
+        // Max Texture Resolution = 16384X16384
+        break;
+    }
+
+    // Upload texture to graphics system
+    D3D11_TEXTURE2D_DESC
+      staging_desc                  = { };
+      staging_desc.Width            = width;
+      staging_desc.Height           = height;
+      staging_desc.MipLevels        = 1;
+      staging_desc.ArraySize        = 1;
+      staging_desc.Format           = DXGI_FORMAT_A8_UNORM;
+      staging_desc.SampleDesc.Count = 1;
+      staging_desc.Usage            = D3D11_USAGE_STAGING;
+      staging_desc.BindFlags        = 0;
+      staging_desc.CPUAccessFlags   = D3D11_CPU_ACCESS_WRITE;
+
+    D3D11_TEXTURE2D_DESC
+      tex_desc                      = staging_desc;
+      tex_desc.Usage                = D3D11_USAGE_DEFAULT;
+      tex_desc.BindFlags            = D3D11_BIND_SHADER_RESOURCE;
+      tex_desc.CPUAccessFlags       = 0;
+
+    CComPtr <ID3D11Texture2D>       pStagingTexture = nullptr;
+    CComPtr <ID3D11Texture2D>       pFontTexture    = nullptr;
+
+    // These two CreateTexture2D are extremely costly operations
+    //   on a VMware-based virtual Windows 7 machine.  VMware bug?
+    DWORD temp_time = SKIF_Util_timeGetTime1();
+
+    ThrowIfFailed (
+      bd->pd3dDevice->CreateTexture2D ( &staging_desc, nullptr,
+                                     &pStagingTexture.p ));
+
+    ThrowIfFailed (
+      bd->pd3dDevice->CreateTexture2D ( &tex_desc,     nullptr,
+                                     &pFontTexture.p ));
+
+    PLOG_DEBUG << "Operation [CreateTexture2D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+
+    CComPtr   <ID3D11DeviceContext> pDevCtx;
+    bd->pd3dDevice->GetImmediateContext     (&pDevCtx);
+
+    D3D11_MAPPED_SUBRESOURCE
+          mapped_tex = { };
+
+    ThrowIfFailed (
+      pDevCtx->Map ( pStagingTexture.p, 0, D3D11_MAP_WRITE, 0,
+                     &mapped_tex ));
+
+    for (int y = 0; y < height; y++)
+    {
+      ImU8  *pDst =
+        (ImU8 *)((uintptr_t)mapped_tex.pData +
+                            mapped_tex.RowPitch * y);
+      ImU8  *pSrc =              pixels + width * y;
+
+      for (int x = 0; x < width; x++)
+      {
+        *pDst++ =
+          *pSrc++;
+      }
+    }
+
+    pDevCtx->Unmap        ( pStagingTexture, 0 );
+    pDevCtx->CopyResource (    pFontTexture,
+                            pStagingTexture    );
+
+    // Create texture view
+    D3D11_SHADER_RESOURCE_VIEW_DESC
+      srvDesc = { };
+      srvDesc.Format                    = DXGI_FORMAT_A8_UNORM;
+      srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+      srvDesc.Texture2D.MipLevels       = tex_desc.MipLevels;
+      srvDesc.Texture2D.MostDetailedMip = 0;
+
+    ThrowIfFailed (
+      bd->pd3dDevice->CreateShaderResourceView ( pFontTexture, &srvDesc,
+                                    &bd->pFontTextureView ));
+
+    // Store our identifier
+    io.Fonts->TexID =
+      bd->pFontTextureView;
+
+    // Create texture sampler
+    D3D11_SAMPLER_DESC
+      sampler_desc                    = { };
+      sampler_desc.Filter             = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+      sampler_desc.AddressU           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.AddressV           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.AddressW           = D3D11_TEXTURE_ADDRESS_CLAMP;
+      sampler_desc.MipLODBias         = 0.f;
+      sampler_desc.ComparisonFunc     = D3D11_COMPARISON_NEVER;
+      sampler_desc.MinLOD             = 0.f;
+      sampler_desc.MaxLOD             = 0.f;
+
+    ThrowIfFailed (
+      bd->pd3dDevice->CreateSamplerState ( &sampler_desc,
+                         &bd->pFontSampler ));
+
+    io.Fonts->ClearTexData ();
+  };
+
+  try
+  {
+    _BuildForSlot (0);
+  }
+
+  catch (const SK_ComException&)
+  {
+  }
+}
+
+#endif // !SKIF_D3D11
+
+#ifndef SKIF_D3D11
 bool    ImGui_ImplDX11_CreateDeviceObjects()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -628,6 +1101,157 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
 
     return true;
 }
+#else
+bool ImGui_ImplDX11_CreateDeviceObjects (void)
+{
+
+  ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+  if (!bd->pd3dDevice)
+      return false;
+  if (bd->pFontSampler)
+      ImGui_ImplDX11_InvalidateDeviceObjects();
+
+  // Create the vertex shader
+  ThrowIfFailed (
+    bd->pd3dDevice->CreateVertexShader (
+      (DWORD *)imgui_vs_bytecode,
+       sizeof (imgui_vs_bytecode    ) /
+       sizeof (imgui_vs_bytecode [0]),
+         nullptr,
+                    &bd->pVertexShader )
+     );
+
+  // Create the input layout
+  D3D11_INPUT_ELEMENT_DESC
+    local_layout [] = {
+      { "POSITION",
+          0,       DXGI_FORMAT_R32G32_FLOAT, 0,
+            offsetof (ImDrawVert,      pos),
+                D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "TEXCOORD",
+          0,       DXGI_FORMAT_R32G32_FLOAT, 0,
+            offsetof (ImDrawVert,       uv),
+                D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "COLOR",
+          0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, // DXGI_FORMAT_R32G32B32A32_FLOAT // DXGI_FORMAT_R8G8B8A8_UNORM
+            offsetof (ImDrawVert,      col),
+                D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+  
+  ThrowIfFailed (
+        bd->pd3dDevice->CreateInputLayout (
+                           local_layout, 3,
+              imgui_vs_bytecode,
+      sizeof (imgui_vs_bytecode    ) /
+      sizeof (imgui_vs_bytecode [0]),
+                        &bd->pInputLayout )
+     );
+
+  // Create the constant buffers
+  D3D11_BUFFER_DESC
+  buffer_desc                = { };
+  buffer_desc.ByteWidth      = sizeof (VERTEX_CONSTANT_BUFFER_DX11);
+  buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+  buffer_desc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+  buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+  buffer_desc.MiscFlags      = 0;
+  
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
+    &bd->pVertexConstantBuffer )
+     );
+
+  //* Pixel / Font constant buffer
+  buffer_desc                = { };
+  buffer_desc.ByteWidth      = sizeof (PIXEL_CONSTANT_BUFFER_DX11);
+  buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+  buffer_desc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+  buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+  buffer_desc.MiscFlags      = 0;
+  
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
+     &bd->pPixelConstantBuffer )
+     );
+
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
+      &bd->pFontConstantBuffer )
+     );
+
+  buffer_desc                = { };
+  buffer_desc.ByteWidth      = sizeof (float) * 4;
+  buffer_desc.Usage          = D3D11_USAGE_DYNAMIC;
+  buffer_desc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+  buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+  buffer_desc.MiscFlags      = 0;
+  //*/
+
+  // Create the pixel shader
+  ThrowIfFailed (
+         bd->pd3dDevice->CreatePixelShader (
+           (DWORD *)imgui_ps_bytecode,
+            sizeof (imgui_ps_bytecode    ) /
+            sizeof (imgui_ps_bytecode [0]),
+              nullptr,   &bd->pPixelShader )
+     );
+
+  // Create the blending setup
+  D3D11_BLEND_DESC
+  blend_desc                                        = { };
+  blend_desc.AlphaToCoverageEnable                  = false;
+  blend_desc.RenderTarget [0].BlendEnable           = true;
+  blend_desc.RenderTarget [0].SrcBlend              = D3D11_BLEND_SRC_ALPHA; //D3D11_BLEND_ONE; // D3D11_BLEND_SRC_ALPHA
+  blend_desc.RenderTarget [0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
+  blend_desc.RenderTarget [0].BlendOp               = D3D11_BLEND_OP_ADD;
+  blend_desc.RenderTarget [0].SrcBlendAlpha         = D3D11_BLEND_ONE;
+  blend_desc.RenderTarget [0].DestBlendAlpha        = D3D11_BLEND_INV_SRC_ALPHA; //D3D11_BLEND_ZERO;
+  blend_desc.RenderTarget [0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
+  blend_desc.RenderTarget [0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+  
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateBlendState ( &blend_desc,
+                  &bd->pBlendState )
+     );
+
+  // Create the rasterizer state
+  D3D11_RASTERIZER_DESC
+  raster_desc                 = { };
+  raster_desc.FillMode        = D3D11_FILL_SOLID;
+  raster_desc.CullMode        = D3D11_CULL_NONE;
+  raster_desc.ScissorEnable   = true;
+  raster_desc.DepthClipEnable = true;
+  
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateRasterizerState ( &raster_desc,
+                  &bd->pRasterizerState )
+     );
+
+  // Create depth-stencil State
+  D3D11_DEPTH_STENCIL_DESC
+  depth_stencil_desc                              = { };
+  depth_stencil_desc.DepthEnable                  = false;
+  depth_stencil_desc.DepthWriteMask               = D3D11_DEPTH_WRITE_MASK_ALL;
+  depth_stencil_desc.DepthFunc                    = D3D11_COMPARISON_ALWAYS;
+  depth_stencil_desc.StencilEnable                = false;
+  depth_stencil_desc.FrontFace.StencilFailOp      =
+  depth_stencil_desc.FrontFace.StencilDepthFailOp =
+  depth_stencil_desc.FrontFace.StencilPassOp      = D3D11_STENCIL_OP_KEEP;
+  depth_stencil_desc.FrontFace.StencilFunc        = D3D11_COMPARISON_ALWAYS;
+  depth_stencil_desc.BackFace                     =
+  depth_stencil_desc.FrontFace;
+  
+  ThrowIfFailed (
+  bd->pd3dDevice->CreateDepthStencilState ( &depth_stencil_desc,
+                  &bd->pDepthStencilState )
+     );
+
+  ImGui_ImplDX11_CreateFontsTexture ();
+
+  return true;
+}
+
+#endif // !SKIF_D3D11
 
 void    ImGui_ImplDX11_InvalidateDeviceObjects()
 {
@@ -637,11 +1261,13 @@ void    ImGui_ImplDX11_InvalidateDeviceObjects()
 
     if (bd->pFontSampler)           { bd->pFontSampler->Release(); bd->pFontSampler = nullptr; }
     if (bd->pFontTextureView)       { bd->pFontTextureView->Release(); bd->pFontTextureView = nullptr; ImGui::GetIO().Fonts->SetTexID(0); } // We copied data->pFontTextureView to io.Fonts->TexID so let's clear that as well.
+    if (bd->pFontConstantBuffer)    { bd->pFontConstantBuffer->Release(); bd->pFontConstantBuffer = nullptr; }   // SKIF CUSTOM
     if (bd->pIB)                    { bd->pIB->Release(); bd->pIB = nullptr; }
     if (bd->pVB)                    { bd->pVB->Release(); bd->pVB = nullptr; }
     if (bd->pBlendState)            { bd->pBlendState->Release(); bd->pBlendState = nullptr; }
     if (bd->pDepthStencilState)     { bd->pDepthStencilState->Release(); bd->pDepthStencilState = nullptr; }
     if (bd->pRasterizerState)       { bd->pRasterizerState->Release(); bd->pRasterizerState = nullptr; }
+    if (bd->pPixelConstantBuffer)   { bd->pPixelConstantBuffer->Release(); bd->pPixelConstantBuffer = nullptr; } // SKIF CUSTOM
     if (bd->pPixelShader)           { bd->pPixelShader->Release(); bd->pPixelShader = nullptr; }
     if (bd->pVertexConstantBuffer)  { bd->pVertexConstantBuffer->Release(); bd->pVertexConstantBuffer = nullptr; }
     if (bd->pInputLayout)           { bd->pInputLayout->Release(); bd->pInputLayout = nullptr; }
@@ -728,8 +1354,8 @@ void ImGui_ImplDX11_NewFrame()
     extern bool CreateDeviceD3D    (HWND hWnd);
     extern void CleanupDeviceD3D   (void);
     extern HWND                    SKIF_Notify_hWnd;
-    extern ID3D11Device*           SKIF_g_pd3dDevice;
-    extern ID3D11DeviceContext*    SKIF_g_pd3dDeviceContext;
+    extern ID3D11Device*           SKIF_pd3dDevice;
+    extern ID3D11DeviceContext*    SKIF_pd3dDeviceContext;
     extern DWORD                   invalidatedDevice;
 
     // Check if the device have been removed for any reason
@@ -782,7 +1408,7 @@ void ImGui_ImplDX11_NewFrame()
 
         // At this point all traces of the previous device should have been cleared
         CreateDeviceD3D                 (SKIF_Notify_hWnd);
-        ImGui_ImplDX11_Init             (SKIF_g_pd3dDevice, SKIF_g_pd3dDeviceContext); // This creates a new factory
+        ImGui_ImplDX11_Init             (SKIF_pd3dDevice, SKIF_pd3dDeviceContext); // This creates a new factory
 
         // This is used to flag that rendering should not occur until
         // any loaded textures and such also have been unloaded
@@ -824,9 +1450,9 @@ struct ImGui_ImplDX11_ViewportData
     ID3D11RenderTargetView* RTView;
     UINT                    PresentCount;
     HANDLE                  WaitHandle;
-    int                     SDRMode;
+    int                     SDRMode;       // 0 = 8 bpc,   1 = 10 bpc,      2 = 16 bpc scRGB
     FLOAT                   SDRWhiteLevel; // SDR white level in nits for the display
-    int                     HDRMode;
+    int                     HDRMode;       // 0 = No HDR,  1 = 10 bpc HDR,  2 = 16 bpc scRGB HDR
     bool                    HDR;
     FLOAT                   HDRLuma;
     FLOAT                   HDRMinLuma;
@@ -1072,14 +1698,33 @@ static void ImGui_ImplDX11_RenderWindow(ImGuiViewport* viewport, void*)
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
     ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData;
 
+#ifndef SKIF_D3D11
     if (vd == nullptr || vd->RTView == nullptr)
       return;
 
+    ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+#else
+
+    if (vd            == nullptr || // Win32 window was destroyed
+        vd->SwapChain == nullptr || // Swapchain was destroyed
+        vd->RTView    == nullptr)   // Render target view was destroyed
+    {
+      if (! RecreateSwapChainsPending && ImGui::GetFrameCount() > 4)
+        RecreateSwapChains = true;
+      return;
+    }
+
     ImVec4 clear_color = ImGui::GetStyle().Colors[ImGuiCol_WindowBg]; // Use the current window bg color to clear the RTV with
+#endif // !SKIF_D3D11
+
     bd->pd3dDeviceContext->OMSetRenderTargets(1, &vd->RTView, nullptr);
     if (!(viewport->Flags & ImGuiViewportFlags_NoRendererClear))
         bd->pd3dDeviceContext->ClearRenderTargetView(vd->RTView, (float*)&clear_color);
     ImGui_ImplDX11_RenderDrawData(viewport->DrawData);
+
+#ifdef SKIF_D3D11
+    bd->pd3dDeviceContext->OMSetRenderTargets (0,nullptr, nullptr);
+#endif // SKIF_D3D11
 }
 
 static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
@@ -1489,4 +2134,38 @@ void    ImGui_ImplDX11_InvalidateDevice()
         bd->pd3dDevice            = nullptr;
     if (bd->pd3dDeviceContext)    { bd->pd3dDeviceContext->Release(); }
         bd->pd3dDeviceContext     = nullptr;
+}
+
+// SKIF Custom helper functions
+
+static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->DXGIFormat;
+
+    return DXGI_FORMAT_UNKNOWN;
+}
+
+static bool SKIF_ImplDX11_ViewPort_IsHDR(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->HDRMode;
+
+    return 0;
+}
+
+static int SKIF_ImplDX11_ViewPort_GetHDRMode(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->HDRMode;
+
+    return 0;
+}
+
+static FLOAT SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->SDRWhiteLevel;
+
+    return 80.0f;
 }
