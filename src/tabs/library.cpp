@@ -1759,8 +1759,8 @@ DrawGameContextMenu (app_record_s* pApp)
       }
     }
 
-    constexpr char* labelPin   =   "Favorite";
-    constexpr char* labelUnpin = "Unfavorite";
+    constexpr char* labelPin   =   "Favorite###Manage-Favorite";
+    constexpr char* labelUnpin = "Unfavorite###Manage-Favorite";
 
     bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
     if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
@@ -1785,7 +1785,8 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::PushItemFlag (ImGuiItemFlags_SelectableDontClosePopup, true);
       ImGui::PushID       ("###ManageCategories");
 
-      if (ImGui::MenuItem ("Favorites", "", isFavorite))
+      // TODO: Figure out why unchecking this closes the popup
+      if (ImGui::MenuItem ("Favorites###ManageCategoiesFavorites", "", isFavorite))
       {
         if (pApp->skif.pinned > 50)
           numPinnedOnTop--;
@@ -5946,7 +5947,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
           ImGui::SetNextItemOpen (true);
 
-        // TODO: Fix collapse all
         if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state && it != _registry.vecCategories.end())
           ImGui::SetNextItemOpen (it->expanded);
 
