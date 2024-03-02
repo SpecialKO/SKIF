@@ -1209,12 +1209,29 @@ void
 SKIF_ImGui_PopDisableState (void)
 {
   // Pop the states in the reverse order that we pushed them in
-  ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
-  ImGui::PopStyleColor ( ); // ImGuiCol_CheckMark
-  ImGui::PopStyleColor ( ); // ImGuiCol_SliderGrab
-  ImGui::PopStyleColor ( ); // ImGuiCol_Text
+  ImGui::PopStyleColor (4); // ImGuiCol_FrameBg, ImGuiCol_CheckMark, ImGuiCol_SliderGrab, ImGuiCol_Text
   //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
   ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
+}
+
+void
+SKIF_ImGui_PushDisabledSpacing (void)
+{
+  // Remove borders, paddings, and spacing
+  ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize,  0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ChildBorderSize,  0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_FrameRounding,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ChildRounding,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,     ImVec2 (0, 0));
+  ImGui::PushStyleVar (ImGuiStyleVar_IndentSpacing,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing,      ImVec2 (0, 0));
+  ImGui::PushStyleVar (ImGuiStyleVar_ItemInnerSpacing, ImVec2 (0, 0));
+}
+
+void
+SKIF_ImGui_PopDisabledSpacing (void)
+{
+  ImGui::PopStyleVar  (8);
 }
 
 void

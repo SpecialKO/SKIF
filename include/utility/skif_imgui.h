@@ -38,6 +38,8 @@ void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets
 void     SKIF_ImGui_SetStyle              (ImGuiStyle* dst = nullptr);
 void     SKIF_ImGui_PushDisableState      (void);
 void     SKIF_ImGui_PopDisableState       (void);
+void     SKIF_ImGui_PushDisabledSpacing   (void);
+void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
 bool     SKIF_ImGui_CanMouseDragMove      (void);    // True if drag move using the mouse is allowed, false if not
 void     SKIF_ImGui_InvalidateFonts       (void);

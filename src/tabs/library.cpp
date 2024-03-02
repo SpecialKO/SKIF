@@ -5609,7 +5609,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::BeginChild          ( "###AppListTopRow",
                                 ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight),
-                                (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
+                                (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                 ImGuiWindowFlags_NavFlattened );
   
   ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
@@ -5779,8 +5779,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   (numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * fHeight + ImGui::GetStyle().WindowPadding.y
                                   : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
-                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0 ),
-                                  flags_wnd | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : 0x0));
+                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
+                                  flags_wnd | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
   auto _HandleItemSelection = [&](bool isIconMenu = false) ->
   bool
@@ -6380,8 +6380,9 @@ SKIF_UI_Tab_DrawLibrary (void)
                                            3.0f * SKIF_ImGui_GlobalDPIScale,
                                  fTop1.y));
   }
+
   else {
-    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y));
+    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize); // Technically 1 px off when not using borders
   }
 
 #pragma region GameDetails
@@ -6390,7 +6391,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     "###GameDetails",
       ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                 sizeDetails.y * SKIF_ImGui_GlobalDPIScale),
-        ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
+        ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NavFlattened
@@ -6436,7 +6437,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->store == app_record_s::Store::Steam)))
   {
     ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
-                                                              fY - floorf((204.f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize) ));
+                                                              fY - (204.0f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize ));
 
     if (_registry.bFadeCovers)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
@@ -6450,21 +6451,22 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
     ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
 
-    // Remove frame border + padding
-    ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
-    ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,    0.0f);
+    // Remove borders, paddings, and spacing (some of these are required, but maybe not all, but I can't be bothered figuring it out...)
+    SKIF_ImGui_PushDisabledSpacing ( );
 
     bool        clicked =
-    ImGui::ImageButton   ("###GameCover", (ImTextureID)pPatTexSRV.p, ImVec2(200.0F * SKIF_ImGui_GlobalDPIScale,
-                                                             200.0F * SKIF_ImGui_GlobalDPIScale),
-                                                     ImVec2 (0.f,       0.f),
-                                                     ImVec2 (1.f,       1.f),    // 0,
-                                                     ImVec4 (0, 0, 0, 0), // Use a transparent background
-                                  hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
-                                                   : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
+    ImGui::ImageButton   ("###PatreonLogo",
+                         (ImTextureID)pPatTexSRV.p,
+                          ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                  200.0F * SKIF_ImGui_GlobalDPIScale),
+                          ImVec2 (  0.f,       0.f),
+                          ImVec2 (  1.f,       1.f),
+                          ImVec4 (  0,     0,     0,    0), // Use a transparent background
+       hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
+                        : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
 
-    // Restore frame border + padding
-    ImGui::PopStyleVar   (3);
+    // Restore borders, paddings, and spacing
+    SKIF_ImGui_PopDisabledSpacing ( );
 
     // Restore the custom button styling
     ImGui::PopStyleColor (3);
@@ -6482,13 +6484,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       );
 
     ImGui::SetCursorPos  (ImVec2 (fZ - (233.0f * SKIF_ImGui_GlobalDPIScale),
-                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale)) );
+                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize * 2.0f) );
 
     ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
                                                                           : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
     ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
                                                           200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                      ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : 0x0),
+                                                      ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                                       ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
     ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
