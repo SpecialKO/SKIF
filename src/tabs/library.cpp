@@ -6511,7 +6511,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PopStyleVar        ( );
 
     hoveredPatCredits =
-    ImGui::IsItemActive();
+    ImGui::IsItemActive       ( ) ||
+    ImGui::IsItemHovered      ( );
 
     ImGui::EndChild           ( );
     ImGui::PopStyleColor      ( );
