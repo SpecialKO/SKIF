@@ -3318,7 +3318,7 @@ Cache=false)";
       // We're going to asynchronously download the mod installer on this thread
       if (! modDownloading.load())
       {
-        _beginthread ([](void*)->void
+        _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
         {
           modDownloading.store (true);
 
@@ -3431,7 +3431,9 @@ Cache=false)";
           PLOG_DEBUG << "SKIF_LibGameModWorker thread stopped!";
 
           SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
-        }, 0x0, NULL);
+
+          return 0;
+        }, nullptr, 0x0, nullptr);
       }
     }
   }
@@ -7184,7 +7186,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     queuePosGameCover = textureLoadQueueLength.load() + 1;
 
     // We're going to stream the cover in asynchronously on this thread
-    _beginthread ([](void*)->void
+    _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
 
@@ -7197,7 +7199,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp == nullptr)
       {
         PLOG_ERROR << "Aborting due to pApp being a nullptr!";
-        return;
+        return 0;
       }
 
       app_record_s* _pApp = pApp;
@@ -7424,7 +7426,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO  << "Finished streaming game cover asynchronously...";
       PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
 
-    }, 0x0, NULL);
+      return 0;
+    }, nullptr, 0x0, nullptr);
   }
 
 #pragma endregion

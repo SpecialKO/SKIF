@@ -37,29 +37,205 @@ SKIF_Updater::SKIF_Updater (void)
   }
 
   // Start the child thread that is responsible for checking for updates
-  static HANDLE hThread =
-    CreateThread ( nullptr, 0x0,
-      [](LPVOID)
-    -> DWORD
+  static HANDLE hThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
+  {
+    CRITICAL_SECTION            UpdaterJob = { };
+    InitializeCriticalSection (&UpdaterJob);
+    EnterCriticalSection      (&UpdaterJob);
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdaterJob");
+
+    CoInitializeEx       (nullptr, 0x0);
+
+    SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+    SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+    static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
+    extern SKIF_Signals _Signal;
+    extern std::atomic<bool> SKIF_Shutdown;
+    bool SKIF_NoInternet = false;
+
+    // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
+    while (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
     {
-      CRITICAL_SECTION            UpdaterJob = { };
-      InitializeCriticalSection (&UpdaterJob);
-      EnterCriticalSection      (&UpdaterJob);
+      SleepConditionVariableCS (
+        &UpdaterPaused, &UpdaterJob,
+          INFINITE
+      );
+    }
 
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdaterJob");
+    PLOG_DEBUG << "SKIF_UpdaterJob thread started!";
 
-      CoInitializeEx       (nullptr, 0x0);
+    do
+    {
+      static CComPtr <INetworkListManager> pNLM;
+      static HRESULT hrNLM  =
+        CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
 
-      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+      // Check if we have an internet connection,
+      //   and if not, check again every 5 seconds
+      if (SUCCEEDED (hrNLM))
+      {
+        do {
+          VARIANT_BOOL connStatus = 0;
 
-      static SKIF_Updater& parent = SKIF_Updater::GetInstance ( );
-      extern SKIF_Signals _Signal;
-      extern std::atomic<bool> SKIF_Shutdown;
-      bool SKIF_NoInternet = false;
+          if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+            SKIF_NoInternet = (VARIANT_FALSE == connStatus);
 
-      // Sleep if SKIF is being used as a lancher, exiting, or we have no internet
-      while (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+          // Resume the update thread
+          if (! SKIF_NoInternet)
+            break;
+            
+          Sleep (5000);
+        } while (SKIF_NoInternet);
+      }
+
+      else {
+        SK_RunOnce (PLOG_ERROR << "Failed checking for an internet connection!");
+        SKIF_NoInternet = true; // Assume we have an internet connection if something fails
+      }
+
+      parent.updater_running.store (1);
+
+      static int lastWritten = 0;
+      int currReading        = parent.snapshot_idx_reading.load ( );
+
+      // This is some half-assed attempt of implementing triple-buffering where we don't overwrite our last finished snapshot.
+      // If the main thread is currently reading from the next intended target, we skip that one as it means we have somehow
+      //   managed to loop all the way around before the main thread started reading our last written result.
+      int currWriting = (currReading == (lastWritten + 1) % 3)
+                                      ? (lastWritten + 2) % 3  // Jump over very next one as it is currently being read from
+                                      : (lastWritten + 1) % 3; // It is fine to write to the very next one
+
+      auto& local =
+        parent.snapshots [currWriting].results;
+
+      local = { };    // Reset any existing data
+      local.patrons = // Copy existing patrons.txt data
+        parent.snapshots [currReading].results.patrons;
+
+      PLOG_INFO << "Checking for updates...";
+        
+      // Set a timer so the main UI refreshes every 15 ms
+      SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
+
+      // Check for updates!
+      parent.PerformUpdateCheck (local);
+
+      // Format the changes for the next version
+      if (! local.release_notes.empty())
+      {
+        std::string strNotes = local.release_notes;
+
+        // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+        strNotes = TextFlow::Column(strNotes).width(110).toString();
+
+        // Calc longest line and number of lines
+        std::istringstream iss(strNotes);
+        for (std::string line; std::getline(iss, line); local.release_notes_formatted.lines++)
+          if (line.length() > local.release_notes_formatted.max_length)
+            local.release_notes_formatted.max_length = line.length();
+
+        // Populate the vector
+        local.release_notes_formatted.notes.push_back ('\n');
+
+        for (size_t i = 0; i < strNotes.length(); i++)
+          local.release_notes_formatted.notes.push_back(strNotes[i]);
+
+        local.release_notes_formatted.notes.push_back ('\n');
+
+        // Ensure the vector array is double null terminated
+        local.release_notes_formatted.notes.push_back ('\0');
+        local.release_notes_formatted.notes.push_back ('\0');
+
+        // Increase NumLines by 3, two from push_back() and
+        //  two from ImGui's love of having one and a half empty line below content
+        local.release_notes_formatted.lines += 3.5f;
+      }
+
+      // Format the historical changes
+      if (! local.history.empty ( ))
+      {
+        std::string strHistory = local.history;
+
+        // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
+        strHistory = TextFlow::Column(strHistory).width(110).toString();
+
+        // Calc longest line and number of lines
+        std::istringstream iss(strHistory);
+        for (std::string line; std::getline(iss, line); local.history_formatted.lines++)
+          if (line.length() > local.history_formatted.max_length)
+            local.history_formatted.max_length = line.length();
+
+        // Populate the vector
+        local.history_formatted.notes.push_back ('\n');
+
+        for (size_t i = 0; i < strHistory.length(); i++)
+          local.history_formatted.notes.push_back(strHistory[i]);
+
+        local.history_formatted.notes.push_back ('\n');
+
+        // Ensure the vector array is double null terminated
+        local.history_formatted.notes.push_back ('\0');
+        local.history_formatted.notes.push_back ('\0');
+
+        // Increase NumLines by 3, two from vecHistory.push_back and
+        //  two from ImGui's love of having one and a half empty line below content
+        local.history_formatted.lines += 3.5f;
+      }
+
+      // Save the changes in a local file
+      if (! local.release_notes_formatted.notes.empty())
+      {
+        std::wofstream changes_file (L"changes.txt");
+
+        if (changes_file.is_open ())
+        {
+          // Requires Windows 10 1903+ (Build 18362)
+          if (SKIF_Util_IsWindows10v1903OrGreater ( ))
+          {
+            changes_file.imbue (
+                std::locale (".UTF-8")
+            );
+          }
+
+          else
+          {
+            // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
+#pragma warning(disable : 4996)
+            changes_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+          }
+
+          std::wstring out_text =
+            SK_UTF8ToWideChar (local.release_notes_formatted.notes.data());
+
+          // Strip all null terminator \0 characters from the string
+          out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
+
+          changes_file.write(out_text.c_str(),
+            out_text.length());
+
+          changes_file.close();
+        }
+
+      }
+        
+      // Kill the timer once the update process has completed
+      KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
+
+      // Swap in the results
+      lastWritten = currWriting;
+      parent.snapshot_idx_written.store (lastWritten);
+        
+      parent.updater_running.store (2);
+
+      // Signal to the main thread that new results are available
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_UPDATER, local.state, 0x0);
+
+      parent.awake.store (false);
+
+      while (! parent.awake.load ( ))
       {
         SleepConditionVariableCS (
           &UpdaterPaused, &UpdaterJob,
@@ -67,198 +243,19 @@ SKIF_Updater::SKIF_Updater (void)
         );
       }
 
-      PLOG_DEBUG << "SKIF_UpdaterJob thread started!";
+    } while (! SKIF_Shutdown.load()); // Keep thread alive until exit
 
-      do
-      {
-        static CComPtr <INetworkListManager> pNLM;
-        static HRESULT hrNLM  =
-          CoCreateInstance (CLSID_NetworkListManager, NULL, CLSCTX_ALL, __uuidof (INetworkListManager), (LPVOID*) &pNLM);
+    PLOG_DEBUG << "SKIF_UpdaterJob thread stopped!";
 
-        // Check if we have an internet connection,
-        //   and if not, check again every 5 seconds
-        if (SUCCEEDED (hrNLM))
-        {
-          do {
-            VARIANT_BOOL connStatus = 0;
+    SetThreadPriority     (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-            if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
-              SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+    CoUninitialize        ( );
 
-            // Resume the update thread
-            if (! SKIF_NoInternet)
-              break;
-            
-            Sleep (5000);
-          } while (SKIF_NoInternet);
-        }
+    LeaveCriticalSection  (&UpdaterJob);
+    DeleteCriticalSection (&UpdaterJob);
 
-        else {
-          SK_RunOnce (PLOG_ERROR << "Failed checking for an internet connection!");
-          SKIF_NoInternet = true; // Assume we have an internet connection if something fails
-        }
-
-        parent.updater_running.store (1);
-
-        static int lastWritten = 0;
-        int currReading        = parent.snapshot_idx_reading.load ( );
-
-        // This is some half-assed attempt of implementing triple-buffering where we don't overwrite our last finished snapshot.
-        // If the main thread is currently reading from the next intended target, we skip that one as it means we have somehow
-        //   managed to loop all the way around before the main thread started reading our last written result.
-        int currWriting = (currReading == (lastWritten + 1) % 3)
-                                        ? (lastWritten + 2) % 3  // Jump over very next one as it is currently being read from
-                                        : (lastWritten + 1) % 3; // It is fine to write to the very next one
-
-        auto& local =
-          parent.snapshots [currWriting].results;
-
-        local = { };    // Reset any existing data
-        local.patrons = // Copy existing patrons.txt data
-          parent.snapshots [currReading].results.patrons;
-
-        PLOG_INFO << "Checking for updates...";
-        
-        // Set a timer so the main UI refreshes every 15 ms
-        SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
-
-        // Check for updates!
-        parent.PerformUpdateCheck (local);
-
-        // Format the changes for the next version
-        if (! local.release_notes.empty())
-        {
-          std::string strNotes = local.release_notes;
-
-          // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-          strNotes = TextFlow::Column(strNotes).width(110).toString();
-
-          // Calc longest line and number of lines
-          std::istringstream iss(strNotes);
-          for (std::string line; std::getline(iss, line); local.release_notes_formatted.lines++)
-            if (line.length() > local.release_notes_formatted.max_length)
-              local.release_notes_formatted.max_length = line.length();
-
-          // Populate the vector
-          local.release_notes_formatted.notes.push_back ('\n');
-
-          for (size_t i = 0; i < strNotes.length(); i++)
-            local.release_notes_formatted.notes.push_back(strNotes[i]);
-
-          local.release_notes_formatted.notes.push_back ('\n');
-
-          // Ensure the vector array is double null terminated
-          local.release_notes_formatted.notes.push_back ('\0');
-          local.release_notes_formatted.notes.push_back ('\0');
-
-          // Increase NumLines by 3, two from push_back() and
-          //  two from ImGui's love of having one and a half empty line below content
-          local.release_notes_formatted.lines += 3.5f;
-        }
-
-        // Format the historical changes
-        if (! local.history.empty ( ))
-        {
-          std::string strHistory = local.history;
-
-          // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-          strHistory = TextFlow::Column(strHistory).width(110).toString();
-
-          // Calc longest line and number of lines
-          std::istringstream iss(strHistory);
-          for (std::string line; std::getline(iss, line); local.history_formatted.lines++)
-            if (line.length() > local.history_formatted.max_length)
-              local.history_formatted.max_length = line.length();
-
-          // Populate the vector
-          local.history_formatted.notes.push_back ('\n');
-
-          for (size_t i = 0; i < strHistory.length(); i++)
-            local.history_formatted.notes.push_back(strHistory[i]);
-
-          local.history_formatted.notes.push_back ('\n');
-
-          // Ensure the vector array is double null terminated
-          local.history_formatted.notes.push_back ('\0');
-          local.history_formatted.notes.push_back ('\0');
-
-          // Increase NumLines by 3, two from vecHistory.push_back and
-          //  two from ImGui's love of having one and a half empty line below content
-          local.history_formatted.lines += 3.5f;
-        }
-
-        // Save the changes in a local file
-        if (! local.release_notes_formatted.notes.empty())
-        {
-          std::wofstream changes_file (L"changes.txt");
-
-          if (changes_file.is_open ())
-          {
-            // Requires Windows 10 1903+ (Build 18362)
-            if (SKIF_Util_IsWindows10v1903OrGreater ( ))
-            {
-              changes_file.imbue (
-                  std::locale (".UTF-8")
-              );
-            }
-
-            else
-            {
-              // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
-#pragma warning(disable : 4996)
-              changes_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
-            }
-
-            std::wstring out_text =
-              SK_UTF8ToWideChar (local.release_notes_formatted.notes.data());
-
-            // Strip all null terminator \0 characters from the string
-            out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
-
-            changes_file.write(out_text.c_str(),
-              out_text.length());
-
-            changes_file.close();
-          }
-
-        }
-        
-        // Kill the timer once the update process has completed
-        KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
-
-        // Swap in the results
-        lastWritten = currWriting;
-        parent.snapshot_idx_written.store (lastWritten);
-        
-        parent.updater_running.store (2);
-
-        // Signal to the main thread that new results are available
-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_UPDATER, local.state, 0x0);
-
-        parent.awake.store (false);
-
-        while (! parent.awake.load ( ))
-        {
-          SleepConditionVariableCS (
-            &UpdaterPaused, &UpdaterJob,
-              INFINITE
-          );
-        }
-
-      } while (! SKIF_Shutdown.load()); // Keep thread alive until exit
-
-      PLOG_DEBUG << "SKIF_UpdaterJob thread stopped!";
-
-      SetThreadPriority     (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
-
-      CoUninitialize        ( );
-
-      LeaveCriticalSection  (&UpdaterJob);
-      DeleteCriticalSection (&UpdaterJob);
-
-      return 0;
-    }, nullptr, 0x0, nullptr
-  );
+    return 0;
+  }, nullptr, 0x0, nullptr);
 }
 
 void

@@ -912,498 +912,495 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   if (EventIndex != USHRT_MAX)
   {
-    static HANDLE hThread =
-      CreateThread ( nullptr, 0x0,
-        [](LPVOID)
-      -> DWORD
-      {
-        CRITICAL_SECTION            ProcessRefreshJob = { };
-        InitializeCriticalSection (&ProcessRefreshJob);
-        EnterCriticalSection      (&ProcessRefreshJob);
+    static HANDLE hThread = (HANDLE)
+    _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
+    {
+      CRITICAL_SECTION            ProcessRefreshJob = { };
+      InitializeCriticalSection (&ProcessRefreshJob);
+      EnterCriticalSection      (&ProcessRefreshJob);
 
-        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
         
-        // Is this combo really appropriate for this thread?
-        SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-        SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+      // Is this combo really appropriate for this thread?
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-        extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);
+      extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);
 
-        struct known_dll_s {
-          std::wstring path;
-          bool isSpecialK;
-        };
+      struct known_dll_s {
+        std::wstring path;
+        bool isSpecialK;
+      };
 
-        static std::vector<known_dll_s> knownDLLs;
+      static std::vector<known_dll_s> knownDLLs;
+
+      do
+      {
+        while (SKIF_Tab_Selected != UITab_Monitor || refreshIntervalInMsec.load() == 0)
+        {
+          SleepConditionVariableCS (
+            &ProcRefreshPaused, &ProcessRefreshJob,
+              INFINITE
+          );
+        }
+
+        static int lastWritten = 0;
+        int currReading        = snapshot_idx_reading.load ( );
+
+        // This is some half-assed attempt of implementing triple-buffering where we don't overwrite our last finished snapshot.
+        // If the main thread is currently reading from the next intended target, we skip that one as it means we have somehow
+        //   managed to loop all the way around before the main thread started reading our last written result.
+        int currWriting = (currReading == (lastWritten + 1) % 3)
+                                        ? (lastWritten + 2) % 3  // Jump over very next one as it is currently being read from
+                                        : (lastWritten + 1) % 3; // It is fine to write to the very next one
+
+        //long idx =
+          //( ReadAcquire (&snapshot_idx) + 1 ) % 2;
+
+        auto &snapshot =
+          snapshots [currWriting];
+
+        auto& Processes      = snapshot.Processes;
+
+        Processes.clear    ();
+
+        using _PerProcessHandleMap =
+          std::map        < DWORD,
+              std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
+                                                              >;
+
+        _PerProcessHandleMap
+          handles_by_process;
+          
+        static HANDLE hProcessDst =
+          SKIF_Util_GetCurrentProcess (); // Pseudo Handle
+        static DWORD dwPidOfMe =
+          GetCurrentProcessId         (); // Actual Pid
+
+#pragma region Collect All Event Handles
+        NTSTATUS ntStatusHandles;
+
+        ULONG      handle_info_size ( SystemHandleInformationSize );
+        _ByteArray handle_info_buffer;
 
         do
         {
-          while (SKIF_Tab_Selected != UITab_Monitor || refreshIntervalInMsec.load() == 0)
-          {
-            SleepConditionVariableCS (
-              &ProcRefreshPaused, &ProcessRefreshJob,
-                INFINITE
+          handle_info_buffer.resize (
+                    handle_info_size );
+
+          ntStatusHandles =
+            NtQuerySystemInformation (
+              SystemExtendedHandleInformation,
+                handle_info_buffer.data (),
+                handle_info_size,
+                &handle_info_size     );
+
+        } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
+
+        if (NT_SUCCESS (ntStatusHandles))
+        {
+          auto handleTableInformationEx =
+            PSYSTEM_HANDLE_INFORMATION_EX (
+                handle_info_buffer.data ()
             );
-          }
 
-          static int lastWritten = 0;
-          int currReading        = snapshot_idx_reading.load ( );
-
-          // This is some half-assed attempt of implementing triple-buffering where we don't overwrite our last finished snapshot.
-          // If the main thread is currently reading from the next intended target, we skip that one as it means we have somehow
-          //   managed to loop all the way around before the main thread started reading our last written result.
-          int currWriting = (currReading == (lastWritten + 1) % 3)
-                                          ? (lastWritten + 2) % 3  // Jump over very next one as it is currently being read from
-                                          : (lastWritten + 1) % 3; // It is fine to write to the very next one
-
-          //long idx =
-            //( ReadAcquire (&snapshot_idx) + 1 ) % 2;
-
-          auto &snapshot =
-            snapshots [currWriting];
-
-          auto& Processes      = snapshot.Processes;
-
-          Processes.clear    ();
-
-          using _PerProcessHandleMap =
-            std::map        < DWORD,
-                std::vector < SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX >
-                                                                >;
-
-          _PerProcessHandleMap
-            handles_by_process;
-          
-          static HANDLE hProcessDst =
-            SKIF_Util_GetCurrentProcess (); // Pseudo Handle
-          static DWORD dwPidOfMe =
-            GetCurrentProcessId         (); // Actual Pid
-
-#pragma region Collect All Event Handles
-          NTSTATUS ntStatusHandles;
-
-          ULONG      handle_info_size ( SystemHandleInformationSize );
-          _ByteArray handle_info_buffer;
-
-          do
+          // Go through all handles of the system
+          for ( unsigned int i = 0;
+                              i < handleTableInformationEx->NumberOfHandles;
+                              i++)
           {
-            handle_info_buffer.resize (
-                      handle_info_size );
+            // Skip handles belong to SKIF
+            if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
+              continue;
 
-            ntStatusHandles =
-              NtQuerySystemInformation (
-                SystemExtendedHandleInformation,
-                  handle_info_buffer.data (),
-                  handle_info_size,
-                  &handle_info_size     );
+            // If it is not the index that corresponds to Events, skip it
+            if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
+              continue;
 
-          } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
-
-          if (NT_SUCCESS (ntStatusHandles))
-          {
-            auto handleTableInformationEx =
-              PSYSTEM_HANDLE_INFORMATION_EX (
-                  handle_info_buffer.data ()
-              );
-
-            // Go through all handles of the system
-            for ( unsigned int i = 0;
-                                i < handleTableInformationEx->NumberOfHandles;
-                                i++)
-            {
-              // Skip handles belong to SKIF
-              if (handleTableInformationEx->Handles [i].ProcessId       == dwPidOfMe)
-                continue;
-
-              // If it is not the index that corresponds to Events, skip it
-              if (handleTableInformationEx->Handles [i].ObjectTypeIndex != EventIndex)
-                continue;
-
-              // Add the remaining handles to the list of handles to go through
-              handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
-                   .emplace_back (handleTableInformationEx->Handles [i]);
-            }
+            // Add the remaining handles to the list of handles to go through
+            handles_by_process [handleTableInformationEx->Handles [i].ProcessId]
+                  .emplace_back (handleTableInformationEx->Handles [i]);
           }
+        }
 
 #pragma endregion
 
 #pragma region Detect Special K Module and Handle (primary method)
 
-          PROCESSENTRY32W pe32 = { };
-          MODULEENTRY32W  me32 = { };
+        PROCESSENTRY32W pe32 = { };
+        MODULEENTRY32W  me32 = { };
 
-          SK_AutoHandle hProcessSnap (
-            CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
-          );
+        SK_AutoHandle hProcessSnap (
+          CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0)
+        );
 
-          if ((intptr_t)hProcessSnap.m_h > 0)
+        if ((intptr_t)hProcessSnap.m_h > 0)
+        {
+          pe32.dwSize = sizeof (PROCESSENTRY32W);
+
+          if (Process32FirstW (hProcessSnap, &pe32))
           {
-            pe32.dwSize = sizeof (PROCESSENTRY32W);
-
-            if (Process32FirstW (hProcessSnap, &pe32))
+            do
             {
-              do
+              // Skip everything belonging to SKIF
+              if (pe32.th32ProcessID == dwPidOfMe ||
+                  pe32.th32ProcessID == 0)
+                continue;
+
+              HANDLE hProcessSrc =
+                  OpenProcess (
+                      PROCESS_DUP_HANDLE | // Required to open handles (will fail on elevated processes)
+                      PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
+                    pe32.th32ProcessID );
+
+              // If we cannot open the process with PROCESS_DUP_HANDLE, it's probably because it's running elevated. Let's try without it
+              if (! hProcessSrc)
               {
-                // Skip everything belonging to SKIF
-                if (pe32.th32ProcessID == dwPidOfMe ||
-                    pe32.th32ProcessID == 0)
-                  continue;
+                hProcessSrc =
+                  OpenProcess (
+                      PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
+                    pe32.th32ProcessID );
+              }
 
-                HANDLE hProcessSrc =
-                    OpenProcess (
-                        PROCESS_DUP_HANDLE | // Required to open handles (will fail on elevated processes)
-                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
-                      pe32.th32ProcessID );
-
-                // If we cannot open the process with PROCESS_DUP_HANDLE, it's probably because it's running elevated. Let's try without it
-                if (! hProcessSrc)
-                {
-                  hProcessSrc =
-                    OpenProcess (
-                        PROCESS_QUERY_LIMITED_INFORMATION, FALSE, // We don't actually need the additional stuff of PROCESS_QUERY_INFORMATION
-                      pe32.th32ProcessID );
-                }
-
-                if (! hProcessSrc) continue;
+              if (! hProcessSrc) continue;
                 
-                // Initialize a variable were we'll store all stuff in
-                standby_record_s proc = standby_record_s{};
+              // Initialize a variable were we'll store all stuff in
+              standby_record_s proc = standby_record_s{};
 
-                SK_AutoHandle hModuleSnap (
-                  CreateToolhelp32Snapshot (TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe32.th32ProcessID)
-                );
+              SK_AutoHandle hModuleSnap (
+                CreateToolhelp32Snapshot (TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe32.th32ProcessID)
+              );
 
-                // Go through modules first (local injection)
-                if ((intptr_t)hModuleSnap.m_h > 0)
+              // Go through modules first (local injection)
+              if ((intptr_t)hModuleSnap.m_h > 0)
+              {
+                me32.dwSize = sizeof (MODULEENTRY32W);
+
+                if (Module32FirstW (hModuleSnap, &me32))
                 {
-                  me32.dwSize = sizeof (MODULEENTRY32W);
-
-                  if (Module32FirstW (hModuleSnap, &me32))
+                  do
                   {
-                    do
+                    std::wstring moduleName = me32.szModule;
+
+                    // Special K's global DLL files
+                    if (StrStrIW (moduleName.c_str(), L"SpecialK32.dll") || 
+                        StrStrIW (moduleName.c_str(), L"SpecialK64.dll"))
                     {
-                      std::wstring moduleName = me32.szModule;
+                      proc.status = 254; // Stuck?
+                      // We'll keep checking the modules for a potential local injection
+                    }
 
-                      // Special K's global DLL files
-                      if (StrStrIW (moduleName.c_str(), L"SpecialK32.dll") || 
-                          StrStrIW (moduleName.c_str(), L"SpecialK64.dll"))
+                    // Fallback of the fallback -- detect locally injected copies of SK!
+                    else {
+                      static std::wstring localDLLs[] = { // The small things matter -- array is sorted in the order of most expected
+                        L"DXGI.dll",
+                        L"D3D11.dll",
+                        L"D3D9.dll",
+                        L"OpenGL32.dll"
+                        L"DInput8.dll",
+                        L"D3D8.dll",
+                        L"DDraw.dll",
+                      };
+
+                      for (auto& localDLL : localDLLs)
                       {
-                        proc.status = 254; // Stuck?
-                        // We'll keep checking the modules for a potential local injection
-                      }
+                        // Skip if it doesn't have the name of a local wrapper DLL
+                        if (StrStrIW (moduleName.c_str(), localDLL.c_str()) == NULL)
+                          continue;
 
-                      // Fallback of the fallback -- detect locally injected copies of SK!
-                      else {
-                        static std::wstring localDLLs[] = { // The small things matter -- array is sorted in the order of most expected
-                          L"DXGI.dll",
-                          L"D3D11.dll",
-                          L"D3D9.dll",
-                          L"OpenGL32.dll"
-                          L"DInput8.dll",
-                          L"D3D8.dll",
-                          L"DDraw.dll",
-                        };
+                        // Skip system modules below \Windows\System32 and \Windows\SysWOW64
+                        if (StrStrIW (me32.szExePath, LR"(\Windows\Sys)"))
+                          continue;
 
-                        for (auto& localDLL : localDLLs)
+                        bool isKnownDLL = false,
+                              isSpecialK = false;
+
+                        // Is it known?
+                        for (auto& knownDLL : knownDLLs)
                         {
-                          // Skip if it doesn't have the name of a local wrapper DLL
-                          if (StrStrIW (moduleName.c_str(), localDLL.c_str()) == NULL)
-                            continue;
-
-                          // Skip system modules below \Windows\System32 and \Windows\SysWOW64
-                          if (StrStrIW (me32.szExePath, LR"(\Windows\Sys)"))
-                            continue;
-
-                          bool isKnownDLL = false,
-                               isSpecialK = false;
-
-                          // Is it known?
-                          for (auto& knownDLL : knownDLLs)
+                          // We're dealing with a known DLL
+                          if (knownDLL.path == me32.szExePath) //if (StrStrIW (me32.szExePath, knownDLL.path.c_str()))
                           {
-                            // We're dealing with a known DLL
-                            if (knownDLL.path == me32.szExePath) //if (StrStrIW (me32.szExePath, knownDLL.path.c_str()))
-                            {
-                              //PLOG_VERBOSE << "Known DLL detected!";
-                              isKnownDLL = true;
-                              isSpecialK = knownDLL.isSpecialK;
+                            //PLOG_VERBOSE << "Known DLL detected!";
+                            isKnownDLL = true;
+                            isSpecialK = knownDLL.isSpecialK;
 
-                              // Skip checking the remaining known DLLs for a match
-                              break;
-                            }
-                          }
-
-                          if (isKnownDLL && isSpecialK)
-                          {
-                            proc.status = 2; // Local injection
-
-                            // Skip checking the remaining local SK DLLs for this module
+                            // Skip checking the remaining known DLLs for a match
                             break;
                           }
+                        }
 
-                          // DLL file is not known -- let it be known
-                          else {
-                            std::wstring productName = SKIF_Util_GetProductName (me32.szExePath);
+                        if (isKnownDLL && isSpecialK)
+                        {
+                          proc.status = 2; // Local injection
 
-                            known_dll_s be_known = known_dll_s { };
-                            be_known.path        = me32.szExePath;
-                            be_known.isSpecialK  = StrStrIW (productName.c_str(), L"Special K");
+                          // Skip checking the remaining local SK DLLs for this module
+                          break;
+                        }
 
-                            knownDLLs.emplace_back (be_known);
+                        // DLL file is not known -- let it be known
+                        else {
+                          std::wstring productName = SKIF_Util_GetProductName (me32.szExePath);
 
-                            PLOG_VERBOSE << "Unknown DLL detected, let it be known: " << me32.szExePath;
-                            PLOG_VERBOSE << "DLL " << ((be_known.isSpecialK) ? "is" : "is not") << " Special K!";
-                            PLOG_VERBOSE << "Full product name: " << productName;
+                          known_dll_s be_known = known_dll_s { };
+                          be_known.path        = me32.szExePath;
+                          be_known.isSpecialK  = StrStrIW (productName.c_str(), L"Special K");
 
-                            // Let us not forget to flag the process as injected as well... :)
-                            if (be_known.isSpecialK)
-                              proc.status = 2;
-                          }
+                          knownDLLs.emplace_back (be_known);
+
+                          PLOG_VERBOSE << "Unknown DLL detected, let it be known: " << me32.szExePath;
+                          PLOG_VERBOSE << "DLL " << ((be_known.isSpecialK) ? "is" : "is not") << " Special K!";
+                          PLOG_VERBOSE << "Full product name: " << productName;
+
+                          // Let us not forget to flag the process as injected as well... :)
+                          if (be_known.isSpecialK)
+                            proc.status = 2;
                         }
                       }
-
-                      // If we have detected a local injection we shouldn't keep checking the remaining modules
-                      if (proc.status == 2)
-                        break;
-                    } while (Module32NextW (hModuleSnap, &me32));
-                  }
-                }
-
-                // Go through each handle the process contains (but only if not local)
-                if (proc.status != 2)
-                {
-                  for ( auto& handle : handles_by_process[pe32.th32ProcessID])
-                  {
-                    auto hHandleSrc = handle.Handle;
-
-                    // Debug purposes
-                    //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
-
-                    HANDLE   hDupHandle;
-                    NTSTATUS ntStat     =
-                      NtDuplicateObject (
-                        hProcessSrc,  hHandleSrc,
-                        hProcessDst, &hDupHandle,
-                                0, 0, 0 );
-
-                    if (! NT_SUCCESS (ntStat)) continue;
-
-                    std::wstring handle_name = L"";
-
-                    ULONG      _ObjectNameLen ( 64 );
-                    _ByteArray pObjectName;
-
-                    do
-                    {
-                      pObjectName.resize (
-                          _ObjectNameLen );
-
-                      ntStat =
-                        NtQueryObject (
-                          hDupHandle,
-                                ObjectNameInformation,
-                              pObjectName.data (),
-                              _ObjectNameLen,
-                              &_ObjectNameLen );
-
-                    } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
-
-                    if (NT_SUCCESS (ntStat))
-                    {
-                      POBJECT_NAME_INFORMATION _pni =
-                        (POBJECT_NAME_INFORMATION) pObjectName.data ();
-
-                      handle_name = _pni != nullptr ?
-                                    _pni->Name.Length > 0 ?
-                                    _pni->Name.Buffer     : L""
-                                                          : L"";
                     }
 
-                    CloseHandle (hDupHandle);
-
-                    // Examine what we got
-                    if ( (std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )  ||
-                          std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )) )
-                    {
-                      proc.status = 3; // Some form of global injection -- set to Inert for now
-
-                      // Skip checking the remaining handles for this process
+                    // If we have detected a local injection we shouldn't keep checking the remaining modules
+                    if (proc.status == 2)
                       break;
-                    }
-                  }
+                  } while (Module32NextW (hModuleSnap, &me32));
                 }
+              }
 
-                // If some form of injection was detected, add it to the list
-                if (_registry.bProcessIncludeAll || proc.status != 255)
+              // Go through each handle the process contains (but only if not local)
+              if (proc.status != 2)
+              {
+                for ( auto& handle : handles_by_process[pe32.th32ProcessID])
                 {
-                  wchar_t                                wszProcessName [MAX_PATH + 2] = { };
-                  GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+                  auto hHandleSrc = handle.Handle;
 
-                  std::wstring friendlyPath = std::wstring(wszProcessName);
+                  // Debug purposes
+                  //PLOG_VERBOSE << "Handle Granted Access: " << handle.GrantedAccess;
 
-                  static std::map <std::wstring, std::wstring>
-                    deviceMap = GetDosPathDevicePathMap ( );
+                  HANDLE   hDupHandle;
+                  NTSTATUS ntStat     =
+                    NtDuplicateObject (
+                      hProcessSrc,  hHandleSrc,
+                      hProcessDst, &hDupHandle,
+                              0, 0, 0 );
 
-                  for (auto& device : deviceMap)
+                  if (! NT_SUCCESS (ntStat)) continue;
+
+                  std::wstring handle_name = L"";
+
+                  ULONG      _ObjectNameLen ( 64 );
+                  _ByteArray pObjectName;
+
+                  do
                   {
-                    if (friendlyPath.find(device.second) != std::wstring::npos)
-                    {
-                      friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
-                      // Strip all null terminator \0 characters from the string
-                      friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
-                      break;
-                    }
+                    pObjectName.resize (
+                        _ObjectNameLen );
+
+                    ntStat =
+                      NtQueryObject (
+                        hDupHandle,
+                              ObjectNameInformation,
+                            pObjectName.data (),
+                            _ObjectNameLen,
+                            &_ObjectNameLen );
+
+                  } while (ntStat == STATUS_INFO_LENGTH_MISMATCH);
+
+                  if (NT_SUCCESS (ntStat))
+                  {
+                    POBJECT_NAME_INFORMATION _pni =
+                      (POBJECT_NAME_INFORMATION) pObjectName.data ();
+
+                    handle_name = _pni != nullptr ?
+                                  _pni->Name.Length > 0 ?
+                                  _pni->Name.Buffer     : L""
+                                                        : L"";
                   }
 
-                  proc.pid      = pe32.th32ProcessID;
-                  proc.arch     = SKIF_Util_IsProcessX86 (hProcessSrc) ? "32-bit" : "64-bit";
-                  proc.filename = (friendlyPath.empty()) ? L"<unknown>" : friendlyPath;
-                  proc.path     = friendlyPath;
-                  proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
-                  proc.tooltip  = proc.pathUTF8;
-                  proc.admin    = SKIF_Util_IsProcessAdmin (pe32.th32ProcessID);
+                  CloseHandle (hDupHandle);
 
-                  if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
-                    proc.policy = Blacklist;
-                  else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
-                    proc.policy = Whitelist;
-                  else
-                    proc.policy = DontCare;
-
-                  PathStripPathW (proc.filename.data());
-
-                  // Strip all null terminator \0 characters from the string
-                  proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
-
-                  if (proc.filename == L"SKIFsvc32.exe")
-                    proc.details = "Special K 32-bit Injection Service Host ";
-
-                  if (proc.filename == L"SKIFsvc64.exe")
-                    proc.details = "Special K 64-bit Injection Service Host ";
-
-                  if (proc.filename == L"SKIFdrv.exe")
-                    proc.details = "Special K Driver Manager ";
-
-                  if (proc.admin && ! ::IsUserAnAdmin ( ))
-                    proc.details += "<access denied> ";
-
-                  // Check if process is suspended
-                  NTSTATUS ntStatusInfoProc;
-                  PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
-
-                  ntStatusInfoProc = 
-                    NtQueryInformationProcess (
-                      hProcessSrc,
-                        ProcessBasicInformation,
-                        &pebi,
-                        sizeof(pebi),
-                        0                     );
-
-                  if (NT_SUCCESS (ntStatusInfoProc) && pebi.Size >= sizeof (pebi))
+                  // Examine what we got
+                  if ( (std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown32" )  ||
+                        std::wstring::npos != handle_name.find ( L"SK_GlobalHookTeardown64" )) )
                   {
-                    // This does not detect all suspended processes, e.g. suspended using NtSuspendProcess()
-                    if (pebi.IsFrozen)
-                      proc.details += "<suspended> ";
+                    proc.status = 3; // Some form of global injection -- set to Inert for now
 
-                    if (pebi.IsProtectedProcess)
-                      proc.details += "<protected> ";
-
-                    //if (pebi.IsWow64Process)
-                    //  proc.details += "<wow64> ";
-
-                    if (pebi.IsProcessDeleting)
-                      proc.details += "<zombie process> ";
-
-                    if (pebi.IsBackground)
-                      proc.details += "<background> ";
-
-                    if (pebi.IsSecureProcess)
-                      proc.details += "<secure> ";
+                    // Skip checking the remaining handles for this process
+                    break;
                   }
+                }
+              }
 
-                  // Add it to the list, but only if it's not a zombie process
-                  if (! pebi.IsProcessDeleting)
-                    Processes.emplace_back(proc);
+              // If some form of injection was detected, add it to the list
+              if (_registry.bProcessIncludeAll || proc.status != 255)
+              {
+                wchar_t                                wszProcessName [MAX_PATH + 2] = { };
+                GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+
+                std::wstring friendlyPath = std::wstring(wszProcessName);
+
+                static std::map <std::wstring, std::wstring>
+                  deviceMap = GetDosPathDevicePathMap ( );
+
+                for (auto& device : deviceMap)
+                {
+                  if (friendlyPath.find(device.second) != std::wstring::npos)
+                  {
+                    friendlyPath.replace(0, device.second.length(), (device.first + L"\\"));
+                    // Strip all null terminator \0 characters from the string
+                    friendlyPath.erase(std::find(friendlyPath.begin(), friendlyPath.end(), '\0'), friendlyPath.end());
+                    break;
+                  }
                 }
 
-                CloseHandle (hProcessSrc);
-              } while (Process32NextW (hProcessSnap, &pe32));
-            }
+                proc.pid      = pe32.th32ProcessID;
+                proc.arch     = SKIF_Util_IsProcessX86 (hProcessSrc) ? "32-bit" : "64-bit";
+                proc.filename = (friendlyPath.empty()) ? L"<unknown>" : friendlyPath;
+                proc.path     = friendlyPath;
+                proc.pathUTF8 = SK_WideCharToUTF8 (friendlyPath);
+                proc.tooltip  = proc.pathUTF8;
+                proc.admin    = SKIF_Util_IsProcessAdmin (pe32.th32ProcessID);
+
+                if      (_inject._TestUserList     (proc.pathUTF8.c_str(), false))
+                  proc.policy = Blacklist;
+                else if (_inject._TestUserList     (proc.pathUTF8.c_str(),  true))
+                  proc.policy = Whitelist;
+                else
+                  proc.policy = DontCare;
+
+                PathStripPathW (proc.filename.data());
+
+                // Strip all null terminator \0 characters from the string
+                proc.filename.erase(std::find(proc.filename.begin(), proc.filename.end(), '\0'), proc.filename.end());
+
+                if (proc.filename == L"SKIFsvc32.exe")
+                  proc.details = "Special K 32-bit Injection Service Host ";
+
+                if (proc.filename == L"SKIFsvc64.exe")
+                  proc.details = "Special K 64-bit Injection Service Host ";
+
+                if (proc.filename == L"SKIFdrv.exe")
+                  proc.details = "Special K Driver Manager ";
+
+                if (proc.admin && ! ::IsUserAnAdmin ( ))
+                  proc.details += "<access denied> ";
+
+                // Check if process is suspended
+                NTSTATUS ntStatusInfoProc;
+                PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
+
+                ntStatusInfoProc = 
+                  NtQueryInformationProcess (
+                    hProcessSrc,
+                      ProcessBasicInformation,
+                      &pebi,
+                      sizeof(pebi),
+                      0                     );
+
+                if (NT_SUCCESS (ntStatusInfoProc) && pebi.Size >= sizeof (pebi))
+                {
+                  // This does not detect all suspended processes, e.g. suspended using NtSuspendProcess()
+                  if (pebi.IsFrozen)
+                    proc.details += "<suspended> ";
+
+                  if (pebi.IsProtectedProcess)
+                    proc.details += "<protected> ";
+
+                  //if (pebi.IsWow64Process)
+                  //  proc.details += "<wow64> ";
+
+                  if (pebi.IsProcessDeleting)
+                    proc.details += "<zombie process> ";
+
+                  if (pebi.IsBackground)
+                    proc.details += "<background> ";
+
+                  if (pebi.IsSecureProcess)
+                    proc.details += "<secure> ";
+                }
+
+                // Add it to the list, but only if it's not a zombie process
+                if (! pebi.IsProcessDeleting)
+                  Processes.emplace_back(proc);
+              }
+
+              CloseHandle (hProcessSrc);
+            } while (Process32NextW (hProcessSnap, &pe32));
           }
+        }
 
 #pragma endregion
 
 #pragma region Detect Active Injections
 
-          // Check if DLL is currently loaded. If not, load it.
-          extern HMODULE hModSpecialK;
-          if (hModSpecialK == nullptr)
+        // Check if DLL is currently loaded. If not, load it.
+        extern HMODULE hModSpecialK;
+        if (hModSpecialK == nullptr)
 #ifdef _WIN64
-            hModSpecialK = LoadLibraryW (L"SpecialK64.dll");
+          hModSpecialK = LoadLibraryW (L"SpecialK64.dll");
 #else
-            hModSpecialK = LoadLibraryW (L"SpecialK32.dll");
+          hModSpecialK = LoadLibraryW (L"SpecialK32.dll");
 #endif
 
-          if (hModSpecialK != nullptr)
+        if (hModSpecialK != nullptr)
+        {
+          // This retrieves a list of the 32 latest injected processes.
+          // There is no guarantee any of these are still running.
+            SKX_GetInjectedPIDs_pfn
+            SKX_GetInjectedPIDs     =
+          (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
+          "SKX_GetInjectedPIDs");
+
+          /* Unused
+            SK_Inject_GetRecord     =
+          (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
+          "SK_Inject_GetRecord");
+
+            SK_Inject_AuditRecord     =
+          (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
+          "SK_Inject_AuditRecord");
+          */
+
+          if (SKX_GetInjectedPIDs != nullptr)
           {
-            // This retrieves a list of the 32 latest injected processes.
-            // There is no guarantee any of these are still running.
-              SKX_GetInjectedPIDs_pfn
-              SKX_GetInjectedPIDs     =
-            (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
-            "SKX_GetInjectedPIDs");
+            size_t num_pids =
+              SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
 
-            /* Unused
-              SK_Inject_GetRecord     =
-            (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
-            "SK_Inject_GetRecord");
-
-              SK_Inject_AuditRecord     =
-            (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
-            "SK_Inject_AuditRecord");
-            */
-
-            if (SKX_GetInjectedPIDs != nullptr)
+            while (num_pids > 0)
             {
-              size_t num_pids =
-                SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
+              DWORD dwPID =
+                snapshot.dwPIDs[--num_pids];
 
-              while (num_pids > 0)
-              {
-                DWORD dwPID =
-                  snapshot.dwPIDs[--num_pids];
-
-                for (auto& proc : Processes)
-                  if (proc.pid == dwPID)
-                    proc.status   = 1; // Active
-              }
+              for (auto& proc : Processes)
+                if (proc.pid == dwPID)
+                  proc.status   = 1; // Active
             }
           }
+        }
 
 #pragma endregion
 
-          // Sort the results
-          SortProcesses (Processes);
+        // Sort the results
+        SortProcesses (Processes);
 
-          // Swap in the results
-          lastWritten = currWriting;
-          snapshot_idx_written.store (lastWritten);
+        // Swap in the results
+        lastWritten = currWriting;
+        snapshot_idx_written.store (lastWritten);
 
-          // Force a repaint
-          PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
+        // Force a repaint
+        PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
 
-          // Sleep until it's time to check again
-          Sleep (refreshIntervalInMsec.load());
+        // Sleep until it's time to check again
+        Sleep (refreshIntervalInMsec.load());
 
-        } while (IsWindow (SKIF_ImGui_hWnd)); // Keep thread alive until exit
+      } while (IsWindow (SKIF_ImGui_hWnd)); // Keep thread alive until exit
 
-        SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+      SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-        LeaveCriticalSection  (&ProcessRefreshJob);
-        DeleteCriticalSection (&ProcessRefreshJob);
+      LeaveCriticalSection  (&ProcessRefreshJob);
+      DeleteCriticalSection (&ProcessRefreshJob);
 
-        return 0;
-      }, nullptr, 0x0, nullptr
-    );
+      return 0;
+    }, nullptr, 0x0, nullptr);
   }
 
   ImGui::Spacing          ( );

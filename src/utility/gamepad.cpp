@@ -289,57 +289,55 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
   PLOG_VERBOSE << "Spawning SKIF_GamePadInputPump thread...";
   
   // Start the child thread that is responsible for checking for gamepad input
-  static HANDLE hThread = CreateThread ( nullptr, 0x0,
-      [](LPVOID)
-    -> DWORD
-    {
-      CRITICAL_SECTION            GamepadInputPump = { };
-      InitializeCriticalSection (&GamepadInputPump);
-      EnterCriticalSection      (&GamepadInputPump);
+  static HANDLE hThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
+  {
+    CRITICAL_SECTION            GamepadInputPump = { };
+    InitializeCriticalSection (&GamepadInputPump);
+    EnterCriticalSection      (&GamepadInputPump);
         
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
 
-      static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
-      extern std::atomic<bool> SKIF_Shutdown;
+    static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
+    extern std::atomic<bool> SKIF_Shutdown;
 
-      DWORD packetLast = 0,
-            packetNew  = 0;
+    DWORD packetLast = 0,
+          packetNew  = 0;
 
-      do
+    do
+    {
+      // Sleep when there's nothing to do
+      while (! parent.m_bThreadAwake.load())
       {
-        // Sleep when there's nothing to do
-        while (! parent.m_bThreadAwake.load())
-        {
-          SleepConditionVariableCS (
-            &parent.m_GamePadInput, &GamepadInputPump,
-              INFINITE
-          );
-        }
+        SleepConditionVariableCS (
+          &parent.m_GamePadInput, &GamepadInputPump,
+            INFINITE
+        );
+      }
 
-        packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
+      packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
 
-        if (packetNew  > 0  &&
-            packetNew != packetLast)
-        {
-          packetLast = packetNew;
-          PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
-        }
+      if (packetNew  > 0  &&
+          packetNew != packetLast)
+      {
+        packetLast = packetNew;
+        PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
+      }
 
-        // XInput tends to have ~3-7 ms of latency between updates
-        //   best-case, try to delay the next poll until there's
-        //     new data.
-        Sleep (5);
+      // XInput tends to have ~3-7 ms of latency between updates
+      //   best-case, try to delay the next poll until there's
+      //     new data.
+      Sleep (5);
 
-      } while (! SKIF_Shutdown.load());
+    } while (! SKIF_Shutdown.load());
 
-      LeaveCriticalSection  (&GamepadInputPump);
-      DeleteCriticalSection (&GamepadInputPump);
+    LeaveCriticalSection  (&GamepadInputPump);
+    DeleteCriticalSection (&GamepadInputPump);
 
-      PLOG_VERBOSE << "Shutting down...";
+    PLOG_VERBOSE << "Shutting down...";
 
-      return 0;
-    }, nullptr, 0x0, nullptr
-  );
+    return 0;
+  }, nullptr, 0x0, nullptr);
 }
 
 bool
