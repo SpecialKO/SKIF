@@ -25,22 +25,25 @@ namespace plog
 
       util::nostringstream ss;
       // YYYY-MM-DD
-      ss << t.tm_year + 1900 << "-" << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_mon + 1 << PLOG_NSTR("-") << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_mday << PLOG_NSTR(" ");
+      ss << t.tm_year + 1900 << PLOG_NSTR('-') << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_mon + 1 << PLOG_NSTR('-') << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_mday << PLOG_NSTR(' ');
 
       // HH:mm:ss:m
-      ss << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_hour << PLOG_NSTR(":") << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_min << PLOG_NSTR(":") << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_sec << PLOG_NSTR(".") << std::setfill(PLOG_NSTR('0')) << std::setw(3) << static_cast<int> (record.getTime().millitm) << PLOG_NSTR(" ");
+      ss << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_hour << PLOG_NSTR(':') << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_min << PLOG_NSTR(':') << std::setfill(PLOG_NSTR('0')) << std::setw(2) << t.tm_sec << PLOG_NSTR('.') << std::setfill(PLOG_NSTR('0')) << std::setw(3) << static_cast<int> (record.getTime().millitm) << PLOG_NSTR(' ');
 
       // Severity
-      ss << std::setfill(PLOG_NSTR(' ')) << std::setw(5) << std::left << severityToString(record.getSeverity()) << PLOG_NSTR(" ");
+      ss << std::setfill(PLOG_NSTR(' ')) << std::setw(5) << std::left << severityToString(record.getSeverity()) << PLOG_NSTR(' ');
 
       // Thread ID
-      ss << PLOG_NSTR("[") << std::setfill(PLOG_NSTR(' ')) << std::setw(5) << std::right << record.getTid()  << PLOG_NSTR("] ");
+      ss << PLOG_NSTR('[') << std::setfill(PLOG_NSTR(' ')) << std::setw(5) << std::right << record.getTid()  << PLOG_NSTR("] ");
 
-      // Function / Line
-      ss << PLOG_NSTR("[") << record.getFunc() << PLOG_NSTR("@") << record.getLine() << PLOG_NSTR("] ");
+      // Line + Function
+      util::nostringstream ssFuncName;
+      ssFuncName << record.getFunc() << PLOG_NSTR("] ");
+
+      ss << PLOG_NSTR("[@") << std::setfill(PLOG_NSTR(' ')) << std::setw(4) << std::left << record.getLine() << PLOG_NSTR("] [") << std::setfill(PLOG_NSTR(' ')) << std::setw(50) << std::left << ssFuncName.str();
 
       // Message (stripped out of any personal data)
-      ss << SKIF_Util_StripPersonalData (record.getMessage()) << PLOG_NSTR("\n");
+      ss << SKIF_Util_StripPersonalData (record.getMessage()) << PLOG_NSTR('\n');
 
       return ss.str();
     }

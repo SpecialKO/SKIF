@@ -4451,7 +4451,7 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   // This is the message procedure for the notification icon window that also handles custom SKIF messages
 
 #if 1
-  PLOG_VERBOSE << std::format("[0x{:<3x}] [{:3d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+  PLOG_VERBOSE << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
                     msg, // Hexadecimal
                     msg, // Decimal
                     SKIF_Util_GetWindowMessageAsStr (msg), // String

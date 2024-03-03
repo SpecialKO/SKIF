@@ -1572,11 +1572,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
   extern HWND   SKIF_Notify_hWnd;
 
 #if 1
-  PLOG_VERBOSE << std::format("[0x{:<3x}] [{:3d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+  PLOG_VERBOSE << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
                     msg, // Hexadecimal
                     msg, // Decimal
                     SKIF_Util_GetWindowMessageAsStr (msg), // String
-                     (hWnd == SKIF_ImGui_hWnd ?  " [SKIF_ImGui_hWnd] " : " "), // Is the message meant SKIF_ImGui_hWnd ?
+                     (hWnd == SKIF_ImGui_hWnd ?  " [SKIF_ImGui_hWnd ] " : " "), // Is the message meant SKIF_ImGui_hWnd ?
                     wParam, wParam,
              ((HWND)wParam == SKIF_ImGui_hWnd ?  ", SKIF_ImGui_hWnd"   : ""),  // Does wParam point to SKIF_ImGui_hWnd ?
                     lParam, lParam);
