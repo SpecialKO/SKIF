@@ -6382,7 +6382,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   else {
-    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize); // Technically 1 px off when not using borders
+    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
   }
 
 #pragma region GameDetails
