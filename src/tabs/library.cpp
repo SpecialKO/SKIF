@@ -5848,7 +5848,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::min (1.0f, std::max (0.1f, fScale)) * __ICON_HEIGHT;
 
   ImVec2 f0 = ImGui::GetCursorPos (  );
-    ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled);
+    ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled | ImGuiSelectableFlags_AllowOverlap); // AllowOverlap is needed to prevent hover issues with the first game of the list
   ImVec2 f1 = ImGui::GetCursorPos (  );
     ImGui::SameLine (                );
 //ImVec2 f4 = ImGui::GetCursorPos (  );
