@@ -657,6 +657,10 @@ SKIF_Util_StripPersonalData (std::string input)
 
   if (! machineNameUTF8.empty())
     input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), replMacNameUTF8.c_str());
+  
+  // Trim a single trailing newline
+  if (! input.empty() && input.back() == '\n')
+    input.pop_back();
 
   return input;
 }
@@ -677,6 +681,10 @@ SKIF_Util_StripPersonalData (std::wstring input)
 
   if (! machineName.empty())
     input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
+  
+  // Trim a single trailing newline
+  if (! input.empty() && input.back() == L'\n')
+    input.pop_back();
 
   return input;
 }

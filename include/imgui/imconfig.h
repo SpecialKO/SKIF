@@ -130,6 +130,10 @@ namespace ImGui
 }
 */
 
+#include <plog/Log.h>
+
+#define IMGUI_DEBUG_PRINTF(_FMT,...)   PLOG_VERBOSE.printf(_FMT, __VA_ARGS__)
+
 //#define SKIF_ImDrawVert
 
 #ifdef SKIF_ImDrawVert

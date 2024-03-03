@@ -40,7 +40,7 @@ namespace plog
       util::nostringstream ssFuncName;
       ssFuncName << record.getFunc() << PLOG_NSTR("] ");
 
-      ss << PLOG_NSTR("[@") << std::setfill(PLOG_NSTR(' ')) << std::setw(4) << std::left << record.getLine() << PLOG_NSTR("] [") << std::setfill(PLOG_NSTR(' ')) << std::setw(50) << std::left << ssFuncName.str();
+      ss << PLOG_NSTR("[@") << std::setfill(PLOG_NSTR(' ')) << std::setw(5) << std::left << record.getLine() << PLOG_NSTR("] [") << std::setfill(PLOG_NSTR(' ')) << std::setw(50) << std::left << ssFuncName.str();
 
       // Message (stripped out of any personal data)
       ss << SKIF_Util_StripPersonalData (record.getMessage()) << PLOG_NSTR('\n');

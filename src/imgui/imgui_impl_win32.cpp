@@ -1469,13 +1469,19 @@ static ImVec2 ImGui_ImplWin32_GetWindowSize(ImGuiViewport* viewport)
     if (vd->Hwnd == 0) return ImVec2{ };
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect;
-    ::GetClientRect(vd->Hwnd, &rect);
+  //::GetClientRect(vd->Hwnd, &rect);
     return ImVec2(float(rect.right - rect.left), float(rect.bottom - rect.top));
 }
 
 static void ImGui_ImplWin32_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 {
+  ImGuiViewportP* viewportP = (ImGuiViewportP*)viewport;
+
+  //if (viewportP->LastPlatformSize == ImVec2(FLT_MAX, FLT_MAX))
+  //  return;
+
   PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Resized window to " << size.x << "x" << size.y;
+  PLOG_VERBOSE << "Last platform window size: " << std::to_string(viewportP->LastPlatformSize.x) << "x" << std::to_string(viewportP->LastPlatformSize.y);
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
     if (vd->Hwnd == 0) return;
     IM_ASSERT(vd->Hwnd != 0);

@@ -1427,6 +1427,10 @@ SKIF_UI_Tab_DrawSettings (void)
           _registry.regKVLogging.putData  (_registry.iLogging);
           LogSeverityCurrent = LogSeverity[_registry.iLogging];
           plog::get()->setMaxSeverity((plog::Severity)_registry.iLogging);
+
+          ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                    ? ImGuiDebugLogFlags_EventMask_
+                                                    : ImGuiDebugLogFlags_EventViewport);
         }
         if (is_selected)
           ImGui::SetItemDefaultFocus ( );
@@ -1437,7 +1441,13 @@ SKIF_UI_Tab_DrawSettings (void)
     if (_registry.iLogging >= 6 && _registry.bDeveloperMode)
     {
       if (ImGui::Checkbox  ("Enable excessive development logging", &_registry.bLoggingDeveloper))
+      {
         _registry.regKVLoggingDeveloper.putData                     (_registry.bLoggingDeveloper);
+
+        ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                  ? ImGuiDebugLogFlags_EventMask_
+                                                  : ImGuiDebugLogFlags_EventViewport);
+      }
     }
 
     SKIF_ImGui_SetHoverTip  ("Only intended for SKIF developers as this enables excessive logging (e.g. window messages).");
@@ -1481,7 +1491,13 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_Spacing ( );
 
     if (ImGui::Checkbox  ("Developer mode",  &_registry.bDeveloperMode))
+    {
       _registry.regKVDeveloperMode.putData   (_registry.bDeveloperMode);
+
+      ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                ? ImGuiDebugLogFlags_EventMask_
+                                                : ImGuiDebugLogFlags_EventViewport);
+    }
 
     SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
 

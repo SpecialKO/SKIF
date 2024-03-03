@@ -1628,6 +1628,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
 
+  ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                            ? ImGuiDebugLogFlags_EventMask_
+                                            : ImGuiDebugLogFlags_EventViewport);
+
   // Setup Dear ImGui style
   ImGuiStyle& style =
       ImGui::GetStyle ( );
