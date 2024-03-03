@@ -332,6 +332,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Controllers)" );
 
+  KeyValue <bool> regKVLoggingDeveloper =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Logging Developer)" );
+
   // Integers (DWORDs)
 
   KeyValue <int> regKVLibrarySort =
@@ -520,6 +524,7 @@ struct SKIF_RegistrySettings {
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bFadeCovers              =  true;
   bool bControllers             =  true; // Should SKIF support controller input ?
+  bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
 
   // Warnings
   bool bWarningRTSS             = false;
@@ -558,6 +563,8 @@ struct SKIF_RegistrySettings {
   bool _RendererHDREnabled          = false; // HDR Enabled
 
   // Functions
+  bool isDevLogging (void) const;
+
   static SKIF_RegistrySettings& GetInstance (void)
   {
       static SKIF_RegistrySettings instance;

@@ -1434,6 +1434,14 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::EndCombo  ( );
     }
 
+    if (_registry.iLogging >= 6 && _registry.bDeveloperMode)
+    {
+      if (ImGui::Checkbox  ("Enable excessive development logging", &_registry.bLoggingDeveloper))
+        _registry.regKVLoggingDeveloper.putData                     (_registry.bLoggingDeveloper);
+    }
+
+    SKIF_ImGui_SetHoverTip  ("Only intended for SKIF developers as this enables excessive logging (e.g. window messages).");
+
     SKIF_ImGui_Spacing ( );
 
     const char* Diagnostics[] = { "None",
@@ -1472,17 +1480,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing ( );
 
-    if (ImGui::Checkbox  ("Developer mode",
-                                                      &_registry.bDeveloperMode))
-      _registry.regKVDeveloperMode.putData            (_registry.bDeveloperMode);
+    if (ImGui::Checkbox  ("Developer mode",  &_registry.bDeveloperMode))
+      _registry.regKVDeveloperMode.putData   (_registry.bDeveloperMode);
 
     SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
 
     ImGui::SameLine    ( );
 
-    if (ImGui::Checkbox  ("Efficiency mode",
-                                                      &_registry.bEfficiencyMode))
-      _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
+    if (ImGui::Checkbox  ("Efficiency mode", &_registry.bEfficiencyMode))
+      _registry.regKVEfficiencyMode.putData  (_registry.bEfficiencyMode);
 
     SKIF_ImGui_SetHoverTip  ("Engage efficiency mode for this app when idle.\n"
                              "Not recommended for Windows 10 and earlier.");

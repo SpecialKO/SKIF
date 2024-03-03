@@ -1568,22 +1568,6 @@ static void ImGui_ImplWin32_OnChangedViewport(ImGuiViewport* viewport)
 
 static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  extern HWND   SKIF_ImGui_hWnd;
-  extern HWND   SKIF_Notify_hWnd;
-
-#if 1
-  PLOG_VERBOSE << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
-                    msg, // Hexadecimal
-                    msg, // Decimal
-                    SKIF_Util_GetWindowMessageAsStr (msg), // String
-                     (hWnd == SKIF_ImGui_hWnd ?  " [SKIF_ImGui_hWnd ] " : " "), // Is the message meant SKIF_ImGui_hWnd ?
-                    wParam, wParam,
-             ((HWND)wParam == SKIF_ImGui_hWnd ?  ", SKIF_ImGui_hWnd"   : ""),  // Does wParam point to SKIF_ImGui_hWnd ?
-                    lParam, lParam);
-#endif
-
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
-        return true;
 
 #ifdef SKIF_Win32
 
@@ -1599,6 +1583,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern ImVec2 SKIF_vecHorizonModeAdjusted; // Adjusted for status bar and tooltips
     extern ImVec2 SKIF_vecServiceModeDefault;
     extern ImVec2 SKIF_vecAlteredSize;
+    extern HWND   SKIF_ImGui_hWnd;
+    extern HWND   SKIF_Notify_hWnd;
 
     extern bool msgDontRedraw;
 
@@ -1606,22 +1592,25 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern int  SnapKeys;
     extern bool SKIF_isTrayed;
 
+    PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+                      msg, // Hexadecimal
+                      msg, // Decimal
+                      SKIF_Util_GetWindowMessageAsStr (msg), // String
+                       (hWnd == SKIF_ImGui_hWnd ?  " [SKIF_ImGui_hWnd ] " : " "), // Is the message meant SKIF_ImGui_hWnd ?
+                      wParam, wParam,
+               ((HWND)wParam == SKIF_ImGui_hWnd ?  ", SKIF_ImGui_hWnd"   : ""),  // Does wParam point to SKIF_ImGui_hWnd ?
+                      lParam, lParam);
+
 #define SKIF_MAXIMIZE_POS 27     // 27
 #define SWP_STATECHANGED  0x8000 // Undocumented
     static bool moveModal = false;
 
-    // SKIF CUSTOM
+#endif // SKIF_Win32
 
-    // WM_NCCALCSIZE allows us to remove the Standard Frame of the window that DWM creates.
-    // This is necessary as our main window requires WS_CAPTION | WS_SYSMENU and
-    //   a bunch of other window styles to enable modern built-in features such as
-    //   window moving, resizing, WinKey+Arrows, animations, etc, but we do not
-    //   want the window border to actually appear around our window.
-    // 
-    // See https://learn.microsoft.com/en-us/windows/win32/dwm/customframe#removing-the-standard-frame
-    // 
-    // P.S: Requires the window to be resized afterwards, which is handled through
-    //        the RemovedDWMBorders boolean.
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+        return true;
+
+#ifdef SKIF_Win32
 
     switch (msg)
     {
@@ -1638,6 +1627,16 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
       break;
     }
 
+    // WM_NCCALCSIZE allows us to remove the Standard Frame of the window that DWM creates.
+    // This is necessary as our main window requires WS_CAPTION | WS_SYSMENU and
+    //   a bunch of other window styles to enable modern built-in features such as
+    //   window moving, resizing, WinKey+Arrows, animations, etc, but we do not
+    //   want the window border to actually appear around our window.
+    // 
+    // See https://learn.microsoft.com/en-us/windows/win32/dwm/customframe#removing-the-standard-frame
+    // 
+    // P.S: Requires the window to be resized afterwards, which is handled through
+    //        the RemovedDWMBorders boolean.
     case WM_NCCALCSIZE:
       // Removes the Standard Frame of DWM windows
       if (wParam == TRUE)

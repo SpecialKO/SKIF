@@ -4450,16 +4450,16 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   // This is the message procedure for the notification icon window that also handles custom SKIF messages
 
-#if 1
-  PLOG_VERBOSE << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
-                    msg, // Hexadecimal
-                    msg, // Decimal
-                    SKIF_Util_GetWindowMessageAsStr (msg), // String
-                     (hWnd == SKIF_Notify_hWnd ?  " [SKIF_Notify_hWnd] " : " "), // Is the message meant SKIF_Notify_hWnd ?
-                    wParam, wParam,
-             ((HWND)wParam == SKIF_Notify_hWnd ?  ", SKIF_Notify_hWnd"   : ""),  // Does wParam point to SKIF_Notify_hWnd ?
-                    lParam, lParam);
-#endif
+  static SKIF_RegistrySettings&   _registry  = SKIF_RegistrySettings  ::GetInstance ( );
+
+  PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+                  msg, // Hexadecimal
+                  msg, // Decimal
+                  SKIF_Util_GetWindowMessageAsStr (msg), // String
+                    (hWnd == SKIF_Notify_hWnd ?  " [SKIF_Notify_hWnd] " : " "), // Is the message meant SKIF_Notify_hWnd ?
+                  wParam, wParam,
+            ((HWND)wParam == SKIF_Notify_hWnd ?  ", SKIF_Notify_hWnd"   : ""),  // Does wParam point to SKIF_Notify_hWnd ?
+                  lParam, lParam);
 
   if (SKIF_WndProc (hWnd, msg, wParam, lParam))
     return true;

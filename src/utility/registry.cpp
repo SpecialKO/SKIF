@@ -253,6 +253,12 @@ SKIF_RegistrySettings::SortCategories (std::vector <SKIF_RegistrySettings::categ
   return _new;
 }
 
+bool
+SKIF_RegistrySettings::isDevLogging (void) const
+{
+  return (bLoggingDeveloper && bDeveloperMode && iLogging >= 6);
+}
+
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
@@ -460,6 +466,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVControllers.hasData(&hKey))
     bControllers           =   regKVControllers            .getData (&hKey);
+
+  bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
