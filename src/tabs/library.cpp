@@ -160,7 +160,8 @@ extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
-#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f) // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f)
+#define _WIDTH_SCROLLBAR (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f)
+#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f)
 // 1038px == 415px
 // 1000px == 377px (using 380px)
 //#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
@@ -5626,7 +5627,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::SameLine       ( );
 
   ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
-                      ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f), 0.0f),
+                      ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f) - _WIDTH_SCROLLBAR, 0.0f),
                       ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
 
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
