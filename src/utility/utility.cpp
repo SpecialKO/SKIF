@@ -3445,25 +3445,13 @@ SKIF_Util_GetWindowMessageAsStr (UINT msg)
   // https://www.autoitscript.com/autoit3/docs/appendix/WinMsgCodes.htm
 
   // Some random defines that usually pops up every now and then
-#define WM_UAHDESTROYWINDOW                     0x0090
-#define WM_UAHDRAWMENU                          0x0091
-#define WM_UAHDRAWMENUITEM                      0x0092
-#define WM_UAHINITMENU                          0x0093
-#define WM_UAHMEASUREMENUITEM                   0x0094
-#define WM_UAHNCPAINTMENUPOPUP                  0x0095
-#define WM_UAHUPDATE                            0x0096
-
-  // Requires Windows 10, version 1703
-  //        + Per Monitor v2 DPI awareness
-#ifndef WM_DPICHANGED_BEFOREPARENT
-#define WM_DPICHANGED_BEFOREPARENT  0x02E2
-#endif
-#ifndef WM_DPICHANGED_AFTERPARENT
-#define WM_DPICHANGED_AFTERPARENT   0x02E3
-#endif
-#ifndef WM_GETDPISCALEDSIZE
-#define WM_GETDPISCALEDSIZE         0x02E4
-#endif
+#define WM_UAHDESTROYWINDOW             0x0090
+#define WM_UAHDRAWMENU                  0x0091
+#define WM_UAHDRAWMENUITEM              0x0092
+#define WM_UAHINITMENU                  0x0093
+#define WM_UAHMEASUREMENUITEM           0x0094
+#define WM_UAHNCPAINTMENUPOPUP          0x0095
+#define WM_UAHUPDATE                    0x0096
 
   // Some are undefined with our current inclusions and so are excluded
   switch (msg)

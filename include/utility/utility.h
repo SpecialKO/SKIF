@@ -14,6 +14,17 @@
 
 #pragma comment(lib, "wininet.lib")
 
+// Requires Windows 10, version 1703
+//        + Per Monitor v2 DPI awareness
+// 
+// We use an opposite IF statement than
+//   Microsoft's to get these defined
+#if(WINVER < 0x0605)
+#define WM_DPICHANGED_BEFOREPARENT      0x02E2
+#define WM_DPICHANGED_AFTERPARENT       0x02E3
+#define WM_GETDPISCALEDSIZE             0x02E4
+#endif /* WINVER >= 0x0605 */
+
 // Stuff
 
 enum UITab {

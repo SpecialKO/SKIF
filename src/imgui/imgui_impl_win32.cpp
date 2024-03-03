@@ -1659,6 +1659,25 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
       switch (msg)
       {
 
+      // Calculate the new suggested size of the viewport on DPI changes
+      case WM_GETDPISCALEDSIZE:
+      {
+        SIZE* size = reinterpret_cast<SIZE*> (lParam);
+
+        // If we have disabled DPI scaling, use our existing size (scale non-linearly)
+        if (! _registry.bDPIScaling)
+        {
+          size->cx = (LONG)viewport->Size.x;
+          size->cy = (LONG)viewport->Size.y;
+
+          // We have computed a new size
+          return 1;
+        }
+
+        // Apply the default linear DPI scaling to the window
+        return 0;
+      }
+
   #pragma region WM_WINDOWPOSCHANGING
 
         // Gets fired on window creation, and screws up the positioning
