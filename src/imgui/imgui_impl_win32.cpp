@@ -1103,7 +1103,7 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   if (flags & ImGuiViewportFlags_NoDecoration)
     *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
   else {
-    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
+    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW) // WS_THICKFRAME (disabled snapping)
     
     // Only enable the maximized box if DragFromMaximize is available in Windows
     if (_registry.bMaximizeOnDoubleClick && SKIF_Util_GetDragFromMaximized ( ))
