@@ -9,6 +9,16 @@ SKIF_GamePadInputHelper::SKIF_GamePadInputHelper (void)
   InitializeConditionVariable (&m_GamePadInput);
 }
 
+bool
+SKIF_GamePadInputHelper::HasGamePad (void)
+{
+  for (int i = 0; i < XUSER_MAX_COUNT; i++)
+    if (m_bGamepads[i].load())
+      return true;
+
+  return false;
+}
+
 std::vector <bool>
 SKIF_GamePadInputHelper::GetGamePads (void)
 {
@@ -91,7 +101,10 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
         m_bGamepads [idx].store (connected);
 
         if (connected)
+        {
           hasGamepad = true;
+          PLOG_VERBOSE << "A gamepad is connected at XInput slot " << idx << ".";
+        }
       }
     }
 

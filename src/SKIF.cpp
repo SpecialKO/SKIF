@@ -4042,9 +4042,21 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
             {
-              PLOG_VERBOSE << "A device has arrived or was removed, and we need to recheck the connected gamepads...";
-              _gamepad.InvalidateGamePads( );
-              _gamepad.WakeThread ( );
+              // Check for changes in case any device has arrived
+              if (wParam == DBT_DEVICEARRIVAL)
+              {
+                PLOG_VERBOSE << "A HID device has arrived, and we need to refresh gamepad connectivity...";
+                _gamepad.InvalidateGamePads( );
+                _gamepad.WakeThread ( );
+              }
+
+              // Only check for changes if a device was removed if we actually had a connected gamepad
+              else if (wParam == DBT_DEVICEREMOVECOMPLETE && _gamepad.HasGamePad())
+              {
+                PLOG_VERBOSE << "A HID device was removed, and we need to refresh gamepad connectivity...";
+                _gamepad.InvalidateGamePads( );
+                _gamepad.WakeThread ( );
+              }
             }
           }
         }
