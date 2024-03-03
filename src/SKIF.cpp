@@ -110,9 +110,9 @@ DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initiali
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
 HANDLE SteamProcessHandle       = NULL;
 
-// Shell messages
-UINT SHELL_TASKBAR_RESTART        = 0;
-UINT SHELL_TASKBAR_BUTTON_CREATED = 0;
+// Shell messages (registered window messages)
+UINT SHELL_TASKBAR_RESTART        = 0; // TaskbarCreated
+UINT SHELL_TASKBAR_BUTTON_CREATED = 0; // TaskbarButtonCreated
 
 // A fixed size for the application window fixes the wobble that otherwise
 //   occurs when switching between tabs as the size isn't dynamically calculated.
@@ -1751,40 +1751,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
           return false; // return false on exit or system shutdown
         }
 
-        //if (! IsWindow (hWnd))
-        //  return false;
-
-        /*
-        if (msg.message == WM_TIMER)
-        {
-          if (     msg.hwnd == NULL)
-            OutputDebugString (L"Message is a thread message !\n");
-          else if (msg.hwnd ==        SKIF_hWnd)
-            OutputDebugString (L"Message bound for SKIF_WndProc ( ) !\n");
-          else if (msg.hwnd == SKIF_Notify_hWnd)
-            OutputDebugString (L"Message bound for SKIF_Notify_WndProc ( ) !\n");
-          else if (msg.hwnd ==  SKIF_ImGui_hWnd)
-            OutputDebugString (L"Message bound for ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ) !\n");
-          else {
-            OutputDebugString (L"Message bound for another hWnd: ");
-            OutputDebugString (std::format(L"{:x}", *reinterpret_cast<uint64_t*>(&msg.hwnd)).c_str());
-            OutputDebugString (L"\n");
-          }
-  
-          OutputDebugString((L"[_TranslateAndDispatch] Message spotted: 0x" + std::format(L"{:x}", msg.message) + L" (" + std::to_wstring(msg.message) + L")\n").c_str());
-          OutputDebugString((L"[_TranslateAndDispatch]          wParam: 0x" + std::format(L"{:x}", msg.wParam)  + L" (" + std::to_wstring(msg.wParam)  + L")\n").c_str());
-          OutputDebugString((L"[_TranslateAndDispatch]          lParam: 0x" + std::format(L"{:x}", msg.lParam)  + L" (" + std::to_wstring(msg.lParam)  + L")\n").c_str());
-        }
-        */
-
-        // There are three different window procedures that a message can be dispatched to based on the HWND of the message
-        //                                  SKIF_WndProc ( )  <=         SKIF_hWnd                         :: Handles messages meant for the "main" (aka hidden) SKIF 0x0 window that resides in the top left corner of the display
+        // There are four different window procedures that a message can be dispatched to based on the HWND of the message
+        // 
         //                           SKIF_Notify_WndProc ( )  <=  SKIF_Notify_hWnd                         :: Handles messages meant for the notification icon.
-        // ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )  <=   SKIF_ImGui_hWnd, Other HWNDs            :: Handles messages meant for the overarching ImGui Platform window of SKIF, as well as any
+        //                                  SKIF_WndProc ( )  <=  SKIF_Notify_hWnd                         :: Handles all custom SKIF window messages and actions.
+        //                                                                                                    - Gets called by SKIF_Notify_WndProc ( ).
+        // 
+        // ImGui_ImplWin32_WndProcHandler_PlatformWindow ( )  <=  SKIF_ImGui_hWnd, Other HWNDs             :: Handles messages meant for the overarching ImGui Platform window of SKIF, as well as any
         //                                                                                                      additional swapchain windows (menus/tooltips that stretches beyond SKIF_ImGui_hWnd).
-        // ImGui_ImplWin32_WndProcHandler                ( )  <=  SKIF_hWnd, SKIF_ImGui_hWnd, Other HWNDs  :: Gets called by the two main window procedures:
-        //                                                                                                      - SKIF_WndProc ( )
-        //                                                                                                      - ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
+        // ImGui_ImplWin32_WndProcHandler                ( )  <=  SKIF_ImGui_hWnd, Other HWNDs             :: Handles mouse/key input and focus events for ImGui platform windows.
+        //                                                                                                    - Gets called by ImGui_ImplWin32_WndProcHandler_PlatformWindow ( ).
         // 
         TranslateMessage (&msg);
         DispatchMessage  (&msg);
@@ -4473,13 +4449,17 @@ WINAPI
 SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   // This is the message procedure for the notification icon window that also handles custom SKIF messages
-  
-  //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")" + (msg == WM_SETFOCUS ? L" == WM_SETFOCUS" : msg == WM_KILLFOCUS ? L" == WM_KILLFOCUS" : L"") + L"\n").c_str());
-  //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")" + ((HWND)wParam == NULL ? L" == NULL" : (HWND)wParam == SKIF_hWnd ? L" == SKIF_hWnd" : (HWND)wParam == SKIF_ImGui_hWnd ? L" == SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L" == SKIF_Notify_hWnd" : L"") + L"\n").c_str());
-  //OutputDebugString((L"[SKIF_Notify_WndProc] Message spotted: 0x" + std::format(L"{:x}", msg)    + L" (" + std::to_wstring(msg)    + L")\n").c_str());
-  //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L")\n").c_str());
-  //OutputDebugString((L"[SKIF_Notify_WndProc]          wParam: 0x" + std::format(L"{:x}", wParam) + L" (" + std::to_wstring(wParam) + L") " + ((HWND)wParam == SKIF_hWnd ? L"== SKIF_hWnd" : ((HWND)wParam == SKIF_ImGui_hWnd ? L"== SKIF_ImGui_hWnd" : (HWND)wParam == SKIF_Notify_hWnd ? L"== SKIF_Notify_hWnd" : L"")) + L"\n").c_str());
-  //OutputDebugString((L"[SKIF_Notify_WndProc]          lParam: 0x" + std::format(L"{:x}", lParam) + L" (" + std::to_wstring(lParam) + L")\n").c_str());
+
+#if 1
+  PLOG_VERBOSE << std::format("[0x{:<3x}] [{:3d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+                    msg, // Hexadecimal
+                    msg, // Decimal
+                    SKIF_Util_GetWindowMessageAsStr (msg), // String
+                     (hWnd == SKIF_Notify_hWnd ?  " [SKIF_Notify_hWnd] " : " "), // Is the message meant SKIF_Notify_hWnd ?
+                    wParam, wParam,
+             ((HWND)wParam == SKIF_Notify_hWnd ?  ", SKIF_Notify_hWnd"   : ""),  // Does wParam point to SKIF_Notify_hWnd ?
+                    lParam, lParam);
+#endif
 
   if (SKIF_WndProc (hWnd, msg, wParam, lParam))
     return true;

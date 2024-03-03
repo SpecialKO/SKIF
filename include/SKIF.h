@@ -74,6 +74,10 @@ constexpr UINT           WM_SKIF_REFRESHFOCUS   = WM_USER + 0x2054; // Trigger a
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2101; // Used to signal that a new effective power mode has been applied
 constexpr UINT           WM_SKIF_EVENT_SIGNAL   = WM_USER + 0x3000; // Window message Special K posts when it has signaled one of the various acknowledgement events
 
+// Shell messages (registered window messages)
+extern    UINT           SHELL_TASKBAR_RESTART;                     // TaskbarCreated
+extern    UINT           SHELL_TASKBAR_BUTTON_CREATED;              // TaskbarButtonCreated
+
 constexpr  int           SKIF_HotKey_HDR        = 1337; // Win + Ctrl + Shift + H
 constexpr  int           SKIF_HotKey_SVC        = 1338; // Win + Shift + Insert
 

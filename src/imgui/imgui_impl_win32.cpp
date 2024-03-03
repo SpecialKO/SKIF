@@ -1411,7 +1411,7 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
     ::SetWindowPos       ( vd->Hwnd, insert_after,
                                           rect.left,               rect.top,
                              rect.right - rect.left, rect.bottom - rect.top,
-                    swp_flag | SWP_NOZORDER     | SWP_NOACTIVATE | 
+                    swp_flag | SWP_NOZORDER     | SWP_NOACTIVATE |
                                SWP_FRAMECHANGED | SWP_ASYNCWINDOWPOS );
 
     // A ShowWindow() call is necessary when we alter the style
@@ -1568,6 +1568,20 @@ static void ImGui_ImplWin32_OnChangedViewport(ImGuiViewport* viewport)
 
 static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  extern HWND   SKIF_ImGui_hWnd;
+  extern HWND   SKIF_Notify_hWnd;
+
+#if 1
+  PLOG_VERBOSE << std::format("[0x{:<3x}] [{:3d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+                    msg, // Hexadecimal
+                    msg, // Decimal
+                    SKIF_Util_GetWindowMessageAsStr (msg), // String
+                     (hWnd == SKIF_ImGui_hWnd ?  " [SKIF_ImGui_hWnd] " : " "), // Is the message meant SKIF_ImGui_hWnd ?
+                    wParam, wParam,
+             ((HWND)wParam == SKIF_ImGui_hWnd ?  ", SKIF_ImGui_hWnd"   : ""),  // Does wParam point to SKIF_ImGui_hWnd ?
+                    lParam, lParam);
+#endif
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
@@ -1578,8 +1592,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     static SKIF_GamePadInputHelper& _gamepad   = SKIF_GamePadInputHelper::GetInstance ( );
     static SKIF_DropTargetObject&   _drag_drop = SKIF_DropTargetObject  ::GetInstance ( );
 
-    extern HWND   SKIF_ImGui_hWnd;
-    extern HWND   SKIF_Notify_hWnd;
     extern float  SKIF_ImGui_GlobalDPIScale;
     extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
     extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
