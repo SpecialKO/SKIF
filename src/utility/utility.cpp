@@ -904,148 +904,148 @@ SKIF_Util_CreateProcess (
   if (env != nullptr)
     data->env = *env;
 
-  uintptr_t hWorkerThread =
-    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
+
+    // Is this combo really appropriate for this thread?
+    SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+    PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
+
+    thread_s* _data = static_cast<thread_s*>(var);
+
+    PROCESS_INFORMATION procinfo = { };
+    STARTUPINFO         supinfo  = { };
+    SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
+    supinfo.cb                   = sizeof (STARTUPINFO);
+      
+    LPVOID       lpEnvBlock      = nullptr;
+    std::wstring wsEnvBlock;
+      
+    // Create a clear and empty environment block for the current user
+    CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
+
+    // Convert to a nicely stored wstring
+    wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
+
+    // Add any custom variables to it
+    for (auto& env_var : _data->env)
+      wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
+
+    // Destroy the block once we are done with it
+    DestroyEnvironmentBlock (lpEnvBlock);
+      
+    PLOG_INFO                                          << "Creating process...";
+    PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
+    PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
+    PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
+    PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
+    PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
+
+    if (CreateProcessW (
+        (_data->path             .empty()) ? NULL : _data->path.c_str(),
+        (_data->parameters_actual.empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
+        NULL,
+        NULL,
+        FALSE,
+        NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
+        const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
+        (_data->directory.empty()) ? NULL : _data->directory.c_str(),
+        &supinfo,
+        &procinfo))
     {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
-
-      // Is this combo really appropriate for this thread?
-      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
-
-      PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
-
-      thread_s* _data = static_cast<thread_s*>(var);
-
-      PROCESS_INFORMATION procinfo = { };
-      STARTUPINFO         supinfo  = { };
-      SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
-      supinfo.cb                   = sizeof (STARTUPINFO);
-      
-      LPVOID       lpEnvBlock      = nullptr;
-      std::wstring wsEnvBlock;
-      
-      // Create a clear and empty environment block for the current user
-      CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
-
-      // Convert to a nicely stored wstring
-      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
-
-      // Add any custom variables to it
-      for (auto& env_var : _data->env)
-        wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
-
-      // Destroy the block once we are done with it
-      DestroyEnvironmentBlock (lpEnvBlock);
-      
-      PLOG_INFO                                          << "Creating process...";
-      PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
-      PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
-      PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
-      PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
-      PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
-
-      if (CreateProcessW (
-          (_data->path             .empty()) ? NULL : _data->path.c_str(),
-          (_data->parameters_actual.empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
-          NULL,
-          NULL,
-          FALSE,
-          NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
-          const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
-          (_data->directory.empty()) ? NULL : _data->directory.c_str(),
-          &supinfo,
-          &procinfo))
+      if (_data->proc != nullptr)
       {
-        if (_data->proc != nullptr)
-        {
-          _data->proc->iReturnCode.store (0);
-          _data->proc->hProcess.store    (procinfo.hProcess);
-          _data->proc->dwProcessId.store (procinfo.dwProcessId);
-        } else // We don't have a proc structure, so the handle is unneeded
-          CloseHandle (procinfo.hProcess);
+        _data->proc->iReturnCode.store (0);
+        _data->proc->hProcess.store    (procinfo.hProcess);
+        _data->proc->dwProcessId.store (procinfo.dwProcessId);
+      } else // We don't have a proc structure, so the handle is unneeded
+        CloseHandle (procinfo.hProcess);
 
-        // Close the external thread handle as we do not use it for anything
-        CloseHandle (procinfo.hThread);
-      }
+      // Close the external thread handle as we do not use it for anything
+      CloseHandle (procinfo.hThread);
+    }
 
-      // Use fallback if the primary failed
-      else
+    // Use fallback if the primary failed
+    else
+    {
+      DWORD error = GetLastError ( );
+      PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
+
+      // In case elevation is needed, try ShellExecute!
+      if (error == 740)
       {
-        DWORD error = GetLastError ( );
-        PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
+        PLOG_INFO << "Attempting elevation fallback...";
 
-        // In case elevation is needed, try ShellExecute!
-        if (error == 740)
-        {
-          PLOG_INFO << "Attempting elevation fallback...";
+        static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-          static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+        // Note that any new process will inherit SKIF's environment variables
+        if (_registry._LoadedSteamOverlay)
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
 
-          // Note that any new process will inherit SKIF's environment variables
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        // Set any custom environment variables
+        for (auto& env_var : _data->env)
+          SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
 
-          // Set any custom environment variables
-          for (auto& env_var : _data->env)
-            SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
-
-          PLOG_INFO << "Performing a ShellExecuteEx call...";
+        PLOG_INFO << "Performing a ShellExecuteEx call...";
   
-          SHELLEXECUTEINFOW
-            sexi              = { };
-            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-            sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
-            sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
-            sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
-            sexi.nShow        = SW_SHOWNORMAL;
-            sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
+        SHELLEXECUTEINFOW
+          sexi              = { };
+          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+          sexi.lpVerb       = L"OPEN";
+          sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
+          sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
+          sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
+          sexi.nShow        = SW_SHOWNORMAL;
+          sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
 
-          if (ShellExecuteExW (&sexi))
-          {
-            PLOG_INFO << "The operation was successful.";
-            _data->proc->iReturnCode.store (0);
-            _data->proc->hProcess.store    (sexi.hProcess);
-          }
-
-          else {
-            error = GetLastError ( );
-            PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
-            _data->proc->iReturnCode.store (error);
-          }
-
-          // Remove any custom environment variables
-          for (auto& env_var : _data->env)
-            SetEnvironmentVariable (env_var.first.c_str(), NULL);
-
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+        if (ShellExecuteExW (&sexi))
+        {
+          PLOG_INFO << "The operation was successful.";
+          _data->proc->iReturnCode.store (0);
+          _data->proc->hProcess.store    (sexi.hProcess);
         }
 
-        // No fallback available
         else {
-          PLOG_ERROR << "No fallback was available!";
+          error = GetLastError ( );
+          PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
           _data->proc->iReturnCode.store (error);
         }
+
+        // Remove any custom environment variables
+        for (auto& env_var : _data->env)
+          SetEnvironmentVariable (env_var.first.c_str(), NULL);
+
+        if (_registry._LoadedSteamOverlay)
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
       }
 
-      // Free up the memory we allocated
-      delete _data;
+      // No fallback available
+      else {
+        PLOG_ERROR << "No fallback was available!";
+        _data->proc->iReturnCode.store (error);
+      }
+    }
 
-      PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
+    // Free up the memory we allocated
+    delete _data;
 
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+    PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
 
-      return 0;
-    }, data, 0x0, nullptr);
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-  bool threadCreated = (hWorkerThread != 0);
+    return 0;
+  }, data, 0x0, nullptr);
+
+  bool threadCreated = (hWorkerThread != NULL);
 
   if (threadCreated && proc != nullptr)
-    proc->hWorkerThread.store (reinterpret_cast<HANDLE>(hWorkerThread));
+    proc->hWorkerThread.store (hWorkerThread);
   else if (threadCreated) // We don't have a proc structure, so the handle is unneeded
-    CloseHandle (reinterpret_cast<HANDLE>(hWorkerThread));
+    CloseHandle (hWorkerThread);
   else // Someting went wrong during thread creation, so free up the memory we allocated earlier
     delete data;
 

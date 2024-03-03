@@ -289,7 +289,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
   PLOG_VERBOSE << "Spawning SKIF_GamePadInputPump thread...";
   
   // Start the child thread that is responsible for checking for gamepad input
-  static HANDLE hThread = (HANDLE)
+  static HANDLE hWorkerThread = (HANDLE)
   _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
   {
     CRITICAL_SECTION            GamepadInputPump = { };
@@ -338,6 +338,9 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
 
     return 0;
   }, nullptr, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    CloseHandle (hWorkerThread);
 }
 
 bool

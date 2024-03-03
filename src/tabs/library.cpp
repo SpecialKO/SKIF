@@ -1147,146 +1147,146 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   data->appid         = pApp->id;
   data->store         = (int)pApp->store;
 
-  uintptr_t hWorkerThread =
-    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCoverWorker");
+
+    // Is this combo really appropriate for this thread?
+    SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+    PLOG_DEBUG << "SKIF_UpdateCoverWorker thread started!";
+
+    thread_s* _data = static_cast<thread_s*>(var);
+
+    CoInitializeEx (nullptr, 0x0);
+
+    PLOG_INFO  << "Updating game cover asynchronously...";
+
+    std::error_code ec;
+    // Create any missing directories
+    if (! std::filesystem::exists (            _data->destination, ec))
+          std::filesystem::create_directories (_data->destination, ec);
+
+    _data->destination += L"cover";
+
+    // We store the new file in .tmp first
+    std::wstring tmpPath = _data->destination + L".tmp";
+
+    bool success = false;
+    bool backup  = false;
+
+    if (_data->source == (_data->destination + _data->ext_original))
     {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCoverWorker");
+      PLOG_WARNING << "Source image and destination image is the same!";
+    }
 
-      // Is this combo really appropriate for this thread?
-      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+    else
+    {
+      // Backup any existing copies
+      backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
+              || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
 
-      PLOG_DEBUG << "SKIF_UpdateCoverWorker thread started!";
+      // This both downloads a new image from the internet as well as copies a local file to the destination
+      // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
+      success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         tmpPath)
+                                :                 CopyFile (_data->source.c_str(), tmpPath.c_str(), false);
 
-      thread_s* _data = static_cast<thread_s*>(var);
-
-      CoInitializeEx (nullptr, 0x0);
-
-      PLOG_INFO  << "Updating game cover asynchronously...";
-
-      std::error_code ec;
-      // Create any missing directories
-      if (! std::filesystem::exists (            _data->destination, ec))
-            std::filesystem::create_directories (_data->destination, ec);
-
-      _data->destination += L"cover";
-
-      // We store the new file in .tmp first
-      std::wstring tmpPath = _data->destination + L".tmp";
-
-      bool success = false;
-      bool backup  = false;
-
-      if (_data->source == (_data->destination + _data->ext_original))
+      if (! success)
       {
-        PLOG_WARNING << "Source image and destination image is the same!";
+        PLOG_ERROR << "Could not save the source image to the destination path!";
+        PLOG_ERROR << "Source:      " << _data->source;
+        PLOG_ERROR << "Destination: " << tmpPath;
       }
+    }
 
-      else
-      {
-        // Backup any existing copies
-        backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
-               || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
+    DirectX::TexMetadata  meta = { };
+    DirectX::ScratchImage  img = { };
 
-        // This both downloads a new image from the internet as well as copies a local file to the destination
-        // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
-        success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         tmpPath)
-                                  :                 CopyFile (_data->source.c_str(), tmpPath.c_str(), false);
-
-        if (! success)
-        {
-          PLOG_ERROR << "Could not save the source image to the destination path!";
-          PLOG_ERROR << "Source:      " << _data->source;
-          PLOG_ERROR << "Destination: " << tmpPath;
-        }
-      }
-
-      DirectX::TexMetadata  meta = { };
-      DirectX::ScratchImage  img = { };
-
-      // Try and load the image
-      if (success && FAILED (
-            DirectX::LoadFromWICFile (
-              tmpPath.c_str (),
-              DirectX::WIC_FLAGS_NONE,
-              &meta, img
-            )
+    // Try and load the image
+    if (success && FAILED (
+          DirectX::LoadFromWICFile (
+            tmpPath.c_str (),
+            DirectX::WIC_FLAGS_NONE,
+            &meta, img
           )
         )
-      {
-        success = false;
+      )
+    {
+      success = false;
 
-        PLOG_ERROR << "The saved image could not be loaded! It is either corrupt or in an unsupported format.";
-        PLOG_ERROR << "Source: " << _data->source;
+      PLOG_ERROR << "The saved image could not be loaded! It is either corrupt or in an unsupported format.";
+      PLOG_ERROR << "Source: " << _data->source;
+    }
+
+    // Swap it in
+    if (success)
+    {
+      // BMP images needs to be converted to PNG
+      // Extremely basic and rudimentary check -- should really preferably read the metadata instead
+      if (_data->ext_original == L".bmp")
+      {
+        PLOG_DEBUG << "Converting BMP image to PNG...";
+        success =
+          SUCCEEDED (
+              DirectX::SaveToWICFile (
+                img.GetImages(),
+                img.GetImageCount(),
+                DirectX::WIC_FLAGS_FORCE_SRGB,
+                GetWICCodec (DirectX::WIC_CODEC_PNG),
+                (_data->destination + _data->ext_target).c_str()
+              )
+          );
       }
 
-      // Swap it in
-      if (success)
+      // Rename remaining types
+      else
       {
-        // BMP images needs to be converted to PNG
-        // Extremely basic and rudimentary check -- should really preferably read the metadata instead
-        if (_data->ext_original == L".bmp")
-        {
-          PLOG_DEBUG << "Converting BMP image to PNG...";
-          success =
-            SUCCEEDED (
-                DirectX::SaveToWICFile (
-                  img.GetImages(),
-                  img.GetImageCount(),
-                  DirectX::WIC_FLAGS_FORCE_SRGB,
-                  GetWICCodec (DirectX::WIC_CODEC_PNG),
-                  (_data->destination + _data->ext_target).c_str()
-                )
-            );
-        }
-
-        // Rename remaining types
-        else
-        {
-          PLOG_DEBUG << "Swapping in the new file...";
-          success =
-            MoveFileEx((_data->destination + L".tmp").c_str(), (_data->destination + _data->ext_target).c_str(), MOVEFILE_REPLACE_EXISTING);
-        }
+        PLOG_DEBUG << "Swapping in the new file...";
+        success =
+          MoveFileEx((_data->destination + L".tmp").c_str(), (_data->destination + _data->ext_target).c_str(), MOVEFILE_REPLACE_EXISTING);
       }
+    }
 
-      // If everything checks out, remove any backups made
-      if (success)
-      {
-        DeleteFile((_data->destination + L".jpg.old").c_str());
-        DeleteFile((_data->destination + L".png.old").c_str());
-      }
+    // If everything checks out, remove any backups made
+    if (success)
+    {
+      DeleteFile((_data->destination + L".jpg.old").c_str());
+      DeleteFile((_data->destination + L".png.old").c_str());
+    }
 
-      // If something failed, restore the backups
-      else if (backup)
-      {
-        PLOG_INFO << "Restoring the original cover...";
-        MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
-        MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
-      }
+    // If something failed, restore the backups
+    else if (backup)
+    {
+      PLOG_INFO << "Restoring the original cover...";
+      MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
+      MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
+    }
 
-      // Delete the temporary file after we are done with it
-      DeleteFile(tmpPath.c_str());
+    // Delete the temporary file after we are done with it
+    DeleteFile(tmpPath.c_str());
 
-      PLOG_ERROR_IF(! success) << "Failed to process the new cover image!";
+    PLOG_ERROR_IF(! success) << "Failed to process the new cover image!";
       
-      PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
 
-      PLOG_INFO  << "Finished updating game cover asynchronously...";
+    PLOG_INFO  << "Finished updating game cover asynchronously...";
     
-      // Free up the memory we allocated
-      delete _data;
+    // Free up the memory we allocated
+    delete _data;
 
-      PLOG_DEBUG << "SKIF_UpdateCoverWorker thread stopped!";
+    PLOG_DEBUG << "SKIF_UpdateCoverWorker thread stopped!";
 
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-      return 0;
-    }, data, 0x0, nullptr);
+    return 0;
+  }, data, 0x0, nullptr);
 
-  bool threadCreated = (hWorkerThread != 0);
+  bool threadCreated = (hWorkerThread != NULL);
 
   if (threadCreated) // We don't care about how it goes so the handle is unneeded
-    CloseHandle (reinterpret_cast<HANDLE>(hWorkerThread));
+    CloseHandle (hWorkerThread);
   else // Someting went wrong during thread creation, so free up the memory we allocated earlier
     delete data;
 
@@ -3319,6 +3319,7 @@ Cache=false)";
       // We're going to asynchronously download the mod installer on this thread
       if (! modDownloading.load())
       {
+        HANDLE hWorkerThread = (HANDLE)
         _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
         {
           modDownloading.store (true);
@@ -3435,6 +3436,9 @@ Cache=false)";
 
           return 0;
         }, nullptr, 0x0, nullptr);
+
+        if (hWorkerThread != NULL)
+          CloseHandle (hWorkerThread);
       }
     }
   }
@@ -4479,7 +4483,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     library_worker = new lib_worker_thread_s;
     library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
 
-    uintptr_t hWorkerThread =
+    HANDLE hWorkerThread = (HANDLE)
     _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker");
@@ -5021,11 +5025,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       return 0;
     }, library_worker, 0x0, nullptr);
 
-    bool threadCreated = (hWorkerThread != 0);
+    bool threadCreated = (hWorkerThread != NULL);
 
     if (threadCreated)
     {
-      library_worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+      library_worker->hWorker = hWorkerThread;
       library_worker->iWorker = 1;
     }
     else // Someting went wrong during thread creation, so free up the memory we allocated earlier
@@ -5331,36 +5335,36 @@ SKIF_UI_Tab_DrawLibrary (void)
         worker->apptickets = g_apptickets;
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
 
-        uintptr_t hWorkerThread =
-          _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
-          {
-            SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
+        HANDLE hWorkerThread = (HANDLE)
+        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+        {
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
 
-            // Is this combo really appropriate for this thread?
-            //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-            //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+          // Is this combo really appropriate for this thread?
+          //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-            //PLOG_DEBUG << "SKIF_GameWorker thread started!";
+          //PLOG_DEBUG << "SKIF_GameWorker thread started!";
 
-            SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
+          SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
-            UpdateInjectionStrategy (&_data->app, _data->apptickets);
+          UpdateInjectionStrategy (&_data->app, _data->apptickets);
       
-            // Force a refresh when the game icons have finished being streamed
-            PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+          // Force a refresh when the game icons have finished being streamed
+          PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-            //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
+          //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
 
-            //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+          //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-            return 0;
-          }, worker, 0x0, nullptr);
+          return 0;
+        }, worker, 0x0, nullptr);
 
-        bool threadCreated = (hWorkerThread != 0);
+        bool threadCreated = (hWorkerThread != NULL);
 
         if (threadCreated)
         {
-          worker->hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+          worker->hWorker = hWorkerThread;
           worker->free = false;
         }
 
@@ -6259,39 +6263,39 @@ SKIF_UI_Tab_DrawLibrary (void)
       data->app     = &app.second;
 
       // We're going to stream game icons asynchronously on this thread
-      uintptr_t hWorkerThread =
-        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
-        {
-          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
+      HANDLE hWorkerThread = (HANDLE)
+      _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+      {
+        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
 
-          CoInitializeEx (nullptr, 0x0);
+        CoInitializeEx (nullptr, 0x0);
 
-          thread_s* _data = static_cast<thread_s*>(var);
+        thread_s* _data = static_cast<thread_s*>(var);
 
-          ImVec2 dontCare1, dontCare2;
+        ImVec2 dontCare1, dontCare2;
 
-          LoadLibraryTexture ( LibraryTexture::Icon,
-                                  _data->appid,
-                                    _data->texture->texture,
-                                      _data->path,
-                                        dontCare1,
-                                          dontCare2,
-                                            _data->app );
+        LoadLibraryTexture ( LibraryTexture::Icon,
+                                _data->appid,
+                                  _data->texture->texture,
+                                    _data->path,
+                                      dontCare1,
+                                        dontCare2,
+                                          _data->app );
           
-          delete _data;
+        delete _data;
 
-          // Force a refresh when the game icons have finished being streamed
-          PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+        // Force a refresh when the game icons have finished being streamed
+        PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-          return 0;
-        }, data, 0x0, nullptr);
+        return 0;
+      }, data, 0x0, nullptr);
         
-      bool threadCreated = (hWorkerThread != 0);
+      bool threadCreated = (hWorkerThread != NULL);
 
       if (threadCreated)
       {
         PLOG_VERBOSE << "An icon worker was spawned successfully!";
-        app.second.tex_icon.hWorker = reinterpret_cast<HANDLE>(hWorkerThread);
+        app.second.tex_icon.hWorker = hWorkerThread;
         app.second.tex_icon.iWorker = 1;
       }
 
@@ -7187,6 +7191,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     queuePosGameCover = textureLoadQueueLength.load() + 1;
 
     // We're going to stream the cover in asynchronously on this thread
+    HANDLE hWorkerThread = (HANDLE)
     _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
@@ -7429,6 +7434,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       return 0;
     }, nullptr, 0x0, nullptr);
+
+    if (hWorkerThread != NULL)
+      CloseHandle (hWorkerThread);
   }
 
 #pragma endregion

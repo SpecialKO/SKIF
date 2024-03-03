@@ -37,7 +37,7 @@ SKIF_Updater::SKIF_Updater (void)
   }
 
   // Start the child thread that is responsible for checking for updates
-  static HANDLE hThread = (HANDLE)
+  static HANDLE hWorkerThread = (HANDLE)
   _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
   {
     CRITICAL_SECTION            UpdaterJob = { };
@@ -256,6 +256,9 @@ SKIF_Updater::SKIF_Updater (void)
 
     return 0;
   }, nullptr, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    CloseHandle (hWorkerThread);
 }
 
 void

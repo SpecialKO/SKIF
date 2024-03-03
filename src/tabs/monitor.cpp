@@ -912,7 +912,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   if (EventIndex != USHRT_MAX)
   {
-    static HANDLE hThread = (HANDLE)
+    static HANDLE hWorkerThread = (HANDLE)
     _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
     {
       CRITICAL_SECTION            ProcessRefreshJob = { };
@@ -1401,6 +1401,9 @@ SKIF_UI_Tab_DrawMonitor (void)
 
       return 0;
     }, nullptr, 0x0, nullptr);
+
+    if (hWorkerThread != NULL)
+      CloseHandle (hWorkerThread);
   }
 
   ImGui::Spacing          ( );
