@@ -4946,8 +4946,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Prepare for the keyboard hint / search/filter functionality
           InsertTrieKey (&app, &_data->labels);
 
-          // Ensure the Profiles registry key is populated properly
-          if (ERROR_SUCCESS == lsKey)
+          // Ensure the Profiles registry key is populated properly, but only write it once to ensure
+          //   profile folders are not randomly renamed if a game gets renamed on the storefront
+          if (ERROR_SUCCESS        == lsKey &&
+              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.install_dir.c_str(), NULL, NULL, NULL, NULL))
           {
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
