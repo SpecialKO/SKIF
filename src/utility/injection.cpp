@@ -793,9 +793,9 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted ("Config folder:");
-  ImGui::TextUnformatted ("32-bit Service:");
+  ImGui::TextUnformatted ("32-bit service:");
 #ifdef _WIN64
-  ImGui::TextUnformatted ("64-bit Service:");
+  ImGui::TextUnformatted ("64-bit service:");
 #else
   ImGui::NewLine         ();
 #endif

@@ -1296,6 +1296,289 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 #pragma endregion
 
 
+#pragma region GameConfigMenu
+
+// This is an unusual popup that needs to be called from two different ImGui popup contexts...
+// ... usually this means any existing popup is closed, hence why we instead invoke this directly where relevant!
+static void
+DrawGameConfigMenu (app_record_s* pApp)
+{
+  if (pApp == nullptr)
+    return;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+//static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+//static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  static ImGuiID idGameConfigMenu = ImGui::GetID ("###GameConfigMenu");
+
+  if (! ImGui::IsPopupOpen   (idGameConfigMenu, ImGuiPopupFlags_AnyPopupLevel) &&
+        ImGui::IsItemClicked (ImGuiMouseButton_Right))
+  {
+    ImGui::OpenPopup    (idGameConfigMenu);
+  }
+
+  if (ImGui::BeginPopupEx (idGameConfigMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
+  {
+    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
+    ImGui::TextColored (
+      ImColor::HSV (0.11F, 1.F, 1.F),
+        "Troubleshooting:"
+    );
+
+    ImGui::Separator ( );
+
+    struct Preset
+    {
+      std::string  Name;
+      std::wstring Path;
+
+      Preset (std::wstring n, std::wstring p)
+      {
+        Name = SK_WideCharToUTF8 (n);
+        Path = p;
+      };
+    };
+
+    // Static stuff :D
+    static std::wstring DefaultPresetsFolder = SK_FormatStringW (LR"(%ws\Global\)",        _path_cache.specialk_userdata);
+    static std::wstring  CustomPresetsFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
+    static SKIF_DirectoryWatch SKIF_GlobalWatch;
+    static SKIF_DirectoryWatch SKIF_CustomWatch;
+    static std::vector<Preset> DefaultPresets;
+    static std::vector<Preset>  CustomPresets;
+    static bool runOnceDefaultPresets = true;
+    static bool runOnceCustomPresets  = true;
+      
+    // Shared function
+    auto _FindPresets = [](std::wstring folder, std::wstring find_pattern) -> std::vector<Preset>
+    {
+      HANDLE hFind        = INVALID_HANDLE_VALUE;
+      WIN32_FIND_DATA ffd = { };;
+      std::vector<Preset> tmpPresets;
+
+      hFind = 
+        FindFirstFileExW ((folder + find_pattern).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+
+      if (INVALID_HANDLE_VALUE != hFind)
+      {
+        do {
+          Preset newPreset = { PathFindFileName (ffd.cFileName), folder + ffd.cFileName };
+          bool         add = false;
+          LONG_PTR   size = 0;
+
+          if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+          {
+            struct _stat64 buffer;
+            if (0 == _wstat64 (newPreset.Path.c_str(), &buffer))
+              size = static_cast<LONG_PTR>(buffer.st_size);
+          }
+
+          else
+            size = static_cast<LONG_PTR>(((ffd.nFileSizeHigh) * (MAXDWORD + 1)) + ffd.nFileSizeLow);
+
+          // All files larger than 4 bytes should be added
+          if (4 < size)
+            add = true;
+
+          // All files between 1-4 bytes should be checked for byte order marks (0 byte files are skipped automatically)
+          else if (0 < size && size <= 4)
+          {
+            // When opening an existing file, the CreateFile function performs the following actions:
+            // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
+            CHandle hPreset (
+              CreateFileW (newPreset.Path.c_str(),
+                              GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                  nullptr,        OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (newPreset.Path.c_str())
+                                      nullptr ) );
+
+            if (hPreset != INVALID_HANDLE_VALUE)
+            {
+              DWORD dwRead     = 0;
+
+              auto szPresetData =
+                std::make_unique <char []> (
+                  std::size_t (size) + std::size_t (1)
+                );
+
+              auto preset_data =
+                szPresetData.get ();
+
+              if (preset_data)
+              {
+                const bool bRead =
+                  ReadFile (hPreset, preset_data, static_cast<DWORD>(size), &dwRead, nullptr);
+
+                if (bRead && dwRead)
+                {
+                  std::string string =
+                    std::move (preset_data);
+                    
+                  // Skip files only containing byte order marks
+                  if (string != "\xEF\xBB\xBF"     && // UTF-8,  with BOM
+                      string != "\xFF\xFE"         && // UTF-16, little endian
+                      string != "\xFE\xFF"         && // UTF-16, big endian
+                      string != "\xFF\xFE\x00\x00" && // UTF-32, little endian
+                      string != "\x00\x00\xFE\xFF"  ) // UTF-32, big endian
+                    add = true;
+                }
+              }
+            }
+          }
+
+          if (add)
+            tmpPresets.push_back (newPreset);
+
+        } while (FindNextFile (hFind, &ffd));
+
+        FindClose (hFind);
+      }
+
+      return tmpPresets;
+    };
+
+    // Directory watches -- updates the vectors automatically
+    if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
+    {
+      runOnceDefaultPresets = false;
+      DefaultPresets        = _FindPresets (DefaultPresetsFolder, L"default_*.ini");
+    }
+
+    if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
+    {
+      runOnceCustomPresets = false;
+      CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
+    }
+          
+    if (! DefaultPresets.empty() || ! CustomPresets.empty())
+    {
+      if (ImGui::BeginMenu("Apply Preset"))
+      {
+        // Default Presets
+        if (! DefaultPresets.empty())
+        {
+          for (auto& preset : DefaultPresets)
+          {
+            if (ImGui::Selectable (preset.Name.c_str()))
+            {
+              CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
+              PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
+            }
+
+            SKIF_ImGui_SetMouseCursorHand ();
+          }
+
+          if (! CustomPresets.empty())
+            ImGui::Separator ( );
+        }
+
+        // Custom Presets
+        if (! CustomPresets.empty())
+        {
+          for (auto& preset : CustomPresets)
+          {
+            if (ImGui::Selectable (preset.Name.c_str()))
+            {
+              CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
+              PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
+            }
+
+            SKIF_ImGui_SetMouseCursorHand ();
+          }
+        }
+
+        ImGui::EndMenu ( );
+      }
+
+      ImGui::Separator ( );
+    }
+
+    if (ImGui::Selectable ("Apply Compatibility Config"))
+    {
+      std::wofstream config_file(pApp->specialk.injection.config.full_path.c_str());
+
+      if (config_file.is_open())
+      {
+        // Static const as this profile never changes
+        static const std::wstring out_text =
+LR"([SpecialK.System]
+ShowEULA=false
+GlobalInjectDelay=0.0
+
+[API.Hook]
+d3d9=true
+d3d9ex=true
+d3d11=true
+OpenGL=true
+d3d12=true
+Vulkan=true
+
+[Steam.Log]
+Silent=true
+
+[Input.libScePad]
+Enable=false
+
+[Input.XInput]
+Enable=false
+
+[Input.Gamepad]
+EnableDirectInput7=false
+EnableDirectInput8=false
+EnableHID=false
+EnableNativePS4=false
+EnableRawInput=true
+AllowHapticUI=false
+
+[Input.Keyboard]
+CatchAltF4=false
+BypassAltF4Handler=false
+
+[Textures.D3D11]
+Cache=false)";
+
+        config_file.write(out_text.c_str(),
+          out_text.length());
+
+        config_file.close();
+      }
+    }
+
+    SKIF_ImGui_SetMouseCursorHand ();
+
+    SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
+                            "various features of Special K in an attempt to improve compatibility.");
+
+    if (ImGui::Selectable ("Reset"))
+    {
+      HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
+                  GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                      NULL,
+                        TRUNCATE_EXISTING,
+                          FILE_ATTRIBUTE_NORMAL,
+                            NULL );
+
+      // We need to close the handle as well, as otherwise apps will think the file
+      //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
+      if (h != INVALID_HANDLE_VALUE)
+        CloseHandle (h);
+    }
+
+    SKIF_ImGui_SetMouseCursorHand ();
+
+    ImGui::PopStyleColor ( );
+
+    ImGui::EndPopup ( );
+  }
+}
+
+#pragma endregion
+
+
 #pragma region DrawGameContextMenu
 
 static void
@@ -1683,26 +1966,64 @@ DrawGameContextMenu (app_record_s* pApp)
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
 
-    // If Profile Folder Exists
-    if (pApp->ui.profileFolderExists)
+    // Config Root
+    if (SKIF_ImGui_MenuItemEx2 ("Profile folder", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
     {
-      // Config Root
-      if (SKIF_ImGui_MenuItemEx2 ("Profile folder", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
-        SKIF_Util_ExplorePath       (pApp->specialk.injection.config.root_dir);
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+      SKIF_Util_ExplorePath       (pApp->specialk.injection.config.root_dir);
+    }
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir.c_str()).c_str());
+
+    if (pApp->ui.screenshotsFolderExists)
+    {
+      // Screenshot Folder
+      if (SKIF_ImGui_MenuItemEx2 ("Screenshots", ICON_FA_IMAGES, ImColor(200, 200, 200, 255)))
+        SKIF_Util_ExplorePath       (pApp->ui.wsScreenshotDir);
 
       SKIF_ImGui_SetMouseCursorHand ();
-      SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir.c_str()).c_str());
-
-      if (pApp->ui.screenshotsFolderExists)
-      {
-        // Screenshot Folder
-        if (SKIF_ImGui_MenuItemEx2 ("Screenshots", ICON_FA_IMAGES, ImColor(200, 200, 200, 255)))
-          SKIF_Util_ExplorePath       (pApp->ui.wsScreenshotDir);
-
-        SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
-      }
+      SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
     }
+
+    ImGui::Separator    ( );
+
+    // --------------------------------------------
+
+    // Config File
+    if (SKIF_ImGui_MenuItemEx2 (pApp->specialk.injection.config.shorthand_utf8.c_str (), ICON_FA_FILE_LINES))
+    {
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+      HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
+                      GENERIC_READ | GENERIC_WRITE,
+                        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                            CREATE_NEW,
+                              FILE_ATTRIBUTE_NORMAL,
+                                NULL );
+
+      // We need to close the handle as well, as otherwise apps will think the file
+      //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
+      if (h != INVALID_HANDLE_VALUE)
+        CloseHandle (h);
+
+      SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+    }
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
+
+    DrawGameConfigMenu (pApp);
+
+    // --------------------------------------------
 
     if (! pApp->ui.cloud_paths.empty())
     {
@@ -2051,7 +2372,7 @@ DrawGameContextMenu (app_record_s* pApp)
     SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", pApp->id));
     
-    if (SKIF_ImGui_MenuItemEx2 ("Game Properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
+    if (SKIF_ImGui_MenuItemEx2 ("Game properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
       SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
 
     SKIF_ImGui_SetMouseCursorHand ( );
@@ -2705,7 +3026,7 @@ GetInjectionSummary (app_record_s* pApp)
   //ImGui::TextUnformatted  ("Injection:");
   ImGui::TextUnformatted  ("Special K");
   ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted  ("Config folder:");
+  ImGui::TextUnformatted  ("Profile folder:");
   ImGui::TextUnformatted  ("Config file:");
   ImGui::TextUnformatted  ("Platform:");
   ImGui::PopStyleColor    ();
@@ -2827,266 +3148,11 @@ GetInjectionSummary (app_record_s* pApp)
 
       SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
+
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
 
-
-    if ( ! ImGui::IsPopupOpen ("ConfigFileMenu") &&
-           ImGui::IsItemClicked (ImGuiMouseButton_Right))
-      ImGui::OpenPopup      ("ConfigFileMenu");
-
-    if (ImGui::BeginPopup ("ConfigFileMenu", ImGuiWindowFlags_NoMove))
-    {
-      ImGui::TextColored (
-        ImColor::HSV (0.11F, 1.F, 1.F),
-          "Troubleshooting:"
-      );
-
-      ImGui::Separator ( );
-
-      struct Preset
-      {
-        std::string  Name;
-        std::wstring Path;
-
-        Preset (std::wstring n, std::wstring p)
-        {
-          Name = SK_WideCharToUTF8 (n);
-          Path = p;
-        };
-      };
-
-      // Static stuff :D
-      static std::wstring DefaultPresetsFolder = SK_FormatStringW (LR"(%ws\Global\)",        _path_cache.specialk_userdata);
-      static std::wstring  CustomPresetsFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
-      static SKIF_DirectoryWatch SKIF_GlobalWatch;
-      static SKIF_DirectoryWatch SKIF_CustomWatch;
-      static std::vector<Preset> DefaultPresets;
-      static std::vector<Preset>  CustomPresets;
-      static bool runOnceDefaultPresets = true;
-      static bool runOnceCustomPresets  = true;
-      
-      // Shared function
-      auto _FindPresets = [](std::wstring folder, std::wstring find_pattern) -> std::vector<Preset>
-      {
-        HANDLE hFind        = INVALID_HANDLE_VALUE;
-        WIN32_FIND_DATA ffd = { };;
-        std::vector<Preset> tmpPresets;
-
-        hFind = 
-          FindFirstFileExW ((folder + find_pattern).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-
-        if (INVALID_HANDLE_VALUE != hFind)
-        {
-          do {
-            Preset newPreset = { PathFindFileName (ffd.cFileName), folder + ffd.cFileName };
-            bool         add = false;
-            LONG_PTR   size = 0;
-
-            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-            {
-              struct _stat64 buffer;
-              if (0 == _wstat64 (newPreset.Path.c_str(), &buffer))
-                size = static_cast<LONG_PTR>(buffer.st_size);
-            }
-
-            else
-              size = static_cast<LONG_PTR>(((ffd.nFileSizeHigh) * (MAXDWORD + 1)) + ffd.nFileSizeLow);
-
-            // All files larger than 4 bytes should be added
-            if (4 < size)
-              add = true;
-
-            // All files between 1-4 bytes should be checked for byte order marks (0 byte files are skipped automatically)
-            else if (0 < size && size <= 4)
-            {
-              // When opening an existing file, the CreateFile function performs the following actions:
-              // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
-              CHandle hPreset (
-                CreateFileW (newPreset.Path.c_str(),
-                               GENERIC_READ,
-                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                   nullptr,        OPEN_EXISTING,
-                                     FILE_ATTRIBUTE_NORMAL, // GetFileAttributesW (newPreset.Path.c_str())
-                                       nullptr ) );
-
-              if (hPreset != INVALID_HANDLE_VALUE)
-              {
-                DWORD dwRead     = 0;
-
-                auto szPresetData =
-                  std::make_unique <char []> (
-                    std::size_t (size) + std::size_t (1)
-                  );
-
-                auto preset_data =
-                  szPresetData.get ();
-
-                if (preset_data)
-                {
-                  const bool bRead =
-                    ReadFile (hPreset, preset_data, static_cast<DWORD>(size), &dwRead, nullptr);
-
-                  if (bRead && dwRead)
-                  {
-                    std::string string =
-                      std::move (preset_data);
-                    
-                    // Skip files only containing byte order marks
-                    if (string != "\xEF\xBB\xBF"     && // UTF-8,  with BOM
-                        string != "\xFF\xFE"         && // UTF-16, little endian
-                        string != "\xFE\xFF"         && // UTF-16, big endian
-                        string != "\xFF\xFE\x00\x00" && // UTF-32, little endian
-                        string != "\x00\x00\xFE\xFF"  ) // UTF-32, big endian
-                      add = true;
-                  }
-                }
-              }
-            }
-
-            if (add)
-              tmpPresets.push_back (newPreset);
-
-          } while (FindNextFile (hFind, &ffd));
-
-          FindClose (hFind);
-        }
-
-        return tmpPresets;
-      };
-
-      // Directory watches -- updates the vectors automatically
-      if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
-      {
-        runOnceDefaultPresets = false;
-        DefaultPresets        = _FindPresets (DefaultPresetsFolder, L"default_*.ini");
-      }
-
-      if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
-      {
-        runOnceCustomPresets = false;
-        CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
-      }
-          
-      if (! DefaultPresets.empty() || ! CustomPresets.empty())
-      {
-        if (ImGui::BeginMenu("Apply Preset"))
-        {
-          // Default Presets
-          if (! DefaultPresets.empty())
-          {
-            for (auto& preset : DefaultPresets)
-            {
-              if (ImGui::Selectable (preset.Name.c_str()))
-              {
-                CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
-                PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
-              }
-
-              SKIF_ImGui_SetMouseCursorHand ();
-            }
-
-            if (! CustomPresets.empty())
-              ImGui::Separator ( );
-          }
-
-          // Custom Presets
-          if (! CustomPresets.empty())
-          {
-            for (auto& preset : CustomPresets)
-            {
-              if (ImGui::Selectable (preset.Name.c_str()))
-              {
-                CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
-                PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
-              }
-
-              SKIF_ImGui_SetMouseCursorHand ();
-            }
-          }
-
-          ImGui::EndMenu ( );
-        }
-
-        ImGui::Separator ( );
-      }
-
-      if (ImGui::Selectable ("Apply Compatibility Config"))
-      {
-        std::wofstream config_file(pApp->specialk.injection.config.full_path.c_str());
-
-        if (config_file.is_open())
-        {
-          // Static const as this profile never changes
-          static const std::wstring out_text =
-LR"([SpecialK.System]
-ShowEULA=false
-GlobalInjectDelay=0.0
-
-[API.Hook]
-d3d9=true
-d3d9ex=true
-d3d11=true
-OpenGL=true
-d3d12=true
-Vulkan=true
-
-[Steam.Log]
-Silent=true
-
-[Input.libScePad]
-Enable=false
-
-[Input.XInput]
-Enable=false
-
-[Input.Gamepad]
-EnableDirectInput7=false
-EnableDirectInput8=false
-EnableHID=false
-EnableNativePS4=false
-EnableRawInput=true
-AllowHapticUI=false
-
-[Input.Keyboard]
-CatchAltF4=false
-BypassAltF4Handler=false
-
-[Textures.D3D11]
-Cache=false)";
-
-          config_file.write(out_text.c_str(),
-            out_text.length());
-
-          config_file.close();
-        }
-      }
-
-      SKIF_ImGui_SetMouseCursorHand ();
-
-      SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
-                              "various features of Special K in an attempt to improve compatibility.");
-
-      if (ImGui::Selectable ("Reset"))
-      {
-        HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
-                    GENERIC_READ | GENERIC_WRITE,
-                      FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                        NULL,
-                          TRUNCATE_EXISTING,
-                            FILE_ATTRIBUTE_NORMAL,
-                              NULL );
-
-        // We need to close the handle as well, as otherwise apps will think the file
-        //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
-        if (h != INVALID_HANDLE_VALUE)
-          CloseHandle (h);
-      }
-
-      SKIF_ImGui_SetMouseCursorHand ();
-
-      ImGui::EndPopup ( );
-    }
+    DrawGameConfigMenu (pApp);
   }
 
   else if (! pApp->loading)
@@ -4181,9 +4247,9 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   // Refresh the context menu cached data
   
   // Profile + Screenshots
-  pApp->ui.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.root_dir.c_str());
+  //pApp->ui.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.root_dir.c_str());
   pApp->ui.wsScreenshotDir         = pApp->specialk.injection.config.root_dir + LR"(\Screenshots)";
-  pApp->ui.screenshotsFolderExists = (pApp->ui.profileFolderExists) ? PathFileExists (pApp->ui.wsScreenshotDir.c_str()) : false;
+  pApp->ui.screenshotsFolderExists = PathFileExists (pApp->ui.wsScreenshotDir.c_str()); // (pApp->ui.profileFolderExists) ? 
 
   // Check how many secondary launch configs are valid
   pApp->ui.numSecondaryLaunchConfigs = 0;

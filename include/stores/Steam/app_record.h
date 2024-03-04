@@ -370,7 +370,7 @@ struct app_record_s {
   // This struct holds the cache for the right click context menu
   struct {
     int                                   numSecondaryLaunchConfigs = 0; // Secondary launch options
-    bool                                  profileFolderExists       = false;
+  //bool                                  profileFolderExists       = false; // 2024-03-04: Not actually used any longer
     bool                                  screenshotsFolderExists   = false;
     std::wstring                          wsScreenshotDir           = L"";
     std::vector   <CloudPath>             cloud_paths;   // Steam Auto-Cloud
