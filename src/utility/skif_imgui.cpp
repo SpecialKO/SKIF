@@ -953,6 +953,9 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
+  // Font size should always be rounded down to the nearest integer
+  fontSize = floor(fontSize);
+
   static UINT acp = GetACP();
 
   auto& io =
