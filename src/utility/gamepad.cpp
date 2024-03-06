@@ -71,25 +71,34 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
     if (hModXInput == nullptr)
     {
-      hModXInput = LoadLibraryW (L"XInput1_4.dll");
-
-      if (hModXInput == nullptr)
-        hModXInput = LoadLibraryW (L"XInput1_3.dll");
-
-      if (hModXInput == nullptr)
-        hModXInput = LoadLibraryW (L"XInput9_1_0.dll");
-
-      if (hModXInput != nullptr)
+      static constexpr wchar_t* xinput_dlls[] =
       {
-        PLOG_VERBOSE << "Loaded the XInput library!";
+        LR"(XInput1_4.dll)",
+        LR"(XInput1_3.dll)",
+        LR"(XInput9_1_0.dll)"
+      };
 
-        SKIF_XInputGetState = (XInputGetState_pfn)
-          GetProcAddress (hModXInput, "XInputGetState");
+      for (wchar_t* dll : xinput_dlls)
+      {
+        hModXInput = LoadLibraryW (dll);
+
+        if (hModXInput == nullptr)
+          continue;
+
+        PLOG_VERBOSE << "Loaded the XInput library: " << dll;
 
         SKIF_XInputGetCapabilities = (XInputGetCapabilities_pfn)
           GetProcAddress (hModXInput, "XInputGetCapabilities");
+
+        SKIF_XInputGetState = (XInputGetState_pfn)
+          GetProcAddress (hModXInput, "XInputGetState");
+        break;
       }
     }
+
+    PLOG_ERROR_IF(hModXInput == nullptr)                 << "Failed to load XInput library?!";
+    PLOG_ERROR_IF(SKIF_XInputGetCapabilities == nullptr) << "Failed to get SKIF_XInputGetCapabilities address?!";
+    PLOG_ERROR_IF(SKIF_XInputGetState == nullptr)        << "Failed to get SKIF_XInputGetState address?!";
 
     if (SKIF_XInputGetCapabilities != nullptr)
     {
