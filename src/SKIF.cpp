@@ -1263,7 +1263,6 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   MoveFile   (logPath.c_str(), logPath_old.c_str());
 
   // Engage logging!
-  // Contemplate moving over to plog::TxtFormatterUtcTime ?
   static plog::RollingFileAppender<plog::LogFormatterUtcTime> fileAppender(logPath.c_str(), 10000000, 1);
   plog::init (plog::debug, &fileAppender);
 
@@ -1628,6 +1627,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
 
+  // Main window override flags
+  ImGuiWindowClass SKIF_AppWindow;
+  // This prevents the main window from ever being merged into the implicit Debug##Default fallback window...
+  // ... which works around a pesky bug that occurs on OS snapping/resizing...
+  SKIF_AppWindow.ViewportFlagsOverrideSet |= ImGuiViewportFlags_NoAutoMerge;
+
+  // Enable ImGui's debug logging output
   ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
                                             ? ImGuiDebugLogFlags_EventMask_
                                             : ImGuiDebugLogFlags_EventViewport);
@@ -2134,6 +2140,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Set app size to " << SKIF_vecCurrentMode.x << "x" << SKIF_vecCurrentMode.y;
         }
       }
+
+      ImGui::SetNextWindowClass (&SKIF_AppWindow);
 
       // RepositionSKIF -- Step 2: Repositon the window
       // Repositions the window in the center of the monitor the cursor is currently on
@@ -3403,7 +3411,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // This recreates any additional viewports (index 1+)
         if (RecreateWin32Windows)
         {   RecreateWin32Windows = false;
-          
+
           // If the Win32 windows should be recreated, we set the LastFrameActive to 0 here to
           //   force ImGui::UpdatePlatformWindows() below to recreate them.
           for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)

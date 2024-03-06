@@ -1103,7 +1103,7 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   if (flags & ImGuiViewportFlags_NoDecoration)
     *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
   else {
-    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW) // WS_THICKFRAME (disabled snapping)
+    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME; // Main Window (WS_OVERLAPPEDWINDOW)
     
     // Only enable the maximized box if DragFromMaximize is available in Windows
     if (_registry.bMaximizeOnDoubleClick && SKIF_Util_GetDragFromMaximized ( ))
@@ -1181,7 +1181,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   extern HWND  SKIF_ImGui_hWnd;
   extern float SKIF_ImGui_GlobalDPIScale;
-  
+
   ImGui_ImplWin32_ViewportData* vd = IM_NEW(ImGui_ImplWin32_ViewportData)();
   viewport->PlatformUserData = vd;
 
@@ -1244,15 +1244,19 @@ static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
             ::ReleaseCapture();
             ::SetCapture(bd->hWnd);
         }
-        if (vd->Hwnd && vd->HwndOwned)
-            ::DestroyWindow(vd->Hwnd);
 
 #ifdef SKIF_Win32
         // If this is the main platform window, reset the global handle for it
         extern HWND SKIF_ImGui_hWnd;
         if (vd->Hwnd == SKIF_ImGui_hWnd)
+        {
           SKIF_ImGui_hWnd = NULL;
+          bd->hWnd = NULL;
+        }
 #endif
+
+        if (vd->Hwnd && vd->HwndOwned)
+            ::DestroyWindow(vd->Hwnd);
 
         vd->Hwnd = nullptr;
         IM_DELETE(vd);
@@ -1469,25 +1473,22 @@ static ImVec2 ImGui_ImplWin32_GetWindowSize(ImGuiViewport* viewport)
     if (vd->Hwnd == 0) return ImVec2{ };
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect;
-  //::GetClientRect(vd->Hwnd, &rect);
+    ::GetClientRect(vd->Hwnd, &rect);
     return ImVec2(float(rect.right - rect.left), float(rect.bottom - rect.top));
 }
 
 static void ImGui_ImplWin32_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 {
-  ImGuiViewportP* viewportP = (ImGuiViewportP*)viewport;
-
-  //if (viewportP->LastPlatformSize == ImVec2(FLT_MAX, FLT_MAX))
-  //  return;
-
-  PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Resized window to " << size.x << "x" << size.y;
-  PLOG_VERBOSE << "Last platform window size: " << std::to_string(viewportP->LastPlatformSize.x) << "x" << std::to_string(viewportP->LastPlatformSize.y);
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
     if (vd->Hwnd == 0) return;
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect = { 0, 0, (LONG)size.x, (LONG)size.y };
   //::AdjustWindowRectEx(&rect, vd->DwStyle, FALSE, vd->DwExStyle); // Client to Screen
     ::SetWindowPos(vd->Hwnd, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
+    ImGuiViewportP* viewportP = (ImGuiViewportP*)viewport;
+    PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Resized window to " << size.x << "x" << size.y;
+    if (viewportP->LastPlatformSize != ImVec2(FLT_MAX, FLT_MAX))
+      PLOG_VERBOSE << "Last platform window size: " << std::to_string(viewportP->LastPlatformSize.x) << "x" << std::to_string(viewportP->LastPlatformSize.y);
 }
 
 static void ImGui_ImplWin32_SetWindowFocus(ImGuiViewport* viewport)
@@ -1598,7 +1599,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern int  SnapKeys;
     extern bool SKIF_isTrayed;
 
-    PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+    PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[{:0>5d}] [0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
+                      ImGui::GetFrameCount(),
                       msg, // Hexadecimal
                       msg, // Decimal
                       SKIF_Util_GetWindowMessageAsStr (msg), // String
@@ -1684,6 +1686,25 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
       }
 
   #pragma region WM_WINDOWPOSCHANGING
+
+      /*
+      case WM_WINDOWPOSCHANGED:
+      {
+        ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
+        POINT pos = { 0, 0 };
+        ::ClientToScreen(vd->Hwnd, &pos);
+        RECT rect;
+        ::GetClientRect(vd->Hwnd, &rect);
+
+        viewport->Pos  = ImVec2 (pos.x, pos.y);
+        viewport->Size = ImVec2 (rect.right, rect.bottom);
+        viewport->PlatformRequestMove = true;
+        viewport->PlatformRequestResize = true;
+
+        return 0;
+      }
+        break;
+        */
 
         // Gets fired on window creation, and screws up the positioning
         case WM_WINDOWPOSCHANGING:
@@ -1917,6 +1938,9 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         case WM_MOVE:
           viewport->PlatformRequestMove = true;
           break;
+
+        case WM_SIZE:
+          viewport->PlatformRequestResize = true;
 
         case WM_MOUSEACTIVATE:
           if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
