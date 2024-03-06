@@ -758,6 +758,12 @@ SKIF_UI_Tab_DrawSettings (void)
     if (valvePlug)
     {
       static bool valvePlugState = (bool)_registry.iValvePlug;
+      extern HANDLE SteamProcessHandle;
+
+      bool disable = (SteamProcessHandle != NULL);
+
+      if (disable)
+        SKIF_ImGui_PushDisableState ( );
 
       if ( ImGui::Checkbox ( "Disable Steam Input (will restart Steam)", &valvePlugState) )
       {
@@ -767,7 +773,6 @@ SKIF_UI_Tab_DrawSettings (void)
         // Exits the Steam client if it is running
         if (pe32.th32ProcessID != 0)
         {
-          extern HANDLE SteamProcessHandle;
           SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
 
           // Wait on all tabs as well...
@@ -778,6 +783,15 @@ SKIF_UI_Tab_DrawSettings (void)
           PLOG_INFO << "Shutting down the Steam client...";
           SKIF_Util_OpenURI (L"steam://exit");
         }
+      }
+
+      if (disable)
+        SKIF_ImGui_PopDisableState ( );
+
+      if (SteamProcessHandle != NULL && WaitForSingleObject (SteamProcessHandle, 0) == WAIT_TIMEOUT)
+      {
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_TRIANGLE_EXCLAMATION);
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Restarting Steam...");
       }
     }
 
