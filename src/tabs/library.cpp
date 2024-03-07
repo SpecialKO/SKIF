@@ -5951,6 +5951,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int  apply_header_state = 0;
   bool        new_header_state   = false;
 
+  float maxWidth = (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x - _ICON_HEIGHT);
+
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
   {
@@ -6145,8 +6147,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
     ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None); // ImGuiSelectableFlags_SpanAvailWidth);
-    //ImGui::Text (app.second.ImGuiLabelAndID.c_str());
+    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, 0.0f)); // ImGuiSelectableFlags_SpanAvailWidth);
     ImGui::PopStyleColor   (2                    );
 
     if (_registry.bFadeCovers)
