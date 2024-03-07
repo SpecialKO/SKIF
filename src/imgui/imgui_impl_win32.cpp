@@ -1685,33 +1685,12 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         return 0;
       }
 
-  #pragma region WM_WINDOWPOSCHANGING
-
-      /*
-      case WM_WINDOWPOSCHANGED:
-      {
-        ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-        POINT pos = { 0, 0 };
-        ::ClientToScreen(vd->Hwnd, &pos);
-        RECT rect;
-        ::GetClientRect(vd->Hwnd, &rect);
-
-        viewport->Pos  = ImVec2 (pos.x, pos.y);
-        viewport->Size = ImVec2 (rect.right, rect.bottom);
-        viewport->PlatformRequestMove = true;
-        viewport->PlatformRequestResize = true;
-
-        return 0;
-      }
-        break;
-        */
+#define SKIF_Win32_Snapping
+#ifdef SKIF_Win32_Snapping
 
         // Gets fired on window creation, and screws up the positioning
         case WM_WINDOWPOSCHANGING:
         {
-#if 0
-          //OutputDebugString(L"WM_WINDOWPOSCHANGING\n");
-
           // Do not run this if any mouse button is being held down
           if (ImGui::IsAnyMouseDown ( ))
             break;
@@ -1762,10 +1741,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
                 {
                   // Needed to account for an altered size on the target display
                   if (tmpCurrentSize.y * targetDPI > targetWorkArea.Max.y)
-                  {
-                    // Crop the regular mode(s)
-                    tmpAlteredSize.y = (tmpCurrentSize.y * targetDPI - targetWorkArea.Max.y);
-                  }
+                    tmpAlteredSize.y = (tmpCurrentSize.y * targetDPI - targetWorkArea.Max.y); // Crop the regular mode(s)
 
                   tmpExpectedSize.y -= tmpAlteredSize.y;
                 }
@@ -1783,18 +1759,52 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           wp->cy = static_cast<int> (viewport->Size.y); // / viewport->DpiScale * targetMonitor.DpiScale;
 
           return 0;
-#endif
           break;
         }
 
-  #pragma endregion
+#endif
 
-        case WM_ENTERSIZEMOVE:
-        case WM_EXITSIZEMOVE:
-          moveModal = ! moveModal;
+#define SKIF_Win32_CenterMaximize
+#ifdef SKIF_Win32_CenterMaximize
+
+        // This is used to inform Windows of the min/max size of the viewport, so
+        //   that features such as Aero Snap takes the enforced size into account
+        case WM_GETMINMAXINFO:
+        {
+          MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+          static POINT sizeMin, sizeMax, pos;
+
+          // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
+          // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
+          // the primary monitor and the monitor that displays the window.
+          // 
+          // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
+
+          sizeMax.x = static_cast<long> (viewport->Size.x);
+          sizeMax.y = static_cast<long> (viewport->Size.y);
+
+          // To ensure that a "maximized" window is centered on the display, we are
+          // using a custom position to detect maximized state later down the line
+          pos.x = SKIF_MAXIMIZE_POS;
+          pos.y = SKIF_MAXIMIZE_POS;
+
+          // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
+          // For top-level windows, this value is based on the position of the primary monitor.
+          mmi->ptMaxPosition  = pos;
+           
+          // The maximized width (x member) and the maximized height (y member) of the window.
+          // For top-level windows, this value is based on the width of the primary monitor.
+          mmi->ptMaxSize      = sizeMax; // Maximized size
+       
+          // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
+          mmi->ptMinTrackSize = sizeMax; // Minimum tracking size
+          mmi->ptMaxTrackSize = sizeMax; // Maximum tracking size
+
+          return 0;
           break;
-      
-  #pragma region WM_DPICHANGED
+        }
+
+#endif
 
         case WM_DPICHANGED:
         {
@@ -1881,52 +1891,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           break;
         }
 
-  #pragma endregion
-
-  #pragma region WM_GETMINMAXINFO
-
-        // This is used to inform Windows of the min/max size of the viewport, so
-        //   that features such as Aero Snap takes the enforced size into account
-        case WM_GETMINMAXINFO:
-        {
-#if 0
-          //OutputDebugString(L"WM_GETMINMAXINFO\n");
-
-          MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
-          static POINT sizeMin, sizeMax, pos;
-
-          // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
-          // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
-          // the primary monitor and the monitor that displays the window.
-          // 
-          // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
-
-          sizeMax.x = static_cast<long> (viewport->Size.x);
-          sizeMax.y = static_cast<long> (viewport->Size.y);
-
-          // To ensure that a "maximized" window is centered on the display, we are
-          // using a custom position to detect maximized state later down the line
-          pos.x = SKIF_MAXIMIZE_POS;
-          pos.y = SKIF_MAXIMIZE_POS;
-
-          // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
-          // For top-level windows, this value is based on the position of the primary monitor.
-          mmi->ptMaxPosition  = pos;
-           
-          // The maximized width (x member) and the maximized height (y member) of the window.
-          // For top-level windows, this value is based on the width of the primary monitor.
-          mmi->ptMaxSize      = sizeMax; // Maximized size
-       
-          // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
-          mmi->ptMinTrackSize = sizeMax; // Minimum tracking size
-          mmi->ptMaxTrackSize = sizeMax; // Maximum tracking size
-
-          return 0;
-#endif
-          break;
-        }
-
-  #pragma endregion
 
         case WM_CLOSE:
           if (viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
@@ -1945,6 +1909,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         case WM_MOUSEACTIVATE:
           if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
             return MA_NOACTIVATE;
+          break;
+
+        case WM_ENTERSIZEMOVE:
+        case WM_EXITSIZEMOVE:
+          moveModal = ! moveModal;
           break;
 
         case WM_NCHITTEST:
