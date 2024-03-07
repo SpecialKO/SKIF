@@ -1995,7 +1995,7 @@ DrawGameContextMenu (app_record_s* pApp)
     // --------------------------------------------
 
     // Config File
-    if (SKIF_ImGui_MenuItemEx2 (pApp->specialk.injection.config.shorthand_utf8.c_str (), ICON_FA_FILE_LINES))
+    if (SKIF_ImGui_MenuItemEx2 ("Configuration", ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
     {
       std::error_code ec;
       // Create any missing directories
@@ -3113,7 +3113,7 @@ GetInjectionSummary (app_record_s* pApp)
   if (! pApp->loading && ! pApp->specialk.injection.config.shorthand.empty ())
   {
     // Config Root
-    if (ImGui::Selectable         (pApp->specialk.injection.config.type_utf8.c_str ()))
+    if (ImGui::Selectable         (pApp->specialk.injection.config.type_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (240.f * SKIF_ImGui_GlobalDPIScale, 0.f)))
     {
       std::error_code ec;
       // Create any missing directories
@@ -3126,7 +3126,7 @@ GetInjectionSummary (app_record_s* pApp)
     SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.root_dir_utf8.c_str ());
 
     // Config File
-    if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str ()))
+    if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (240.f * SKIF_ImGui_GlobalDPIScale, 0.f)))
     {
       std::error_code ec;
       // Create any missing directories
@@ -3190,7 +3190,7 @@ GetInjectionSummary (app_record_s* pApp)
     ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? _inject.ui_game_summary.color_hover.Value
                                                              : _inject.ui_game_summary.color.Value);
 
-    if (ImGui::Selectable (_inject.ui_game_summary.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns))
+    if (ImGui::Selectable (_inject.ui_game_summary.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns, ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
     {
       // Only allow the toggle to work to disable the service while a game is loading
       if (pApp->loading)
