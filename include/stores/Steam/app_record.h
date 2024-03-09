@@ -178,10 +178,10 @@ struct app_record_s {
         Localized   = 0x2,
         Unknown     = 0x0
       }            type = Type::Unknown;
-      std:: string type_utf8 = "Unknown";
+      std:: string type_utf8 = "Centralized"; // Assume global by default
 
-      std::wstring shorthand;
-      std:: string shorthand_utf8; // Converted to utf-8 from utf-16
+      std::wstring shorthand      = L"SpecialK.ini"; // Assume global by default
+      std:: string shorthand_utf8 =  "SpecialK.ini"; // Converted to utf-8 from utf-16
       std::wstring root_dir;
       std:: string root_dir_utf8;  // Converted to utf-8 from utf-16
       std::wstring full_path;

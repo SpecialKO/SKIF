@@ -105,6 +105,7 @@ DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
 bool  SteamOverlayDisabled      = false;
 bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when interacting with text input
 bool  SKIF_MouseDragMoveAllowed = true;
+bool  SKIF_TouchDevice          = false;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
@@ -2355,7 +2356,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) && ! _registry.bServiceMode)
+      if (! SKIF_ImGui_IsAnyPopupOpen ( ) && ! _registry.bServiceMode)
       {
         if (hotkeyCtrl1)
         {
@@ -2852,7 +2853,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  UpdateAvailableWidth = 0.0f;
 
       // Only open the update prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueRendering && ! SKIF_ImGui_IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -3067,7 +3068,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  HistoryPopupWidth          = 0.0f;
       static std::string HistoryPopupTitle;
 
-      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueRendering && ! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
         HistoryPopupWidth = 360.0f;
 
@@ -3175,7 +3176,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
       
       // Only open the popup prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueRendering && ! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
         AutoUpdatePopupWidth = 360.0f;
 
@@ -3360,7 +3361,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     // This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
-    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && SKIF_ImGui_IsAnyPopupOpen ( ))
     {
       // But don't close those of interest
       if (     AddGamePopup != PopupState_Open   &&

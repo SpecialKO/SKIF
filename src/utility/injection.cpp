@@ -1349,8 +1349,10 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
   if (bHasServlet && SKIF_ImGui_hWnd != NULL && ImGui::GetCurrentContext() != NULL)
   {
     ui_game_summary.text        =
-                      (active)  ? (bAckInj) ? "Waiting for game..." : "Running"
-                                : "                                ##ui_game_summary";
+                      (active)  ?
+                      (bAckInj) ?             "Waiting for game...##ui_game_summary"
+                                :                         "Running##ui_game_summary"
+                                : "                               ##ui_game_summary";
 
     ui_game_summary.color       =
                       (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)

@@ -476,6 +476,12 @@ SKIF_ImGui_IsAnyInputDown (void)
   return false;
 }
 
+bool
+SKIF_ImGui_IsAnyPopupOpen (void)
+{
+  return ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+}
+
 void
 SKIF_ImGui_SetMouseCursorHand (void)
 {
@@ -1168,6 +1174,16 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   dst->ChildRounding   = dst->WindowRounding;
   dst->TabRounding     = dst->WindowRounding;
   dst->FrameRounding   = dst->WindowRounding;
+
+  // Touch input adjustment
+  if (::GetSystemMetrics (SM_MAXIMUMTOUCHES) > 0)
+  {
+    SKIF_TouchDevice = true;
+    dst->ScrollbarSize = 50.0f;
+  }
+
+  else
+    SKIF_TouchDevice = false;
   
   if (! _registry.bUIBorders)
   {
@@ -1190,6 +1206,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   if (_registry._sRGBColors)
     for (int i=0; i < ImGuiCol_COUNT; i++)
         dst->Colors[i] = SKIF_ImGui_sRGBtoLinear (dst->Colors[i]);
+
 
   ImGui::GetStyle ( ) = *dst;
 }
@@ -1253,7 +1270,7 @@ SKIF_ImGui_CanMouseDragMove (void)
   extern bool SKIF_MouseDragMoveAllowed;
   return      SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
             ! ImGui::IsAnyItemHovered ( ) &&          // Disabled if any item is hovered
-          ( ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)            || // Disabled if any popup is opened..
+          ( ! SKIF_ImGui_IsAnyPopupOpen ( )        || // Disabled if any popup is opened..
           (   AddGamePopup    == PopupState_Opened || // ..except for a few standard ones
           PopupMessageInfo    == PopupState_Opened || //   which are actually aligned to
            ModifyGamePopup    == PopupState_Opened || //   the center of the app window
@@ -1281,6 +1298,29 @@ SKIF_ImGui_InvalidateFonts (void)
   }
 
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
+}
+
+// https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
+// Usage:
+//   ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
+//   ScrollWhenDraggingOnVoid(ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Middle);
+//   ImGui::End(); (or EndChild())
+void
+SKIF_ImGui_ScrollWhenDraggingOnVoid (const ImVec2 & delta, ImGuiMouseButton mouse_button)
+{
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiWindow* window = g.CurrentWindow;
+  bool hovered = false;
+  bool held = false;
+  ImGuiID id = window->GetID("##scrolldraggingoverlay");
+  ImGui::KeepAliveID(id);
+  ImGuiButtonFlags button_flags = (mouse_button == 0) ? ImGuiButtonFlags_MouseButtonLeft : (mouse_button == 1) ? ImGuiButtonFlags_MouseButtonRight : ImGuiButtonFlags_MouseButtonMiddle;
+  if (g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+      ImGui::ButtonBehavior(window->Rect(), id, &hovered, &held, button_flags);
+  if (held && delta.x != 0.0f)
+      ImGui::SetScrollX(window, window->Scroll.x + delta.x);
+  if (held && delta.y != 0.0f)
+      ImGui::SetScrollY(window, window->Scroll.y + delta.y);
 }
 
 // This helper function maps char to ImGuiKey_xxx

@@ -448,8 +448,8 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
             }
           }
 
-          if (! _registry.bWarningRTSS    &&
-              ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) &&
+          if (! _registry.bWarningRTSS        &&
+              ! SKIF_ImGui_IsAnyPopupOpen ( ) &&
               ! wcscmp (pe32.szExeFile, L"RTSS.exe"))
           {
             _registry.bWarningRTSS = true;

@@ -129,6 +129,7 @@ PopupState EmptySpaceMenu      = PopupState_Closed;
 PopupState CoverMenu           = PopupState_Closed;
 PopupState IconMenu            = PopupState_Closed;
 PopupState ServiceMenu         = PopupState_Closed;
+PopupState CategoryMenu        = PopupState_Closed;
 
 PopupState AddGamePopup        = PopupState_Closed;
 PopupState RemoveGamePopup     = PopupState_Closed;
@@ -3113,7 +3114,7 @@ GetInjectionSummary (app_record_s* pApp)
   if (! pApp->loading && ! pApp->specialk.injection.config.shorthand.empty ())
   {
     // Config Root
-    if (ImGui::Selectable         (pApp->specialk.injection.config.type_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (240.f * SKIF_ImGui_GlobalDPIScale, 0.f)))
+    if (ImGui::Selectable         (pApp->specialk.injection.config.type_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f)))
     {
       std::error_code ec;
       // Create any missing directories
@@ -3126,7 +3127,7 @@ GetInjectionSummary (app_record_s* pApp)
     SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.root_dir_utf8.c_str ());
 
     // Config File
-    if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (240.f * SKIF_ImGui_GlobalDPIScale, 0.f)))
+    if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f))) // 240
     {
       std::error_code ec;
       // Create any missing directories
@@ -3163,8 +3164,10 @@ GetInjectionSummary (app_record_s* pApp)
 
   else {
     // Most will use global injection, so default to this in situations where the data is actually being loaded.
-    ImGui::TextUnformatted ("Centralized");
-    ImGui::TextUnformatted ("SpecialK.ini");
+    ImGui::TextUnformatted (pApp->specialk.injection.config.type_utf8.c_str ());
+    ImGui::TextUnformatted (pApp->specialk.injection.config.shorthand_utf8.c_str ());
+    //ImGui::TextUnformatted ("Centralized");
+    //ImGui::TextUnformatted ("SpecialK.ini");
     //ImGui::NewLine ( );
     //ImGui::NewLine ( );
   }
@@ -3551,31 +3554,31 @@ GetInjectionSummary (app_record_s* pApp)
   }
 
   // Bottom bar: Disable Special K
+  ImGui::SetCursorPosY (
+    ImGui::GetWindowHeight () - fBottomDist);
+
+  if (_registry.bUIBorders)
+    ImGui::SetCursorPosY (
+      ImGui::GetCursorPosY () -
+      ImGui::GetStyle      ().ItemSpacing.y -
+      ImGui::GetStyle      ().WindowBorderSize * 2.0f);
+
+  ImGui::Separator     ( ); // -------------------------------
+
+  SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
+                                ImVec2 (ImGui::GetContentRegionAvail ().x,
+                              std::max (ImGui::GetContentRegionAvail ().y,
+                                        ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
+                                        )),
+                                ImGuiChildFlags_None,
+                                ImGuiWindowFlags_NavFlattened      |
+                                ImGuiWindowFlags_NoScrollbar       |
+                                ImGuiWindowFlags_NoScrollWithMouse |
+                                ImGuiWindowFlags_NoBackground
+  );
+
   if ( pApp->specialk.injection.injection.type != InjectionType::Local )
   {
-    ImGui::SetCursorPosY (
-      ImGui::GetWindowHeight () - fBottomDist);
-
-    if (_registry.bUIBorders)
-      ImGui::SetCursorPosY (
-        ImGui::GetCursorPosY () -
-        ImGui::GetStyle      ().ItemSpacing.y -
-        ImGui::GetStyle      ().WindowBorderSize * 2.0f);
-
-    ImGui::Separator     ( );
-
-    SKIF_ImGui_BeginChildFrame  ( ImGui::GetID ("###launch_cfg"),
-                                  ImVec2 (ImGui::GetContentRegionAvail ().x,
-                                std::max (ImGui::GetContentRegionAvail ().y,
-                                          ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
-                                          )),
-                                  ImGuiChildFlags_None,
-                                  ImGuiWindowFlags_NavFlattened      |
-                                  ImGuiWindowFlags_NoScrollbar       |
-                                  ImGuiWindowFlags_NoScrollWithMouse |
-                                  ImGuiWindowFlags_NoBackground
-    );
-
     auto _BlacklistCfg =
     [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
     void
@@ -3738,11 +3741,13 @@ GetInjectionSummary (app_record_s* pApp)
         }
       }
     }
-
-    ImGui::EndChild ( );
-
-    fBottomDist = ImGui::GetItemRectSize().y;
   }
+
+  else
+    ImGui::NewLine ( );
+
+  ImGui::EndChild ( );
+  fBottomDist = ImGui::GetItemRectSize().y;
 }
 
 #pragma endregion
@@ -5844,9 +5849,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
-  ImGui::BeginGroup          ( );
+  ImGui::BeginGroup          ( ); // Start GamesList
 
   ImVec2 fTop3 = ImGui::GetCursorPos ( );
+  ImVec2 fTop3ScreenPos = ImGui::GetCursorScreenPos ( );
   static float fHeight = 0.0f;
 
   ImGui::BeginChild          ( "###GameListOnTop",
@@ -5933,7 +5939,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   float fOffset =
     std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
-                 ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale) );
+                 ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale));
 
   fHeight = std::max (f2.y, f1.y) - f0.y + fOffset;
 
@@ -5952,6 +5958,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool        new_header_state   = false;
 
   float maxWidth = (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x - _ICON_HEIGHT);
+
+  bool categoryMenuOpened = false;
 
   // Populate the list of games with all recognized games
   for (auto& app : g_apps)
@@ -6044,11 +6052,22 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._StyleLightMode)
           ImGui::PopStyleColor  (2);
 
-        if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
+        if (CategoryMenu == PopupState_Closed              &&
+            ImGui::IsItemHovered ( )                       &&
+            ImGui::IsMouseClicked (ImGuiMouseButton_Right) &&
+          ! SKIF_ImGui_IsAnyPopupOpen ( ))
+          CategoryMenu = PopupState_Open;
+
+        if (CategoryMenu == PopupState_Open)
           ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
 
         if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
         {
+          CategoryMenu = PopupState_Opened;
+          categoryMenuOpened = true;
+
+          ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
           if (tmpCategory != "Games" && tmpCategory != "Favorites")
           {
             if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", categories)))
@@ -6087,6 +6106,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             ImGui::CloseCurrentPopup ( );
           }
 
+          ImGui::PopStyleColor ( );
+
           ImGui::EndPopup ( );
         }
 
@@ -6113,6 +6134,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       else
         app.second._status.refresh (&app.second);
     }
+
+    if (SKIF_TouchDevice)
+      ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
 
     float fOriginalY =
       ImGui::GetCursorPosY ();
@@ -6396,6 +6420,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (resetNumOnTop)
     numPinnedOnTop = 0;
 
+  if (! categoryMenuOpened)
+    CategoryMenu = PopupState_Closed;
+
   // 'Add Game' to the bottom of the list if the status bar is disabled
   if (! _registry.bUIStatusBar)
   {
@@ -6434,18 +6461,19 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Stop populating the list
 
+  // This disables drag-move on the list of games and should only be enabled on touch devices
+  // Allows drag-scrolling using the left mouse button
+  if (SKIF_TouchDevice)
+  {
+    ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
+    SKIF_ImGui_ScrollWhenDraggingOnVoid (ImVec2(0.0f, -mouse_delta.y), (SKIF_TouchDevice) ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+  }
+
   ImGui::EndChild        ( );
-  ImGui::EndGroup        ( );
+  ImGui::EndGroup        ( ); // End GamesList
   ImGui::PopStyleColor   ( );
   
 #pragma endregion
-
-  // Open the Empty Space Menu
-
-  if (IconMenu != PopupState_Open &&
-    ! ImGui::IsAnyItemHovered ( ) &&
-      ImGui::IsItemClicked    (ImGuiMouseButton_Right))
-    EmptySpaceMenu = PopupState_Open;
 
   if (_registry.bHorizonMode)
   {
@@ -6460,6 +6488,29 @@ SKIF_UI_Tab_DrawLibrary (void)
   else {
     ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
   }
+
+  ImRect gamesList = ImRect(fTop3ScreenPos, ImVec2(fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
+
+  // Open the Empty Space Menu
+  //ImGuiContext& g = *ImGui::GetCurrentContext();
+  //if (g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+
+  if (EmptySpaceMenu == PopupState_Closed              &&
+      IconMenu != PopupState_Open                      &&
+    ! ImGui::IsAnyItemHovered ( )                      &&
+      ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&
+    ! SKIF_ImGui_IsAnyPopupOpen ( )                    &&
+      ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
+    EmptySpaceMenu = PopupState_Open;
+
+  ///* This disables drag-move on the list of games and should only be enabled on touch devices
+  if (SKIF_TouchDevice && EmptySpaceMenu == PopupState_Closed && ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
+  {
+    // Hopefully this acts on the whole list of games
+    extern bool SKIF_MouseDragMoveAllowed;
+    SKIF_MouseDragMoveAllowed = false;
+  }
+  //*/
 
 #pragma region GameDetails
 
@@ -7037,13 +7088,12 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   // Open the Empty Space Menu
   if (EmptySpaceMenu == PopupState_Open)
-  {
     ImGui::OpenPopup    ("GameListEmptySpaceMenu");
-    EmptySpaceMenu = PopupState_Closed;
-  }
 
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
   {
+    EmptySpaceMenu = PopupState_Opened;
+
     ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
 
     ImGui::BeginGroup     ( );
@@ -7216,6 +7266,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PopStyleColor  ( );
     ImGui::EndPopup       ( );
   }
+
+  else
+    EmptySpaceMenu = PopupState_Closed;
 
 #pragma endregion
   
@@ -7601,7 +7654,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 
-  if (AddGamePopup == PopupState_Open && ! ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+  if (AddGamePopup == PopupState_Open && ! SKIF_ImGui_IsAnyPopupOpen ( ))
   {
     ImGui::OpenPopup("###AddGamePopup");
     //AddGamePopup = PopupState_Opened; // Set as part of the BeginPopupModal() call below instead

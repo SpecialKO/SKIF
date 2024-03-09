@@ -19,6 +19,7 @@ void     SKIF_ImGui_InfoMessage           (const std::string szTitle, const std:
 bool     SKIF_ImGui_IsFocused             (void);
 bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
+bool     SKIF_ImGui_IsAnyPopupOpen        (void);
 void     SKIF_ImGui_SetMouseCursorHand    (void);
 void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false);
 void     SKIF_ImGui_SetHoverText          (const std::string_view& szText, bool overrideExistingText = false);
@@ -43,6 +44,7 @@ void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
 bool     SKIF_ImGui_CanMouseDragMove      (void);    // True if drag move using the mouse is allowed, false if not
 void     SKIF_ImGui_InvalidateFonts       (void);
+void     SKIF_ImGui_ScrollWhenDraggingOnVoid (const ImVec2& delta, ImGuiMouseButton mouse_button);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 
 // SKIF_ImGui_ImDerp, named as such as it is not a linear interpolation/lerp, is used
