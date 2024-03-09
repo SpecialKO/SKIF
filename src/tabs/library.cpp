@@ -2193,7 +2193,7 @@ DrawGameContextMenu (app_record_s* pApp)
           }
         }
 
-        if (ImGui::IsItemHovered () && ImGui::IsMouseDown (ImGuiMouseButton_Right))
+        if (ImGui::IsItemHovered () && ImGui::IsMouseClicked (ImGuiMouseButton_Right))
           ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", index));
 
         if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", index), ImGuiWindowFlags_NoMove))
@@ -6289,7 +6289,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         app.second._status.invalidate ();
 
-        if (! ImGui::IsMouseDown (ImGuiMouseButton_Right))
+        if (! ImGui::IsMouseClicked (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
           ImGui::ActivateItemByID (ImGui::GetID (app.second.ImGuiLabelAndID.c_str()));
@@ -7096,40 +7096,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
 
-    ImGui::BeginGroup     ( );
-
-    ImVec2 iconPos = ImGui::GetCursorPos();
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_SQUARE_PLUS).x, ImGui::GetTextLineHeight()));
-
-    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-    ImGui::Separator      ( );
-    ImGui::PopStyleColor  ( );
-
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_SORT).x,  ImGui::GetTextLineHeight()));
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_GEARS).x, ImGui::GetTextLineHeight()));
-
-    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-    ImGui::Separator      ( );
-    ImGui::PopStyleColor  ( );
-
-    ImGui::ItemSize       (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_RIGHT).x, ImGui::GetTextLineHeight()));
-
-    ImGui::EndGroup       ( );
-
-    ImGui::SameLine       ( );
-
-    ImGui::BeginGroup     ( );
-
-     if (ImGui::Selectable ("Add Game", false, ImGuiSelectableFlags_SpanAllColumns))
+     if (SKIF_ImGui_MenuItemEx2 ("Add Game", ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
        AddGamePopup = PopupState_Open;
 
-    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
-    ImGui::PopStyleColor  ( );
 
     ImGui::PushID ("#LibrarySort");
 
-    if (ImGui::BeginMenu("Sort by"))
+    if (SKIF_ImGui_BeginMenuEx2 ("Sort by", ICON_FA_SORT))
     {
       constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
 
@@ -7182,7 +7156,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::PushID ("#Platforms");
 
-    if (ImGui::BeginMenu("Platforms"))
+    if (SKIF_ImGui_BeginMenuEx2 ("Platforms", ICON_FA_GEARS))
     {
       constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
 
@@ -7246,22 +7220,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::PopID ( );
 
-    ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
     ImGui::Separator      ( );
-    ImGui::PopStyleColor  ( );
 
-    if (ImGui::Selectable ("Refresh", false, ImGuiSelectableFlags_SpanAllColumns))
+    if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;
-
-    ImGui::EndGroup       ( );
-
-    ImGui::SetCursorPos   (iconPos);
-    ImGui::Text           (ICON_FA_SQUARE_PLUS);
-    ImGui::Separator      ( );
-    ImGui::Text           (ICON_FA_SORT);
-    ImGui::Text           (ICON_FA_GEARS);
-    ImGui::Separator      ( );
-    ImGui::Text           (ICON_FA_ROTATE_RIGHT);
 
     ImGui::PopStyleColor  ( );
     ImGui::EndPopup       ( );
