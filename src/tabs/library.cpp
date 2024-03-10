@@ -6250,11 +6250,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       selection.store              =    app.second.store;
       selection.category           = (  app.second.skif.pinned > 50)
                                    ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                                   : (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                                   ?   "Favorites"
-                                   : (! app.second.skif.category.empty())
-                                   ?    app.second.skif.category
-                                   :   "Games";
+                                   :    GetEffectiveCategory (&app.second);
       selected                     =    true;
 
       // Only update the last selected value if we're not in hidden view
