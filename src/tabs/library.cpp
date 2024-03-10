@@ -5852,9 +5852,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GamesList
 
-  auto _HandleItemSelection = [&](app_record_s* selected_app, bool isIconMenu = false) ->
-  bool
+  auto _HandleItemSelection = [&](app_record_s* selected_app, bool isIconMenu = false) -> bool
   {
+    extern bool
+        bAutoScrollActive;
+    if (bAutoScrollActive)
+      return false;
+
     // ImGui::IsItemFocused ( ) cannot be used here as it requires two button inputs to trigger on game change
     bool isFocused = (ImGui::GetFocusID ( ) == ImGui::GetID (selected_app->ImGuiLabelID.c_str()));
 
@@ -6442,13 +6446,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Stop populating the list
 
-  // This disables drag-move on the list of games and should only be enabled on touch devices
-  // Allows drag-scrolling using the left mouse button
-  if (_registry._TouchDevice)
-  {
-    ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
-    SKIF_ImGui_ScrollWhenDragging (ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Left, false);
-  }
+  // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+  SKIF_ImGui_AutoScroll  (false);
 
   ImGui::EndChild        ( );
   ImGui::EndGroup        ( ); // End GamesList
@@ -6484,10 +6483,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
     EmptySpaceMenu = PopupState_Open;
 
-  // This disables drag-move on the list of games and should only be enabled on touch devices
+  // This disables OS based drag-move modal on the list of games (required for autoscroll in touch mode)
   if (_registry._TouchDevice && EmptySpaceMenu == PopupState_Closed && ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
   {
-    // Hopefully this acts on the whole list of games
     extern bool SKIF_MouseDragMoveAllowed;
     SKIF_MouseDragMoveAllowed = false;
   }

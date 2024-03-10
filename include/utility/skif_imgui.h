@@ -44,7 +44,7 @@ void     SKIF_ImGui_PushDisabledSpacing   (void);
 void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
 bool     SKIF_ImGui_CanMouseDragMove      (void);    // True if drag move using the mouse is allowed, false if not
-void     SKIF_ImGui_ScrollWhenDragging    (const ImVec2& delta, ImGuiMouseButton mouse_button, bool onVoid);
+void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void);
 void     SKIF_ImGui_InvalidateFonts       (void);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 

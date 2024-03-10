@@ -1754,6 +1754,9 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::PopStyleColor ( );
 
+  // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+  SKIF_ImGui_AutoScroll  (false);
+
   ImGui::EndChild      ( );
 
 #pragma endregion

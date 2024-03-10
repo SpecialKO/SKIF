@@ -17,6 +17,7 @@
 #include <fonts/fa_brands_400.ttf.h>
 #include <imgui/imgui_impl_dx11.h>
 
+bool                  bAutoScrollActive;
 ImFont*               fontConsolas = nullptr;
 std::vector <ImWchar> vFontChineseSimplified;
 std::vector <ImWchar> vFontChineseAll;
@@ -459,19 +460,8 @@ SKIF_ImGui_IsAnyInputDown (void)
     if (ImGui::IsKeyDown(key))
       return true;
 
-  /*
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
-    if (g.IO.MouseDown[n])
-      return true;
-    
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.KeysDown); n++)
-    if (g.IO.KeysDown[n])
-      return true;
-
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
-    if (g.IO.NavInputs[n])
-      return true;
-  */
+  if (bAutoScrollActive)
+    return true;
 
   return false;
 }
@@ -1312,27 +1302,96 @@ SKIF_ImGui_CanMouseDragMove (void)
            AutoUpdatePopup    == PopupState_Opened ));
 }
 
-// https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
-// Usage:
-//   ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
-//   ScrollWhenDragging(ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Middle);
-//   ImGui::End(); (or EndChild())
+// Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
 void
-SKIF_ImGui_ScrollWhenDragging (const ImVec2& delta, ImGuiMouseButton mouse_button, bool onVoid)
+SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void)
 {
   ImGuiContext& g = *ImGui::GetCurrentContext();
   ImGuiWindow* window = g.CurrentWindow;
   bool hovered = false;
-  bool held = false;
   ImGuiID id = window->GetID("##scrolldraggingoverlay");
   ImGui::KeepAliveID(id);
-  ImGuiButtonFlags button_flags = (mouse_button == 0) ? ImGuiButtonFlags_MouseButtonLeft : (mouse_button == 1) ? ImGuiButtonFlags_MouseButtonRight : ImGuiButtonFlags_MouseButtonMiddle;
-  if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
-      ImGui::ButtonBehavior(window->Rect(), id, &hovered, &held, button_flags);
-  if (held && delta.x != 0.0f)
-      ImGui::SetScrollX(window, window->Scroll.x + delta.x);
-  if (held && delta.y != 0.0f)
-      ImGui::SetScrollY(window, window->Scroll.y + delta.y);
+  if (! only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+    ImGui::ButtonBehavior(window->Rect(), id, &hovered, &bAutoScrollActive, ImGuiMouseButton_Left);
+
+  if (bAutoScrollActive)
+  {
+    ImVec2 delta = ImGui::GetIO().MouseDelta;
+
+  //if (delta.x != 0.0f) // Horizontal
+  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x);
+
+    if (delta.y != 0.0f) // Vertical
+      ImGui::SetScrollY (window, window->Scroll.y - delta.y);
+  }
+}
+
+void
+SKIF_ImGui_MouseWheelScroll (void)
+{
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiWindow* window = g.CurrentWindow;
+  ImGuiID id = window->GetID("##scrollwheeloverlay");
+  ImGui::KeepAliveID(id);
+
+  static ImVec2 position;
+  static bool held = false;
+
+  if (bAutoScrollActive && ! SKIF_ImGui_IsFocused ( ))
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive &&
+     (ImGui::GetKeyData (ImGuiKey_MouseLeft  )->DownDuration == 0.0f ||
+      ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f ||
+      ImGui::GetKeyData (ImGuiKey_MouseRight )->DownDuration == 0.0f))
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive && held &&
+           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration < 0.0f)
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive &&
+           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration > 0.15f) // Special handling if mouse wheel is held down for longer than 150 ms
+    held = true;
+
+//else if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+//else if (ImGui::IsMousePosValid ( ) && ImGui::ButtonBehavior  (window->Rect(), id, &hovered, &held, ImGuiButtonFlags_AllowOverlap | ImGuiButtonFlags_MouseButtonMiddle | static_cast<ImGuiButtonFlags_> (ImGuiButtonFlags_PressedOnClick)))
+  else if (ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
+  {
+    bAutoScrollActive = true;
+    position = ImGui::GetMousePos ( );
+  }
+
+  if (bAutoScrollActive && ImGui::IsMousePosValid ( ))
+  {
+    ImVec2 delta = position - ImGui::GetMousePos ( );
+
+    ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
+
+  //if (delta.x != 0.0f) // Horizontal
+  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
+
+    if (delta.y != 0.0f) // Vertical
+      ImGui::SetScrollY (window, window->Scroll.y - delta.y * 0.1f);
+
+    extern bool SKIF_MouseDragMoveAllowed;
+    SKIF_MouseDragMoveAllowed = false;
+  }
+}
+
+void
+SKIF_ImGui_AutoScroll (bool touch_only_on_void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // This disables drag-move on the list of games and should only be enabled on touch devices
+  // Allows drag-scrolling using the left mouse button
+  if (_registry._TouchDevice)
+    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void);
+
+  // This allows mouse wheel scroll (aka autoscroll) in non-touch mode
+  else
+    SKIF_ImGui_MouseWheelScroll ( );
 }
 
 void

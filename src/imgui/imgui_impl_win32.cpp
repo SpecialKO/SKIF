@@ -754,25 +754,29 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
         io.AddMouseButtonEvent(button, true);
         return 0;
     }
+
 #ifdef SKIF_Win32
-    
-    // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
-    case WM_NCRBUTTONDOWN: case WM_NCRBUTTONDBLCLK:
+    case WM_NCRBUTTONDOWN: case WM_NCRBUTTONDBLCLK: // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
+    case WM_NCMBUTTONDOWN: case WM_NCMBUTTONDBLCLK: // This is needed to allow auto-scroll to work properly
     {
         ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
-        int button = 1;
+        int button = 0;
+        if (msg == WM_NCRBUTTONDOWN || msg == WM_NCRBUTTONDBLCLK) { button = 1; }
+        if (msg == WM_NCMBUTTONDOWN || msg == WM_NCMBUTTONDBLCLK) { button = 2; }
         if (bd->MouseButtonsDown == 0 && ::GetCapture() == nullptr)
-          ::SetCapture (hwnd);
+          ::SetCapture(hwnd);
         bd->MouseButtonsDown |= 1 << button;
         io.AddMouseSourceEvent(mouse_source);
         io.AddMouseButtonEvent(button, true);
         return 0;
     }
-    // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
-    case WM_NCRBUTTONUP:
+    case WM_NCRBUTTONUP: // This is needed to open ImGui menus on right clicks in "non-client" areas (aka draggable areas)
+    case WM_NCMBUTTONUP: // This is needed to allow auto-scroll to work properly
     {
         ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
-        int button = 1;
+        int button = 0;
+        if (msg == WM_NCRBUTTONUP) { button = 1; }
+        if (msg == WM_NCMBUTTONUP) { button = 2; }
         bd->MouseButtonsDown &= ~(1 << button);
         if (bd->MouseButtonsDown == 0 && ::GetCapture() == hwnd)
             ::ReleaseCapture();
