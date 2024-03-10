@@ -214,6 +214,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Win11 Corners)" );
 
+  KeyValue <bool> regKVUILargeIcons =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Large Icons)" );
+
   // Store libraries
 
   KeyValue <bool> regKVLibrarySteam =
@@ -489,6 +493,7 @@ struct SKIF_RegistrySettings {
   bool bUIBorders               = false;
   bool bUITooltips              =  true;
   bool bUIStatusBar             =  true;
+  bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
 
@@ -561,6 +566,7 @@ struct SKIF_RegistrySettings {
   bool _RendererCanAllowTearing     = false; // DWM Tearing                   Windows 10+
   bool _RendererCanHDR              = false; // High Dynamic Range            Windows 10 1709+ (Build 16299)
   bool _RendererHDREnabled          = false; // HDR Enabled
+  bool _TouchDevice                 = false;
 
   // Functions
   bool isDevLogging (void) const;

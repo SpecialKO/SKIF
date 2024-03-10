@@ -594,6 +594,32 @@ SKIF_ImGui_Selectable (const char* label)
   return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
 }
 
+// Vertical aligned label
+// Must be surrounded by ImGui::PushID/PopID
+bool
+SKIF_ImGui_SelectableVAligned (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg)
+{
+  ImVec2 cursor_pre    =  ImGui::GetCursorPos ( );
+  ImVec2 label_size    =  ImGui::CalcTextSize (label);
+  float  label_offset  = (size_arg.y - label_size.y) / 2.0f;
+  ImVec2 label_pos     =  ImVec2 (cursor_pre.x + ImGui::GetStyle().ItemSpacing.x, cursor_pre.y + label_offset);
+
+  ImGui::BeginGroup      ( );
+  //ImGui::PushID          (unique_id);
+  ImGui::PushStyleVar    (ImGuiStyleVar_FrameBorderSize, 0.0f);
+  // We use ImGuiSelectableFlags_NoPadWithHalfSpacing to prevent the bounding box from having 0.5 * ItemSpacing padded on top and bottom
+  bool   ret           =  ImGui::Selectable (unique_id, p_selected, flags | ImGuiSelectableFlags_AllowOverlap | ImGuiSelectableFlags_NoPadWithHalfSpacing, size_arg);
+  ImVec2 cursor_post   =  ImGui::GetCursorPos ( );
+  ImGui::SetCursorPos    (label_pos);
+  ImGui::TextUnformatted (label);
+  ImGui::PopStyleVar     ( );
+  //ImGui::PopID           ( );
+  ImGui::EndGroup        ( );
+
+  ImGui::SetCursorPos    (cursor_post);
+  return ret;
+}
+
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
 SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags)
@@ -705,10 +731,12 @@ SKIF_ImGui_BeginMenuEx2 (const char* label, const char* icon, const ImVec4& colI
 }
 
 bool
-SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool selected, bool enabled)
+SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool* p_selected, bool enabled)
 {
   ImGui::PushStyleColor        (ImGuiCol_SKIF_Icon, colIcon);
-  bool ret = ImGui::MenuItemEx (label, icon, shortcut, selected, enabled);
+  bool ret = ImGui::MenuItemEx (label, icon, shortcut, p_selected ? *p_selected : false, enabled);
+  if (ret && p_selected)
+    *p_selected = !*p_selected;
   ImGui::PopStyleColor         ( );
 
   return ret;
@@ -1178,12 +1206,12 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   // Touch input adjustment
   if (::GetSystemMetrics (SM_MAXIMUMTOUCHES) > 0)
   {
-    SKIF_TouchDevice = true;
+    _registry._TouchDevice = true;
     dst->ScrollbarSize = 50.0f;
   }
 
   else
-    SKIF_TouchDevice = false;
+    _registry._TouchDevice = false;
   
   if (! _registry.bUIBorders)
   {
@@ -1267,8 +1295,11 @@ SKIF_ImGui_DisallowMouseDragMove (void)
 bool
 SKIF_ImGui_CanMouseDragMove (void)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   extern bool SKIF_MouseDragMoveAllowed;
-  return      SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
+  return    ! _registry._TouchDevice      &&          // Only if we are not on a touch input device
+              SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
             ! ImGui::IsAnyItemHovered ( ) &&          // Disabled if any item is hovered
           ( ! SKIF_ImGui_IsAnyPopupOpen ( )        || // Disabled if any popup is opened..
           (   AddGamePopup    == PopupState_Opened || // ..except for a few standard ones
@@ -1279,6 +1310,29 @@ SKIF_ImGui_CanMouseDragMove (void)
          UpdatePromptPopup    == PopupState_Opened ||
               HistoryPopup    == PopupState_Opened ||
            AutoUpdatePopup    == PopupState_Opened ));
+}
+
+// https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
+// Usage:
+//   ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
+//   ScrollWhenDragging(ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Middle);
+//   ImGui::End(); (or EndChild())
+void
+SKIF_ImGui_ScrollWhenDragging (const ImVec2& delta, ImGuiMouseButton mouse_button, bool onVoid)
+{
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiWindow* window = g.CurrentWindow;
+  bool hovered = false;
+  bool held = false;
+  ImGuiID id = window->GetID("##scrolldraggingoverlay");
+  ImGui::KeepAliveID(id);
+  ImGuiButtonFlags button_flags = (mouse_button == 0) ? ImGuiButtonFlags_MouseButtonLeft : (mouse_button == 1) ? ImGuiButtonFlags_MouseButtonRight : ImGuiButtonFlags_MouseButtonMiddle;
+  if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+      ImGui::ButtonBehavior(window->Rect(), id, &hovered, &held, button_flags);
+  if (held && delta.x != 0.0f)
+      ImGui::SetScrollX(window, window->Scroll.x + delta.x);
+  if (held && delta.y != 0.0f)
+      ImGui::SetScrollY(window, window->Scroll.y + delta.y);
 }
 
 void
@@ -1298,29 +1352,6 @@ SKIF_ImGui_InvalidateFonts (void)
   }
 
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
-}
-
-// https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
-// Usage:
-//   ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
-//   ScrollWhenDraggingOnVoid(ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Middle);
-//   ImGui::End(); (or EndChild())
-void
-SKIF_ImGui_ScrollWhenDraggingOnVoid (const ImVec2 & delta, ImGuiMouseButton mouse_button)
-{
-  ImGuiContext& g = *ImGui::GetCurrentContext();
-  ImGuiWindow* window = g.CurrentWindow;
-  bool hovered = false;
-  bool held = false;
-  ImGuiID id = window->GetID("##scrolldraggingoverlay");
-  ImGui::KeepAliveID(id);
-  ImGuiButtonFlags button_flags = (mouse_button == 0) ? ImGuiButtonFlags_MouseButtonLeft : (mouse_button == 1) ? ImGuiButtonFlags_MouseButtonRight : ImGuiButtonFlags_MouseButtonMiddle;
-  if (g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
-      ImGui::ButtonBehavior(window->Rect(), id, &hovered, &held, button_flags);
-  if (held && delta.x != 0.0f)
-      ImGui::SetScrollX(window, window->Scroll.x + delta.x);
-  if (held && delta.y != 0.0f)
-      ImGui::SetScrollY(window, window->Scroll.y + delta.y);
 }
 
 // This helper function maps char to ImGuiKey_xxx

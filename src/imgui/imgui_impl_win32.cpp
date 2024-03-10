@@ -1928,6 +1928,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           LRESULT hitTest =
             DefWindowProc (hWnd, msg, wParam, lParam);
 
+          // Note that the touch input mode never uses the OS native move modal !
           extern bool
               SKIF_ImGui_CanMouseDragMove (void);
           if (SKIF_ImGui_CanMouseDragMove (    ))

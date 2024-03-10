@@ -409,7 +409,7 @@ struct app_record_s {
   std::string  store_utf8            =  "";
 
   std::string  ImGuiPushID           =  "";
-  std::string  ImGuiLabelAndID       =  "";
+  std::string  ImGuiLabelID          =  "";
 
   // Struct used to hold custom SKIF metadata about the game
   struct custom_metadata_s {

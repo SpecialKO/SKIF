@@ -26,13 +26,14 @@ void     SKIF_ImGui_SetHoverText          (const std::string_view& szText, bool 
 bool     SKIF_ImGui_BeginChildFrame       (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags = ImGuiWindowFlags_None);
 void     SKIF_ImGui_BeginTabChildFrame    (void);
 bool     SKIF_ImGui_BeginMenuEx2          (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), bool enabled = true);
-bool     SKIF_ImGui_MenuItemEx2           (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), const char* shortcut = NULL, bool selected = false, bool enabled = true);
+bool     SKIF_ImGui_MenuItemEx2           (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), const char* shortcut = NULL, bool* p_selected = nullptr, bool enabled = true);
 bool     SKIF_ImGui_IconButton            (ImGuiID id, std::string icon, std::string label, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
 void     SKIF_ImGui_OptImage              (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 void     SKIF_ImGui_Columns               (int columns_count, const char* id, bool border, bool resizeble = false);
 void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
+bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
@@ -43,8 +44,8 @@ void     SKIF_ImGui_PushDisabledSpacing   (void);
 void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
 bool     SKIF_ImGui_CanMouseDragMove      (void);    // True if drag move using the mouse is allowed, false if not
+void     SKIF_ImGui_ScrollWhenDragging    (const ImVec2& delta, ImGuiMouseButton mouse_button, bool onVoid);
 void     SKIF_ImGui_InvalidateFonts       (void);
-void     SKIF_ImGui_ScrollWhenDraggingOnVoid (const ImVec2& delta, ImGuiMouseButton mouse_button);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 
 // SKIF_ImGui_ImDerp, named as such as it is not a linear interpolation/lerp, is used

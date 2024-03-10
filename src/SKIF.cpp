@@ -105,7 +105,6 @@ DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
 bool  SteamOverlayDisabled      = false;
 bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when interacting with text input
 bool  SKIF_MouseDragMoveAllowed = true;
-bool  SKIF_TouchDevice          = false;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took

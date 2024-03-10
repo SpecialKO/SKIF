@@ -195,11 +195,22 @@ AdjustAlpha (float a)
   return std::pow (a, 1.0f / 2.2f );
 }
 
+static std::string
+GetEffectiveCategory (app_record_s* app)
+{
+  return (    app->skif.pinned > 0 || (app->skif.pinned == -1 && app->steam.shared.favorite == 1))
+         ?   "Favorites"
+         : (! app->skif.category.empty())
+         ?    app->skif.category
+         :   "Games";
+}
+
 #pragma region Trie Keyboard Hint Search
 
 struct {
   uint32_t            id = 0;
   app_record_s::Store store;
+  std::string         category = "";
 } static search_selection;
 
 Trie labels;
@@ -230,6 +241,7 @@ SearchAppsList (void)
     std::string text          = "";
     app_record_s::Store store = app_record_s::Store::Unspecified;
     uint32_t    app_id        = 0;
+    std::string category      = "";
     size_t      pos           = 0;
     size_t      len           = 0;
   } static result;
@@ -244,8 +256,9 @@ SearchAppsList (void)
     // If we have a result, select it
     if (result.app_id != 0)
     {
-      search_selection.id    = result.app_id;
-      search_selection.store = result.store;
+      search_selection.id       = result.app_id;
+      search_selection.store    = result.store;
+      search_selection.category = result.category;
     }
 
     // Clear any temp data
@@ -284,11 +297,12 @@ SearchAppsList (void)
 
         if (app.second.names.all_upper_alnum.find (test_) == 0)
         {
-          result.text   = app.second.names.normal;
-          result.store  = app.second.store;
-          result.app_id = app.second.id;
-          result.pos    = app.second.names.pre_stripped;
-          result.len    = strlen (test_);
+          result.text     = app.second.names.normal;
+          result.store    = app.second.store;
+          result.app_id   = app.second.id;
+          result.category = GetEffectiveCategory (&app.second);
+          result.pos      = app.second.names.pre_stripped;
+          result.len      = strlen (test_);
 
           // Handle cases where articles are ignored
 
@@ -4412,7 +4426,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_record.install_dir       = _path_cache.specialk_install;
     SKIF_record.store             = app_record_s::Store::Steam;
     SKIF_record.store_utf8        = "Steam";
-    SKIF_record.ImGuiLabelAndID   = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
+    SKIF_record.ImGuiLabelID      = SK_FormatString("%s###%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
     SKIF_record.ImGuiPushID       = SK_FormatString("###%i-%i", (int)SKIF_record.store, SKIF_record.id);
 
     SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
@@ -4607,8 +4621,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_record.install_dir       = _path_cache.specialk_install;
         SKIF_record.store             = app_record_s::Store::Steam;
         SKIF_record.store_utf8        = "Steam";
-        SKIF_record.ImGuiLabelAndID   = SKIF_Util_FormatStringRaw ("%s##%i-%i", SKIF_record.names.normal.c_str(), (int)SKIF_record.store, SKIF_record.id);
-        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("##%i-%i", (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiLabelID      = SKIF_Util_FormatStringRaw ("##%i-%i-selectable", (int)SKIF_record.store, SKIF_record.id);
+        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("##%i-%i",            (int)SKIF_record.store, SKIF_record.id);
 
         SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
         SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
@@ -4974,16 +4988,16 @@ SKIF_UI_Tab_DrawLibrary (void)
             app.first                = app.second.names.normal;
           }
 
-          // Update ImGuiLabelAndID and ImGuiPushID
-          app.second.ImGuiLabelAndID = SKIF_Util_FormatStringRaw ("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id);
-          app.second.ImGuiPushID     = SKIF_Util_FormatStringRaw ("###%i-%i", (int)app.second.store, app.second.id);
+          // Update ImGuiLabelID and ImGuiPushID
+          app.second.ImGuiLabelID    = SKIF_Util_FormatStringRaw ("###%i-%i-selectable", (int)app.second.store, app.second.id); // ("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id)
+          app.second.ImGuiPushID     = SKIF_Util_FormatStringRaw ("###%i-%i",            (int)app.second.store, app.second.id);
 
 #if 0
           PLOG_DEBUG << "\nGame Titles: (" << app.second.id << ")"
                      << "\nOriginal : " << SK_UTF8ToWideChar(app.second.names.original)
                      << "\nCleaned  : " << SK_UTF8ToWideChar(app.second.names.clean)
                      << "\nNormal   : " << SK_UTF8ToWideChar(app.second.names.normal)
-                     << "\nImGuiLID : " << SK_UTF8ToWideChar(app.second.ImGuiLabelAndID);
+                     << "\nImGuiLID : " << SK_UTF8ToWideChar(app.second.ImGuiLabelID);
 #endif
         }
 
@@ -5214,13 +5228,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.store        =    app.second.store;
         selection.category     = (  app.second.skif.pinned > 50)
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                               : (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                               ?   "Favorites"
-                               : (! app.second.skif.category.empty())
-                               ?    app.second.skif.category
-                               :   "Games";
-        search_selection.id    =  selection.appid;
-        search_selection.store =  selection.store;
+                               :    GetEffectiveCategory (&app.second);
+        search_selection.id    =    selection.appid;
+        search_selection.store =    selection.store;
+        search_selection.category = selection.category;
         update = true;
       }
 
@@ -5841,49 +5852,24 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GamesList
 
-  ImGuiChildFlags flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
-  ImGuiChildFlags flags_wnd = 0x0;
-
-  if (! _registry.bHorizonMode)
-    flags_wnd |= ImGuiWindowFlags_NavFlattened;
-
-  ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
-
-  ImGui::BeginGroup          ( ); // Start GamesList
-
-  ImVec2 fTop3 = ImGui::GetCursorPos ( );
-  ImVec2 fTop3ScreenPos = ImGui::GetCursorScreenPos ( );
-  static float fHeight = 0.0f;
-
-  ImGui::BeginChild          ( "###GameListOnTop",
-                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                  (numPinnedOnTop > 0 && numRegular > 0)
-                                  ? numPinnedOnTop * fHeight + ImGui::GetStyle().WindowPadding.y
-                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
-                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-                                  flags_wnd | ((numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
-
-  auto _HandleItemSelection = [&](bool isIconMenu = false) ->
+  auto _HandleItemSelection = [&](app_record_s* selected_app, bool isIconMenu = false) ->
   bool
   {
-    bool _GamePadRightClick =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     != 0.0f &&
-                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev == 0.0f ));
+    // ImGui::IsItemFocused ( ) cannot be used here as it requires two button inputs to trigger on game change
+    bool isFocused = (ImGui::GetFocusID ( ) == ImGui::GetID (selected_app->ImGuiLabelID.c_str()));
 
-    static constexpr float _LONG_INTERVAL = .15f;
+    static constexpr float _LONG_INTERVAL = .25f;
 
     bool _NavLongActivate =
-      ( ImGui::IsItemFocused ( ) && ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL   &&
-                                      ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL ) ||
-                                    ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
-                                      ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
+           isFocused && ( ( ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDuration     >= _LONG_INTERVAL   &&
+                            ImGui::GetKeyData (ImGuiKey_GamepadFaceDown)->DownDurationPrev <= _LONG_INTERVAL ) ||
+                          ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
+                            ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
 
     bool ret =
       ImGui::IsItemActivated (                      ) ||
       ImGui::IsItemClicked   (ImGuiMouseButton_Left ) ||
-      ImGui::IsItemClicked   (ImGuiMouseButton_Right) ||
-      _GamePadRightClick                              ||
-      _NavLongActivate;
+      ImGui::IsItemClicked   (ImGuiMouseButton_Right);
 
     // If the item is activated, but not visible, scroll to it
     if (ret)
@@ -5904,7 +5890,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (GameMenu == PopupState_Closed)
       {
         if ( ImGui::IsItemClicked (ImGuiMouseButton_Right) ||
-             _GamePadRightClick                            ||
              _NavLongActivate)
         {
           GameMenu = PopupState_Open;
@@ -5915,33 +5900,32 @@ SKIF_UI_Tab_DrawLibrary (void)
     return ret;
   };
 
-  //static constexpr float __ICON_HEIGHT = 32.0f;
-  float __ICON_HEIGHT = 32.0f * SKIF_ImGui_GlobalDPIScale;
+  ImGuiChildFlags flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
+  ImGuiChildFlags flags_wnd = 0x0;
 
-  bool  dontcare     = false;
-  float fScale       =
-    ( ImGui::GetTextLineHeightWithSpacing () / __ICON_HEIGHT ),
+  if (! _registry.bHorizonMode)
+    flags_wnd |= ImGuiWindowFlags_NavFlattened;
 
-        _ICON_HEIGHT =
-    std::min (1.0f, std::max (0.1f, fScale)) * __ICON_HEIGHT;
+  ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
-  ImVec2 f0 = ImGui::GetCursorPos (  );
-    ImGui::Selectable ("###zero", &dontcare, ImGuiSelectableFlags_Disabled | ImGuiSelectableFlags_AllowOverlap); // AllowOverlap is needed to prevent hover issues with the first game of the list
-  ImVec2 f1 = ImGui::GetCursorPos (  );
-    ImGui::SameLine (                );
-//ImVec2 f4 = ImGui::GetCursorPos (  );
-    SKIF_ImGui_OptImage (nullptr, ImVec2 (_ICON_HEIGHT, _ICON_HEIGHT));
-  ImVec2 f2 = ImGui::GetCursorPos (  );
-    ImGui::SameLine (                );
-  ImVec2 f3 = ImGui::GetCursorPos (  );
+  ImGui::BeginGroup          ( ); // Start GamesList
 
-  ImGui::SetCursorPos (ImVec2 (f2.x, f0.y));
+  ImVec2 fTop3          = ImGui::GetCursorPos ( );
+  ImVec2 fTop3ScreenPos = ImGui::GetCursorScreenPos ( );
 
-  float fOffset =
-    std::floor ( ( std::max (f2.y, f1.y) - std::min (f2.y, f1.y) -
-                 ImGui::GetStyle ().ItemSpacing.y / 2.0f ) * SKIF_ImGui_GlobalDPIScale / 2.0f + (1.0f * SKIF_ImGui_GlobalDPIScale));
+  float _ICON_HEIGHT_BASE  = (_registry._TouchDevice || _registry.bUILargeIcons) ? 32.0f : 24.0f;
+//float _ICON_HEIGHT_SCALE = (_registry._TouchDevice ? 1.0f : (ImGui::GetTextLineHeightWithSpacing () / _ICON_HEIGHT_BASE));
+//float _ICON_HEIGHT       = std::min (1.0f, std::max (0.1f, _ICON_HEIGHT_SCALE)) * _ICON_HEIGHT_BASE;
+  float _ICON_HEIGHT       = _ICON_HEIGHT_BASE * SKIF_ImGui_GlobalDPIScale;
+  float _ICON_HEIGHT_OnTop = _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.y;
 
-  fHeight = std::max (f2.y, f1.y) - f0.y + fOffset;
+  ImGui::BeginChild          ( "###GameListOnTop",
+                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                  (! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
+                                  ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
+                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
+                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
+                                  flags_wnd | ((! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
   // Start populating the list
 
@@ -5957,7 +5941,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int  apply_header_state = 0;
   bool        new_header_state   = false;
 
-  float maxWidth = (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x - _ICON_HEIGHT);
+  float maxWidth    = (ImGui::GetContentRegionMax().x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
 
   bool categoryMenuOpened = false;
 
@@ -5986,8 +5970,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (app.second.filtered)
       continue;
 
-    // Separate always on top (>50) from regular pinned (1-50)
-    if (app.second.skif.pinned > 50)
+    // Separate always on top (>50) from regular pinned (1-50), but only in regular mode
+    if (! _registry.bHorizonMode && app.second.skif.pinned > 50)
       pinned_top++;
     else if (pinned_top > 0)
     {
@@ -6012,6 +5996,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                      flags_cld,
                                      flags_wnd );
 
+      maxWidth    = (ImGui::GetContentRegionMax().x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
+
       pinned_top = 0;
     }
 
@@ -6021,11 +6007,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       static bool category_opened    = false;
 
       // All favorited games are grouped as such
-      std::string tmpCategory = (  app.second.skif.pinned > 0 || (app.second.skif.pinned == -1 && app.second.steam.shared.favorite == 1))
-                              ?   "Favorites"
-                              : (! app.second.skif.category.empty())
-                              ?    app.second.skif.category
-                              :   "Games";
+      std::string tmpCategory = GetEffectiveCategory (&app.second);
 
       if (tmpCategory != current_category)
       {
@@ -6033,6 +6015,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Always expand a category if a filter is active or the selected game was changed
         if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
+          ImGui::SetNextItemOpen (true);
+
+        if (search_selection.category == tmpCategory)
           ImGui::SetNextItemOpen (true);
 
         if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state && it != _registry.vecCategories.end())
@@ -6135,8 +6120,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         app.second._status.refresh (&app.second);
     }
 
-    if (SKIF_TouchDevice)
-      ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
+    //if (_registry._TouchDevice)
+    //  ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
 
     float fOriginalY =
       ImGui::GetCursorPosY ();
@@ -6156,7 +6141,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                             );
 
     change |=
-      _HandleItemSelection (true);
+      _HandleItemSelection (&app.second, true);
 
     ImGui::SameLine        ();
 
@@ -6170,9 +6155,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-    ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::Selectable      (app.second.ImGuiLabelAndID.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, 0.0f)); // ImGuiSelectableFlags_SpanAvailWidth);
-    ImGui::PopStyleColor   (2                    );
+    SKIF_ImGui_SelectableVAligned (app.second.ImGuiLabelID.c_str(), app.second.names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
+    ImGui::PopStyleColor   (2);
 
     if (_registry.bFadeCovers)
       ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
@@ -6206,18 +6190,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Show full title in tooltip if the title spans longer than the width of the Selectable row
-    // Old: (app.first.length() > 48)
-    // New: ImGui::CalcTextSize  (app.first.c_str()).x > (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x)
-    if (ImGui::CalcTextSize  (app.first.c_str()).x >= (ImGui::GetContentRegionMax().x - f3.x + f1.x + f1.x))
-      SKIF_ImGui_SetHoverTip (app.first);
+    if (ImGui::IsItemHovered ( ) && ImGui::CalcTextSize  (app.second.names.normal.c_str()).x >= (maxWidth - ImGui::GetStyle().ItemSpacing.x))
+      SKIF_ImGui_SetHoverTip (app.second.names.normal);
 
     // Handle search input
     if (search_selection.id    == app.second.id &&
         search_selection.store == app.second.store)
     {
       // Set focus on current row
-      ImGui::ActivateItemByID (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()));
-      ImGui::SetFocusID       (ImGui::GetID(app.second.ImGuiLabelAndID.c_str()), ImGui::GetCurrentWindow());
+      ImGui::ActivateItemByID (ImGui::GetID(app.second.ImGuiLabelID.c_str()));
+      ImGui::SetFocusID       (ImGui::GetID(app.second.ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
 
       // Clear stuff
       selection.appid        = 0;
@@ -6225,11 +6207,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       selection.category     = "Games";
       search_selection.id    = 0;
       search_selection.store = app_record_s::Store::Unspecified;
+      search_selection.category = "";
       change                 = true;
     }
 
     change |=
-      _HandleItemSelection ();
+      _HandleItemSelection (&app.second);
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
@@ -6292,7 +6275,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! ImGui::IsMouseClicked (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
-          ImGui::ActivateItemByID (ImGui::GetID (app.second.ImGuiLabelAndID.c_str()));
+          ImGui::ActivateItemByID (ImGui::GetID (app.second.ImGuiLabelID.c_str()));
 
           if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
@@ -6424,6 +6407,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     CategoryMenu = PopupState_Closed;
 
   // 'Add Game' to the bottom of the list if the status bar is disabled
+  /*
   if (! _registry.bUIStatusBar)
   {
     float fOriginalY =
@@ -6458,15 +6442,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::EndGroup        ();
   }
+  */
 
   // Stop populating the list
 
   // This disables drag-move on the list of games and should only be enabled on touch devices
   // Allows drag-scrolling using the left mouse button
-  if (SKIF_TouchDevice)
+  if (_registry._TouchDevice)
   {
     ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
-    SKIF_ImGui_ScrollWhenDraggingOnVoid (ImVec2(0.0f, -mouse_delta.y), (SKIF_TouchDevice) ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+    SKIF_ImGui_ScrollWhenDragging (ImVec2(0.0f, -mouse_delta.y), ImGuiMouseButton_Left, false);
   }
 
   ImGui::EndChild        ( );
@@ -6503,14 +6488,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
     EmptySpaceMenu = PopupState_Open;
 
-  ///* This disables drag-move on the list of games and should only be enabled on touch devices
-  if (SKIF_TouchDevice && EmptySpaceMenu == PopupState_Closed && ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
+  // This disables drag-move on the list of games and should only be enabled on touch devices
+  if (_registry._TouchDevice && EmptySpaceMenu == PopupState_Closed && ImGui::IsMouseHoveringRect (gamesList.Min, gamesList.Max, false))
   {
     // Hopefully this acts on the whole list of games
     extern bool SKIF_MouseDragMoveAllowed;
     SKIF_MouseDragMoveAllowed = false;
   }
-  //*/
 
 #pragma region GameDetails
 
@@ -7093,6 +7077,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
   {
     EmptySpaceMenu = PopupState_Opened;
+    constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
 
     ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
 
@@ -7105,8 +7090,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (SKIF_ImGui_BeginMenuEx2 ("Sort by", ICON_FA_SORT))
     {
-      constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
-
       static bool bName       = (_registry.iLibrarySort == 0) ? true : false;
       static bool bFrequently = (_registry.iLibrarySort == 1) ? true : false;
       static bool bRecently   = (_registry.iLibrarySort == 2) ? true : false;
@@ -7158,8 +7141,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (SKIF_ImGui_BeginMenuEx2 ("Platforms", ICON_FA_GEARS))
     {
-      constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
-
       static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
       static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
       static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
@@ -7221,6 +7202,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::PopID ( );
 
     ImGui::Separator      ( );
+
+    if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, &_registry.bUILargeIcons))
+      _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
 
     if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;

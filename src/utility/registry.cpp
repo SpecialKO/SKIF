@@ -304,6 +304,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bDPIScaling            =   regKVDPIScaling             .getData (&hKey);
   if (regKVWin11Corners.hasData(&hKey))
     bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
+  if (regKVUILargeIcons.hasData(&hKey))
+    bUILargeIcons          =   regKVUILargeIcons           .getData (&hKey);
 
   // Store libraries
 
