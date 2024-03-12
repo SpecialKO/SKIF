@@ -8052,56 +8052,52 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
     }
+
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
+                            "Move the mouse over each option to get more information.");
+    ImGui::SameLine        ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Auto-stop behavior when launching the game:"
+    );
+
+    ImGui::TreePush        ("ManageGame_AutoStopBehavior");
+    ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit"), &cached_auto_stop, 0);
+    SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
+    ImGui::SameLine        ( );
+    ImGui::RadioButton     ("On inject", &cached_auto_stop, 1);
+    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
+    ImGui::SameLine        ( );
+    ImGui::RadioButton     ("On exit",   &cached_auto_stop, 2);
+    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
+    ImGui::SameLine        ( );
+    ImGui::BeginGroup      ( );
+    ImGui::RadioButton     ("Never",     &cached_auto_stop, 3);
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::EndGroup        ( );
+    SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
+    ImGui::TreePop         ( );
     
-    ImGui::TreePush        ("");
+    SKIF_ImGui_Spacing ( );
+    SKIF_ImGui_Spacing ( );
 
-      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-      SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
-                              "Move the mouse over each option to get more information.");
-      ImGui::SameLine        ( );
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "Auto-stop behavior when launching the game:"
-      );
-
-      ImGui::TreePush        ("ManageGame_AutoStopBehavior");
-      ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)", (_registry.iAutoStopBehavior == 1) ? "Inject" : "Exit"), &cached_auto_stop, 0);
-      SKIF_ImGui_SetHoverTip ("The service will use the default behavior configured in the Settings tab.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("On inject", &cached_auto_stop, 1);
-      SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("On exit",   &cached_auto_stop, 2);
-      SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
-      ImGui::SameLine        ( );
-      ImGui::BeginGroup      ( );
-      ImGui::RadioButton     ("Never",     &cached_auto_stop, 3);
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      ImGui::EndGroup        ( );
-      SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
-      ImGui::TreePop         ( );
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Miscellaneous settings:"
+    );
     
-      SKIF_ImGui_Spacing ( );
-      SKIF_ImGui_Spacing ( );
-
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "Miscellaneous settings:"
-      );
-    
-      ImGui::TreePush        ("ManageGame_Miscellaneous");
-      ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
-      ImGui::SameLine        ( );
-      ImGui::Spacing         ( );
-      ImGui::SameLine        ( );
-      ImGui::Checkbox        ("Hidden###HideInLibrary", &cached_hidden);
-      ImGui::SameLine        ( );
-      ImGui::Spacing         ( );
-      ImGui::SameLine        ( );
-      ImGui::Checkbox        ("Favorite###PinInLibrary", &cached_pinned);
-      ImGui::TreePop         ( );
-
+    ImGui::TreePush        ("ManageGame_Miscellaneous");
+    ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
+    ImGui::SameLine        ( );
+    ImGui::Spacing         ( );
+    ImGui::SameLine        ( );
+    ImGui::Checkbox        ("Hidden###HideInLibrary", &cached_hidden);
+    ImGui::SameLine        ( );
+    ImGui::Spacing         ( );
+    ImGui::SameLine        ( );
+    ImGui::Checkbox        ("Favorited###PinInLibrary", &cached_pinned);
     ImGui::TreePop         ( );
 
     SKIF_ImGui_Spacing ( );
@@ -8224,7 +8220,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SKIF_ImGui_Spacing ( );
 
-    ImGui::TreePop     ( );
+    ImGui::TreePop     ( ); // ModifyGameTreePush
 
     ImGui::PopStyleColor ( );
 
