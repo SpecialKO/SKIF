@@ -5366,14 +5366,16 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (app.second.id    == worker.app.id &&
               app.second.store == worker.app.store)
           {
-            // Backup the icon data (in particular any active worker data)
-            app_record_s::tex_registry_s tex_icon = app.second.tex_icon;
+            // Backup the texture data (in particular any active worker data)
+            app_record_s::tex_registry_s tex_icon  = app.second.tex_icon;
+            app_record_s::tex_registry_s tex_cover = app.second.tex_cover;
 
             // Copy the results over
             app.second = worker.app;
 
-            // Restore the icon data (and worker data)
-            app.second.tex_icon = tex_icon;
+            // Restore the texture data (and worker data)
+            app.second.tex_icon  = tex_icon;
+            app.second.tex_cover = tex_cover;
 
             app.second.loading = false;
 
