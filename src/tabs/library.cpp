@@ -4767,6 +4767,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       HKEY     hKey;
       LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
 
+      // UNIX timestamp for new arrivals
+      time_t ltime;
+      time (&ltime);
+      std::string szTime = std::to_string (ltime);
+
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
       {
@@ -4873,9 +4878,14 @@ SKIF_UI_Tab_DrawLibrary (void)
                 newCategories = true;
               }
 
+              // For newly arrived games, we populate the used parameter with the current time
+              //   so they appear on top when sorting by Last Played, mirroring Steam a bit...
+              if (app.second.skif.used.empty())
+                app.second.skif.used         = szTime;
+
               // Human-readable time format (local time)
-              time_t            ltime        = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
-              app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (ltime));
+              time_t          last_played    = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
+              app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (last_played));
                 
               if ((app.second.store == app_record_s::Store::Steam ||
                    app.second.store == app_record_s::Store::GOG   ||
