@@ -1731,6 +1731,19 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
 }
 
 bool
+SKIF_Util_IsTouchCapable (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  int digitizer = ::GetSystemMetrics (SM_DIGITIZER);
+               // ::GetSystemMetrics (SM_MAXIMUMTOUCHES) > 0
+
+  return (_registry.bTouchInput  &&
+         (digitizer & NID_READY) &&
+         (digitizer & NID_INTEGRATED_TOUCH));
+}
+
+bool
 SKIF_Util_IsProcessAdmin (DWORD PID)
 {
   bool          bRet = false;
@@ -3707,8 +3720,8 @@ SKIF_Util_GetWindowMessageAsStr (UINT msg)
   //case CB_MULTIPLEADDSTRING: return "CB_MULTIPLEADDSTRING";
     case CB_GETCOMBOBOXINFO: return "CB_GETCOMBOBOXINFO";
     case CB_MSGMAX: return "CB_MSGMAX";
-    case WM_MOUSEFIRST: return "WM_MOUSEFIRST";
-  //case WM_MOUSEMOVE: return "WM_MOUSEMOVE"; // Alias for WM_MOUSEFIRST
+  //case WM_MOUSEFIRST: return "WM_MOUSEFIRST"; // Alias for WM_MOUSEMOVE
+    case WM_MOUSEMOVE: return "WM_MOUSEMOVE";
     case WM_LBUTTONDOWN: return "WM_LBUTTONDOWN";
     case WM_LBUTTONUP: return "WM_LBUTTONUP";
     case WM_LBUTTONDBLCLK: return "WM_LBUTTONDBLCLK";

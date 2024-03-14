@@ -7197,8 +7197,23 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::Separator      ( );
 
-    if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, &_registry.bUILargeIcons))
+    bool* pActiveBool = (_registry._TouchDevice) ? &_registry._TouchDevice : &_registry.bUILargeIcons;
+
+    if (_registry._TouchDevice)
+    {
+      ImGui::BeginGroup           ( ); // Needed for the hover tip to appear
+      SKIF_ImGui_PushDisableState ( );
+    }
+
+    if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, pActiveBool))
       _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
+
+    if (_registry._TouchDevice)
+    {
+      SKIF_ImGui_PopDisableState  ( );
+      ImGui::EndGroup             ( );
+      SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+    }
 
     if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;
@@ -7394,6 +7409,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           time_t ltime;
           time (&ltime);
 
+          // Steam typically uses one of two different CDNs:
+          // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
+          // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
+          // Historically the Akamai CDN has been ever so slightly more reliable than the CloudFlare CDN.
           std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
                        url += std::to_wstring (_pApp->id);
                        url += L"/library_600x900_2x.jpg";

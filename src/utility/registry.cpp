@@ -306,6 +306,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
   if (regKVUILargeIcons.hasData(&hKey))
     bUILargeIcons          =   regKVUILargeIcons           .getData (&hKey);
+  if (regKVTouchInput.hasData(&hKey))
+    bTouchInput            =   regKVTouchInput             .getData (&hKey);
 
   // Store libraries
 

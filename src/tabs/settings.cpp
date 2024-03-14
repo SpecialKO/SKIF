@@ -1092,6 +1092,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Switch to the horizontal mode on smaller displays automatically.");
 
+    if ( ImGui::Checkbox ( "Touch Input", &_registry.bTouchInput) )
+    {
+      _registry.regKVTouchInput.putData (  _registry.bTouchInput);
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+    }
+
+    SKIF_ImGui_SetHoverTip ("Make the UI easier to use on touch input capable devices automatically.");
+
     if (! _registry.bUITooltips &&
         ! _registry.bUIStatusBar)
     {

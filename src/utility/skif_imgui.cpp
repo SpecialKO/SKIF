@@ -1194,7 +1194,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   dst->FrameRounding   = dst->WindowRounding;
 
   // Touch input adjustment
-  if (::GetSystemMetrics (SM_MAXIMUMTOUCHES) > 0)
+  if (SKIF_Util_IsTouchCapable ( ))
   {
     _registry._TouchDevice = true;
     dst->ScrollbarSize = 50.0f;

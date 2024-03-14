@@ -218,6 +218,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Large Icons)" );
 
+  KeyValue <bool> regKVTouchInput =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Touch Input)" );
+
   // Store libraries
 
   KeyValue <bool> regKVLibrarySteam =
@@ -496,6 +500,7 @@ struct SKIF_RegistrySettings {
   bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
+  bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices
 
   bool bLibrarySteam            =  true;
   bool bLibraryEpic             =  true;
