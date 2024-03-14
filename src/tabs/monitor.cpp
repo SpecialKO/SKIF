@@ -1403,7 +1403,10 @@ SKIF_UI_Tab_DrawMonitor (void)
     }, nullptr, 0x0, nullptr);
 
     if (hWorkerThread != NULL)
+    {
       CloseHandle (hWorkerThread);
+      hWorkerThread = NULL;
+    }
   }
 
   ImGui::Spacing          ( );

@@ -1163,7 +1163,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   data->store         = (int)pApp->store;
 
   HANDLE hWorkerThread = (HANDLE)
-  _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
   {
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_UpdateCoverWorker");
 
@@ -4569,7 +4569,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
 
     HANDLE hWorkerThread = (HANDLE)
-    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+    _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
     {
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker");
 
@@ -5432,7 +5432,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
 
         HANDLE hWorkerThread = (HANDLE)
-        _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+        _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
         {
           SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GameWorker");
 
@@ -6352,7 +6352,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // We're going to stream game icons asynchronously on this thread
       HANDLE hWorkerThread = (HANDLE)
-      _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+      _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
       {
         SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
 

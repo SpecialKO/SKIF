@@ -258,7 +258,10 @@ SKIF_Updater::SKIF_Updater (void)
   }, nullptr, 0x0, nullptr);
 
   if (hWorkerThread != NULL)
+  {
     CloseHandle (hWorkerThread);
+    hWorkerThread = NULL;
+  }
 }
 
 void

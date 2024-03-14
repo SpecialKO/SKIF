@@ -913,7 +913,7 @@ SKIF_Util_CreateProcess (
     data->env = *env;
 
   HANDLE hWorkerThread = (HANDLE)
-  _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
   {
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
 

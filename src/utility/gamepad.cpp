@@ -358,7 +358,10 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
   }, nullptr, 0x0, nullptr);
 
   if (hWorkerThread != NULL)
+  {
     CloseHandle (hWorkerThread);
+    hWorkerThread = NULL;
+  }
 }
 
 bool
