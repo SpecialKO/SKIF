@@ -3343,7 +3343,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Do stuff when focus is changed
     static int
         AppHasFocus  = -1;
-    if (AppHasFocus != (int)SKIF_ImGui_IsFocused())
+    if (_registry.bControllers &&
+        AppHasFocus != (int)SKIF_ImGui_IsFocused())
     {   AppHasFocus  = (int)SKIF_ImGui_IsFocused();
 
       // If focus was received

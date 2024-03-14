@@ -14,6 +14,7 @@
 #include <utility/registry.h>
 #include <utility/injection.h>
 #include <utility/updater.h>
+#include <utility/gamepad.h>
 
 extern bool allowShortcutCtrlA;
 
@@ -1339,6 +1340,20 @@ SKIF_UI_Tab_DrawSettings (void)
     SK_RunOnce(
       ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
+
+    if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
+    {
+      _registry.regKVControllers.putData (                                           _registry.bControllers);
+
+      // Ensure the gamepad input thread knows what state we are actually in
+      static SKIF_GamePadInputHelper& _gamepad =
+             SKIF_GamePadInputHelper::GetInstance ( );
+
+      if (_registry.bControllers)
+        _gamepad.WakeThread  ( );
+      else
+        _gamepad.SleepThread ( );
+    }
 
     if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
       _registry.regKVAutoUpdate.putData (                                            _registry.bAutoUpdate);

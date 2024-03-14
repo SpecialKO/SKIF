@@ -62,6 +62,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static HMODULE                         hModXInput                       = nullptr;
   static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
   static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
+  static bool                            runOnce         = true;
+  static bool                            skipFreeLibrary = false;
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
@@ -86,6 +88,13 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
           continue;
 
         PLOG_VERBOSE << "Loaded the XInput library: " << dll;
+
+        if (runOnce)
+        {
+          skipFreeLibrary = PathFileExists (dll);
+          PLOG_VERBOSE_IF(skipFreeLibrary) << "Custom XInput DLL file detected; will not free the library after use!";
+          runOnce = false;
+        }
 
         SKIF_XInputGetCapabilities = (XInputGetCapabilities_pfn)
           GetProcAddress (hModXInput, "XInputGetCapabilities");
@@ -128,7 +137,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
     {
       PLOG_VERBOSE << "No gamepad connected.";
 
-      if (hModXInput != nullptr)
+      if (hModXInput != nullptr && ! skipFreeLibrary)
       {
         SKIF_XInputGetState              = nullptr;
         SKIF_XInputGetCapabilities       = nullptr;
