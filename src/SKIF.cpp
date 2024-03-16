@@ -439,7 +439,6 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     if (cmdLineArgs.find(L" ") == 0)
       cmdLineArgs = cmdLineArgs.substr(1);
 
-    extern std::wstring SKIF_Util_GetProductName    (const wchar_t* wszName);
     extern int          SKIF_AddCustomAppID         (std::wstring name, std::wstring path, std::wstring args);
 
     if (PathFileExists (cmdLine.c_str()))

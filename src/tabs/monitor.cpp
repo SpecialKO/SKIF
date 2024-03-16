@@ -925,8 +925,6 @@ SKIF_UI_Tab_DrawMonitor (void)
       SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-      extern std::wstring SKIF_Util_GetProductName (const wchar_t* wszName);
-
       struct known_dll_s {
         std::wstring path;
         bool isSpecialK;
