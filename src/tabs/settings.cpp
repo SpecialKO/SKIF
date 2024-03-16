@@ -776,13 +776,16 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
 
-          // Wait on all tabs as well...
-          for (auto& vWatchHandle : vWatchHandles)
-            vWatchHandle.push_back (SteamProcessHandle);
+          if (SteamProcessHandle != NULL)
+          {
+            // Wait on all tabs as well...
+            for (auto& vWatchHandle : vWatchHandles)
+              vWatchHandle.push_back (SteamProcessHandle);
 
-          // Signal the Steam client to exit
-          PLOG_INFO << "Shutting down the Steam client...";
-          SKIF_Util_OpenURI (L"steam://exit");
+            // Signal the Steam client to exit
+            PLOG_INFO << "Shutting down the Steam client...";
+            SKIF_Util_OpenURI (L"steam://exit");
+          }
         }
       }
 
