@@ -593,7 +593,7 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
   if (! _Signal.Start)
     _Signal._DoNotUseService = true;
 
-  //static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   //static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   std::wstring cmdLine      = std::wstring     (lpCmdLine);
@@ -615,7 +615,7 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
     // Length of the substring to remove
     posArgumentEnd -= posArgumentStart;
 
-    argSKIF_URI_found = cmdLineLower.substr(posArgumentStart + argSKIF_URI.length ( ), posArgumentEnd);
+    argSKIF_URI_found = cmdLine.substr(posArgumentStart + argSKIF_URI.length ( ), posArgumentEnd);
 
     // Remove substring from the original variables
     cmdLine     .erase (posArgumentStart, posArgumentEnd);
@@ -627,6 +627,18 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
   if (! argSKIF_URI_found.empty())
   {
     _Signal._GamePath = argSKIF_URI_found;
+
+    // If we are dealing with an executable path, also find a working directory
+    if (StrStrIW (argSKIF_URI_found.c_str(), L".exe") != NULL)
+    {
+      std::wstring workingDirectory = _path_cache.skif_workdir_org;
+  
+      // Fall back to using the folder of the game executable if the original working directory fails a few simple checks
+      if (workingDirectory.empty() || _wcsicmp (_path_cache.skif_workdir_org, _path_cache.skif_workdir) == 0 || workingDirectory.find(L"system32") != std::wstring::npos)
+        workingDirectory = std::filesystem::path (argSKIF_URI_found).parent_path().wstring();
+
+      _Signal._GameWorkDir = workingDirectory;
+    }
   }
 
   else {
