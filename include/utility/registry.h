@@ -188,6 +188,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Remember Last Selected)" );
 
+  KeyValue <bool> regKVRememberCategoryState =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Remember Category State)" );
+
   KeyValue <bool> regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
@@ -493,6 +497,7 @@ struct SKIF_RegistrySettings {
 
   // Default settings (booleans)
   bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default
+  bool bRememberCategoryState   =  true;
 
   bool bUIBorders               = false;
   bool bUITooltips              =  true;

@@ -535,7 +535,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::NextColumn    ( );
 
-  ImGui::TreePush      ("");
+  ImGui::TreePush      ("RightColumnSectionTop");
 
   // New column
 
@@ -756,6 +756,9 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
       _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
 
+    if ( ImGui::Checkbox ( "Remember category collapsible state",       &_registry.bRememberCategoryState) )
+      _registry.regKVRememberCategoryState.putData (                     _registry.bRememberCategoryState);
+
     if (valvePlug)
     {
       static bool valvePlugState = (bool)_registry.iValvePlug;
@@ -801,7 +804,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ("");
+    ImGui::TreePush         ("RightColumnSectionLibrary");
             
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1008,6 +1011,8 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush        ("UIElements");
 
+    ImGui::BeginGroup ( );
+
     if (ImGui::Checkbox ("Borders",    &_registry.bUIBorders))
     {
       _registry.regKVUIBorders.putData (_registry.bUIBorders);
@@ -1016,9 +1021,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetStyle (&newStyle);
     }
 
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
+    SKIF_ImGui_SetHoverTip ("Use borders around UI elements.");
 
     if (ImGui::Checkbox ("Tooltips",    &_registry.bUITooltips))
     {
@@ -1035,10 +1038,6 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip  ("If tooltips are disabled the status bar will be used for additional information.\n"
                              "Note that some links cannot be previewed as a result.");
 
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
     if (ImGui::Checkbox ("Status bar",   &_registry.bUIStatusBar))
     {
       _registry.regKVUIStatusBar.putData (_registry.bUIStatusBar);
@@ -1049,9 +1048,71 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling the status bar as well as tooltips will hide all additional information or tips.");
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
-    ImGui::Spacing  ( );
+    ImGui::Spacing  ( ); // New column
     ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    bool* pActiveBool = (_registry._TouchDevice) ? &_registry._TouchDevice : &_registry.bUILargeIcons;
+
+    if (_registry._TouchDevice)
+    {
+      SKIF_ImGui_PushDisableState ( );
+    }
+
+    if (ImGui::Checkbox ("Large icons", pActiveBool))
+      _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
+
+    if (_registry._TouchDevice)
+    {
+      SKIF_ImGui_PopDisableState  ( );
+      SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+    } else
+      SKIF_ImGui_SetHoverTip      ("Use larger game icons in the library tab.");
+
+    if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
+    {
+      _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
+
+      extern float fAlpha;
+      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+    }
+
+    SKIF_ImGui_SetHoverTip ("Fade between game covers when switching games.");
+
+    if (SKIF_Util_IsWindows11orGreater ( ))
+    {
+      if ( ImGui::Checkbox ( "Win11 corners", &_registry.bWin11Corners) )
+      {
+        _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
+        
+        // Force recreating the window on changes
+        RecreateWin32Windows = true;
+      }
+
+      SKIF_ImGui_SetHoverTip ("Use rounded window corners.");
+    }
+
+    ImGui::EndGroup ( );
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( ); // New column
+    ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    if ( ImGui::Checkbox ( "Touch input", &_registry.bTouchInput) )
+    {
+      _registry.regKVTouchInput.putData (  _registry.bTouchInput);
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+    }
+
+    SKIF_ImGui_SetHoverTip ("Make the UI easier to use on touch input capable devices automatically.");
 
     if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDPIScaling))
     {
@@ -1062,65 +1123,30 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling HiDPI scaling will make the application appear smaller on HiDPI displays.");
 
-    // New line
-
-    if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
-    {
-      _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
-
-      extern float fAlpha;
-      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
-    }
-
-    if (SKIF_Util_IsWindows11orGreater ( ))
-    {
-      ImGui::SameLine ( );
-      ImGui::Spacing  ( );
-      ImGui::SameLine ( );
-
-      if ( ImGui::Checkbox ( "Win11 Corners", &_registry.bWin11Corners) )
-      {
-        _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
-        
-        // Force recreating the window on changes
-        RecreateWin32Windows = true;
-      }
-    }
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    if ( ImGui::Checkbox ( "Auto-Horizon Mode", &_registry.bHorizonModeAuto) )
+    if ( ImGui::Checkbox ( "Auto-horizon mode", &_registry.bHorizonModeAuto) )
       _registry.regKVHorizonModeAuto.putData (   _registry.bHorizonModeAuto);
 
     SKIF_ImGui_SetHoverTip ("Switch to the horizontal mode on smaller displays automatically.");
 
-    if ( ImGui::Checkbox ( "Touch Input", &_registry.bTouchInput) )
-    {
-      _registry.regKVTouchInput.putData (  _registry.bTouchInput);
-
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
-    }
-
-    SKIF_ImGui_SetHoverTip ("Make the UI easier to use on touch input capable devices automatically.");
+    ImGui::EndGroup ( );
 
     if (! _registry.bUITooltips &&
         ! _registry.bUIStatusBar)
     {
-      ImGui::BeginGroup     ( );
-      ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-      ImGui::SameLine       ( );
-      ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
-      ImGui::EndGroup       ( );
+      ImGui::BeginGroup  ( );
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information and tips will not appear!");
+      ImGui::EndGroup    ( );
+
+      SKIF_ImGui_SetHoverTip ("Restore context based information and tips by enabling tooltips or the status bar.", true);
     }
 
     ImGui::TreePop       ( );
 
     ImGui::NextColumn    ( );
 
-    ImGui::TreePush      ("");
+    ImGui::TreePush      ("RightColumnSectionAppearance");
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1440,7 +1466,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ("");
+    ImGui::TreePush         ("RightColumnSectionAdvanced");
     
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -2293,13 +2319,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("RightColumnSectionSwapChain");
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("LatencyMinimal");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Independent Flip");
@@ -2329,7 +2355,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("LatencyUndesireable");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
@@ -2527,7 +2553,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ("");
+    ImGui::TreePush    ("MinimumRequirements");
 
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));

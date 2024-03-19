@@ -724,7 +724,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine         ( );
 
   ImGui::BeginGroup       ( );
-  ImGui::TreePush         ("");
+  ImGui::TreePush         ("RealTimeUpdates");
 
   const char* RefreshInterval[] = { "Paused",   // 0 (never)
                                     "Slow",     // 1 (5s)
@@ -806,7 +806,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TreePush   ("");
+  ImGui::TreePush   ("ServiceToggles");
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success));
   if (ImGui::Button ( ICON_FA_TOGGLE_ON  "  Force start", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_PLAY

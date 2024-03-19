@@ -418,6 +418,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVRememberLastSelected.hasData(&hKey))
     bRememberLastSelected  =   regKVRememberLastSelected   .getData (&hKey);
 
+  if (regKVRememberCategoryState.hasData(&hKey))
+    bRememberCategoryState =   regKVRememberCategoryState  .getData (&hKey);
+
   if (bRememberLastSelected)
   {
     if (regKVLastSelectedGame.hasData(&hKey))
@@ -448,7 +451,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       category_s category;
       category.name     = SK_WideCharToUTF8 (wzCategory);
 
-      if (i < mwzCategoriesState.size())
+      if (bRememberCategoryState && i < mwzCategoriesState.size())
         category.expanded = std::stoi (mwzCategoriesState[i]);
 
       vecCategories.push_back (category);
