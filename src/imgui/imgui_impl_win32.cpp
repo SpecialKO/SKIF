@@ -1107,11 +1107,9 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   if (flags & ImGuiViewportFlags_NoDecoration)
     *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
   else {
-    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME; // Main Window (WS_OVERLAPPEDWINDOW)
+    *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME | WS_MAXIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
     
-    // Only enable the maximized box if DragFromMaximize is available in Windows
-    if (_registry.bMaximizeOnDoubleClick && SKIF_Util_GetDragFromMaximized ( ))
-      *out_style |= WS_MAXIMIZEBOX;
+    // WS_MAXIMIZEBOX is necessary for drag/drop snapping to the edges of the monitor to function as expected
   }
 
   // WS_OVERLAPPEDWINDOW == WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
@@ -1120,7 +1118,7 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   // - WS_SYSMENU     - Window menu           (WndMenu -> Move      // alt+space, right click window on taskbar
   // - WS_THICKFRAME  - Resize grip on window (WndMenu -> Size)     // enables WinKey+Left/Right snapping
   // - WS_MINIMIZEBOX - Minimize button       (WndMenu -> Minimize) // enables WinKey+Down minimize shortcut
-  // - WS_MAXIMIZEBOX - Maximize button       (WndMenu -> Maximize) // enables WinKey+Up maximize shortcut
+  // - WS_MAXIMIZEBOX - Maximize button       (WndMenu -> Maximize) // enables WinKey+Up maximize shortcut + drag/drop snapping
 
   if (flags & ImGuiViewportFlags_NoTaskBarIcon)
     *out_ex_style  = WS_EX_TOOLWINDOW; // Popups / Tooltips
@@ -1960,7 +1958,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         {
           // Only convert "non-client" double clicks to single clicks
           //   if dragging windows from a maximized state is disabled
-          if (! _registry.bMaximizeOnDoubleClick && ! SKIF_Util_GetDragFromMaximized ( ))
+          if (! _registry.bMaximizeOnDoubleClick || ! SKIF_Util_GetDragFromMaximized ( ))
             msg = WM_NCLBUTTONDOWN;
           break;
         }
