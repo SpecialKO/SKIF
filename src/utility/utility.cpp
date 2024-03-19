@@ -31,6 +31,7 @@
 #include <HybridDetect.h>
 
 std::vector<HANDLE> vWatchHandles[UITab_ALL];
+INT64               SKIF_TimeInMilliseconds = 0;
 
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
@@ -161,10 +162,8 @@ SKIF_Util_GetErrorAsMsgBox (std::wstring winTitle, std::wstring preMsg, DWORD er
 DWORD
 SKIF_Util_timeGetTime (void)
 {
-  extern INT64 current_time_ms;
-
   return static_cast<DWORD>
-          ( current_time_ms & 0xFFFFFFFFLL );
+          ( SKIF_TimeInMilliseconds & 0xFFFFFFFFLL );
 }
 
 DWORD
@@ -172,29 +171,6 @@ SKIF_Util_timeGetTime1 (void)
 {
   static LARGE_INTEGER qpcFreq = { };
          LARGE_INTEGER li      = { };
-
-  /*
-  using timeGetTime_pfn =
-          DWORD (WINAPI *)(void);
-  static timeGetTime_pfn
-   winmm_timeGetTime     = nullptr;
-
-  if (  winmm_timeGetTime == nullptr || qpcFreq.QuadPart == 1)
-  {
-    if (winmm_timeGetTime == nullptr)
-    {
-      HMODULE hModWinMM =
-        LoadLibraryEx ( L"winmm.dll", nullptr,
-                          LOAD_LIBRARY_SEARCH_SYSTEM32 );
-        winmm_timeGetTime =
-             (timeGetTime_pfn)GetProcAddress (hModWinMM,
-             "timeGetTime"                   );
-    }
-
-    return winmm_timeGetTime != nullptr ?
-           winmm_timeGetTime ()         : static_cast <DWORD> (-1);
-  }
-  */
 
   if ( qpcFreq.QuadPart == 1)
   {
@@ -681,6 +657,10 @@ SKIF_Util_StripPersonalData (std::string input)
 
   if (! machineNameUTF8.empty())
     input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), replMacNameUTF8.c_str());
+  
+  // Trim a single trailing newline
+  if (! input.empty() && input.back() == '\n')
+    input.pop_back();
 
   return input;
 }
@@ -701,6 +681,10 @@ SKIF_Util_StripPersonalData (std::wstring input)
 
   if (! machineName.empty())
     input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
+  
+  // Trim a single trailing newline
+  if (! input.empty() && input.back() == L'\n')
+    input.pop_back();
 
   return input;
 }
@@ -928,148 +912,148 @@ SKIF_Util_CreateProcess (
   if (env != nullptr)
     data->env = *env;
 
-  uintptr_t hWorkerThread =
-    _beginthreadex (nullptr, 0x0, [](void * var) -> unsigned
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
+
+    // Is this combo really appropriate for this thread?
+    SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+    PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
+
+    thread_s* _data = static_cast<thread_s*>(var);
+
+    PROCESS_INFORMATION procinfo = { };
+    STARTUPINFO         supinfo  = { };
+    SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
+    supinfo.cb                   = sizeof (STARTUPINFO);
+      
+    LPVOID       lpEnvBlock      = nullptr;
+    std::wstring wsEnvBlock;
+      
+    // Create a clear and empty environment block for the current user
+    CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
+
+    // Convert to a nicely stored wstring
+    wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
+
+    // Add any custom variables to it
+    for (auto& env_var : _data->env)
+      wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
+
+    // Destroy the block once we are done with it
+    DestroyEnvironmentBlock (lpEnvBlock);
+      
+    PLOG_INFO                                          << "Creating process...";
+    PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
+    PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
+    PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
+    PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
+    PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
+
+    if (CreateProcessW (
+        (_data->path             .empty()) ? NULL : _data->path.c_str(),
+        (_data->parameters_actual.empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
+        NULL,
+        NULL,
+        FALSE,
+        NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
+        const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
+        (_data->directory.empty()) ? NULL : _data->directory.c_str(),
+        &supinfo,
+        &procinfo))
     {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_CreateProcessWorker");
-
-      // Is this combo really appropriate for this thread?
-      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
-
-      PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
-
-      thread_s* _data = static_cast<thread_s*>(var);
-
-      PROCESS_INFORMATION procinfo = { };
-      STARTUPINFO         supinfo  = { };
-      SecureZeroMemory  (&supinfo,   sizeof (STARTUPINFO));
-      supinfo.cb                   = sizeof (STARTUPINFO);
-      
-      LPVOID       lpEnvBlock      = nullptr;
-      std::wstring wsEnvBlock;
-      
-      // Create a clear and empty environment block for the current user
-      CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
-
-      // Convert to a nicely stored wstring
-      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
-
-      // Add any custom variables to it
-      for (auto& env_var : _data->env)
-        wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
-
-      // Destroy the block once we are done with it
-      DestroyEnvironmentBlock (lpEnvBlock);
-      
-      PLOG_INFO                                          << "Creating process...";
-      PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
-      PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
-      PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
-      PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
-      PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
-
-      if (CreateProcessW (
-          (_data->path             .empty()) ? NULL : _data->path.c_str(),
-          (_data->parameters_actual.empty()) ? NULL : const_cast<wchar_t *>(_data->parameters_actual.c_str()),
-          NULL,
-          NULL,
-          FALSE,
-          NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
-          const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
-          (_data->directory.empty()) ? NULL : _data->directory.c_str(),
-          &supinfo,
-          &procinfo))
+      if (_data->proc != nullptr)
       {
-        if (_data->proc != nullptr)
-        {
-          _data->proc->iReturnCode.store (0);
-          _data->proc->hProcess.store    (procinfo.hProcess);
-          _data->proc->dwProcessId.store (procinfo.dwProcessId);
-        } else // We don't have a proc structure, so the handle is unneeded
-          CloseHandle (procinfo.hProcess);
+        _data->proc->iReturnCode.store (0);
+        _data->proc->hProcess.store    (procinfo.hProcess);
+        _data->proc->dwProcessId.store (procinfo.dwProcessId);
+      } else // We don't have a proc structure, so the handle is unneeded
+        CloseHandle (procinfo.hProcess);
 
-        // Close the external thread handle as we do not use it for anything
-        CloseHandle (procinfo.hThread);
-      }
+      // Close the external thread handle as we do not use it for anything
+      CloseHandle (procinfo.hThread);
+    }
 
-      // Use fallback if the primary failed
-      else
+    // Use fallback if the primary failed
+    else
+    {
+      DWORD error = GetLastError ( );
+      PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
+
+      // In case elevation is needed, try ShellExecute!
+      if (error == 740)
       {
-        DWORD error = GetLastError ( );
-        PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
+        PLOG_INFO << "Attempting elevation fallback...";
 
-        // In case elevation is needed, try ShellExecute!
-        if (error == 740)
-        {
-          PLOG_INFO << "Attempting elevation fallback...";
+        static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-          static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+        // Note that any new process will inherit SKIF's environment variables
+        if (_registry._LoadedSteamOverlay)
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
 
-          // Note that any new process will inherit SKIF's environment variables
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        // Set any custom environment variables
+        for (auto& env_var : _data->env)
+          SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
 
-          // Set any custom environment variables
-          for (auto& env_var : _data->env)
-            SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
-
-          PLOG_INFO << "Performing a ShellExecuteEx call...";
+        PLOG_INFO << "Performing a ShellExecuteEx call...";
   
-          SHELLEXECUTEINFOW
-            sexi              = { };
-            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-            sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
-            sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
-            sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
-            sexi.nShow        = SW_SHOWNORMAL;
-            sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
+        SHELLEXECUTEINFOW
+          sexi              = { };
+          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+          sexi.lpVerb       = L"OPEN";
+          sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
+          sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
+          sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
+          sexi.nShow        = SW_SHOWNORMAL;
+          sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
 
-          if (ShellExecuteExW (&sexi))
-          {
-            PLOG_INFO << "The operation was successful.";
-            _data->proc->iReturnCode.store (0);
-            _data->proc->hProcess.store    (sexi.hProcess);
-          }
-
-          else {
-            error = GetLastError ( );
-            PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
-            _data->proc->iReturnCode.store (error);
-          }
-
-          // Remove any custom environment variables
-          for (auto& env_var : _data->env)
-            SetEnvironmentVariable (env_var.first.c_str(), NULL);
-
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+        if (ShellExecuteExW (&sexi))
+        {
+          PLOG_INFO << "The operation was successful.";
+          _data->proc->iReturnCode.store (0);
+          _data->proc->hProcess.store    (sexi.hProcess);
         }
 
-        // No fallback available
         else {
-          PLOG_ERROR << "No fallback was available!";
+          error = GetLastError ( );
+          PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
           _data->proc->iReturnCode.store (error);
         }
+
+        // Remove any custom environment variables
+        for (auto& env_var : _data->env)
+          SetEnvironmentVariable (env_var.first.c_str(), NULL);
+
+        if (_registry._LoadedSteamOverlay)
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
       }
 
-      // Free up the memory we allocated
-      delete _data;
+      // No fallback available
+      else {
+        PLOG_ERROR << "No fallback was available!";
+        _data->proc->iReturnCode.store (error);
+      }
+    }
 
-      PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
+    // Free up the memory we allocated
+    delete _data;
 
-      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+    PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
 
-      return 0;
-    }, data, 0x0, nullptr);
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
-  bool threadCreated = (hWorkerThread != 0);
+    return 0;
+  }, data, 0x0, nullptr);
+
+  bool threadCreated = (hWorkerThread != NULL);
 
   if (threadCreated && proc != nullptr)
-    proc->hWorkerThread.store (reinterpret_cast<HANDLE>(hWorkerThread));
+    proc->hWorkerThread.store (hWorkerThread);
   else if (threadCreated) // We don't have a proc structure, so the handle is unneeded
-    CloseHandle (reinterpret_cast<HANDLE>(hWorkerThread));
+    CloseHandle (hWorkerThread);
   else // Someting went wrong during thread creation, so free up the memory we allocated earlier
     delete data;
 
@@ -1747,6 +1731,19 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
 }
 
 bool
+SKIF_Util_IsTouchCapable (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  int digitizer = ::GetSystemMetrics (SM_DIGITIZER);
+               // ::GetSystemMetrics (SM_MAXIMUMTOUCHES) > 0
+
+  return (_registry.bTouchInput  &&
+         (digitizer & NID_READY) &&
+         (digitizer & NID_INTEGRATED_TOUCH));
+}
+
+bool
 SKIF_Util_IsProcessAdmin (DWORD PID)
 {
   bool          bRet = false;
@@ -2237,6 +2234,7 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
 
   return result;
 }
+
 
 // Effective Power Mode (Windows 10 1809+)
 typedef enum EFFECTIVE_POWER_MODE {
@@ -3406,6 +3404,13 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
 
+  PLOG_INFO                                      << "Creating a desktop shortcut...";
+  PLOG_INFO_IF(lpszPathLink != nullptr)          << "Shortcut    : " << std::wstring(lpszPathLink);
+  PLOG_INFO_IF(lpszTarget   != nullptr)          << "Target      : " << std::wstring(lpszTarget);
+  PLOG_INFO_IF(wcscmp (lpszArgs,    L"\0") != 0) << "Parameters  : " << std::wstring(lpszArgs);
+  PLOG_INFO_IF(wcscmp (lpszWorkDir, L"\0") != 0) << "Start in    : " << std::wstring(lpszWorkDir);
+  PLOG_INFO_IF(wcscmp (lpszDesc,    L"\0") != 0) << "Description : " << std::wstring(lpszDesc);
+
   if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {
     IPersistFile* ppf = nullptr;
@@ -3447,5 +3452,411 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
     psl->Release();
   }
 
+  if (ret)
+    PLOG_INFO << "Shortcut was created successfully.";
+  else
+    PLOG_ERROR << "Failed to create shortcut!";
+
   return ret;
+}
+
+std::string
+SKIF_Util_GetWindowMessageAsStr (UINT msg)
+{
+  // https://www.autoitscript.com/autoit3/docs/appendix/WinMsgCodes.htm
+
+  // Some random defines that usually pops up every now and then
+#define WM_UAHDESTROYWINDOW             0x0090
+#define WM_UAHDRAWMENU                  0x0091
+#define WM_UAHDRAWMENUITEM              0x0092
+#define WM_UAHINITMENU                  0x0093
+#define WM_UAHMEASUREMENUITEM           0x0094
+#define WM_UAHNCPAINTMENUPOPUP          0x0095
+#define WM_UAHUPDATE                    0x0096
+
+  // Some are undefined with our current inclusions and so are excluded
+  switch (msg)
+  {
+    case WM_NULL: return "WM_NULL";
+    case WM_CREATE: return "WM_CREATE";
+    case WM_DESTROY: return "WM_DESTROY";
+    case WM_MOVE: return "WM_MOVE";
+    case WM_SIZE: return "WM_SIZE";
+    case WM_ACTIVATE: return "WM_ACTIVATE";
+    case WM_SETFOCUS: return "WM_SETFOCUS";
+    case WM_KILLFOCUS: return "WM_KILLFOCUS";
+    case WM_ENABLE: return "WM_ENABLE";
+    case WM_SETREDRAW: return "WM_SETREDRAW";
+    case WM_SETTEXT: return "WM_SETTEXT";
+    case WM_GETTEXT: return "WM_GETTEXT";
+    case WM_GETTEXTLENGTH: return "WM_GETTEXTLENGTH";
+    case WM_PAINT: return "WM_PAINT";
+    case WM_CLOSE: return "WM_CLOSE";
+    case WM_QUERYENDSESSION: return "WM_QUERYENDSESSION";
+    case WM_QUIT: return "WM_QUIT";
+    case WM_QUERYOPEN: return "WM_QUERYOPEN";
+    case WM_ERASEBKGND: return "WM_ERASEBKGND";
+    case WM_SYSCOLORCHANGE: return "WM_SYSCOLORCHANGE";
+    case WM_ENDSESSION: return "WM_ENDSESSION";
+    case WM_SHOWWINDOW: return "WM_SHOWWINDOW";
+  //case WM_CTLCOLOR: return "WM_CTLCOLOR"; // 16-bit Windows
+    case WM_SETTINGCHANGE: return "WM_SETTINGCHANGE";
+  //case WM_WININICHANGE: return "WM_WININICHANGE"; // Alias of WM_SETTINGCHANGE
+    case WM_DEVMODECHANGE: return "WM_DEVMODECHANGE";
+    case WM_ACTIVATEAPP: return "WM_ACTIVATEAPP";
+    case WM_FONTCHANGE: return "WM_FONTCHANGE";
+    case WM_TIMECHANGE: return "WM_TIMECHANGE";
+    case WM_CANCELMODE: return "WM_CANCELMODE";
+    case WM_SETCURSOR: return "WM_SETCURSOR";
+    case WM_MOUSEACTIVATE: return "WM_MOUSEACTIVATE";
+    case WM_CHILDACTIVATE: return "WM_CHILDACTIVATE";
+    case WM_QUEUESYNC: return "WM_QUEUESYNC";
+    case WM_GETMINMAXINFO: return "WM_GETMINMAXINFO";
+    case WM_PAINTICON: return "WM_PAINTICON";
+    case WM_ICONERASEBKGND: return "WM_ICONERASEBKGND";
+    case WM_NEXTDLGCTL: return "WM_NEXTDLGCTL";
+    case WM_SPOOLERSTATUS: return "WM_SPOOLERSTATUS";
+    case WM_DRAWITEM: return "WM_DRAWITEM";
+    case WM_MEASUREITEM: return "WM_MEASUREITEM";
+    case WM_DELETEITEM: return "WM_DELETEITEM";
+    case WM_VKEYTOITEM: return "WM_VKEYTOITEM";
+    case WM_CHARTOITEM: return "WM_CHARTOITEM";
+    case WM_SETFONT: return "WM_SETFONT";
+    case WM_GETFONT: return "WM_GETFONT";
+    case WM_SETHOTKEY: return "WM_SETHOTKEY";
+    case WM_GETHOTKEY: return "WM_GETHOTKEY";
+    case WM_QUERYDRAGICON: return "WM_QUERYDRAGICON";
+    case WM_COMPAREITEM: return "WM_COMPAREITEM";
+    case WM_GETOBJECT: return "WM_GETOBJECT";
+    case WM_COMPACTING: return "WM_COMPACTING";
+    case WM_COMMNOTIFY: return "WM_COMMNOTIFY";
+    case WM_WINDOWPOSCHANGING: return "WM_WINDOWPOSCHANGING";
+    case WM_WINDOWPOSCHANGED: return "WM_WINDOWPOSCHANGED";
+    case WM_POWER: return "WM_POWER";
+  //case WM_COPYGLOBALDATA: return "WM_COPYGLOBALDATA";
+    case WM_COPYDATA: return "WM_COPYDATA";
+    case WM_CANCELJOURNAL: return "WM_CANCELJOURNAL";
+    case WM_NOTIFY: return "WM_NOTIFY";
+    case WM_INPUTLANGCHANGEREQUEST: return "WM_INPUTLANGCHANGEREQUEST";
+    case WM_INPUTLANGCHANGE: return "WM_INPUTLANGCHANGE";
+    case WM_TCARD: return "WM_TCARD";
+    case WM_HELP: return "WM_HELP";
+    case WM_USERCHANGED: return "WM_USERCHANGED";
+    case WM_NOTIFYFORMAT: return "WM_NOTIFYFORMAT";
+    case WM_CONTEXTMENU: return "WM_CONTEXTMENU";
+    case WM_STYLECHANGING: return "WM_STYLECHANGING";
+    case WM_STYLECHANGED: return "WM_STYLECHANGED";
+    case WM_DISPLAYCHANGE: return "WM_DISPLAYCHANGE";
+    case WM_GETICON: return "WM_GETICON";
+    case WM_SETICON: return "WM_SETICON";
+    case WM_NCCREATE: return "WM_NCCREATE";
+    case WM_NCDESTROY: return "WM_NCDESTROY";
+    case WM_NCCALCSIZE: return "WM_NCCALCSIZE";
+    case WM_NCHITTEST: return "WM_NCHITTEST";
+    case WM_NCPAINT: return "WM_NCPAINT";
+    case WM_NCACTIVATE: return "WM_NCACTIVATE";
+    case WM_GETDLGCODE: return "WM_GETDLGCODE";
+    case WM_SYNCPAINT: return "WM_SYNCPAINT";
+    case WM_UAHDESTROYWINDOW: "WM_UAHDESTROYWINDOW";
+    case WM_UAHDRAWMENU: "WM_UAHDRAWMENU";
+    case WM_UAHDRAWMENUITEM: "WM_UAHDRAWMENUITEM";
+    case WM_UAHINITMENU: "WM_UAHINITMENU";
+    case WM_UAHMEASUREMENUITEM: "WM_UAHMEASUREMENUITEM";
+    case WM_UAHNCPAINTMENUPOPUP: "WM_UAHNCPAINTMENUPOPUP";
+    case WM_UAHUPDATE: return "WM_UAHUPDATE";
+    case WM_NCMOUSEMOVE: return "WM_NCMOUSEMOVE";
+    case WM_NCLBUTTONDOWN: return "WM_NCLBUTTONDOWN";
+    case WM_NCLBUTTONUP: return "WM_NCLBUTTONUP";
+    case WM_NCLBUTTONDBLCLK: return "WM_NCLBUTTONDBLCLK";
+    case WM_NCRBUTTONDOWN: return "WM_NCRBUTTONDOWN";
+    case WM_NCRBUTTONUP: return "WM_NCRBUTTONUP";
+    case WM_NCRBUTTONDBLCLK: return "WM_NCRBUTTONDBLCLK";
+    case WM_NCMBUTTONDOWN: return "WM_NCMBUTTONDOWN";
+    case WM_NCMBUTTONUP: return "WM_NCMBUTTONUP";
+    case WM_NCMBUTTONDBLCLK: return "WM_NCMBUTTONDBLCLK";
+    case WM_NCXBUTTONDOWN: return "WM_NCXBUTTONDOWN";
+    case WM_NCXBUTTONUP: return "WM_NCXBUTTONUP";
+    case WM_NCXBUTTONDBLCLK: return "WM_NCXBUTTONDBLCLK";
+    case EM_GETSEL: return "EM_GETSEL";
+    case EM_SETSEL: return "EM_SETSEL";
+    case EM_GETRECT: return "EM_GETRECT";
+    case EM_SETRECT: return "EM_SETRECT";
+    case EM_SETRECTNP: return "EM_SETRECTNP";
+    case EM_SCROLL: return "EM_SCROLL";
+    case EM_LINESCROLL: return "EM_LINESCROLL";
+    case EM_SCROLLCARET: return "EM_SCROLLCARET";
+    case EM_GETMODIFY: return "EM_GETMODIFY";
+    case EM_SETMODIFY: return "EM_SETMODIFY";
+    case EM_GETLINECOUNT: return "EM_GETLINECOUNT";
+    case EM_LINEINDEX: return "EM_LINEINDEX";
+    case EM_SETHANDLE: return "EM_SETHANDLE";
+    case EM_GETHANDLE: return "EM_GETHANDLE";
+    case EM_GETTHUMB: return "EM_GETTHUMB";
+    case EM_LINELENGTH: return "EM_LINELENGTH";
+    case EM_REPLACESEL: return "EM_REPLACESEL";
+  //case EM_SETFONT: return "EM_SETFONT";
+    case EM_GETLINE: return "EM_GETLINE";
+    case EM_LIMITTEXT: return "EM_LIMITTEXT / EM_SETLIMITTEXT";
+    case EM_CANUNDO: return "EM_CANUNDO";
+    case EM_UNDO: return "EM_UNDO";
+    case EM_FMTLINES: return "EM_FMTLINES";
+    case EM_LINEFROMCHAR: return "EM_LINEFROMCHAR";
+  //case EM_SETWORDBREAK: return "EM_SETWORDBREAK";
+    case EM_SETTABSTOPS: return "EM_SETTABSTOPS";
+    case EM_SETPASSWORDCHAR: return "EM_SETPASSWORDCHAR";
+    case EM_EMPTYUNDOBUFFER: return "EM_EMPTYUNDOBUFFER";
+    case EM_GETFIRSTVISIBLELINE: return "EM_GETFIRSTVISIBLELINE";
+    case EM_SETREADONLY: return "EM_SETREADONLY";
+    case EM_SETWORDBREAKPROC: return "EM_SETWORDBREAKPROC";
+    case EM_GETWORDBREAKPROC: return "EM_GETWORDBREAKPROC";
+    case EM_GETPASSWORDCHAR: return "EM_GETPASSWORDCHAR";
+    case EM_SETMARGINS: return "EM_SETMARGINS";
+    case EM_GETMARGINS: return "EM_GETMARGINS";
+    case EM_GETLIMITTEXT: return "EM_GETLIMITTEXT";
+    case EM_POSFROMCHAR: return "EM_POSFROMCHAR";
+    case EM_CHARFROMPOS: return "EM_CHARFROMPOS";
+    case EM_SETIMESTATUS: return "EM_SETIMESTATUS";
+    case EM_GETIMESTATUS: return "EM_GETIMESTATUS";
+    case SBM_SETPOS: return "SBM_SETPOS";
+    case SBM_GETPOS: return "SBM_GETPOS";
+    case SBM_SETRANGE: return "SBM_SETRANGE";
+    case SBM_GETRANGE: return "SBM_GETRANGE";
+    case SBM_ENABLE_ARROWS: return "SBM_ENABLE_ARROWS";
+    case SBM_SETRANGEREDRAW: return "SBM_SETRANGEREDRAW";
+    case SBM_SETSCROLLINFO: return "SBM_SETSCROLLINFO";
+    case SBM_GETSCROLLINFO: return "SBM_GETSCROLLINFO";
+    case SBM_GETSCROLLBARINFO: return "SBM_GETSCROLLBARINFO";
+    case BM_GETCHECK: return "BM_GETCHECK";
+    case BM_SETCHECK: return "BM_SETCHECK";
+    case BM_GETSTATE: return "BM_GETSTATE";
+    case BM_SETSTATE: return "BM_SETSTATE";
+    case BM_SETSTYLE: return "BM_SETSTYLE";
+    case BM_CLICK: return "BM_CLICK";
+    case BM_GETIMAGE: return "BM_GETIMAGE";
+    case BM_SETIMAGE: return "BM_SETIMAGE";
+    case BM_SETDONTCLICK: return "BM_SETDONTCLICK";
+    case WM_INPUT: return "WM_INPUT";
+    case WM_KEYDOWN: return "WM_KEYDOWN";
+  //case WM_KEYFIRST: return "WM_KEYFIRST"; // Alias for WM_KEYDOWN
+    case WM_KEYUP: return "WM_KEYUP";
+    case WM_CHAR: return "WM_CHAR";
+    case WM_DEADCHAR: return "WM_DEADCHAR";
+    case WM_SYSKEYDOWN: return "WM_SYSKEYDOWN";
+    case WM_SYSKEYUP: return "WM_SYSKEYUP";
+    case WM_SYSCHAR: return "WM_SYSCHAR";
+    case WM_SYSDEADCHAR: return "WM_SYSDEADCHAR";
+    case WM_UNICHAR: return "WM_UNICHAR";
+  //case WM_KEYLAST: return "WM_KEYLAST"; // Alias for WM_UNICHAR
+  //case WM_WNT_CONVERTREQUESTEX: return "WM_WNT_CONVERTREQUESTEX";
+  //case WM_CONVERTREQUEST: return "WM_CONVERTREQUEST";
+  //case WM_CONVERTRESULT: return "WM_CONVERTRESULT";
+  //case WM_INTERIM: return "WM_INTERIM";
+    case WM_IME_STARTCOMPOSITION: return "WM_IME_STARTCOMPOSITION";
+    case WM_IME_ENDCOMPOSITION: return "WM_IME_ENDCOMPOSITION";
+    case WM_IME_COMPOSITION: return "WM_IME_COMPOSITION";
+  //case WM_IME_KEYLAST: return "WM_IME_KEYLAST"; // Alias for WM_IME_COMPOSITION
+    case WM_INITDIALOG: return "WM_INITDIALOG";
+    case WM_COMMAND: return "WM_COMMAND";
+    case WM_SYSCOMMAND: return "WM_SYSCOMMAND";
+    case WM_TIMER: return "WM_TIMER";
+    case WM_HSCROLL: return "WM_HSCROLL";
+    case WM_VSCROLL: return "WM_VSCROLL";
+    case WM_INITMENU: return "WM_INITMENU";
+    case WM_INITMENUPOPUP: return "WM_INITMENUPOPUP";
+  //case WM_SYSTIMER: return "WM_SYSTIMER"; // Undocumented, used for caret blinks
+    case WM_MENUSELECT: return "WM_MENUSELECT";
+    case WM_MENUCHAR: return "WM_MENUCHAR";
+    case WM_ENTERIDLE: return "WM_ENTERIDLE";
+    case WM_MENURBUTTONUP: return "WM_MENURBUTTONUP";
+    case WM_MENUDRAG: return "WM_MENUDRAG";
+    case WM_MENUGETOBJECT: return "WM_MENUGETOBJECT";
+    case WM_UNINITMENUPOPUP: return "WM_UNINITMENUPOPUP";
+    case WM_MENUCOMMAND: return "WM_MENUCOMMAND";
+    case WM_CHANGEUISTATE: return "WM_CHANGEUISTATE";
+    case WM_UPDATEUISTATE: return "WM_UPDATEUISTATE";
+    case WM_QUERYUISTATE: return "WM_QUERYUISTATE";
+  //case WM_LBTRACKPOINT: return "WM_LBTRACKPOINT";
+    case WM_CTLCOLORMSGBOX: return "WM_CTLCOLORMSGBOX";
+    case WM_CTLCOLOREDIT: return "WM_CTLCOLOREDIT";
+    case WM_CTLCOLORLISTBOX: return "WM_CTLCOLORLISTBOX";
+    case WM_CTLCOLORBTN: return "WM_CTLCOLORBTN";
+    case WM_CTLCOLORDLG: return "WM_CTLCOLORDLG";
+    case WM_CTLCOLORSCROLLBAR: return "WM_CTLCOLORSCROLLBAR";
+    case WM_CTLCOLORSTATIC: return "WM_CTLCOLORSTATIC";
+    case CB_GETEDITSEL: return "CB_GETEDITSEL";
+    case CB_LIMITTEXT: return "CB_LIMITTEXT";
+    case CB_SETEDITSEL: return "CB_SETEDITSEL";
+    case CB_ADDSTRING: return "CB_ADDSTRING";
+    case CB_DELETESTRING: return "CB_DELETESTRING";
+    case CB_DIR: return "CB_DIR";
+    case CB_GETCOUNT: return "CB_GETCOUNT";
+    case CB_GETCURSEL: return "CB_GETCURSEL";
+    case CB_GETLBTEXT: return "CB_GETLBTEXT";
+    case CB_GETLBTEXTLEN: return "CB_GETLBTEXTLEN";
+    case CB_INSERTSTRING: return "CB_INSERTSTRING";
+    case CB_RESETCONTENT: return "CB_RESETCONTENT";
+    case CB_FINDSTRING: return "CB_FINDSTRING";
+    case CB_SELECTSTRING: return "CB_SELECTSTRING";
+    case CB_SETCURSEL: return "CB_SETCURSEL";
+    case CB_SHOWDROPDOWN: return "CB_SHOWDROPDOWN";
+    case CB_GETITEMDATA: return "CB_GETITEMDATA";
+    case CB_SETITEMDATA: return "CB_SETITEMDATA";
+    case CB_GETDROPPEDCONTROLRECT: return "CB_GETDROPPEDCONTROLRECT";
+    case CB_SETITEMHEIGHT: return "CB_SETITEMHEIGHT";
+    case CB_GETITEMHEIGHT: return "CB_GETITEMHEIGHT";
+    case CB_SETEXTENDEDUI: return "CB_SETEXTENDEDUI";
+    case CB_GETEXTENDEDUI: return "CB_GETEXTENDEDUI";
+    case CB_GETDROPPEDSTATE: return "CB_GETDROPPEDSTATE";
+    case CB_FINDSTRINGEXACT: return "CB_FINDSTRINGEXACT";
+    case CB_SETLOCALE: return "CB_SETLOCALE";
+    case CB_GETLOCALE: return "CB_GETLOCALE";
+    case CB_GETTOPINDEX: return "CB_GETTOPINDEX";
+    case CB_SETTOPINDEX: return "CB_SETTOPINDEX";
+    case CB_GETHORIZONTALEXTENT: return "CB_GETHORIZONTALEXTENT";
+    case CB_SETHORIZONTALEXTENT: return "CB_SETHORIZONTALEXTENT";
+    case CB_GETDROPPEDWIDTH: return "CB_GETDROPPEDWIDTH";
+    case CB_SETDROPPEDWIDTH: return "CB_SETDROPPEDWIDTH";
+    case CB_INITSTORAGE: return "CB_INITSTORAGE";
+  //case CB_MULTIPLEADDSTRING: return "CB_MULTIPLEADDSTRING";
+    case CB_GETCOMBOBOXINFO: return "CB_GETCOMBOBOXINFO";
+    case CB_MSGMAX: return "CB_MSGMAX";
+  //case WM_MOUSEFIRST: return "WM_MOUSEFIRST"; // Alias for WM_MOUSEMOVE
+    case WM_MOUSEMOVE: return "WM_MOUSEMOVE";
+    case WM_LBUTTONDOWN: return "WM_LBUTTONDOWN";
+    case WM_LBUTTONUP: return "WM_LBUTTONUP";
+    case WM_LBUTTONDBLCLK: return "WM_LBUTTONDBLCLK";
+    case WM_RBUTTONDOWN: return "WM_RBUTTONDOWN";
+    case WM_RBUTTONUP: return "WM_RBUTTONUP";
+    case WM_RBUTTONDBLCLK: return "WM_RBUTTONDBLCLK";
+    case WM_MBUTTONDOWN: return "WM_MBUTTONDOWN";
+    case WM_MBUTTONUP: return "WM_MBUTTONUP";
+    case WM_MBUTTONDBLCLK: return "WM_MBUTTONDBLCLK";
+    case WM_MOUSEWHEEL: return "WM_MOUSEWHEEL";
+    case WM_XBUTTONDOWN: return "WM_XBUTTONDOWN";
+    case WM_XBUTTONUP: return "WM_XBUTTONUP";
+    case WM_XBUTTONDBLCLK: return "WM_XBUTTONDBLCLK";
+    case WM_MOUSEHWHEEL: return "WM_MOUSEHWHEEL";
+  //case WM_MOUSELAST: return "WM_MOUSELAST"; // Alias for WM_MOUSEHWHEEL
+    case WM_PARENTNOTIFY: return "WM_PARENTNOTIFY";
+    case WM_ENTERMENULOOP: return "WM_ENTERMENULOOP";
+    case WM_EXITMENULOOP: return "WM_EXITMENULOOP";
+    case WM_NEXTMENU: return "WM_NEXTMENU";
+    case WM_SIZING: return "WM_SIZING";
+    case WM_CAPTURECHANGED: return "WM_CAPTURECHANGED";
+    case WM_MOVING: return "WM_MOVING";
+    case WM_POWERBROADCAST: return "WM_POWERBROADCAST";
+    case WM_DEVICECHANGE: return "WM_DEVICECHANGE";
+    case WM_MDICREATE: return "WM_MDICREATE";
+    case WM_MDIDESTROY: return "WM_MDIDESTROY";
+    case WM_MDIACTIVATE: return "WM_MDIACTIVATE";
+    case WM_MDIRESTORE: return "WM_MDIRESTORE";
+    case WM_MDINEXT: return "WM_MDINEXT";
+    case WM_MDIMAXIMIZE: return "WM_MDIMAXIMIZE";
+    case WM_MDITILE: return "WM_MDITILE";
+    case WM_MDICASCADE: return "WM_MDICASCADE";
+    case WM_MDIICONARRANGE: return "WM_MDIICONARRANGE";
+    case WM_MDIGETACTIVE: return "WM_MDIGETACTIVE";
+    case WM_MDISETMENU: return "WM_MDISETMENU";
+    case WM_ENTERSIZEMOVE: return "WM_ENTERSIZEMOVE";
+    case WM_EXITSIZEMOVE: return "WM_EXITSIZEMOVE";
+    case WM_DROPFILES: return "WM_DROPFILES";
+    case WM_MDIREFRESHMENU: return "WM_MDIREFRESHMENU";
+  //case WM_IME_REPORT: return "WM_IME_REPORT";
+    case WM_IME_SETCONTEXT: return "WM_IME_SETCONTEXT";
+    case WM_IME_NOTIFY: return "WM_IME_NOTIFY";
+    case WM_IME_CONTROL: return "WM_IME_CONTROL";
+    case WM_IME_COMPOSITIONFULL: return "WM_IME_COMPOSITIONFULL";
+    case WM_IME_SELECT: return "WM_IME_SELECT";
+    case WM_IME_CHAR: return "WM_IME_CHAR";
+    case WM_IME_REQUEST: return "WM_IME_REQUEST";
+  // case WM_IMEKEYDOWN: return "WM_IMEKEYDOWN";
+    case WM_IME_KEYDOWN: return "WM_IME_KEYDOWN";
+  //case WM_IMEKEYUP: return "WM_IMEKEYUP";
+    case WM_IME_KEYUP: return "WM_IME_KEYUP";
+    case WM_NCMOUSEHOVER: return "WM_NCMOUSEHOVER";
+    case WM_MOUSEHOVER: return "WM_MOUSEHOVER";
+    case WM_NCMOUSELEAVE: return "WM_NCMOUSELEAVE";
+    case WM_MOUSELEAVE: return "WM_MOUSELEAVE";
+    case WM_DPICHANGED: return "WM_DPICHANGED";
+    case WM_DPICHANGED_BEFOREPARENT: return "WM_DPICHANGED_BEFOREPARENT";
+    case WM_DPICHANGED_AFTERPARENT: return "WM_DPICHANGED_AFTERPARENT";
+    case WM_GETDPISCALEDSIZE: return "WM_GETDPISCALEDSIZE";
+    case WM_CUT: return "WM_CUT";
+    case WM_COPY: return "WM_COPY";
+    case WM_PASTE: return "WM_PASTE";
+    case WM_CLEAR: return "WM_CLEAR";
+    case WM_UNDO: return "WM_UNDO";
+    case WM_RENDERFORMAT: return "WM_RENDERFORMAT";
+    case WM_RENDERALLFORMATS: return "WM_RENDERALLFORMATS";
+    case WM_DESTROYCLIPBOARD: return "WM_DESTROYCLIPBOARD";
+    case WM_DRAWCLIPBOARD: return "WM_DRAWCLIPBOARD";
+    case WM_PAINTCLIPBOARD: return "WM_PAINTCLIPBOARD";
+    case WM_VSCROLLCLIPBOARD: return "WM_VSCROLLCLIPBOARD";
+    case WM_SIZECLIPBOARD: return "WM_SIZECLIPBOARD";
+    case WM_ASKCBFORMATNAME: return "WM_ASKCBFORMATNAME";
+    case WM_CHANGECBCHAIN: return "WM_CHANGECBCHAIN";
+    case WM_HSCROLLCLIPBOARD: return "WM_HSCROLLCLIPBOARD";
+    case WM_QUERYNEWPALETTE: return "WM_QUERYNEWPALETTE";
+    case WM_PALETTEISCHANGING: return "WM_PALETTEISCHANGING";
+    case WM_PALETTECHANGED: return "WM_PALETTECHANGED";
+    case WM_HOTKEY: return "WM_HOTKEY";
+    case WM_PRINT: return "WM_PRINT";
+    case WM_PRINTCLIENT: return "WM_PRINTCLIENT";
+    case WM_APPCOMMAND: return "WM_APPCOMMAND";
+    case WM_HANDHELDFIRST: return "WM_HANDHELDFIRST";
+    case WM_HANDHELDLAST: return "WM_HANDHELDLAST";
+    case WM_AFXFIRST: return "WM_AFXFIRST";
+    case WM_AFXLAST: return "WM_AFXLAST";
+    case WM_PENWINFIRST: return "WM_PENWINFIRST";
+#if 0
+    case WM_RCRESULT: return "WM_RCRESULT";
+    case WM_HOOKRCRESULT: return "WM_HOOKRCRESULT";
+    case WM_GLOBALRCCHANGE: return "WM_GLOBALRCCHANGE";
+    case WM_PENMISCINFO: return "WM_PENMISCINFO";
+    case WM_SKB: return "WM_SKB";
+    case WM_HEDITCTL: return "WM_HEDITCTL";
+    case WM_PENCTL: return "WM_PENCTL";
+    case WM_PENMISC: return "WM_PENMISC";
+    case WM_CTLINIT: return "WM_CTLINIT";
+    case WM_PENEVENT: return "WM_PENEVENT";
+#endif
+    case WM_PENWINLAST: return "WM_PENWINLAST";
+  // Some remaining reserved undefined system messages...
+  // And then the end of the 0-1023 system messages (0 - (WM_USER-1)).
+
+  //       0 - (WM_USER – 1)  Messages reserved for use by the system.
+  // WM_USER -  0x7FFF        Integer messages for use by private window classes.
+  //  WM_APP -  0xBFFF        Messages available for use by applications.
+  //  0xC000 -  0xFFFF        String messages for use by applications.
+  //          > 0xFFFF        Reserved by the system.
+  // 
+  // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-app
+    default:
+    {
+      if      (      0    <= msg && msg <= (WM_USER-1))
+        return "SYSTEM UNKNOWN";
+
+      else if ( WM_USER   <= msg && msg <= 0x7FFF)
+        return std::format ("WM_USER+0x{:x}", (msg - WM_USER));
+
+      else if ( WM_APP    <= msg && msg <= 0xBFFF)
+        return std::format ( "WM_APP+0x{:x}", (msg - WM_APP));
+
+      // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerwindowmessagea
+      else if ( 0xC000    <= msg && msg <= 0xFFFF)
+      {
+        if      (msg == SHELL_TASKBAR_RESTART)
+          return "TaskbarCreated";
+        else if (msg == SHELL_TASKBAR_BUTTON_CREATED)
+          return "TaskbarButtonCreated";
+        else
+          return "APP WINDOW MESSAGE";
+      }
+
+      else
+        return "SYSTEM RESERVED";
+    }
+  }
+
+  return "UNKNOWN";
 }

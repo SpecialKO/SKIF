@@ -14,6 +14,7 @@
 #include <utility/registry.h>
 #include <utility/injection.h>
 #include <utility/updater.h>
+#include <utility/gamepad.h>
 
 extern bool allowShortcutCtrlA;
 
@@ -534,12 +535,10 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::NextColumn    ( );
 
-  ImGui::TreePush      ( );
+  ImGui::TreePush      ("RightColumnSectionTop");
 
   // New column
-          
-  ImGui::BeginGroup    ( );
-            
+
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching a game.\n"
                           "Move the mouse over each option to get more information.");
@@ -757,9 +756,18 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Remember the last selected game",           &_registry.bRememberLastSelected ) )
       _registry.regKVRememberLastSelected.putData (                      _registry.bRememberLastSelected );
 
+    if ( ImGui::Checkbox ( "Remember category collapsible state",       &_registry.bRememberCategoryState) )
+      _registry.regKVRememberCategoryState.putData (                     _registry.bRememberCategoryState);
+
     if (valvePlug)
     {
       static bool valvePlugState = (bool)_registry.iValvePlug;
+      extern HANDLE SteamProcessHandle;
+
+      bool disable = (SteamProcessHandle != NULL);
+
+      if (disable)
+        SKIF_ImGui_PushDisableState ( );
 
       if ( ImGui::Checkbox ( "Disable Steam Input (will restart Steam)", &valvePlugState) )
       {
@@ -769,23 +777,34 @@ SKIF_UI_Tab_DrawSettings (void)
         // Exits the Steam client if it is running
         if (pe32.th32ProcessID != 0)
         {
-          extern HANDLE SteamProcessHandle;
           SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
 
-          // Wait on all tabs as well...
-          for (auto& vWatchHandle : vWatchHandles)
-            vWatchHandle.push_back (SteamProcessHandle);
+          if (SteamProcessHandle != NULL)
+          {
+            // Wait on all tabs as well...
+            for (auto& vWatchHandle : vWatchHandles)
+              vWatchHandle.push_back (SteamProcessHandle);
 
-          // Signal the Steam client to exit
-          PLOG_INFO << "Shutting down the Steam client...";
-          SKIF_Util_OpenURI (L"steam://exit");
+            // Signal the Steam client to exit
+            PLOG_INFO << "Shutting down the Steam client...";
+            SKIF_Util_OpenURI (L"steam://exit");
+          }
         }
+      }
+
+      if (disable)
+        SKIF_ImGui_PopDisableState ( );
+
+      if (SteamProcessHandle != NULL && WaitForSingleObject (SteamProcessHandle, 0) == WAIT_TIMEOUT)
+      {
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_TRIANGLE_EXCLAMATION);
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Restarting Steam...");
       }
     }
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ( );
+    ImGui::TreePush         ("RightColumnSectionLibrary");
             
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -992,6 +1011,8 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush        ("UIElements");
 
+    ImGui::BeginGroup ( );
+
     if (ImGui::Checkbox ("Borders",    &_registry.bUIBorders))
     {
       _registry.regKVUIBorders.putData (_registry.bUIBorders);
@@ -1000,9 +1021,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetStyle (&newStyle);
     }
 
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
+    SKIF_ImGui_SetHoverTip ("Use borders around UI elements.");
 
     if (ImGui::Checkbox ("Tooltips",    &_registry.bUITooltips))
     {
@@ -1019,10 +1038,6 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip  ("If tooltips are disabled the status bar will be used for additional information.\n"
                              "Note that some links cannot be previewed as a result.");
 
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
     if (ImGui::Checkbox ("Status bar",   &_registry.bUIStatusBar))
     {
       _registry.regKVUIStatusBar.putData (_registry.bUIStatusBar);
@@ -1033,9 +1048,71 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling the status bar as well as tooltips will hide all additional information or tips.");
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
-    ImGui::Spacing  ( );
+    ImGui::Spacing  ( ); // New column
     ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    bool* pActiveBool = (_registry._TouchDevice) ? &_registry._TouchDevice : &_registry.bUILargeIcons;
+
+    if (_registry._TouchDevice)
+    {
+      SKIF_ImGui_PushDisableState ( );
+    }
+
+    if (ImGui::Checkbox ("Large icons", pActiveBool))
+      _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
+
+    if (_registry._TouchDevice)
+    {
+      SKIF_ImGui_PopDisableState  ( );
+      SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+    } else
+      SKIF_ImGui_SetHoverTip      ("Use larger game icons in the library tab.");
+
+    if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
+    {
+      _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
+
+      extern float fAlpha;
+      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+    }
+
+    SKIF_ImGui_SetHoverTip ("Fade between game covers when switching games.");
+
+    if (SKIF_Util_IsWindows11orGreater ( ))
+    {
+      if ( ImGui::Checkbox ( "Win11 corners", &_registry.bWin11Corners) )
+      {
+        _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
+        
+        // Force recreating the window on changes
+        RecreateWin32Windows = true;
+      }
+
+      SKIF_ImGui_SetHoverTip ("Use rounded window corners.");
+    }
+
+    ImGui::EndGroup ( );
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( ); // New column
+    ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    if ( ImGui::Checkbox ( "Touch input", &_registry.bTouchInput) )
+    {
+      _registry.regKVTouchInput.putData (  _registry.bTouchInput);
+
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
+    }
+
+    SKIF_ImGui_SetHoverTip ("Make the UI easier to use on touch input capable devices automatically.");
 
     if (ImGui::Checkbox ("HiDPI scaling", &_registry.bDPIScaling))
     {
@@ -1046,55 +1123,30 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling HiDPI scaling will make the application appear smaller on HiDPI displays.");
 
-    // New line
-
-    if (ImGui::Checkbox ("Fade covers", &_registry.bFadeCovers))
-    {
-      _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
-
-      extern float fAlpha;
-      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
-    }
-
-    if (SKIF_Util_IsWindows11orGreater ( ))
-    {
-      ImGui::SameLine ( );
-      ImGui::Spacing  ( );
-      ImGui::SameLine ( );
-
-      if ( ImGui::Checkbox ( "Win11 Corners", &_registry.bWin11Corners) )
-      {
-        _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
-        
-        // Force recreating the window on changes
-        RecreateWin32Windows = true;
-      }
-    }
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    if ( ImGui::Checkbox ( "Auto-Horizon Mode", &_registry.bHorizonModeAuto) )
+    if ( ImGui::Checkbox ( "Auto-horizon mode", &_registry.bHorizonModeAuto) )
       _registry.regKVHorizonModeAuto.putData (   _registry.bHorizonModeAuto);
 
     SKIF_ImGui_SetHoverTip ("Switch to the horizontal mode on smaller displays automatically.");
 
+    ImGui::EndGroup ( );
+
     if (! _registry.bUITooltips &&
         ! _registry.bUIStatusBar)
     {
-      ImGui::BeginGroup     ( );
-      ImGui::TextColored    (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-      ImGui::SameLine       ( );
-      ImGui::TextColored    (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information or tips will not appear!");
-      ImGui::EndGroup       ( );
+      ImGui::BeginGroup  ( );
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImColor(0.68F, 0.68F, 0.68F, 1.0f), "Context based information and tips will not appear!");
+      ImGui::EndGroup    ( );
+
+      SKIF_ImGui_SetHoverTip ("Restore context based information and tips by enabling tooltips or the status bar.", true);
     }
 
     ImGui::TreePop       ( );
 
     ImGui::NextColumn    ( );
 
-    ImGui::TreePush      ( );
+    ImGui::TreePush      ("RightColumnSectionAppearance");
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1318,6 +1370,20 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
     );
 
+    if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
+    {
+      _registry.regKVControllers.putData (                                           _registry.bControllers);
+
+      // Ensure the gamepad input thread knows what state we are actually in
+      static SKIF_GamePadInputHelper& _gamepad =
+             SKIF_GamePadInputHelper::GetInstance ( );
+
+      if (_registry.bControllers)
+        _gamepad.WakeThread  ( );
+      else
+        _gamepad.SleepThread ( );
+    }
+
     if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
       _registry.regKVAutoUpdate.putData (                                            _registry.bAutoUpdate);
 
@@ -1400,7 +1466,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn       ( );
 
-    ImGui::TreePush         ( );
+    ImGui::TreePush         ("RightColumnSectionAdvanced");
     
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1429,12 +1495,30 @@ SKIF_UI_Tab_DrawSettings (void)
           _registry.regKVLogging.putData  (_registry.iLogging);
           LogSeverityCurrent = LogSeverity[_registry.iLogging];
           plog::get()->setMaxSeverity((plog::Severity)_registry.iLogging);
+
+          ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                    ? ImGuiDebugLogFlags_EventMask_
+                                                    : ImGuiDebugLogFlags_EventViewport);
         }
         if (is_selected)
           ImGui::SetItemDefaultFocus ( );
       }
       ImGui::EndCombo  ( );
     }
+
+    if (_registry.iLogging >= 6 && _registry.bDeveloperMode)
+    {
+      if (ImGui::Checkbox  ("Enable excessive development logging", &_registry.bLoggingDeveloper))
+      {
+        _registry.regKVLoggingDeveloper.putData                     (_registry.bLoggingDeveloper);
+
+        ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                  ? ImGuiDebugLogFlags_EventMask_
+                                                  : ImGuiDebugLogFlags_EventViewport);
+      }
+    }
+
+    SKIF_ImGui_SetHoverTip  ("Only intended for SKIF developers as this enables excessive logging (e.g. window messages).");
 
     SKIF_ImGui_Spacing ( );
 
@@ -1474,17 +1558,21 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing ( );
 
-    if (ImGui::Checkbox  ("Developer mode",
-                                                      &_registry.bDeveloperMode))
-      _registry.regKVDeveloperMode.putData            (_registry.bDeveloperMode);
+    if (ImGui::Checkbox  ("Developer mode",  &_registry.bDeveloperMode))
+    {
+      _registry.regKVDeveloperMode.putData   (_registry.bDeveloperMode);
+
+      ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                ? ImGuiDebugLogFlags_EventMask_
+                                                : ImGuiDebugLogFlags_EventViewport);
+    }
 
     SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
 
     ImGui::SameLine    ( );
 
-    if (ImGui::Checkbox  ("Efficiency mode",
-                                                      &_registry.bEfficiencyMode))
-      _registry.regKVEfficiencyMode.putData           (_registry.bEfficiencyMode);
+    if (ImGui::Checkbox  ("Efficiency mode", &_registry.bEfficiencyMode))
+      _registry.regKVEfficiencyMode.putData  (_registry.bEfficiencyMode);
 
     SKIF_ImGui_SetHoverTip  ("Engage efficiency mode for this app when idle.\n"
                              "Not recommended for Windows 10 and earlier.");
@@ -1831,8 +1919,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_PushDisableState ( );
     else
       hotkeyCtrlS = ImGui::GetIO().KeyCtrl               &&
-                    ImGui::GetIO().KeysDown['S']         &&
-                    ImGui::GetIO().KeysDownDuration['S'] == 0.0f;
+                    ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f;
 
     // Hotkey: Ctrl+S
     if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || hotkeyCtrlS)
@@ -2081,7 +2168,6 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Columns      (2, nullptr, true);
 
-            
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                         "Tell at a glance whether:"
@@ -2231,17 +2317,15 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Administrative privileges are required on the system to toggle this.");
     }
 
-    ImGui::EndGroup ();
-
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("RightColumnSectionSwapChain");
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("LatencyMinimal");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Hardware: Independent Flip");
@@ -2271,7 +2355,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("LatencyUndesireable");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
@@ -2301,7 +2385,6 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Separator   ();
 
     // Multi-Plane Overlay (MPO) section
-    ImGui::BeginGroup  ();
     ImGui::Spacing     ();
             
     ImGui::TextColored (
@@ -2470,7 +2553,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::NextColumn  ();
 
-    ImGui::TreePush    ();
+    ImGui::TreePush    ("MinimumRequirements");
 
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));

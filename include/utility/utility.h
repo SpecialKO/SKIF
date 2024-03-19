@@ -10,8 +10,20 @@
 #include <Tlhelp32.h>
 #include <processthreadsapi.h>
 #include <vector>
+#include <shellapi.h>
 
 #pragma comment(lib, "wininet.lib")
+
+// Requires Windows 10, version 1703
+//        + Per Monitor v2 DPI awareness
+// 
+// We use an opposite IF statement than
+//   Microsoft's to get these defined
+#if(WINVER < 0x0605)
+#define WM_DPICHANGED_BEFOREPARENT      0x02E2
+#define WM_DPICHANGED_AFTERPARENT       0x02E3
+#define WM_GETDPISCALEDSIZE             0x02E4
+#endif /* WINVER >= 0x0605 */
 
 // Stuff
 
@@ -113,6 +125,7 @@ bool            SKIF_Util_IsWindows10v1709OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1903OrGreater   (void);
 bool            SKIF_Util_IsWindows11orGreater        (void);
 bool            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+bool            SKIF_Util_IsTouchCapable              (void);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
@@ -124,6 +137,7 @@ bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
 std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
+std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 
 // Power Mode

@@ -15,8 +15,9 @@
 #include <fonts/fa_621b.h>
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
-#include <imgui/D3D11/imgui_impl_dx11.h>
+#include <imgui/imgui_impl_dx11.h>
 
+bool                  bAutoScrollActive;
 ImFont*               fontConsolas = nullptr;
 std::vector <ImWchar> vFontChineseSimplified;
 std::vector <ImWchar> vFontChineseAll;
@@ -157,6 +158,13 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
   colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
 
+  // Tables
+  colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+  colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);   // Prefer using Alpha=1.0 here
+  colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);   // Prefer using Alpha=1.0 here
+  colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+
   // Drag-n-drop
   colors[ImGuiCol_DragDropTarget]         = ImVec4(0.90f, 0.90f, 0.10f, 1.00f);
 
@@ -178,6 +186,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
   colors[ImGuiCol_SKIF_Info]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f); // colors[ImGuiCol_CheckMark];
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
+  colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
 }
 
 void
@@ -263,6 +272,13 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
   colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.45f, 0.00f, 1.00f);
 
+  // Tables
+  colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.78f, 0.87f, 0.98f, 1.00f);
+  colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.57f, 0.57f, 0.64f, 1.00f);   // Prefer using Alpha=1.0 here
+  colors[ImGuiCol_TableBorderLight]       = ImVec4(0.68f, 0.68f, 0.74f, 1.00f);   // Prefer using Alpha=1.0 here
+  colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  colors[ImGuiCol_TableRowBgAlt]          = ImVec4(0.30f, 0.30f, 0.30f, 0.09f);
+
   // Drag-n-drop
   colors[ImGuiCol_DragDropTarget]         = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
 
@@ -281,6 +297,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Failure]           = ImColor(186, 59, 61, 255);
   colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
+  colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
 }
 
 void
@@ -439,21 +456,20 @@ SKIF_ImGui_IsMouseHovered (void)
 bool
 SKIF_ImGui_IsAnyInputDown (void)
 {
-  ImGuiContext& g = *GImGui;
-
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.MouseDown); n++)
-    if (g.IO.MouseDown[n])
-      return true;
-    
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.KeysDown); n++)
-    if (g.IO.KeysDown[n])
+  for (ImGuiKey key = ImGuiKey_KeysData_OFFSET; key < ImGuiKey_COUNT; key = (ImGuiKey)(key + 1))
+    if (ImGui::IsKeyDown(key))
       return true;
 
-  for (int n = 0; n < IM_ARRAYSIZE(g.IO.NavInputs); n++)
-    if (g.IO.NavInputs[n])
-      return true;
+  if (bAutoScrollActive)
+    return true;
 
   return false;
+}
+
+bool
+SKIF_ImGui_IsAnyPopupOpen (void)
+{
+  return ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
 }
 
 void
@@ -480,7 +496,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
 
-  if (ImGui::IsItemHovered ())
+  if (ImGui::IsItemHovered () && ! szText.empty())
   {
     if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
@@ -568,9 +584,35 @@ SKIF_ImGui_Selectable (const char* label)
   return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
 }
 
+// Vertical aligned label
+// Must be surrounded by ImGui::PushID/PopID
+bool
+SKIF_ImGui_SelectableVAligned (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg)
+{
+  ImVec2 cursor_pre    =  ImGui::GetCursorPos ( );
+  ImVec2 label_size    =  ImGui::CalcTextSize (label);
+  float  label_offset  = (size_arg.y - label_size.y) / 2.0f;
+  ImVec2 label_pos     =  ImVec2 (cursor_pre.x + ImGui::GetStyle().ItemSpacing.x, cursor_pre.y + label_offset);
+
+  ImGui::BeginGroup      ( );
+  //ImGui::PushID          (unique_id);
+  ImGui::PushStyleVar    (ImGuiStyleVar_FrameBorderSize, 0.0f);
+  // We use ImGuiSelectableFlags_NoPadWithHalfSpacing to prevent the bounding box from having 0.5 * ItemSpacing padded on top and bottom
+  bool   ret           =  ImGui::Selectable (unique_id, p_selected, flags | ImGuiSelectableFlags_AllowOverlap | ImGuiSelectableFlags_NoPadWithHalfSpacing, size_arg);
+  ImVec2 cursor_post   =  ImGui::GetCursorPos ( );
+  ImGui::SetCursorPos    (label_pos);
+  ImGui::TextUnformatted (label);
+  ImGui::PopStyleVar     ( );
+  //ImGui::PopID           ( );
+  ImGui::EndGroup        ( );
+
+  ImGui::SetCursorPos    (cursor_post);
+  return ret;
+}
+
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
-SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags extra_flags)
+SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags)
 {
   const ImGuiStyle& style =
     ImGui::GetStyle ();
@@ -581,7 +623,7 @@ SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiWindowFlags ext
   ImGui::PushStyleVar   (ImGuiStyleVar_WindowPadding,   style.FramePadding);
 
   bool ret =
-    ImGui::BeginChild (id, size, true, ImGuiWindowFlags_AlwaysUseWindowPadding | extra_flags);
+    ImGui::BeginChild (id, size, ImGuiChildFlags_AlwaysUseWindowPadding | child_flags, window_flags);
 
   ImGui::PopStyleVar   (3);
   //ImGui::PopStyleColor ( );
@@ -630,11 +672,11 @@ SKIF_ImGui_Columns (int columns_count, const char* id, bool border, bool resizeb
   ImGuiWindow* window = ImGui::GetCurrentWindowRead();
   IM_ASSERT(columns_count >= 1);
 
-  ImGuiColumnsFlags flags = (border ? 0 : ImGuiColumnsFlags_NoBorder);
+  ImGuiOldColumnFlags flags = (border ? 0 : ImGuiOldColumnFlags_NoBorder);
   if (! resizeble)
-    flags |= ImGuiColumnsFlags_NoResize;
-  //flags |= ImGuiColumnsFlags_NoPreserveWidths; // NB: Legacy behavior
-  ImGuiColumns* columns = window->DC.CurrentColumns;
+    flags |= ImGuiOldColumnFlags_NoResize;
+  //flags |= ImGuiOldColumnFlags_NoPreserveWidths; // NB: Legacy behavior
+  ImGuiOldColumns* columns = window->DC.CurrentColumns;
   if (columns != NULL && columns->Count == columns_count && columns->Flags == flags)
     return;
 
@@ -663,8 +705,31 @@ void SKIF_ImGui_BeginTabChildFrame (void)
     frame_content_area_id,
       ImVec2 (   0.0f,
                maxContentHeight * SKIF_ImGui_GlobalDPIScale ), // 900.0f
+        ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
         ImGuiWindowFlags_NavFlattened
   );
+}
+
+bool
+SKIF_ImGui_BeginMenuEx2 (const char* label, const char* icon, const ImVec4& colIcon, bool enabled)
+{
+  ImGui::PushStyleColor         (ImGuiCol_SKIF_Icon, colIcon);
+  bool ret = ImGui::BeginMenuEx (label, icon, enabled);
+  ImGui::PopStyleColor          ( );
+
+  return ret;
+}
+
+bool
+SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool* p_selected, bool enabled)
+{
+  ImGui::PushStyleColor        (ImGuiCol_SKIF_Icon, colIcon);
+  bool ret = ImGui::MenuItemEx (label, icon, shortcut, p_selected ? *p_selected : false, enabled);
+  if (ret && p_selected)
+    *p_selected = !*p_selected;
+  ImGui::PopStyleColor         ( );
+
+  return ret;
 }
 
 bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4& colIcon)
@@ -673,10 +738,11 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   icon       = " " + icon;
   label      = label + " ";
 
-  ImGui::BeginChildFrame (id, ImVec2 (ImGui::CalcTextSize(icon.c_str())  .x +
-                                      ImGui::CalcTextSize(label.c_str()) .x +
-                                      ImGui::CalcTextSize("    ").x,
-                                      ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+  ImGui::BeginChild (id, ImVec2 (ImGui::CalcTextSize(icon.c_str())  .x +
+                                 ImGui::CalcTextSize(label.c_str()) .x +
+                                 ImGui::CalcTextSize("    ").x,
+                                 ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
+    ImGuiChildFlags_FrameStyle,
     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NavFlattened
   );
 
@@ -687,7 +753,7 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   ImGui::SetCursorPos  (iconPos);
   ImGui::TextColored   (colIcon, icon.c_str());
 
-  ImGui::EndChildFrame ( );
+  ImGui::EndChild ( );
 
   return ret;
 }
@@ -911,6 +977,9 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
+  // Font size should always be rounded down to the nearest integer
+  fontSize = floor(fontSize);
+
   static UINT acp = GetACP();
 
   auto& io =
@@ -1118,10 +1187,21 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   }
 
   // Override the style with a few tweaks of our own
+  dst->DisabledAlpha   = 1.0f; // Disable the default 60% alpha transparency for disabled items
   dst->WindowRounding  = 4.0F; // style.ScrollbarRounding;
   dst->ChildRounding   = dst->WindowRounding;
   dst->TabRounding     = dst->WindowRounding;
   dst->FrameRounding   = dst->WindowRounding;
+
+  // Touch input adjustment
+  if (SKIF_Util_IsTouchCapable ( ))
+  {
+    _registry._TouchDevice = true;
+    dst->ScrollbarSize = 50.0f;
+  }
+
+  else
+    _registry._TouchDevice = false;
   
   if (! _registry.bUIBorders)
   {
@@ -1145,6 +1225,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     for (int i=0; i < ImGuiCol_COUNT; i++)
         dst->Colors[i] = SKIF_ImGui_sRGBtoLinear (dst->Colors[i]);
 
+
   ImGui::GetStyle ( ) = *dst;
 }
 
@@ -1166,12 +1247,29 @@ void
 SKIF_ImGui_PopDisableState (void)
 {
   // Pop the states in the reverse order that we pushed them in
-  ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
-  ImGui::PopStyleColor ( ); // ImGuiCol_CheckMark
-  ImGui::PopStyleColor ( ); // ImGuiCol_SliderGrab
-  ImGui::PopStyleColor ( ); // ImGuiCol_Text
+  ImGui::PopStyleColor (4); // ImGuiCol_FrameBg, ImGuiCol_CheckMark, ImGuiCol_SliderGrab, ImGuiCol_Text
   //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
   ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
+}
+
+void
+SKIF_ImGui_PushDisabledSpacing (void)
+{
+  // Remove borders, paddings, and spacing
+  ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize,  0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ChildBorderSize,  0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_FrameRounding,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ChildRounding,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,     ImVec2 (0, 0));
+  ImGui::PushStyleVar (ImGuiStyleVar_IndentSpacing,    0.0f);
+  ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing,      ImVec2 (0, 0));
+  ImGui::PushStyleVar (ImGuiStyleVar_ItemInnerSpacing, ImVec2 (0, 0));
+}
+
+void
+SKIF_ImGui_PopDisabledSpacing (void)
+{
+  ImGui::PopStyleVar  (8);
 }
 
 void
@@ -1187,10 +1285,13 @@ SKIF_ImGui_DisallowMouseDragMove (void)
 bool
 SKIF_ImGui_CanMouseDragMove (void)
 {
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
   extern bool SKIF_MouseDragMoveAllowed;
-  return      SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
+  return    ! _registry._TouchDevice      &&          // Only if we are not on a touch input device
+              SKIF_MouseDragMoveAllowed   &&          // Manually disabled by a few UI elements
             ! ImGui::IsAnyItemHovered ( ) &&          // Disabled if any item is hovered
-          ( ! ImGui::IsAnyPopupOpen ( )            || // Disabled if any popup is opened..
+          ( ! SKIF_ImGui_IsAnyPopupOpen ( )        || // Disabled if any popup is opened..
           (   AddGamePopup    == PopupState_Opened || // ..except for a few standard ones
           PopupMessageInfo    == PopupState_Opened || //   which are actually aligned to
            ModifyGamePopup    == PopupState_Opened || //   the center of the app window
@@ -1199,6 +1300,98 @@ SKIF_ImGui_CanMouseDragMove (void)
          UpdatePromptPopup    == PopupState_Opened ||
               HistoryPopup    == PopupState_Opened ||
            AutoUpdatePopup    == PopupState_Opened ));
+}
+
+// Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
+void
+SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void)
+{
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiWindow* window = g.CurrentWindow;
+  bool hovered = false;
+  ImGuiID id = window->GetID("##scrolldraggingoverlay");
+  ImGui::KeepAliveID(id);
+  if (! only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+    ImGui::ButtonBehavior(window->Rect(), id, &hovered, &bAutoScrollActive, ImGuiMouseButton_Left);
+
+  if (bAutoScrollActive)
+  {
+    ImVec2 delta = ImGui::GetIO().MouseDelta;
+
+  //if (delta.x != 0.0f) // Horizontal
+  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x);
+
+    if (delta.y != 0.0f) // Vertical
+      ImGui::SetScrollY (window, window->Scroll.y - delta.y);
+  }
+}
+
+void
+SKIF_ImGui_MouseWheelScroll (void)
+{
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiWindow* window = g.CurrentWindow;
+  ImGuiID id = window->GetID("##scrollwheeloverlay");
+  ImGui::KeepAliveID(id);
+
+  static ImVec2 position;
+  static bool held = false;
+
+  if (bAutoScrollActive && ! SKIF_ImGui_IsFocused ( ))
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive &&
+     (ImGui::GetKeyData (ImGuiKey_MouseLeft  )->DownDuration == 0.0f ||
+      ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f ||
+      ImGui::GetKeyData (ImGuiKey_MouseRight )->DownDuration == 0.0f))
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive && held &&
+           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration < 0.0f)
+    bAutoScrollActive = held = false;
+
+  else if (bAutoScrollActive &&
+           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration > 0.15f) // Special handling if mouse wheel is held down for longer than 150 ms
+    held = true;
+
+//else if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+//else if (ImGui::IsMousePosValid ( ) && ImGui::ButtonBehavior  (window->Rect(), id, &hovered, &held, ImGuiButtonFlags_AllowOverlap | ImGuiButtonFlags_MouseButtonMiddle | static_cast<ImGuiButtonFlags_> (ImGuiButtonFlags_PressedOnClick)))
+  else if (ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
+  {
+    bAutoScrollActive = true;
+    position = ImGui::GetMousePos ( );
+  }
+
+  if (bAutoScrollActive && ImGui::IsMousePosValid ( ))
+  {
+    ImVec2 delta = position - ImGui::GetMousePos ( );
+
+    ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
+
+  //if (delta.x != 0.0f) // Horizontal
+  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
+
+    if (delta.y != 0.0f) // Vertical
+      ImGui::SetScrollY (window, window->Scroll.y - delta.y * 0.1f);
+
+    extern bool SKIF_MouseDragMoveAllowed;
+    SKIF_MouseDragMoveAllowed = false;
+  }
+}
+
+void
+SKIF_ImGui_AutoScroll (bool touch_only_on_void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // This disables drag-move on the list of games and should only be enabled on touch devices
+  // Allows drag-scrolling using the left mouse button
+  if (_registry._TouchDevice)
+    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void);
+
+  // This allows mouse wheel scroll (aka autoscroll) in non-touch mode
+  else
+    SKIF_ImGui_MouseWheelScroll ( );
 }
 
 void
@@ -1218,4 +1411,59 @@ SKIF_ImGui_InvalidateFonts (void)
   }
 
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
+}
+
+// This helper function maps char to ImGuiKey_xxx
+// For use with e.g. ImGui::GetKeyData ( )
+ImGuiKey
+SKIF_ImGui_CharToImGuiKey (char c)
+{
+  switch (c)
+  {
+    case ' ':  return ImGuiKey_Space;
+    case '\'': return ImGuiKey_Apostrophe;
+    case ',':  return ImGuiKey_Comma;
+    case '-':  return ImGuiKey_Minus;
+    case '.':  return ImGuiKey_Period;
+    case '/':  return ImGuiKey_Slash;
+  //case ':':  return ImGuiKey_Colon; // ???
+    case ';':  return ImGuiKey_Semicolon;
+    case '0':  return ImGuiKey_0;
+    case '1':  return ImGuiKey_1;
+    case '2':  return ImGuiKey_2;
+    case '3':  return ImGuiKey_3;
+    case '4':  return ImGuiKey_4;
+    case '5':  return ImGuiKey_5;
+    case '6':  return ImGuiKey_6;
+    case '7':  return ImGuiKey_7;
+    case '8':  return ImGuiKey_8;
+    case '9':  return ImGuiKey_9;
+    case 'A':  return ImGuiKey_A;
+    case 'B':  return ImGuiKey_B;
+    case 'C':  return ImGuiKey_C;
+    case 'D':  return ImGuiKey_D;
+    case 'E':  return ImGuiKey_E;
+    case 'F':  return ImGuiKey_F;
+    case 'G':  return ImGuiKey_G;
+    case 'H':  return ImGuiKey_H;
+    case 'I':  return ImGuiKey_I;
+    case 'J':  return ImGuiKey_J;
+    case 'K':  return ImGuiKey_K;
+    case 'L':  return ImGuiKey_L;
+    case 'M':  return ImGuiKey_M;
+    case 'N':  return ImGuiKey_N;
+    case 'O':  return ImGuiKey_O;
+    case 'P':  return ImGuiKey_P;
+    case 'Q':  return ImGuiKey_Q;
+    case 'R':  return ImGuiKey_R;
+    case 'S':  return ImGuiKey_S;
+    case 'T':  return ImGuiKey_T;
+    case 'U':  return ImGuiKey_U;
+    case 'V':  return ImGuiKey_V;
+    case 'W':  return ImGuiKey_W;
+    case 'X':  return ImGuiKey_X;
+    case 'Y':  return ImGuiKey_Y;
+    case 'Z':  return ImGuiKey_Z;
+    default:   return ImGuiKey_None;
+  }
 }

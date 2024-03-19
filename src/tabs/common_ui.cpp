@@ -299,15 +299,12 @@ void SKIF_UI_DrawPlatformStatus (void)
               DWORD dwValueLen =
                     (dwMaxValueLen);
 
-              BYTE bArray[sizeof(DWORD)];
-              memcpy(bArray, &dwValueLen, sizeof(DWORD));
-
-              std::unique_ptr <BYTE> pData =
-                std::make_unique <BYTE> (bArray[0]);
+              LPBYTE pData = (LPBYTE)malloc(dwValueLen);
+              memcpy(pData, &dwValueLen, sizeof(DWORD));
 
               DWORD dwType = REG_NONE;
 
-              dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, pData.get(), &dwValueLen);
+              dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, pData, &dwValueLen);
 
               if (dwResult == ERROR_NO_MORE_ITEMS)
                 break;
@@ -322,7 +319,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
                     item.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
                     item.Value     = pValue.get();
-                    item.Data      = (pData.get()[0]) | (pData.get()[1] << 8) | (pData.get()[2] << 16) | (pData.get()[3] << 24);
+                    item.Data      = *((DWORD*)pData);
 
                     if (item.Data == 0)
                       l.isEnabled = true;
@@ -331,6 +328,8 @@ void SKIF_UI_DrawPlatformStatus (void)
                   }
                 }
               }
+
+              free(pData);
             }
           }
 

@@ -171,25 +171,25 @@ appinfo_s::getRootSection (size_t* pSize)
     ( vdf_version > 0x27 ? sizeof (appinfo_s)
                          : sizeof (appinfo27_s) );
 
-  auto _CheckVersion =
-    [&](void) -> void
-  {
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+  
     switch (vdf_version)
     {
       case 0x28: // v40
-        PLOG_INFO    << "Steam appinfo.vdf version: " << vdf_version << " (December 2022)";
+        PLOG_VERBOSE << "appinfo.vdf version: " << vdf_version << " (December 2022)";
         break;
       case 0x27: // v39
-        PLOG_INFO    << "Steam appinfo.vdf version: " << vdf_version << " (pre-December 2022)";
+        PLOG_VERBOSE << "appinfo.vdf version: " << vdf_version << " (pre-December 2022)";
         break;
       default:
-        PLOG_WARNING << "Steam appinfo.vdf version: " << vdf_version << " (unknown/unsupported)";
-        MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
-                       L"Unsupported VDF Version", MB_OK );
+        PLOG_WARNING << "appinfo.vdf version: " << vdf_version << " (unknown/unsupported)";
+        //MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
+        //               L"Unsupported VDF Version", MB_OK );
     }
-  };
-
-  SK_RunOnce(_CheckVersion());
+  }
 
   size_t kv_size =
     (size - vdf_header_size + 8);

@@ -178,10 +178,10 @@ struct app_record_s {
         Localized   = 0x2,
         Unknown     = 0x0
       }            type = Type::Unknown;
-      std:: string type_utf8 = "Unknown";
+      std:: string type_utf8 = "Centralized"; // Assume global by default
 
-      std::wstring shorthand;
-      std:: string shorthand_utf8; // Converted to utf-8 from utf-16
+      std::wstring shorthand      = L"SpecialK.ini"; // Assume global by default
+      std:: string shorthand_utf8 =  "SpecialK.ini"; // Converted to utf-8 from utf-16
       std::wstring root_dir;
       std:: string root_dir_utf8;  // Converted to utf-8 from utf-16
       std::wstring full_path;
@@ -263,6 +263,7 @@ struct app_record_s {
     bool          isExecutableFileNameValid (void);
 
     std::wstring getExecutableDir           (void) const;
+    std:: string getExecutableDirUTF8       (void) const;
     bool          isExecutableDirValid      (void) const;
 
     std::wstring getExecutableFullPath      (void) const;
@@ -277,6 +278,9 @@ struct app_record_s {
     
     std::wstring getWorkingDirectory        (void) const;
     std:: string getWorkingDirectoryUTF8    (void);
+    
+    std::wstring getWorkOrExeDirectory      (void) const;
+    std:: string getWorkOrExeDirectoryUTF8  (void);
 
   //private:
   //app_record_s* parent = nullptr;
@@ -366,7 +370,7 @@ struct app_record_s {
   // This struct holds the cache for the right click context menu
   struct {
     int                                   numSecondaryLaunchConfigs = 0; // Secondary launch options
-    bool                                  profileFolderExists       = false;
+  //bool                                  profileFolderExists       = false; // 2024-03-04: Not actually used any longer
     bool                                  screenshotsFolderExists   = false;
     std::wstring                          wsScreenshotDir           = L"";
     std::vector   <CloudPath>             cloud_paths;   // Steam Auto-Cloud
@@ -405,7 +409,7 @@ struct app_record_s {
   std::string  store_utf8            =  "";
 
   std::string  ImGuiPushID           =  "";
-  std::string  ImGuiLabelAndID       =  "";
+  std::string  ImGuiLabelID          =  "";
 
   // Struct used to hold custom SKIF metadata about the game
   struct custom_metadata_s {

@@ -9,6 +9,16 @@ SKIF_GamePadInputHelper::SKIF_GamePadInputHelper (void)
   InitializeConditionVariable (&m_GamePadInput);
 }
 
+bool
+SKIF_GamePadInputHelper::HasGamePad (void)
+{
+  for (int i = 0; i < XUSER_MAX_COUNT; i++)
+    if (m_bGamepads[i].load())
+      return true;
+
+  return false;
+}
+
 std::vector <bool>
 SKIF_GamePadInputHelper::GetGamePads (void)
 {
@@ -52,6 +62,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static HMODULE                         hModXInput                       = nullptr;
   static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
   static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
+  static bool                            runOnce         = true;
+  static bool                            skipFreeLibrary = false;
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
@@ -61,25 +73,41 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
     if (hModXInput == nullptr)
     {
-      hModXInput = LoadLibraryW (L"XInput1_4.dll");
-
-      if (hModXInput == nullptr)
-        hModXInput = LoadLibraryW (L"XInput1_3.dll");
-
-      if (hModXInput == nullptr)
-        hModXInput = LoadLibraryW (L"XInput9_1_0.dll");
-
-      if (hModXInput != nullptr)
+      static constexpr wchar_t* xinput_dlls[] =
       {
-        PLOG_VERBOSE << "Loaded the XInput library!";
+        LR"(XInput1_4.dll)",
+        LR"(XInput1_3.dll)",
+        LR"(XInput9_1_0.dll)"
+      };
 
-        SKIF_XInputGetState = (XInputGetState_pfn)
-          GetProcAddress (hModXInput, "XInputGetState");
+      for (wchar_t* dll : xinput_dlls)
+      {
+        hModXInput = LoadLibraryW (dll);
+
+        if (hModXInput == nullptr)
+          continue;
+
+        PLOG_VERBOSE << "Loaded the XInput library: " << dll;
+
+        if (runOnce)
+        {
+          skipFreeLibrary = PathFileExists (dll);
+          PLOG_VERBOSE_IF(skipFreeLibrary) << "Custom XInput DLL file detected; will not free the library after use!";
+          runOnce = false;
+        }
 
         SKIF_XInputGetCapabilities = (XInputGetCapabilities_pfn)
           GetProcAddress (hModXInput, "XInputGetCapabilities");
+
+        SKIF_XInputGetState = (XInputGetState_pfn)
+          GetProcAddress (hModXInput, "XInputGetState");
+        break;
       }
     }
+
+    PLOG_ERROR_IF(hModXInput == nullptr)                 << "Failed to load XInput library?!";
+    PLOG_ERROR_IF(SKIF_XInputGetCapabilities == nullptr) << "Failed to get SKIF_XInputGetCapabilities address?!";
+    PLOG_ERROR_IF(SKIF_XInputGetState == nullptr)        << "Failed to get SKIF_XInputGetState address?!";
 
     if (SKIF_XInputGetCapabilities != nullptr)
     {
@@ -91,7 +119,10 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
         m_bGamepads [idx].store (connected);
 
         if (connected)
+        {
           hasGamepad = true;
+          PLOG_VERBOSE << "A gamepad is connected at XInput slot " << idx << ".";
+        }
       }
     }
 
@@ -106,7 +137,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
     {
       PLOG_VERBOSE << "No gamepad connected.";
 
-      if (hModXInput != nullptr)
+      if (hModXInput != nullptr && ! skipFreeLibrary)
       {
         SKIF_XInputGetState              = nullptr;
         SKIF_XInputGetCapabilities       = nullptr;
@@ -273,58 +304,64 @@ SKIF_GamePadInputHelper::SleepThread (void)
 void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {
-  PLOG_VERBOSE << "Spawning SKIF_LibraryWorker thread...";
+  PLOG_VERBOSE << "Spawning SKIF_GamePadInputPump thread...";
   
   // Start the child thread that is responsible for checking for gamepad input
-  static HANDLE hThread = CreateThread ( nullptr, 0x0,
-      [](LPVOID)
-    -> DWORD
-    {
-      CRITICAL_SECTION            GamepadInputPump = { };
-      InitializeCriticalSection (&GamepadInputPump);
-      EnterCriticalSection      (&GamepadInputPump);
+  static HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
+  {
+    CRITICAL_SECTION            GamepadInputPump = { };
+    InitializeCriticalSection (&GamepadInputPump);
+    EnterCriticalSection      (&GamepadInputPump);
         
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
 
-      static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
-      extern std::atomic<bool> SKIF_Shutdown;
+    static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
+    extern std::atomic<bool> SKIF_Shutdown;
 
-      DWORD packetLast = 0,
-            packetNew  = 0;
+    DWORD packetLast = 0,
+          packetNew  = 0;
 
-      do
+    do
+    {
+      // Sleep when there's nothing to do
+      while (! parent.m_bThreadAwake.load())
       {
-        // Sleep when there's nothing to do
-        while (! parent.m_bThreadAwake.load())
-        {
-          SleepConditionVariableCS (
-            &parent.m_GamePadInput, &GamepadInputPump,
-              INFINITE
-          );
-        }
+        SleepConditionVariableCS (
+          &parent.m_GamePadInput, &GamepadInputPump,
+            INFINITE
+        );
+      }
 
-        packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
+      packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
 
-        if (packetNew  > 0  &&
-            packetNew != packetLast)
-        {
-          packetLast = packetNew;
-          PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
-        }
+      if (packetNew  > 0  &&
+          packetNew != packetLast)
+      {
+        packetLast = packetNew;
+        PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
+      }
 
-        // XInput tends to have ~3-7 ms of latency between updates
-        //   best-case, try to delay the next poll until there's
-        //     new data.
-        Sleep (5);
+      // XInput tends to have ~3-7 ms of latency between updates
+      //   best-case, try to delay the next poll until there's
+      //     new data.
+      Sleep (5);
 
-      } while (! SKIF_Shutdown.load());
+    } while (! SKIF_Shutdown.load());
 
-      LeaveCriticalSection  (&GamepadInputPump);
-      DeleteCriticalSection (&GamepadInputPump);
+    LeaveCriticalSection  (&GamepadInputPump);
+    DeleteCriticalSection (&GamepadInputPump);
 
-      return 0;
-    }, nullptr, 0x0, nullptr
-  );
+    PLOG_VERBOSE << "Shutting down...";
+
+    return 0;
+  }, nullptr, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+  {
+    CloseHandle (hWorkerThread);
+    hWorkerThread = NULL;
+  }
 }
 
 bool

@@ -1,11 +1,32 @@
 #pragma warning ( disable : 3571 )
+
+#define SKIF_Shaders
+
+#ifndef SKIF_Shaders
+
 struct PS_INPUT
 {
   float4 pos : SV_POSITION;
   float4 col : COLOR0;
   float2 uv  : TEXCOORD0;
-  float2 uv2 : TEXCOORD1;
-  float4 uv3 : TEXCOORD2; // constant_buffer->luminance_scale
+};
+sampler sampler0;
+Texture2D texture0;
+
+float4 main(PS_INPUT input) : SV_Target
+{
+  float4 out_col = input.col * texture0.Sample(sampler0, input.uv);
+  return out_col;
+}
+
+#else
+
+struct PS_INPUT
+{
+  float4 pos : SV_POSITION;
+  float2 uv  : TEXCOORD0;
+  float4 col : COLOR0;
+  float4 lum : COLOR1; // constant_buffer->luminance_scale
 };
 
 cbuffer fontDims : register(b0)
@@ -264,10 +285,10 @@ float4 main (PS_INPUT input) : SV_Target
 
   float4 orig_col = out_col;
   
-              // input.uv3.x        // Luminance (white point)
-  bool isHDR   = input.uv3.y > 0.0; // HDR (10 bpc or 16 bpc)
-  bool is10bpc = input.uv3.z > 0.0; // 10 bpc
-  bool is16bpc = input.uv3.w > 0.0; // 16 bpc (scRGB)
+              // input.lum.x        // Luminance (white point)
+  bool isHDR   = input.lum.y > 0.0; // HDR (10 bpc or 16 bpc)
+  bool is10bpc = input.lum.z > 0.0; // 10 bpc
+  bool is16bpc = input.lum.w > 0.0; // 16 bpc (scRGB)
   
   // 16 bpc scRGB (SDR/HDR)
   // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
@@ -290,7 +311,7 @@ float4 main (PS_INPUT input) : SV_Target
               );
 #endif
     
-    float hdr_scale = input.uv3.x;
+    float hdr_scale = input.lum.x;
     
     out_col.rgb =                 saturate (out_col.rgb) * hdr_scale;
     
@@ -323,7 +344,7 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (input.col.a)
               );
     
-    float hdr_scale = (-input.uv3.x / 10000.0);
+    float hdr_scale = (-input.lum.x / 10000.0);
     
     out_col.rgb =
         LinearToST2084 (
@@ -387,5 +408,7 @@ float4 main (PS_INPUT input) : SV_Target
     
   }
   
-  return out_col;  
+  return out_col;
 };
+
+#endif

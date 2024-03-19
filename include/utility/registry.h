@@ -188,6 +188,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Remember Last Selected)" );
 
+  KeyValue <bool> regKVRememberCategoryState =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Remember Category State)" );
+
   KeyValue <bool> regKVDisableExitConfirmation =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Disable Exit Confirmation)" );
@@ -213,6 +217,14 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVWin11Corners =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Win11 Corners)" );
+
+  KeyValue <bool> regKVUILargeIcons =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Large Icons)" );
+
+  KeyValue <bool> regKVTouchInput =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Touch Input)" );
 
   // Store libraries
 
@@ -331,6 +343,10 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVControllers =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Controllers)" );
+
+  KeyValue <bool> regKVLoggingDeveloper =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Logging Developer)" );
 
   // Integers (DWORDs)
 
@@ -481,12 +497,15 @@ struct SKIF_RegistrySettings {
 
   // Default settings (booleans)
   bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default
+  bool bRememberCategoryState   =  true;
 
   bool bUIBorders               = false;
   bool bUITooltips              =  true;
   bool bUIStatusBar             =  true;
+  bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
+  bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices
 
   bool bLibrarySteam            =  true;
   bool bLibraryEpic             =  true;
@@ -520,6 +539,7 @@ struct SKIF_RegistrySettings {
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bFadeCovers              =  true;
   bool bControllers             =  true; // Should SKIF support controller input ?
+  bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
 
   // Warnings
   bool bWarningRTSS             = false;
@@ -552,8 +572,15 @@ struct SKIF_RegistrySettings {
   bool _LibraryHidden               = false; // Do not show hidden games by default
   bool _EfficiencyMode              = false;
   bool _StyleLightMode              = false; // Indicates whether we are currently using a light theme or not
+  bool _RendererCanWaitSwapchain    = false; // Waitable Swapchain            Windows 8.1+
+  bool _RendererCanAllowTearing     = false; // DWM Tearing                   Windows 10+
+  bool _RendererCanHDR              = false; // High Dynamic Range            Windows 10 1709+ (Build 16299)
+  bool _RendererHDREnabled          = false; // HDR Enabled
+  bool _TouchDevice                 = false;
 
   // Functions
+  bool isDevLogging (void) const;
+
   static SKIF_RegistrySettings& GetInstance (void)
   {
       static SKIF_RegistrySettings instance;

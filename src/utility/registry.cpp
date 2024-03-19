@@ -253,6 +253,12 @@ SKIF_RegistrySettings::SortCategories (std::vector <SKIF_RegistrySettings::categ
   return _new;
 }
 
+bool
+SKIF_RegistrySettings::isDevLogging (void) const
+{
+  return (bLoggingDeveloper && bDeveloperMode && iLogging >= 6);
+}
+
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
   // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
@@ -298,6 +304,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bDPIScaling            =   regKVDPIScaling             .getData (&hKey);
   if (regKVWin11Corners.hasData(&hKey))
     bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
+  if (regKVUILargeIcons.hasData(&hKey))
+    bUILargeIcons          =   regKVUILargeIcons           .getData (&hKey);
+  if (regKVTouchInput.hasData(&hKey))
+    bTouchInput            =   regKVTouchInput             .getData (&hKey);
 
   // Store libraries
 
@@ -408,6 +418,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVRememberLastSelected.hasData(&hKey))
     bRememberLastSelected  =   regKVRememberLastSelected   .getData (&hKey);
 
+  if (regKVRememberCategoryState.hasData(&hKey))
+    bRememberCategoryState =   regKVRememberCategoryState  .getData (&hKey);
+
   if (bRememberLastSelected)
   {
     if (regKVLastSelectedGame.hasData(&hKey))
@@ -438,7 +451,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       category_s category;
       category.name     = SK_WideCharToUTF8 (wzCategory);
 
-      if (i < mwzCategoriesState.size())
+      if (bRememberCategoryState && i < mwzCategoriesState.size())
         category.expanded = std::stoi (mwzCategoriesState[i]);
 
       vecCategories.push_back (category);
@@ -460,6 +473,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVControllers.hasData(&hKey))
     bControllers           =   regKVControllers            .getData (&hKey);
+
+  bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);

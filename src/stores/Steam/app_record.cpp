@@ -105,6 +105,12 @@ app_launch_config_s::getExecutableDir (void) const
   return wszExecutableBase;
 }
 
+std:: string
+app_launch_config_s::getExecutableDirUTF8 (void) const
+{
+  return SK_WideCharToUTF8 (getExecutableDir ( ));
+}
+
 bool
 app_launch_config_s::isExecutableDirValid (void) const
 {
@@ -165,6 +171,26 @@ app_launch_config_s::getWorkingDirectoryUTF8 (void)
   working_dir_utf8 = SK_WideCharToUTF8 (getWorkingDirectory ( ));
 
   return working_dir_utf8;
+}
+
+std::wstring
+app_record_s::launch_config_s::getWorkOrExeDirectory (void) const
+{
+  return (! getWorkingDirectory    ( ).empty())
+            ? getWorkingDirectory  ( )
+            : isExecutableDirValid ( )
+              ? getExecutableDir   ( )
+              : std::wstring();
+}
+
+std::string
+app_record_s::launch_config_s::getWorkOrExeDirectoryUTF8 (void)
+{
+  return (! getWorkingDirectoryUTF8   ( ).empty())
+            ? getWorkingDirectoryUTF8 ( )
+            : isExecutableDirValid    ( )
+              ? getExecutableDirUTF8  ( )
+              : std::string();
 }
 
 std::wstring
@@ -451,11 +477,7 @@ app_record_s::client_state_s::refresh (app_record_s *pApp)
                   LR"(SOFTWARE\Valve\Steam\Apps)",
                     L"SteamAppNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET ); // UITab_Library
 
-  extern INT64 current_time_ms;
-
-  DWORD dwTimeNow =
-    static_cast <DWORD>
-      ( current_time_ms & 0xFFFFFFFFLL );
+  DWORD dwTimeNow = SKIF_Util_timeGetTime ( );
 
   static DWORD
        dwLastSignalCheck = 0UL;
