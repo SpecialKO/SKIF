@@ -4507,7 +4507,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       RepopulateGames = true;
 
     // Does not set up a wait object
-    if (_registry.bLibraryGOG && SKIF_GOG_hasGalaxySettingsChanged ( ))
+    if (SKIF_GOG_hasGalaxySettingsChanged ( ) && _registry.bLibraryGOG)
       SKIF_GOG_UpdateGalaxyUserID ( );
 
     if (runOnce)
@@ -4585,6 +4585,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       lib_worker_thread_s* _data = static_cast<lib_worker_thread_s*>(var);
 
+      size_t games = _data->apps.size();
+
       // Load Steam titles from disk
       if (_registry.bLibrarySteam || _registry._LibraryHidden)
       {
@@ -4595,8 +4597,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed Steam in " << (post - pre) << " ms.";
+          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Steam games in " << (post - pre) << " ms.";
           pre  = post;
+          games = _data->apps.size();
         }
 
         // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
@@ -4631,6 +4634,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           SKIF ( "Special K", SKIF_record );
 
         _data->apps.emplace_back (SKIF);
+        games = _data->apps.size();
       }
 
       // Load GOG titles from registry
@@ -4641,8 +4645,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed GOG in " << (post - pre) << " ms.";
+          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " GOG games in " << (post - pre) << " ms.";
           pre  = post;
+          games = _data->apps.size();
         }
       }
 
@@ -4654,8 +4659,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed Epic in " << (post - pre) << " ms.";
+          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Epic games in " << (post - pre) << " ms.";
           pre  = post;
+          games = _data->apps.size();
         }
       }
     
@@ -4666,8 +4672,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed Xbox in " << (post - pre) << " ms.";
+          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Xbox games in " << (post - pre) << " ms.";
           pre  = post;
+          games = _data->apps.size();
         }
       }
 
@@ -4679,7 +4686,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed custom SKIF titles in " << (post - pre) << " ms.";
+          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " custom SKIF titles in " << (post - pre) << " ms.";
+          games = _data->apps.size();
         }
       }
 
@@ -4775,7 +4783,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
       for (auto& app : _data->apps)
       {
-        //PLOG_DEBUG << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
+        PLOG_VERBOSE << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
 
         bool isSpecialK = (app.second.store == app_record_s::Store::Steam && app.second.id == SKIF_STEAM_APPID);
 
@@ -5093,7 +5101,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       post = SKIF_Util_timeGetTime1 ( );
-      PLOG_INFO << "Finished processing detected games in " << (post - pre) << " ms.";
+      games = games - 1; // Do not count Special K as a game
+      PLOG_INFO << "Finished processing " << games << " detected games in " << (post - pre) << " ms.";
 
       SKIF_GamingCollection::SortApps (&_data->apps);
 

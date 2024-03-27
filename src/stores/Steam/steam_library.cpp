@@ -404,6 +404,8 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
 
     if (wszSteamPath != nullptr)
     {
+      PLOG_VERBOSE << "Steam Install Folder : " << std::wstring(wszSteamPath);
+
       wchar_t wszLibraryFolders [MAX_PATH + 2] = { };
 
       // Old: \steamapps\libraryfolders.vdf
@@ -418,6 +420,8 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
         lstrcpyW (wszLibraryFolders, wszSteamPath);
         lstrcatW (wszLibraryFolders, LR"(\steamapps\libraryfolders.vdf)");
       }
+
+      PLOG_VERBOSE << "Steam Library VDF    : " << std::wstring(wszLibraryFolders);
 
       // When opening an existing file, the CreateFile function performs the following actions:
       // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
@@ -489,6 +493,9 @@ SK_Steam_GetLibraries (steam_library_t** ppLibraries)
       wcsncpy_s ( (wchar_t *)steam_lib_paths [steam_libs++],
                                                MAX_PATH,
                           wszSteamPath,       _TRUNCATE );
+
+      for (int i = 0; i < steam_libs; i++)
+        PLOG_VERBOSE << "Steam Library [" << i << "]    : " << std::wstring(steam_lib_paths[i]);
     }
 
     scanned_libs = true;
