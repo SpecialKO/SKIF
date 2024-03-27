@@ -42,9 +42,6 @@
 #ifdef SKIF_Win32
 constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
 constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
-#ifndef WS_EX_NOREDIRECTIONBITMAP
-#define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
-#endif
 
 #endif // !SKIF_Win32
 

@@ -2423,6 +2423,8 @@ SKIF_Util_IsHDRSupported (bool refresh)
     {
       if (getDisplayHDR.advancedColorSupported)
       {
+        // Technically incomplete since this also returns true
+        //   for Advanced Color capable SDR displays!
         state = true;
         break;
       }

@@ -1884,7 +1884,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
       if (SUCCEEDED (  bd->pFactory->CreateSwapChainForHwnd (bd->pd3dDevice, hWnd, &swap_desc, NULL, NULL,
                                 &vd->SwapChain ))) break;
       else if (FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( )) ||
-                      !bd->pFactory->IsCurrent ( ))
+                     ! bd->pFactory->IsCurrent ( ))
           return;
     }
   }

@@ -25,6 +25,11 @@
 #define WM_GETDPISCALEDSIZE             0x02E4
 #endif /* WINVER >= 0x0605 */
 
+
+#ifndef WS_EX_NOREDIRECTIONBITMAP
+#define WS_EX_NOREDIRECTIONBITMAP 0x00200000L
+#endif
+
 // Stuff
 
 enum UITab {
