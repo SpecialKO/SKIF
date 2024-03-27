@@ -1384,6 +1384,10 @@ SKIF_UI_Tab_DrawSettings (void)
         _gamepad.SleepThread ( );
     }
 
+    ImGui::SameLine    ( );
+    ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip  ("This enables the use of Xbox controllers to navigate within this app.");
+
     if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
       _registry.regKVAutoUpdate.putData (                                            _registry.bAutoUpdate);
 
