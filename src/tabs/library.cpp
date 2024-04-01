@@ -6116,6 +6116,9 @@ SKIF_UI_Tab_DrawLibrary (void)
             ImGui::CloseCurrentPopup ( );
           }
 
+          if (ImGui::MenuItem ("Remember collapsible state###PopupCollapse-%i", "", &_registry.bRememberCategoryState))
+            _registry.regKVRememberCategoryState.putData (_registry.bRememberCategoryState);
+
           ImGui::PopStyleColor ( );
 
           ImGui::EndPopup ( );
