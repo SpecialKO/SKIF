@@ -8642,13 +8642,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       dragDroppedFilePathGame = dragDroppedFilePath;
 
+      if (PopupMessageInfo != PopupState_Closed)
+        SKIF_ImGui_CloseInfoPopup ( );
+
       if (AddGamePopup == PopupState_Closed)
         AddGamePopup = PopupState_Open;
-
-      if (std::filesystem::is_regular_file(fsPath, ec))
-      {
-
-      }
     }
 
     else {

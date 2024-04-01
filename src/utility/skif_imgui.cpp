@@ -431,6 +431,19 @@ SKIF_ImGui_InfoMessage_Process (void)
   }
 }
 
+void
+SKIF_ImGui_CloseInfoPopup (void)
+{
+  if (PopupMessageInfo != PopupState_Closed)
+  {
+    vInfoMessage_Labels.clear();
+    vInfoMessage_Titles.clear();
+    PopupMessageInfo = PopupState_Closed;
+
+    ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), true);
+  }
+}
+
 bool
 SKIF_ImGui_IsFocused (void)
 {
