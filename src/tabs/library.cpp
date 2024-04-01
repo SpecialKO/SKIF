@@ -148,6 +148,7 @@ struct change_category_s {
 
 std::wstring file_metadata;
 std::wstring dragDroppedFilePath = L"";
+std::wstring dragDroppedFilePathGame = L"";
 
 extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecAlteredSize;
@@ -1101,9 +1102,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (extOriginal == L".webp")
     extTarget = L".png";
 
-  if (extOriginal == L".bmp")
-    extTarget = L".png";
-
   constexpr char* error_title =
     "Unsupported image format";
   constexpr char* error_label =
@@ -1201,7 +1199,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     {
       // Backup any existing copies
       backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
-              || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
+             || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
 
       // This both downloads a new image from the internet as well as copies a local file to the destination
       // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
@@ -7672,6 +7670,59 @@ SKIF_UI_Tab_DrawLibrary (void)
                 charArgs     [     500 + 2] = { };
     static bool error = false;
 
+    // Process drag-n-dropped executables / shortcuts
+    if (! dragDroppedFilePathGame.empty())
+    {
+      error = false;
+      std::filesystem::path path           = dragDroppedFilePathGame; // Wide-string std::filesystem::path
+      std::filesystem::path pathDiscard    = dragDroppedFilePathGame; // Wide-string std::filesystem::path which will be discarded
+      std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
+      std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
+      std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
+
+      if (pathExtension == L".lnk")
+      {
+        WCHAR wszTarget    [MAX_PATH + 2] = { };
+        WCHAR wszArguments [MAX_PATH + 2] = { };
+
+        SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
+
+        if (! PathFileExists (wszTarget))
+        {
+          error = true;
+          strncpy (charPath, "\0", MAX_PATH);
+        }
+
+        else {
+          std::wstring productName = SKIF_Util_GetProductName (wszTarget);
+          productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+          
+          strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
+          strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
+          strncpy (charName, (productName != L"")
+                              ? SK_WideCharToUTF8 (productName).c_str()
+                              : pathFilename.c_str(), MAX_PATH);
+        }
+      }
+
+      else if (pathExtension == L".exe") {
+        std::wstring productName = SKIF_Util_GetProductName (path.c_str());
+        productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+
+        strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
+        strncpy (charName, (productName != L"")
+                            ? SK_WideCharToUTF8 (productName).c_str()
+                            : pathFilename.c_str(), MAX_PATH);
+      }
+
+      else {
+        error = true;
+        strncpy (charPath, "\0", MAX_PATH);
+      }
+
+      dragDroppedFilePathGame.clear();
+    }
+
     ImGui::TreePush    ("AddGameTreePush");
 
     SKIF_ImGui_Spacing ( );
@@ -7720,7 +7771,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring productName = SKIF_Util_GetProductName (path.c_str());
           productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
-          strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
+          strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : pathFilename.c_str(), MAX_PATH);
@@ -8543,21 +8594,77 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
 
-    // A child thread will set refreshCover once done
-    if (SaveGameCover (pApp, dragDroppedFilePath))
+    std::error_code ec;
+    const std::filesystem::path fsPath (dragDroppedFilePath.data());
+    std::wstring targetPath  = L"";
+    std::wstring extOriginal = fsPath.extension().wstring();
+    bool         isURL       = PathIsURL (dragDroppedFilePath.data());
+
+    extOriginal = SKIF_Util_ToLowerW  (extOriginal);
+    int extType = 0;
+
+    if      (isURL                   || // Assume any given URL points to an image
+             extOriginal == L".jpeg" ||
+             extOriginal == L".jpg"  ||
+             extOriginal == L".bmp"  ||
+             extOriginal == L".webp" ||
+             extOriginal == L".png"  )
+      extType = 1;
+
+    else if (extOriginal == L".exe" ||
+             extOriginal == L".lnk"  )
+      extType = 2;
+
+    // Images + URLs
+    if (extType == 1)
     {
-      // This allows the "..." loading dots to be visible
-      tryingToSaveCover = true;
-      coverRefreshAppId = pApp->id;
-      coverRefreshStore = (int)pApp->store;
+      if (SaveGameCover (pApp, dragDroppedFilePath))
+      {
+        // This allows the "..." loading dots to be visible
+        tryingToSaveCover = true;
+        coverRefreshAppId = pApp->id;
+        coverRefreshStore = (int)pApp->store;
       
-      // This sets up the current one to be released
-      vecCoverUv0_old = vecCoverUv0;
-      vecCoverUv1_old = vecCoverUv1;
-      pTexSRV_old.p   = pTexSRV.p;
-      pTexSRV.p       = nullptr;
-      fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
-      fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+        // This sets up the current one to be released
+        vecCoverUv0_old = vecCoverUv0;
+        vecCoverUv1_old = vecCoverUv1;
+        pTexSRV_old.p   = pTexSRV.p;
+        pTexSRV.p       = nullptr;
+        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+        fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+
+        // A child thread will set refreshCover once done
+      }
+    }
+
+    // Executables / Shortcuts
+    else if (extType == 2)
+    {
+      dragDroppedFilePathGame = dragDroppedFilePath;
+
+      if (AddGamePopup == PopupState_Closed)
+        AddGamePopup = PopupState_Open;
+
+      if (std::filesystem::is_regular_file(fsPath, ec))
+      {
+
+      }
+    }
+
+    else {
+      constexpr char* error_title =
+        "Unsupported file format";
+      constexpr char* error_label =
+        "To add a new custom game to the library:\n"
+        "   *.exe\n"
+        "   *.lnk\n"
+        "\n"
+        "To update the cover for the current selected game:\n"
+        "   *.png\n"
+        "   *.jpg\n"
+        "   *.webp (no animation)";
+
+      SKIF_ImGui_InfoMessage (error_title, error_label);
     }
 
     dragDroppedFilePath.clear();
