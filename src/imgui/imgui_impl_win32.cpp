@@ -1268,10 +1268,20 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
     IM_ASSERT(vd->Hwnd != 0);
+
+    // ShowParent() also brings parent to front, which is not always desirable,
+    // so we temporarily disable parenting. (#7354)
+    if (vd->HwndParent != NULL)
+        ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)nullptr);
+
     if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
         ::ShowWindow(vd->Hwnd, SW_SHOWNA);
     else
         ::ShowWindow(vd->Hwnd, SW_SHOW);
+
+    // Restore
+    if (vd->HwndParent != NULL)
+        ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)vd->HwndParent);
 }
 #else
 static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
@@ -1279,6 +1289,11 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
     if (vd->Hwnd == 0) return;
     IM_ASSERT(vd->Hwnd != 0);
+
+    // ShowParent() also brings parent to front, which is not always desirable,
+    // so we temporarily disable parenting. (#7354)
+    if (vd->HwndParent != NULL)
+        ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)nullptr);
 
     static bool
         runOnce = true;
@@ -1294,6 +1309,10 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
       ::ShowWindow (vd->Hwnd, SW_SHOWNA);
     else
       ::ShowWindow (vd->Hwnd, SW_SHOW);
+
+    // Restore
+    if (vd->HwndParent != NULL)
+        ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)vd->HwndParent);
 }
 #endif // !SKIF_Win32
 
