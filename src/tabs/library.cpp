@@ -4558,11 +4558,11 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     PLOG_INFO << "Populating library list...";
 
-    library_worker = new lib_worker_thread_s;
-    library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
-    
     // Initialize/reset the Steam appinfo.vdf Reader
     appinfo = std::make_unique <skValveDataFile>(std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
+
+    library_worker = new lib_worker_thread_s;
+    library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
 
     HANDLE hWorkerThread = (HANDLE)
     _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
