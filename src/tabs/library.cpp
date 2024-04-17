@@ -4394,13 +4394,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region Initialization
 
-  // Initialize the Steam appinfo.vdf Reader
   if (_registry.bLibrarySteam)
   {
-    SK_RunOnce (
-      appinfo = std::make_unique <skValveDataFile> (std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
-    );
-
     // Set up the registry watch on the Steam ActiveProcess key and ActiveUser value
     SK_RunOnce (
       SKIF_Steam_HasActiveProcessChanged (nullptr, nullptr);
@@ -4565,6 +4560,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     library_worker = new lib_worker_thread_s;
     library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
+    
+    // Initialize/reset the Steam appinfo.vdf Reader
+    appinfo = std::make_unique <skValveDataFile>(std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
 
     HANDLE hWorkerThread = (HANDLE)
     _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
