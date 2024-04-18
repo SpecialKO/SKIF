@@ -2558,6 +2558,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             // Reset the dimmed cover when going back to the tab
             if (_registry.iDimCovers == 2)
               fTint = 0.75f;
+
+            PLOG_DEBUG << "Switches to tab: Library";
           }
 
           // Ensure we have set up the drop target on the Library tab
@@ -2585,6 +2587,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
+          if (SKIF_Tab_Selected != UITab_Monitor)
+            PLOG_DEBUG << "Switches to tab: Monitor";
+
           extern void
             SKIF_UI_Tab_DrawMonitor (void);
             SKIF_UI_Tab_DrawMonitor (    );
@@ -2604,6 +2609,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
+          if (SKIF_Tab_Selected != UITab_Settings)
+            PLOG_DEBUG << "Switches to tab: Settings";
+
           SKIF_UI_Tab_DrawSettings( );
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
@@ -2616,6 +2624,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::BeginTabItem (" " ICON_FA_COMMENT " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
+
+          if (SKIF_Tab_Selected != UITab_About)
+            PLOG_DEBUG << "Switches to tab: About";
 
           SKIF_Tab_Selected = UITab_About;
           if (SKIF_Tab_ChangeTo == UITab_About)
