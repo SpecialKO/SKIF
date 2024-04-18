@@ -2559,7 +2559,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             if (_registry.iDimCovers == 2)
               fTint = 0.75f;
 
-            PLOG_DEBUG << "Switches to tab: Library";
+            PLOG_DEBUG << "Switched to tab: Library";
           }
 
           // Ensure we have set up the drop target on the Library tab
@@ -2588,7 +2588,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_BeginTabChildFrame ();
 
           if (SKIF_Tab_Selected != UITab_Monitor)
-            PLOG_DEBUG << "Switches to tab: Monitor";
+            PLOG_DEBUG << "Switched to tab: Monitor";
 
           extern void
             SKIF_UI_Tab_DrawMonitor (void);
@@ -2610,7 +2610,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_BeginTabChildFrame ();
 
           if (SKIF_Tab_Selected != UITab_Settings)
-            PLOG_DEBUG << "Switches to tab: Settings";
+            PLOG_DEBUG << "Switched to tab: Settings";
 
           SKIF_UI_Tab_DrawSettings( );
 
@@ -2626,7 +2626,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_BeginTabChildFrame ();
 
           if (SKIF_Tab_Selected != UITab_About)
-            PLOG_DEBUG << "Switches to tab: About";
+            PLOG_DEBUG << "Switched to tab: About";
 
           SKIF_Tab_Selected = UITab_About;
           if (SKIF_Tab_ChangeTo == UITab_About)
