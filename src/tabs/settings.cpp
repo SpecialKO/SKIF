@@ -598,8 +598,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static SKIF_Updater& _updater = SKIF_Updater::GetInstance ( );
 
-  bool disableCheckForUpdates = false;
-  bool disableRollbackUpdates = false;
+  bool disableCheckForUpdates = _registry.bLowBandwidthMode;
+  bool disableRollbackUpdates = _registry.bLowBandwidthMode;
 
   if (_updater.IsRunning ( ))
     disableCheckForUpdates = disableRollbackUpdates = true;
@@ -641,6 +641,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
   if (disableCheckForUpdates)
     SKIF_ImGui_PushDisableState ( );
+  else
+    ImGui::PushStyleColor       (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success));
 
   if (ImGui::Button      (ICON_FA_ROTATE))
   {
@@ -652,13 +654,17 @@ SKIF_UI_Tab_DrawSettings (void)
 
   if (disableCheckForUpdates)
     SKIF_ImGui_PopDisableState  ( );
-
-  if (disableRollbackUpdates)
-    SKIF_ImGui_PushDisableState ( );
+  else
+    ImGui::PopStyleColor        ( );
 
   if (((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older) || _updater.IsRollbackAvailable ( ))
   {
     ImGui::SameLine        ( );
+
+    if (disableRollbackUpdates)
+      SKIF_ImGui_PushDisableState ( );
+    else
+      ImGui::PushStyleColor       (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
 
     if (ImGui::Button      (ICON_FA_ROTATE_LEFT))
     {
@@ -675,25 +681,16 @@ SKIF_UI_Tab_DrawSettings (void)
     }
 
     SKIF_ImGui_SetHoverTip ("Roll back to the previous version");
-  }
 
-  if (disableRollbackUpdates)
-    SKIF_ImGui_PopDisableState  ( );
+    if (disableRollbackUpdates)
+      SKIF_ImGui_PopDisableState  ( );
+    else
+      ImGui::PopStyleColor        ( );
+  }
 
   ImGui::EndGroup      ( );
 
   ImGui::TreePop       ( );
-
-  /*
-  else if (_registry.iCheckForUpdates > 0) {
-    ImGui::TreePush      ("Push_UpdateChannel");
-    ImGui::BeginGroup    ( );
-    ImGui::TextColored   (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
-                          "A restart is required to populate the update channels.");
-    ImGui::EndGroup      ( );
-    ImGui::TreePop       ( );
-  }
-  */
 
   if (_registry.bLowBandwidthMode)
     SKIF_ImGui_PopDisableState  ( );
