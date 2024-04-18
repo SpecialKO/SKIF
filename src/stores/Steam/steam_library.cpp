@@ -61,6 +61,19 @@ struct {
   UINT_PTR            timer;
 } static steam_libraries[MAX_STEAM_LIBRARIES];
 
+// Helper function used to perform a case insensitive search of tyti::vdf::objects
+static std::shared_ptr <tyti::vdf::object>
+SKIF_VDF_ciSearch (std::string value, std::unordered_map <std::string, std::shared_ptr<tyti::vdf::object>> map)
+{
+  for (auto& child : map)
+  {
+    if (lstrcmpiA(child.first.c_str(), value.c_str()) == 0)
+      return child.second;
+  }
+
+  return nullptr;
+}
+
 int
 SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
                                 wchar_t* wszDir,
@@ -263,7 +276,7 @@ SKIF_Steam_GetUserConfigStore (SteamId3_t userid, ConfigStore config)
   static std::string cachedConfig[ConfigStore_ALL];
   const  wchar_t*    pathFormats [ConfigStore_ALL] = {
      LR"(%s\userdata\%i\config\localconfig.vdf)",   // ConfigStore_UserLocal
-     LR"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming
+     LR"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming... AppID 7 == Steam Client
   };
 
   if (cachedUser[config] == userid && (! cachedConfig[config].empty()))
@@ -577,12 +590,21 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
       if (user_localconfig.childs.size() > 0)
       {
         // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+        
+        std::shared_ptr <tyti::vdf::object>
+                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", user_localconfig.childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     apps_localconfig->childs);
+
+        /* case sensitive -- cannot be used
         auto& apps_localconfig =
           user_localconfig.
             childs.at("Software") ->
               childs.at("valve")  ->
                 childs.at("Steam")->
                   childs.at("apps");
+        */
 
         if (apps_localconfig != nullptr &&
             apps_localconfig->childs.size() > 0)
@@ -655,14 +677,23 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
       if (user_localconfig.childs.size() > 0)
       {
         // Preload LaunchOptions...
-        // 
         // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+        
+        std::shared_ptr <tyti::vdf::object>
+                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", user_localconfig.childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     apps_localconfig->childs);
+      //if (apps_localconfig != nullptr) PLOG_VERBOSE << "Found a match!";
+
+        /* case sensitive -- cannot be used
         auto& apps_localconfig =
           user_localconfig.
             childs.at("Software") ->
               childs.at("valve")  ->
                 childs.at("Steam")->
                   childs.at("apps");
+        */
 
         if (apps_localconfig != nullptr &&
             apps_localconfig->childs.size() > 0)
@@ -687,9 +718,10 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
         // 
         // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
         // This is used to determine if a DLC related launch option should be visible
-        auto& apptickets_localconfig =
-          user_localconfig.
-            childs.at("apptickets");
+        std::shared_ptr <tyti::vdf::object>
+          apptickets_localconfig =
+            SKIF_VDF_ciSearch ("apptickets", user_localconfig.childs);
+            //user_localconfig.childs.at("apptickets"); // case sensitive -- cannot be used
 
         if (apptickets_localconfig != nullptr &&
             apptickets_localconfig->attribs.size() > 0)
@@ -762,12 +794,21 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
 
       if (vdfConfig.childs.size() > 0)
       {
+        std::shared_ptr <tyti::vdf::object>
+                                          vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Software", vdfConfig.childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Valve",    vdfConfigAppsTree->childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Steam",    vdfConfigAppsTree->childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Apps",     vdfConfigAppsTree->childs);
+      //if (vdfConfigAppsTree != nullptr) PLOG_VERBOSE << "Found a match!";
+
+        /* case sensitive -- cannot be used
         auto& vdfConfigAppsTree =
           vdfConfig. // UserRoamingConfigStore
             childs.at("Software") ->
-              childs.at("valve")  ->
+              childs.at("Valve")  ->
                 childs.at("Steam")->
                   childs.at("apps");
+        */
 
         if (vdfConfigAppsTree != nullptr &&
             vdfConfigAppsTree->childs.size() > 0)
@@ -809,7 +850,7 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
     {
       UNREFERENCED_PARAMETER(e);
 
-      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
+      PLOG_ERROR << "Unknown error occurred when trying to parse sharedconfig.vdf";
     }
   }
 
@@ -841,18 +882,21 @@ SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
         // - Global state is tracked at "UserLocalConfigStore" -> "system" -> "EnableGameOverlay"
         // - Game-specific state is tracked at "UserLocalConfigStore" -> "apps" -> "<app-id>" -> "OverlayAppEnable"
 
-        auto& system_localconfig =
-          user_localconfig.
-            childs.at("system");
+        std::shared_ptr <tyti::vdf::object>
+          system_localconfig =
+            SKIF_VDF_ciSearch ("system", user_localconfig.childs);
+          //user_localconfig.childs.at("system"); // case sensitive -- cannot be used
+          
 
         // If global state is disabled, don't bother checking the local state
         if (! system_localconfig->attribs.empty() && system_localconfig->attribs.count("EnableGameOverlay") > 0 && system_localconfig->attribs.at("EnableGameOverlay") == "0")
           return false;
 
         // Continue checking the local state
-        auto& apps_localconfig =
-          user_localconfig.
-            childs.at("apps");
+        std::shared_ptr <tyti::vdf::object>
+          apps_localconfig =
+            SKIF_VDF_ciSearch ("apps", user_localconfig.childs);
+          //user_localconfig.childs.at("apps"); // case sensitive -- cannot be used
 
         if (apps_localconfig != nullptr &&
             apps_localconfig->childs.size() > 0)
