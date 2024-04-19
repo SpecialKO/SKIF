@@ -372,6 +372,8 @@ SK_GetSteamDir (void)
     wszSteamPath [0] = L'?';
 
     DWORD     len    =      MAX_PATH;
+
+    // Rely on HKCU path first and foremost
     LSTATUS   status =
       RegGetValueW ( HKEY_CURRENT_USER,
                        LR"(SOFTWARE\Valve\Steam\)",
@@ -381,10 +383,26 @@ SK_GetSteamDir (void)
                              wszSteamPath,
                                (LPDWORD)&len );
 
+    // Use the HKCU path if it exists
+    if (status == ERROR_SUCCESS && PathFileExists (wszSteamPath))
+      return wszSteamPath;
+
+    std::fill (std::begin (wszSteamPath), std::end(wszSteamPath), L'\0');
+
+    // In case of issues with the HKCU path, try the HKLM path
+    status =
+      RegGetValueW ( HKEY_LOCAL_MACHINE,
+                        LR"(SOFTWARE\Valve\Steam\)",
+                                        L"InstallPath",
+                          RRF_RT_REG_SZ | RRF_SUBKEY_WOW6432KEY, // Steam stores this path in the Wow6432Node key
+                            nullptr,
+                              wszSteamPath,
+                                (LPDWORD)&len );
+
     if (status == ERROR_SUCCESS)
       return wszSteamPath;
-    else
-      return L"";
+
+    return L"";
   }
 
   return wszSteamPath;

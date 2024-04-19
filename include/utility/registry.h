@@ -5,7 +5,17 @@
 #include <sstream>
 #include <vector>
 
+#ifndef RRF_SUBKEY_WOW6464KEY
+#define RRF_SUBKEY_WOW6464KEY  0x00010000
+#endif // !RRF_SUBKEY_WOW6464KEY
 
+#ifndef RRF_SUBKEY_WOW6432KEY
+#define RRF_SUBKEY_WOW6432KEY  0x00020000
+#endif // !RRF_SUBKEY_WOW6432KEY
+
+#ifndef RRF_WOW64_MASK
+#define RRF_WOW64_MASK         0x00030000
+#endif // !RRF_WOW64_MASK
 
 struct SKIF_RegistrySettings {
 
