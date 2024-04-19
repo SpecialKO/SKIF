@@ -63,11 +63,11 @@ struct {
 
 // Helper function used to perform a case insensitive search of tyti::vdf::objects
 static std::shared_ptr <tyti::vdf::object>
-SKIF_VDF_ciSearch (std::string value, std::unordered_map <std::string, std::shared_ptr<tyti::vdf::object>> map)
+SKIF_VDF_ciSearch (const std::string value, const std::unordered_map <std::string, std::shared_ptr<tyti::vdf::object>>* map)
 {
-  for (auto& child : map)
+  for (auto& child : *map)
   {
-    if (lstrcmpiA(child.first.c_str(), value.c_str()) == 0)
+    if (lstrcmpiA (child.first.c_str(), value.c_str()) == 0)
       return child.second;
   }
 
@@ -592,10 +592,10 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
         // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
         
         std::shared_ptr <tyti::vdf::object>
-                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", user_localconfig.childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     apps_localconfig->childs);
+                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
 
         /* case sensitive -- cannot be used
         auto& apps_localconfig =
@@ -680,10 +680,10 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
         // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
         
         std::shared_ptr <tyti::vdf::object>
-                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", user_localconfig.childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     apps_localconfig->childs);
+                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
+        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
       //if (apps_localconfig != nullptr) PLOG_VERBOSE << "Found a match!";
 
         /* case sensitive -- cannot be used
@@ -720,7 +720,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
         // This is used to determine if a DLC related launch option should be visible
         std::shared_ptr <tyti::vdf::object>
           apptickets_localconfig =
-            SKIF_VDF_ciSearch ("apptickets", user_localconfig.childs);
+            SKIF_VDF_ciSearch ("apptickets", &user_localconfig.childs);
             //user_localconfig.childs.at("apptickets"); // case sensitive -- cannot be used
 
         if (apptickets_localconfig != nullptr &&
@@ -795,10 +795,10 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
       if (vdfConfig.childs.size() > 0)
       {
         std::shared_ptr <tyti::vdf::object>
-                                          vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Software", vdfConfig.childs);
-        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Valve",    vdfConfigAppsTree->childs);
-        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Steam",    vdfConfigAppsTree->childs);
-        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Apps",     vdfConfigAppsTree->childs);
+                                          vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Software", &vdfConfig.childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Valve",    &vdfConfigAppsTree->childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Steam",    &vdfConfigAppsTree->childs);
+        if (vdfConfigAppsTree != nullptr) vdfConfigAppsTree  = SKIF_VDF_ciSearch ("Apps",     &vdfConfigAppsTree->childs);
       //if (vdfConfigAppsTree != nullptr) PLOG_VERBOSE << "Found a match!";
 
         /* case sensitive -- cannot be used
@@ -884,7 +884,7 @@ SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
 
         std::shared_ptr <tyti::vdf::object>
           system_localconfig =
-            SKIF_VDF_ciSearch ("system", user_localconfig.childs);
+            SKIF_VDF_ciSearch ("system", &user_localconfig.childs);
           //user_localconfig.childs.at("system"); // case sensitive -- cannot be used
           
 
@@ -895,7 +895,7 @@ SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
         // Continue checking the local state
         std::shared_ptr <tyti::vdf::object>
           apps_localconfig =
-            SKIF_VDF_ciSearch ("apps", user_localconfig.childs);
+            SKIF_VDF_ciSearch ("apps", &user_localconfig.childs);
           //user_localconfig.childs.at("apps"); // case sensitive -- cannot be used
 
         if (apps_localconfig != nullptr &&
