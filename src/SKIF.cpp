@@ -519,11 +519,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
   std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
 
-  // Trim any leading spaces
-  proxiedCmdLine.erase(proxiedCmdLine.begin(), std::find_if (proxiedCmdLine.begin(), proxiedCmdLine.end(), [](wchar_t ch) { return !std::iswspace(ch); }));
-
-  // Trim any trailing spaces
-  proxiedCmdLine.erase(std::find_if (proxiedCmdLine.rbegin(), proxiedCmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), proxiedCmdLine.end());
+  SKIF_Util_TrimSpacesW (proxiedCmdLine);
 
   std::wstring workingDirectory = _path_cache.skif_workdir_org;
   

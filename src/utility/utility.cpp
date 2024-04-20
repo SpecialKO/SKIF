@@ -120,6 +120,45 @@ SKIF_Util_ToUpperW     (std::wstring_view input)
   return copy;
 }
 
+void
+SKIF_Util_TrimSpaces (std::string& input)
+{
+  SKIF_Util_TrimLeadingSpaces  (input);
+  SKIF_Util_TrimTrailingSpaces (input);
+}
+
+void
+SKIF_Util_TrimSpacesW (std::wstring& input)
+{
+  SKIF_Util_TrimLeadingSpacesW  (input);
+  SKIF_Util_TrimTrailingSpacesW (input);
+}
+
+void
+SKIF_Util_TrimLeadingSpaces (std::string& input)
+{
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](unsigned char ch) { return !std::isspace (ch); }));
+}
+
+void
+SKIF_Util_TrimLeadingSpacesW (std::wstring& input)
+{
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](      wchar_t ch) { return !std::iswspace (ch); }));
+}
+
+void
+SKIF_Util_TrimTrailingSpaces (std::string& input)
+{
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](unsigned char ch) { return !std::isspace  (ch); }).base(), input.end());
+}
+
+void
+SKIF_Util_TrimTrailingSpacesW (std::wstring& input)
+{
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](      wchar_t ch) { return !std::iswspace (ch); }).base(), input.end());
+}
+
+
 // Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
 //                             https://learn.microsoft.com/en-us/windows/win32/wininet/appendix-c-handling-errors
 std::wstring
@@ -1319,7 +1358,14 @@ SKIF_Util_GetProductName (const wchar_t* wszName)
                                    &cbProductBytes );
 
     if ( cbProductBytes )
-      return std::wstring(wszProduct);
+    {
+      // The product name can sometimes include leading or trailing spaces
+      //   (e.g. the FarCry.exe executable), so let us trim any of those
+      std::wstring productName = std::wstring(wszProduct);
+      SKIF_Util_TrimSpacesW (productName);
+
+      return productName;
+    }
   }
 
   return L"";

@@ -955,8 +955,8 @@ LaunchGame (app_record_s* pApp)
           if (pApp->store == app_record_s::Store::Steam)
             cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
-          // Trim any spaces at the end
-          cmdLine.erase (std::find_if (cmdLine.rbegin(), cmdLine.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), cmdLine.end());
+          // Trim spaces at the end
+          SKIF_Util_TrimTrailingSpacesW (cmdLine);
 
           SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
             launchConfig->getExecutableFullPath ( ),
@@ -2322,7 +2322,7 @@ DrawGameContextMenu (app_record_s* pApp)
         std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
 
         // Trim spaces at the end
-        linkArgs.erase (std::find_if (linkArgs.rbegin(), linkArgs.rend(), [](wchar_t ch) { return !std::iswspace(ch); }).base(), linkArgs.end());
+        SKIF_Util_TrimTrailingSpacesW (linkArgs);
 
         if (pApp->store == app_record_s::Store::Steam)
           linkArgs += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
@@ -4985,9 +4985,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (app.second.names.original != app.first)
             PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(app.second.names.original.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
 
-          // Trim leftover spaces
-          app.first.erase(app.first.begin(), std::find_if(app.first.begin(), app.first.end(), [](unsigned char ch) { return !std::isspace(ch); }));
-          app.first.erase(std::find_if(app.first.rbegin(), app.first.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), app.first.end());
+          SKIF_Util_TrimSpaces (app.first);
 
           // Strip any remaining null terminators
           //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
@@ -7693,7 +7691,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         else {
           std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-          productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
           strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
           strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
@@ -7705,7 +7702,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       else if (pathExtension == L".exe") {
         std::wstring productName = SKIF_Util_GetProductName (path.c_str());
-        productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
         strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
         strncpy (charName, (productName != L"")
@@ -7755,7 +7751,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           else {
             std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-            productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
           
             strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
             strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
@@ -7767,7 +7762,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         else if (pathExtension == L".exe") {
           std::wstring productName = SKIF_Util_GetProductName (path.c_str());
-          productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
 
           strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
           strncpy (charName, (productName != L"")
@@ -8032,16 +8026,14 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
 
             else {
-              std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-              productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+              //std::wstring productName = SKIF_Util_GetProductName (wszTarget);
           
               strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
             }
           }
 
           else if (pathExtension == L".exe") {
-            std::wstring productName = SKIF_Util_GetProductName (path.c_str());
-            productName.erase (std::find_if (productName.rbegin(), productName.rend(), [](wchar_t ch) {return ! std::iswspace(ch);}).base(), productName.end());
+            //std::wstring productName = SKIF_Util_GetProductName (path.c_str());
 
             strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
           }
