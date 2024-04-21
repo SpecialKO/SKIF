@@ -140,6 +140,7 @@ bool            SKIF_Util_IsTouchCapable              (void);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
+HANDLE          SKIF_Util_GetProcessHandleFromHwnd    (HWND hwnd, DWORD dwDesiredAccess);
 bool            SKIF_Util_SaveExtractExeIcon          (std::wstring exePath, std::wstring targetPath);
 bool            SKIF_Util_GetDragFromMaximized        (bool refresh = false);
 bool            SKIF_Util_GetControlledFolderAccess   (void);

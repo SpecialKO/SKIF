@@ -2244,12 +2244,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (RepositionSKIF)
         RepositionSKIF = false;
 
-      static ImGuiTabBarFlags flagsInjection =
-                ImGuiTabItemFlags_None,
-                              flagsHelp =
-                ImGuiTabItemFlags_None;
-
-
       // Top right window buttons
       ImVec2 topCursorPos =
         ImGui::GetCursorPos ();

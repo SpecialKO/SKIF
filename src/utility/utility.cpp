@@ -1882,6 +1882,16 @@ SKIF_Util_FindProcessByName (const wchar_t* wszName)
   return none;
 }
 
+HANDLE
+SKIF_Util_GetProcessHandleFromHwnd (HWND hwnd, DWORD dwDesiredAccess)
+{
+  DWORD pid = 0;
+  if (GetWindowThreadProcessId (hwnd, &pid))
+    return OpenProcess (dwDesiredAccess, FALSE, pid);
+
+  return NULL;
+}
+
 bool
 SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 {

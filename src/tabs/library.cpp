@@ -955,7 +955,6 @@ LaunchGame (app_record_s* pApp)
           if (pApp->store == app_record_s::Store::Steam)
             cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
 
-          // Trim spaces at the end
           SKIF_Util_TrimTrailingSpacesW (cmdLine);
 
           SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
@@ -2321,7 +2320,6 @@ DrawGameContextMenu (app_record_s* pApp)
         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
         std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
 
-        // Trim spaces at the end
         SKIF_Util_TrimTrailingSpacesW (linkArgs);
 
         if (pApp->store == app_record_s::Store::Steam)
