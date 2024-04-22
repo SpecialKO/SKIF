@@ -384,6 +384,7 @@
     <ClInclude Include="include\utility\plog_formatter.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
     <ClInclude Include="packages_misc\picosha2.h" />
+    <ClInclude Include="packages_misc\stb_image.h" />
     <ClInclude Include="packages_misc\TextFlow.hpp" />
     <ClInclude Include="packages_misc\vdf_parser.hpp" />
     <ClInclude Include="resources\fonts\fa_621.h" />
