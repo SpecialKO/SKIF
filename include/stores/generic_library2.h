@@ -13,6 +13,8 @@
 #include "Steam/app_record.h"
 #include <imgui/imgui.h>
 
+#include "DirectXTex.h"
+
 enum class LibraryTexture
 {
   Icon,
@@ -20,6 +22,14 @@ enum class LibraryTexture
   Patreon,
   Logo
 };
+
+enum ImageDecoder {
+  ImageDecoder_WIC,
+  ImageDecoder_stbi
+};
+
+bool
+FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, DirectX::ScratchImage& img);
 
 void
 LoadLibraryTexture (

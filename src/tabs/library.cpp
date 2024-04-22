@@ -1085,34 +1085,53 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
   std::error_code ec;
   const std::filesystem::path fsPath (path.data());
-  std::wstring targetPath  = L"";
-  std::wstring extOriginal = fsPath.extension().wstring();
-  bool         isURL       = PathIsURL (path.data());
+  std::wstring targetPath = L"";
+  std::wstring ext        = SKIF_Util_ToLowerW (fsPath.extension().wstring());
+  bool         isURL      = PathIsURL (path.data());
+  std::wstring extTarget  = ext;
 
-  extOriginal = SKIF_Util_ToLowerW  (extOriginal);
-  std::wstring extTarget = extOriginal;
-
-  if (extOriginal == L".jpeg")
+  if (ext == L".jpeg")
     extTarget = L".jpg";
 
-  if (extOriginal == L".bmp")
-    extTarget = L".jpg";
-
-  if (extOriginal == L".webp")
+  if (ext == L".webp")
     extTarget = L".png";
+
+  if (ext == L".bmp")
+    extTarget = L".jpg";
+
+  if (ext == L".psd")
+    extTarget = L".png";
+
+  bool isImage =
+    (ext == L".jpg"  ||
+     ext == L".jpeg" ||
+   //ext == L".jxr"  ||
+     ext == L".png"  ||
+     ext == L".webp" ||
+   //ext == L".tga"  ||
+     ext == L".bmp"  ||
+     ext == L".psd"  );
+   //ext == L".gif"  ||
+   //ext == L".tif"  );
 
   constexpr char* error_title =
     "Unsupported image format";
   constexpr char* error_label =
     "Please use one of these image formats:\n"
+    "   *.jpg\n"
+  //"   *.jxr\n"
+    "   *.png\n"
+    "   *.webp\n"
+  //"   *.tga\n"
+    "   *.bmp\n"
+    "   *.psd\n"
+  //"   *.gif\n"
+  //"   *.tif\n"
     "\n"
-    "*.png\n"
-    "*.jpg\n"
-    "*.webp (no animation)";
+    "Note that the app has no support for animated images.";
 
-  if (
-      (  extTarget != L".jpg" && extTarget != L".png" )           || // Unsupported file format
-      (! isURL  && ! std::filesystem::is_regular_file (fsPath, ec) ) // For local files, check if they do. in fact, exist and are local files
+  if (! isImage || // Unsupported file format
+     (! isURL  && ! std::filesystem::is_regular_file (fsPath, ec) ) // For local files, check if they do. in fact, exist and are local files
      )
   {
     SKIF_ImGui_InfoMessage (error_title, error_label);
@@ -1154,7 +1173,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   data->source        = path;
   data->destination   = targetPath;
   data->ext_target    = extTarget;
-  data->ext_original  = extOriginal;
+  data->ext_original  = ext;
   data->is_url        = isURL;
   data->appid         = pApp->id;
   data->store         = (int)pApp->store;
@@ -1217,19 +1236,15 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     DirectX::ScratchImage  img = { };
 
     // Try and load the image
-    if (success && FAILED (
-          DirectX::LoadFromWICFile (
-            tmpPath.c_str (),
-            DirectX::WIC_FLAGS_NONE,
-            &meta, img
-          )
-        )
-      )
+    if (success)
     {
-      success = false;
+      success = FastTextureLoading (tmpPath, meta, img);
 
-      PLOG_ERROR << "The saved image could not be loaded! It is either corrupt or in an unsupported format.";
-      PLOG_ERROR << "Source: " << _data->source;
+      if (! success)
+      {
+        PLOG_ERROR << "The saved image could not be loaded! It is either corrupt or in an unsupported format.";
+        PLOG_ERROR << "Source: " << _data->source;
+      }
     }
 
     // Swap it in
@@ -6709,7 +6724,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
           std::wstring filePath = std::wstring(pwszFilePath);
           if (SaveGameCover (pApp, filePath))
@@ -8582,29 +8597,31 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
 
-    std::error_code ec;
     const std::filesystem::path fsPath (dragDroppedFilePath.data());
-    std::wstring targetPath  = L"";
-    std::wstring extOriginal = fsPath.extension().wstring();
-    bool         isURL       = PathIsURL (dragDroppedFilePath.data());
+    std::wstring ext        = SKIF_Util_ToLowerW(fsPath.extension().wstring());
+    bool         isURL      = PathIsURL (dragDroppedFilePath.data());
+    PLOG_VERBOSE << "    File extension: " << ext;
 
-    extOriginal = SKIF_Util_ToLowerW  (extOriginal);
-    int extType = 0;
+    bool isImage =
+      (ext == L".jpg"  ||
+       ext == L".jpeg" ||
+     //ext == L".jxr"  ||
+       ext == L".png"  ||
+       ext == L".webp" ||
+     //ext == L".tga"  ||
+       ext == L".bmp"  ||
+       ext == L".psd"  );
+     //ext == L".gif"  ||
+     //ext == L".tif"  ||
+     //ext == L".tiff" ||
+     //ext == L".hdr"  ); // Radiance RGBE (.hdr)
 
-    if      (isURL                   || // Assume any given URL points to an image
-             extOriginal == L".jpeg" ||
-             extOriginal == L".jpg"  ||
-             extOriginal == L".bmp"  ||
-             extOriginal == L".webp" ||
-             extOriginal == L".png"  )
-      extType = 1;
-
-    else if (extOriginal == L".exe" ||
-             extOriginal == L".lnk"  )
-      extType = 2;
+    bool isExecutable =
+      (ext == L".exe"  ||
+       ext == L".lnk"  );
 
     // Images + URLs
-    if (extType == 1)
+    if (isImage || isURL) // Assume any given URL points to an image
     {
       if (SaveGameCover (pApp, dragDroppedFilePath))
       {
@@ -8626,7 +8643,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Executables / Shortcuts
-    else if (extType == 2)
+    else if (isExecutable)
     {
       dragDroppedFilePathGame = dragDroppedFilePath;
 
@@ -8646,9 +8663,17 @@ SKIF_UI_Tab_DrawLibrary (void)
         "   *.lnk\n"
         "\n"
         "To update the cover for the current selected game:\n"
-        "   *.png\n"
         "   *.jpg\n"
-        "   *.webp (no animation)";
+      //"   *.jxr\n"
+        "   *.png\n"
+        "   *.webp\n"
+      //"   *.tga\n"
+        "   *.bmp\n"
+        "   *.psd\n"
+      //"   *.gif\n"
+      //"   *.tif\n"
+        "\n"
+        "Note that the app has no support for animated images.";
 
       SKIF_ImGui_InfoMessage (error_title, error_label);
     }
