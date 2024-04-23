@@ -6936,10 +6936,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog(&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.jpg;*.png;*.ico" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
         {
           std::wstring targetPath = L"";
-          std::wstring ext        = std::filesystem::path(pwszFilePath).extension().wstring();
+          std::wstring ext        = SKIF_Util_ToLowerW (std::filesystem::path(pwszFilePath).extension().wstring());
 
           if (pApp->id == SKIF_STEAM_APPID)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
@@ -6967,7 +6967,13 @@ SKIF_UI_Tab_DrawLibrary (void)
             DeleteFile ((targetPath + L".jpg").c_str());
             DeleteFile ((targetPath + L".ico").c_str());
 
-            CopyFile(pwszFilePath, (targetPath + ext).c_str(), false);
+            if (ext == L".jpeg")
+              ext = L".jpg";
+
+            if (ext == L".exe")
+              SKIF_Util_SaveExtractExeIcon (pwszFilePath, (targetPath + L".png"));
+            else
+              CopyFile (pwszFilePath, (targetPath + ext).c_str(), false);
             
             ImVec2 dontCare1, dontCare2;
 
