@@ -15,11 +15,11 @@ jobs:
       # msbuild SKIF.sln -p:Configuration="${{ matrix.config }}" -p:Platform="${{ matrix.platform }}" -m
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: SpecialKO/GA-setup-cpp@master
+    - uses: SpecialKO/GA-setup-cpp-n20@master
 
-    - uses: microsoft/setup-msbuild@v1.1.3
+    - uses: microsoft/setup-msbuild@v2
       with:
         vs-version: '[17.0,18.0)'
 
@@ -42,14 +42,14 @@ jobs:
         "SKIF_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
         "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}
         path: |
           Builds/SKIF*.exe
         if-no-files-found: error
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}_debug_symbols
         path: |
