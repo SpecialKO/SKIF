@@ -1551,6 +1551,7 @@ Enable=false
 
 [Input.XInput]
 Enable=false
+UISlot=4
 
 [Input.Gamepad]
 EnableDirectInput7=false
