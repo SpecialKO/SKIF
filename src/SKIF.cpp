@@ -364,6 +364,12 @@ SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
         _Signal.Launcher =
       StrStrIW (lpCmdLine, L".exe")     != NULL;
 
+  // Check if we are dealing with a .bat target
+  if (! _Signal.Launcher &&
+      StrStrIW (lpCmdLine, L".bat")     != NULL)
+        _Signal.Launcher    =
+        _Signal.LauncherBAT = true;
+
   _Signal._RunningInstance =
     FindWindowExW (0, 0, SKIF_NotifyIcoClass, nullptr);
 }
@@ -483,7 +489,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   std::wstring cmdLine        = std::wstring(lpCmdLine);
-  std::wstring delimiter      = L".exe"; // split lpCmdLine at the .exe
+  std::wstring delimiter      = (_Signal.LauncherBAT) ? L".bat" : L".exe"; // split lpCmdLine at the .bat/.exe
 
   // First position is a quotation mark -- we need to strip those
   if (cmdLine.find(L"\"") == 0)
@@ -618,10 +624,10 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
     cmdLineLower.erase (posArgumentStart, posArgumentEnd);
   }
 
-  PLOG_INFO_IF(! argSKIF_URI_found.empty()) << "URI: " << argSKIF_URI_found;
-
   if (! argSKIF_URI_found.empty())
   {
+    PLOG_INFO << "URI: " << argSKIF_URI_found;
+
     _Signal._GamePath = argSKIF_URI_found;
 
     // If we are dealing with an executable path, also find a working directory
