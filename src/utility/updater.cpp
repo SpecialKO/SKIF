@@ -309,7 +309,6 @@ SKIF_Updater::ClearOldUpdates (void)
 
   hFind = 
     FindFirstFileExW ((VersionFolder + L"SpecialK_*.exe").c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-  //FindFirstFile    ((VersionFolder + L"SpecialK_*.exe").c_str(), &ffd);
 
   if (INVALID_HANDLE_VALUE != hFind)
   {

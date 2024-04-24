@@ -401,41 +401,52 @@ SK_GetFontsDir (void)
     _path_cache.fonts.path;
 }
 
-bool
+HRESULT
 SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder)
 {
-  bool success = false;
   IFileOpenDialog  *pFileOpen = nullptr;
+  HRESULT hr = E_UNEXPECTED;
 
-  if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-                                  IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen))))
+  hr = CoCreateInstance (CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                          IID_IFileOpenDialog, reinterpret_cast<void**> (&pFileOpen));
+
+  if (SUCCEEDED(hr))
   {
     IShellItem* psiDefaultFolder = nullptr;
-    if (SUCCEEDED(SHGetKnownFolderItem(defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder)))
+
+    if (S_OK == SHGetKnownFolderItem (defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder))
     {
-      pFileOpen->SetDefaultFolder(psiDefaultFolder);
+      pFileOpen->SetDefaultFolder (psiDefaultFolder);
       psiDefaultFolder->Release();
     }
+
     pFileOpen->SetFileTypes (cFileTypes, &fileTypes);
     pFileOpen->SetOptions   (dialogOptions);
 
-    if (SUCCEEDED(pFileOpen->Show(NULL)))
+    hr = pFileOpen->Show(NULL);
+
+    if (S_OK == hr)
     {
-      IShellItem *pItem = nullptr;
+      IShellItem      *pItem      = nullptr;
+      IShellItemArray* pItemArray = nullptr;
 
-      if (SUCCEEDED(pFileOpen->GetResult(&pItem)))
+      if (S_OK == pFileOpen->GetResults (&pItemArray))
       {
-        HRESULT hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
-        if (SUCCEEDED(hr))
-          success = true;
-        else
-          PLOG_ERROR << SKIF_Util_GetErrorAsWStr (HRESULT_CODE(hr));
+        if (S_OK == pItemArray->GetItemAt (0, &pItem))
+        {
+          hr = pItem->GetDisplayName (SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
 
-        pItem->Release();
+          pItem->Release();
+        }
+
+        pItemArray->Release();
       }
     }
+
     pFileOpen->Release();
   }
 
-  return success;
+  PLOG_ERROR_IF(FAILED(hr)) << SKIF_Util_GetErrorAsWStr (HRESULT_CODE(hr));
+
+  return hr;
 }

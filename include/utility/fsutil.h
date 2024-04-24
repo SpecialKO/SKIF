@@ -119,5 +119,5 @@ SK_GetFontsDir (void);
 void
 SKIF_GetFolderPath (SKIF_CommonPathsCache::win_path_s* path);
 
-bool
+HRESULT
 SK_FileOpenDialog (LPWSTR *pszPath, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_StartMenu);
