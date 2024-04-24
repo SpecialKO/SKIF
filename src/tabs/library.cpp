@@ -6725,7 +6725,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        HRESULT hr          =
+          SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        {
+          // If cancelled, do nothing
+        }
+
+        else if (SUCCEEDED(hr))
         {
           std::wstring filePath = std::wstring(pwszFilePath);
           if (SaveGameCover (pApp, filePath))
@@ -6937,7 +6945,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
       {
         LPWSTR pwszFilePath = NULL;
-        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures))
+        HRESULT hr          =
+          SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        {
+          // If cancelled, do nothing
+        }
+
+        else if (SUCCEEDED(hr))
         {
           std::wstring targetPath = L"";
           std::wstring ext        = SKIF_Util_ToLowerW (std::filesystem::path(pwszFilePath).extension().wstring());
@@ -7683,15 +7699,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     // TODO: Go through and correct the buf_size of all ImGui::InputText to include the null terminator
     static char charName     [MAX_PATH + 2] = { },
                 charPath     [MAX_PATH + 2] = { },
-                charArgs     [     500 + 2] = { };
+                charArgs     [    1024 + 2] = { };
     static bool error = false;
 
-    // Process drag-n-dropped executables / shortcuts
-    if (! dragDroppedFilePathGame.empty())
+    auto _ProcessFilePath = [&](LPCWSTR pwszPath) -> bool
     {
-      error = false;
-      std::filesystem::path path           = dragDroppedFilePathGame; // Wide-string std::filesystem::path
-      std::filesystem::path pathDiscard    = dragDroppedFilePathGame; // Wide-string std::filesystem::path which will be discarded
+      bool __error = false;
+
+      std::filesystem::path path           = pwszPath; // Wide-string std::filesystem::path
+      std::filesystem::path pathDiscard    = pwszPath; // Wide-string std::filesystem::path which will be discarded
       std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
       std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
       std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
@@ -7705,7 +7721,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (! PathFileExists (wszTarget))
         {
-          error = true;
+          __error = true;
           strncpy (charPath, "\0", MAX_PATH);
         }
 
@@ -7713,7 +7729,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring productName = SKIF_Util_GetProductName (wszTarget);
           
           strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
-          strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
+          strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               1024);
           strncpy (charName, (productName != L"")
                               ? SK_WideCharToUTF8 (productName).c_str()
                               : pathFilename.c_str(), MAX_PATH);
@@ -7729,11 +7745,22 @@ SKIF_UI_Tab_DrawLibrary (void)
                             : pathFilename.c_str(), MAX_PATH);
       }
 
+      else if (pathExtension == L".bat") {
+        strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
+      }
+
       else {
-        error = true;
+        __error = true;
         strncpy (charPath, "\0", MAX_PATH);
       }
 
+      return __error;
+    };
+
+    // Process drag-n-dropped executables / shortcuts
+    if (! dragDroppedFilePathGame.empty())
+    {
+      error = _ProcessFilePath (dragDroppedFilePathGame.c_str());
       dragDroppedFilePathGame.clear();
     }
 
@@ -7746,53 +7773,17 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (ImGui::Button  ("Browse...", vButtonSize))
     {
       LPWSTR pwszFilePath = NULL;
+      HRESULT hr          =
+        SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe;*.bat" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
 
-      if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
+      if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
       {
-        error = false;
-        std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
-        std::filesystem::path pathDiscard    = pwszFilePath; // Wide-string std::filesystem::path which will be discarded
-        std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
-        std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
-        std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
+        // If cancelled, do nothing
+      }
 
-        if (pathExtension == L".lnk")
-        {
-          WCHAR wszTarget    [MAX_PATH + 2] = { };
-          WCHAR wszArguments [MAX_PATH + 2] = { };
-
-          SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
-
-          if (! PathFileExists (wszTarget))
-          {
-            error = true;
-            strncpy (charPath, "\0", MAX_PATH);
-          }
-
-          else {
-            std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-          
-            strncpy (charPath, SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
-            strncpy (charArgs, SK_WideCharToUTF8 (wszArguments).c_str(),               500);
-            strncpy (charName, (productName != L"")
-                                ? SK_WideCharToUTF8 (productName).c_str()
-                                : pathFilename.c_str(), MAX_PATH);
-          }
-        }
-
-        else if (pathExtension == L".exe") {
-          std::wstring productName = SKIF_Util_GetProductName (path.c_str());
-
-          strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
-          strncpy (charName, (productName != L"")
-                              ? SK_WideCharToUTF8 (productName).c_str()
-                              : pathFilename.c_str(), MAX_PATH);
-        }
-
-        else {
-          error = true;
-          strncpy (charPath, "\0", MAX_PATH);
-        }
+      else if (SUCCEEDED(hr))
+      {
+        error = _ProcessFilePath (pwszFilePath);
       }
 
       else {
@@ -7832,7 +7823,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 502, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 1024, ImVec2(0,0), ImGuiInputTextFlags_None);
     SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
@@ -7874,7 +7865,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", 500);
+      strncpy (charArgs, "\0", 1024);
 
       // Unload any current cover
       if (pTexSRV.p != nullptr)
@@ -7905,7 +7896,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", 500);
+      strncpy (charArgs, "\0", 1024);
 
       AddGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
@@ -7979,7 +7970,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (pApp->store == app_record_s::Store::Custom)
       {
         strncpy (charPath, pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
-        strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].getLaunchOptions()).c_str(), 500);
+        strncpy (charArgs, SK_WideCharToUTF8 (pApp->launch_configs[0].getLaunchOptions()).c_str(), 1024);
       }
 
       // Use the appropriate hint for the game name
@@ -8022,8 +8013,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::Button  ("Browse...", vButtonSize))
       {
         LPWSTR pwszFilePath = NULL;
+        HRESULT hr          =
+          SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe;*.bat" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+          
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        {
+          // If cancelled, do nothing
+        }
 
-        if (SK_FileOpenDialog (&pwszFilePath, COMDLG_FILTERSPEC{ L"Executables", L"*.exe" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST))
+        else if (SUCCEEDED(hr))
         {
           error = false;
           std::filesystem::path path           = pwszFilePath; // Wide-string std::filesystem::path
@@ -8056,6 +8054,10 @@ SKIF_UI_Tab_DrawLibrary (void)
             //std::wstring productName = SKIF_Util_GetProductName (path.c_str());
 
             strncpy (charPath, pathFullPath.c_str(),                                  MAX_PATH);
+          }
+
+          else if (pathExtension == L".bat") {
+            strncpy (charPath, pathFullPath.c_str(),    MAX_PATH);
           }
 
           else {
@@ -8310,7 +8312,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       error = false;
       strncpy (charName, "\0", MAX_PATH);
       strncpy (charPath, "\0", MAX_PATH);
-      strncpy (charArgs, "\0", 500);
+      strncpy (charArgs, "\0", 1024);
       cached_elevate_load = true;
       cached_hidden_load  = true;
       cached_auto_stop    = -1;
@@ -8625,7 +8627,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     bool isExecutable =
       (ext == L".exe"  ||
-       ext == L".lnk"  );
+       ext == L".lnk"  ||
+       ext == L".bat"  );
 
     // Images + URLs
     if (isImage || isURL) // Assume any given URL points to an image
@@ -8665,11 +8668,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       constexpr char* error_title =
         "Unsupported file format";
       constexpr char* error_label =
-        "To add a new custom game to the library:\n"
+        "Add a game to the library:\n"
         "   *.exe\n"
         "   *.lnk\n"
+        "   *.bat\n"
         "\n"
-        "To update the cover for the current selected game:\n"
+        "\n"
+        "Update the cover for the current selected game:\n"
         "   *.jpg\n"
       //"   *.jxr\n"
         "   *.png\n"
