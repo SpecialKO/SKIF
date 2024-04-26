@@ -117,36 +117,6 @@ struct ImGui_ImplDX11_ViewportData;
 #endif // SKIF_D3D11
 
 // DirectX11 data
-#ifndef SKIF_D3D11
-struct ImGui_ImplDX11_Data
-{
-    ID3D11Device*               pd3dDevice;
-    ID3D11DeviceContext*        pd3dDeviceContext;
-    IDXGIFactory*               pFactory;
-    ID3D11Buffer*               pVB;
-    ID3D11Buffer*               pIB;
-    ID3D11VertexShader*         pVertexShader;
-    ID3D11InputLayout*          pInputLayout;
-    ID3D11Buffer*               pVertexConstantBuffer;
-    ID3D11PixelShader*          pPixelShader;
-    ID3D11SamplerState*         pFontSampler;
-    ID3D11ShaderResourceView*   pFontTextureView;
-    ID3D11RasterizerState*      pRasterizerState;
-    ID3D11BlendState*           pBlendState;
-    ID3D11DepthStencilState*    pDepthStencilState;
-    int                         VertexBufferSize;
-    int                         IndexBufferSize;
-
-    ImGui_ImplDX11_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
-};
-
-struct VERTEX_CONSTANT_BUFFER_DX11
-{
-    float   mvp[4][4];
-};
-
-#else
-
 struct ImGui_ImplDX11_Data
 {
     ID3D11Device*               pd3dDevice;
@@ -157,8 +127,10 @@ struct ImGui_ImplDX11_Data
     ID3D11VertexShader*         pVertexShader;
     ID3D11InputLayout*          pInputLayout;
     ID3D11Buffer*               pVertexConstantBuffer;
-    ID3D11Buffer*               pPixelConstantBuffer; // SKIF Custom
-    ID3D11Buffer*               pFontConstantBuffer;  // SKIF Custom
+#ifdef SKIF_D3D11
+    ID3D11Buffer*               pPixelConstantBuffer;
+    ID3D11Buffer*               pFontConstantBuffer;
+#endif
     ID3D11PixelShader*          pPixelShader;
     ID3D11SamplerState*         pFontSampler;
     ID3D11ShaderResourceView*   pFontTextureView;
@@ -174,14 +146,17 @@ struct ImGui_ImplDX11_Data
 struct VERTEX_CONSTANT_BUFFER_DX11 {
   float mvp [4][4];
 
+#ifdef SKIF_D3D11
   // scRGB allows values > 1.0, sRGB (SDR) simply clamps them
   // x = Luminance/Brightness -- For HDR displays, 1.0 = 80 Nits, For SDR displays, >= 1.0 = 80 Nits
   // y = isHDR
   // z = is10bpc
   // w = is16bpc
   float luminance_scale [4];
+#endif
 };
 
+#ifdef SKIF_D3D11
 struct PIXEL_CONSTANT_BUFFER_DX11 {
   float font_dims [4];
 };
