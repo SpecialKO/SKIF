@@ -1224,7 +1224,12 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       success = (_data->is_url) ? SKIF_Util_GetWebResource (_data->source,         tmpPath)
                                 :                 CopyFile (_data->source.c_str(), tmpPath.c_str(), false);
 
-      if (! success)
+      // If the file was copied successfully, we also need to ensure it's not marked as read-only
+      if (success)
+        SetFileAttributes (tmpPath.c_str(),
+                GetFileAttributes (tmpPath.c_str()) & ~FILE_ATTRIBUTE_READONLY);
+
+      else
       {
         PLOG_ERROR << "Could not save the source image to the destination path!";
         PLOG_ERROR << "Source:      " << _data->source;
@@ -6781,6 +6786,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           {
             std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
 
+            // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
                  d3 = false,
@@ -6991,6 +6997,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               SKIF_Util_SaveExtractExeIcon (pwszFilePath, (targetPath + L".png"));
             else
               CopyFile (pwszFilePath, (targetPath + ext).c_str(), false);
+
+            SetFileAttributes ((targetPath + ext).c_str(),
+                   GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
             
             ImVec2 dontCare1, dontCare2;
 
@@ -7031,10 +7040,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           else if (pApp->store == app_record_s::Store::Steam)
             targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
 
-          if (PathFileExists(targetPath.c_str()))
+          if (PathFileExists (targetPath.c_str()))
           {
             std::wstring fileName = (pApp->tex_icon.isCustom) ? L"icon" : L"icon-original";
 
+            // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
                  d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
