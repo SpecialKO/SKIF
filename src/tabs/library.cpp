@@ -6479,7 +6479,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Stop populating the list
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-  SKIF_ImGui_AutoScroll  (false);
+  SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
 
   ImGui::EndChild        ( );
   ImGui::EndGroup        ( ); // End GamesList

@@ -2611,7 +2611,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_UI_Tab_DrawSettings( );
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );

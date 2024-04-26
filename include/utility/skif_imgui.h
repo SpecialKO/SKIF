@@ -8,6 +8,15 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 
+enum SKIF_ImGuiAxis {
+  SKIF_ImGuiAxis_None,
+  SKIF_ImGuiAxis_X,
+  SKIF_ImGuiAxis_Y,
+
+  SKIF_ImGuiAxis_Both =
+     SKIF_ImGuiAxis_X | SKIF_ImGuiAxis_Y
+};
+
 float    SKIF_ImGui_LinearTosRGB          (float col_lin);
 ImVec4   SKIF_ImGui_LinearTosRGB          (ImVec4 col);
 float    SKIF_ImGui_sRGBtoLinear          (float col_srgb);
@@ -44,8 +53,11 @@ void     SKIF_ImGui_PopDisableState       (void);
 void     SKIF_ImGui_PushDisabledSpacing   (void);
 void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
-bool     SKIF_ImGui_CanMouseDragMove      (void);    // True if drag move using the mouse is allowed, false if not
-void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void);
+bool     SKIF_ImGui_CanMouseDragMove      (void); // True if drag move using the mouse is allowed, false if not
+void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAxis axis);
+void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state tracking scrollbars
+bool     SKIF_ImGui_IsScrollbarX          (void); // Helper function returning true if a horizontal scrollbar is visible
+bool     SKIF_ImGui_IsScrollbarY          (void); // Helper function returning true if a vertical scrollbar is visible
 void     SKIF_ImGui_InvalidateFonts       (void);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 

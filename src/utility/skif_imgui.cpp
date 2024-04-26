@@ -18,6 +18,8 @@
 #include <imgui/imgui_impl_dx11.h>
 
 bool                  bAutoScrollActive;
+bool                  bScrollbarX;
+bool                  bScrollbarY;
 ImFont*               fontConsolas = nullptr;
 std::vector <ImWchar> vFontChineseSimplified;
 std::vector <ImWchar> vFontChineseAll;
@@ -1317,7 +1319,7 @@ SKIF_ImGui_CanMouseDragMove (void)
 
 // Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
 void
-SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void)
+SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void, SKIF_ImGuiAxis axis)
 {
   ImGuiContext& g = *ImGui::GetCurrentContext();
   ImGuiWindow* window = g.CurrentWindow;
@@ -1331,16 +1333,16 @@ SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void)
   {
     ImVec2 delta = ImGui::GetIO().MouseDelta;
 
-  //if (delta.x != 0.0f) // Horizontal
-  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x);
+    if ((axis & SKIF_ImGuiAxis_X) && delta.x != 0.0f) // Horizontal
+      ImGui::SetScrollX (window, window->Scroll.x - delta.x);
 
-    if (delta.y != 0.0f) // Vertical
+    if ((axis & SKIF_ImGuiAxis_Y) && delta.y != 0.0f) // Vertical
       ImGui::SetScrollY (window, window->Scroll.y - delta.y);
   }
 }
 
 void
-SKIF_ImGui_MouseWheelScroll (void)
+SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis)
 {
   ImGuiContext& g = *ImGui::GetCurrentContext();
   ImGuiWindow* window = g.CurrentWindow;
@@ -1379,12 +1381,27 @@ SKIF_ImGui_MouseWheelScroll (void)
   {
     ImVec2 delta = position - ImGui::GetMousePos ( );
 
-    ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
+    switch (axis)
+    {
+    case SKIF_ImGuiAxis_None:
+      break;
+    case SKIF_ImGuiAxis_X:
+      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeEW);
+      break;
+    case SKIF_ImGuiAxis_Y:
+      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
+      break;
+    case SKIF_ImGuiAxis_Both:
+      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeAll);
+      break;
+    default:
+      break;
+    }
 
-  //if (delta.x != 0.0f) // Horizontal
-  //  ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
+    if ((axis & SKIF_ImGuiAxis_X) && delta.x != 0.0f) // Horizontal
+      ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
 
-    if (delta.y != 0.0f) // Vertical
+    if ((axis & SKIF_ImGuiAxis_Y) && delta.y != 0.0f) // Vertical
       ImGui::SetScrollY (window, window->Scroll.y - delta.y * 0.1f);
 
     extern bool SKIF_MouseDragMoveAllowed;
@@ -1393,18 +1410,48 @@ SKIF_ImGui_MouseWheelScroll (void)
 }
 
 void
-SKIF_ImGui_AutoScroll (bool touch_only_on_void)
+SKIF_ImGui_AutoScroll (bool touch_only_on_void, SKIF_ImGuiAxis axis)
 {
+  if (axis == SKIF_ImGuiAxis_None)
+    return;
+
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   // This disables drag-move on the list of games and should only be enabled on touch devices
   // Allows drag-scrolling using the left mouse button
   if (_registry._TouchDevice)
-    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void);
+    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void, axis);
 
   // This allows mouse wheel scroll (aka autoscroll) in non-touch mode
   else
-    SKIF_ImGui_MouseWheelScroll ( );
+    SKIF_ImGui_MouseWheelScroll (axis);
+}
+
+void
+SKIF_ImGui_UpdateScrollbarState (void)
+{
+  if (ImGui::GetCurrentWindowRead() != NULL)
+  {
+    bScrollbarX = ImGui::GetCurrentWindowRead()->ScrollbarX;
+    bScrollbarY = ImGui::GetCurrentWindowRead()->ScrollbarY;
+  }
+
+  else {
+    bScrollbarX = false;
+    bScrollbarY = false;
+  }
+}
+
+bool
+SKIF_ImGui_IsScrollbarX (void)
+{
+  return bScrollbarX;
+}
+
+bool
+SKIF_ImGui_IsScrollbarY (void)
+{
+  return bScrollbarY;
 }
 
 void
