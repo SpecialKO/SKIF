@@ -1585,21 +1585,9 @@ Cache=false)";
     SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
                             "various features of Special K in an attempt to improve compatibility.");
 
+    // Don't truncate/reset any existing profile file -- just delete it outright
     if (ImGui::Selectable ("Reset"))
-    {
-      HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
-                  GENERIC_READ | GENERIC_WRITE,
-                    FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                      NULL,
-                        TRUNCATE_EXISTING,
-                          FILE_ATTRIBUTE_NORMAL,
-                            NULL );
-
-      // We need to close the handle as well, as otherwise apps will think the file
-      //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
-      if (h != INVALID_HANDLE_VALUE)
-        CloseHandle (h);
-    }
+      DeleteFile (pApp->specialk.injection.config.full_path.c_str());
 
     SKIF_ImGui_SetMouseCursorHand ();
 
