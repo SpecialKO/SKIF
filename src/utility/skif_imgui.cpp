@@ -707,19 +707,32 @@ void SKIF_ImGui_BeginTabChildFrame (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-  extern ImVec2 SKIF_vecAlteredSize;
-  extern float  SKIF_fStatusBarDisabled;  // Status bar disabled
+//extern ImVec2 SKIF_vecAlteredSize;
+  extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
+  extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
+  extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
+  extern ImVec2 SKIF_vecHorizonModeAdjusted; // Adjusted for status bar and tooltips
 
   auto frame_content_area_id =
     ImGui::GetID ("###SKIF_CONTENT_AREA");
 
+  ImVec2 statusbar_size =
+     (_registry.bHorizonMode)
+      ? SKIF_vecHorizonModeAdjusted - SKIF_vecHorizonModeDefault
+      : SKIF_vecRegularModeAdjusted - SKIF_vecRegularModeDefault;
+
+  /*
   float maxContentHeight = (_registry.bHorizonMode) ? 336.0f + ImGui::GetStyle().WindowBorderSize * 2.0f : 908.0f; // Default height -- 908 is the absolute minimum height that the Library tab can fit into // 2024-01-20: 286 -> 336
         maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
+  */
+
+  // DPI-aware
+  float maxContentHeight = ImFloor (ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - (statusbar_size.y * SKIF_ImGui_GlobalDPIScale));
 
   SKIF_ImGui_BeginChildFrame (
     frame_content_area_id,
       ImVec2 (   0.0f,
-               maxContentHeight * SKIF_ImGui_GlobalDPIScale ), // 900.0f
+               maxContentHeight ), // 900.0f
         ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
         ImGuiWindowFlags_NavFlattened
   );

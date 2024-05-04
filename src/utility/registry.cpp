@@ -366,12 +366,14 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bOpenAtCursorPosition    =   regKVOpenAtCursorPosition   .getData (&hKey);
   bStopOnInjection         = ! regKVDisableStopOnInjection .getData (&hKey);
 
+  /*
   bMaximizeOnDoubleClick   = 
     SKIF_Util_GetDragFromMaximized ( )         // IF the OS prerequisites are enabled
     ? regKVMaximizeOnDoubleClick.hasData (&hKey)   // AND we have data in the registry
       ? regKVMaximizeOnDoubleClick.getData (&hKey) // THEN use the data,
       : false                                  // otherwise default to false,
     : false;                                   // and false if OS prerequisites are disabled
+  */
 
   bMinimizeOnGameLaunch    =   regKVMinimizeOnGameLaunch   .getData (&hKey);
   bRestoreOnGameExit       =   regKVRestoreOnGameExit      .getData (&hKey);

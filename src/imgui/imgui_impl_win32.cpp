@@ -1703,7 +1703,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         return 0;
       }
 
-#define SKIF_Win32_Snapping
+//#define SKIF_Win32_Snapping
 #ifdef SKIF_Win32_Snapping
 
         // Gets fired on window creation, and screws up the positioning
@@ -1782,7 +1782,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
 #endif
 
-#define SKIF_Win32_CenterMaximize
+//#define SKIF_Win32_CenterMaximize
 #ifdef SKIF_Win32_CenterMaximize
 
         // This is used to inform Windows of the min/max size of the viewport, so
@@ -1974,7 +1974,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         {
           // Only convert "non-client" double clicks to single clicks
           //   if dragging windows from a maximized state is disabled
-          if (! _registry.bMaximizeOnDoubleClick || ! SKIF_Util_GetDragFromMaximized ( ))
+          //if (! _registry.bMaximizeOnDoubleClick || ! SKIF_Util_GetDragFromMaximized ( ))
             msg = WM_NCLBUTTONDOWN;
           break;
         }

@@ -1896,8 +1896,93 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_Startup_SetGameAsForeground ( );
     }
 
+    // Window stuff
+
+    ImRect rectCursorMonitor; // RepositionSKIF
+
+    // RepositionSKIF -- Step 1: Retrieve monitor of cursor
+    if (RepositionSKIF)
+    {
+      ImRect t;
+      for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
+      {
+        const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
+        t = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
+
+        POINT               mouse_screen_pos = { };
+        if (::GetCursorPos (&mouse_screen_pos))
+        {
+          ImVec2 os_pos = ImVec2( (float)mouse_screen_pos.x,
+                                  (float)mouse_screen_pos.y );
+          if (t.Contains (os_pos))
+          {
+            rectCursorMonitor = t;
+            SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? tmpMonitor.DpiScale : 1.0f;
+          }
+        }
+      }
+    }
+      
+    SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
+    SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+    SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+      
+    SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
+    SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
+
+    SKIF_vecServiceMode     = ImFloor (SKIF_vecServiceMode);
+    SKIF_vecHorizonMode     = ImFloor (SKIF_vecHorizonMode);
+    SKIF_vecRegularMode     = ImFloor (SKIF_vecRegularMode);
+
+    /*
+    SKIF_vecCurrentMode =
+                  (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                  (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
+                                             SKIF_vecRegularMode ;
+    */
+
+    static bool
+        applySizeOnLaunch = true;
+    if (applySizeOnLaunch)
+    {   applySizeOnLaunch = false;
+    
+      SKIF_vecCurrentModeNext =
+                    (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                    (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
+                                               SKIF_vecRegularMode ;
+    }
+
+    // SKIF_vecCurrentModeNext 1/2
+    if (SKIF_vecCurrentModeNext.x != 0.0f)
+      SKIF_vecCurrentMode       = SKIF_vecCurrentModeNext;
+
     static bool newHorizonMode = _registry.bHorizonMode;
     static bool newServiceMode = _registry.bServiceMode;
+
+    // Change mode based on window size
+    static ImVec2
+        last_size  = ImVec2 (0, 0);
+    if (last_size != SKIF_vecCurrentMode)
+    {   last_size  = SKIF_vecCurrentMode;
+
+      // Reset modes
+      newServiceMode = false;
+      newHorizonMode = false;
+
+      // Regular mode
+      if (     SKIF_vecCurrentMode.x >= SKIF_vecRegularMode.x &&
+               SKIF_vecCurrentMode.y >= SKIF_vecRegularMode.y)
+      { }
+
+      // Enable horizon mode
+      else if (SKIF_vecCurrentMode.x >= SKIF_vecHorizonMode.x * 0.8f &&
+               SKIF_vecCurrentMode.y >= SKIF_vecHorizonMode.y * 0.8f)
+        newHorizonMode = true;
+
+      // Enable service mode
+      else
+        newServiceMode = true;
+    }
 
     // Apply new service mode state
     if (newServiceMode != _registry.bServiceMode)
@@ -1965,6 +2050,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Registry watch to check if snapping/drag from window settings has changed in Windows
     // No need to for SKIF to wake up on changes when unfocused, so skip having it be global
+    /*
     static SKIF_RegistryWatch
       dwmWatch ( HKEY_CURRENT_USER,
                    LR"(Control Panel\Desktop)",
@@ -1980,6 +2066,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           : true                                             // otherwise default to true,
         : false;                                             // and false if OS prerequisites are disabled
     }
+    */
 
     // F6 to toggle DPI scaling
     if (changedHiDPIScaling || hotkeyF6)
@@ -2103,56 +2190,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       SKIF_FrameCount.store(ImGui::GetFrameCount());
 
-      ImRect rectCursorMonitor; // RepositionSKIF
-
-      // RepositionSKIF -- Step 1: Retrieve monitor of cursor
-      if (RepositionSKIF)
+      if (SKIF_vecCurrentModeNext.x != 0.0f &&
+          SKIF_vecCurrentModeNext   != SKIF_vecCurrentMode)
       {
-        ImRect t;
-        for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
-        {
-          const ImGuiPlatformMonitor& tmpMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-          t = ImRect(tmpMonitor.MainPos, (tmpMonitor.MainPos + tmpMonitor.MainSize));
+        SKIF_vecCurrentModeNext.x = 0.0f;
 
-          POINT               mouse_screen_pos = { };
-          if (::GetCursorPos (&mouse_screen_pos))
-          {
-            ImVec2 os_pos = ImVec2( (float)mouse_screen_pos.x,
-                                    (float)mouse_screen_pos.y );
-            if (t.Contains (os_pos))
-            {
-              rectCursorMonitor = t;
-              SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? tmpMonitor.DpiScale : 1.0f;
-            }
-          }
-        }
+        SKIF_vecCurrentMode = SKIF_vecCurrentModeNext;
       }
-      
-      SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-      
-      SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
-      SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
 
-      SKIF_vecCurrentMode =
-                    (_registry.bServiceMode) ? SKIF_vecServiceMode :
-                    (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
-                                               SKIF_vecRegularMode ;
-
-      // Don't set the window size for the first few frames to prevent
-      // a pseudo-window from being created and flashing by at launch
-      if (ImGui::GetFrameCount() > 2)
-      {
-        static ImVec2
-            lastSize;
-        if (lastSize != SKIF_vecCurrentMode)
-        {   lastSize  = SKIF_vecCurrentMode;
-
-          ImGui::SetNextWindowSize (SKIF_vecCurrentMode);
-          PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Set app size to " << SKIF_vecCurrentMode.x << "x" << SKIF_vecCurrentMode.y;
-        }
+      // SKIF_vecCurrentModeNext 2/2
+      if (SKIF_vecCurrentModeNext.x != 0.0f)
+      {   SKIF_vecCurrentModeNext.x  = 0.0f;
+        ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
       }
+
+      else
+        ImGui::SetNextWindowSizeConstraints (SKIF_vecServiceMode, ImVec2 (FLT_MAX, FLT_MAX));
 
       ImGui::SetNextWindowClass (&SKIF_AppWindow);
 
@@ -2191,12 +2244,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {   repositionToCenter = false;
         ImGui::SetNextWindowPos  (monitor_extent.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }
-
-      //ImGui::SetNextWindowSizeConstraints (SKIF_vecCurrentMode, SKIF_vecCurrentMode);
       
       ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,
                        nullptr,
-                         ImGuiWindowFlags_NoResize          |
+                       //ImGuiWindowFlags_NoResize          |
                          ImGuiWindowFlags_NoCollapse        |
                          ImGuiWindowFlags_NoTitleBar        |
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
@@ -2250,19 +2301,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (RepositionSKIF)
         RepositionSKIF = false;
 
-      // Top right window buttons
-      ImVec2 topCursorPos =
-        ImGui::GetCursorPos ();
-
-      ImGui::SetCursorPos (
-        ImVec2 ( SKIF_vecCurrentMode.x - ((122.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2),
-                                           ((6.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2) )
-      );
-
-      ImGui::PushStyleVar (
-        ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
-      );
-
       if (hotkeyCtrlR || hotkeyF5)
       {
         if (SKIF_Tab_Selected == UITab_Library)
@@ -2272,97 +2310,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           RefreshSettingsTab = true;
       }
 
-      if (! _registry.bServiceMode)
-      {
-        ImGui::SetCursorPosX (ImGui::GetCursorPosX () - 50.0f * SKIF_ImGui_GlobalDPIScale);
-
-        if (ImGui::Button ( (newHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-          newHorizonMode = ! newHorizonMode;
-
-        ImGui::SameLine ();
-      }
-
-      if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
-          || hotkeyCtrlT || hotkeyF11)
-      {
-        newServiceMode = ! _registry.bServiceMode;
-        _registry._ExitOnInjection = false;
-
-        if (SteamOverlayDisabled)
-        {
-          PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-          SteamOverlayDisabled = false;
-        }
-
-        if (newServiceMode)
-        {
-          // If we switch to small mode, close all popups
-          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
-        }
-
-        else {
-          // If we switch back to large mode, re-open a few specific ones
-          if (AddGamePopup == PopupState_Opened)
-            AddGamePopup = PopupState_Open;
-
-          if (UpdatePromptPopup == PopupState_Opened)
-            UpdatePromptPopup = PopupState_Open;
-
-          if (HistoryPopup == PopupState_Opened)
-            HistoryPopup = PopupState_Open;
-
-          // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
-          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
-          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
-
-            // Register HDR toggle hotkey (if applicable)
-            SKIF_Util_RegisterHotKeyHDRToggle ( );
-
-            // Register service (auto-stop) hotkey
-            SKIF_Util_RegisterHotKeySVCTemp   ( );
-            
-            /*
-            // Check for the presence of an internet connection
-            if (SUCCEEDED (hrNLM))
-            {
-              VARIANT_BOOL connStatus = 0;
-              dwNLM = SKIF_Util_timeGetTime ( );
-      
-              PLOG_DEBUG << "Checking for an online connection...";
-              if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
-                SKIF_NoInternet = (VARIANT_FALSE == connStatus);
-            }
-            */
-
-            static bool
-                runOnce = true;
-            if (runOnce)
-            {   runOnce = false;
-            
-              // Kickstart the update thread
-              _updater.CheckForUpdates ( );
-
-              // Spawn the gamepad input thread
-              _gamepad.SpawnChildThread ( );
-            }
-          }
-        }
-
-        LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-        if (lStyle & WS_MAXIMIZE)
-          repositionToCenter   = true;
-        else
-          RespectMonBoundaries = true;
-
-        // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
-        //   This prevent flashing and elements appearing too large during those frames.
-        //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
-        // This destroys and recreates the ImGui windows
-      }
-
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! SKIF_ImGui_IsAnyPopupOpen ( ) && ! _registry.bServiceMode)
+      if (! _registry.bServiceMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
         if (hotkeyCtrl1)
         {
@@ -2419,68 +2368,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      ImGui::SameLine ();
-
-      if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))
-          || hotkeyCtrlN)
-      {
-        ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
-      }
-
-      ImGui::SameLine ();
-
-      ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
-      ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
-
-      static bool closeButtonHoverActive = false;
-
-      if (_registry._StyleLightMode && closeButtonHoverActive)
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImVec4 (0.9F, 0.9F, 0.9F, 1.0f));
-
-      if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) ) ||
-          hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
-      {
-        if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
-        {
-          bKeepWindowAlive = true;
-          ShowWindow       (SKIF_ImGui_hWnd, SW_MINIMIZE);
-          ShowWindow       (SKIF_ImGui_hWnd, SW_HIDE);
-          UpdateWindow     (SKIF_ImGui_hWnd);
-          SKIF_isTrayed    = true;
-        }
-
-        else
-        {
-          if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
-            _inject._StartStopInject (true);
-
-          bKeepProcessAlive = false;
-        }
-      }
-      
-      if (_registry._StyleLightMode)
-      {
-        if (closeButtonHoverActive)
-          ImGui::PopStyleColor ( );
-          
-        closeButtonHoverActive = (ImGui::IsItemHovered () || ImGui::IsItemActivated ());
-      }
-
-      ImGui::PopStyleColor (2);
-
-      ImGui::PopStyleVar ();
-      
-      if (_registry.bCloseToTray)
-        SKIF_ImGui_SetHoverTip ("This app will close to the notification area.");
-      else if (_inject.bCurrentState && _registry.bAllowBackgroundService)
-        SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
-
-      ImGui::SetCursorPos (topCursorPos);
-
-      // End of top right window buttons
-
-      ImGui::BeginGroup ();
-
       // Begin Small Mode
 #pragma region UI: Small Mode
 
@@ -2510,17 +2397,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_ServiceMenu      ( );
 
-        // Shelly the Ghost (Small Mode)
-
-        ImGui::SetCursorPosX (2.0f);
-
-        ImGui::SetCursorPosY (
-          7.0f * SKIF_ImGui_GlobalDPIScale
-        );
-
-        ImGui::Text ("");
-
-        SKIF_UI_DrawShellyTheGhost ( );
       } // End Small Mode
 
 #pragma endregion
@@ -2635,156 +2511,365 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        // Window Title
-
-        float title_len = ImGui::CalcTextSize (SKIF_WINDOW_TITLE_A).x;
-        float title_pos = SKIF_vecCurrentMode.x / 2.0f - title_len / 2.0f;
-
-        ImGui::SetCursorPosX (title_pos);
-
-        ImGui::SetCursorPosY (
-          (9.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetStyle().FrameBorderSize * 2
-        );
-
         // TODO: Change to a period refresh when focused (every 500ms or so) which then after
         //   having been == Game Mode a couple of times (5+ seconds) prompts SKIF to warn about it
         //if (SKIF_Util_GetEffectivePowerMode ( ) != "None")
         //  ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
-
-        //else
-        
-        // 2024-01-06 - Disable the window title as modern apps tend to omit it entirely in the window title bar
-#define HideTitle
-#ifdef HideTitle
-        ImGui::Text("                            "); // Empty space to restrict Shelly a bit
-#else
-        ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SKIF_WINDOW_TITLE_A);
-#endif // HideTitle
-
-        // Shelly the Ghost
-        SKIF_UI_DrawShellyTheGhost ( );
 
         ImGui::EndTabBar          ( );
       } // End Large Mode
 
 #pragma endregion
 
-      ImGui::EndGroup             ( );
+#pragma region StatusBar
 
-      
-      if (! _registry.bServiceMode)
+        // Status Bar at the bottom
+      if (! _registry.bServiceMode && _registry.bUIStatusBar)
       {
         // This counteracts math performed on SKIF_vecRegularMode.y at the beginning of the frame
-        if (_registry.bUIStatusBar)
-          ImGui::SetCursorPosY (ImGui::GetCursorPosY ( ) - 2.0f * SKIF_ImGui_GlobalDPIScale);
-        
-        // Status Bar at the bottom
-        if (_registry.bUIStatusBar)
+        ImGui::SetCursorPosY (ImGui::GetCursorPosY ( ) - 2.0f * SKIF_ImGui_GlobalDPIScale);
+        ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+        // Begin Add Game
+        ImVec2 tmpPos = ImGui::GetCursorPos ( );
+
+        // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
+        if (SKIF_Tab_Selected == UITab_Library)
+          ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
+
+        static bool btnHovered  = false;
+        ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+        ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
+        ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
+
+        if (btnHovered)
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
+        else
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+
+        if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
         {
-          ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
+          AddGamePopup = PopupState_Open;
+          if (SKIF_Tab_Selected != UITab_Library)
+            SKIF_Tab_ChangeTo = UITab_Library;
+        }
 
-          // Begin Add Game
-          ImVec2 tmpPos = ImGui::GetCursorPos ( );
+        btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
-          // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
-          if (SKIF_Tab_Selected == UITab_Library)
-            ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
+        ImGui::PopStyleColor   (4); // ImGuiCol_Text, ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
 
-          static bool btnHovered  = false;
-          ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
-          ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
-          ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
+        if (SKIF_Tab_Selected == UITab_Library)
+          ImGui::PopItemFlag     ( );
 
-          if (btnHovered)
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
-          else
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
+        ImGui::SetCursorPos    (tmpPos);
+        // End Add Game
 
-          if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
-          {
-            AddGamePopup = PopupState_Open;
-            if (SKIF_Tab_Selected != UITab_Library)
-              SKIF_Tab_ChangeTo = UITab_Library;
-          }
-
-          btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
-
-          ImGui::PopStyleColor   (4); // ImGuiCol_Text, ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
-
-          if (SKIF_Tab_Selected == UITab_Library)
-            ImGui::PopItemFlag     ( );
-
-          ImGui::SetCursorPos    (tmpPos);
-          // End Add Game
-
-          // Begin Pulsating Refresh Icon
-          if (_updater.IsRunning ( ))
-          {
-            ImGui::SetCursorPosX (
-              ImGui::GetCursorPosX () +
-              ImGui::GetWindowSize ().x -
-                ( ImGui::CalcTextSize ( ICON_FA_ROTATE ).x ) -
-              ImGui::GetCursorPosX () -
-              ImGui::GetStyle   ().ItemSpacing.x * 2
-            );
-
-            ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + ImGui::GetStyle ( ).FramePadding.y);
-
-            ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
-                                  ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
-                                 ), ICON_FA_ROTATE );
-          }
-
-          ImGui::SetCursorPos(tmpPos);
-          // End Refresh Icon
-
-          // Begin Status Bar Text
-          auto _StatusPartSize = [&](std::string& part) -> float
-          {
-            return
-              part.empty () ?
-                        0.0f : ImGui::CalcTextSize (
-                                              part.c_str ()
-                                                  ).x;
-          };
-
-          float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
-                fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
-
+        // Begin Pulsating Refresh Icon
+        if (_updater.IsRunning ( ))
+        {
           ImGui::SetCursorPosX (
             ImGui::GetCursorPosX () +
             ImGui::GetWindowSize ().x -
-              ( fStatusWidth +
-                fHelpWidth ) -
+              ( ImGui::CalcTextSize ( ICON_FA_ROTATE ).x ) -
             ImGui::GetCursorPosX () -
             ImGui::GetStyle   ().ItemSpacing.x * 2
           );
 
           ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + ImGui::GetStyle ( ).FramePadding.y);
 
-          ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
-                                  "%s", SKIF_StatusBarText.c_str ()
-          );
+          ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) *
+                                ImVec4 (0.75f, 0.75f, 0.75f, 0.50f + 0.5f * (float)sin (SKIF_Util_timeGetTime() * 1 * 3.14 * 2)
+                                ), ICON_FA_ROTATE );
+        }
 
-          if (! SKIF_StatusBarHelp.empty ())
+        ImGui::SetCursorPos(tmpPos);
+        // End Refresh Icon
+
+        // Begin Status Bar Text
+        auto _StatusPartSize = [&](std::string& part) -> float
+        {
+          return
+            part.empty () ?
+                      0.0f : ImGui::CalcTextSize (
+                                            part.c_str ()
+                                                ).x;
+        };
+
+        float fStatusWidth = _StatusPartSize (SKIF_StatusBarText),
+              fHelpWidth   = _StatusPartSize (SKIF_StatusBarHelp);
+
+        ImGui::SetCursorPosX (
+          ImGui::GetCursorPosX () +
+          ImGui::GetWindowSize ().x -
+            ( fStatusWidth +
+              fHelpWidth ) -
+          ImGui::GetCursorPosX () -
+          ImGui::GetStyle   ().ItemSpacing.x * 2
+        );
+
+        ImGui::SetCursorPosY ( ImGui::GetCursorPosY () + ImGui::GetStyle ( ).FramePadding.y);
+
+        ImGui::TextColored ( ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4 (0.75f, 0.75f, 0.75f, 1.00f),
+                                "%s", SKIF_StatusBarText.c_str ()
+        );
+
+        if (! SKIF_StatusBarHelp.empty ())
+        {
+          ImGui::SameLine ();
+          ImGui::SetCursorPosX (
+            ImGui::GetCursorPosX () -
+            ImGui::GetStyle      ().ItemSpacing.x
+          );
+          ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
+        }
+
+        // Clear the status every frame, it's mostly used for mouse hover tooltips.
+        SKIF_StatusBarText.clear ();
+        SKIF_StatusBarHelp.clear ();
+
+        // End Status Bar Text
+
+        ImGui::PopStyleVar ();
+      }
+
+#pragma endregion
+
+#pragma region Shelly the Ghost
+
+      if (_registry.iGhostVisibility == 1 ||
+         (_registry.iGhostVisibility == 2 && _inject.bCurrentState))
+      {
+        ImVec2 preShellyPos =
+          ImGui::GetCursorPos ();
+
+        ImVec2 shelly_movable_area = ImVec2 (
+           250.0f * SKIF_ImGui_GlobalDPIScale,
+           ImGui::CalcTextSize (ICON_FA_GHOST).y + 4.0f * SKIF_ImGui_GlobalDPIScale
+        );
+
+        ImGui::SetCursorPos (ImVec2 (
+             ImGui::GetWindowContentRegionMax().x / 2 - shelly_movable_area.x / 2,
+             10.0f * SKIF_ImGui_GlobalDPIScale
+        ));
+        
+        ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2());
+        ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,  ImVec2());
+        bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar  (2);
+
+        if (shelly_show)
+          SKIF_UI_DrawShellyTheGhost ( );
+
+        ImGui::EndChild ( );
+
+        ImGui::SetCursorPos (preShellyPos);
+      }
+
+#pragma endregion
+
+#pragma region WindowButtons
+
+      // 164px - regular mode
+      // 116px - service mode
+
+      ImVec2 window_btn_size = ImVec2 (
+        164.0f,
+         24.0f
+      );
+
+      if (_registry.bServiceMode)
+        window_btn_size.x -= 48.0f; // -48px due to one less button
+
+      window_btn_size *= SKIF_ImGui_GlobalDPIScale;
+
+      ImVec2 prevCursorPos =
+        ImGui::GetCursorPos ();
+
+      ImVec2 window_btn_pos = ImFloor (
+        ImVec2 ( (ImGui::GetWindowContentRegionMax().x - window_btn_size.x ),
+                ((ImGui::GetStyle().WindowPadding.y) - ImGui::GetStyle().FrameBorderSize * 2 - ImGui::GetStyle().WindowBorderSize * 2))
+      );
+
+      ImGui::SetCursorPos (window_btn_pos);
+
+      if (ImGui::BeginChild ("###WINDOW_BUTTONS", window_btn_size, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground))
+      {
+        ImGui::PushStyleVar (
+          ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
+        );
+
+        if (! _registry.bServiceMode)
+        {
+          if (ImGui::Button ( (newHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
           {
-            ImGui::SameLine ();
-            ImGui::SetCursorPosX (
-              ImGui::GetCursorPosX () -
-              ImGui::GetStyle      ().ItemSpacing.x
-            );
-            ImGui::TextDisabled ("%s", SKIF_StatusBarHelp.c_str ());
+            newHorizonMode = ! newHorizonMode;
+
+            // Changes the app window to the proper size
+            SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
           }
 
-          // Clear the status every frame, it's mostly used for mouse hover tooltips.
-          SKIF_StatusBarText.clear ();
-          SKIF_StatusBarHelp.clear ();
+          ImGui::SameLine ();
+        }
 
-          // End Status Bar Text
+        if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          hotkeyCtrlT = true;
 
-          ImGui::PopStyleVar ();
+        ImGui::SameLine ();
+
+        if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          hotkeyCtrlN = true;
+
+        ImGui::SameLine ();
+
+        ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
+        ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
+
+        static bool closeButtonHoverActive = false;
+
+        if (_registry._StyleLightMode && closeButtonHoverActive)
+          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImVec4 (0.9F, 0.9F, 0.9F, 1.0f));
+
+        if (ImGui::Button (ICON_FA_XMARK, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ) )) // HotkeyEsc is situational
+          hotkeyCtrlQ = true;
+      
+        if (_registry._StyleLightMode)
+        {
+          if (closeButtonHoverActive)
+            ImGui::PopStyleColor ( );
+          
+          closeButtonHoverActive = (ImGui::IsItemHovered () || ImGui::IsItemActivated ());
+        }
+
+        ImGui::PopStyleColor (2);
+
+        ImGui::PopStyleVar ();
+
+        // Tooltip for close button
+        if (_registry.bCloseToTray)
+          SKIF_ImGui_SetHoverTip ("This app will close to the notification area.");
+        else if (_inject.bCurrentState && _registry.bAllowBackgroundService)
+          SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
+      }
+
+      ImGui::EndChild ( );
+
+      ImGui::SetCursorPos (prevCursorPos);
+
+      ImGui::Dummy (ImVec2 (0, 0)); // Dummy required here to solve ImGui::ErrorCheckUsingSetCursorPosToExtendParentBoundaries()
+
+#pragma endregion
+
+#pragma region CaptionActions
+
+      if (hotkeyCtrlT || hotkeyF11)
+      {
+        newServiceMode = ! _registry.bServiceMode;
+        _registry._ExitOnInjection = false;
+
+        if (SteamOverlayDisabled)
+        {
+          PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+          SteamOverlayDisabled = false;
+        }
+
+        if (newServiceMode)
+        {
+          // If we switch to small mode, close all popups
+          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
+
+          // Changes the app window to the proper size
+          SKIF_vecCurrentModeNext = SKIF_vecServiceMode;
+        }
+
+        else {
+          // Changes the app window to the proper size
+          SKIF_vecCurrentModeNext = SKIF_vecRegularMode;
+
+          // If we switch back to large mode, re-open a few specific ones
+          if (AddGamePopup == PopupState_Opened)
+            AddGamePopup = PopupState_Open;
+
+          if (UpdatePromptPopup == PopupState_Opened)
+            UpdatePromptPopup = PopupState_Open;
+
+          if (HistoryPopup == PopupState_Opened)
+            HistoryPopup = PopupState_Open;
+
+          // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
+          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
+
+            // Register HDR toggle hotkey (if applicable)
+            SKIF_Util_RegisterHotKeyHDRToggle ( );
+
+            // Register service (auto-stop) hotkey
+            SKIF_Util_RegisterHotKeySVCTemp   ( );
+            
+            /*
+            // Check for the presence of an internet connection
+            if (SUCCEEDED (hrNLM))
+            {
+              VARIANT_BOOL connStatus = 0;
+              dwNLM = SKIF_Util_timeGetTime ( );
+      
+              PLOG_DEBUG << "Checking for an online connection...";
+              if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+                SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+            }
+            */
+
+            static bool
+                runOnce = true;
+            if (runOnce)
+            {   runOnce = false;
+            
+              // Kickstart the update thread
+              _updater.CheckForUpdates ( );
+
+              // Spawn the gamepad input thread
+              _gamepad.SpawnChildThread ( );
+            }
+          }
+        }
+
+        LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+        if (lStyle & WS_MAXIMIZE)
+          repositionToCenter   = true;
+        else
+          RespectMonBoundaries = true;
+
+        // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
+        //   This prevent flashing and elements appearing too large during those frames.
+        //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
+        // This destroys and recreates the ImGui windows
+      }
+
+      if (hotkeyCtrlN)
+        ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
+
+      if (hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
+      {
+        if (_registry.bCloseToTray && bKeepWindowAlive && ! SKIF_isTrayed)
+        {
+          bKeepWindowAlive = true;
+          ShowWindow       (SKIF_ImGui_hWnd, SW_MINIMIZE);
+          ShowWindow       (SKIF_ImGui_hWnd, SW_HIDE);
+          UpdateWindow     (SKIF_ImGui_hWnd);
+          SKIF_isTrayed    = true;
+        }
+
+        else
+        {
+          if (_inject.bCurrentState && ! _registry.bAllowBackgroundService )
+            _inject._StartStopInject (true);
+
+          bKeepProcessAlive = false;
         }
       }
+
+#pragma endregion
+
 
       // Font warning
       if (failedLoadFontsPrompt && ! HiddenFramesContinueRendering)
@@ -3353,7 +3438,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
 
-      ImGui::End();
+      SKIF_vecCurrentMode = ImGui::GetWindowSize ( );
+
+      // End the main ImGui window
+      ImGui::End ( );
     }
 
 #pragma endregion

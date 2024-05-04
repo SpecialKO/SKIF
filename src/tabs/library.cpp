@@ -163,7 +163,7 @@ extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
 #define _WIDTH_SCROLLBAR (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f)
-#define _WIDTH   (378.0f * SKIF_ImGui_GlobalDPIScale) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f)
+#define _WIDTH   (376.0f * SKIF_ImGui_GlobalDPIScale) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378
 // 1038px == 415px
 // 1000px == 377px (using 380px)
 //#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
@@ -3027,7 +3027,7 @@ GetInjectionSummary (app_record_s* pApp)
     ImGui::GetID ("###Injection_Summary_Frame");
 
   SKIF_ImGui_BeginChildFrame ( frame_id,
-                                  ImVec2 ( _WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f,
+                                  ImVec2 ( ImFloor (_WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f),
                                                                             num_lines * line_ht ),
                                     ImGuiChildFlags_AlwaysAutoResize  |
                                     ImGuiChildFlags_AutoResizeY,
@@ -4396,6 +4396,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int   activeGameWorkers     = 0; // max: 3
   static int   frameLibraryRefreshed = 0;
 
+  float local_width = _WIDTH; // Calculate once per frame
+
   // The value needs to be set here since it relies on _path_cache to have been initated
   file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
 
@@ -5553,52 +5555,58 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)
                                                 : ImVec2 (600.0f, 900.0f);
   ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)
-                                                ? ImVec2 (_WIDTH, 334.0f)  // Horizon + Borders
-                                                : ImVec2 (_WIDTH, 332.0f)  // Horizon
-                                                : ImVec2 (_WIDTH, 620.0f); // Regular
+                                                ? ImVec2 (ImFloor (local_width), 334.0f)  // Horizon + Borders
+                                                : ImVec2 (ImFloor (local_width), 332.0f)  // Horizon
+                                                : ImVec2 (ImFloor (local_width), 620.0f); // Regular
   ImVec2 sizeDetails = (_registry.bHorizonMode) ? (_registry.bUIBorders)
-                                                ? ImVec2 (_WIDTH + 2.0f * SKIF_ImGui_GlobalDPIScale, 332.0f)  // Horizon + Borders
-                                                : ImVec2 (_WIDTH, 330.0f)  // Horizon
-                                                : ImVec2 (_WIDTH, 280.0f); // Regular
+                                                ? ImVec2 (ImFloor (local_width + 2.0f * SKIF_ImGui_GlobalDPIScale), 332.0f)  // Horizon + Borders
+                                                : ImVec2 (ImFloor (local_width), 330.0f)  // Horizon
+                                                : ImVec2 (ImFloor (local_width), 280.0f); // Regular
+
+  float arCover = sizeCover.x / sizeCover.y;
+
+  ImVec2 sizeCoverOrg = sizeCover * SKIF_ImGui_GlobalDPIScale;
+
+  sizeCover    = ImGui::GetContentRegionAvail(); // DPI-aware
+  sizeCover.x -= sizeList.x;
+  sizeCover.x -= (_registry.bHorizonMode) ? sizeDetails.x : 0.0f;
+
+  if (sizeCover.y < sizeCoverOrg.y)
+  {
+    sizeCoverOrg.y = sizeCover.y;
+    sizeCoverOrg.x = sizeCoverOrg.y * arCover;
+  }
+
+//sizeCover.y  = sizeCover.x / arCover;
+
+  sizeList.y = ImGui::GetContentRegionAvail().y; // DPI-aware
+  sizeList.y -= (_registry.bHorizonMode) ? 0.0f : sizeDetails.y * SKIF_ImGui_GlobalDPIScale;
+  sizeList.y -= (_registry.bUIBorders)   ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
 
 #pragma region GameCover
 
-  ImGui::BeginGroup    (                                                  );
+  bool   isCoverHovered = false;
 
   static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
   static char   cstrLabelMissing[] = "             Missing cover :(\n"
-                                     "Right click to set one manually";
+                                      "Right click to set one manually";
   static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
-                                     "allow the cover to be populated :)";
-
-  ImVec2 vecPosCoverImage    = ImGui::GetCursorPos ( );
-         vecPosCoverImage.x -= 1.0f * SKIF_ImGui_GlobalDPIScale;
-
+                                      "allow the cover to be populated :)";
+  char*         pcstrLabel         =  nullptr;
 
   // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
   if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
-  {
-    ImGui::SetCursorPos (ImVec2 (
-      vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-      vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
-    ImGui::TextDisabled (  cstrLabelLoading);
-  }
-
+    pcstrLabel = cstrLabelLoading;
+    
+  // A new cover is meant to be loaded, so don't do anything for now...
   else if (loadCover)
-  {
-    // A new cover is meant to be loaded, so don't do anything for now...
-  }
+  { }
 
   else if (tryingToLoadCover)
-  {
-    ImGui::SetCursorPos (ImVec2 (
-      vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).x / 2,
-      vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelLoading).y / 2));
-    ImGui::TextDisabled (  cstrLabelLoading);
-  }
+    pcstrLabel = cstrLabelLoading;
   
   else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
   {
@@ -5610,91 +5618,107 @@ SKIF_UI_Tab_DrawLibrary (void)
     else {
       extern std::wstring GOGGalaxy_UserID;
       if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
-      {
-        ImGui::SetCursorPos (ImVec2 (
-                    vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).x / 2,
-                    vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelGOGUser).y / 2));
-        ImGui::TextDisabled (  cstrLabelGOGUser);
-      }
-      else {
-        ImGui::SetCursorPos (ImVec2 (
-                    vecPosCoverImage.x + (sizeCover.x / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).x / 2,
-                    vecPosCoverImage.y + (sizeCover.y / 2) * SKIF_ImGui_GlobalDPIScale - ImGui::CalcTextSize (cstrLabelMissing).y / 2));
-        ImGui::TextDisabled (  cstrLabelMissing);
-      }
+        pcstrLabel = cstrLabelGOGUser;
+      else
+        pcstrLabel = cstrLabelMissing;
     }
   }
 
-  ImGui::SetCursorPos (vecPosCoverImage);
-
   float fGammaCorrectedTint = 
     ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) || 
-     (  _registry._RendererHDREnabled && _registry.iHDRMode == 2))
+      ( _registry._RendererHDREnabled && _registry.iHDRMode == 2))
         ? AdjustAlpha (fTint)
         : fTint;
 
-  // Display previous fading out cover
-  if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
+  ImVec2 vecPosCover    = ImGui::GetCursorPos ( );
+
+  if (ImGui::BeginChild ("###SKIF_COVER", sizeCover, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
   {
-    SKIF_ImGui_OptImage  (pTexSRV_old.p,
-                                                      ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
-                                                              sizeCover.y * SKIF_ImGui_GlobalDPIScale),
-                                                      vecCoverUv0_old, // Top Left coordinates
-                                                      vecCoverUv1_old, // Bottom Right coordinates
-                                    (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
-                                    (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
+    ImVec2 vecPosCoverInner      = ImGui::GetCursorPos();
+    ImVec2 vecContentRegionAvail = ImGui::GetContentRegionAvail();
+
+    ImVec2 vecPosImage (
+        ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
+        ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2));
+
+    ImVec2 sizeCoverFloored (
+        ImFloor (sizeCoverOrg.x),
+        ImFloor (sizeCoverOrg.y));
+
+    if (pcstrLabel != nullptr)
+    {
+      ImVec2 labelSize = ImGui::CalcTextSize (pcstrLabel);
+      ImGui::SetCursorPos (ImVec2 (
+        ImFloor ((vecContentRegionAvail.x - labelSize.x) / 2),
+        ImFloor ((vecContentRegionAvail.y - labelSize.y) / 2)));
+      ImGui::TextDisabled (pcstrLabel);
+      ImGui::SetCursorPos (vecPosCoverInner);
+    }
+
+    // Display previous fading out cover
+    if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
+    {
+      ImGui::SetCursorPos  (vecPosImage);
+      SKIF_ImGui_OptImage  (pTexSRV_old.p,
+                                                        sizeCoverFloored,
+                                                        vecCoverUv0_old, // Top Left coordinates
+                                                        vecCoverUv1_old, // Bottom Right coordinates
+                                      (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
+                                         ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+      );
+
+      ImGui::SetCursorPos (vecPosCoverInner);
+    }
+
+    // Display game cover image
+    ImGui::SetCursorPos  (vecPosImage);
+    SKIF_ImGui_OptImage  (pTexSRV.p,
+                                                      sizeCoverFloored,
+                                                      vecCoverUv0, // Top Left coordinates
+                                                      vecCoverUv1, // Bottom Right coordinates
+                                    (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
+                                   ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
     );
 
-    ImGui::SetCursorPos (vecPosCoverImage);
+    ImGui::SetCursorPos (vecPosCoverInner);
+
+    if (isSpecialK ||
+     (! isSpecialK && fAlphaSK > 0.0f))
+    {
+      ImGui::SetCursorPos (ImVec2 (
+        ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
+        ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2)));
+
+      ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+                                                      sizeCoverFloored,
+                                                      ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
+                                                      ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
+                                                      ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
+                                                      ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
+      );
+    }
+
+    ImGui::EndChild ( );
   }
 
-  // Display game cover image
-  SKIF_ImGui_OptImage  (pTexSRV.p,
-                                                    ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
-                                                            sizeCover.y * SKIF_ImGui_GlobalDPIScale),
-                                                    vecCoverUv0, // Top Left coordinates
-                                                    vecCoverUv1, // Bottom Right coordinates
-                                  (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
-                                  (_registry.bUIBorders)  ? ImGui::GetStyleColorVec4 (ImGuiCol_Border) : ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
-  );
-
-  bool isCoverHovered = ImGui::IsItemHovered();
+  isCoverHovered = ImGui::IsItemHovered();
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     CoverMenu = PopupState_Open;
 
-  ImGui::SetCursorPos (vecPosCoverImage);
-
-  if (  isSpecialK ||
-     (! isSpecialK && fAlphaSK > 0.0f))
-  {
-    ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
-                                                    ImVec2 (sizeCover.x * SKIF_ImGui_GlobalDPIScale,
-                                                            sizeCover.y * SKIF_ImGui_GlobalDPIScale),
-                                                    ImVec2 (0.0f, 0.0f),                // Top Left coordinates
-                                                    ImVec2 (1.0f, 1.0f),                // Bottom Right coordinates
-                                                    ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
-                                                    ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)     // Border
-    );
-  }
-
-  //bool isCoverHovered = ImGui::IsItemHovered();
-
-  float fY =
-  ImGui::GetCursorPosY (                                                  );
-
-  ImGui::EndGroup             ( );
+  //float fY =
+  //ImGui::GetCursorPosY ( );
 
 #pragma endregion
 
   // This sets the same line for the cover as the list + details
   ImGui::SameLine             (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale); // 0.0f, 0.0f
   
-  float fZ =
-  ImGui::GetCursorPosX (                                                  );
+  //float fZ =
+  //ImGui::GetCursorPosX ( );
 
   // LIST + DETAILS START
-  ImGui::BeginGroup   (                  );
+  ImGui::BeginGroup   ( );
 
   // Top option: Filter icon + search field
 
@@ -5926,8 +5950,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     return ret;
   };
 
-  ImGuiChildFlags flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
-  ImGuiChildFlags flags_wnd = 0x0;
+  ImGuiChildFlags  flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
+  ImGuiWindowFlags flags_wnd = ImGuiWindowFlags_None;
 
   if (! _registry.bHorizonMode)
     flags_wnd |= ImGuiWindowFlags_NavFlattened;
@@ -5949,7 +5973,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                   (! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
-                                  : (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
+                                  : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                   flags_wnd | ((! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
@@ -6018,7 +6042,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::BeginChild           ( "###GameList",
                                      ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                              (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop4.y - fTop1.y)),
+                                               sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop4.y - fTop1.y)),
                                      flags_cld,
                                      flags_wnd );
 
@@ -6491,7 +6515,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   else {
-    ImGui::SetCursorPosY (fTop2.y + (sizeList.y * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
+    ImGui::SetCursorPosY (fTop2.y + sizeList.y - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
   }
 
   ImRect gamesList = ImRect(fTop3ScreenPos, ImVec2(fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
@@ -6566,98 +6590,99 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->id    == SKIF_STEAM_APPID   &&
         pApp->store == app_record_s::Store::Steam)))
   {
-    ImGui::SetCursorPos  (                           ImVec2 ( vecPosCoverImage.x + ImGui::GetStyle().FrameBorderSize,
-                                                              fY - (204.0f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize ));
+    ImGui::SetCursorPos  (                           ImVec2 (vecPosCover.x, ImFloor(sizeCover.y - 198.0f * SKIF_ImGui_GlobalDPIScale))); // 198.0f _for some reasom_?!
+                                                              //fY - (204.0f * SKIF_ImGui_GlobalDPIScale) ));
 
-    if (_registry.bFadeCovers)
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
+    if (ImGui::BeginChild ("###SKIF_PATREON", ImVec2 (sizeCover.x, ImFloor(200.0f * SKIF_ImGui_GlobalDPIScale)), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    {
+      static bool hoveredPatButton  = false,
+                  hoveredPatCredits = false;
 
-    ImGui::BeginGroup    ();
-    static bool hoveredPatButton  = false,
-                hoveredPatCredits = false;
+      if (_registry.bFadeCovers)
+        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
 
-    // Set all button styling to transparent
-    ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
-    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
+      // Set all button styling to transparent
+      ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
+      ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4 (0, 0, 0, 0));
+      ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4 (0, 0, 0, 0));
 
-    // Remove borders, paddings, and spacing (some of these are required, but maybe not all, but I can't be bothered figuring it out...)
-    SKIF_ImGui_PushDisabledSpacing ( );
+      // Remove borders, paddings, and spacing (some of these are required, but maybe not all, but I can't be bothered figuring it out...)
+      SKIF_ImGui_PushDisabledSpacing ( );
 
-    bool        clicked =
-    ImGui::ImageButton   ("###PatreonLogo",
-                         (ImTextureID)pPatTexSRV.p,
-                          ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
-                                  200.0F * SKIF_ImGui_GlobalDPIScale),
-                          ImVec2 (  0.f,       0.f),
-                          ImVec2 (  1.f,       1.f),
-                          ImVec4 (  0,     0,     0,    0), // Use a transparent background
-       hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
-                        : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
+      bool        clicked =
+      ImGui::ImageButton   ("###PatreonLogo",
+                           (ImTextureID)pPatTexSRV.p,
+                            ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
+                                    200.0F * SKIF_ImGui_GlobalDPIScale),
+                            ImVec2 (  0.f,       0.f),
+                            ImVec2 (  1.f,       1.f),
+                            ImVec4 (  0,     0,     0,    0), // Use a transparent background
+         hoveredPatButton ? ImVec4 (  1.0f,  1.0f,  1.0f, 1.00f)
+                          : ImVec4 (  0.8f,  0.8f,  0.8f, 0.66f));
 
-    // Restore borders, paddings, and spacing
-    SKIF_ImGui_PopDisabledSpacing ( );
+      // Restore borders, paddings, and spacing
+      SKIF_ImGui_PopDisabledSpacing ( );
 
-    // Restore the custom button styling
-    ImGui::PopStyleColor (3);
+      // Restore the custom button styling
+      ImGui::PopStyleColor (3);
 
-    hoveredPatButton =
-    ImGui::IsItemHovered ( );
+      hoveredPatButton =
+      ImGui::IsItemHovered ( );
 
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
-    //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
+      SKIF_ImGui_SetMouseCursorHand ();
+      SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
+      //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
 
-    if (clicked)
-      SKIF_Util_OpenURI (
-        L"https://www.patreon.com/Kaldaien"
-      );
+      if (clicked)
+        SKIF_Util_OpenURI (
+          L"https://www.patreon.com/Kaldaien"
+        );
 
-    ImGui::SetCursorPos  (ImVec2 (fZ - (233.0f * SKIF_ImGui_GlobalDPIScale),
-                                  fY - (204.0f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().FrameBorderSize * 2.0f) );
+      ImGui::SetCursorPos  (ImVec2 (ImGui::GetContentRegionAvail().x - (230.0f * SKIF_ImGui_GlobalDPIScale), 0.0f));
 
-    ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
-                                                                          : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
-    ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
-                                                          200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                      ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-                                                      ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
+      ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
+                                                                            : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
+      ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
+                                                            200.0f * SKIF_ImGui_GlobalDPIScale),
+                                                        ImGuiChildFlags_AlwaysUseWindowPadding, // Never use a border
+                                                        ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
-    ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
+      ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
-    std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
+      std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
 
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
-    ImGui::Spacing            ( );
-    ImGui::SameLine           ( );
+      ImGui::Spacing            ( );
+      ImGui::SameLine           ( );
+      ImGui::Spacing            ( );
+      ImGui::SameLine           ( );
     
-    ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
-    ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
-    ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
-    ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
-    ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
-                    ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
-                            160.0f * SKIF_ImGui_GlobalDPIScale),
-                                    ImGuiInputTextFlags_ReadOnly );
-    ImGui::PopStyleColor      (4);
-    ImGui::PopStyleVar        ( );
+      ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
+      ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
+      ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
+      ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
+      ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+      ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
+                      ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                              160.0f * SKIF_ImGui_GlobalDPIScale),
+                                      ImGuiInputTextFlags_ReadOnly );
+      ImGui::PopStyleColor      (4);
+      ImGui::PopStyleVar        (2);
 
-    hoveredPatCredits =
-    ImGui::IsItemActive       ( ) ||
-    ImGui::IsItemHovered      ( );
+      hoveredPatCredits =
+      ImGui::IsItemActive       ( ) ||
+      ImGui::IsItemHovered      ( );
 
-    ImGui::EndChild           ( );
-    ImGui::PopStyleColor      ( );
+      ImGui::EndChild           ( );
+      ImGui::PopStyleColor      ( );
 
-    hoveredPatCredits = hoveredPatCredits ||
-    ImGui::IsItemHovered      ( );
+      hoveredPatCredits = hoveredPatCredits ||
+      ImGui::IsItemHovered      ( );
 
-    ImGui::EndGroup           ( );
+      if (_registry.bFadeCovers)
+        ImGui::PopStyleVar ( );
 
-    if (_registry.bFadeCovers)
-      ImGui::PopStyleVar ( );
+      ImGui::EndChild           ( );
+    }
   }
 
 #pragma endregion

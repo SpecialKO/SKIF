@@ -16,13 +16,15 @@ SKIF_UI_Tab_DrawAbout (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
+  float maxWidth = ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
+
   SKIF_ImGui_Spacing      ( );
 
-  SKIF_ImGui_Columns      (2, nullptr, true);
+  SKIF_ImGui_Columns      (2, "SKIF_COLUMN_ABOUT", true);
 
-  SK_RunOnce (
-    ImGui::SetColumnWidth (0, 560.0f * SKIF_ImGui_GlobalDPIScale)
-  );
+  //SK_RunOnce (
+  ImGui::SetColumnWidth (0, 0.56f * maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
+  //);
 
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)

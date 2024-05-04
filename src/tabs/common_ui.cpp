@@ -525,58 +525,52 @@ void SKIF_UI_DrawShellyTheGhost (void)
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
-  if (                        _registry.iGhostVisibility == 1 ||
-    (_inject.bCurrentState && _registry.iGhostVisibility == 2) )
-  {
-    // Required for subsequent GetCursorPosX() calls to get the right pos, as otherwise it resets to 0.0f
-    ImGui::SameLine ( );
+  // Prepare Shelly color and Y position
+  const  float fGhostTimeStep = 0.01f;
+  static float fGhostTime     = 0.0f;
 
-    // Prepare Shelly color and Y position
-    const  float fGhostTimeStep = 0.01f;
-    static float fGhostTime     = 0.0f;
+  // Move 0-4px along the Y axis
+  float fGhostYPos = (2.0f + 2.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 0.5f)) * SKIF_ImGui_GlobalDPIScale;
 
-    float fGhostYPos = (4.0f * (std::sin(6 * (fGhostTime / 2.5f)) + 0.5f)) * SKIF_ImGui_GlobalDPIScale;
+  ImVec4 vGhostColor = ImColor::ImColor (
+      0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
+      0.5f * (std::sin(6 * (fGhostTime / 2.5f + 1.0f / 3.0f)) + 1),
+      0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
+    );
 
-    ImVec4 vGhostColor = ImColor::ImColor (
-        0.5f * (std::sin(6 * (fGhostTime / 2.5f)) + 1),
-        0.5f * (std::sin(6 * (fGhostTime / 2.5f + 1.0f / 3.0f)) + 1),
-        0.5f * (std::sin(6 * (fGhostTime / 2.5f + 2.0f / 3.0f)) + 1)
-      );
+  if (_registry._StyleLightMode)
+    vGhostColor = vGhostColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f);
 
-    if (_registry._StyleLightMode)
-      vGhostColor = vGhostColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f);
+  // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
+  float fMaxPos = ImGui::GetContentRegionAvail ( ).x - ImGui::GetCursorPosX ( ) - ImGui::CalcTextSize (ICON_FA_GHOST).x;
 
-    // Non-static as it needs to be updated constantly due to mixed-DPI monitor configs
-    float fMaxPos = ImGui::GetContentRegionMax ( ).x - ImGui::GetCursorPosX ( ) - (117.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetStyle().FrameBorderSize * 2);
+  //if (! _registry.bServiceMode)
+  //  fMaxPos -= (50.0f * SKIF_ImGui_GlobalDPIScale);
 
-    if (! _registry.bServiceMode)
-      fMaxPos -= (50.0f * SKIF_ImGui_GlobalDPIScale);
+  static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
+  static float fMinPos   =  0.0f;
+  static float fRelPos   = 50.0f;  // Percentage based (0% -> 100%)
 
-    static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
-    static float fMinPos   =  0.0f;
-    static float fRelPos   = 50.0f;  // Percentage based (0% -> 100%)
+  // Change direction if we go below 1% or above 99% of the distance
+  if (fRelPos <= 1.0f || fRelPos >= 99.0f)
+    direction = -direction;
 
-    // Change direction if we go below 1% or above 99% of the distance
-    if (fRelPos <= 1.0f || fRelPos >= 99.0f)
-      direction = -direction;
+  // Take a new relative step in the new direction
+  fRelPos += direction;
 
-    // Take a new relative step in the new direction
-    fRelPos += direction;
+  // Convert relative position for an actual position
+  float fActPos = (fMaxPos - fMinPos) * (fRelPos / 100.0f);
 
-    // Convert relative position for an actual position
-    float fActPos = (fMaxPos - fMinPos) * (fRelPos / 100.0f);
-
-    ImGui::SameLine    (0.0f, fActPos);
+  ImGui::SameLine      (0.0f, fActPos);
   
-    ImGui::SetCursorPosY (
-      ImGui::GetCursorPosY ( ) - (ImGui::GetStyle().FrameBorderSize) + fGhostYPos
-                          );
+  ImGui::SetCursorPosY (
+    ImGui::GetCursorPosY ( ) + fGhostYPos // (ImGui::GetStyle().FrameBorderSize)
+                        );
 
-    ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
+  ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
     
-    // Increase Shelly timestep for next frame
-    fGhostTime += fGhostTimeStep;
-  }
+  // Increase Shelly timestep for next frame
+  fGhostTime += fGhostTimeStep;
 }
 
 void SKIF_UI_TipsAndTricks (void)

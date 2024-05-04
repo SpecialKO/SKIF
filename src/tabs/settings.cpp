@@ -442,6 +442,8 @@ SKIF_UI_Tab_DrawSettings (void)
   static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
   static       bool         valvePlug     = false;
 
+  float columnWidth = 0.5f * ImGui::GetContentRegionAvail().x;
+
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
   if (driverStatusPending != driverStatus)
@@ -486,11 +488,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  SKIF_ImGui_Columns      (2, nullptr, true);
+  SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_GENERAL", true);
 
-  SK_RunOnce(
-    ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
-  );
+  //SK_RunOnce(
+  ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+  //);
 
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
     _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
@@ -734,11 +736,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, nullptr, true);
+    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_LIBRARY", true);
 
-    SK_RunOnce(
-      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
-    );
+    //SK_RunOnce(
+    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    //);
   
     if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
     {
@@ -919,11 +921,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, nullptr, true);
+    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_APPEARANCES", true);
 
-    SK_RunOnce(
-      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
-    );
+    //SK_RunOnce(
+    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    //);
 
     constexpr char* StyleItems[UIStyle_COUNT] =
     { "Dynamic",
@@ -1361,11 +1363,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, nullptr, true);
+    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_ADVANCED", true);
 
-    SK_RunOnce(
-      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
-    );
+    //SK_RunOnce(
+    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    //);
 
     if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
     {
@@ -1394,6 +1396,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Always open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
       _registry.regKVOpenInServiceMode.putData (                                     _registry.bOpenInServiceMode);
 
+    /*
     if (! SKIF_Util_GetDragFromMaximized ( ))
       SKIF_ImGui_PushDisableState ( );
 
@@ -1407,6 +1410,7 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Feature is inaccessible due to snapping and/or\n"
                               "drag from maximized being disabled in Windows.");
     }
+      */
 
     if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
                                                       &_registry.bAllowBackgroundService))
@@ -2167,7 +2171,7 @@ SKIF_UI_Tab_DrawSettings (void)
     // PresentMon prerequisites
     ImGui::BeginGroup  ();
 
-    SKIF_ImGui_Columns      (2, nullptr, true);
+    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_SWAPCHAIN", true);
 
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -2402,11 +2406,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing ();
     
-    SKIF_ImGui_Columns (2, nullptr, true);
+    SKIF_ImGui_Columns (2, "SKIF_COLUMN_SETTINGS_MPO", true);
 
-    SK_RunOnce(
-      ImGui::SetColumnWidth (0, 480.0f * SKIF_ImGui_GlobalDPIScale) //SKIF_vecCurrentMode.x / 2.0f)
-    );
+    //SK_RunOnce(
+    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    //);
 
     ImGui::BeginGroup  ();
 
