@@ -118,14 +118,14 @@ UINT SHELL_TASKBAR_BUTTON_CREATED = 0; // TaskbarButtonCreated
 //   occurs when switching between tabs as the size isn't dynamically calculated.
 
 // --- App Mode (regular)
-ImVec2 SKIF_vecRegularMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecRegularMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not include the status bar
 ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
-ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);    // TODO 2024-05-05: 415px should probably be raised to 435px to allow smooth window resizing with a matched style between regular + service
 // --- Horizontal Mode (used when regular mode is not available)
-ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
+ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables

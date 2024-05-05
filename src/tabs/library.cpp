@@ -164,8 +164,12 @@ extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
-#define _WIDTH_SCROLLBAR (ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f) // SKIF_vecAlteredSize.y
-#define _WIDTH           ((_registry.bHorizonMode) ? 376.0f : (SKIF_vecServiceMode.x)) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378 // 376.0f
+// DPI-aware
+float tab_scrollbar_width; // Holds the width of the vertical (Y) tab scrollbar (if present)
+float lib_column2_width;   // Holds the width of column2 (list + details)
+
+//#define _WIDTH_SCROLLBAR (ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f) // SKIF_vecAlteredSize.y
+//#define _WIDTH           ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)) - tab_scrollbar_y // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378 // 376.0f
 // 1038px == 415px
 // 1000px == 377px (using 380px)
 //#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
@@ -3094,7 +3098,7 @@ GetInjectionSummary (app_record_s* pApp)
     ImGui::GetID ("###Injection_Summary_Frame");
 
   SKIF_ImGui_BeginChildFrame ( frame_id,
-                                  ImVec2 ( ImFloor (_WIDTH - ImGui::GetStyle ().FrameBorderSize * 2.0f),
+                                  ImVec2 ( ImFloor (lib_column2_width - ImGui::GetStyle ().FrameBorderSize * 2.0f),
                                                                             num_lines * line_ht ),
                                     ImGuiChildFlags_AlwaysAutoResize  |
                                     ImGuiChildFlags_AutoResizeY,
@@ -5651,44 +5655,48 @@ SKIF_UI_Tab_DrawLibrary (void)
   _registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                             ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
 
-  float local_width = _WIDTH; // Calculate once per frame
+  // DPI-aware, calculate once per frame
+  tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
+  lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)) - tab_scrollbar_width;
 
-  ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)
-                                                : ImVec2 (600.0f, 900.0f);
-  ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)
-                                                ? ImVec2 (ImFloor (local_width), 334.0f)  // Horizon + Borders
-                                                : ImVec2 (ImFloor (local_width), 332.0f)  // Horizon
-                                                : ImVec2 (ImFloor (local_width), 620.0f); // Regular
-  ImVec2 sizeDetails = (_registry.bHorizonMode) ? (_registry.bUIBorders)
-                                                ? ImVec2 (ImFloor (local_width + 2.0f * SKIF_ImGui_GlobalDPIScale), 332.0f)  // Horizon + Borders
-                                                : ImVec2 (ImFloor (local_width), 330.0f)  // Horizon
-                                                : ImVec2 (ImFloor (local_width), 280.0f); // Regular
+  // All of these are DPI-aware
+  ImVec2 sizeImage       = ImFloor ((_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)     * SKIF_ImGui_GlobalDPIScale
+                                                             : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
+  ImVec2 sizeList        = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
+                                                             ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
+                                                             : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                             : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+  ImVec2 sizeDetails     = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
+                                                             ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
+                                                             : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                             : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
 
+  // DPI-aware
   bool uiCoverVisible    = (_registry.bHorizonMode)
                                      ? (ImGui::GetContentRegionAvail().x > (sizeList.x + sizeDetails.x))
-                                     : (ImGui::GetContentRegionAvail().x >  sizeCover.x * SKIF_ImGui_GlobalDPIScale); // When in regular mode
+                                     : (ImGui::GetContentRegionAvail().x >  sizeImage.x); // When in regular mode
   bool uiDetailsVisible  = (_registry.bHorizonMode)
                                      ? true
                                      : ImGui::GetContentRegionAvail().y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
 
-  float arCover = sizeCover.x / sizeCover.y;
+  float arCover = sizeImage.x / sizeImage.y;
 
-  ImVec2 sizeCoverOrg = sizeCover * SKIF_ImGui_GlobalDPIScale;
+  // DPI-aware
+  ImVec2 sizeCover    = ImGui::GetContentRegionAvail();
+         sizeCover.x -= sizeList.x;
+         sizeCover.x -= (_registry.bHorizonMode) ? sizeDetails.x : 0.0f;
 
-  sizeCover    = ImGui::GetContentRegionAvail(); // DPI-aware
-  sizeCover.x -= sizeList.x;
-  sizeCover.x -= (_registry.bHorizonMode) ? sizeDetails.x : 0.0f;
-
-  if (sizeCover.y < sizeCoverOrg.y)
+  if (sizeCover.y < sizeImage.y)
   {
-    sizeCoverOrg.y = sizeCover.y;
-    sizeCoverOrg.x = sizeCoverOrg.y * arCover;
+    sizeImage.y = sizeCover.y;
+    sizeImage.x = sizeImage.y * arCover;
   }
 
 //sizeCover.y  = sizeCover.x / arCover;
 
-  sizeList.y = ImGui::GetContentRegionAvail().y; // DPI-aware
-  sizeList.y -= (_registry.bHorizonMode || ! uiDetailsVisible) ? 0.0f                             : sizeDetails.y * SKIF_ImGui_GlobalDPIScale;
+  // DPI-aware
+  sizeList.y = ImGui::GetContentRegionAvail().y;
+  sizeList.y -= (_registry.bHorizonMode || ! uiDetailsVisible) ? 0.0f                             : sizeDetails.y;
   sizeList.y -= (_registry.bUIBorders                        ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
@@ -5749,20 +5757,20 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImVec2 vecPosCoverInner      = ImGui::GetCursorPos();
       ImVec2 vecContentRegionAvail = ImGui::GetContentRegionAvail();
 
-      ImVec2 vecPosImage (
-          ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
-          ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2));
+      ImVec2 vecPosImage      = ImFloor (ImVec2 (
+            (vecContentRegionAvail.x - sizeImage.x) / 2,
+            (vecContentRegionAvail.y - sizeImage.y) / 2));
 
-      ImVec2 sizeCoverFloored (
-          ImFloor (sizeCoverOrg.x),
-          ImFloor (sizeCoverOrg.y));
+      ImVec2 sizeCoverFloored = ImFloor (ImVec2 (
+             sizeImage.x,
+             sizeImage.y));
 
       if (pcstrLabel != nullptr)
       {
         ImVec2 labelSize = ImGui::CalcTextSize (pcstrLabel);
-        ImGui::SetCursorPos (ImVec2 (
-          ImFloor ((vecContentRegionAvail.x - labelSize.x) / 2),
-          ImFloor ((vecContentRegionAvail.y - labelSize.y) / 2)));
+        ImGui::SetCursorPos (ImFloor (ImVec2 (
+            (vecContentRegionAvail.x - labelSize.x) / 2,
+            (vecContentRegionAvail.y - labelSize.y) / 2)));
         ImGui::TextDisabled (pcstrLabel);
         ImGui::SetCursorPos (vecPosCoverInner);
       }
@@ -5797,9 +5805,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (isSpecialK ||
        (! isSpecialK && fAlphaSK > 0.0f))
       {
-        ImGui::SetCursorPos (ImVec2 (
-          ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
-          ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2)));
+        ImGui::SetCursorPos (ImFloor (ImVec2 (
+           (vecContentRegionAvail.x - sizeImage.x) / 2,
+           (vecContentRegionAvail.y - sizeImage.y) / 2)));
 
         ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
                                                         sizeCoverFloored,
@@ -5850,11 +5858,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     3.0f * SKIF_ImGui_GlobalDPIScale
   );
   
-  // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
-  float fTopHeight = ImGui::CalcTextSize (ICON_FA_FILTER).y + ImGui::GetStyle().FramePadding.y * 2.0f;
-  float fTopClearX = ImGui::CalcTextSize (ICON_FA_XMARK ).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x;
 
-  bool showClearBtn = (charFilter[0] != '\0');
+  bool showClearBtn      = (charFilter[0] != '\0');
+  // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
+  ImVec2 fTopFilterSize  =                           ImGui::CalcTextSize (ICON_FA_FILTER);
+  float fTopHeight       =                                                 fTopFilterSize.y           + ImGui::GetStyle().FramePadding.y * 2.0f;
+  float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f);
+  float fTopZoomX        =                           ImGui::CalcTextSize (ICON_FA_MAGNIFYING_GLASS).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+  float fTopFilterX      =                                                 fTopFilterSize.x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+  float fTopFilterFieldX = lib_column2_width - fTopZoomX - fTopClearX - fTopFilterX;
   //static bool bFilterHovered = false;
 
   ImGui::BeginChild          ( "###AppListTopRow",
@@ -5874,7 +5886,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::SameLine       ( );
 
   ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
-                      ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - (showClearBtn ? fTopClearX : 0.0f) - _WIDTH_SCROLLBAR, 0.0f),
+                      ImVec2 (fTopFilterFieldX, 0.0f),
                       ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
 
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
@@ -6086,7 +6098,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                   (! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
-                                  : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f) - (fTop3.y - fTop1.y)),
+                                  : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y)),
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                   flags_wnd | ((! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
@@ -6154,7 +6166,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImVec2 fTop4 = ImGui::GetCursorPos ( );
 
       ImGui::BeginChild           ( "###GameList",
-                                     ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                     ImVec2 ( (sizeList.x -  ImGui::GetStyle().WindowPadding.x / 2.0f),
                                                sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop4.y - fTop1.y)),
                                      flags_cld,
                                      flags_wnd );
@@ -6631,7 +6643,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::SetCursorPosY (fTop2.y + sizeList.y - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
   }
 
-  ImRect gamesList = ImRect(fTop3ScreenPos, ImVec2(fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
+  ImRect gamesList = ImRect (fTop3ScreenPos, ImVec2(fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
 
   // Open the Empty Space Menu
   //ImGuiContext& g = *ImGui::GetCurrentContext();
@@ -6658,8 +6670,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     ImGui::BeginChild (
       "###GameDetails",
-        ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                  sizeDetails.y * SKIF_ImGui_GlobalDPIScale),
+        ImVec2 ((sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                 sizeDetails.y),
           ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
           ImGuiWindowFlags_NoScrollbar       |
           ImGuiWindowFlags_NoScrollWithMouse |
@@ -6697,10 +6709,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->id    == SKIF_STEAM_APPID   &&
         pApp->store == app_record_s::Store::Steam)))
   {
-    ImGui::SetCursorPos  (                           ImVec2 (vecPosCover.x, ImFloor(sizeCover.y - 198.0f * SKIF_ImGui_GlobalDPIScale))); // 198.0f _for some reasom_?!
-                                                              //fY - (204.0f * SKIF_ImGui_GlobalDPIScale) ));
+    ImGui::SetCursorPos  (ImVec2 (vecPosCover.x, ImFloor (sizeCover.y - 198.0f * SKIF_ImGui_GlobalDPIScale))); // 198.0f _for some reasom_?!
+                          //fY - (204.0f * SKIF_ImGui_GlobalDPIScale) ));
 
-    if (ImGui::BeginChild ("###SKIF_PATREON", ImVec2 (sizeCover.x, ImFloor(200.0f * SKIF_ImGui_GlobalDPIScale)), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    if (ImGui::BeginChild ("###SKIF_PATREON", ImVec2 (sizeCover.x, ImFloor (200.0f * SKIF_ImGui_GlobalDPIScale)), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
       static bool hoveredPatButton  = false,
                   hoveredPatCredits = false;
