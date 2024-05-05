@@ -1683,7 +1683,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImVec2  windowPos;
   ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  RepositionSKIF   = (! PathFileExistsW(L"SKIF.ini") || _registry.bOpenAtCursorPosition);
+  RepositionSKIF   = (! PathFileExistsW (L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
   SKIF_ImGui_AdjustAppModeSize (NULL);
@@ -2288,12 +2288,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // This is only necessary to run once on launch, to account for the startup display DPI
           SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
-          ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
-                                   (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
-                                                              SKIF_vecRegularModeAdjusted ;
+          //ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+          //                         (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
+          //                                                    SKIF_vecRegularModeAdjusted ;
 
-          if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
-            SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
+          // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
+          SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+
+          //if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
+          //  SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
+
+          float arWindow = SKIF_vecCurrentModeNext.x / SKIF_vecCurrentModeNext.y;
+
+          if (actMonitor->WorkSize.x < SKIF_vecCurrentModeNext.x)
+          {
+            SKIF_vecCurrentModeNext.x = actMonitor->WorkSize.x;
+            SKIF_vecCurrentModeNext.y = SKIF_vecCurrentModeNext.x / arWindow;
+          }
+
+          if (actMonitor->WorkSize.y < SKIF_vecCurrentModeNext.y)
+          {
+            SKIF_vecCurrentModeNext.y = actMonitor->WorkSize.y;
+            SKIF_vecCurrentModeNext.x = SKIF_vecCurrentModeNext.y * arWindow;
+          }
+
+          // Ensure we keep within the monitor borders
+          RespectMonBoundaries = true;
 
           // Also recreate the swapchain (applies any HDR/SDR changes between displays)
           //   but not the first time to prevent unnecessary swapchain recreation on launch
