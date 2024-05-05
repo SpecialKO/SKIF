@@ -123,7 +123,7 @@ ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not in
 ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
 ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);
-ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);
+ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);    // TODO 2024-05-05: 415px should probably be raised to 435px to allow smooth window resizing with a matched style between regular + service
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);
 ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
@@ -1945,11 +1945,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
         applySizeOnLaunch = true;
     if (applySizeOnLaunch)
     {   applySizeOnLaunch = false;
-    
-      SKIF_vecCurrentModeNext =
-                    (_registry.bServiceMode) ? SKIF_vecServiceMode :
-                    (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
-                                               SKIF_vecRegularMode ;
+
+      if (! _registry.bServiceMode && _registry.iUIWidth > 0 && _registry.iUIHeight > 0)
+        SKIF_vecCurrentModeNext =
+                       ImVec2 (static_cast<float> (_registry.iUIWidth),
+                               static_cast<float> (_registry.iUIHeight));
+      else
+        SKIF_vecCurrentModeNext =
+                      (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                      (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
+                                                 SKIF_vecRegularMode ;
     }
 
     // SKIF_vecCurrentModeNext 1/2
@@ -1975,12 +1980,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       { }
 
       // Enable horizon mode
-      else if (SKIF_vecCurrentMode.x >= SKIF_vecHorizonMode.x * 0.8f &&
-               SKIF_vecCurrentMode.y >= SKIF_vecHorizonMode.y * 0.8f)
-        newHorizonMode = true;
+      //else if (SKIF_vecCurrentMode.x >= SKIF_vecHorizonMode.x * 0.8f &&
+      //         SKIF_vecCurrentMode.y >= SKIF_vecHorizonMode.y * 0.8f)
+      //  newHorizonMode = true;
 
       // Enable service mode
-      else
+      else if (SKIF_vecCurrentMode.x <= SKIF_vecServiceMode.x * 1.2f &&
+               SKIF_vecCurrentMode.y <= SKIF_vecServiceMode.y * 1.2f)
         newServiceMode = true;
     }
 
@@ -1995,7 +2001,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Apply new horizon mode state
-    if (newHorizonMode != _registry.bHorizonMode)
+    else if (false && newHorizonMode != _registry.bHorizonMode)
     {
       _registry.bHorizonMode  =                   newHorizonMode;
       _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
@@ -2018,7 +2024,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Automatically engage Horizon mode on smaller displays
     static bool autoHorizonFallback = (! _registry.bHorizonMode && _registry.bHorizonModeAuto);
-    if (autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
+    if (false && autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
     {
       autoHorizonFallback = false;
 
@@ -2643,18 +2649,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::GetCursorPos ();
 
         ImVec2 shelly_movable_area = ImVec2 (
-           250.0f * SKIF_ImGui_GlobalDPIScale,
-           ImGui::CalcTextSize (ICON_FA_GHOST).y + 4.0f * SKIF_ImGui_GlobalDPIScale
+            250.0f * SKIF_ImGui_GlobalDPIScale,
+            ImGui::CalcTextSize (ICON_FA_GHOST).y + 4.0f * SKIF_ImGui_GlobalDPIScale
         );
 
         ImGui::SetCursorPos (ImVec2 (
-             ImGui::GetWindowContentRegionMax().x / 2 - shelly_movable_area.x / 2,
-             10.0f * SKIF_ImGui_GlobalDPIScale
+              ImGui::GetWindowContentRegionMax().x / 2 - shelly_movable_area.x / 2,
+              10.0f * SKIF_ImGui_GlobalDPIScale
         ));
         
         ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2());
         ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,  ImVec2());
-        bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+        bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs);
         ImGui::PopStyleVar  (2);
 
         if (shelly_show)
@@ -2677,8 +2683,43 @@ wWinMain ( _In_     HINSTANCE hInstance,
          24.0f
       );
 
+      bool showBtnHorizon  = true,
+           showBtnService  = true,
+           showBtnMinimize = true;
+
+      // If in service mode
       if (_registry.bServiceMode)
+      {
+        showBtnHorizon = false;
         window_btn_size.x -= 48.0f; // -48px due to one less button
+      }
+
+      // Regular mode: Three less buttons
+      else if (ImGui::GetWindowSize ().x < 450.0f * SKIF_ImGui_GlobalDPIScale)
+      {
+        showBtnHorizon = false;
+        window_btn_size.x -= 48.0f;
+        showBtnService = false;
+        window_btn_size.x -= 48.0f;
+        showBtnMinimize = false;
+        window_btn_size.x -= 38.0f; // Special handling for this one
+      }
+
+      // Regular mode: Two less buttons
+      else if (ImGui::GetWindowSize ().x < 500.0f * SKIF_ImGui_GlobalDPIScale)
+      {
+        showBtnHorizon = false;
+        window_btn_size.x -= 48.0f;
+        showBtnService = false;
+        window_btn_size.x -= 48.0f;
+      }
+
+      // Regular mode: One less button
+      else if (ImGui::GetWindowSize ().x < 550.0f * SKIF_ImGui_GlobalDPIScale)
+      {
+        showBtnHorizon = false;
+        window_btn_size.x -= 48.0f;
+      }
 
       window_btn_size *= SKIF_ImGui_GlobalDPIScale;
 
@@ -2698,11 +2739,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGuiStyleVar_FrameRounding, 25.0f * SKIF_ImGui_GlobalDPIScale
         );
 
-        if (! _registry.bServiceMode)
+        if (showBtnHorizon)
         {
-          if (ImGui::Button ( (newHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          if (ImGui::Button ((_registry.bHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
           {
-            newHorizonMode = ! newHorizonMode;
+            newHorizonMode = ! _registry.bHorizonMode;
 
             // Changes the app window to the proper size
             SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
@@ -2711,15 +2752,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine ();
         }
 
-        if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-          hotkeyCtrlT = true;
+        if (showBtnService)
+        {
+          if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+            hotkeyCtrlT = true;
 
-        ImGui::SameLine ();
+          ImGui::SameLine ();
+        }
 
-        if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-          hotkeyCtrlN = true;
+        if (showBtnMinimize)
+        {
+          if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+            hotkeyCtrlN = true;
 
-        ImGui::SameLine ();
+          ImGui::SameLine ();
+        }
 
         ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
         ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
@@ -3806,6 +3853,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategories.     putDataMultiSZ (_inNames);
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
+
+  if (! _registry.bServiceMode && SKIF_vecCurrentMode.x > 0 && SKIF_vecCurrentMode.y > 0)
+  {
+    _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x);
+    _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y);
+    
+    _registry.regKVUIWidth .putData (_registry.iUIWidth);
+    _registry.regKVUIHeight.putData (_registry.iUIHeight);
+
+    PLOG_INFO << "Wrote the window size to the registry.";
+  }
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
   SKIF_Util_UnregisterHotKeySVCTemp   ( );

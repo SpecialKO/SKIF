@@ -109,6 +109,14 @@ enum UIMode {
   UIMode_COUNT     // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
 };
 
+// Design thoughts
+enum AppMode {
+  AppMode_Service,      // Details only (service)   // No columns
+  AppMode_Horizontal,   // List | Details | Cover   // One row    (three columns)
+  AppMode_Vertical,     // Cover / Details / List   // One column (three rows)
+  AppMode_Regular       // Cover | List / Details   // Two columns
+};
+
 // Structs
 
 struct SKIF_Signals { // Used for command line arguments
