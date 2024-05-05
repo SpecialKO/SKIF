@@ -151,6 +151,8 @@ std::wstring dragDroppedFilePath = L"";
 std::wstring dragDroppedFilePathGame = L"";
 
 extern bool            allowShortcutCtrlA;
+extern ImVec2          SKIF_vecServiceMode;
+extern ImVec2          SKIF_vecHorizonMode;
 extern ImVec2          SKIF_vecAlteredSize;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
@@ -162,8 +164,8 @@ extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
-#define _WIDTH_SCROLLBAR (SKIF_vecAlteredSize.y > 0.0f ? ImGui::GetStyle().ScrollbarSize : 0.0f)
-#define _WIDTH   (376.0f * SKIF_ImGui_GlobalDPIScale) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378
+#define _WIDTH_SCROLLBAR (ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f) // SKIF_vecAlteredSize.y
+#define _WIDTH           ((_registry.bHorizonMode) ? 376.0f : (SKIF_vecServiceMode.x)) - _WIDTH_SCROLLBAR // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378 // 376.0f
 // 1038px == 415px
 // 1000px == 377px (using 380px)
 //#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
@@ -4461,8 +4463,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int   activeGameWorkers     = 0; // max: 3
   static int   frameLibraryRefreshed = 0;
 
-  float local_width = _WIDTH; // Calculate once per frame
-
   // The value needs to be set here since it relies on _path_cache to have been initated
   file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
 
@@ -5617,6 +5617,42 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
+  /* Design thoughts
+  *
+  * - Library tab should automatically adjust its UI elements
+  *     based on the width and height of the app window
+  *
+  * - Library tab should support 1-3 columns (Cover | List | Details)
+  *     based on the size of the app window
+  *
+  * One column  (low width):
+  *   Only column: List + Details below
+  *   Random idea: Add low-height scenario where even the details are hidden?
+  *
+  * Two columns (medium width):
+  *   Left  column: Small Cover + Details below
+  *   Right column: List
+  *
+  * Two columns (normal width + height):
+  *   Left  column: Large cover
+  *   Right column: List + Details below
+  *
+  * Three columns: (normal width + low height)
+  *   Left  column: Small Cover (or list.....?)
+  *  Center column: List        (or details..?)
+  *   Right column: Details     (or cover....?)
+  *
+  *
+  * The proper layout needs to be decided upon in Library.cpp, and
+  *   adjusted on the fly as the app window get resized by the user.
+  *
+  */
+  
+  _registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+                            ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+
+  float local_width = _WIDTH; // Calculate once per frame
+
   ImVec2 sizeCover   = (_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)
                                                 : ImVec2 (600.0f, 900.0f);
   ImVec2 sizeList    = (_registry.bHorizonMode) ? (_registry.bUIBorders)
@@ -5627,6 +5663,13 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                 ? ImVec2 (ImFloor (local_width + 2.0f * SKIF_ImGui_GlobalDPIScale), 332.0f)  // Horizon + Borders
                                                 : ImVec2 (ImFloor (local_width), 330.0f)  // Horizon
                                                 : ImVec2 (ImFloor (local_width), 280.0f); // Regular
+
+  bool uiCoverVisible    = (_registry.bHorizonMode)
+                                     ? (ImGui::GetContentRegionAvail().x > (sizeList.x + sizeDetails.x))
+                                     : (ImGui::GetContentRegionAvail().x >  sizeCover.x * SKIF_ImGui_GlobalDPIScale); // When in regular mode
+  bool uiDetailsVisible  = (_registry.bHorizonMode)
+                                     ? true
+                                     : ImGui::GetContentRegionAvail().y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
 
   float arCover = sizeCover.x / sizeCover.y;
 
@@ -5645,14 +5688,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 //sizeCover.y  = sizeCover.x / arCover;
 
   sizeList.y = ImGui::GetContentRegionAvail().y; // DPI-aware
-  sizeList.y -= (_registry.bHorizonMode) ? 0.0f : sizeDetails.y * SKIF_ImGui_GlobalDPIScale;
-  sizeList.y -= (_registry.bUIBorders)   ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+  sizeList.y -= (_registry.bHorizonMode || ! uiDetailsVisible) ? 0.0f                             : sizeDetails.y * SKIF_ImGui_GlobalDPIScale;
+  sizeList.y -= (_registry.bUIBorders                        ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
 
 #pragma region GameCover
 
-  bool   isCoverHovered = false;
+  bool          isCoverHovered     = false;
 
   static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
@@ -5661,123 +5704,128 @@ SKIF_UI_Tab_DrawLibrary (void)
   static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
                                       "allow the cover to be populated :)";
   char*         pcstrLabel         =  nullptr;
+  ImVec2        vecPosCover        = ImVec2 (0, 0);
 
-  // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
-  if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
-    pcstrLabel = cstrLabelLoading;
+  // This is the content region of the current tab frame
+  if (uiCoverVisible)
+  {
+    // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
+    if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
+      pcstrLabel = cstrLabelLoading;
     
-  // A new cover is meant to be loaded, so don't do anything for now...
-  else if (loadCover)
-  { }
+    // A new cover is meant to be loaded, so don't do anything for now...
+    else if (loadCover)
+    { }
 
-  else if (tryingToLoadCover)
-    pcstrLabel = cstrLabelLoading;
+    else if (tryingToLoadCover)
+      pcstrLabel = cstrLabelLoading;
   
-  else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
-  {
-    if (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
+    else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
     {
-      // Special K selected -- do nothing
+      if (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
+      {
+        // Special K selected -- do nothing
+      }
+
+      else {
+        extern std::wstring GOGGalaxy_UserID;
+        if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
+          pcstrLabel = cstrLabelGOGUser;
+        else
+          pcstrLabel = cstrLabelMissing;
+      }
     }
 
-    else {
-      extern std::wstring GOGGalaxy_UserID;
-      if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
-        pcstrLabel = cstrLabelGOGUser;
-      else
-        pcstrLabel = cstrLabelMissing;
-    }
-  }
+    float fGammaCorrectedTint = 
+      ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) || 
+        ( _registry._RendererHDREnabled && _registry.iHDRMode == 2))
+          ? AdjustAlpha (fTint)
+          : fTint;
 
-  float fGammaCorrectedTint = 
-    ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) || 
-      ( _registry._RendererHDREnabled && _registry.iHDRMode == 2))
-        ? AdjustAlpha (fTint)
-        : fTint;
+    vecPosCover = ImGui::GetCursorPos ( );
 
-  ImVec2 vecPosCover    = ImGui::GetCursorPos ( );
-
-  if (ImGui::BeginChild ("###SKIF_COVER", sizeCover, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
-  {
-    ImVec2 vecPosCoverInner      = ImGui::GetCursorPos();
-    ImVec2 vecContentRegionAvail = ImGui::GetContentRegionAvail();
-
-    ImVec2 vecPosImage (
-        ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
-        ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2));
-
-    ImVec2 sizeCoverFloored (
-        ImFloor (sizeCoverOrg.x),
-        ImFloor (sizeCoverOrg.y));
-
-    if (pcstrLabel != nullptr)
+    if (ImGui::BeginChild ("###SKIF_COVER", sizeCover, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
-      ImVec2 labelSize = ImGui::CalcTextSize (pcstrLabel);
-      ImGui::SetCursorPos (ImVec2 (
-        ImFloor ((vecContentRegionAvail.x - labelSize.x) / 2),
-        ImFloor ((vecContentRegionAvail.y - labelSize.y) / 2)));
-      ImGui::TextDisabled (pcstrLabel);
-      ImGui::SetCursorPos (vecPosCoverInner);
-    }
+      ImVec2 vecPosCoverInner      = ImGui::GetCursorPos();
+      ImVec2 vecContentRegionAvail = ImGui::GetContentRegionAvail();
 
-    // Display previous fading out cover
-    if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
-    {
+      ImVec2 vecPosImage (
+          ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
+          ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2));
+
+      ImVec2 sizeCoverFloored (
+          ImFloor (sizeCoverOrg.x),
+          ImFloor (sizeCoverOrg.y));
+
+      if (pcstrLabel != nullptr)
+      {
+        ImVec2 labelSize = ImGui::CalcTextSize (pcstrLabel);
+        ImGui::SetCursorPos (ImVec2 (
+          ImFloor ((vecContentRegionAvail.x - labelSize.x) / 2),
+          ImFloor ((vecContentRegionAvail.y - labelSize.y) / 2)));
+        ImGui::TextDisabled (pcstrLabel);
+        ImGui::SetCursorPos (vecPosCoverInner);
+      }
+
+      // Display previous fading out cover
+      if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
+      {
+        ImGui::SetCursorPos  (vecPosImage);
+        SKIF_ImGui_OptImage  (pTexSRV_old.p,
+                                                          sizeCoverFloored,
+                                                          vecCoverUv0_old, // Top Left coordinates
+                                                          vecCoverUv1_old, // Bottom Right coordinates
+                                        (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
+                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+        );
+
+        ImGui::SetCursorPos (vecPosCoverInner);
+      }
+
+      // Display game cover image
       ImGui::SetCursorPos  (vecPosImage);
-      SKIF_ImGui_OptImage  (pTexSRV_old.p,
+      SKIF_ImGui_OptImage  (pTexSRV.p,
                                                         sizeCoverFloored,
-                                                        vecCoverUv0_old, // Top Left coordinates
-                                                        vecCoverUv1_old, // Bottom Right coordinates
-                                      (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
-                                         ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+                                                        vecCoverUv0, // Top Left coordinates
+                                                        vecCoverUv1, // Bottom Right coordinates
+                                      (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
+                                     ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
       );
 
       ImGui::SetCursorPos (vecPosCoverInner);
+
+      if (isSpecialK ||
+       (! isSpecialK && fAlphaSK > 0.0f))
+      {
+        ImGui::SetCursorPos (ImVec2 (
+          ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
+          ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2)));
+
+        ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+                                                        sizeCoverFloored,
+                                                        ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
+                                                        ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
+                                                        ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
+                                                        ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
+        );
+      }
+
+      ImGui::EndChild ( );
     }
 
-    // Display game cover image
-    ImGui::SetCursorPos  (vecPosImage);
-    SKIF_ImGui_OptImage  (pTexSRV.p,
-                                                      sizeCoverFloored,
-                                                      vecCoverUv0, // Top Left coordinates
-                                                      vecCoverUv1, // Bottom Right coordinates
-                                    (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
-                                   ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
-    );
+    isCoverHovered = ImGui::IsItemHovered();
 
-    ImGui::SetCursorPos (vecPosCoverInner);
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+      CoverMenu = PopupState_Open;
 
-    if (isSpecialK ||
-     (! isSpecialK && fAlphaSK > 0.0f))
-    {
-      ImGui::SetCursorPos (ImVec2 (
-        ImFloor ((vecContentRegionAvail.x - sizeCoverOrg.x) / 2),
-        ImFloor ((vecContentRegionAvail.y - sizeCoverOrg.y) / 2)));
+    //float fY =
+    //ImGui::GetCursorPosY ( );
 
-      ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
-                                                      sizeCoverFloored,
-                                                      ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
-                                                      ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
-                                                      ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
-                                                      ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
-      );
-    }
-
-    ImGui::EndChild ( );
+    // This sets the same line for the cover as the list + details
+    ImGui::SameLine             (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale); // 0.0f, 0.0f
   }
-
-  isCoverHovered = ImGui::IsItemHovered();
-
-  if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-    CoverMenu = PopupState_Open;
-
-  //float fY =
-  //ImGui::GetCursorPosY ( );
 
 #pragma endregion
-
-  // This sets the same line for the cover as the list + details
-  ImGui::SameLine             (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale); // 0.0f, 0.0f
   
   //float fZ =
   //ImGui::GetCursorPosX ( );
@@ -6606,40 +6654,33 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GameDetails
 
-  ImGui::BeginChild (
-    "###GameDetails",
-      ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                sizeDetails.y * SKIF_ImGui_GlobalDPIScale),
-        ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-        ImGuiWindowFlags_NoScrollbar       |
-        ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NavFlattened
-  );
-  ImGui::BeginGroup ();
-
-  if (_registry.bFadeCovers)
-    ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
-
-  /*
-  if (g_apps.empty() ||
-     (pApp        != nullptr            &&
-      pApp->id    == SKIF_STEAM_APPID   &&
-      pApp->store == app_record_s::Store::Steam))
+  if (uiDetailsVisible)
   {
-    _inject._GlobalInjectionCtl ( );
+    ImGui::BeginChild (
+      "###GameDetails",
+        ImVec2 ( (sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                  sizeDetails.y * SKIF_ImGui_GlobalDPIScale),
+          ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
+          ImGuiWindowFlags_NoScrollbar       |
+          ImGuiWindowFlags_NoScrollWithMouse |
+          ImGuiWindowFlags_NavFlattened
+    );
+    ImGui::BeginGroup ();
+
+    if (_registry.bFadeCovers)
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
+
+    if (pApp != nullptr && ! isSpecialK)
+      GetInjectionSummary (pApp);
+    else
+      _inject._GlobalInjectionCtl ( );
+
+    if (_registry.bFadeCovers)
+      ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
+
+    ImGui::EndGroup     (                  );
+    ImGui::EndChild     (                  );
   }
-  
-  else*/ if (pApp != nullptr && ! isSpecialK)
-    GetInjectionSummary (pApp);
-
-  else
-    _inject._GlobalInjectionCtl ( );
-
-  if (_registry.bFadeCovers)
-    ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
-
-  ImGui::EndGroup     (                  );
-  ImGui::EndChild     (                  );
 
 #pragma endregion
 
@@ -6649,7 +6690,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special handling at the bottom of the cover for Special K
-  if (! _registry.bHorizonMode            && // Only when not using Horizon mode, and
+  if (uiCoverVisible                      && // Only when the cover is visible, and
+      ! _registry.bHorizonMode            && //      when not using Horizon mode, and
     ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
        (pApp        != nullptr            && // or its selected in the list
         pApp->id    == SKIF_STEAM_APPID   &&
@@ -7386,18 +7428,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
   
 #pragma region SKIF_LibCoverWorker
-
-  // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
-  static bool lastHorizonMode = _registry.bHorizonMode;
-  if (lastHorizonMode != _registry.bHorizonMode)
-  {
-    lastHorizonMode = _registry.bHorizonMode;
-
-    update    = true;
-    lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
-  }
   
-  if (loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
+  if (uiCoverVisible && loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
   { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
     // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
     // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
@@ -8913,6 +8945,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     update = true;
 
     SelectNewSKIFGame = 0;
+  }
+
+  // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
+  static bool lastHorizonMode = _registry.bHorizonMode;
+  if (lastHorizonMode != _registry.bHorizonMode)
+  {
+    lastHorizonMode = _registry.bHorizonMode;
+
+    update    = true;
+    lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
   }
 
   // In case of a device reset, unload all currently loaded textures
