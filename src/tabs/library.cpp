@@ -8966,7 +8966,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
   static bool
       lastImageSize  = _registry._TinyCovers;
-  if (lastImageSize != _registry._TinyCovers && ! ImGui::IsAnyMouseDown ( ))
+  if (lastImageSize != _registry._TinyCovers && uiCoverVisible && ! ImGui::IsAnyMouseDown ( ))
   {   lastImageSize  = _registry._TinyCovers;
 
     update    = true;
