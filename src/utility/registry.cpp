@@ -277,7 +277,14 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (lsKey != ERROR_SUCCESS)
     hKey = nullptr;
-  
+
+  // Registry keys that don't exist defaults to 0/false, so variables that has that
+  //   default value don't need to be checked before we attempt to read them.
+
+  // Remembered app window size
+  iUIWidth                 =   regKVUIWidth                .getData (&hKey);
+  iUIHeight                =   regKVUIHeight               .getData (&hKey);
+
   iProcessSort             =   regKVProcessSort            .getData (&hKey);
   if (regKVProcessIncludeAll   .hasData(&hKey))
     bProcessIncludeAll     =   regKVProcessIncludeAll      .getData (&hKey);
@@ -331,7 +338,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   uiSteamUser              =   regKVSteamUser              .getData (&hKey);
 
 //bServiceMode             =   regKVServiceMode            .getData (&hKey);
-  bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
+//bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
+  bHorizonMode = false;
 
   if (regKVHorizonModeAuto.hasData (&hKey))
     bHorizonModeAuto       =   regKVHorizonModeAuto        .getData (&hKey);

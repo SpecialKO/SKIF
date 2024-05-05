@@ -424,6 +424,14 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Mode)" );
 
+  KeyValue <int> regKVUIWidth =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Width)" );
+
+  KeyValue <int> regKVUIHeight =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Height)" );
+
   KeyValue <int> regKVDiagnostics =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Diagnostics)" );
@@ -504,6 +512,8 @@ struct SKIF_RegistrySettings {
   int iUIMode                  = 1;   // 0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
   int iDiagnostics             = 1;   // 0 = None,                        1 = Normal,                 2 = Enhanced (not actually used yet)
   int iValvePlug               = 1;   // 0 = Disabled,                    1 = Enabled (default)
+  int iUIWidth                 = 0;   // 0 = None (default)
+  int iUIHeight                = 0;   // 0 = None (default)
 
   // Default settings (booleans)
   bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default
