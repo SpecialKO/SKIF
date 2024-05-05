@@ -384,6 +384,56 @@ SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
 
 // Filenames
 
+std::string
+SKIF_Util_StripInvalidFilenameChars (std::string name)
+{
+  // Non-trivial name = custom path, remove the old-style <program.exe>
+  if (! name.empty())
+  {
+    name.erase ( std::remove_if ( name.begin (),
+                                  name.end   (),
+
+                                    [](char tval)
+                                    {
+                                      static
+                                      const std::unordered_set <char>
+                                        invalid_file_char =
+                                        {
+                                          '\\', '/', ':',
+                                          '*',  '?', '\"',
+                                          '<',  '>', '|',
+                                        //L'&',
+
+                                          //
+                                          // Obviously a period is not an invalid character,
+                                          //   but three of them in a row messes with
+                                          //     Windows Explorer and some Steam games use
+                                          //       ellipsis in their titles.
+                                          //
+                                          '.'
+                                        };
+
+                                      return
+                                        ( invalid_file_char.find (tval) !=
+                                          invalid_file_char.end  (    ) );
+                                    }
+                                ),
+
+                     name.end ()
+               );
+
+    // Strip trailing spaces from name, these are usually the result of
+    //   deleting one of the non-useable characters above.
+    for (auto it = name.rbegin (); it != name.rend (); ++it)
+    {
+      if (*it == ' ') *it = '\0';
+      else                   break;
+    }
+  }
+
+  return name;
+}
+
 std::wstring
 SKIF_Util_StripInvalidFilenameChars (std::wstring name)
 {
@@ -435,68 +485,17 @@ SKIF_Util_StripInvalidFilenameChars (std::wstring name)
 }
 
 std::string
-SKIF_Util_StripInvalidFilenameChars (std::string name)
-{
-  // Non-trivial name = custom path, remove the old-style <program.exe>
-  if (! name.empty())
-  {
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                                    [](char tval)
-                                    {
-                                      static
-                                      const std::unordered_set <char>
-                                        invalid_file_char =
-                                        {
-                                          '\\', '/', ':',
-                                          '*',  '?', '\"',
-                                          '<',  '>', '|',
-                                        //L'&',
-
-                                          //
-                                          // Obviously a period is not an invalid character,
-                                          //   but three of them in a row messes with
-                                          //     Windows Explorer and some Steam games use
-                                          //       ellipsis in their titles.
-                                          //
-                                          '.'
-                                        };
-
-                                      return
-                                        ( invalid_file_char.find (tval) !=
-                                          invalid_file_char.end  (    ) );
-                                    }
-                                ),
-
-                     name.end ()
-               );
-
-    // Strip trailing spaces from name, these are usually the result of
-    //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == ' ') *it = '\0';
-      else                   break;
-    }
-  }
-
-  return name;
-}
-
-
-std::wstring
-SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
+SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
 {
   if (! name.empty())
   {
     std::replace_if ( name.begin (),
                       name.end   (),
 
-                        [](wchar_t tval)
+                        [](char tval)
                         {
                           static
-                          const std::unordered_set <wchar_t>
+                          const std::unordered_set <char>
                             invalid_file_char =
                             {
                               '\\', '/', ':',
@@ -524,19 +523,18 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
   return name;
 }
 
-
-std::string
-SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
+std::wstring
+SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
 {
   if (! name.empty())
   {
     std::replace_if ( name.begin (),
                       name.end   (),
 
-                        [](char tval)
+                        [](wchar_t tval)
                         {
                           static
-                          const std::unordered_set <char>
+                          const std::unordered_set <wchar_t>
                             invalid_file_char =
                             {
                               '\\', '/', ':',
