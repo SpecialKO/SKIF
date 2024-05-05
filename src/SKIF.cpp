@@ -1969,8 +1969,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SKIF_ImGui_AdjustAppModeSize (monitor);
 
-      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-      if (lStyle & WS_MAXIMIZE)
+      if (IsZoomed (SKIF_ImGui_hWnd))
         repositionToCenter   = true;
       else
         RespectMonBoundaries = true;
@@ -2045,8 +2044,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SKIF_ImGui_AdjustAppModeSize (NULL);
 
-      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-      if (lStyle & WS_MAXIMIZE)
+      if (IsZoomed (SKIF_ImGui_hWnd))
         repositionToCenter   = true;
       else
         RespectMonBoundaries = true;
@@ -2883,8 +2881,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-        if (lStyle & WS_MAXIMIZE)
+        if (IsZoomed (SKIF_ImGui_hWnd))
           repositionToCenter   = true;
         else
           RespectMonBoundaries = true;
@@ -3857,7 +3854,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
-  if (! _registry.bServiceMode && SKIF_vecCurrentMode.x > 0 && SKIF_vecCurrentMode.y > 0)
+  if (! _registry.bServiceMode    &&
+        SKIF_vecCurrentMode.x > 0 &&
+        SKIF_vecCurrentMode.y > 0 &&
+      ! IsZoomed (SKIF_ImGui_hWnd))
   {
     _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x);
     _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y);
