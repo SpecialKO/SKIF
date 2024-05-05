@@ -5663,6 +5663,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   //                          ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
 
   // DPI-aware, calculate once per frame
+  ImVec2 tab_ContentRegionAvail = ImGui::GetContentRegionAvail();
   tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
   lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
 
@@ -5849,7 +5850,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   };
 
-  _DrawGameCover (true);
+  bool alternateCoverPlacement = true;
+
+  if (true)
+  {
+    _DrawGameCover (true);
+    alternateCoverPlacement = false;
+  }
 
 #pragma endregion
   
@@ -6682,6 +6689,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_MouseDragMoveAllowed = false;
   }
 
+  if (alternateCoverPlacement)
+  {
+    ImGui::BeginGroup ( );
+
+    sizeCover = ImVec2 (0, ImFloor (tab_ContentRegionAvail.y - sizeDetails.y - ImGui::GetStyle().ScrollbarSize));
+    _DrawGameCover (false);
+  }
+
 #pragma region GameDetails
 
   if (uiDetailsVisible)
@@ -6708,13 +6723,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry.bFadeCovers)
       ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
 
-    ImGui::EndGroup     (                  );
-    ImGui::EndChild     (                  );
+    ImGui::EndGroup     ( );
+    ImGui::EndChild     ( );
   }
+
+  if (alternateCoverPlacement)
+    ImGui::EndGroup ( );
 
 #pragma endregion
 
-  ImGui::EndGroup     (                  );
+  ImGui::EndGroup     ( );
   // LIST + DETAILS STOP
 
 #pragma region SpecialKPatreon
