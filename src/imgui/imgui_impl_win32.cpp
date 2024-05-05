@@ -1602,11 +1602,14 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     static SKIF_DropTargetObject&   _drag_drop = SKIF_DropTargetObject  ::GetInstance ( );
 
     extern float  SKIF_ImGui_GlobalDPIScale;
+    extern float  SKIF_ImGui_GlobalDPIScale_Last;
     extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
     extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
     extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
     extern ImVec2 SKIF_vecHorizonModeAdjusted; // Adjusted for status bar and tooltips
     extern ImVec2 SKIF_vecServiceModeDefault;
+    extern ImVec2 SKIF_vecCurrentMode;
+    extern ImVec2 SKIF_vecCurrentModeNext;
     extern ImVec2 SKIF_vecAlteredSize;
     extern HWND   SKIF_ImGui_hWnd;
     extern HWND   SKIF_Notify_hWnd;
@@ -1870,6 +1873,9 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
             if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
               SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
+
+            // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
+            SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
 
             if (ImGui::IsAnyMouseDown ( ))
               return 0;
