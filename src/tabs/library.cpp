@@ -1167,6 +1167,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     {
       std::vector<char> buffer (maxLength);
       file.read (buffer.data(), maxLength);
+      file.close();
 
       for (auto& type : types)
       {
@@ -1187,12 +1188,12 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
           if (type.file_extension == L".psd")
             extTarget = L".png";
+
+          break;
         }
       }
 
       PLOG_ERROR_IF(! isImage) << "Unknown file type!";
-    
-      file.close();
     }
 
     else
