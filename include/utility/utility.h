@@ -11,6 +11,7 @@
 #include <processthreadsapi.h>
 #include <vector>
 #include <shellapi.h>
+#include <stdexcept>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -40,6 +41,25 @@ enum UITab {
   UITab_About,
   UITab_SmallMode,
   UITab_ALL      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
+};
+
+struct FileSignature {
+  std::wstring          mime_type;
+  std::wstring          file_extension;
+  std::vector <uint8_t> signature = { };
+  std::vector <uint8_t> mask      = { };
+
+  FileSignature (std::wstring m, std::wstring e, std::vector <uint8_t> s) : mime_type(m), file_extension(e), signature(s)
+  {
+    // Fill the mask with 0xFF everywhere
+    mask = std::vector <uint8_t> (signature.size(), 0xFF);
+  };
+
+  FileSignature (std::wstring m, std::wstring e, std::vector <uint8_t> s, std::vector <uint8_t> m2) : mime_type(m), file_extension(e), signature(s), mask(m2)
+  {
+    if (mask.size() != signature.size())
+      throw std::invalid_argument ("different sizes for signature and mask");
+  };
 };
 
 extern UITab       SKIF_Tab_Selected; // Current selected tab
@@ -78,6 +98,7 @@ std:: string    SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    cha
 std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
 std:: string    SKIF_Util_NormalizeFullPath           (std:: string string);
 std::wstring    SKIF_Util_NormalizeFullPath           (std::wstring string);
+bool            SKIF_Util_HasFileSignature            (const std::vector<char>& header, const FileSignature& signature);
 
 // Usernames
 std:: string    SKIF_Util_StripPersonalData           (std:: string input);

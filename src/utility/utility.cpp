@@ -564,6 +564,24 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
   return name;
 }
 
+std::string
+SKIF_Util_NormalizeFullPath (std::string string)
+{
+  // Are we dealing with a network path? (\\server\share)
+  bool isUNCpath = PathIsNetworkPathA (string.c_str());
+
+  // "Clean" the path... But also removes one of the initial two backslashes
+  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
+  string = std::filesystem::path(string).lexically_normal().string();
+
+  // If we are dealing with an UNC path that is no more,
+  //   we need to fix the initial missing backslash...
+  if (isUNCpath && ! PathIsNetworkPathA (string.c_str()))
+    string.insert(0, 1, '\\');
+
+  return string;
+}
+
 std::wstring
 SKIF_Util_NormalizeFullPath (std::wstring string)
 {
@@ -582,22 +600,27 @@ SKIF_Util_NormalizeFullPath (std::wstring string)
   return string;
 }
 
-std::string
-SKIF_Util_NormalizeFullPath (std::string string)
+bool
+SKIF_Util_HasFileSignature (const std::vector<char>& header, const FileSignature& signature)
 {
-  // Are we dealing with a network path? (\\server\share)
-  bool isUNCpath = PathIsNetworkPathA (string.c_str());
+  if (header.size() >= signature.signature.size())
+  {
+    for (size_t i = 0; i < signature.signature.size(); ++i)
+    {
+      if (signature.mask[i] == 0xFF)
+      {
+        // Need to perform a reinterpret to prevent C's integer promotion from screwing with the comparison
+        const unsigned char h = reinterpret_cast<const unsigned char&> (header[i]);
 
-  // "Clean" the path... But also removes one of the initial two backslashes
-  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
-  string = std::filesystem::path(string).lexically_normal().string();
+        if (signature.signature[i] != h)
+          return false;
+      }
+    }
 
-  // If we are dealing with an UNC path that is no more,
-  //   we need to fix the initial missing backslash...
-  if (isUNCpath && ! PathIsNetworkPathA (string.c_str()))
-    string.insert(0, 1, '\\');
+    return true;
+  }
 
-  return string;
+  return false;
 }
 
 

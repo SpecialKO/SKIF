@@ -900,7 +900,7 @@ SKIF_ImGui_MissingGlyphCallback (wchar_t c)
   if (unprintable_chars.emplace (c).second)
   {
     using range_def_s =
-      std::pair <const ImWchar*, std::vector<ImWchar> * >; // bool *, 
+      std::pair <const ImWchar*, std::vector<ImWchar> * >; // bool *,
 
     static       auto pFonts = ImGui::GetIO ().Fonts;
 

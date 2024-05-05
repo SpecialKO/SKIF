@@ -1102,7 +1102,9 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (ext == L".psd")
     extTarget = L".png";
 
-  bool isImage =
+  bool isImage = false;
+
+#if 0
     (ext == L".jpg"  ||
      ext == L".jpeg" ||
    //ext == L".jxr"  ||
@@ -1129,15 +1131,76 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   //"   *.tif\n"
     "\n"
     "Note that the app has no support for animated images.";
+#endif
 
-  if (! isImage || // Unsupported file format
-     (! isURL  && ! std::filesystem::is_regular_file (fsPath, ec) ) // For local files, check if they do. in fact, exist and are local files
-     )
+  if (! isURL)
   {
-    SKIF_ImGui_InfoMessage (error_title, error_label);
+    // For local files, check if they do. in fact, exist and are local files
+    if (! std::filesystem::is_regular_file (fsPath, ec))
+      return false;
 
-    return false;
+    // Identify file type by reading the file signature
+    static const auto types =
+    {
+      FileSignature { L"image/jpeg",                L".jpg",  { 0xFF, 0xD8, 0x00, 0x00 },   // JPEG (SOI; Start of Image)
+                                                              { 0xFF, 0xFF, 0x00, 0x00 } }, // JPEG App Markers are masked as they can be all over the place (e.g. 0xFF 0xD8 0xFF 0xED)
+      FileSignature { L"image/png",                 L".png",  { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A } },
+      FileSignature { L"image/webp",                L".webp", { 0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50 },     // 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
+                                                              { 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF } }, // mask
+      FileSignature { L"image/bmp",                 L".bmp",  { 0x42, 0x4D } },
+      FileSignature { L"image/vnd.adobe.photoshop", L".psd",  { 0x38, 0x42, 0x50, 0x53 } }
+    };
+
+    static size_t
+        maxLength  = 0;
+    if (maxLength == 0)
+    {
+      for (auto& type : types)
+        if (type.signature.size() > maxLength)
+          maxLength = type.signature.size();
+    }
+
+    std::ifstream file(fsPath, std::ios::binary);
+
+    if (file)
+    {
+      std::vector<char> buffer (maxLength);
+      file.read (buffer.data(), maxLength);
+
+      for (auto& type : types)
+      {
+        if (SKIF_Util_HasFileSignature (buffer, type))
+        {
+          PLOG_INFO << "Detected an " << type.mime_type << " image";
+
+          isImage   = true;
+          extTarget = SKIF_Util_ToLowerW (type.file_extension);
+
+          // Shortcut to use a few (incorrect) file extensions for some types
+          // TODO: Do away with this cheating, lol
+          if (type.file_extension == L".webp")
+            extTarget = L".png";
+
+          if (type.file_extension == L".bmp")
+            extTarget = L".jpg";
+
+          if (type.file_extension == L".psd")
+            extTarget = L".png";
+        }
+      }
+
+      PLOG_ERROR_IF(! isImage) << "Unknown file type!";
+    
+      file.close();
+    }
+
+    else
+      PLOG_ERROR << "Failed to open file!";
   }
+
+  // Unsupported file format
+  if (! isImage && ! isURL)
+    return false;
 
   if (pApp->id == SKIF_STEAM_APPID)
     targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
@@ -8631,8 +8694,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     const std::filesystem::path fsPath (dragDroppedFilePath.data());
     std::wstring ext        = SKIF_Util_ToLowerW(fsPath.extension().wstring());
-    bool         isURL      = PathIsURL (dragDroppedFilePath.data());
     PLOG_VERBOSE << "    File extension: " << ext;
+
+#if 0
+    bool         isURL      = PathIsURL (dragDroppedFilePath.data());
 
     bool isImage =
       (ext == L".jpg"  ||
@@ -8647,36 +8712,15 @@ SKIF_UI_Tab_DrawLibrary (void)
      //ext == L".tif"  ||
      //ext == L".tiff" ||
      //ext == L".hdr"  ); // Radiance RGBE (.hdr)
+#endif
 
     bool isExecutable =
       (ext == L".exe"  ||
        ext == L".lnk"  ||
        ext == L".bat"  );
 
-    // Images + URLs
-    if (isImage || isURL) // Assume any given URL points to an image
-    {
-      if (SaveGameCover (pApp, dragDroppedFilePath))
-      {
-        // This allows the "..." loading dots to be visible
-        tryingToSaveCover = true;
-        coverRefreshAppId = pApp->id;
-        coverRefreshStore = (int)pApp->store;
-      
-        // This sets up the current one to be released
-        vecCoverUv0_old = vecCoverUv0;
-        vecCoverUv1_old = vecCoverUv1;
-        pTexSRV_old.p   = pTexSRV.p;
-        pTexSRV.p       = nullptr;
-        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
-        fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
-
-        // A child thread will set refreshCover once done
-      }
-    }
-
     // Executables / Shortcuts
-    else if (isExecutable)
+    if (isExecutable)
     {
       dragDroppedFilePathGame = dragDroppedFilePath;
 
@@ -8685,6 +8729,25 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (AddGamePopup == PopupState_Closed)
         AddGamePopup = PopupState_Open;
+    }
+
+    // Images + URLs
+    else if (SaveGameCover (pApp, dragDroppedFilePath))
+    {
+      // This allows the "..." loading dots to be visible
+      tryingToSaveCover = true;
+      coverRefreshAppId = pApp->id;
+      coverRefreshStore = (int)pApp->store;
+      
+      // This sets up the current one to be released
+      vecCoverUv0_old = vecCoverUv0;
+      vecCoverUv1_old = vecCoverUv1;
+      pTexSRV_old.p   = pTexSRV.p;
+      pTexSRV.p       = nullptr;
+      fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+      fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+
+      // A child thread will set refreshCover once done
     }
 
     else {
