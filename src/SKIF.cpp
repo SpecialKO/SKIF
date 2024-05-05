@@ -1941,6 +1941,41 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                              SKIF_vecRegularMode ;
     */
 
+    // F6 to toggle DPI scaling
+    if (changedHiDPIScaling || hotkeyF6)
+    {
+      // We only change bDPIScaling if ImGui::Checkbox (settings tab) was not used,
+      //   as otherwise it have already been changed to reflect its new value
+      if (! changedHiDPIScaling)
+        _registry.bDPIScaling =        ! _registry.bDPIScaling;
+      _registry.regKVDPIScaling.putData (_registry.bDPIScaling);
+
+      changedHiDPIScaling = false;
+
+      // Reset reduced height
+      SKIF_vecAlteredSize.y = 0.0f;
+
+      // Take the current display into account
+      HMONITOR monitor =
+        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+        
+      SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForMonitor (monitor) : 1.0f;
+
+      // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
+      SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+
+      ImGuiStyle              newStyle;
+      SKIF_ImGui_SetStyle   (&newStyle);
+
+      SKIF_ImGui_AdjustAppModeSize (monitor);
+
+      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
+      if (lStyle & WS_MAXIMIZE)
+        repositionToCenter   = true;
+      else
+        RespectMonBoundaries = true;
+    }
+
     static bool
         applySizeOnLaunch = true;
     if (applySizeOnLaunch)
@@ -2073,38 +2108,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         : false;                                             // and false if OS prerequisites are disabled
     }
     */
-
-    // F6 to toggle DPI scaling
-    if (changedHiDPIScaling || hotkeyF6)
-    {
-      // We only change bDPIScaling if ImGui::Checkbox (settings tab) was not used,
-      //   as otherwise it have already been changed to reflect its new value
-      if (! changedHiDPIScaling)
-        _registry.bDPIScaling =        ! _registry.bDPIScaling;
-      _registry.regKVDPIScaling.putData (_registry.bDPIScaling);
-
-      changedHiDPIScaling = false;
-
-      // Reset reduced height
-      SKIF_vecAlteredSize.y = 0.0f;
-
-      // Take the current display into account
-      HMONITOR monitor =
-        ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
-        
-      SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForMonitor (monitor) : 1.0f;
-
-      ImGuiStyle              newStyle;
-      SKIF_ImGui_SetStyle   (&newStyle);
-
-      SKIF_ImGui_AdjustAppModeSize (monitor);
-
-      LONG_PTR lStyle = GetWindowLongPtr (SKIF_ImGui_hWnd, GWL_STYLE);
-      if (lStyle & WS_MAXIMIZE)
-        repositionToCenter   = true;
-      else
-        RespectMonBoundaries = true;
-    }
 
     // F8 to toggle UI borders
     if (hotkeyF8)

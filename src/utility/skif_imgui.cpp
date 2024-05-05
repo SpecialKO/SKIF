@@ -355,7 +355,7 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
   {
     ImVec2 WorkSize =
       ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
-                (float)( info.rcWork.bottom - info.rcWork.top  ) );
+               (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
     ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
                              (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
