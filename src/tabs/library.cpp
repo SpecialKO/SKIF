@@ -1089,6 +1089,9 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   std::wstring ext        = SKIF_Util_ToLowerW (fsPath.extension().wstring());
   bool         isURL      = PathIsURL (path.data());
   std::wstring extTarget  = ext;
+  bool isImage = false;
+
+#if 0
 
   if (ext == L".jpeg")
     extTarget = L".jpg";
@@ -1102,9 +1105,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (ext == L".psd")
     extTarget = L".png";
 
-  bool isImage = false;
-
-#if 0
+  bool isImage =
     (ext == L".jpg"  ||
      ext == L".jpeg" ||
    //ext == L".jxr"  ||
@@ -1182,7 +1183,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
             extTarget = L".png";
 
           if (type.file_extension == L".bmp")
-            extTarget = L".jpg";
+            extTarget = L".png";
 
           if (type.file_extension == L".psd")
             extTarget = L".png";
