@@ -5657,10 +5657,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // DPI-aware, calculate once per frame
   tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-  lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)) - tab_scrollbar_width;
+  lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
 
   // All of these are DPI-aware
-  ImVec2 sizeImage       = ImFloor ((_registry.bHorizonMode) ? ImVec2 (220.0f, 330.0f)     * SKIF_ImGui_GlobalDPIScale
+  ImVec2 sizeImage       = ImFloor ((_registry.bHorizonMode) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale
                                                              : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
   ImVec2 sizeList        = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
                                                              ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
@@ -5679,6 +5679,14 @@ SKIF_UI_Tab_DrawLibrary (void)
                                      ? true
                                      : ImGui::GetContentRegionAvail().y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
 
+  if (! uiCoverVisible)
+  {
+    float newMaxWidth = ImGui::GetContentRegionAvail().x / ((_registry.bHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
+    lib_column2_width = newMaxWidth;
+    sizeList.x        = newMaxWidth;
+    sizeDetails.x     = newMaxWidth;
+  }
+
   float arCover = sizeImage.x / sizeImage.y;
 
   // DPI-aware
@@ -5691,8 +5699,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeImage.y = sizeCover.y;
     sizeImage.x = sizeImage.y * arCover;
   }
-
-//sizeCover.y  = sizeCover.x / arCover;
 
   // DPI-aware
   sizeList.y = ImGui::GetContentRegionAvail().y;
