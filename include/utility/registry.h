@@ -597,6 +597,7 @@ struct SKIF_RegistrySettings {
   bool _RendererCanHDR              = false; // High Dynamic Range            Windows 10 1709+ (Build 16299)
   bool _RendererHDREnabled          = false; // HDR Enabled
   bool _TouchDevice                 = false;
+  bool _TinyCovers                  = false; // Whether to load/resize smaller covers
 
   // Functions
   bool isDevLogging (void) const;

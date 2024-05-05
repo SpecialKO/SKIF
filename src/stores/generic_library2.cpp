@@ -451,7 +451,7 @@ LoadLibraryTexture (
   }
 
   // Downscale covers to 220x330, which will then be shown in horizon mode
-  if ((_registry.bHorizonMode && libTexToLoad == LibraryTexture::Cover) ||
+  if ((_registry._TinyCovers && libTexToLoad == LibraryTexture::Cover) ||
       (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
   {
     size_t width  = 220;
