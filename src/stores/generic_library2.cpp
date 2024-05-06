@@ -347,7 +347,11 @@ LoadLibraryTexture (
           load_str =               SteamCustomPath + L"p.jpg";
         else {
           load_str =               name;
-          managedAsset = true; // The fallback is managed! <%ws\Assets\Steam\%i\cover-original.jpg>
+
+          // The fallback is normally managed! <%ws\Assets\Steam\%i\cover-original.jpg>
+          // The only time it is not is when SKIF is in tinyCovers mode and loaded the original 300x450 cover from the Steam client
+          if (load_str.find (L"cover-original.jpg") != std::wstring::npos)
+            managedAsset = true;
         }
       }
     }
