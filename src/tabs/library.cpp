@@ -59,7 +59,45 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
-constexpr char spaces[]                  = { "\u0020\u0020\u0020\u0020" };
+constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
+constexpr wchar_t*     utf8_bom          =  L"\xEF\xBB\xBF";
+constexpr wchar_t*     cfg_compatibility =
+LR"([SpecialK.System]
+ShowEULA=false
+GlobalInjectDelay=0.0
+
+[API.Hook]
+d3d9=true
+d3d9ex=true
+d3d11=true
+OpenGL=true
+d3d12=true
+Vulkan=true
+
+[Steam.Log]
+Silent=true
+
+[Input.libScePad]
+Enable=false
+
+[Input.XInput]
+Enable=false
+UISlot=4
+
+[Input.Gamepad]
+EnableDirectInput7=false
+EnableDirectInput8=false
+EnableHID=false
+EnableNativePS4=false
+EnableRawInput=true
+AllowHapticUI=false
+
+[Input.Keyboard]
+CatchAltF4=false
+BypassAltF4Handler=false
+
+[Textures.D3D11]
+Cache=false)";
 const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
 bool                   steamRunning      = false;
@@ -1627,53 +1665,18 @@ DrawGameConfigMenu (app_record_s* pApp)
 
     if (ImGui::Selectable ("Apply Compatibility Config"))
     {
-      std::wofstream config_file(pApp->specialk.injection.config.full_path.c_str());
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+      std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
 
       if (config_file.is_open())
       {
-        // Static const as this profile never changes
-        static const std::wstring out_text =
-LR"([SpecialK.System]
-ShowEULA=false
-GlobalInjectDelay=0.0
-
-[API.Hook]
-d3d9=true
-d3d9ex=true
-d3d11=true
-OpenGL=true
-d3d12=true
-Vulkan=true
-
-[Steam.Log]
-Silent=true
-
-[Input.libScePad]
-Enable=false
-
-[Input.XInput]
-Enable=false
-UISlot=4
-
-[Input.Gamepad]
-EnableDirectInput7=false
-EnableDirectInput8=false
-EnableHID=false
-EnableNativePS4=false
-EnableRawInput=true
-AllowHapticUI=false
-
-[Input.Keyboard]
-CatchAltF4=false
-BypassAltF4Handler=false
-
-[Textures.D3D11]
-Cache=false)";
-
-        config_file.write(out_text.c_str(),
-          out_text.length());
-
-        config_file.close();
+        config_file << utf8_bom
+                    << cfg_compatibility;
+        config_file.close ( );
       }
     }
 
@@ -1682,9 +1685,21 @@ Cache=false)";
     SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
                             "various features of Special K in an attempt to improve compatibility.");
 
-    // Don't truncate/reset any existing profile file -- just delete it outright
     if (ImGui::Selectable ("Reset"))
-      DeleteFile (pApp->specialk.injection.config.full_path.c_str());
+    {
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+      std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+      if (config_file.is_open())
+      {
+        config_file << utf8_bom;
+        config_file.close ( );
+      }
+    }
 
     SKIF_ImGui_SetMouseCursorHand ();
 
@@ -2115,23 +2130,22 @@ DrawGameContextMenu (app_record_s* pApp)
     // Config File
     if (SKIF_ImGui_MenuItemEx2 ("Configuration", ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
     {
-      std::error_code ec;
-      // Create any missing directories
-      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+      // If the file does not exist, create it
+      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+      {
+        std::error_code ec;
+        // Create any missing directories
+        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
 
-      HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
-                      GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          NULL,
-                            CREATE_NEW,
-                              FILE_ATTRIBUTE_NORMAL,
-                                NULL );
+        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
 
-      // We need to close the handle as well, as otherwise apps will think the file
-      //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
-      if (h != INVALID_HANDLE_VALUE)
-        CloseHandle (h);
+        if (config_file.is_open())
+        {
+          config_file << utf8_bom;
+          config_file.close ( );
+        }
+      }
 
       SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
@@ -3245,23 +3259,22 @@ GetInjectionSummary (app_record_s* pApp)
     // Config File
     if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f))) // 240
     {
-      std::error_code ec;
-      // Create any missing directories
-      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+      // If the file does not exist, create it
+      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+      {
+        std::error_code ec;
+        // Create any missing directories
+        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
 
-      HANDLE h = CreateFile (pApp->specialk.injection.config.full_path.c_str(),
-                      GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          NULL,
-                            CREATE_NEW,
-                              FILE_ATTRIBUTE_NORMAL,
-                                NULL );
+        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
 
-      // We need to close the handle as well, as otherwise apps will think the file
-      //   is still in use (trigger Save As dialog on Save) until SKIF gets closed
-      if (h != INVALID_HANDLE_VALUE)
-        CloseHandle (h);
+        if (config_file.is_open())
+        {
+          config_file << utf8_bom;
+          config_file.close ( );
+        }
+      }
 
       SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
