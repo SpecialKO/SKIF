@@ -5317,7 +5317,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        =    app.second.id;
         selection.store        =    app.second.store;
-        selection.category     = (  app.second.skif.pinned > 50)
+        selection.category     =   (app.second.skif.pinned > 50 && ! _registry.bHorizonMode) // Only when not using horizon mode
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
                                :    GetEffectiveCategory (&app.second);
         search_selection.id    =    selection.appid;
@@ -5824,7 +5824,7 @@ SKIF_UI_Tab_DrawLibrary (void)
              (vecContentRegionAvail.x - sizeImage.x) / 2,
              (vecContentRegionAvail.y - sizeImage.y) / 2)));
 
-          ImGui::Image (((! _registry.bHorizonMode) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+          ImGui::Image (((! _registry._TinyCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
                                                           sizeCoverFloored,
                                                           ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
                                                           ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
@@ -6739,7 +6739,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Special handling at the bottom of the cover for Special K
   if (uiCoverVisible                      && // Only when the cover is visible, and
-      ! _registry.bHorizonMode            && //      when not using Horizon mode, and
+      ! _registry._TinyCovers             && //      when not using tiny covers, and
     ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
        (pApp        != nullptr            && // or its selected in the list
         pApp->id    == SKIF_STEAM_APPID   &&
@@ -6764,11 +6764,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Remove borders, paddings, and spacing (some of these are required, but maybe not all, but I can't be bothered figuring it out...)
       SKIF_ImGui_PushDisabledSpacing ( );
 
+      // Move the cursor down 50px since the logo displayed as 150px
+      ImGui::SetCursorPosY (ImFloor (ImGui::GetCursorPosY() + 50.0f * SKIF_ImGui_GlobalDPIScale));
+
       bool        clicked =
       ImGui::ImageButton   ("###PatreonLogo",
                            (ImTextureID)pPatTexSRV.p,
-                            ImVec2 (200.0F * SKIF_ImGui_GlobalDPIScale,
-                                    200.0F * SKIF_ImGui_GlobalDPIScale),
+                            ImFloor (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // Cover is in reality 200x200, but lets show it as a 150x150 image
+                                             150.0f * SKIF_ImGui_GlobalDPIScale)),
                             ImVec2 (  0.f,       0.f),
                             ImVec2 (  1.f,       1.f),
                             ImVec4 (  0,     0,     0,    0), // Use a transparent background
