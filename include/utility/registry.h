@@ -358,6 +358,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Logging Developer)" );
 
+  KeyValue <bool> regKVPatreon =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Patreon)" );
+
   // Integers (DWORDs)
 
   KeyValue <int> regKVLibrarySort =
@@ -560,6 +564,7 @@ struct SKIF_RegistrySettings {
   bool bFadeCovers              =  true;
   bool bControllers             =  true; // Should SKIF support controller input ?
   bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
+  bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?
 
   // Warnings
   bool bWarningRTSS             = false;

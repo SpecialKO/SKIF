@@ -486,6 +486,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
+  if (regKVPatreon.hasData(&hKey))
+    bPatreon               =   regKVPatreon                .getData (&hKey);
+
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
 
