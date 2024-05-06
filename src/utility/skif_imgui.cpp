@@ -751,6 +751,25 @@ SKIF_ImGui_BeginMenuEx2 (const char* label, const char* icon, const ImVec4& colI
 bool
 SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool* p_selected, bool enabled)
 {
+  /* If a tooltip is desired when using the enabled parameter,
+  *    surround the call in its own group and apply the tooltip
+  *      to that, e.g.
+  *
+  * 
+      // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+      if (! enabled)
+        ImGui::BeginGroup ( );
+
+      bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+
+      if (! enabled)
+      {
+        ImGui::EndGroup ( );
+        SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
+      }
+  * 
+  */
+
   ImGui::PushStyleColor        (ImGuiCol_SKIF_Icon, colIcon);
   bool ret = ImGui::MenuItemEx (label, icon, shortcut, p_selected ? *p_selected : false, enabled);
   if (ret && p_selected)
